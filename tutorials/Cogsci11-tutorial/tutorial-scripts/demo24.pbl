@@ -1,0 +1,33 @@
+## This adds stimulus presentation to the 
+## basic experiment template.
+##
+define Start(p)
+{
+  gWin <- MakeWindow()
+  Print(Trial(1))
+  Print(Trial(2))
+
+}
+
+
+define Trial(cond)
+{
+   time <- GetTime()
+
+   stim <- MakeImage("stim/"+cond+".png")
+
+## Try these alternatives:
+#  stim <- EasyLabel(cond,gVideoWidth/2,gVideoheight/2,gWin,44)
+### No need to move and add this stimulus)
+### Or perhaps a shape, whose color or size or position is controlled by cond:
+#  stim <- Circle(gVideoWidth/2,gVideoHeight/2, cond,MakeColor("blue"),1)
+
+
+   Move(stim,gVideoWidth/2,gVideoHeight/2)
+   AddObject(stim,gWin)
+
+   Draw()
+   Wait(1500)
+   RemoveObject(stim,gWin)
+   return [cond, time]
+}

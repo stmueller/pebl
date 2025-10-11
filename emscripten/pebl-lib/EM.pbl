@@ -1,0 +1,289 @@
+### These are reimplementations of functions that use the event loop thrugh compiled code.
+### Using these is probably not typically slower than the compiled version, but 
+### they are untested and so should only be used for emscripten implementation.
+
+
+## Functions to reimplement:
+## *WaitForKeyRelease
+## *WaitForAnyKeyPress
+## *WaitForListKeyPress
+
+##* WAITFORANYKEYPRESSWITHTIMEOUT
+##* WAITFORLISTKEYPRESSWITHTIMEOUT
+
+
+## WAITFORMOUSEBUTTON
+## WAITFORMOUSEBUTTONWITHTIMEOUT
+
+
+##Functions that are deprecated (hopefully)
+## WaitForKeyDown
+## WaitForAnyKEyDown
+## WaitForKeyUp
+## WAITFORALLKEYSUP
+## WAITFORANYKEYDOWNWITHTIMEOUT
+## WAITFORKEYLISTDOWN
+
+
+
+
+## for emscripten, all buult-in functions that rely on the event loop need to be re-implemneted
+## in straight PEBL to restore  reentrant interactivity.
+##
+define Wait(time)
+{
+
+
+    ##register the timer
+    endtime <- GetTime() + time
+    RegisterEvent("<TIMER>", 1, endtime,"<GEQ>","",[])
+    StartEventLoop()
+    ClearEventLoop()
+
+    
+    return(1)
+}
+
+
+define WaitForKeyPress(key)
+{
+
+  ##register the keypress
+
+   RegisterEvent("<KEY_PRESS>",key,0,"<EQUAL>","",[])
+   out <-   StartEventLoop()
+   ClearEventLoop()
+   
+   return(out)
+
+}
+
+
+define WaitForListKeyPressWithTimeout(keys,timeout)
+{
+
+    endtime <- GetTime() + timeout
+
+
+  ##register the keypress
+ loop(key,keys)
+  {
+     RegisterEvent("<KEY_PRESS>",key,0,"<EQUAL>","",[])
+  }
+
+   RegisterEvent("<TIMER>", 1, endtime,"<GEQ>","",[])
+   out <-   StartEventLoop()
+   ClearEventLoop()
+   
+   return(out)
+}
+
+
+
+define WaitForKeyPressWithTimeout(key,timeout)
+{
+
+    endtime <- GetTime() + timeout
+
+
+ ##register the keypress
+  RegisterEvent("<KEY_PRESS>",key,0,"<EQUAL>","",[])
+
+   RegisterEvent("<TIMER>", 1, endtime,"<GEQ>","",[])
+   out <-   StartEventLoop()
+   ClearEventLoop()
+   
+   return(out)
+}
+
+
+
+define WaitForAnyKeyPressWithTimeout(timeout)
+{
+
+    endtime <- GetTime() + timeout
+
+
+ ##register the keypress
+  RegisterEvent("<KEY_PRESS>","<ANYKEY>",0,"<EQUAL>","",[])
+
+   RegisterEvent("<TIMER>", 1, endtime,"<GEQ>","",[])
+   out <-   StartEventLoop()
+   ClearEventLoop()
+   
+   return(out)
+}
+
+
+define WaitForListKeyPress(keys)
+{
+
+  ##register the keypress
+loop(key,keys)
+  {
+     RegisterEvent("<KEY_PRESS>",key,0,"<EQUAL>","",[])
+  }
+   out <-   StartEventLoop()
+   ClearEventLoop()
+   
+   return(out)
+
+}
+
+
+
+define WaitForKeyRelease(key)
+{
+
+  ##register the keypress
+
+   RegisterEvent("<KEY_RELEASE>",key,0,"<EQUAL>","",[])
+   out <-   StartEventLoop()
+   ClearEventLoop()
+   
+   return(out)
+
+}
+
+define WaitForAnyKeyPress()
+{
+  Print("WaitForAnyKeyPress: Registering event")
+  RegisterEvent("<KEY_PRESS>","<ANYKEY>",0,"<EQUAL>","",[])
+  Print("WaitForAnyKeyPress: Starting event loop")
+  out <- StartEventLoop()
+  Print("WaitForAnyKeyPress: Event loop returned: [" + out + "]")
+  ClearEventLoop()
+  Print("WaitForAnyKeyPress: Returning [" + out + "]")
+  return(out)
+} 
+
+
+define WaitForAnyKeyRelease()
+{
+
+  ##register the keypress
+
+   RegisterEvent("<KEY_RELEASE>","<ANYKEY>",0,"<EQUAL>","",[])
+   out <-   StartEventLoop()
+   ClearEventLoop()
+   
+   return(out)
+
+}
+
+##This should match on either down or up click.
+##Returns [x, y, button, status] where status is "<pressed>" or "<released>"
+##Uses polling approach because StartEventLoop doesn't block properly for mouse in Emscripten
+define WaitForMouseButton()
+{
+    ## Poll mouse state until we see a button down, then wait for release
+    waiting <- 1
+    wasDown <- 0
+
+    while(waiting)
+    {
+        Wait(10)  ## Small delay to avoid busy-waiting
+        mouseState <- GetMouseState()
+
+        ## mouseState is [x, y, button1, button2, button3]
+        button1Down <- Third(mouseState)
+
+        if(button1Down == 1 and wasDown == 0)
+        {
+            ## Button just pressed
+            wasDown <- 1
+            pressX <- First(mouseState)
+            pressY <- Second(mouseState)
+        }
+
+        if(button1Down == 0 and wasDown == 1)
+        {
+            ## Button just released
+            waiting <- 0
+            releaseX <- First(mouseState)
+            releaseY <- Second(mouseState)
+        }
+    }
+
+    ## Return release position with status
+    return([releaseX, releaseY, 1, "<pressed>"])
+}
+
+
+define WaitForMouseButtonWithTimeout(timeout)
+{
+    endtime <- GetTime() + timeout
+    RegisterEvent("<MOUSE_BUTTON_PRESS>",1,1,"<EQUAL>","", [])
+
+
+   RegisterEvent("<TIMER>", 1, endtime,"<GEQ>","",[])
+   out <-   StartEventLoop()
+   ClearEventLoop()
+
+   return(out)
+
+}
+
+
+## GetInput reimplementation for emscripten
+## This avoids nested event loops that cause memory explosions
+## Manually captures text input and checks for exit key
+define GetInput(textbox, exitkey)
+{
+    Print("GetInput: Starting, exitkey=" + exitkey)
+    SetEditable(textbox, 1)
+    SetText(textbox, "")
+    Draw()
+
+    text <- ""
+    continue <- 1
+    keyCount <- 0
+
+    while(continue)
+    {
+        Print("GetInput: Checking for key press #" + keyCount)
+        ## Register event fresh each time
+        RegisterEvent("<KEY_PRESS>","<ANYKEY>",0,"<EQUAL>","",[])
+        key <- StartEventLoop()
+        ClearEventLoop()
+        keyCount <- keyCount + 1
+
+        Print("GetInput: Got key: [" + key + "], length=" + StringLength(key) + ", text so far: [" + text + "]")
+
+        ## If no key ready, wait a bit to yield control to browser
+        if(key == "<unknown>")
+        {
+            Print("GetInput: No key ready, waiting 10ms")
+            Wait(10)
+        }elseif(Lowercase(key) == Lowercase(exitkey))
+        {
+            Print("GetInput: Exit key detected!")
+            continue <- 0
+        }elseif(key == "<backspace>")
+        {
+            Print("GetInput: Backspace detected")
+            if(StringLength(text) > 0)
+            {
+                text <- SubString(text, 1, StringLength(text) - 1)
+                Print("GetInput: After backspace, text=[" + text + "]")
+                SetText(textbox, text)
+                Draw()
+            }
+        }elseif(StringLength(key) == 1)
+        {
+            Print("GetInput: Adding character to text")
+            text <- text + key
+            Print("GetInput: New text=[" + text + "]")
+            SetText(textbox, text)
+            Draw()
+        }else{
+            Print("GetInput: Ignoring key (length != 1): [" + key + "]")
+        }
+    }
+
+    Print("GetInput: Exiting with text=[" + text + "]")
+    SetEditable(textbox, 0)
+    return text
+}
+
+

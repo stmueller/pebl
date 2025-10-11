@@ -1,0 +1,325 @@
+
+
+define Start(p)
+{
+  gWin <- MakeWindow("black")
+  gSleepEasy <- 1
+ 
+
+   centerX <- gVideoWidth/2
+   centerY <- gVideoHeight/2
+   colorpalette <- [MakeColor("white"),MakeColor("grey"),MakeColor("black"),
+                    MakeColor("red"),MakeColor("orange"),MakeColor("yellow"),
+                   MakeColor("darkgreen"),
+		    MakeColor("blue"),	MakeColor("purple"),MakeColor("chocolate")]	   
+ xsize <- 21
+ ysize <- 21
+
+  thegrid <- FoldList(Repeat(1,xsize*ysize),ysize)
+
+
+   save <- MakeButton("SAVE",150,30,gWin,150)
+   done <- MakeButton("QUIT",150,50,gWin,150)
+   load <- MakeButton("LOAD",150,80,gWin,150)
+
+
+  save.clickon <- "SaveFile"
+  load.clickon  <- "LoadFile"
+  
+  image <- MakeGrid(centerX+200,centerY,15,thegrid,colorpalette,MakeColor("black"),gWin)
+  palette <- MakeGrid(centerX-400,centerY,25,
+            Transpose([Sequence(1,Length(colorpalette),1)]),colorpalette,MakeColor("grey20"),gWin)
+  Draw()
+
+  drawcolor <- First(colorpalette)
+  drawcolorid <- 1
+  drawcolorsquare <- Square(300,100,100,drawcolor,1)
+  AddObject(drawcolorsquare,gWin)
+  Draw()
+  
+
+  cont <- 1
+   while(cont)
+    {
+       items <-[palette.bg,image.bg,save,done,load]
+       out <-   WaitForClickOnTarget(items,Sequence(1,Length(items),1))
+
+   
+      if(out==1)
+       {
+
+          ##choose palette color
+          out2 <-  ClickOnGrid(gClick,palette)
+	   
+
+         if(First(out2))
+	   { 
+	   
+	     square <- First(out2)
+             drawcolor <- square.color
+	     drawcolorid <- Second(out2)    
+             drawcolorsquare.color <- drawcolor	  
+           }
+	 ReDrawGrid(palette)
+	  
+       } elseif(out==2)
+       {
+        
+          out2 <- ClickOnGrid(gClick,image)
+
+          if(First(out2))
+	   {
+
+                SetGridValue(image,Second(out2),Third(out2),drawcolorid)
+		square <- First(out2)
+                square.color <- drawcolor
+            }
+
+         ReDrawGrid(image)
+
+        }elseif(out==4){
+        cont <- 0
+       }else{
+        obj <- Nth(items,out)
+	
+        tmp <- CallFunction(obj.clickon,[obj,gclick,image])
+
+        if(out==5)
+	{
+	  Print("reloading")
+	  RemoveObject(image.bg,gWin)
+	  image<-tmp
+	  Draw()
+	}
+      }
+
+
+   
+	Draw()
+    }
+
+
+
+}
+
+
+
+define SaveFile(obj,clickon,saveobject)
+{
+  PushButton(obj,clickon)
+
+  fname <- PopUpEntryBox("Enter name to save",obj.win, clickon,"default")
+  MakeDirectory("saves")
+  WriteCSV("saves/"+fname+".sketch",saveobject.grid)
+
+}
+
+
+
+define LoadFile(obj,clickon,saveobject)
+{
+  PushButton(obj,clickon)
+
+  files <- GetDirectoryListing("saves")
+  Print(files)
+  
+  ##shouldmake this a pulldown
+  text <- PopUpEntryBox("enter file name (no extension)",obj.win,clickon,"default")
+ 
+  items <-ReadCSV("saves/"+text+".sketch")
+
+  thegrid<-[]
+  loop(i,items)
+  {
+   tmp<-[]
+   loop(j,i)
+    {
+      PushOnEnd(tmp,ToInteger(j))
+    }
+    PushOnEnd(thegrid,tmp)
+  }
+
+
+  image <- MakeGrid(saveobject.x,saveobject.y,saveobject.pixelsize,thegrid,
+                    saveobject.palette,saveobject.color,saveobject.window)
+
+
+
+
+#  saveobject.grid <- thegrid
+   saveobject <-image
+  return image
+}
+
+
+
+
+define DrawGrid(thegrid)
+{
+   if(thegrid.selected >0)
+   {
+     Show(thegrid.selector)
+     target <- Nth(thegrid.squares,thegrid.selected)
+     Move(thegrid.selector,target.x,target.y)
+     Draw(thegrid.selector)
+   }else{
+     Hide(thegrid.selector)
+   }
+   
+   Draw(thegrid.bg)
+}
+
+
+define RedrawGrid(mygrid)
+{
+
+  id<-1
+  bg <- mygrid.bg
+  bg.bgcolor <- mygrid.color
+
+   ##reset nrow, in case it got reset.
+
+   loop(row,Sequence(1,mygrid.nrow,1))
+    {
+      loop(col,Sequence(1,mygrid.ncol,1))
+      {
+
+          color <- (Nth(Nth(mygrid.grid,row),col))
+          square  <- Nth(mygrid.squares,id)
+	  square.color <- Nth(mygrid.palette,color)
+          id <- id + 1
+      }
+    }
+    DrawGrid(mygrid)
+
+}
+
+
+
+define MakeGrid(x,y,pixelsize,thegrid,palette,bgcol,win)
+{
+
+    buffer <- 20
+    gutter <- 2
+
+    mygrid <- MakeCustomObject("pixelgrid")
+    mygrid.x <- x
+    mygrid.y <- y
+    mygrid.pixelsize <- pixelsize
+    mygrid.grid <- thegrid
+    mygrid.palette <- palette
+
+    mygrid.ncol <- Length(First(thegrid))
+    mygrid.nrow <- Length(thegrid)
+    mygrid.width <- pixelsize * mygrid.ncol
+    mygrid.height <- pixelsize * mygrid.nrow
+    mygrid.color<- bgcol
+    mygrid.window <-win
+    
+   #mygrid.bg <- Rectangle(mygrid.x,mygrid.y,
+   #         mygrid.width+buffer+gutter*mygrid.ncol,
+   #         mygrid.height+buffer+gutter*mygrid.nrow,
+   #         bgcol,1)
+    mygrid.bg <- MakeCanvas(mygrid.width+buffer+gutter*mygrid.ncol,
+                           mygrid.height+buffer+gutter*mygrid.nrow,
+			    bgcol)
+   AddObject(mygrid.bg,win)
+   Move(mygrid.bg,mygrid.x,mygrid.y)  
+   mygrid.selected <- 0
+
+   bg <- mygrid.bg
+   xmin <- bg.width/2 - (pixelsize +gutter) * (mygrid.ncol/2) + pixelsize/2
+   ymin <- bg.height/2 - (pixelsize +gutter) * (mygrid.nrow/2)+ pixelsize/2
+
+
+
+   selector <- Square(0,0,pixelsize+2,MakeColor("white"),0) 
+   Hide(selector)
+   mygrid.selector <- selector
+   
+   squares <- []   
+   loop(row,Sequence(1,mygrid.nrow,1))
+    {
+      loop(col,Sequence(1,mygrid.ncol,1))
+      {
+	  color <- Nth(Nth(mygrid.grid,row),col)
+
+          tmp <- Square(Floor(xmin+(col-1)*(mygrid.pixelsize+gutter)),
+	                Floor(ymin+(row-1)*(mygrid.pixelsize+gutter)),
+			pixelsize,
+			Nth(palette,color),1)         
+           AddObject(tmp,mygrid.bg)
+
+           PushOnEnd(squares,tmp)
+      }
+    }
+    AddObject(selector,mygrid.bg)
+    Draw(mygrid.bg)
+    mygrid.squares <-squares
+    return(mygrid)
+}
+
+define SetGridValue(thegrid,row,col,value)
+{
+    values <- thegrid.grid
+    SetElement(Nth(values,row),col,value)
+}
+
+define ClickOnGrid (xy,thegrid)
+{
+
+   foundit <- 0
+   id <- 1
+  loop(i,thegrid.squares)
+   {
+ 
+     if(Inside(xy,i))
+     {
+        foundit <- 1
+        retval <- i
+
+	break
+     }
+     id <- id + 1
+   }
+
+   if(foundit)
+   {
+    thegrid.selected <- id
+    row <- Ceiling(id/thegrid.ncol)
+    col <- id-(row-1)*thegrid.ncol
+   }else{
+    thegrid.selected <- 0
+    i <- 0
+    row<-0
+    col<-0
+  }
+  
+ return [i,row,col]
+
+}
+
+
+
+
+define WriteCSV(file,table)
+{
+   file <- FileOpenOverWrite(file)
+   loop(i,table)
+   {
+       FilePrint(file, MakeCSVLine(i))  
+   }
+   FileClose(file)
+}
+
+define MakeCSVLine(list)
+{
+  sep <- ""
+  txt <- ""
+  loop(i,list) 
+   {
+     txt <- txt + sep + i 
+     sep <- ","
+   }
+ return txt
+}

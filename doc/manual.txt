@@ -1,0 +1,4280 @@
+The PEBL Manual
+(c) 2003-2005 Shane T Mueller  smueller at obereed dot net
+  
+Current for PEBL Version 0.05
+July 2005
+
+http://pebl.sourceforge.net
+
+=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
+~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
+
+1.0 ABOUT
+
+PEBL (Psychology Experiment Building Language) is a
+cross-platform, open source programming language and
+execution environment for constructing programs useful for
+conducting a wide range of typical psychology experiments.
+It is entirely free of charge, and may be modified to suit
+your needs as long as you follow the terms of the GPL, under
+which the source code is licensed.  PEBL is written
+primarily in C++, but requires a few other tools (flex,
+yacc) and libraries (SDL, SDL_image, SDL_ttf) to use.  It
+currently compiles and runs on Linux (using g++), Mac OSX (also g++), and
+Microsoft Windows (using Dev-cpp and mingw) platforms using
+free tools.  It has been developed primarily by Shane
+T. Mueller, Ph.D. (smueller at obereed dot net), who
+welcomes contributions.
+
+
+=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
+~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
+
+2.0 USAGE 
+2.1 HOW TO COMPILE
+
+Currently, there is no automated compile procedure.  PEBL requires the
+SDL, SDL-image, and SDL-ttf libraries and development headers.  It
+also uses flex and bison, but you can compile without these tools.
+PEBL compiles on both Linux and Windows using the free gcc compiler.
+Note that SDL-image may require jpeg,  png, and a zlib compression
+library, while SDL-ttf requires truetype 2.0.
+
+2.1.1 Linux
+
+Once all relavant tools are installed and the source distribution is
+uncompressed, PEBL should compile by typing "make" in its base
+directory. Currently, PEBL does not use autotools, so its make system
+is rather brittle.  Any assistance in improving this is welcome.
+
+On linux, compiling will fail if you don't have an /obj
+directory and  all the appropriate subdirectories (mirroring
+the main tree.)  These will not exist if you check out from CVS.
+
+2.1.2 Microsoft Windows
+
+On Microsoft Windows, PEBL is designed to be compiled using the Free ide
+dev-c++ (available at http://www.bloodshed.net/dev/devcpp.html)
+Instructions for installing dev-c++, sdl, and the minGW system can be
+found at
+
+http://www.libsdl.org/pipermail/sdl/2002-June/046382.html
+and elsewhere on the net.  Email the PEBL list for more details.
+
+2.1.3 Mac OSX
+
+Currently, only Mac OSX 10.4 (TIGER) is tested.    PEBL is compiled
+and run from the command-line, and resides in /usr/local/share/pebl
+and /usr/local/bin.  To compile, download the source and compile
+libSDL, libSDL_image, and libSDL_ttf.  libSDL_ttf requires freetype,
+and libSDL_image requires libpng, libjpeg, and zlib. 
+
+
+2.2 HOW TO INSTALL
+
+Currently, binary distributions of PEBL are available with automatic
+package installers for Windows and OSX.  No binary distribution is
+available on linux.
+
+2.2.1 Linux
+
+ On linux, you will probably have to install from source.
+There is an 'install' option in the Makefile that, if invoked with
+'make install', will copy bin/pebl to /usr/local/bin/pebl, and the
+media/ directories to /usr/local/share/pebl/media.  You must be root
+to do this, and you can just as easily do it by hand.
+
+2.2.2 Microsoft Windows
+
+In Microsoft Windows, we provide an installer package that  contains
+all necessary executable binary files and .dlls.This installer places
+PEBL in c:\Program Files\PEBL, and creates a directory pebl-exp in My
+Documents with a shortcut that allows PEBL to be launched from
+there and to run programs that reside there.
+
+
+2.2.3 Macintosh OSX
+ 
+For the MAC, we provide a .pkg installer that installs all the
+necessary files and libraries in /usr/local/share/pebl.  PEBL can be
+run from the command line by invoking /usr/local/bin/pebl.  
+
+
+2.3 HOW TO RUN A PEBL PROGRAM
+
+2.3.1 Linux
+
+If you have installed PEBL into /usr/local/bin, you will be able to
+invoke PEBL by typing 'pebl' at a command line.  PEBL requires you to
+specify one or more source files that it will compile and run.  e.g., the
+command:
+
+> pebl stroop.pbl library.pbl
+
+will load the experiment described in stroop.pbl, and will load the
+supplementary library functions in library.pbl.
+
+Additionally, PEBL can take the -v or -V command-line parameter,
+which allows you to pass values in to the script.  This is useful for
+entering subject numbers and condition types using an outside program
+like a bash script (possibly one that invokes dialog or zenity)  In the bin/ 
+directory is a sample zenity script that asks for a subject number and then runs  
+a sample experiment, which uses that input.  The script could be edited to use
+fullscreen mode or change the display dimensions, for example.  See 
+also Section 2.5: Command-line arguments.
+
+You can also specify directories without a filename on the command
+line (as long as they end with '/'.)  Doing so will add that directory
+to the search path when files are opened.
+
+2.3.2 Microsoft Windows
+PEBL can be launched from the command line in Windows by going to the
+pebl\bin directory and typing 'pebl.exe'.  PEBL requires you to
+specify one or more source files that it will compile and run.  For
+example, the command
+
+> pebl stroop.pbl library.pbl
+
+will load the experiment described in stroop.pbl, and will load the
+supplementary library functions in library.pbl.
+
+
+Additionally, PEBL can take the -v or -V command-line parameter, which
+allows you to pass values in to the script.  This is useful for
+entering subject numbers and condition types using an outside program
+like a batch file. You can also specify directories without a file (as
+long as they end with '\'.)  Doing so will add that directory to the
+search path when files are opened. See Section 2.5:
+Command-line arguments.
+
+It is cumbersome to launch programs from the command-line on Windows
+One easy way to launch pebl on windows is to create a shortcut to
+the executable file and then edit the properties so that the shortcut
+launches pebl with the proper script and command-line parameters.
+Another way is to write a batch file that you launch, which is
+especially useful if you wish to enter configuration data before the
+script is loaded.
+
+2.3.2.1 Win32 Launcher
+PEBL comes with a launcher program for launching a
+PEBL script in Microsoft Windows (tm).  It will allow you to specify 
+variables to pass into PEBL on execution, select multiple source files
+to load, and can be configured with a text file.
+
+The launcher is written in Visual Basic, and so you might need some
+.dll files in order for it to run.
+
+When the launcher is run, it first looks for a file called pebl-init.txt
+This file should have the following format:
+
+---------------Beginning of file----------------------
+"Quoted_Path_To_PEBL_Executable"
+"Quoted_Path_To_Directory_To_Load_Files_From"
+"File1.pbl" "File2.pbl"
+1st Variable Label|Initial_Value
+2nd Variable Label|Initial_Value
+3rd Variable Label|Initial_Value
+.
+.
+.
+------------------End of file-------------------------
+
+My real-live pebl-init looks like this:
+
+-------------
+"c:\Documents and Settings\smueller\My Documents\pebl\bin\pebl.exe"
+"c:\Documents and Settings\smueller\My Documents\pebl\demo\"
+"hello.pbl"
+Subject Number|1
+Condition|fast
+-------------
+
+The Launcher will select the specified files in the listed
+directory (this can be changed be selecting other files).
+Every | separated pair after the third line will appear as
+text-entry boxes in with the pre-specified default value.  This can
+be used for specifying subject numbers and conditions and such 
+which then get fed into the PEBL script.
+
+
+2.3.3 Macintosh OSX
+
+Installing pebl.pkg  places pebl in 
+/usr/local/share/pebl and /usr/local/bin.  Currently, PEBL must be run 
+from the command line (there is no graphical front-end).  Open a 
+terminal (in the applications folder) and type at the $ prompt:
+
+$ /usr/local/bin/pebl
+
+
+To execute, type:
+
+$  /usr/local/bin/pebl Documents/test.pbl
+
+
+To make for less typing, add /usr/local/bin to the path:
+
+export PATH=$PATH:/usr/local/bin
+
+then you can run:
+
+$  pebl Documents/test.pbl
+
+
+On OSX, there is no such thing as double-buffering.  Drawing can be 
+synced to the vertical refresh, however, under fullscreen mode.  I doubt 
+this is currently working however, so take care.
+
+
+
+2.4 How to stop running a program
+
+In order to improve performance, PEBL runs at the highest
+priority possible on your computer.  This means that if it
+gets stuck somewhere, you may have difficulty killing the
+process.  We have added a 'abort program' shortcut key
+combination that will immediately kill the program and
+report the location in your code that it was killed.  To do
+this, press <CTRL><SHIFT><ALT><\> simultaneously, and PEBL
+should end.  
+
+2.5 Command-line arguments
+
+Some aspects of PEBL's display can be controlled via
+command-line arguments.  Some of these are platform
+specific, or their use depends on the exact hardware and
+software you have.    The following guide to command-line
+arguments is adapted from the output produced by
+invoking pebl with no arguments:
+
+
+Usage:  Invoke pebl with the experiment script files (.pbl)
+and  command-line arguments.
+
+examples:
+ pebl experiment.pbl -v sub1 --fullscreen --display 800x600 --driver dga
+ pebl experiment.pbl --driver xf86
+ pebl experiment.pbl -v 33 -v 2 --fullscreen --display 640x480 
+
+COMMAND-LINE OPTIONS:
+-v VALUE1 -v VALUE2
+  Invokes script and passes VALUE1 and VALUE2 (or any text
+  immediately following a -v) to a list in the argument of
+  the Start()  function.  This is useful for passing in
+  conditions, subject numbers, randomization cues, and other
+  things that it is easier to control from outside of the
+  script.  Variables appear as strings, so numeric values
+  need to be converted to be used as numbers.
+ 
+--driver <drivername>
+  Sets the video driver, when there is a choice.  For linux
+  SDL, options  xf86, dga, svgalib (from console).  Can also be controlled
+  via environment variables.  In fact, for SDL versions of
+  PEBL simply set the SDL_VIDEO_DRIVER environment variable
+  to the passed-in argument, without doing any checking, and
+  without returning it to its original state.    
+
+--display  <widthxheight>
+  Controls the screen width and height (in pixels). Defaults
+  to 640x480.
+  Currently, only the following screens are supported:
+                512x384
+                640x480
+                800x600
+                960x720
+                1024x768
+                1152x864
+                1280x1024
+  Note: the way this is invoked may be changed in the
+  future.  You're video display mat not support the
+  command-line argument.  If it does not, PEBL should exit
+  with a useful error message; of course, it could
+  potentially damage your hardware.
+  
+  For convenience, the width, height, and bit depth can be accessed from within
+  a PEBL script with the global variables gVideoWidth, gVideoHeight,
+  and gVideoDepth.  These values are not protected from being changed
+  in a script, but changing them will not change the display.
+  Consequently, if you change them, they will no longer be accurate.
+  
+
+
+--depth
+  Controls the pixel depth.  Depends on your video card.
+  Currently,   depths of 2,8,15,16,24, and 32 are allowed on the
+  command-line.  There is no guarantee that you will get the
+  specified bit depth, and bit depths such as 2 and 8 are
+  probably not really ever useful.  Changlng depths can, for
+  some drivers and video cards, enable better performance or
+  possibly better video sychrony.
+
+--windowed
+--fullscreen
+  Controls whether the script will run in a window or
+  fullscreen.
+
+
+=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
+~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
+
+
+3.0 HOW TO WRITE A PEBL PROGRAM
+3.1 BASIC PEBL SCRIPTS
+
+PEBL has a fairly straight-forward and forgiving syntax, and
+implements most of its interesting functionality in a large object
+system and function library of over 125 functions.  These functions
+include many functions specific to creating and presenting stimuli and
+collecting responses.  Efforts are made to enable timing accuracy at a
+millisecond-scale, and to make machine limitations easy to deal with.
+These efforts may not have been successful.
+
+A PEBL program is stored in a text file. Currently, no
+special authoring environment is available. A program
+consists of one or more functions, and MUST have a function
+called ``Start''. Functions are defined with the following
+syntax:
+
+define <function_name>(parameters)
+{
+  statement 1
+  statement 2
+  ....
+  return value3
+}
+
+The parameter list and the return value are optional.  For the
+Start(par){} function, par is normally bound to 0.  However, if PEBL
+is invoked with -v command-line parameters, each value that follows a
+-v is added to a list contained in 'par', which can then be accessed
+within the program.  For example
+
+define Start(par)
+{
+   Print(First(par))
+}
+
+A simple PEBL program that actually runs follows:
+define Start(par)
+{
+ Print("Hello")
+}
+
+"Print" is a standard library function. If you run PEBL from a
+command-line, the text inside the Print function will be sent to the
+console. On windows, it will appear in the file 'stdout.txt' in the
+PEBL directory.  Although other functions do not need a parameter
+argument, the Start function does, in case some values are passed in
+from the command-line.
+
+A number of example PEBL programs are found in the /demo subdirectory.
+
+3.2 CASE SENSITIVITY 
+
+PEBL has uses case to specify the type of token an item is.  This
+serves as an extra cue to the programmer, to make the program more
+readable and communicate more clearly.
+
+Function-names must start with an uppercase letter, but are otherwise
+case-insensitive.  Thus, if you name a function 'DoTrial', you can
+call it later as 'DOTRIAL' or 'Dotrial' or even 'DotRail'.  We
+recommend that you remain consistent, as it can help you manage larger
+programs more easily.
+
+Variables are also  _mostly_ case insensitive. Variables must begin
+with a lower-case letter (if this letter is a 'g', the variable is
+global. This is done as an attempt to enforce a consistent and
+readable style.  However, after the first character, variables are
+case insensitive.  Thus, the variable mytrial is the same as myTrial.
+
+Currently, syntax keywords (like loop, if, define, etc.) must be
+lowercase.  This was done for technical reasons, and in the future we
+hope to eliminate this limitation.
+
+
+3.3 SYNTAX
+PEBL has a simple and forgiving syntax, reminiscent of S+ (or R)
+and c.  There are differences, however.
+
+There are a number of keywords and symbols used in PEBL,
+shown in the table below. These need not appear in lowercase in your
+program.
+
+___________________________________________________________________
+Symbol/keyword       Usage
+___________________________________________________________________
++                    Adds two expressions together
+-                    Subtracts one expression from another
+/                    Divides one expression by another
+*                    Multiplies two expressions together
+^                    Raises one expression to the power of another
+;                    Finishes a statement, can start new statement
+                      on the same line (not needed at end of line)
+<-                   The assignment operator
+( )                  Groups mathematical operations
+{ }                  Groups a series of statements
+[ ]                  Creates a list
+#                    Comment--ignore everything on line after this.
+<                    Less than
+>                    Greater than
+<=                   Less than or equal to
+>=                   Greater than or equal to
+==                   Equal to
+<> != ~=             Not equal to
+and                  Logical and
+break                Breaks out of a loop prematurely
+not                  Logical not
+or                   Logical or
+while                Traditional while loop
+loop                 Loops over elements in a list
+if                   Simple conditional test
+if...else            Complex conditional test
+define               Defines a funtion.
+return               Allows a function to return a value.
+___________________________________________________________________
+
+Note that the '=' symbol does not exist in PEBL.  We do not use it as
+an assignment operator, like many other languages do. Instead, we use
+'<-'.  We feel that it is too confusing for beginners (and experts) to
+have to keep track of how the = and == symbols mean different things,
+so we eliminated the '=' symbol entirely.
+
+Those programmers familiar with c will notice a resemblance
+between PEBL and c. Unlike c, no semi-colon is necessary to
+finish a statement. A carriage return will indicate that a
+statement is complete, (if the current line forms a complete
+expression). However, if you choose, you can terminate every
+command with a ';'.  It may slow down parsing and
+execution little bit.
+
+Another difference between c and PEBL is that in PEBL, {} brackets are
+not optional--they are required to define code blocks, such as those
+found in if, while, and loop statements.
+
+3.4 EXPRESSIONS
+
+An expression is a set of operations that produces a
+result.  In PEBL, every function is an expression, as is any
+single number. Some other expressions:
+  3 + 32
+  (324 / 324) - Log(32)
+  not lVariable
+  Print(32323)
+  "String " + 33
+  nsuho  #this is legal if nsuho has been defined already.
+
+Notice that "String " + 33 is a legal expresison. It will
+produce another string: "String 33".
+
+Here are some things that are not expressions:
+
+  NSUHO         #Not an expression
+  ( 33 + 33     #Not an expression
+  444 / 3342 +  #Not an expression
+
+NSUHO is not a variable because it starts with a capital
+letter. The other lines are incomplete expressions.  If the PEBL parser comes
+to the end of a line which has an incomplete expression, it
+will automatically go to the next line:
+
+ Print("hello " +
+       " world.")
+
+This could lead to strange and hard-to-track-down bugs. For example:
+
+a <- 33 + 323 +
+Print(1331)
+
+will set a to the string "3561331"
+
+
+Notice that if a carriage return occurs at a point where the
+line does make a valid expression, it will treat that line
+as a complete statement:
+a <- 33 + 323
+ * 34245
+will set a equal to 356, but will create a syntax error on
+the next line.
+
+Any expression can be used as the argument of a function. (A
+function may not successfully operate when given bogus arguments).
+
+
+If a string is defined across line breaks, the string definition will
+contain a linebreak character, which will get printed in output text
+files and textboxes.
+
+text <- "this is a line
+and so is this"
+
+If a long body of text is desired without linebreaks, one must define
+it piecemeal:
+
+text <- "This is a line " +
+        "There is no line break before this line."
+
+3.5  VARIABLES
+
+PEBL has the ability to store the results of expressions in
+named variables.  Unlike many programming languages, PEBL
+only has one type of variable: a "Variant". This variable
+type can hold strings, integers, floating-point numbers, lists,
+graphical objects, and everything PEBL uses to create an
+experiment.  Unlike other languages, a variable need not be
+declared before it can be used.  If you try to access a variable that
+has not yet been declared, you will get a fatal error that indicates
+you have done so.
+
+
+3.5.1 Coercion/casting
+Variants actually just hide the representational structure
+from the user.  Inside the variant that holds a string is an
+actual string.  Inside the variant that holds an integer is
+an long integer.
+
+PEBL Variants are automatically coerced or cast to the
+most appropriate inner format.  For example, 3232.2 + 33
+starts out as a floating point and an integer.  The sum is
+cast to a floating point number.  Similarly. "banana " + 33
+starts out the expression as a string and an integer, but
+the combination is a string.
+
+3.5.2 Variable Naming
+As a programming cue, all variables must begin with a
+lowercase letter. Following that letter can be any sequence of numbers or
+letter.  If the variable begins with a lowercase 'g', it has
+global scope, otherwise it has local scope.
+
+3.5.3 Variable Scope
+As described above, variables can have either local or  
+global scope.  Any variable with global scope is accessible
+inside any function in your program.  A variable with local
+scope is only accessible from the function it is created
+within.  Different functions can have local variables with
+the same name. In general, it is a good idea to to use local
+variables whenever possible, but using global variables for graphical
+objects and other complex data types is also encouraged.
+
+3.5.4 Copies and Assignment
+Variables can contain a many different types of
+data.  These include simple types like integers,
+floating-point ratio numbers, strings, and complex types
+like lists, windows, sounds, fonts, and so on.  A variable
+can be set to a new value, but there are very few ways in
+which a complex object can be changed once it is set to that
+value.  This is by design.
+
+For example, if you say:
+  woof   <- LoadSound("dog.wav")
+  meow   <- LoadSound("cat.wav")
+  dog    <- woof
+  
+
+Now, woof and dog refer to the same sound object.  So you
+can do things like:
+
+  PlayBackground(woof)
+  Wait(50)
+  Stop(dog)  
+
+This will stop the sound from playing, although if you
+instead did:
+
+  PlayBackground(woof)
+  Wait(50)
+  Stop(meow)  
+
+then the woof should play until it was complete or the
+program ended.
+
+Another example comes with images.  Suppose you have an
+image you created and added to a window.
+
+  mWindow <- MakeWindow()
+  mImage  <- MakeImage("test.bmp")
+  AddObject(mImage, mWindow)
+  Draw()
+
+Now, suppose you set make another variable and assign its
+value to be mImage:
+   mImage2 <- mImage
+   Move(mImage2, 200, 300)
+   Draw()
+
+Well, even though mImage2 was never added to mWindow, mImage
+has moved.  This is because they are actually the same
+object, pointed to by different variables.  Note that this
+does not happen for simple (non-object) data types:
+
+      a <- 33
+      b <- a
+      a <- 55
+     Print(a + "  " + b)
+
+The above produces the output:
+55  33
+
+This may appear confusing at first, but it is consistent.  The <-
+assignment operator never changes the value of the data attached to a
+variable, it just changes what the variable is pointing to.  PEBL is 
+functional in its handling of simple data types, so you can't, for
+example, modify the contents of a string directly.
+
+  a  <- "my string"    #assigns a string literal to a
+  b  <- a              #make b refer to a's string literal
+  a  <- "your string"  #re-assigns a to a new string literal
+  b  <- a
+
+In general, there are no 'list surgery' or 'string surgery' functions,
+like 
+    SetCharacter(a,5,"X")
+which would theoreticall modify the string pointed to by a to be
+"yourXstring".  If this were the case, b would be "yourXstring" as
+well.
+
+
+3.5.5 Passing by reference and by value.
+
+The copying discussion in 3.5.4 has implications for passing
+variables into functions.  When a variable is passed into a function, a copy of
+that variable is made and operated on. But, just as
+discussed in 3.5.4, if the variable holds an complex data
+type (object or a list),
+the primary data structure is available directly for messing
+with.  This makes a certain amount of sense: if you pass a
+window into a function, you do not want to make a copy of
+that window to operate on.  If the value is a string or a
+number, a copy of that value is made and passed into the
+function.
+  
+
+3.6 FUNCTIONS
+
+The true power of PEBL lies in its extensive library of
+functions that allow specific experiment-related tasks to be
+accomplished easily. For convenience, they have been divided
+into a number of internal libraries.  This library structure
+is transparent to the user, who does not need to know where
+any function lives in order to use it.  A quick reference to
+functions is found in Section 5, a complete alphabetical
+reference is found in Section 6.
+
+
+3.7  A SIMPLE PROGRAM
+
+The previous sections provide everything you need to know to
+write a simple program.  Here is an annotated program
+
+
+# Any line starting with a # is a comment.  It gets ignored.
+
+--------------------------------------------------------
+ #Every program needs to define a function called Start()
+define Start(par) #Start needs a parameter, just in case
+#braces below contain PEBL statements
+{
+
+ ##Assign a number to a variable
+ number <- 10
+
+ ##Assign a string to a variable
+ hello  <- "Hello World"
+
+ ##Create a global variable (starts with little g)
+ gGlobalText <- "Global Text"
+
+ ##Call a user-defined function (defined below).
+ value <-  PrintIt(hello, number)
+ ##It returned a value
+
+ #Call a built-in function
+ Print("Goodbye. " + value)
+}
+
+##Define a function with two variables.
+define PrintIt(text, number)
+{
+  #Seed RNG with the current time.
+  RandomizeTimer()
+  #Generate a random number between 1 and number
+  i <- RandomDiscrete(number)  #this is a built-in function
+  
+  ##Create a counter variable
+  j <- 0
+  ##Keep sampling until you get the number we chose.
+  while(i != number)
+  {
+       Print(text + "  " + i + gGlobalText)
+       i <- RandomDiscrete(number)
+       j <- j + 1
+  }
+
+  #return the counting variable.
+  return(j)
+}
+
+--------------------------------------------------------
+More sample programs can be found in the demo/ and experiments/
+directories of the PEBL source tree.
+
+=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
+~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
+
+
+4. OVERVIEW OF SUBSYSTEMS
+
+4.1  Lists
+
+  Lists are an incredibly useful and flexible storage
+structure that play an important role in PEBL.  Lists are
+simply a series of variables.  They are like arrays, but
+unlike arrays, it takes longer to access items later in the
+list than items at the beginning. But it is much easier to
+do things like split and combine lists of items than it is
+to do so with arrays.  And, given the speed of today's
+computers, accessing elements of a list is not too costly,
+unless the list is really long (thousands of items). So, you
+can use the Nth function to extract items from a list, but
+it is somewhat costly to do and there are often better ways
+to do it.
+ 
+  For example, suppose you want to print out every item from
+a list. A traditional approach would be to loop through the
+all the items of a list, and access each one, printing it
+out.  Like this:
+
+ list <- Sequence(1,9,1) #could also be written [1,2,3,4,5,6,7,8,9]
+ len <- Length(list)
+ i <- 1
+ while (i <= len)
+  {
+    item <- Nth(list,i) 
+    Print(item)
+    i <- i + 1
+  } 
+ 
+
+This is inefficient for many reasons (it could be made more
+efficient, but it is clearer what is going on when it is
+written in the form above). The biggest problem is that the
+proper element of the list must be found during each
+iteration, which will take longer the larger i grows.  This
+isn't too big of a problem for a nine-item list, but in some
+cases it could be problematic.
+
+There is an alternative, however.  Items from
+lists can be iterated over using the 'loop' command.  
+For example:
+
+
+ list <- Sequence(1,9,1)#could also be written [1,2,3,4,5,6,7,8,9]
+  loop(item, list) 
+  {
+    Print(item)
+  }
+
+These two code blocks produce identical output, but the
+first must find each item of the list on each iteration,
+taking longer and longer as i grows larger and larger.  In the
+bottom block, a list item is bound directly to 'item' on each
+iteration, taking the same amount of time for every item of
+the list. Not only is the second more efficient, it is
+implemented in fewer lines of code, resulting in fewer errors you
+might make (like forgetting to increment i).
+
+A word of caution when using lists. Some functions operate
+on lists to produce new lists (sub-lists, re-ordered lists,
+etc.)  When the lists contain simple data types (numbers,
+strings, etc.), entirely new data structures are created.
+But, when the data structure is complex (windows, sounds,
+images, etc.), only new pointers to the original objects are
+created--the objects are not copied.  So, if you change the
+original object, you may end up changing the new object.
+This is actually difficult to do, because PEBL doesn't allow
+one to modify existing data structures in very many ways.
+But it is possible.  This is a special case of the
+copy/assignment issue discussed in section 3.5.4.  Refer there for
+examples.
+
+4.2	 Fonts
+
+PEBL uses truetype fonts for display of text in labels and other text
+widgets.  In addition to the filename, font objects have other properties: the
+style (i.e., normal, bold, italic, underline), size (in points),
+foreground color, background color, and whether it should be rendered
+anti-aliased.
+
+We distribute a series of ten high-quality freely available
+and redistributable fonts: the Bitstream Vera series.  These include
+the following typeface/files:
+
+--------------------------------------------------------------
+Filename         Description
+--------------------------------------------------------------
+Vera.ttf         Sans serif Roman-style base font
+VeraMono.ttf     Sans serif Roman-style mono-spaced base font
+VeraSe.ttf       Serif Roman-style base font (similar to times)
+VeraBd.ttf       Bold Vera
+VeraIt.ttf       Italic Vera
+VeraBI.ttf       Bold Italic Vera
+VeraMoBd.ttf     Bold Vera Mono
+VeraMoIt.ttf     Italic Vera Mono
+VeraMoBI.ttf     Bold Italic Vera Mono
+VeraSeBd.ttf     Bold Serif Vera
+--------------------------------------------------------------
+
+These should always be available for use in experiments. To use one,
+you need only specify the font name in the MakeFont function.  For
+example:
+
+colorRed  <- MakeColor("red")
+colorGrey <- MakeColor("grey")
+myFont    <- MakeFont("VeraMono.ttf",0,22,colorRed,colorGrey,1)
+
+The above code makes a red 22-point anti-aliased font on a grey
+background. Other fonts may be used by specifying their absolute
+pathname or copying them to the working directory.
+
+4.3 Colors 
+
+A color is a PEBL object.  Colors can be created by
+specifying its color name using the MakeColor() function, or by
+specifying its RGB values using the MakeColorRGB() function. A list of
+the color names and their RGB values can be found in Colors.txt file
+in the documentation directory.  There are nearly 800 to choose from,
+so just about anything you can describe will work.
+
+4.4	 Windows
+
+To run an experiment, you usually need to create a window to display
+stimuli in.  This is done with the MakeWindow() function.
+MakeWindow() will create a grey window by default, or you can specify
+a color.  Currently, an experiment can only have one window.
+
+4.5  Graphical Widgets:
+
+Graphical widgets are the building block of experimental stimuli.
+Currently, three widgets are available: images, labels, and textboxes.  More
+complicated widgets are in progress or planned.
+
+To be used a widget must be created, and then added to a parent
+window, and then the parent window must be drawn.  Widgets can be hid
+with the Hide() function, and shown with the Show() function--this
+only affects the visibility of the widget; it is still present and
+consuming memory. Widgets can be moved around on the parent window
+using the Move() function. Move moves the center of an image or label
+to the specified pixel, counting from the upper-left corner
+of the screen. Move moves the upper left-hand corner of
+textboxes.  For convenience, the MoveCorner function is
+available, which will move an image or label by its upper
+left-hand corner.
+
+Widgets should be removed from their parent window when they are
+finished being used.
+
+
+4.5.1	 Images
+PEBL can read in numerous image types, courtesy of the SDL_image
+library.  Use the MakeImage() function to read an image into an 
+image object. As images are often used as stimuli, Move() centers the
+image on the specified point.  To move by the upper-left
+hand corner, use the pebl-defined MoveCorner function:
+
+define MoveCorner(object, x, y)
+{
+  size    <- GetSize(object)
+  centerX <- x + First(size)/2
+  centerY <- y + Last(size)/2
+  Move(object, centerX, centerY)
+}
+
+
+4.5.2	 Text Labels
+A text label object is created with the MakeLabel() function, and
+requires specifying a font, which contains the foreground and
+background colors.  Labels are only a single line of text. Like 
+images, when you move they are centered on the specified point.
+
+The text inside a label can be extracted with GetText() an set with SetText().
+Remember that when a text object is changed, it will not appear until the next time 
+a Draw() function is called.
+
+4.5.3     TextBoxes
+Text boxes are graphical widgets that contain a body of text. Text 
+automatically wraps when it is too long to fit on a single line.
+Like labels, the text inside a TextBox can be extracted with GetText()
+and set with SetText(). Remember that when a text object is changed, it 
+will not appear until the next time a Draw() function is called.  It is 
+rerendered immediately, however.
+
+4.5.4     User-Editable Text Boxes
+Text-box editing can be performed using the
+GetInput(<textbox>,<escape-key>) function.  This returns the
+text that is present in the box when the participant hits
+the key associated with <escape-key>.  <escape-key> is just
+a text-based code that describes the keypress that should be
+checked for exit. Typical escape-key options include:
+ "<return>"
+ "<esc>"
+ "<backspace>"
+ " "
+ "A"
+Translation from string to keyboard input is still quite
+crude, and is handled in src/utility/PEBLUtility.cpp:TranslateString 
+
+4.6  Audio
+Currently, audio output is very primitive, and there are no
+facilities for recording or analyzing audio input. Audio .wav files
+can be loaded with the LoadSound() function. This returns an audio
+stream object that can be played  with either the PlayForeground() or PlayBackground()
+functions.  The PlayForeground function returns once the sound is
+finished playing; PlayBackground returns immediately and the sound
+plays in a separate thread.   When using PlayBackground, playing can
+be stopped using the Stop() function.  If another PlayForeground or
+PlayBackground function is then used, the initial sound will
+immediately terminate and the new file will play. Currently, PEBL can only
+play one sound at a time.
+
+4.7  Keyboard Entry
+
+PEBL can examine the state of the keyboard, and wait for different
+keyboard events to happen. Functions such as WaitForKeyDown(),
+WaitForAnyKeyDown(), etc. allow you to collect responses from
+subjects.
+
+
+4.8  Files
+
+Files are objects that can be read from or written to using several
+PEBL functions. To use a file object, create one using one of the
+functions listed below.  Each function returns a file object:
+
+FileOpenRead
+FileOpenWrite
+FileOpenAppend
+
+for example, you can use the command
+ myfile <- FileOpenRead("stimuli.txt")
+to create 'myfile', a readable file stream.
+
+Other Functions described below allow filestreams to be written to or
+read from.  When you are finished, you can close a filestream using
+the 'FileClose' function.
+
+
+4.9  The Event Loop
+
+To assist in testing for multiple input events simultaneously, PEBL
+implements an event loop that will quickly scan multiple conditions
+and execute proper results whenever one happens.  This is currently
+primarily a back-end system which will be developed more in the future.
+
+
+4.10 Errors and Warnings
+
+PEBL does a great deal of error-checking to ensure that your program
+will run.  If you crash with a segmentation fault, this is an error
+and you should report it.  When a fatal error or non-fatal warning
+occurs, we attempt to identify the location in your input file that
+led to the warning.  The warning and this location are printed to the
+command-line on exit, or are found in the file stderr.txt (on
+Microsoft Windows).
+
+
+
+4.11 Paths and path searching
+
+Numerous functions and objects open files on your computer to read in
+information.  These include graphics, sounds, fonts, program files,
+and text files.  When you ask attempt to open a file, PEBL will
+search in a number of places for it, in this order:
+
+  The (current) working directory
+  the directory of each file specified in the command line arguments
+  media/fonts
+  media/sounds
+  media/images
+  media/text
+  
+You can also specify other paths to be searched by specifying them on
+the command line.  Be sure to end the directory with a '\' on
+Microsoft Windows or '/' on Linux, whatever is appropriate for your platform.
+
+4.12  Provided Media Files
+
+PEBL comes with various media files that can be specified from 
+any script without including the complete path.  If a user's file has
+the same name, it will be loaded before the PEBL-provided version.
+The following list describes the files included.
+
+------------------------------------------------------------
+Name             Description
+------------------------------------------------------------
+In media/fonts/:
+
+Vera.ttf         Sans serif Roman-style base font
+VeraMono.ttf     Sans serif Roman-style mono-spaced base font
+VeraSe.ttf       Serif Roman-style base font (similar to times)
+VeraBd.ttf       Bold Vera font
+VeraIt.ttf       Italic Vera font
+VeraBI.ttf       Bold Italic Vera font
+VeraMoBd.ttf     Bold Vera Mono font
+VeraMoIt.ttf     Italic Vera Mono font
+VeraMoBI.ttf     Bold Italic Vera Mono font
+VeraSeBd.ttf     Bold Serif Vera font
+
+In media/images/
+
+pebl.bmp         Demonstration bitmap image 
+pebl.png         Demonstration PNG image 
+smiley-small.png  25x25 smiley face
+frowney-small.png 25x25 frowney face
+smiley-large.png  100x100 smiley face
+frowney-large.png 100x100 frowney face
+
+in media/sounds/
+
+buzz500ms.wav    A 500-ms buzzer
+chirp1.wav       A chirp stimulus
+boo.wav          A really bad booing sound
+cheer.wav        A pretty lame cheering sound
+
+in media/text/
+
+Consonants.txt            List of all consonants, both cases
+Digits.txt                List of digits 0-9
+Letters.txt               All letters, both cases
+Lowercase.txt             Lowercase letters
+LowercaseConsonants.txt   Lowercase Consonants
+LowercaseVowels.txt       Lowercase Vowels
+Uppercase.txt             Uppercase Letters
+UppercaseConsonants.txt   Uppercase Consonants
+UppercaseVowels.txt       Uppercase Vowels
+Vowels.txt                Vowels (both cases)
+
+------------------------------------------------------------
+
+
+
+4.13  Special Variables.
+
+There are a number of special variables that get set by PEBL, and can
+later be accessed by an experiment.
+---------------------------------------------------------------
+ Name                 Purpose
+---------------------------------------------------------------
+gKeepLooping         Controls continued execution in event loop
+                     (Not currently useful)
+
+gVideoWidth			 The width in pixels of the display (set by default
+					 or command-line option. Changing this does not
+					 change display width.
+
+gVideoHeight         The height in pixels of the display (set by
+					 default or command-line). Changing this
+					 does not change display height.
+
+gVideoDepth          The bit depth of the video.
+
+---------------------------------------------------------------
+
+=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
+~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
+
+5.  FUNCTION QUICK REFERENCE
+
+The following table lists the functions available for use
+with PEBL.  Those that are unimplemented are noted.  If you
+want the functionality of one of the unimplemented functons,
+or want functionality not provided in any of these functions,
+contact us, or better yet, implement the function and contribute to
+the PEBL project.
+__________________________________________________________________
+
+ Function Name   Arguments       Description
+__________________________________________________________________
+
+
+                   MATH FUNCTIONS
+
+ Log10          <num>          Log base 10 of <num>
+ Log2           <num>          Log base 2 of <num>
+ Ln             <num>          Natural log of <num>
+ LogN           <num>, <base>  Log base <base> of <num>
+ Exp            <pow>          e to the power of <pow>
+ Pow            <num> <pow>    <num> to the power of <pow>
+ Sqrt           <num>          Square root of <num>
+ NthRoot        <num> <root>   <num> to the power of 1/<root>
+ Tan            <deg>          Tangent of <deg> degrees
+ Sin            <deg>          Sine of <deg> degrees
+ Cos            <deg>          Cosine of <deg> degrees
+ ATan           <num>          Inverse Tan of <num>, in degrees
+ ASin           <num>          Inverse Sine of <num>, in degrees
+ ACos           <num>          Inverse Cosine of <num>, in degrees
+ DegToRad       <deg>          Converts degrees to radians
+ RadToDeg       <rad>          Converts radians to degrees
+ Round          <num> <sig>    Rounds <num> to <sig> significant digits
+ Floor          <num>          Rounds <num> down to the next integer
+ Ceiling        <num>          Rounds <num> up to the next integer
+ AbsFloor       <num>          Rounds <num> toward 0 to an integer
+ Mod            <num> <mod>    Returns <num> mod <mod> or
+                                remainder of <num>/<mod>
+ Div            <num> <mod>    Returns round(<num>/<mod>)
+ ToInteger      <num>          Rounds a number to an
+                                integer, and changes internal representation.
+ ToFloat        <num>          Converts number to internal
+                                floating-point representation.
+ ToNumber       <>
+ ToString       <num>          Converts a numerical value to
+                                a string representation.
+ Sign           <num>          Returns +1 or -1, depending
+                                on sign of argument.
+ Abs            <num>          Returns the absolute value of
+                                the number.
+ Mean           <list>         Returns the mean of the
+                                numbers in <list>
+ Min           <list> or <><><>  Returns the smallest of <list> or its arguments
+ Max            <list> or <><><>  Returns the largest of <list> or its arguments
+ StDev          <list>         Returns the standard dev of <list>
+ Median         <list>         Returns the median of a set of values.
+ Quantile       <list> <num>   Returns the <num> quantile of
+                                the numbers in <list>
+ SeedRNG        <num>          Seeds the random number
+                                generator with <num> to reproduce a random sequence
+ RandomizeTimer   -            Seeds the RNG with the
+                                current time.
+ Random           -            Returns a random number
+                                between 0 and 1
+ RandomDiscrete <num>          Returns a random integer
+                                between 1 and <num>
+ RandomUniform  <num>          Returns a random floating-point number
+                                between 0 and num.
+ RandomNormal   <mean> <stdev> Returns a random number
+                                according to the standard normal distribution
+                                with <mean> and <stdev>
+ RandomExponential <mean>      Returns a random number according to 
+                                exponential distribution with mean <mean>
+                                (or decay 1/mean)
+ RandomLogistic  <p>           Returns a random number according to the
+                                logistic distribution with parameter <p>
+ RandomLogNormal <median>      Returns a random number according to 
+                 <spread>       the log-normal distribution with
+                                parameters <media> and <spread>.
+ RandomBinomial  <p> <n>       Returns a random number according to
+                                the Binomial distribution with probability <p>
+                                and repetitions <n> 
+ RandomBernoulli  <p>           Returns 0 with probability
+                               (1-<p>) and 1 with probability <p>
+
+
+
+                     FILE/STREAM FUNCTIONS
+
+ Print            <value>       Prints <value> to stdout,
+                                appending a newline afterwards.  stdout is the console 
+                                (in linux) or the file stdout.txt (in windows)
+ Print_            <value>       Prints <value> to stdout,  without appending a newline afterwards.
+ Format            <value>       unimplemented
+ FileOpenRead      <filename>    Opens a filename, returning  a stream to be used for reading information
+ FileOpenWrite     <filename>    Opens a filename, returning a stream that can be used for writing information.
+                                Overwrites if file already exists.
+ FileOpenAppend    <filename>    Opens a filename, returning  a stream that can be used for writing info.  Appends if the
+                                                                                  file already exists, opens if file does not exist.
+ FileClose         <filestream>  Closes a filestream  variable. pass the variable name, not the filename.  
+ FilePrint         <filestream> <value>  Like Print, but to a file.
+ FilePrint_        <filestream> <value>  Like Print_, but to a file.
+ FileReadCharacter <filestream>  Reads and returns a single character  from a filestream.
+ FileReadWord      <filestream>  Reads and returns a 'word' from a file;  the next connected stream of characters not including a ' '
+                                or a newline. Will not read newline characters.
+ FileReadLine      <filestream>  Reads and returns a line  from a file; all characters up until the next newline or the end of the file.
+ FileReadList      <filename>    Given a filename, will open it, read in all the items into a list (one item per line), and close the file afterward.
+ FileReadTable     <filename> <opt-sep>    Like FileReadList, but reads in
+                                tables. Optionally, specify a token separator. 
+ FileReadText      <filename>    Reads all of the text in the file into a variable.
+ EndOfLine         <filestream>  Returns true if at end of line
+ EndOfFile         <filestream>  Returns true if at the end of  a file.
+ 
+
+
+                     GRAPHICAL OBJECT FUNCTIONS
+ 
+ MakeWindow        <colorname>   Creates main window, in
+                                 color named by argument, or grey if no argument is named.
+ MakeImage         <filename>    Creates an image by reading
+                                 in an image file (jpg, gif, png, bmp, etc.)
+ MakeLabel         <text> <font> Creates a single line of text filled
+                                 with <text> written in font <font>
+ MakeTextBox       <text> <font> <width> <height>  Creates a sized box with filled
+                                 with <text> written in font <font>.
+
+ MakeColor         <colorname>   Creates a color based on a
+                                 color name.
+ MakeColorRGB <red> <green> <blue>  Creates a color based on
+                                     red, green, and blue values
+ MakeFont   <ttf_filename> <style> <size> <fgcolor> <bgcolor> <anti-aliased>
+                                 Creates a font which can be used to
+                                 make labels.
+ SetCursorPosition  <textbox> <position>   Move the editing cursor in a textbox
+ GetCursorPosition  <textbox>              Gets the position of the editing cursor.
+ SetEditable        <textbox> <status>     Turns on or off the editing cursor.
+ GetText            <textobject>           Returns the text in a textbox or label.
+ GetInput           <textbox> <escape-key> Allows a textbox to be
+                                           edited by user, returning its text
+                                           when <escape-key> is pressed.
+ SetText            <textobject>,<text>    Sets the text in a textbox or label.
+ SetFont            <textobject>, <font>   Changes the font of a text object.                  
+ Move       <object> <x> <y>     Move an object (e.g., an
+                                 image or  a label to an x,y location)
+ MoveCorner  <object> <x> <y>    Moves an image or label by its upper corner.
+ GetSize     <object>            Returns a list of dimensions <x,y>
+                                 of a graphical object.
+ AddObject  <object> <parent>    Adds an object to a parent
+                              object (window)
+ RemoveObject <object> <parent>
+                                 Removes an object from a parent window
+ Show       <object>             Shows an object
+ Hide       <object>             Hides an object
+ Draw       <object>             Redraws a widget and its children
+ DrawFor    <object> <cycles>    Draws for exactly <cycles> cycles, then returns
+
+
+                    SOUND OBJECT FUNCTIONS
+
+ LoadSound        <filename>    Loads a soundfile from the filename, returning a variable that can be played.
+ PlayForeground   <sound>       Plays the sound 'in the foreground', not returning until the sound is complete.
+ PlayBackground   <sound>       Plays the sound 'in the  background', returning immediately.
+ Stop                         <sound>       Stops a sound playing in the background from playing.
+ MakeSineWave         unimplemented
+ MakeSquareWave       unimplemented
+ MakeSawtoothWave     unimplemented
+ MakeChirp            unimplemented
+
+
+                                
+                    MISC EVENT FUNCTIONS
+
+ GetTime            <>          Gets a number, in milliseconds, representing the time since the current pebl
+                                program began running.  
+ Wait               <time>      Pauses execution for <time> ms    
+ IsKeyDown          <keyval>    Determines whether the key associated with <keyval> is down   
+ IsKeyUp            <keyval>    Determines whether the key associated with <keyval> is up
+ IsAnyKeyDown       <>          Determines whether any key is down.
+ WaitForKeyDown     <keyval>    Waits until   <keyval> is detected to be in the  down state.
+ WaitForAnyKeyDown  <>          Waits until any key is detected in down state.
+ WaitForKeyUp       <keyval>    Waits until <keyval> is in up state.
+ WaitForAllKeysUp               Waits until all keys are in up state.
+ WaitForAnyKeyDownWithTimeout  <time> Waits for a key to be pressed, but only for <time> ms.
+ WaitForKeyListDown  <list-of-keyvals>  Waits until one of the keys is in down state.
+ WaitForKeyPress     <key>      Waits until <key> is pressed
+ WaitForAnyKeyPress  <>         Waits until any key is pressed
+ WaitForKeyRelease   <key>      Waits until <key> is released
+ WaitForListKeyPress <list-of-keys> Waits until one of <list-of-keys> is pressed
+ RegisterEvent       <>         Not Implemented
+ StartEventLoop      <>         Not Implemented
+ ClearEventLoop      <>         Not Implemented
+ SignalFatalError    <message>  Halts execution, printing out message 
+ TranslateKeyCode    <>         Converts a keycode to a key name.
+ 
+ TimeStamp                      Returns a string containing the current date and time.
+ GetPEBLVersion      <>         Returns a string indicating which version of PEBL you are using.
+ GetNIMHDemographics <code>, <window>, <file> Asks NIMH-related questions
+
+ IsNumber           <variant>   Tests whether something is a number
+ IsInteger          <variant>   Tests whether something is an integer-type number
+ IsFloat            <variant>   Tests whether something is a floating-point number
+ IsString           <variant>   Tests whether something is a string
+ IsList             <variant>   Tests whether something is a List
+ IsTextBox          <variant>   Tests whether something is a TextBox
+ IsImage            <variant>   Tests whether something is an Image
+ IsLabel            <variant>   Tests whether something is a Text Label
+ IsAudioOut         <variant>   Tests whether something is a AudioOut stream
+ IsFont             <variant>   Tests whether something is a Font
+ IsColor            <variant>   Tests whether something is a Color
+ IsFileStream       <variant>   Tests whether something is a FileStream
+ IsWidget           <variant>   Tests whether something is any Widget
+
+
+                  LIST MANIPULATION FUNCTIONS
+
+ Shuffle                  <list>     Returns a new list with the items in list shuffled randomly. 
+ Repeat                   <item> <n> Repeats an item n times in a list
+ RepeatList  <list> <n>       Makes a new list containing
+                              the elements of <list> repeated  <n>  times.
+ Sequence                 <start> <end> <step> Makes a sequence of numbers 
+                           from <start> to <end>, with <step>-sized
+						   steps <step>-sized increments.
+ ChooseN                  <list> <n> Returns a sublist of <n> items
+                                     from a list, in the order they appear in teh original list
+ SampleN                  <list> <n> Returns a randomly-ordered sublist of <n> items from a list.
+ SampleNWithReplacement    <list> <n> Returns a sublist of <n> items from a list.
+ 
+ DesignLatinSquare          <list1> <list2>
+ DesignGrecoLatinSquare     <list1> <list2> <list3>
+ DesignBalancedSampling     <list> <number>
+ DesignFullCounterbalance   <list1> <list2> 
+ CrossFactorWithoutDuplicates   <list>   Returns a list of all pairs of items in the list, excluding 
+                                         pairs that where an element appears twice.
+ Rotate     <list> <n>        Rotates a list by <n> items. 
+ FoldList   <list> <n>        Folds list into length-n sublists.
+ Flatten    <list>            Flattens a nested list completely
+ FlattenN   <list> <n>        Flattens n levels of a nested list
+ Length              <list>   Returns the number of elements in a list.
+ First               <list>   Returns the first item in a list. 
+ Last                <list>   Returns the last item in a list.
+ Merge       <list1> <list2>  Combines two lists.
+ Append      <list> <item>    Adds <item> to <list>
+ List          <item1>,<item2>... Makes a list out of items
+ Sort                 <list>  Sorts a list by its values.
+ SortBy         <list> <key>  Sorts list by the values in <key>
+ Nth             <list> <n>   Returns the nth item in a list.
+ Subset              <list> <list-of-indices>
+ ExtractListItems    <list> <list-of-indices>
+ IsMember       <item> <list> Checks whether <item> is a member of <list>
+ Replace        <template> <replacementList>  Replaces items in a data structure
+ RemoveDuplicates             unimplemented
+ MakeMap                      unimplemented
+ Transpose    <list-of-lists>   Transposes a list of equal-length lists.
+ SubList      <list> <start> <finish> Returns a sublist of a list.          
+ Remove      <list> <n>       Removes an item from a list. Unimplemented
+
+
+                 STRING MANAGEMENT FUNCTIONS
+
+
+ Uppercase   <string>        Returns uppercased string
+ Lowercase   <string>        Returns lowercased string
+ SplitString <string> <split>   Splits <string> into a list of
+                                <split>-delimited substrings 
+ StringLength <string>       Returns the length of a string
+ SubString    <string> <position> <length>  Returns a substring
+
+ FindInString <string> <key>  Returns position of <key> in <string>
+
+             
+ 
+=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
+~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
+
+6. DETAILED FUNCTION AND KEYWORD REFERENCE. (incomplete).
+
+------------------------------------------------------------
+Name/Symbol: +
+
+Description: Adds two expressions together.  Also,
+concatenates strings together.
+
+Usage:       <num1> + <num2>
+             <string1> + <string2>
+ 	         <string1> + <num1>
+ Using other types of variables will cause errors.
+
+Example:     33 + 322                   --> 355
+	         "Hello" + " " + "World"    --> "Hello World"
+             "Hello" + 33 + 322.5       --> "Hello355.5"
+              33 + 322.5 + "Hello"      --> "33322.5Hello"
+
+See Also:     -, ToString()
+
+------------------------------------------------------------
+Name/Symbol:  -
+
+Description:  Subtracts one expression from another
+
+Usage:        <num1> - <num2>
+
+Example:     
+
+See Also:     
+
+------------------------------------------------------------
+
+Name/Symbol: / 
+
+Description:  Divides one expression by another
+
+Usage:        <expression> / <expression> 
+
+Example:      333 / 10    # == 33.3
+
+See Also:     
+
+------------------------------------------------------------
+Name/Symbol: *
+
+Description:        Multiplies two expressions together
+
+Usage:       <expression> * <expression>
+
+Example:     32 * 2 # == 64
+
+See Also:     
+
+------------------------------------------------------------
+Name/Symbol: ^
+
+Description:  Raises one expression to the power of
+              another expression
+
+Usage:       <expression> ^ <expression>
+
+Example:     25 ^ 2  # == 625
+
+See Also:    Exp, NthRoot
+------------------------------------------------------------
+Name/Symbol: ; 
+
+Description:        Finishes a statement, can start new statement
+                      on the same line (not needed at end of line)
+
+Usage:       
+
+Example:     
+
+See Also:     
+
+------------------------------------------------------------
+Name/Symbol: #
+
+Description:   Comment indicator; anything until the next CR
+	       following this character is ignored
+
+Usage:       
+
+Example:     
+
+See Also: 
+    
+------------------------------------------------------------
+Name/Symbol: <-                  
+
+Description:  The assignment operator.  Assigns a value to a variable
+              N.B.: This two-character sequence takes the place of the
+	      '=' operator found in many programming languages.
+
+Usage:       
+
+Example:     
+
+See Also:     
+
+------------------------------------------------------------
+Name/Symbol: ( )                  
+
+Description: Groups mathematical operations
+
+Usage:      (expression)
+
+Example:      (3 + 22) * 4  # == 100
+
+See Also:     
+
+------------------------------------------------------------
+Name/Symbol: { }                  
+
+Description: Groups a series of statements
+
+Usage:       
+	     {
+	       statement1
+	       statement2
+	       statement3
+	     }
+
+Example:     
+
+See Also:     
+
+------------------------------------------------------------
+Name/Symbol: [ ]                 
+
+Description:  Creates a list. Closing ] must be on
+ 	      same line as last element of list, even
+	      for nested lists.
+
+Usage:       [<item1>, <item2>, ....]
+            
+
+Example:      []                    #Creates an empty list
+              [1,2,3]               #Simple list
+	     [[3,3,3],[2,2],0]     #creates a nested list structure
+
+
+See Also:     List()
+
+------------------------------------------------------------
+Name/Symbol: < 
+
+Description: Less than.  Used to compare two numeric quantities.
+
+Usage:       3 < 5
+	    3 < value
+             
+Example:     if(j < 33)
+	     {
+	      Print ("j is less than 33.")
+	     }
+
+See Also:     >, >=, <=, ==, ~=, !=, <>.
+
+------------------------------------------------------------
+Name/Symbol: >                    
+
+Description: Greater than
+
+Usage:       
+
+Example:     
+
+See Also:     <, >=, <=, ==, ~=, !=, <>.
+
+------------------------------------------------------------
+Name/Symbol: <=                   
+
+Description: Less than or equal to
+
+Usage:       
+
+Example:     
+
+See Also:     <, >, >=, ==, ~=, !=, <>.
+
+------------------------------------------------------------
+Name/Symbol: >=                   
+
+Description: Greater than or equal to
+
+Usage:       
+
+Example:     
+
+See Also:     <, >, <=, ==, ~=, !=, <>.
+
+------------------------------------------------------------
+Name/Symbol: ==                   
+
+Description: Equal to
+
+Usage:       
+
+Example:     
+
+See Also:     <, >, >=, <=,  ~=, !=, <>.
+
+------------------------------------------------------------
+Name/Symbol:  <> != ~=
+
+Description:  Not equal to
+
+Usage:       
+
+Example:     
+
+See Also:     <, >, >=, <=, == 
+
+------------------------------------------------------------
+Name/Symbol: Abs
+Description:   Returns the absolute value of
+                                the number.
+
+Usage:        Abs(<num>)        
+
+Example:     
+	     Abs(-300)  # ==300
+	     Abs(23)    # ==23
+
+See Also:     Round(), Floor(), AbsFloor(), Sign(), Ceiling()
+
+------------------------------------------------------------
+Name/Symbol:  AbsFloor
+
+Description:  Rounds <num> toward 0 to an integer
+
+Usage:       AbsFloor(<num>)
+
+Example:     AbsFloor(-332.7)   # == -332
+	          AbsFloor(32.88)    # == 32
+
+See Also:     Round(), Floor(), Abs(), Sign(), Ceiling()
+
+------------------------------------------------------------
+Name/Symbol: ACos 
+
+Description:   Inverse cosine , in degrees
+
+Usage:       ACos(<num>)
+
+Example:     
+
+See Also:    Cos(), Sin(), Tan(), ATan(), ATan() 
+ 
+------------------------------------------------------------
+Name/Symbol:  AddObject
+
+Description: Adds a widget to a parent window
+
+Usage:       
+
+Example:     
+
+See Also:    RemoveObject()
+
+------------------------------------------------------------
+Name/Symbol:  and
+  
+Description:  Logical and operator
+
+Usage:       <expression> and <expression>
+
+Example:     
+
+See Also:     or, not
+
+
+------------------------------------------------------------
+Name/Symbol:  Append
+  
+Description:  Appends an item to a list.  Useful for
+	      constructing lists in conjunction with the loop statement
+
+Usage:       Append(<list>, <item>)
+
+Example:     
+
+	     list <- Sequence(1,5,1)
+	     double  <- []
+              loop(i, list)
+	      {
+	        double <- Append(double, [i,i])
+	      }
+	      Print(double)
+	      #Produces [[1,1],[2,2],[3,3],[4,4],[5,5]]
+
+
+See Also:     List(), [], Merge()
+
+------------------------------------------------------------
+Name/Symbol:  ASin 
+
+Description:  Inverse Sine of <num>, in degrees
+
+Usage:        ASin(<num>)
+
+Example:     
+
+See Also:    Cos(), Sin(), Tan(), ATan(), ACos(), ATan() 
+
+------------------------------------------------------------
+Name/Symbol:  ATan 
+
+Description:  Inverse Tan of <num>, in degrees
+
+Usage:       
+
+Example:     
+
+See Also:    Cos(), Sin(), Tan(), ATan(), ACos(), ATan() 
+
+
+------------------------------------------------------------
+Name/Symbol:  break
+
+Description:  breaks out of a loop immediately
+
+Usage:        break
+
+Example:      loop(i ,[1,3,5,9,2,7])
+               {
+                Print(i)
+			    if(i == 3) 
+			    {
+                 break
+                }
+			   }
+
+
+See Also:   loop, return
+
+------------------------------------------------------------
+Name/Symbol:  Ceiling    
+
+Description: Rounds <num> up to the next integer
+
+Usage:       Ceiling(<num>)
+
+Example:     Ceiling(33.23)  # == 34
+             Ceiling(-33.02) # == -33
+
+See Also:     Round(), Floor(), AbsFloor(), Ceiling()
+
+------------------------------------------------------------
+Name/Symbol:  ChooseN
+
+Description: Not Implemented.  Chooses <number> items from 
+	     a list, without replacement.
+
+Usage:       ChooseN(<list>, <number>)
+
+Example:     
+
+See Also:     
+
+
+------------------------------------------------------------
+Name/Symbol:  ClearEventLoop
+
+Description:  UNIMPLEMENTED. Advanced Event loop management.
+
+Usage:       
+
+Example:     
+
+See Also:     
+
+
+------------------------------------------------------------
+Name/Symbol:  Cos
+			 
+Description: Cosine of <deg> degrees
+
+Usage:       
+
+Example:     
+
+
+See Also:     Sin(), Tan(), ATan(), ACos(), ATan() 
+
+------------------------------------------------------------
+Name/Symbol:  CrossFactorWithoutDuplicates
+
+Description: This function takes a single list, and returns a 
+             list of all pairs, excluding the pairs that have 
+             two of the same item.
+             To achieve the same effect but include the 
+             duplicates, use DesignFullCounterBalance(x,x)
+
+
+Usage:       
+   CrossFactorWithoutDuplicates(<list>)
+
+Example:     
+ CrossFactorWithoutDuplicates([a,b,c]) # == [[a,b],[a,c],[b,a],[b,c],[c,a],[c,b]]
+
+See Also:     
+  DesignFullCounterBalance(), DesignBalancedSampling(),
+  DesignGrecoLatinSquare(), DesignLatinSquare(), Repeat(),
+  RepeatList(), Shuffle()
+
+
+------------------------------------------------------------
+Name/Symbol:  define
+
+Description:  Defines a user-specified function
+
+Usage:       define functionname (parameters)
+	     {
+	      statement1
+	      statement2
+	      statement3
+
+	      ##Return statement is optional:
+	      return <value>
+	     }
+
+Example:    
+
+See Also:   
+
+
+------------------------------------------------------------
+Name/Symbol:  DegToRad
+
+Description:  Converts degrees to radians
+
+Usage:       DegToRad(<deg>)
+
+Example:     DegToRad(180) # == 3.14159...
+
+See Also:    Cos(), Sin(), Tan(), ATan(), ACos(), ATan() 
+
+
+------------------------------------------------------------
+Name/Symbol:  DesignBalancedSampling
+
+Description: Samples elements "roughly" equally.
+ 
+ This function returns a list of repeated  samples from
+ <treatment_list>, in such a way that each
+ element in <treatment_list> appears approximately equally.  Each
+ element from <treatment_list> is sampled once without replacement
+ before all elements are returned to the mix and sampling is
+ repeated.  If there are no repeated items in <list>, there will be no
+ consecutive repeats in the output.  The last repeat-sampling will be
+ truncated so that a <length>-size list is returned.  If one doesn't
+ want the repeated epochs this function provides, Shuffle() the results.
+
+
+Usage:       DesignBalancedSampling(<list>, <length>)
+
+
+Example:     DesignBalancedSampling([1,2,3,4,5],12)
+             # e.g., produces something like [5,3,1,4,2, 3,1,5,2,4,  3,1 ]
+
+See Also:     
+ CrossFactorWithoutDuplicates(), DesignFullCounterBalance(),
+  DesignGrecoLatinSquare(), DesignLatinSquare(), Repeat(),
+  RepeatList(), Shuffle()
+
+
+------------------------------------------------------------
+Name/Symbol:  DesignFullCounterbalance
+
+Description: This takes two lists as parameters, and returns 
+             a nested list of lists that includes the full 
+             counterbalancing of both parameter lists.
+             Use cautiously; this gets mxn large
+
+Usage:       DesignFullCounterbalance(<lista>, <listb>)
+
+Example:     
+             a <- [1,2,3]
+             b <- [9,8,7]
+             DesignFullCounterbalance(a,b)  # == [[1,9],[1,8],[1,7],
+	                                   #     [2,9],[2,8],[2,7],
+				        #     [3,9],[3,8],[3,7]]
+
+See Also:     
+  CrossFactorWithoutDuplicates(), DesignBalancedSampling(),
+  DesignGrecoLatinSquare(), DesignLatinSquare(), Repeat(),
+  RepeatList(), Shuffle()
+
+------------------------------------------------------------
+Name/Symbol:  Design
+
+GrecoLatinSquare
+
+Description: 
+
+ This will return a list of lists formed by rotating 
+ through each element of the <treatment_list>s, making a list
+ containing all element of the list, according to a greco-latin square.  
+ All lists must be of the same length.
+
+
+Usage:  DesignGrecoLatinSquare(<factor_list>, <treatment_list>, <treatment_list>)
+
+Example:     
+
+
+  x <- ["a","b","c"]
+  y <- ["p","q","r"]
+  z <- ["x","y","z"]
+  Print(DesignGrecoLatinSquare(x,y,z))
+#Returns:   [[[a, p, x], [b, q, y], [c, r, z]], 
+#            [[a, q, z], [b, r, x], [c, p, y]], 
+#            [[a, r, y], [b, p, z], [c, q, x]]]
+
+
+See Also:     
+ CrossFactorWithoutDuplicates(), DesignFullCounterBalance(), 
+ DesignBalancedSampling(), DesignLatinSquare(), Repeat(),
+ RepeatList(), Shuffle()
+
+------------------------------------------------------------
+Name/Symbol:  DesignLatinSquare
+
+Description: 
+ 
+ This returns return a list of lists formed by rotating 
+ through each element of <treatment_list>, making a list
+ containing all element of the list. Has no side effect
+  on input lists.
+
+This is implemented as a PEBL function in pebl-lib/Design.pbl
+
+Usage:       DesignLatinSquare(<treatment1_list>, <treatment2_list>)
+
+Example:     
+     
+    order <- [1,2,3]
+    treatment <- ["A","B","C"]
+    design <- DesignLatinSquare(order,treatment)
+  #above produces: [[[1, A], [2, B], [3, C]],
+  #                 [[1, B], [2, C], [3, A]],
+  #                 [[1, C], [2, A], [3, B]]]
+
+
+See Also:     
+ CrossFactorWithoutDuplicates(),DesignFullCounterBalance(), 
+ DesignBalancedSampling(),  DesignGrecoLatinSquare(),  Repeat(),
+  RepeatList(), Shuffle(), Rotate()
+
+------------------------------------------------------------
+Name/Symbol:  Div            
+
+Description:  Not Implemented.
+              Returns round(<num>/<mod>)
+
+Usage:       Div(<num>, <mod>)
+
+Example:     
+
+See Also:     Mod()
+
+------------------------------------------------------------
+Name/Symbol:  Draw 
+
+Description:  Redraws the screen or a specific widget
+
+Usage:        Draw()
+              Draw(<object>)
+
+
+Example:     
+
+See Also:     DrawFor(), Show(), Hide()
+
+------------------------------------------------------------
+Name/Symbol:  DrawFor
+
+Description:  Draws a screen or widget, returning after <cycles> refreshes
+	     This function currently does not work as intended in the SDL
+	     implementation,  because of a lack of control over the
+	     refresh blank.  It may work in the future.
+
+Usage:        DrawFor( <object>, <cycles>)
+
+Example:     
+
+See Also:     Draw(), Show(), Hide()
+
+------------------------------------------------------------
+Name/Symbol:  EndOfFile
+
+Description:  Returns true if at the end of a file.
+
+Usage:       EndOfFile(<filestream> )
+
+Example:     
+	     while(not EndOfFile(fstream))
+ 	     {
+		Print(FileReadLine(fstream))
+	     }
+
+See Also:     
+
+------------------------------------------------------------
+Name/Symbol:  EndOfLine
+
+Description:  Returns true if at end of line
+
+Usage:        EndOfLine(<filestream>)
+
+Example:     
+
+See Also:     
+
+------------------------------------------------------------
+Name/Symbol:  Exp
+
+Description:  e to the power of <pow>
+
+Usage:        Exp(<pow>)
+
+Example:      Exp(0) # == 1
+	     Exp(3) # == 20.0855
+
+See Also:     Log()
+
+
+------------------------------------------------------------
+Name/Symbol:  ExtractListItems
+
+Description:  Extracts items from a list, forming a new list. 
+	     The list <items> are the integers representing the
+	     indices that should be extracted.  
+	     
+
+Usage:        ExtractListItems(<list>,<items>)
+
+Example:    
+	     myList <- Sequence(101, 110, 1)
+	     ExtractListItems(myList, [2,4,5,1,4])
+              ## Above produces [102, 104, 105, 101, 104]
+
+See Also:     Subset(), SubList(), SampleN()
+
+------------------------------------------------------------
+Name/Symbol:  FileClose
+
+Description:  Closes a filestream  variable.  Be sure to 
+              pass the variable name, not the filename.  
+
+Usage:        FileClose(<filestream>)
+
+Example:     
+	     x <- FileOpenRead("file.txt")
+	     ##Do relevant stuff here.
+	     FileClose(x)
+
+See Also:     FileOpenAppend(), FileOpenRead(), FileOpenWrite()
+
+------------------------------------------------------------
+Name/Symbol:  FileOpenAppend
+
+Description:  Opens a filename, returning  a stream that can 
+              be used for writing info.  Appends if the file 
+	     already exists
+
+Usage:        FileOpenAppend(<filename>)
+
+Example:     
+
+See Also:     FileClose(), FileOpenRead(), FileOpenWrite()
+
+------------------------------------------------------------
+Name/Symbol:  FileOpenRead
+
+Description:  Opens a filename, returning  a stream to be used 
+	     for reading information
+
+Usage:        FileOpenRead(<filename>)
+
+Example:     
+
+See Also:     FileClose(), FileOpenAppend(), FileOpenWrite()
+
+------------------------------------------------------------
+Name/Symbol:  FileOpenWrite
+
+Description:  Opens a filename, returning a stream  that can be 
+              used for writing information.  Overwrites if file 
+              already exists.
+
+Usage:        FileOpenWrite(<filename>)
+
+Example:     
+
+See Also:     FileClose(), FileOpenAppend(), FileOpenRead()
+
+------------------------------------------------------------
+Name/Symbol:  FilePrint
+
+Description:  Like Print, but to a file.  Prints a string to a file,
+	     with a carriage return at the end.
+	
+Usage:	     FilePrint( <filestream>, <value>)
+
+Example:      FilePrint(fstream, "Another Line.")
+
+See Also:     Print(), FilePrint_()
+
+------------------------------------------------------------
+Name/Symbol:  FilePrint_
+
+Description:  Like Print_, but to a file.  Prints a string to a file,
+              without appending a newline character.
+	
+
+Usage:       FilePrint_( <filestream>, <value> )
+
+Example:     FilePrint_(fstream, "This line doesn't end.")
+
+See Also:     Print_(), FilePrint()
+
+------------------------------------------------------------
+Name/Symbol:  FileReadCharacter
+
+Description: Reads and returns a single character from a filestream.
+
+Usage:       FileReadCharacter(<filestream>)
+
+Example:     
+
+See Also:     
+
+------------------------------------------------------------
+Name/Symbol: FileReadLine
+
+Description: Reads and returns a line from a file; all characters up
+             until the next newline or the end of the file.
+
+Usage:       FileReadLine(<filestream>)
+
+Example:     
+
+See Also:     
+
+
+------------------------------------------------------------
+Name/Symbol:  FileReadList
+ 
+Description:  Given a filename, will open it, read in all the items
+	     into a list (one item per line), and close the file
+	     afterward. Ignores blank lines or lines starting with #.
+	     Useful with a number of pre-defined data files stored in
+	     media/text/.  See section 4.12
+	     
+Usage:        FileReadList(<filename>)
+	      
+Example:      FileReadList("data.txt")
+
+See Also:     
+
+------------------------------------------------------------
+Name/Symbol:  FileReadTable
+
+Description:  Reads a table directly from a file. Data in file should
+	     separated by spaces.  Reads each line onto a sublist,
+	     with space-separated tokens as items in sublist.  Ignors
+	     blank lines or lines beginning with #. Optionally,
+	     specify a token separator other than space.
+
+Usage:        FileReadTable(<filename>, <optional-separator>)
+
+Example:      a <- FileReadTable("data.txt")
+
+See Also:     FileReadList()
+
+
+------------------------------------------------------------
+Name/Symbol:  FileReadText
+
+Description:  Returns all of the text from a file, ignoring any lines
+	     beginning with #. Opens and closes the file transparently.
+
+Usage:        FileReadText(<filename>)
+
+Example:      instructions <- FileReadText("instructions.txt")
+
+See Also:     FileReadList(), FileReadTable()
+
+------------------------------------------------------------
+Name/Symbol:  FileReadWord
+
+Description:  Reads and returns  a 'word' from a file; the next
+ 	     connected stream of characters not including a ' '
+	     or a newline. Will not read newline characters.
+
+Usage:        FileReadWord(<filestream>)
+
+Example: 
+
+See Also:    FileReadLine(), FileReadTable(), FileReadList()
+
+
+
+
+------------------------------------------------------------
+Name/Symbol:  FindInString
+
+Description:  Finds a token in a string, returning the position.
+
+Usage:        FindInString(<string>,<string>)
+
+Example:      FindInString("about","bo") == 2
+
+See Also:     SplitString()
+
+
+------------------------------------------------------------
+Name/Symbol:  First
+
+Description:  returns the first item of a list.
+
+Usage:        First(<list>)
+
+Example:      First([3,33,132]) # == 3
+
+
+See Also:     Nth(), Last()
+
+
+------------------------------------------------------------
+Name/Symbol:  Flatten
+
+Description:  Flattens nested list <list> to a single flat list
+
+Usage:        Flatten(<list>)
+
+Example:      Flatten([1,2,[3,4],[5,[6,7],8],[9]])  # == [1,2,3,4,5,6,7,8,9]
+
+ 
+See Also:     FlattenN(), FoldList()
+
+
+
+
+------------------------------------------------------------
+Name/Symbol:  FlattenN
+
+Description:  Flattens n levels of nested list <list> 
+
+Usage:        Flatten(<list>, n)
+
+Example:      Flatten([1,2,[3,4],[5,[6,7],8],[9]],1) 
+                # == [1,2,3,4,5,[6,7],8,9]
+
+ 
+See Also:     Flatten(), FoldList()
+
+------------------------------------------------------------
+Name/Symbol:  Floor
+
+Description:  Rounds <num> down to the next integer
+
+Usage:        Floor(<num>)
+
+Example:      Floor(33.23)  # == 33
+			  Floor(3.999)  # ==3
+			  Floor(-32.23) # == -33
+ 
+See Also:     AbsFloor(), Round(), Ceiling()
+
+
+
+------------------------------------------------------------
+Name/Symbol:  FoldList
+
+Description:  Folds a list into equal-length sublists.
+
+Usage:        FoldList(<list>, size)
+
+Example:      FoldList([1,2,3,4,5,6,7,8],2) # == [[1,2],[3,4],[5,6],[7,8]]
+
+ 
+See Also:     FlattenN(), Flatten()
+
+
+
+------------------------------------------------------------
+Name/Symbol:  Format            
+
+Description: UNIMPLEMENTED
+
+Usage:       Format(<value>)
+
+Example:     
+
+See Also:     
+
+------------------------------------------------------------
+Name/Symbol:  GetCursorPosition
+
+Description: Returns an integer specifying where the edit cursor is
+in a textbox.  The value indicates which character it is on.
+
+Usage:       GetCursorPosition(<textbox>)
+
+Example:     
+
+See Also:      SetCursorPosition(), MakeTextBox(), SetText()
+
+
+------------------------------------------------------------
+Name/Symbol:  GetInput
+
+Description: Allows user to type input into a textbox
+
+Usage:       GetInput(<textbox>,<escape-key>)
+
+Example:     
+
+See Also:      SetEditable, GetCursorPosition(), MakeTextBox(), SetText()
+
+------------------------------------------------------------
+Name/Symbol:  GetNIMHDemographics
+
+Description: Gets demographic information that are normally
+              required for NIMH-related research.  Currently
+              are gender (m/f/prefer not to say), Ethnicity
+              (hispanic or not), and race (am. indian,
+              asian, Hawaiian, black/aa, white, other).  It
+              then prints their responses in a single line
+              in the demographics file, along with any
+              special code you supply and a time/date stamp.
+              This code might include a subject number,
+              experiment number, or something else, but many
+              informed consent forms assure the subject that
+              this information cannot be tied back to them
+              or their data, so be careful about what you
+              record.
+
+              The output of file will look something like: 
+
+---- 
+x0413 Thu Apr 22 17:58:15 2004 1 Y 4 
+x0413 Thu Apr 23 17:58:20 2004 3 Y 5 
+x0413 Thu Apr 24 12:41:30 2004 2 Y 5 
+x0413 Thu Apr 24 14:11:54 2004 2 N 5 
+---- 
+
+              The first column is the user-specified code
+             (in this case, indicating the experiment number).  The
+             middle columns indicate date/time, and the last three
+             columns indicate gender (male,female, other), hispanic
+             (y/n), and race.
+
+Usage:      GetPEBLVersion(<code-to-print-out>, <window>, <filename>) 
+
+Example:    GetNIMHDemographics("x0413", gwindow, "x0413-demographics.txt")
+
+See Also:   
+
+------------------------------------------------------------
+Name/Symbol:  GetPEBLVersion
+
+Description:  Returns a string describing which version of PEBL you
+are running.
+
+Usage:      GetPEBLVersion() 
+
+Example:    Print(GetPEBLVersion())
+
+See Also:   TimeStamp()
+
+
+------------------------------------------------------------
+Name/Symbol:  GetSize
+
+Description:  Returns a list of [height, width], specifying the 
+              size of the widget.
+
+Usage:        GetSize(<widget>)
+
+Example:      image <- MakeImage("stim1.bmp")
+	     xy <- GetSize(image)
+              x <- Nth(xy, 1)
+	     y <- Nth(xy, 2)
+
+See Also:   
+
+------------------------------------------------------------
+Name/Symbol:   GetText
+
+Description: Returns the text stored in a text object (either a
+textbox or a label).
+
+Usage:       GetText(<widget>)
+
+Example:     
+
+See Also:      SetCursorPosition(), GetCursorPosition(),
+SetEditable(), MakeTextBox()
+	
+
+------------------------------------------------------------
+Name/Symbol:  GetTime
+
+Description: Gets time, in milliseconds, from when PEBL was
+initialized. 
+
+  N.B.: Do not use as a seed for the RNG, because it will tend
+        to be about the same on each run. Instead, use RandomizeTimer()
+
+Usage:       GetTime()
+
+Example:     a <- GetTime()
+	    WaitForKeyDown("A")
+	    b <- GetTime()
+	    Print("Response time is: " + (b - a))
+
+See Also:    TimeStamp()
+
+------------------------------------------------------------
+Name/Symbol:  Hide 
+
+Description:  Makes an object invisible, so it will
+	     not be drawn.
+
+Usage:        Hide(<object>)
+
+Example:     
+
+             window <- MakeWindow()
+             image1  <- MakeImage("pebl.bmp")
+             image2  <- MakeImage("pebl.bmp")
+             AddObject(image1, window)
+             AddObject(image2, window)
+	    Hide(image1)     
+             Hide(image2)
+             Draw()   #empty screen will be drawn.
+
+ 
+             Wait(3000)
+             Show(image2)
+             Draw()   #image2 will appear
+           
+             Hide(image2)
+             Draw()  #image2 will disappear
+
+             Wait(1000)
+             Show(image1)
+             Draw()  #image1 will appear
+ 
+
+
+See Also:     Show()
+
+------------------------------------------------------------
+Name/Symbol:  if 
+
+Description:  Simple conditional test
+
+Usage:       if(test)
+	     {
+	      statements
+	      to
+	      be 
+	      executed
+	     }
+
+Example:     
+
+See Also:     
+
+------------------------------------------------------------
+Name/Symbol:  if...else            
+
+Description: Complex conditional test.  Be careful of spacing 
+	     the else--if you put carriage returns on either side 
+	     of it, you will get a syntax error.
+
+Usage:       if(test)
+	     {
+	      statements if true
+	     } else {
+	      statements if false
+	     }
+
+Example:     
+
+See Also:     
+
+------------------------------------------------------------
+Name/Symbol:  IsAnyKeyDown
+
+Description: 
+
+Usage:       
+
+Example:     
+
+See Also:     
+
+------------------------------------------------------------
+Name/Symbol:  IsAudioOut
+
+Description:  Tests whether something is a AudioOut stream
+
+Usage:       IsAudioOut(<variant>)
+
+Example:     if(IsAudioOut(x))
+	     {
+	        Play(x)
+	     }
+
+See Also:     
+            IsColor(), IsImage(), IsInteger(), 
+            IsFileStream(), IsFloat(), IsFont(), IsLabel(),
+ 	   IsList(), IsNumber(), IsString(), IsTextBox(),
+ 	   IsWidget()
+
+------------------------------------------------------------
+Name/Symbol:  IsColor
+
+Description:  Tests whether something is a Color
+
+Usage:       IsColor(<variant>)
+
+Example:     if(IsColor(x))
+	     {
+	        gWin <- MakeWindow(x)
+	     }
+
+See Also:     
+            IsAudioOut(), IsImage(), IsInteger(), 
+            IsFileStream(), IsFloat(), IsFont(), IsLabel(),
+ 	   IsList(), IsNumber(), IsString(), IsTextBox(),
+ 	   IsWidget()
+
+------------------------------------------------------------
+Name/Symbol:  IsImage
+
+Description:  Tests whether something is an Image
+
+Usage:       IsImage(<variant>)
+
+Example:     if(IsImage(x))
+	     {
+		AddObject(gWin, x)
+	     }
+
+See Also:     
+            IsAudioOut(), IsColor(), IsInteger(), 
+            IsFileStream(), IsFloat(), IsFont(), IsLabel(),
+ 	   IsList(), IsNumber(), IsString(), IsTextBox(),
+ 	   IsWidget()
+
+------------------------------------------------------------
+Name/Symbol:  IsInteger
+
+Description:  Tests whether something is an integer type.  Note: a
+              number represented internally as a floating-point
+	     type whose is an integer will return false.  Floating-
+	     point numbers can be converted to internally-represented
+	     integers with the ToInteger or Round commands.
+ 
+
+Usage:       IsInteger(<variant>)
+
+Example:     
+	     x <- 44
+              y <- 23.5
+              z <- 6.5
+              test <- x + y + z 
+
+              IsInteger(x)     #true
+              IsInteger(y)     #false
+              IsInteger(z)     #false
+              IsInteger(test)  #false
+
+
+See Also:     
+            IsAudioOut(), IsColor(), IsImage(), 
+            IsFileStream(), IsFloat(), IsFont(), IsLabel(),
+ 	   IsList(), IsNumber(), IsString(), IsTextBox(),
+ 	   IsWidget()
+
+------------------------------------------------------------
+Name/Symbol:  IsFileStream
+
+Description:  Tests whether something is a FileStream object
+
+Usage:       IsFileStream(<variant>)
+
+Example:     if(IsFileStream(x))
+	     {
+	      Print(FileReadWord(x)
+	     }
+
+See Also:     
+            IsAudioOut(), IsColor(), IsImage(), IsInteger(), 
+            IsFloat(), IsFont(), IsLabel(),
+ 	   IsList(), IsNumber(), IsString(), IsTextBox(),
+ 	   IsWidget()
+
+------------------------------------------------------------
+Name/Symbol:  IsFloat
+
+Description:  Tests whether something is a floating-point value. Note
+that floating-point can represent integers with great precision, so
+that a number appearing as an integer can still be a float.
+
+Usage:       IsFloat(<variant>)
+
+Example:     
+	     x <- 44
+              y <- 23.5
+              z <- 6.5
+              test <- x + y + z 
+
+              IsFloat(x)     #false
+              IsFloat(y)     #true
+              IsFloat(z)     #true
+              IsFloat(test)  #true
+
+
+See Also:     
+            IsAudioOut(), IsColor(), IsImage(), IsInteger(), 
+            IsFileStream(), IsFont(), IsLabel(),
+ 	   IsList(), IsNumber(), IsString(), IsTextBox(),
+ 	   IsWidget()
+
+------------------------------------------------------------
+Name/Symbol:  IsFont
+
+Description:  Tests whether something is a Font object
+
+Usage:       IsFont(<variant>)
+
+Example:     if(IsFont(x))
+	     {
+	        y <- MakeLabel("stimulus", x)
+	     }
+
+See Also:     
+            IsAudioOut(), IsColor(), IsImage(), IsInteger(), 
+            IsFileStream(), IsFloat(), IsLabel(),
+ 	   IsList(), IsNumber(), IsString(), IsTextBox(),
+ 	   IsWidget()
+
+
+------------------------------------------------------------
+Name/Symbol:  IsKeyDown
+
+Description: 
+
+Usage:       
+
+Example:     
+
+See Also:     
+
+------------------------------------------------------------
+Name/Symbol:  IsKeyUp
+
+Description: 
+
+Usage:       
+
+Example:     
+
+See Also:     
+
+
+------------------------------------------------------------
+Name/Symbol:  IsLabel
+
+Description:  Tests whether something is a text Label object
+
+Usage:       IsLabel(<variant>)
+
+Example:     if(IsLabel(x)
+	     {
+	       text <- GetText(x)
+	     }
+
+See Also:     
+            IsAudioOut(), IsColor(), IsImage(), IsInteger(), 
+            IsFileStream(), IsFloat(), IsFont()
+ 	   IsList(), IsNumber(), IsString(), IsTextBox(),
+ 	   IsWidget()
+
+------------------------------------------------------------
+Name/Symbol:  IsList
+
+Description:  Tests whether something is a PEBL list
+
+Usage:       IsList(<variant>)
+
+Example:     if(IsList(x))
+	     {
+		loop(item, x)
+		{
+		  Print(item)
+		}
+	     }
+
+See Also:     
+            IsAudioOut(), IsColor(), IsImage(), IsInteger(), 
+            IsFileStream(), IsFloat(), IsFont(), IsLabel(),
+ 	   IsNumber(), IsString(), IsTextBox(),
+ 	   IsWidget()
+------------------------------------------------------------
+Name/Symbol:  IsMember
+
+Description:  Returns true if element is a member of the list
+
+Usage:      IsMember(<element>,<list>)
+
+Example:     IsMember(2,[1,4,6,7,7,7,7])   #false
+             IsMember(2,[1,4,6,7,2,7,7,7]) #true
+
+See Also:     
+
+
+
+------------------------------------------------------------
+Name/Symbol:  IsNumber
+
+Description:  Tests whether something is a number, either a
+floating-point or an integer.
+
+
+Usage:       IsNumber(<variant>)
+
+Example:     if(IsNumber(x))
+	     Print(Sequence(x, x+10, 1))
+
+See Also:     
+            IsAudioOut(), IsColor(), IsImage(), IsInteger(), 
+            IsFileStream(), IsFloat(), IsFont(), IsLabel(),
+ 	   IsList(), IsString(), IsTextBox(),
+ 	   IsWidget()
+
+------------------------------------------------------------
+Name/Symbol:  IsString
+
+Description:  Tests whether something is a text string
+
+Usage:       IsString(<variant>)
+
+Example:     if(IsString(x))
+	     {
+	         tb <- MakeTextBox(x, 100, 100)
+	     }
+
+See Also:     
+            IsAudioOut(), IsColor(), IsImage(), IsInteger(), 
+            IsFileStream(), IsFloat(), IsFont(), IsLabel(),
+ 	   IsList(), IsNumber(), IsTextBox(), IsWidget()
+
+------------------------------------------------------------
+Name/Symbol:  IsTextBox
+
+Description:  Tests whether something is a TextBox Object
+
+Usage:       IsTextBox(<variant>)
+
+Example:     if(IsTextBox(x))
+	     {
+	       Print(GetText(x))
+	     }
+
+See Also:     
+            IsAudioOut(), IsColor(), IsImage(), IsInteger(), 
+            IsFileStream(), IsFloat(), IsFont(), IsLabel(),
+ 	   IsList(), IsNumber(), IsString(),  IsWidget()
+
+
+------------------------------------------------------------
+Name/Symbol:  IsWidget
+
+Description:  Tests whether something is any kind of a widget object
+	      (image, label, or textbox).
+
+Usage:       IsWidget(<variant>)
+
+Example:     if(IsWidget(x))
+	     {
+	        Move(x, 200,300)
+	     }
+
+See Also:     
+            IsAudioOut(), IsColor(), IsImage(), IsInteger(), 
+            IsFileStream(), IsFloat(), IsFont(), IsLabel(),
+ 	   IsList(), IsNumber(), IsString(), IsTextBox(),
+
+------------------------------------------------------------
+Name/Symbol:  Last
+
+Description: Returns the last item in a list
+
+Usage:       Last(<list>)
+
+Example:     Last([1,2,3,444]) # == 444
+			 
+			 Provides faster access to the last item of a list than
+			 does Nth()
+
+See Also:     Nth(), First()
+
+
+
+------------------------------------------------------------
+Name/Symbol:  List
+
+Description: Creates a list of items. Functional version of []
+
+Usage:       List(<item1>, <item2>, ....)
+
+Example:     List(1,2,3,444) # ==[1,2,3,444]
+
+See Also:    [], Merge(), Append()
+
+------------------------------------------------------------
+Name/Symbol:  Length
+
+Description: Returns the number of items in a list
+
+Usage:       Length(<list>)
+
+Example:     Length([1,3,55,1515]) # == 4
+
+See Also:    StringLength()
+
+------------------------------------------------------------
+Name/Symbol: LoadSound
+
+Description: Loads a soundfile from the filename, returning a variable
+             that can be played.
+
+Usage:        LoadSound(<filename>)
+
+Example:     
+
+See Also:     
+
+------------------------------------------------------------
+Name/Symbol:  Log10
+
+Description:  Log base 10 of <num>
+
+Usage:        Log10(<num>)
+
+Example:     
+
+See Also:     Log2(), LogN(), Ln(), Exp()
+
+------------------------------------------------------------
+Name/Symbol:  Log2
+
+Description:  Log base 2 of <num>
+
+Usage:        Log2(<num>)
+
+Example:     
+
+See Also:     Log(), LogN(), Ln(), Exp()
+------------------------------------------------------------
+Name/Symbol: LogN
+
+Description: Log base <base> of <num>
+
+Usage:       LogN(<num>, <base>)
+
+Example:     LogN(100,10)  ##==2
+             LogN(256,2)   ##==8
+
+See Also:     Log(), Log2(), Ln(), Exp()
+
+------------------------------------------------------------
+Name/Symbol:  Lowercase
+
+Description:  Changes a string to lowercase.  Useful for testing user
+	      input against a stored value, to ensure case differences
+	      are not detected.
+
+Usage:	      Lowercase(<string>)
+
+Example:      Lowercase("POtaTo")  # == "potato"
+
+See Also:     Uppecase()
+
+------------------------------------------------------------
+Name/Symbol:  Ln
+
+Description:  Natural log of <num>
+
+Usage:       Ln(<num>)
+
+Example:     
+
+See Also:     Log(), Log2(), LogN(), Exp()     
+
+------------------------------------------------------------
+Name/Symbol:  loop
+
+Description:  Loops over elements in a list.  During each
+	     iteration, <counter> is bound to each consecutive
+	     member of <list>.
+
+Usage:       loop(<counter>, <list>)
+	     {
+	       statements
+	       to
+	       execute
+	     }
+
+
+Example:     
+
+See Also:     while(){}
+
+------------------------------------------------------------
+Name/Symbol:  Mean
+
+Description: UNIMPLEMENTED. Returns the mean of the numbers in <list>
+
+Usage:       
+
+Example:     
+
+See Also:     Median(), Quantile(), StDev(), Min(), Max()
+
+------------------------------------------------------------
+Name/Symbol:  Median
+
+Description: UNIMPLEMENTED. Returns the median of the numbers in <list>
+
+Usage:       
+
+Example:     
+
+See Also:     Mean(), Quantile(), StDev(), Min(), Max()
+
+------------------------------------------------------------
+Name/Symbol:  MakeChirp  
+
+Description:  UNIMPLEMENTED
+
+Usage:       
+
+Example:     
+
+See Also:     MakeSawtoothWave(), MakeSineWave(), MakeSquareWave()
+
+------------------------------------------------------------
+Name/Symbol:  MakeColor
+
+Description: Makes a color from a name, like "red", "green", and
+	     nearly 800 others.  Color names and corresponding RGB 
+	     values are found in doc/colors.txt.
+
+Usage:       MakeColor(<colorname>)
+
+Example:     
+
+See Also:     MakeColorRGB
+
+------------------------------------------------------------
+Name/Symbol:  MakeColorRGB 
+
+Description:  Makes an RGB color by specifying the red, green, and
+	     blue values (between 0 and 255).
+
+Usage:        MakeColorRGB (<red>, <green>, <blue>)
+
+Example:     
+
+See Also:     MakeColor()
+
+------------------------------------------------------------
+Name/Symbol:  MakeFont 
+
+Description: Makes a font.
+
+Usage:        MakeFont(<ttf_filename>, <style>, <size>, 
+	              <fgcolor>,  <bgcolor>, <anti-aliased>)
+
+Example:     
+
+See Also:     
+
+------------------------------------------------------------
+Name/Symbol:  MakeImage
+
+Description: Makes an image widget from an image file.  At least
+	     .bmp formats should be supported; others may be as well.
+
+Usage:        MakeImage(<filename>)
+
+Example:     
+
+See Also:     
+
+------------------------------------------------------------
+Name/Symbol:  MakeLabel
+
+Description: Makes a text label for display on-screen. Text will be 
+	     on a single line, and the Move() command centers the text
+	     on the specified point.
+
+Usage:        MakeLabel(<text> <font>)
+
+Example:     
+
+See Also:     
+
+------------------------------------------------------------
+Name/Symbol:  MakeMap     
+
+Description: UNIMPLEMENTED
+
+Usage:       
+
+Example:     
+
+See Also:     
+
+
+------------------------------------------------------------
+Name/Symbol:  MakeSawtoothWave     
+
+Description: UNIMPLEMENTED
+
+Usage:       
+
+Example:     
+
+See Also:     MakeSquareWave(), MakeSineWave(), MakeChirp()
+
+------------------------------------------------------------
+Name/Symbol:  MakeSineWave     
+
+Description: UNIMPLEMENTED
+
+Usage:       
+
+Example:     
+
+See Also:     MakeSquareWave(), MakeSawtoothWave(), MakeChirp()
+
+------------------------------------------------------------
+Name/Symbol:  MakeSquareWave     
+
+Description: UNIMPLEMENTED
+
+Usage:       
+
+Example:     
+
+See Also:     MakeSineWave(), MakeSawtoothWave(), MakeChirp()
+
+
+------------------------------------------------------------
+Name/Symbol:  MakeTextBox
+
+Description:  Creates a textbox to display text in. Textboxes
+	     allow multiple lines of text to be rendered;
+	     automatically breaking the text into lines. 
+
+Usage:       MakeWindow(<text>,<font>,<width>,<height>)
+
+Example:     
+
+	     font <-MakeFont("Vera.ttf", 1, 12, MakeColor("red"), MakeColor("green"), 1)
+	     tb <- MakeTextBox("This is the text in the textbox",
+	                        font, 100, 250)
+
+See Also:     MakeLabel(), GetText(), SetText(), SetCursorPosition(),
+    	      GetCursorPosition(), SetEditable()
+
+------------------------------------------------------------
+Name/Symbol:  MakeWindow 
+
+Description:  Creates a window to display things in.  Background
+	      is specified by <color>.
+
+Usage:       MakeWindow(<color>)
+
+Example:     
+
+See Also:     
+
+------------------------------------------------------------
+Name/Symbol:  Max            
+
+Description:  UNIMPLEMENTED. Returns the largest of <list>
+
+Usage:       Max(<list>)
+
+Example:     
+
+See Also:    Min(), Mean(), StDev()
+
+------------------------------------------------------------
+Name/Symbol:  Merge
+
+Description: Combines two lists into a single list
+
+Usage:       Merge(<lista>,<listb>)
+
+Example:     Merge([1,2,3],[8,9]) ## == [1,2,3,8,9]
+
+See Also:     [], Append(), List()
+
+------------------------------------------------------------
+Name/Symbol: Min 
+
+Description:  UNIMPLEMENTED.  Returns the 'smallest' element of a list.
+
+Usage:       Min(<list>)
+
+Example:     
+
+See Also:     Max()
+
+------------------------------------------------------------
+Name/Symbol:  Mod
+
+Description:  Not implemented.
+	     Returns <num> mod <mod> or remainder of <num>/<mod>
+
+Usage:        Mod( <num> <mod>)
+
+Example:     Mod(33, 10) #== 3
+
+See Also:     Div()
+
+------------------------------------------------------------
+Name/Symbol:  Move
+
+Description: Moves an object to a specified location.  For
+	     Images and Labels, it moves the center of the 
+	     object to that location; TextBoxes get moved according to
+	     their upper lefthand corner.
+
+Usage:        Move(<object>, <x>, <y>)
+
+Example:      Move(label, 33, 100)
+
+See Also:     MoveCorner(), MoveCenter
+
+------------------------------------------------------------
+Name/Symbol:  MoveCorner
+
+Description: Moves a label or image to a specified location, according to its
+	     upper lefthand corner, instead of its center. 
+
+Usage:        MoveCorner(<object>, <x>, <y>)
+
+Example:      MoveCorner(label, 33, 100)
+
+See Also:     Move(), MoveCenter
+
+
+------------------------------------------------------------
+Name/Symbol:  MoveCenter
+
+Description: Moves a label or image to a specified location, according to its
+	     center
+
+Usage:        MoveCenter(<object>, <x>, <y>)
+
+Example:      MoveCenter(label, 33, 100)
+
+See Also:     Move(), MoveCorner()
+
+------------------------------------------------------------
+Name/Symbol: not
+
+Description: Logical not
+
+Usage:       
+
+Example:     
+
+See Also:     and, or
+
+------------------------------------------------------------
+Name/Symbol:  Nth
+
+Description: Extracts the Nth item from a list.  Indexes from
+	     1 upwards.
+
+Usage:       Nth(<list>, <index>)
+
+Example:     
+			 a <- ["a","b","c","d"]
+			 Print(Nth(a,3)) #=='c'
+			 
+			 Note: Last() provides faster access to the end of the
+			 list than does Nth, which must walk along the list to the
+			 desired position.
+
+See Also:    First(), Last() 
+
+------------------------------------------------------------
+Name/Symbol: NthRoot
+
+Description:   <num> to the power of  1/<root>
+
+Usage:        NthRoot(<num>, <root>)
+
+Example:     
+
+See Also:     
+
+------------------------------------------------------------
+Name/Symbol:  or                   
+
+Description: Logical or
+
+Usage:       
+
+Example:     
+
+See Also:     
+
+------------------------------------------------------------
+Name/Symbol:  PlayForeground  
+
+Description:  Plays the sound 'in the foreground', not returning until
+	     the sound is complete.
+
+Usage:        PlayForeground(<sound>)
+
+Example:     
+
+See Also:     PlayBackground(), Stop()
+
+------------------------------------------------------------
+
+Name/Symbol:  PlayBackground 
+Description:  Plays the sound 'in the  background', returning
+              immediately.
+
+Usage:        PlayBackground(<sound>)
+
+Example:     
+
+See Also:     PlayForeground(), Stop()
+
+------------------------------------------------------------
+Name/Symbol:  Pow 
+
+Description:  <num> to the power of <pow>
+
+Usage:        Pow(<num>, <pow>)
+
+Example:     
+
+See Also:     
+
+------------------------------------------------------------
+Name/Symbol:  Print
+
+Description:  Prints <value> to stdout, appending a newline 
+	     afterwards.  stdout is the console (in linux) 
+	     or the file stdout.txt (in windows)
+
+Usage:        Print(<value>)
+
+Example:     
+
+See Also:     Print_(), FilePrint()
+
+------------------------------------------------------------
+Name/Symbol:  Print_
+
+Description:  Prints <value> to stdout,  without appending a
+	     newline afterwards.
+
+Usage:        Print_(<value>)
+
+Example:    
+			 Print_("This line")
+			 Print_(" ")
+			 Print_("and")
+			 Print_(" ")
+			 Print("Another line")
+			 ## prints out: 'This line and Another line'
+
+See Also:     
+ 
+------------------------------------------------------------ 
+Name/Symbol: Quantile
+
+Description:  UNIMPLEMENTED. Returns the <num> quantile of
+               the numbers in <list>
+
+Usage:       Quantile(<list>, <num>)
+
+Example:     
+
+See Also:    StDev(), Median(), Mean(), Max(), Min()
+
+------------------------------------------------------------
+Name/Symbol:  Random
+
+Description:   Returns a random number between 0 and 1
+
+Usage:       Random()
+
+Example:     a <- Random()
+
+See Also:    Random(), RandomBernoulli(), RandomBinomial(),
+    	    RandomDiscrete(), RandomExponential(), RandomLogistic(),
+	    RandomLogNormal(), RandomNormal(), RandomUniform(),    
+	    RandomizeTimer, SeedRNG()
+------------------------------------------------------------
+Name/Symbol:  RandomBernoulli
+
+Description:  Returns 0 with probability (1-<p>) 
+	     and 1 with probability <p>
+
+Usage:        RandomBernoulli(<p>)
+
+Example:      RandomBernoulli(.3)
+
+See Also:    Random(), RandomBernoulli(), RandomBinomial(),
+    	    RandomDiscrete(), RandomExponential(), RandomLogistic(),
+	    RandomLogNormal(), RandomNormal(), RandomUniform(),
+	    RandomizeTimer, SeedRNG()    
+
+
+------------------------------------------------------------
+Name/Symbol: RandomBinomial
+
+Description: Returns a random number according to the Binomial 
+	    distribution with probability <p> and repetitions <n>.
+	    I.E., the number of <p> Bernoulli trials that succeed 
+	    out of <n> attempts.
+
+Usage:       RandomBinomial(<p> <n>)  
+
+Example:     RandomBinomial(.3, 10) #returns a number from 0 to 10
+
+See Also:    Random(), RandomBernoulli(), RandomBinomial(),
+    	    RandomDiscrete(), RandomExponential(), RandomLogistic(),
+	    RandomLogNormal(), RandomNormal(), RandomUniform(),    
+	    RandomizeTimer, SeedRNG()    
+
+------------------------------------------------------------
+Name/Symbol:  RandomDiscrete
+
+Description:  Returns a random integer between 1 and the argument 
+              (inclusive), each with equal probability.  If  the
+              argument is a floating-point value, it will get
+              truncated down; if it is less than 1, 1 will be 
+              returned, but a warning message may be triggered.
+
+Usage:       RandomDiscrete(<num>)
+         
+Example:     RandomDiscrete(30)  ##Returns between 1 and 30
+
+See Also:    Random(), RandomBernoulli(), RandomBinomial(),
+    	    RandomDiscrete(), RandomExponential(), RandomLogistic(),
+	    RandomLogNormal(), RandomNormal(), RandomUniform(),
+	    RandomizeTimer, SeedRNG()    
+
+------------------------------------------------------------
+Name/Symbol: RandomExponential
+
+Description: Returns a random number according to exponential 
+	    distribution with mean <mean> (or decay 1/mean)
+
+Usage:       RandomExponential(<mean>)
+
+Example:     RandomExponential(100)
+
+See Also:    Random(), RandomBernoulli(), RandomBinomial(),
+    	    RandomDiscrete(), RandomLogistic(),
+	    RandomLogNormal(), RandomNormal(), RandomUniform(),    
+	    RandomizeTimer, SeedRNG()
+                               
+------------------------------------------------------------
+Name/Symbol:  RandomizeTimer
+
+Description:  Seeds the RNG with the current time.
+
+Usage:        RandomizeTimer()
+
+Example:     
+	     RandomizeTimer()
+	     x <- Random()
+	     
+See Also:     Random(), RandomBernoulli(), RandomBinomial(),
+    	     RandomDiscrete(), RandomExponential(), RandomLogistic(),
+	     RandomLogNormal(), RandomNormal(), RandomUniform(),    
+	     SeedRNG()
+
+------------------------------------------------------------
+Name/Symbol:  RandomLogistic  
+
+Description:  Returns a random number according to the
+              logistic distribution with parameter <p>:
+              f(x) = exp(x)/(1+exp(x))
+
+Usage:        RandomLogistic(<p>)
+
+Example:      RandomLogistic(.3)
+
+See Also:     
+See Also:     Random(), RandomBernoulli(), RandomBinomial(),
+    	     RandomDiscrete(), RandomExponential(),
+	     RandomLogNormal(), RandomNormal(), RandomUniform(),    
+	     RandomizeTimer, SeedRNG()
+
+------------------------------------------------------------
+Name/Symbol: RandomLogNormal
+
+Description:  Returns a random number according to the 
+	     log-normal distribution with parameters 
+	     <median> and <spread>. Generated by calculating
+	     median * exp(spread * RandomNormal(0,1)).
+	     <spread> is a shape parameter, and only affects
+	     the variance as a function of the median; similar to the 
+	     coefficient of variation.  A value near 0 is a sharp
+	     distribution (.1-.3), larger values are more spread out;
+	     values greater than 2 make little difference in the shape.
+
+Usage:        RandomLogNormal( <median>, <spread>)
+
+Example:      RandomLogNormal(5000, .1)
+
+
+See Also:    Random(), RandomBernoulli(), RandomBinomial(),
+    	    RandomDiscrete(), RandomExponential(), RandomLogistic(),
+	    RandomNormal(), RandomUniform(),    
+	    RandomizeTimer, SeedRNG()
+
+------------------------------------------------------------
+Name/Symbol: RandomNormal
+
+Description: Returns a random number according to the standard
+             normal distribution with <mean> and <stdev>
+
+Usage:       RandomNormal(<mean> <stdev>)
+
+Example:     
+
+See Also:    Random(), RandomBernoulli(), RandomBinomial(),
+    	    RandomDiscrete(), RandomExponential(), RandomLogistic(),
+	    RandomLogNormal(), RandomUniform(),    
+	    RandomizeTimer, SeedRNG()
+------------------------------------------------------------
+Name/Symbol:  RandomUniform
+
+Description:  Returns a random floating-point number
+                                between 0 and num.
+
+Usage:        RandomUniform(<num>)
+
+Example:     
+
+
+See Also:    Random(), RandomBernoulli(), RandomBinomial(),
+    	    RandomDiscrete(), RandomExponential(), RandomLogistic(),
+	    RandomLogNormal(), RandomNormal(),     
+	    RandomizeTimer, SeedRNG()
+------------------------------------------------------------
+Name/Symbol:  RadToDeg 
+
+Description:  Converts radians to degrees
+
+Usage:        RadToDeg( <rad>)			 
+
+Example:     
+
+See Also:     DegToRad(), Tan(), Cos(), Sin(), ATan(), ASin(), ACos()
+
+------------------------------------------------------------
+Name/Symbol:  RegisterEvent
+
+Description:  UNIMPLEMENTED.  Advanced event loop management.
+
+Usage:       
+
+Example:     
+
+See Also:     
+
+------------------------------------------------------------
+Name/Symbol:  Remove
+
+Description:  Not implemented.
+              Removes an item from a list
+
+Usage:  
+
+Example:     
+
+See Also:     
+
+------------------------------------------------------------
+Name/Symbol:  RemoveDuplicates
+
+Description:  Not implemented
+
+Usage:       
+
+Example:     
+
+See Also:     
+
+------------------------------------------------------------
+Name/Symbol:  RemoveObject
+
+
+Description:  Removes a child widget from a parent.  Useful if
+	     you are adding a local widget to a global window
+	     inside a loop. If you do not remove the object and
+	     only Hide() it, drawing will become more sluggish.
+        Objects that are local to a function get automatically 
+        removed when the function terminates, so you do not need 
+        to call RemoveObject on all objects at the end of a function.
+
+Usage:        RemoveObject( <object>, <parent>)
+
+Example:     
+
+See Also:     
+
+------------------------------------------------------------
+Name/Symbol: Repeat
+
+Description: Makes and returns a  list by repeating an object a number of
+times. Has no effect on the object.
+
+Usage:       Repeat(<object>, <n>)
+	    Repeat will not make new copies of the object, but just 
+	    repeat it in the list a number of times.  If you later
+	    change the object, you will change every object in the list.
+
+Example:     
+	     x <- "potato"
+	     y <- repeat(x, 10)
+	     Print(y)
+         #produces:
+	     # ["potato","potato","potato","potato","potato","potato",
+		 #  "potato","potato","potato","potato"]
+	     
+	     
+See Also:    RepeatList()
+
+
+------------------------------------------------------------
+Name/Symbol: RepeatList
+
+Description:  Makes a longer list by repeating a shorter list
+	     numerous (<n>) times. Has no effect on the list
+	     itself, but changes made to objects in the new list
+	     will also affect the old list.
+
+Usage:       RepeatList(<list>, <n>)
+
+Example:     RepeatList([1,2],3) # == [1,2,1,2,1,2]
+
+See Also:    Repeat(), Merge(), []
+
+------------------------------------------------------------
+Name/Symbol:  Replace
+
+Description:  Creates a copy of a (possibly nested) list in which
+              items matching some list are replaced for other items.  <template> can be any
+			  data structure, and can be nested.  <replacementList> is a list of two-item list pairs:
+			  containing the to-be-replaced item and what it should be transformed to.
+
+			  Note, replacement searches the entire <replacementList> for matches.  If multiple
+			  keys are identical, the item will be replaced with the last item that matches.
+
+Usage:        Replace(<template>,<replacementList>)
+			  
+Example:     
+
+               x <- ["a","b","c","x"]
+              rep <- [["a","A"],["b","B"],["x","D"]]
+              Print(Replace(x,rep))
+              #Result:  [A, B, c, D] 
+See Also:     
+
+------------------------------------------------------------
+Name/Symbol:  return
+
+Description:  Enables a function to return a value.
+
+Usage:       define funcname()
+	     {
+	      return 0
+	     }
+
+Example:     
+
+See Also:     
+
+------------------------------------------------------------
+Name/Symbol:  Rotate
+
+Description: Returns a list created by rotating a list by <n> items.  The new list will
+	     begin with the <n+1>th item of the old list (modulo
+	     its length), and contain all of its items in order,
+	     jumping back to the beginning and ending with the <n>th
+	     item. Rotate(<list>,0) has no effect.  Rotate does
+	     not modify the original list.
+
+Usage:       Rotate(<list-of-items>, <n>)
+
+
+Example:     Rotate([1,11,111],1)  # == [11,111,1]
+
+See Also:    Transpose()
+
+
+------------------------------------------------------------
+Name/Symbol: Round
+
+Description: Rounds <num> to nearest integer
+
+Usage:        Round(<num>)
+
+Example:     Round(33.23)  # == 33
+	    Round(56.65)  # == 57
+
+See Also:     Ceiling(), Floor(), AbsFloor(), ToInt()
+
+------------------------------------------------------------
+Name/Symbol:  SampleN
+
+
+Description: Samples  <number> items from list, returning a
+randomly-ordered list. Items are sampled without replacement, so once
+chosen it will not be chosen again. If <number> is larger than the
+length of the list, the entire list is returned shuffled. 
+It differs from ChooseN in that ChooseN returns items in the order
+they appeared in the originial list.  It is implemented as
+Shuffle(ChooseN()).
+
+Usage:       SampleN(<list>, <n>)
+
+SampleN is not a precompiled function, but rather is written in PEBL,
+and is located in pebl-lib/Design.pbl.
+
+
+
+Example:     SampleN([1,1,1,2,2], 5)     #Returns 5 numbers
+             SampleN([1,2,3,4,5,6,7], 3) #Returns 3 numbers from 1 and 7
+
+
+See Also:    ChooseN(), SampleNWithReplacement(), Subset()
+
+------------------------------------------------------------
+Name/Symbol:  SampleNWithReplacement
+
+Description: SampleNWithReplacement samples <number> items from
+<list>, replacing after each draw so that items can be sampled
+again. <number> can be larger than the length of the list. It has no
+side effects on its arguments.  SampleNWithReplacement is written in
+PEBL, and is located in pebl-lib/Design.pbl.
+
+Usage:        SampleNWithReplacement(<list>, <number>)
+
+Example:     
+	     x <- Sequence(1:100,1)
+	     SampleNWithReplacement(x, 10)
+	     ## Produces 10 numbers between 1 and 100, possible 
+	     ## repeating some.
+
+See Also:     SampleN(), ChooseN(), Subset()
+
+------------------------------------------------------------
+Name/Symbol:   SeedRNG
+
+Description:   Seeds the random number generator with <num> to
+               reproduce a random sequence.  This function can
+	      be used cleverly to create a multi-session experiment:
+	      Start by seeding the RNG with a single number for each
+               subject; generate the stimulus sequence, then extract
+               the appropriate stimuli for the current block.
+               Remember to RandomizeTimer() afterward if necessary.
+
+
+Usage:        SeedRNG(<num>) 
+
+Example:     
+
+See Also:    
+
+------------------------------------------------------------
+Name/Symbol:   Sequence
+
+Description:	Makes a sequence of numbers from <start> to
+					<end> at <step>-sized increments. If <step>
+					is positive, <end> must be larger than
+					<start>, and if <step> is negative, <end>
+					must be smaller than <start>. If <start> +
+					n*<step> does not exactly equal <end>, the
+					last item in the sequence will be the number
+					closest number to <end> in the direction of
+					<start> (and thus <step>).
+					
+
+Usage:        Sequence(<start>, <end>, <step>)
+
+Example:		  Sequence(0,10,3)    # == [0,3,6,9]
+			  Sequence(0,10,1.5)  # == [0,1.5,3,4.5, 6, 7.5, 9]
+			  Sequence(10,1,3)    # error
+			  Sequence(10,0,-1)   # == [10,9,8,7,6,5,4,3,2,1]
+
+
+See Also:    
+	 Repeat(), RepeatList()
+
+------------------------------------------------------------
+Name/Symbol: SetCursorPosition
+
+Description: Moves the editing cursor to a specified character
+position in a textbox.
+
+Usage:       SetCursorPosition(<textbox>, <integer>)
+
+Example:     
+	    SetCursorPosition(tb, 23)
+
+See Also:   SetEditable(), GetCursorPosition(), SetText(), GetText()
+
+------------------------------------------------------------
+Name/Symbol: SetEditable
+
+Description: Sets the textbox's "editable" status.  In actuality, all
+this does is turns on or off the cursor; editing must be done with the
+(currently unsupported and very buggy) device function GetInput().
+
+Usage:       SetEditable()
+
+Example:     SetEditable(tb, 0)
+	    SetEditable(tb, 1)
+
+See Also:    GetEditable()
+
+------------------------------------------------------------
+Name/Symbol: SetFont
+
+Description: Resets the font of a textbox or label.  Change will not
+	     appear until the next Draw() function is called.  Can be used, for
+	     example, to change tho color of a label to give richer
+	     feedback about correctness on a trial (see example below.)
+
+Usage:       SetFont(<text-widget>, <font>)
+
+Example:   
+	   fontGreen <- MakeFont("vera.ttf",1,22,MakeColor("green"),MakeColor("black"), 1)
+       fontRed   <- MakeFont("vera.ttf",1,22,MakeColor("red"),MakeColor("black"), 1)
+	   label <- MakeLabel(fontGreen, "Correct")
+	  
+ 
+       #Do trial here.
+           
+	   if(response == 1)
+       {
+         SetText(label, "CORRECT")
+	     SetFont(label, fontGreen)
+	   } else {
+	     SetText(label, "INCORRECT")
+	     SetFont(label, "fontRed)
+	   }
+
+	   Draw()
+
+See Also:    SetText()
+
+------------------------------------------------------------
+
+Name/Symbol: SetText
+
+Description: Resets the text of a textbox or label.  Change will not
+appear until the next Draw() function is called.
+
+Usage:       SetText(<text-widget>, <text>)
+
+Example:   
+	   #Fixation Cross:
+	   label <- MakeLabel(font, "+")
+	   Draw()
+	   SetText(label, "X")
+	   Wait(100)
+	   Draw()
+
+See Also:    GetText(), SetFont()
+
+------------------------------------------------------------
+Name/Symbol:  Show
+
+Description: Sets a widget to visible, once it has been
+	     added to a parent widget.  This just changes the
+	     visibility property, it does not make the widget
+	     appear.  The widget will not be displayed until the 
+	     Draw() function is called.
+
+Usage:        Show(<object>)
+
+Example:     
+             window <- MakeWindow()
+             image1  <- MakeImage("pebl.bmp")
+             image2  <- MakeImage("pebl.bmp")
+             AddObject(image1, window)
+             AddObject(image2, window)
+             Hide(image2)
+             Draw()
+             Wait(300)
+             Show(image2)
+             Draw()
+
+See Also:     Hide()
+
+------------------------------------------------------------
+Name/Symbol: Shuffle
+
+Description: Randomly Shuffles a list.
+
+Usage:       Shuffle(list)
+
+Example:     Print(Shuffle([1,2,3,4,5]))
+	    ##Results might be anything, like [5,3,2,1,4]
+
+See Also:    Sort(), SortBy()
+
+
+------------------------------------------------------------
+Name/Symbol: Sign
+
+Description: Returns +1 or -1, depending on sign of argument.
+
+Usage:       Sign(<num>)
+
+Example:     Sign(-332.1)  # == -1
+             Sign(65)      # == 1
+
+See Also:     Abs()
+------------------------------------------------------------
+Name/Symbol: SignalFatalError
+
+Description: Stops PEBL and prints <message> to stderr.  Useful for
+type-checking in user-defined functions. 
+
+Usage:       SignalFatalError(<message>)
+
+Example:     
+	     If(not IsList(x))
+	     {
+		SignalFatalError("Tried to frobnicate a List.")
+	     }
+
+See Also:     Print()
+
+------------------------------------------------------------
+Name/Symbol:  Sin
+
+Description:  Sine of <deg> degrees
+
+Usage:        Sin(<deg>)
+
+Example:      Sin(180)
+	           Sin(0)
+
+See Also:    Cos(),  Tan(), ATan(), ACos(), ATan() 
+
+------------------------------------------------------------
+Name/Symbol: Sort
+
+Description: Sorts a list by its values from smallest to largest.
+
+Usage:       Sort(<list>)
+
+Example:     Sort([3,4,2,1,5]) # == [1,2,3,4,5]
+
+See Also:    SortBy(), Shuffle()
+
+------------------------------------------------------------
+Name/Symbol: SortBy
+
+Description: Sorts a list by the values in another list, in ascending
+			 order.
+
+
+Usage:       SortBy(<value-list>, <key-list>)
+
+Example:     SortBy(["Bobby","Greg","Peter"], [3,1,2]) 
+	    ## == ["Greg","Peter","Bobby"]
+
+See Also:    Shuffle(), Sort()
+
+------------------------------------------------------------
+Name/Symbol:  SplitString
+
+Description:  Splits a string into tokens.  <split> must be a
+	      string. If <split> is not found in <string>, a list
+	      containing the entire string is returned; if split is
+	      equal to "", the each letter in the string is placed
+	      into a different item in the list.  Multiple delimiters,
+	      as well as delimiters at the beginning and end of list,
+	      will produce empty list items
+	      
+	      SplitString is implemented as a PEBL function, and is
+	      located in pebl-lib/Utility.pbl
+
+Usage:	      SplitString(<string>, <split>)
+
+Example:      SplitString("Everybody Loves a Clown", " ") 
+	      #Produces ["Everybody", "Loves", "a", "Clown"]
+
+See Also:     FindInString()
+
+------------------------------------------------------------
+Name/Symbol:  Sqrt 
+
+
+Description:  Square root of <num>
+
+
+Usage:        Sqrt(<num>)
+
+Example:     Sqrt(100)  # == 10
+
+See Also:     
+
+------------------------------------------------------------
+Name/Symbol:  StDev 
+
+Description: UNIMPLEMENTED. Returns the standard dev of <list>
+
+Usage:       StDev(<list> )        
+
+Example:     
+
+See Also:     Min(), Max(), Mean(), Median(), Quantile()
+
+
+------------------------------------------------------------
+Name/Symbol:  StartEventLoop
+
+Description:  UNIMPLEMENTED. Advanced control of event loop.
+
+Usage:       
+
+Example:     
+
+See Also:     
+
+
+------------------------------------------------------------
+Name/Symbol:  Stop	
+
+Description:  Stops a sound playing in the background from playing.
+Calling Stop() on a sound object that is not playing should have no
+effect, but if an object is aliased, Stop() will stop the file.  Note
+that sounds play in a separate thread, so interrupting the thread has
+a granularity up to the duration of the thread-switching quantum on
+your computer; this may be tens of milliseconds.
+
+Usage:        Stop(<sound-object>)
+
+Example:     
+             buzz <- LoadSound("buzz.wav")
+             PlayBackground(buzz)
+	     Wait(50)
+ 	     Stop(buzz)
+
+See Also:    
+PlayForeground() PlayBackGround()
+
+
+
+------------------------------------------------------------
+Name/Symbol:  StringLength
+
+Description: Determines the length of a string, in characters
+
+Usage:       StringLength(<string>)
+
+Example:     StringLength("absolute")     # == 8
+	     StringLength("   spaces   ") # == 12
+	     StringLength("")             # == 0
+
+See Also:    Length(), SubString()
+
+
+------------------------------------------------------------
+Name/Symbol:  SubList
+
+Description: Extracts a list from another list, by specifying 
+	     beginning and end points of new sublist.
+
+Usage:       SubList(<list>, <begin>, <end>)
+
+Example:     SubList([1,2,3,4,5,6],3,5)  # == [3,4,5]
+
+See Also:    SubSet(), ExtractListItems()
+
+------------------------------------------------------------
+Name/Symbol:  Subset
+
+Description: Extracts a subset of items from another list, returning a
+	     new lists that includes items from the original list only
+	     once and in their original orders.  Item indices in the
+	     second argument that do not exist in the first argument
+	     are ignored.  It has no side effects on its arguments.
+	     Is implemented as a PEBL function in pebl-lib/Design.pbl
+
+
+Usage:       Subset(<list>, <list-of-indices>)
+
+
+Example:     
+            Subset([1,2,3,4,5,6],[5,3,1,1])  # == [1,3,5]
+	    Subset([1,2,3,4,5], [23,4,2])    # == [2,4]
+
+See Also:   SubList(), ExtractItems(), SampleN()
+
+------------------------------------------------------------
+Name/Symbol:  SubString
+
+Description:  Extracts a substring from a longer string.
+
+Usage:        SubString(<string>,<position>,<length>).  If position is
+	      larger than the length of the string, an empty string is
+	      returned.  If position + length exceeds the length of
+	      the string, a string from <position> to the string's
+	      last character is returned.
+
+Example:      SubString("abcdefghijklmnop",3,5) #=="cdefg"
+
+See Also:     
+
+------------------------------------------------------------
+Name/Symbol:  Tan	
+
+Description: Tangent of <deg> degrees
+
+
+Usage:       Tan(<deg>)
+
+Example:     Tan(180)
+
+See Also:    Cos(), Sin(), ATan(), ACos(), ATan() 
+
+------------------------------------------------------------
+Name/Symbol:  TimeStamp
+
+Description:  Returns a string containing the date-and-time, formatted
+	     according to local conventions. Should be used for
+	     documenting the time-of-day and date an experiment was
+	     run, but not for keeping track of timing accuracy.  For
+	     that, use GetTime().
+	     
+Usage:       TimeStamp()
+
+Example:     a<-TimeStamp()
+             Print(a)
+
+See Also:     GetTime()
+
+------------------------------------------------------------
+Name/Symbol:  ToInteger
+              
+Description:  Rounds a number to an integer,  changing internal representation.
+
+Usage:        ToInteger(<number>)
+     	     ToInteger(<floating-point>)
+ 	     ToInteger(<string-as-number>)
+
+Example:     ToInteger(33.332)  #==33
+             ToInteger("3213")
+
+See Also:    Round(), Ceiling(), AbsCeiling(), Floor(), AbsFloor()
+
+------------------------------------------------------------
+Name/Symbol:  ToFloat
+
+Description: Converts number to internal floating-point representation.
+
+Usage:       ToFloat(<number>)
+
+Example:     
+
+See Also:     
+
+------------------------------------------------------------
+Name/Symbol:  Token
+
+Description:  UNIMPLEMENTED.
+
+Usage:       
+
+Example:     
+
+See Also:     
+
+
+------------------------------------------------------------
+Name/Symbol:  ToNumber
+
+Description:  Converts a variant to a number. Most useful
+for character strings that are interpretable as a number,
+but may also work for other subtypes.
+
+Usage:        ToNumber(<string)
+	     ToNumber(<number>)
+Example:      The following code:
+		a <- ToNumber("3232")
+		Print(a + 1)
+	      produces the output 3233. 
+
+See Also:     ToString(), ToFloat() Round()
+
+------------------------------------------------------------
+Name/Symbol:  ToString
+
+Description:  Converts value to a string
+representation. Most useful for numerical values.  This
+conversion is done automatically when strings are combined
+with numbers.
+
+Usage:       ToString(<number>)
+				 ToString(<string>)
+
+Example:     The following code:
+					  a <- ToString(333.232)
+					  Print(a + "111")
+				 produces output '333.232111'.
+See Also:    ToString(), +.
+
+     
+------------------------------------------------------------
+Name/Symbol:  TranslateKeyCode
+
+Description: Translates a code corresponding to a keyboard key
+	    into a keyboard value.  This code is returned by 
+	    some event/device polling functions.
+
+Usage:       
+
+Example:     
+
+See Also:     
+
+
+------------------------------------------------------------
+Name/Symbol:  Transpose
+
+Description: Transposes or "rotates" a list of lists.  Each sublist
+	     must be of the same length.
+
+Usage:       Transpose(<list-of-lists>)
+
+
+Example:     Transpose([[1,11,111],[2,22,222],[3,33,333], [4,44,444]])
+	     ## == [[1,2,3,4],[11,22,33,44],[111,222,333,444]]
+
+See Also:    Rotate
+
+------------------------------------------------------------
+Name/Symbol:  Uppercase
+
+Description:  Changes a string to uppercase.  Useful for testing user
+	      input against a stored value, to ensure case differences
+	      are not detected.
+
+Usage:	      Uppercase(<string>)
+
+Example:      Uppercase("POtaTo")  # == "POTATO"
+
+See Also:     Uppecase()
+
+------------------------------------------------------------
+Name/Symbol:  Wait 
+
+Description: Waits the specified number of milliseconds, then
+returns.  Wait 
+
+Usage:       Wait(<time>)
+
+Example:     Wait(100)
+ 	    Wait(15)
+
+See Also:     
+
+------------------------------------------------------------
+Name/Symbol:  WaitForAllKeysUp
+
+Description: 
+
+Usage:       
+
+Example:     
+
+See Also:     
+
+------------------------------------------------------------
+Name/Symbol:  WaitForAnyKeyDown
+
+Description: 
+
+Usage:       
+
+Example:     
+
+See Also:     
+
+------------------------------------------------------------
+Name/Symbol:  WaitForAnyKeyDownWithTimeout
+
+Description:  Waits until any key is pressed, but
+	     will return after a specified number of
+	     milliseconds.
+
+Usage:        WaitForAnyKeyDownWithTimeout(<time>)
+
+Example:     
+
+See Also:     
+
+------------------------------------------------------------
+Name/Symbol:  WaitForKeyDown
+
+Description: 
+
+Usage:       
+
+Example:     
+
+See Also:     
+
+------------------------------------------------------------
+Name/Symbol:  WaitForKeyListDown
+
+Description:  Returns when any one of the keys specified
+	     in the argument list is pressed. Returns
+
+Usage:       WaitForKeyListDown(<list-of-keys>)
+
+Example:     WaitForKeyListDown(["a","z"])
+
+See Also:     
+ 
+
+------------------------------------------------------------
+Name/Symbol:  WaitForKeyPress
+
+Description:  Waits for a keypress event that matches the specified key.
+	      Usage of this function is preferred over
+	      WaitForKeyDown(), which tests the state of the
+	      key. Returns the value of the key pressed.	      
+
+
+Usage:	      WaitForKeyPress(<key>)
+
+Example:     
+
+See Also:     WaitForAnyKeyPress, WaitForKeyRelease, WaitForListKeyPress
+
+
+------------------------------------------------------------
+Name/Symbol: WaitForKeyUp
+
+Description: 
+
+Usage:       
+
+Example:     
+
+See Also:     
+
+------------------------------------------------------------
+Name/Symbol:   while
+
+Description: 'while' is a keyword, and so is part of the syntax, and not
+a function per se.  It executes the code inside the
+{} brackets until the test inside the () executes as false.   This
+can easily lead to an infinite loop if conditions are not met.  Also,
+there is currently no break statement to allow execution to halt
+early.  Unlike some other languages, PEBL requires that the {} be present.
+
+Usage:       while(<test expression)
+	         {
+               code line 1
+		       code line 2
+	         }
+
+Example:     
+
+The following prints out the numbers 1 through 10
+i <- 1
+while(i <= 10)
+{
+     Print(i)
+     i <- i + 1
+}
+
+See Also:     
+
+loop(){}
+
+------------------------------------------------------------

@@ -1,0 +1,28 @@
+define Start(p)
+{
+   font <- MakeFont("Vera.ttf",0,22,MakeColor("red"),MakeColor("white"),0)
+   win <- MakeWindow()
+   tb <- MakeTextBox("Press A or B",font, 400,200)
+   AddObject(tb,win)
+   Draw()
+
+
+   resp1 <- WaitForListkeyPress(["A","B"])
+
+   tb.text <- "Enter any input.  This line should NOT start with previous respone (A or B). Hit escape to continue."
+   Draw()
+   resp  <- GetInput(tb,"<esc>")
+   Print(resp)
+   Print("GetInput complete")
+   
+   Draw()
+   tb.text <- "Hit Q key to continue."
+   Draw()
+   resp <- "X"
+   while(resp != "q")
+   {
+     resp <- WaitForAnyKeyPress()
+     Print("RESP:" + resp)
+   }
+
+}

@@ -1,0 +1,1308 @@
+
+\chapter
+{Overview of Object Subsystems}
+
+In PEBL, complex objects are stored and automatically self-managed.
+These objects include lists, graphical display widgets like images and
+text displays, fonts, colors, audio files, and input or output files.
+Objects are created and modified with special functions, but many of
+their properties available directly for access and modification with a
+\texttt{variable.property} syntax.  For example, the position of a
+textbox is controlled by \verb+.X+ and \verb+.Y+ properties, and can
+also be changed with the \verb+Move()+ function.  To move the label
+\texttt{lab}, which is located at 100,100, to 150,100, you can either
+do \texttt{Move(lab,150,100)} or \verb+lab.X <- 150+.  The available
+properties and accessor function are listed in the decriptions of
+their relevant objects below.
+
+
+\sect{Lists}
+
+Lists are incredibly useful and flexible storage structures that play
+an important role in PEBL. A list is simply a series of variables. It
+is the equivalent to a vector, array, or other similar data structure in many other 
+programming languages.
+
+Creating and accessing elements of lists can be accomplished in a number of ways.  If you have a set 
+of values you want to create a list from, you simply need to put them inside square brackets, separated by commas:
+
+\begin{verbatim}
+  mylist <- [1,2,3,4,5,6,7,8,9]
+\end{verbatim}
+
+Many functions related to experimental design return lists already created. Two simple functions are \verb+Repeat+ and \verb+Sequence+:
+\begin{verbatim}
+  list1 <- Repeat(0,10)      ##ten zeroes
+  list2 <- Sequence(0,20,2)  ##numbers 0 to 20 step 2
+\end{verbatim}
+
+Accessing list items can be done in a number of ways.  The simplest is using the \verb+Nth()+ function.
+For a slightly more complex example, suppose you want to print out every item in a list. Looping through, accessing, and printing all the items of a list using this approach: 
+\begin{verbatim}
+
+  list <- Sequence(1,9,1) 
+  len <- Length(list)
+  i <- 1
+  while (i <= len)
+   {
+     item <- Nth(list,i) 
+     Print(item)
+     i <- i + 1
+  } 
+
+\end{verbatim}
+Note that prior to PEBL 0.12, using Nth to access list items was inefficient.  Since PEBL 0.13, you can use Nth to access list items in amortized constant time!  But nevertheless, the above method of looping is verbose and error-prone.  There is an alternative.  Items from
+lists can be iterated over using the `\texttt{loop}' command:  
+\begin{verbatim}
+
+  list <- Sequence(1,9,1)
+  loop(item, list) 
+  {
+    Print(item)
+  }
+\end{verbatim}
+
+These two code blocks produce identical output, but in the former
+block, each item of the list must be found on each iteration, but in
+the latter block, a list item is bound directly to `\texttt{item}' on
+each iteration.  There is no appreciable difference in the efficiency
+of these two methods, but the second is simpler and in many cases
+easier to use, and avoids some errors (like forgetting to increment
+\texttt{i}).
+
+\subsection{Growing Lists}
+Oftentimes, you want to create a list one element at a time.  For example, you may have a sampling scheme for stimuli and need to pick each consecutive randomly, or you want to record response times or accuracies one trial at a time.  There are two ways you can do this.  If you know how long your list will be, you can create a list with as many elements as you need, and then alter each element one at a time.  
+\begin{verbatim}
+##I need ten items
+
+items <- Repeat(0,10)
+i <- 1
+while(i <= Length(items))
+{
+  SetElement(items,i,Random())
+}
+\end{verbatim}
+
+Oftentimes, however, this is difficult because you do no know how long the list should be at the beginning.  The \verb+Append()+ function is able to add an item to the end of a list, and you can use that to 'grow' a list one item at a time:
+
+\begin{verbatim}
+##I need ten items
+
+items <- []
+i <- 1
+while(i <= 10)
+{
+  items <- Append(items,Random())
+}
+\end{verbatim}
+
+This ideom is used in many places in PEBL test batteries.  However, it can be inefficient as the length of the list grows.  This is because on each iteration, a new list is created that is 1 element longer than the previous list (and each element is copied to the new list).  For small lists, even ones hundred of items long, this overhead is pretty small and you hardly notice.  But as a list gets thousands of items long, this can start to slow things down, especially if you are doing something complex between each trial. As of PEBL 0.13, we support another function called PushOnEnd():
+\begin{verbatim}
+items <- []
+i <- 1
+while(i <= 10)
+{
+  PushOnEnd(items,Random())
+}
+\end{verbatim}
+
+\texttt{PushOnEnd} will alter \texttt{items} directly, and do so in a very efficient way.  Notice that you don't need to copy the new list and overwrite itself.  However, for ease of use, \texttt{PushOnEnd()} returns the current copy of the list, and so you can often use it as a drop-in replacement for Append (in cases where you are throwing away the original list).  In tests, this method appears to be only 5-10\% less efficient than using \texttt{PushOnEnd} alone, and so it should hardly be noticed.
+
+\begin{verbatim}
+items <- []
+i <- 1
+while(i <= 10)
+{
+  items <- PushOnEnd(items,Random())
+}
+\end{verbatim}
+
+A caveat when using lists: Some functions operate on lists to produce
+new lists (sub-lists, re-ordered lists, etc.). When the lists contain
+simple data types (numbers, strings, etc.), entirely new data
+structures are created. But when the data structures are complex
+(windows, sounds, images, etc.), the objects are not copied. Only new
+pointers to the original objects are created. So if you change the
+original object, you may end up accidentally changing the new
+object. Although that is relatively difficult, because PEBL allows
+only limited modification of existing data structures, it is still
+possible. This is a special case of the copy/assignment issue
+discussed in Section~\ref{sec:copies_and_ass}:~Copies and Assignment.
+
+\subsection{Recursion on lists}
+Many mathematical functions that take a single argument can be applied either to a number or a list of numbers.  When applied to an entire list, it will return the function applied to each element of that list.  For example, \texttt{Ln(1)} return 0, but
+ \texttt{Ln([1,1,1]} returns [0,0,0].
+
+A list of functions that support this include:
+
+\begin{tabular}{llll}
+ \textbullet~ \texttt{Log10} &  \textbullet~ \texttt{Log2} &   \textbullet~ \texttt{Ln} &  \textbullet~ \texttt{Exp}\\
+\textbullet~ \texttt{Sqrt}& \textbullet~ \texttt{Tan} & \textbullet~ \texttt{Sin}& \textbullet~ \texttt{Cos} \\
+\textbullet~ \texttt{ATan}& \textbullet~ \texttt{ASin}&\textbullet~ \texttt{ACos}&\textbullet~ \texttt{DegToRad}\\
+\textbullet~ \texttt{RadToDeg}&\textbullet~ \texttt{Round}&\textbullet~ \texttt{Floor}&\textbullet~ \texttt{Ceiling}\\
+\textbullet~ \texttt{AbsFloor}&\textbullet~ \texttt{Sign}&\textbullet~ \texttt{Abs}\\
+\end{tabular}
+
+In addition, a number of math functions that take two argumunts will apply themselves recursively to the first argument should it be a list. For example, \texttt{LogN([1,1,1],5)} will return [0,0,0].  Functions that support this include:
+
+\begin{tabular}{lll}
+\textbullet~ \texttt{LogN} &
+\textbullet~ \texttt{Pow}&
+\textbullet~ \texttt{NthRoot}\\
+\end{tabular}
+
+\newpage
+\sect{Fonts}
+
+PEBL uses truetype fonts for the display of text in labels and other text
+widgets.  In addition to the filename, font objects have the following properties: style (i.e., normal, bold, italic, underline), size (in points),
+foreground color, background color, and whether it should be rendered
+anti-aliased.
+
+We distribute a series of high-quality freely available
+and redistributable fonts, including the DejaVu series,
+freefont series, and a few others.  These include
+the typeface/files shown below \ref{tab:fonts}:
+
+\begin{table}[htbp]
+\small
+\caption{Typeface/Files Available in PEBL}
+\begin{tabular}{ll}
+\toprule
+\textbf{Filename}&\textbf{Description}\\
+\midrule
+\multicolumn{2}{c}{FreeFont Fonts}\\
+\texttt{FreeSans.ttf} &Simple Clean sans serif font\\
+\texttt{FreeSansBold.ttf}& \\
+\texttt{FreeSansOblique.ttf}&\\
+\texttt{FreeSansBoldOblique.ttf}&\\
+\texttt{FreeMono.ttf}& Courier-like fontface\\
+\texttt{FreeMonoBold.ttf}& \\
+\texttt{FreeMonoOblique.ttf}& \\
+\texttt{FreeMonoBoldOblique.ttf}& \\
+\texttt{FreeSerif.ttf}& Similar to Times New Roman\\
+\texttt{FreeSerifBold.ttf}& \\
+\texttt{FreeSerifItalic.ttf}&\\
+\texttt{FreeSerifBoldItalic.ttf}& \\
+\midrule
+\multicolumn{2}{c}{Fontforge Fonts}\\
+\texttt{Caliban.ttf}&  Helvetica-style  \\
+\texttt{CaslonRoman.ttf}& Quirky Roman Font series\\
+\texttt{CaslonBold.ttf}&\\
+\texttt{CaslonItalic.ttf}&\\
+\texttt{Caslon-Black.ttf}&\\
+\texttt{Humanistic.ttf}&Sharp, refined fontface\\
+\midrule
+\multicolumn{2}{c}{SIL Fonts}\\
+
+\texttt{DoulosSILR.ttf}&Comprehensive font with roman and cyrillic glyphs\\
+\texttt{GenR102.ttf}& Includes many latin alphabet letters\\
+\texttt{GenI102.ttf}& \\
+\texttt{CharisSILR.ttf}& Like doulos, optimized for printing\\
+\texttt{CharisSILB.ttf}&\\
+\texttt{CharisSILI.ttf}& \\    
+\texttt{CharisSILBI.ttf}& \\   
+\midrule
+\multicolumn{2}{c}{PEBL Fonts}\\
+\texttt{Stimulasia.ttf}& A small set of arrow/boxes\\
+\midrule
+\multicolumn{2}{c}{Bitstream Vera Series (Deprecated in favor of DejaVu)}\\
+\texttt{Vera.ttf}    &     Sans serif Roman-style base font\\
+\texttt{VeraMono.ttf}&     Sans serif Roman-style mono-spaced base font\\
+\texttt{VeraSe.ttf}  &     Serif Roman-style base font (similar to times)\\
+\texttt{VeraBd.ttf}  &     Bold Vera\\
+\texttt{VeraIt.ttf}  &     Italic Vera\\
+\texttt{VeraBI.ttf}  &     Bold Italic Vera\\
+\texttt{VeraMoBd.ttf}&     Bold Vera Mono\\
+\texttt{VeraMoIt.ttf}&     Italic Vera Mono\\
+\texttt{VeraMoBI.ttf}&     Bold Italic Vera Mono\\
+\texttt{VeraSeBd.ttf}&     Bold Serif Vera\\
+\midrule
+\multicolumn{2}{c}{DejaVu Series (Version of Vera with
+  international characters)}\\
+\texttt{DejaVuSerif.ttf}    &     Serif Roman-style base font (similar to times)\\
+\texttt{DejaVuSans.ttf}     &     Serif Roman-style base font\\
+\texttt{DejaVuSansMono.ttf} &   Sans serif Roman-style mono-spaced base font\\
+\midrule
+\multicolumn{2}{c}{CJK Fonts}\\
+\texttt{wqy-zenhei.ttc} & All-purpose font with support for Chinese, Korean and Japanese\\
+
+\bottomrule
+\end{tabular}
+\label{tab:fonts}
+\end{table}
+
+
+
+These should always be available for use in experiments.  The
+\texttt{fonts.pbl} script in the demo/ directory will display what
+symbols from each of these fonts looks like.
+
+To use, you need only specify the font name in the \texttt{MakeFont()} function:
+\begin{verbatim}
+  colorRed  <- MakeColor("red")
+  colorGrey <- MakeColor("grey")
+  myFont    <- MakeFont("VeraMono.ttf",0,22,colorRed,colorGrey,1)
+\end{verbatim}
+This code makes a red 22-point anti-aliased font on a grey background. 
+Other fonts may be used by specifying their absolute pathname 
+or copying them to the working directory and using them.
+
+
+
+Accessible font properties:
+\begin{verbatim}
+  font.FILENAME
+  font.BOLD
+  font.UNDERLINE
+  font.ITALIC
+  font.SIZE
+  font.FGCOLOR
+  font.BGCOLOR
+  font.ANTIALIASED
+\end{verbatim}
+ 
+
+Having the right fonts is important for translating PEBL scripts into
+new languages.  Previously, this was challenging because the default
+font used in many scripts was Vera, and Vera has poor support for international
+characters. As of  PEBL 0.11, a few things have changed to make
+international character support easier:
+\begin{itemize}
+\item Three new fonts that support international characters much
+  better (``DejaVuSans.ttf'', ``DejaVuSansMono.ttf'', and
+  ``DejaVuSerif.ttf'') are now included and available.
+\item Three new global variables are set on initiation:
+  \texttt{gPEBLBaseFont}, \\ \texttt{gPEBLBaseFontMono}, and
+  \texttt{gPEBLBaseFontSerif}, which are set by default to these
+  three font names.
+\item Helper functions and battery tests are all updated to use these
+  values to set up fonts.
+\end{itemize}
+
+So now, many international characters will be handled by default.  For
+character sets that aren't handled by DejaVu, simply needs to change
+\texttt{gPEBLBaseFont} to name a font that can handle your characters
+(and include that font in the program directory), and everything
+should work out fine.
+
+\sect{Colors} 
+
+Colors are PEBL objects.  A color can be created by specifying its name 
+using the \texttt{MakeColor()} function, or by specifying its RGB values using the \texttt{MakeColorRGB()} function. A list of colors and their respective RGB values can be found in the \texttt{Colors.txt} file in the documentation directory, or in the final chapter of the manual. There are nearly 800 from which to choose, so you can create 
+just about anything you can imagine.
+
+Accessible color properties:
+\begin{verbatim}
+  color.RED
+  color.GREEN
+  color.BLUE
+  color.ALPHA
+\end{verbatim}
+ 
+
+\sect{Windows}
+
+To run an experiment, you usually need to create a window in which 
+to display stimuli.  This is done with the \texttt{MakeWindow()} function. \texttt{MakeWindow()} will create a grey window by default, or you can 
+specify a color.  Currently, an experiment can have only one window.
+
+
+\sect{Graphical Widgets}
+
+Graphical ``widgets'' are the building blocks of experimental stimuli. 
+Currently, four widgets are available: images, labels, canvasses, and textboxes.  
+More complicated widgets are in progress or planned.  There are also a number of shapes that in some ways behave like widgets, but are technically not.
+
+To be used, a widget must be created and added to a parent window, and
+then the parent window must be drawn.  You can hide widgets with the
+\texttt{Hide()} function, and show them with the \texttt{Show()}
+function; however, this affects only the visibility of the widget: it
+is still present and consuming memory. Widgets can be moved around on
+the parent window using the \texttt{Move()} function. \texttt{Move()}
+moves the center of an image or label to the specified pixel, counting
+from the upper-left corner of the screen. \texttt{Move()} moves the
+upper left-hand corner of textboxes.  For the sake of convenience, the
+\texttt{MoveCorner} function is available, which will move an image or
+label by its upper left-hand corner.
+
+You should remove widgets from their parent window when you are
+finished using them.
+
+All widgets have several properties available for controlling their
+behavior.
+\begin{verbatim}
+  widget.name
+  widget.X
+  widget.Y
+  widget.WIDTH
+  widget.HEIGHT
+  widget.VISIBLE
+  widget.ROTATION
+  widget.ZOOMX
+  widget.ZOOMY
+
+\end{verbatim}
+ 
+
+\sect{Images}
+
+PEBL can read numerous image types, courtesy of the
+\texttt{SDL\_image} library.  Use the \texttt{MakeImage()} function to
+read an image into an image object.  As images are often used as
+stimuli, \texttt{Move()} centers the image on the specified point.  To
+move by the upper-left hand corner, use the PEBL-defined
+\texttt{MoveCorner()} function:
+\begin{verbatim}
+  define MoveCorner(object, x, y)
+  {
+   size    <- GetSize(object)
+   centerX <- x + First(size)/2
+   centerY <- y + Last(size)/2
+   Move(object, centerX, centerY)
+  }
+\end{verbatim}
+
+Images have all the properties available for widgets, but the width
+and height can only be read, and not set.  Width and height are
+controlled by the dimensions of the image file.
+
+\sect{Canvases}
+
+A canvas is a blank rectangle, sort of like an 'imageless' image. As
+with an image, \texttt{Move()} centers the image on the specified
+point. A canvas appears similar to a Rectangle() shape, but differs in
+some important ways.  First, a Canvas has a piece of video memory
+associated with it--shapes do not.  This means that other objects can
+be added to a canvas, just as it can be added to a window.  If you
+move the canvas around, the attached objects will move with the
+canvas.  
+
+Second, individual pixels of a canvas can be set, using the SetPoint()
+function. SetPoint works on images too, but not on text.  This is
+because a Draw() command re-renders text, and so will wipe out any
+pixel damage you have done.  This can be useful for making
+special-purpose drawing functions to create stimuli, especially noise
+distributions.
+
+Finally, a canvas can be drawn on with another object.  In fact, you can you
+another image as a brush.  Add an image to a canvas, and anytime you
+call Draw() on the canvas (rather than without an argument), the image
+gets imprinted on the canvas.  This will remain until you call
+ResetCanvas().
+
+For example:
+\begin{verbatim}
+
+  tb  <- MakeCanvas(600,400,d)
+  AddObject(tb,win)
+
+  ##add the image to canvas, not win
+  pebl <- MakeImage("pebl.png")
+  AddObject(pebl,tb)
+
+  ##Nothing will appear on the screen in these intermediate draws
+  Move(pebl,100,100)
+  Draw(pebl)
+  Move(pebl,200,100)
+  Draw(pebl)
+  Move(pebl,200,200)
+  Draw(pebl)
+  Move(pebl,100,200)
+  Draw(pebl)
+
+  Draw()  ##Now, we will see the canvas with 4 pebl images on it.
+\end{verbatim}
+
+
+The draw-on trick can be used to add noise to a text stimulus.  Make
+a label and add it to a canvas, use Draw() on the label, then hide the
+label, and add noise to the canvas by using SetPoint().
+Anything drawn on the canvas won't get reset until the ResetCanvas()
+function is called.
+
+Images have all the properties available for widgets.  Size cannot be
+updated once the canvas is created.
+
+Note that the background color can have an alpha value.  If you use an
+alpha value of 0, the background will be invisible.
+
+
+\sect{Shapes}
+PEBL allows you to define a number of shape objects that can be added
+to another widget.  A demonstration script exercising these shapes is found in demo/shapes.pbl.
+
+The following is a list of shape and their properties.
+
+\subsection{Circle}
+\emph{Description:} A standard circle.  Move commands move the center
+  of the circle to the specified location.\\
+
+\emph{Command:}  \verb+Circle(<x>,<y>,<r>,<color>,<filled>)+\\
+
+\emph{Properties:}
+.name\\
+.filled = {0,1} (whether it is filled)\\
+.color (color) \\
+.x  (x position of center) \\
+.y  (y position of center)\\
+.height (read-only height)\\
+.width (read-only width)\\
+.R  (radius)\\
+
+\subsection{Ellipse}
+
+\emph{Description:} An ellipse, with height and width differing.
+  Cannot be pointed in an arbitrary direction.  Move commands move the center
+  of the shape to the specified location.
+
+\emph{Command:}  \verb+Ellipse(<x>,<y>,<rx>,<ry>,<color>,<filled>)+\\
+
+\emph{Properties:}
+.name\\
+.filled = {0,1} (whether it is filled)\\
+.color (color) \\
+.x  (x position of center) \\
+.y  (y position of center)\\
+.height (read-only height)\\
+.width (read-only width)\\
+.rx  (x radius)\\
+.ry  (y radius
+
+
+\subsection{Square}
+
+\emph{Description:} A square. Move commands move the center
+  of the shape to the specified location.
+
+\emph{Command:}  \verb+Square(<x>,<y>,<size>,<color>,<filled>)+\\
+
+\emph{Properties:}\\
+.name\\
+.filled = 0,1 (whether it is filled)\\
+.color (color) \\
+.x  (x position of center) \\
+.y  (y position of center)\\
+.height (read-only height)\\
+.width (read-only width)\\
+.dx, .dy, .size  (Length of side)\\
+
+
+\subsection{Rectangle}
+\emph{Description:} A Rectangle. Move commands move the center
+  of the rectangle to the specified location.
+
+\emph{Command:}  \verb+Rectangle(<x>,<y>,<dx>,<dy>,<color>,<filled>)+\\
+
+\emph{Properties:}
+.name\\
+.filled = {0,1} (whether it is filled)\\
+.color (color) \\
+.x  (x position of center) \\
+.y  (y position of center)\\
+.height (read-only height)\\
+.width (read-only width)\\
+.dx, (width)
+.dy,  (height)\\
+
+
+
+\subsection{Line}
+\emph{Description:} A Line. Move commands move the center
+  of the line to the specified location.
+
+\emph{Command:}  \verb+Line( <x>, <y>,<dx>,<dy>,<color>)+\\
+
+\emph{Properties:}
+.color (color) \\
+.x  (x position of start) \\
+.y  (y position of start)\\
+.width, (x length)\\
+.height,  (y length)\\
+
+
+
+
+\subsection{Polygon}
+\emph{Description:} An arbitrary polygon. 
+
+\emph{Command:}  \verb+Polygon( <x>, <y>,<xpoints>,<ypoints>,<color>,<filled>)+\\
+
+\emph{Properties:}
+.name\\
+.color (color) \\
+.x  (x position of start) \\
+.y  (y position of start)\\
+
+\subsection{Bezier}
+\emph{Description:} An arbitrary bezier curve.
+
+\emph{Command:}  \verb+Bezier( <x>, <y>,<xpoints>,<ypoints>,<steps>,<color>)+\\
+
+\emph{Properties:}
+.name\\
+.color (color) \\
+.x  (x position of start) \\
+.y  (y position of start)\\
+
+\newpage
+\sect{Text Labels}
+
+You can create a text label object with the \texttt{MakeLabel()} function, 
+which requires specifying a font, and the foreground and background colors.  Labels are only a single line of text. Like images, when you move them,
+they center on the specified point.
+
+The text inside a label can be extracted with \texttt{GetText()} 
+and set with \texttt{SetText()}. When you change a text object, 
+it will not appear until the next time you call a \texttt{Draw()} function.
+
+Text labels have all the regular widget properties, plus:
+\begin{verbatim}
+  label.TEXT 
+  label.FONT
+\end{verbatim}
+  
+
+
+The \verb+.HEIGHT+ and \verb+.WIDTH+ accessible, but cannot be changed
+because they are controlled by the text and the font size.
+
+
+\sect{Text Boxes}
+
+A text box is a graphical widget that contains a body of text.  Text
+automatically wraps when it is too long to fit on a single line.  Like
+labels, the text inside a TextBox can be extracted with
+\texttt{GetText()} and set with \texttt{SetText()}. When a text object
+is changed, it rerenders immediately, but does not appear until the
+next time a \texttt{Draw()} function is called.
+
+
+Textbox properties:
+\begin{verbatim}
+   textbox.EDITABLE
+   textbox.CURSORPOS 
+   textbox.DIRECTION
+   textbox.LINEHEIGHT
+   textbox.LINEWRAP
+\end{verbatim}
+ 
+
+
+\sect{User-Editable Text Boxes}
+
+Text box editing can be performed using the \verb+GetInput(<textbox>,<escape-key>)+ function.  This returns the text that is present in the box when the participant hits the key associated with \verb+<escape-key>+.  
+\verb+<escape-key>+ is just a text-based code that describes the keypress 
+that should be checked for exit. Typical escape-key options include:
+\begin{verbatim}
+  "<return>"
+  "<esc>"
+  "<backspace>"
+  "<kp_enter>"
+  " "
+  "A"
+\end{verbatim}
+ 
+See the Keyboard Entry section below for a more complete list.
+
+Translation from string to keyboard input is still crude, 
+and is handled in \texttt{src/utility/PEBLUtility.cpp:TranslateString} 
+
+\newpage
+\sect{Audio}
+
+Currently, audio output is supported through a software mixer library, although there are no facilities for recording or analyzing audio input.
+
+PEBL can load both raw and compressed audio filen, including .wav, .mp3, .ogg, .flac, and .midi files, which are handled seamlessly with the \texttt{LoadSound()} function. This returns an audio stream object that can be played  with either the \texttt{PlayForeground()}  or \texttt{PlayBackground()} functions.  
+The \texttt{PlayForeground()} function returns once the sound is finished playing; \texttt{PlayBackground()} returns immediately and the sound plays in a separate thread.  When using \texttt{PlayBackground}, playing can be stopped using the \texttt{Stop()} function.
+
+The volume of an audio sample can be manipulated using \texttt{SetPanning}. Here, each channel (left and right) volume is set independently, from 0 to 1.0.  Also, the \texttt{SetPlayRepeats} will repeat playback a sound until stopped. This could be good for a signal that is played until a response is made.
+
+
+
+
+
+\sect{Movie Files}
+
+As of 2.0, Playback of movies is not enabled.
+
+If compiled to support them, PEBL can read numerous video and audio
+media files \texttt{waave} library and ffmpeg.  Use the
+\texttt{LoadMovie()} function to read a movie file into a movie
+object.  The \texttt{Move()} function moves the upper left corner of the movie to the
+specified point.  An audio file can be similarly loaded using the \texttt{LoadAudioFile} function.
+
+Movie playback is done via a handler placed in the event loop.  This handler is placed there with the \texttt{StartPlayback} function.  Then, when the event loop runs, the movie will get updated in proper time sequence.  The event loop is used for most WaitFor type events.  This allows you to play a movie and wait for a response at the same time.  Alternately, a complete movie file can be played in full (with no possibility for stopping early) using the PlayMovie() function.
+
+Movies have a number of properties that can be set to change playback or determine aspects of the movie. These are all accessible via .property syntax, and can be printed by the PrintProperties function.  Properties include:
+\begin{itemize}
+\item DURATION: time in ms
+\item FILENAME: filename
+\item HEIGHT: pixels high
+\item NAME: \verb+<MOVIE>+
+\item PLAYBACKPOSITION: where playback is
+\item ROTATION: Inherited; will not work 
+\item VISIBLE: whether hidden or visible
+\item VOLUME: volume on a logarithmic scale--can go from 0 to +infinity
+\item WIDTH: screen width in pixels
+\item X:  upper left corner x
+\item Y:  upper left corner y
+\item ZOOMX: scaling; not used (just set width)
+\item ZOOMY: scaling; not used (just set height)
+\end{itemize}
+
+\sect{Custom objects}
+Along with the built-in objects, PEBL lets you create your own object with properties that can be added, changed, and accessed using the .property notation.  With appropriate use of the \texttt{CallFunction} command, you can also specify function handlers for functions such as \texttt{Move()}, \texttt{Draw()}, \texttt{Inside()}, or whatever you want.  The object system in PEBL is fairly (and intentionally) primitive, without things you might expect from full-fledged object-oriented languages (i.e., accessor functions, inheritance, methods, constructors, etc.).  Nevertheless, it can be very useful for encapsulating a lot of information about a computing object, and is used heavily in the GUI objects found in the launcher and other PEBL tools.
+
+Use  \verb+MakeCustomObject(name)+ to create a custom object.  Then, a property can be added by assigning obj.name. For example, suppose you want an object to represent the x,y location of a point.
+\begin{verbatim}
+p1 <- MakeCustomObject("point")
+p1.x <- 100
+p1.y <- 100
+\end{verbatim}
+
+Now, if you want to use access the x and y properties, do:
+\begin{verbatim}
+ Print("position is:" p1.x + ","+ p1.y) 
+\end{verbatim}
+
+An object can take a function name as a property.  For example:
+\begin{verbatim}
+p1.inside <- "InsidePoint"
+\end{verbatim}
+With the function InsidePoint defined as:
+\begin{verbatim}
+define InsidePoint(x,y,p)
+{
+  return (x==p.x and y==p.y)
+}
+\end{verbatim}
+
+If you had a bunch of objects, you could define the .inside property of each differently. Then, later, you could define InsideObject to check any of them:
+\begin{verbatim}
+define InsideObject(x,y,p)
+{
+   CallFunction(p.inside,[x,y,p])
+}
+\end{verbatim}
+
+
+
+\sect{Keyboard Entry}
+
+PEBL can examine the state of the keyboard, and wait for various
+keyboard events to happen. Functions such as
+\texttt{WaitForKeyDown()}, \texttt{WaitForAnyKeyDown()}, etc., allow
+you to collect responses from subjects. Most keys are specified by
+their letter name; others have special names:
+\begin{verbatim}
+"<left>"
+"<up>"
+"<down>"
+"<right>"
+"<enter>"
+"<return>"
+"<esc>"
+"<backspace>" or "<back>"
+"<kp_0>" through "<kp_9>", as well as "<kp_period>", "<kp_divide>",
+ "<kp_multiply>", "<kp_minus>", "<kp_plus>", "<kp_equals>",
+"<kp_enter>" for  keypad keys.
+
+ "<insert>","<delete>", "<home>", "<end>","<pageup>","<pagedown>" for other
+special keys.
+
+Function keys "<F1>" through "<F15>".
+\end{verbatim}
+
+Also, the traditional "modifier" keys can serve as normal keys:
+
+\begin{verbatim}
+<lshift>, <rshift> <numlock>, <capslock>, <scrollock>, 
+<rctrl>, <lctrl>, <ralt>,<lalt>,<rmeta>,<lmeta>,<lsuper>,
+<rsuper>,<mode>,<compose>
+
+\end{verbatim}
+
+
+\sect{Joystick Input}
+PEBL supports input with a joystick. In order to use a joystick, you first need to poll the computer to determine whether a joystick is attached, and create a joystick object.  The file joysticktest.pbl in the demo\ directory creates a simple visual depiction of a fairly standard gamepad.
+
+
+A joystick will have up to four types of inputs on it: buttons, axes, hats, and balls.  But different joysticks are different, and so you may need to do some checking and testing for your particular setup.  PEBL currently does not support force-feedback or rumble functions available on some joysticks.
+
+\subsubsection{Axes:} 
+Each axis takes on a value between 1 and 32768. For a  normal hand-grasp joystick , the first two axis will be determined by the relative x and y positions of the joystick.  Gamepads often have triggers that are additional axis, or sometimes there are throttles (or gas/brake pedals in driving devices) that are mapped to axes.
+Find out how many axes exist with \texttt{GetNumJoystickAxes()}.  Get the state of a particula axis with \texttt{GetJoystickAxisState()}.  
+
+
+\subsubsection{Hats:}
+  Hats are the little 8-way buttons that control direction on many game pads.  They are sort of a digital axis, because each state is absolute.  The entire hat state takes on a single integer number between 0 and 15.  It is binary coded to specify whether each of the four major axes buttons are depressed:
+\begin{itemize}
+\item left: 8
+\item bottom: 4
+\item right: 2
+\item top: 1
+\end{itemize}
+The mechanics of the hat allows two buttons to be pressed simultaneously, indicating, for example, southeast or northwest.  An example of how to extract the bitwise button states is found in the joysticktest.pbl file.
+
+\subsubsection{Buttons:}
+  Usually, the state of each of the buttons on the joystick can be identified.  Button state is coded so that 0=unpressed, 1=pressed.  There  can easily be a dozen or more buttons on a joystick, enabling some pretty elaborate response modes for experiments.
+
+\subsubsection{Balls:} 
+Balls are very rare; you may have seen them in old-style arcade games like Arkenoid.   No consumer joysticks available today appear to have balls that operate this way, and they have not been tested in PEBL.  If you want to support trackballs, there are plenty of trackball mice that work as normal joystick controllers.
+
+A number of functions are available for creating a joystick object and polling the joystick's current state:
+
+
+Summary of joystick functions:
+\begin{verbatim}
+GetNumJoysticks()
+OpenJoystick()
+GetNumJoystickAxes()
+GetNumjJoystickBalls()
+GetNumJoystickButtons()
+GetNumJoystickHats()
+GetJoystickAxisState()
+GetJoystickHatState()
+GetJoystickButtonState()
+\end{verbatim}
+
+Currently, the joystick state is not integrated into PEBL's event loop.  Consequently, there are no functions such as WaitForJoystickButton(), and no way to create or monitor events.  To use the joystick, you need to monitor the state of the device manually, and create a polling loop yourself, like:
+
+
+\begin{verbatim}
+  ##This will keep looping until you press the first button
+  js < OpenJoystick(1)  ##open the first joystick connected to the system  
+  gCont <- 1
+  while (gCont)
+    {
+      state <- GetJoystickAxisState(js,1)
+      Print(state)
+      ##Do something with the axis1 here
+      
+      
+      gCont <- GetJoystickButtonState(1)
+    }
+\end{verbatim}
+
+
+The file demo/joysticktest.pbl uses most of the available joystick functions to display a virtual gamepad on the screen as it captures input.
+
+\sect{Files}
+
+Files are objects that can be read from or written to using several PEBL functions. To use a file object, create one using one of the functions 
+listed below.  Each function returns a file object:
+\begin{verbatim}
+FileOpenRead()
+FileOpenWrite()
+FileOpenOverwrite()
+FileOpenAppend()
+GetNewDataFile()
+ReadCSV()
+\end{verbatim}
+
+For example, you can use the command:\\
+ \texttt{myfile <-  FileOpenRead("stimuli.txt")} \\
+to create `\texttt{myfile}', a readable file stream.\\
+
+
+\texttt{FileOpenWrite} is made with a safety backup.  It will never overwrite an existing file; instead it will create a new file name by appending a number (i.e. 1) to the end of the base file name.  The new filename will be saved as in the .filename property of the resulting file.  The function \texttt{FileOpenOverwrite()} will overwite any existing files, and should not be used for data files when you have the chance for a collision in a subject code.
+
+
+
+
+The function \texttt{GetNewDataFile()} offers another all-in-one path for creating a data file.  It will take a base name and a subject identifier, a file extension, and a header.  If the file has not previously been created, it will create the new file and add a header row.  If it has been created before, it will ask you whether to append to the current data file (in which case it won't add a header row), or select a new data file.  Data files are created in separated subdirectories (one per participant) within the data\ directory of the experiment.
+
+
+Because some of the FileOpen commands will create a file with a name you didn't ask for (to avoid overwriting), a successfully opened file has a property .filename that provides the actual file name selected.
+
+
+
+Other Functions described below allow filestreams to be written to 
+or read from.  When you are finished, you can close a filestream 
+Using the `\texttt{FileClose()}' function.
+
+
+A number of related functions have been created to help make reading and writing to files easier. For example, the following functions enable reading an entire file into either a string variant, a list (with one list item per row), or a table:
+\begin{verbatim}
+ReadCSV()
+FileReadCharacter()
+FileReadLine()
+FileReadWord()
+FileReadTable()
+FileReadText()
+FileReadList()
+FileExists()
+\end{verbatim}
+
+
+
+
+
+\sect{Network Connections}
+
+PEBL has limited ability to open and communicate via  TCP/IP
+connections, either some other system (e.g., for synchronizing with an
+e.e.g. or eyetracking computer), or another computer running PEBL
+(e.g., to create multi-subject game theory experiments or to have an
+experimenter controlling the task from another computer.)
+
+\subsection{TCP/IP Overview}
+TCP/IP is a protocol by which computers can talk to one another.  It
+is fairly barebones, and PEBL tries to hide much of its
+complexity. The information you send from one computer to another is
+guaranteed to arrive in the correct order, at the potential cost of
+serious delays, especially if the computers are on different networks
+or in different locations.  Furthermore, connecting PEBL to another
+computer in this way is a potential security risk. However, the
+ability to transfer information between computers opens up huge
+potential for the types of experiments that can be constructed.
+
+\subsection{Addresses and Ports}
+To do this, you first must open a network object to communicate with
+another computer.  To do this, you must know (1) the IP number (like
+127.0.0.1) or hostname (like myname.myschool.edu) of the computer you
+want to connect to, and (2) the port you want to connect on. You can even
+use the protocol to connect to another program running on your own
+computer, by specifying an IP address of 127.0.0.1, or the hostname
+``localhost''.  A port is
+a number--usually 2 to 5 digits, specifying a type of service
+on your computer. Many ports are frequently used for specific types of
+communication, but you can use any port you wish to communicate, as
+long as both computers know this port. Most ports on your computer
+should be blocked by default, so you may need to turn off your
+firewall or allow your chosen port to pass through the security or you
+may have trouble communicating.
+
+To allow two PEBL programs to communicate, you need to decide that one
+computer is the ``server'' and the other is the ``client''.  On the
+server, you execute the function
+\texttt{WaitForNetworkConnection(port)}, which listens on the
+specified port until the client tries to connect.  After the server is
+started, the client calls \texttt{ConnectToHost(hostname, port)} or
+\texttt{AcceptNetworkConnection(port)}
+\texttt{ConnectToIP(ipnum, port)}, depending upon whether you are using the
+hostname or ip address.  Typically, ip numbers are specified by four
+three-digit numbers separated by dots, like 196.168.0.1. This actually
+represents a 4-byte integer, and this 4-byte integer is what
+\texttt{ConnectToIP()} expects.  To create that integer, use the
+function \\ \texttt{ConvertIPString(ipnum)}, which accepts an IP address
+specified in a string.  So, you can use:\\
+\texttt{net <- ConnectToIP(ConvertIPString( "127.0.0.1"), 1234)}\\
+to create a
+connection to another program listening on port 1234 on your own
+computer.  These functions all return a network object (e.g.,
+\texttt{net}) that must be
+used in later communication.
+
+\subsection{Sending and Receiving Data}
+Once connected, the distinction between client and server essentially
+disappears.  However, to communicate, one computer must send data with
+the \texttt{SendData(net, data)}, and the other must receive the
+data, using the \\\texttt{GetData(net, size)} function.  PEBL can
+only send text strings, and you must know the length of the message
+you want to receive.  More complex communication can be done by
+creating a set of PEBL functions that encapsulate messages into text
+strings with templated headers that specify the message length.  Then,
+to receive a message, you first read the fixed-length header,
+determine how much more data needs to be read, then read in the rest
+of the data. 
+
+
+\subsection{Closing networks}
+If you are using a network connection to synchronize timing of two
+computers, you probably want to close the network connection with\\
+\texttt{CloseNetworkConnection(net)} after you have synchronized, to
+avoid any extra overhead.
+
+A simple example of an experiment that uses TCP/IP to communicate is
+the NIM game in  demo/nim.pbl.
+
+
+
+\sect{Parallel Port}
+Starting with Version 0.12, PEBL can send and receive information via a standard parallel (printer) port.    These don't appear on many computers anymore, but you can still get them, and they are still important ways to interface with hardware devices such as EEG and MRI machines and homebrew button boxes.  Currently, parallel port access is fairly limited to setting and getting the state of the 8 data bits.  Parallel ports have a number of bits you can play with, but currently PEBL only supports the basic 8 data bits.  Basically, you can set the state of the bits or read the state of the bits, which can either control things like LEDs, or be impacted by making connections between the ground and the data bit.
+
+
+If you have a parallel port, it is mapped to one of three ports: LPT1, LPT2, or LPTX.  To initialize access to a port, you must call OpenPPort with the name of your port:
+"
+\begin{verbatim}
+  port <- OpenPPort("LPT1")
+\end{verbatim}
+
+Parallel ports have two modes, input and output.  To read data in, it needs to be in input mode; to change the state of the bits, it needs to be in output mode.  Set the state with \texttt{SetPPortMode(port,"<input>")} or \texttt{SetPPortMode(port,"<output>")}.
+
+To access the state of a port, use \texttt{GetPPortState(port)}.  It will return a string of "|" separated 1s and 0s, which specify the state of each of the 8 bits.
+
+To set the state of the port, use \texttt{SetPPortState(port,state)}.  state should be a list of 8 0s or 1s:
+
+SetPPortState(port, [0,0,0,0,0,0,0,1])
+
+The internal c++ parallel port classes have substantially more flexibility, and can be adapted to do more complex access of parallel ports.
+
+
+
+
+\sect{Serial Port}
+
+A number of devices are supported via the comport (serial port) library.  This can include newer USB devices that simulate a comport.
+
+The following functions are relevant:
+\begin{itemize}
+\item \texttt{OpenCOMPort(portnum,baud,mode)}
+\item COMPORTSENDBYTE(port,message)
+\item COMPORTGETBYTE(port)
+\end{itemize}
+
+
+The general process is to use OpenComPort to create the port, and then send and receive text strings from that port.  These are sent one byte at a time. The mode argument is a 3-character string that specifies aspects of the mode (see  Teunis van Beelen's rs232 library at \url{http://www.teuniz.net/RS-232/}. The first character is the data bits (5,6,7 or 8), parity (n=none, e=even, o=odd), and the third is the stop bit (1 or 2 bits).
+
+
+Within the demo\ directory, there is some basic code for communicating with the cedrus response box that uses these functions.  In addition, that script provide a NumToASCII() function that can be useful in translating numbers to strings to communicate with a device.
+
+
+
+
+\sect{The Event Loop}
+
+To assist in testing for multiple input events simultaneously, 
+PEBL implements an event loop that will quickly scan multiple conditions
+and execute proper results whenever any one condition is met.  
+
+The event loop works by maintaining a list of triggers that can be satisfied by various conditions. The conditions typically specify a device or other data source to examine, such as the timer.  On each cycle of the loop, all events are examined, and when any of them are satisfied, either a specified function will be executed, or the event loop will exit.  Most of the timing and input functions use the event loop behind the scenes.
+
+As of Version  0.12, simple means to program the event loop are available.  Three functions include:
+\begin{itemize}
+\item \texttt{RegisterEvent()}.  This allows you to specify a condition and a function name which executes whenever the condition is true.      
+\item \texttt{StartEventLoop()}.  This starts the event loop, with all available events.     
+\item \texttt{ClearEventLoop()}.  This clears out the event loop so other events can be used.     
+\end{itemize}
+Note that because other functions, such as Wait(), use the event loop, you can pre-load extra events and start the event loop with one of these functions.
+
+These are used in a number of test battery tasks.  However, their use is currently somewhat experimental, and their names and arguments may change in the future, and so we will not provide a detailed description of their use here.
+
+\sect{Parameter Setting}
+PEBL offers an interface to set a large set of experimental parameters from a text file. Furthermore, the PEBL launcher allows you to edit and save new parameter sets.  This allows you to create common versions of a test that you call, without editing the PEBL script.
+
+The PEBL parameter system is based on a custom object created with the \texttt{CreateParameters()} function.  To use this, it requires you to set default parameters (in case the parameter file is not found or damaged).  Create default parameters as a nested list containing property-value pairs.  For example:
+
+\begin{verbatim}
+parameterpairs <- [["length",10],
+                   ["trialsperblock",15],
+                   ["numblocks",3]]
+\end{verbatim}
+
+If you want to override these values, create a text file (typically saved in the params\ folder with the extension .par) that contains comma-separated values parname,value, like this:
+\begin{verbatim}
+length,5
+trialsperblock,25
+numblocks,5
+\end{verbatim}
+
+
+Then, create a parameter object using \texttt{CreateParameters}:
+
+\begin{verbatim}
+gParams <- CreateParameters(pairlist, filename)
+\end{verbatim}
+
+Any values in the .par file will override the values in the default list.  PEBL tries to convert text values to numbers, and the value will be a number whenever the round-trip from text-to-number-to-text does not change the original value.  Thus, avoid using floating-point values for parameters, and you may need to write 
+``0.1'' instead of ``.1'' if you do.
+
+The PEBL launcher offers a way to set parameters.  To do so, it needs more information, including the default values and a description.  It looks for a .schema file  in the params folder with the same name as the experiment. This file uses the | character to separate field (this allows you to use commas in the description):
+\begin{verbatim}
+length|10|The number of words per trial
+trialsperblock|15|Trials in each block
+numblock|3|Number of blocks.
+\end{verbatim}
+
+Notice that quotes are not used in these files.  The values in this file are ONLY relevant to the PEBL launcher.  These are used to reset the values in a .par file or tell the experiment what typical values are.  They can differ from the default values in the .pbl file, but for clarity they should not.
+
+\sect{Errors and Warnings}
+
+PEBL does a great deal of error-checking to ensure that your program
+will run.  If you crash with a segmentation fault, this is an error
+and you should report it.  When a fatal error or non-fatal warning
+occurs, PEBL attempts to identify the location in your input file that
+led to the warning.  On Linux, the warning and this location are
+printed to the command-line upon exit; on MS Windows or if you are using the launcher on any platform, they are printed
+to the file \texttt{stderr.txt}.  In addition, when a fatal error is signalled, a dialog box will appear that displays the main message, after which PEBL will shut down.
+
+You can do error checking  in your own scripts with the
+\texttt{SignalFatalError()} function.  This is especially useful in
+combination with the functions testing the type of object passed into 
+the function.  To ensure proper processing and ease of debugging, test
+the format of an argument passed into a function:
+
+\begin{verbatim}
+define MyFunction(par)
+ {
+  if(not IsList(par))
+  {
+   SignalFatalError("MyFunction passed a non-list variable.")
+  }
+  ##Do other stuff here
+ }
+\end{verbatim}
+ 
+Sometimes, you want to exit a program at a specific point, but don't want the error message dialog box to appear.  You can use the \verb|ExitQuietly(<message>)|  function to do this.
+
+
+\sect{Paths and Path Searching}
+
+Numerous functions and objects open files on your computer to read in
+information such as graphics, sounds, fonts, program files, and text files.  When you attempt to open a file, PEBL will search in a number of places, 
+in this order:
+\begin{itemize}
+\item
+The (current) working directory
+\item
+The directory of each file specified in the command line arguments
+\item
+media/fonts
+\item
+media/sounds
+\item
+media/images
+\item
+media/text
+\end{itemize}
+  
+You can also specify other paths to be searched by specifying them on the command line.  Be sure to end the directory with whatever is appropriate for your platform, e.g.~ `\textbackslash' on Microsoft Windows or `/' on Linux.
+
+On OSX, as of version 0.12, the media/ directory is located within the Resources/ subdirectory of the application package.
+
+
+\sect{Controlling the Video settings}
+As part of PEBL 2.0, PEBL now uses hardware-accelerated graphics subsystems that permit better and more accurate control of the video system.  For the most part, this should operate transparently, but the aspects of the video system can be controlled both by command-line arguments and can be overridden within a script using special global variables.  The launcher works by using command-line arguments, but these can always be overridden within a script.  For the most part, these global variables must be set before a \texttt{MakeWindow()} function is called.  The video system has several distinct aspects: 
+
+\subsection{Screen resolution}  By default, the window will open up the same size as the current window.  However, you can specify a specific resolution using the pulldown menu of the launcher, which also allows you to specify a custom screen size.  This is most useful if you are debugging or running on a multi-screen setup.  Regardless of what the specified screen resolution specified in the launcher, the selected screen resolution will be specified using the \verb|gVideoWidth| and \verb|gVideoHeight| global parameters, stores the specified values in pixels.
+
+\subsection{Fullscreen mode}
+
+When you are testing a script, you usually want it run in a window so you can more easily cancel the script or edit parameter values.  When testing, you usually want to run in fullscreen mode because it will help prevent participants from trying to do other things on the computer.  This is controlled with the --fullscreen and --windowed command line parameters, which is settable using the fullscreen checkbox in the launcher.
+
+\subsection{Video drivers}
+Depending on the platform, different graphics drivers may be available.  The launcher tries to determine the available drivers and gives options of these in a drivers pulldown menu. These will typically include opengl and software. On windows, a direct3d option should be available; on linux, opengles may be available as well.   Depending on your operating system, drivers, and hardware, you may have more or less success with one or another of the available drivers.  The software driver is a fallback that should work if hardware drivers are causing troubles.  The vsync option will only be available on a hardware-accelerated driver, such as opengl and direct3d.
+
+
+\subsection{Synchronize to vertical refresh signal (vsync)}
+For hardware-accelerated drivers, you are able to synchronize the Draw() functions to the blank between each screen refresh.  On a typical 60-hz LCD screen, this means that the screen will refresh (roughly) every 16.67 ms. This is set within the launcher, which using the --vsyncon argument.  It can be examined or overridden within a script by using the gVSync function (setting to 1 for on or 0 for off).  This allows you to have very precise control over the timing of video stimuli.
+
+When vsync is on, the Draw() command will block until the video update has happened.  This gives you (typically) roughly 15 ms to perform any updating you need to do, but sometimes this is not enough, and you take care to record the presentation timing if you are relying on video display timing, to ensure you are getting the timing you are hoping for.
+
+The test file in demo/tests/testrefresh.pbl will test the effective update frequency you are achieving with your current video settings. 
+
+\subsection{Multiple windows}
+You can open multiple windows simply by calling the MakeWindow() function more than once.  The window dimensions will be taken directly from the values of gVideoWidth
+
+
+
+\emph{Multiple Windows}
+PEBL can open multiple windows for testing.  This can be useful if you want to have separate screens for a subject and an experimenter.  You can open multiple windows by calling the MakeWindow() function more than once.  If you do this, each window should be set to its own parameter.  Any Draw() command will update both windows.
+
+
+For example, you can open a new window in several ways:
+
+\begin{verbatim}
+ gWin <- MakeWindow()
+\end{verbatim}
+Creates a window with the default (black) background, with the screen size identical to gVideoWidthxgVideoHeight, which may have been specified either earlier in the script or by the launcher program.
+
+\begin{verbatim}
+  gWin <- MakeWindow("Red")
+\end{verbatim}
+This creates a window with a red background.  Note that you can use any on of hundreds of color names available.
+
+
+\begin{verbatim}
+color <- MakeColor("white")
+ gWin <- MakeWindow(color)
+\end{verbatim}
+This creates a window with a specified color object.  This could allow you to reuse the color object, or use a custom RGB color with MakeColorRGB().
+
+
+\begin{verbatim}
+  gWin <- MakeColor("black",300,300)
+\end{verbatim}
+Here, the dimensions of the window are optionally fed into the MakeWindow() function.
+
+
+Support for multiple windows is currently experimental.  For example, mouse and keyboard events don't currently tell you which window they occurred on, although this will be possible in the future.
+   
+
+Although the gVideoWidth and gVideoHeight global variables are still available, these won't necessarily match any particular window if you create a window with the last method above.  Thus, you can get the screen size of any window using the .width and .height arguments of the window.
+
+
+
+\sect{StickyKeys}
+On Windows, there are several hidden control options that are useful for users with limited mobility or dexterity.  These include stickykeys--for keys such as the shift key, control key, etc. clicking on them will latch them down (like shift-lock), so that they can be used without touching both keys at once.  By default in many versions of Windows, clicking the left shift key five times in a row will bring up the dialog to turn on/off stickykeys.
+
+Unfortunately, many of the PEBL tests use left/right shift keys as default manual entry keys. So, the first time you run a test, it will pop up the dialog in the middle of the test asking you whether you want to turn on stickykeys.  If this happens, you should generally go to the control panel and turn this off.
+
+As of 2.0, PEBL will disable this option.  This means that if you want to use the left-shift shortcut to start stickykeys, you may be out of luck--especially within the test.  There are ways to turn it back on again automatically, and future versions of PEBL may attempt to do this, but currently it turns off when PEBL runs.
+
+
+
+\sect{Provided Media Files}
+\label{sec:media}
+
+PEBL comes with various media files that can be specified from 
+any script without including the complete path.  If a user's file has
+the same name, it will be loaded before the PEBL-provided version.
+Table \ref{tab:media} describes the files included.
+\vspace{1cm}
+
+\begin{longtable}{ll}
+\caption{Media Files Provided with PEBL} \label{tab:media}\\
+\toprule
+\textbf{Name}& \textbf{Description} \\
+\midrule
+\addlinespace[.2cm]
+\endfirsthead
+
+\midrule
+\textbf{Name}& \textbf{Description} \\
+\midrule
+\addlinespace[.2cm]
+\endhead
+
+\midrule
+\endfoot
+
+\bottomrule
+\endlastfoot
+
+\multicolumn{2}{l}{\textbf{In `media/fonts/'}:}\\
+\addlinespace[.2cm]
+%\cmidrule(l{0cm}r{1cm}){1-1}
+
+Listing of fonts appears in Table~\ref{tab:fonts}\\
+\addlinespace[.1cm]
+\midrule
+\addlinespace[.2cm]
+\multicolumn{2}{l}{\textbf{In `media/images/'}:} \\
+%\cmidrule(l{0cm}r{1cm}){1-1}
+\addlinespace[.2cm]
+
+\texttt{pebl.bmp}         & Demonstration bitmap image \\
+\texttt{pebl.png}         &Demonstration PNG image \\
+\texttt{pebl2.png}        &PEBL2 logo\\
+\texttt{smiley-small.png} &25x25 smiley face\\
+\texttt{frowney-small.png}&25x25 frowney face\\
+\texttt{smiley-large.png} &100x100 smiley face\\
+\texttt{frowney-large.png}&100x100 frowney face\\
+\texttt{plus.png}         &A green plus sign\\
+\texttt{x.png}            &A red x sign, matching the red plus\\
+\addlinespace[.1cm]
+\midrule
+\addlinespace[.2cm]
+\multicolumn{2}{l}{\textbf{In `media/sounds/'}:}\\
+%\cmidrule(l{0cm}r{1cm}){1-1}
+\addlinespace[.2cm]
+
+\texttt{buzz500ms.wav}   &A 500-ms buzzer\\
+\texttt{chirp1.wav}      &A chirp stimulus\\
+\texttt{boo.wav}         &A really bad booing sound\\
+\texttt{cheer.wav}       &A pretty lame cheering sound\\
+\texttt{beep.wav}        &A simple beep\\
+\texttt{boo.wav}         &Boo--useful for errors\\
+\texttt{cheer.wav}&A cheer-useful for correct feedback\\
+\texttt{kaching.wav} &Sound of a coin in a jar\\
+\texttt{knock.wav} & simple knocking/click sound\\
+\texttt{0.wav} through {9.wav} & Recording of numerals, used in digit span and others\\
+\texttt{correct.wav}&correct feedback\\
+\texttt{incorrect.wav}&Incorrect feedback\\
+\texttt{H,R,N,K,X,Y,W.wav}&Female voice letters for n-back\\
+\addlinespace[.1cm]
+\midrule
+\addlinespace[.2cm]
+\multicolumn{2}{l}{\textbf{In `media/text/'}:}\\
+%\cmidrule(l{0cm}r{1cm}){1-1}
+\addlinespace[.2cm]
+\texttt{Consonants.txt}  &List of all consonants, both cases\\
+\texttt{Digits.txt}               &List of digits 0-9\\
+\texttt{DigitNames.txt}           &List of digit names\\
+\texttt{Letters.txt}              &All letters, both cases\\
+\texttt{Lowercase.txt}            &Lowercase letters\\
+\texttt{LowercaseConsonants.txt}  &Lowercase Consonants\\
+\texttt{LowercaseVowels.txt}      &Lowercase Vowels\\
+\texttt{Uppercase.txt}            &Uppercase Letters\\
+\texttt{UppercaseConsonants.txt}  &Uppercase Consonants\\
+\texttt{UppercaseVowels.txt}      &Uppercase Vowels\\
+\texttt{Vowels.txt}               &Vowels (both cases)\\
+
+\end{longtable}
+
+Additionally, the PEBL Project distributes a number of other media
+files separately from the base system.  These are available for separate
+download on the pebl website (http://pebl.sourceforge.net), and
+include a set of images (including shapes and sorting-task cards), and
+a set of auditory recordings (including beeps, the digits 0-10, and a
+few other things).
+
+\vspace{1cm}
+
+
+\sect{Special Variables}
+
+There are a number of special variables that be set by PEBL, 
+and can later be accessed by an experiment. These are described in table~\ref{tab:special}.
+
+\begin{table}[htbp]
+\caption{Special Variables in PEBL}
+
+\begin{tabular}{ll}
+\toprule
+\textbf{Name}&\textbf{Purpose}\\
+\midrule
+\verb+gKeepLooping+ & Controls continued execution in event loop (unused). \\
+\addlinespace[.2cm]
+\verb+gSleepEasy+      &Sets 'busy-waiting' to be either on or off.\\
+                       &Busy-waiting can improve timing, but is often\\
+                       &not needed and pegs CPU.   \\
+\verb+gVideoWidth+  &	The width in pixels of the display (set by\\
+             &  default or command-line option). Changing \\
+             &  this before calling \verb+MakeWindow+ will change \\
+             &  display width, if that width is available. \\
+\addlinespace[.2cm]
+\verb+gVideoHeight+ & 	The height in pixels of the display (set by\\
+             & 	default or command-line). Change this before using \\
+             &  \verb+MakeWindow()+ to change the display height\\
+
+\addlinespace[.2cm]
+\verb+gVideoDepth+    &      	The bit depth of the video.\\
+
+\addlinespace[.2cm]
+\verb+gSubNum+      &  A global variable set to whatever follows the \verb+--s+ or \\
+             & \verb+--S+ command-line argument.  Defaults to ``0''.\\
+\verb|gScriptName| &Specifies the name on the window, and some printed output.\\
+\verb|gVSync| &Determines whether script should be run with vsync on\\
+
+\verb+gLanguage+   & A global variable specified on the command line\\
+&which can be used by a script to target a specific \\
+&language.  Defaults to 'en'.\\
+\verb+gQuote+ &A quotation mark: ".  Use it to add quotes in text.\\
+\verb+gClick+ &[x,y] location last click in WaitForClickOnTarget.\\
+\verb+gPEBLBaseFont+& Name of the default font to use in helper functions\\
+                    &and most battery tasks. By default, set to \\
+                    &``DejaVuSans.ttf''. Change to  override.\\
+\verb+gPEBLBaseFontMono+&Name of the default mono-spaced font\\
+&  By default, it is set to ``DejaVuSansMono.ttf''. \\
+\verb+gPEBLBaseFontSerif+&Name of the default serif font.\\
+& By default, it is set to ``DejaVuSerif.ttf''.\\
+
+\bottomrule
+\end{tabular}
+\label{tab:special}
+\end{table}
+
+
+
+
+
+
+%%% Local Variables: 
+%%% mode: latex
+%%% TeX-master: "main"
+%%% End: 

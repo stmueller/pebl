@@ -1,0 +1,1700 @@
+## The PEBL xspan task
+## By D.L. Hegarty and Dufflecoat Enterprises (2014)
+## 
+##  Minor modifications by Shane Mueller
+##  This should work on a 1000x600 px screen
+##
+
+define FindFirstIndex( aList, aItem )
+{
+	rval<-0
+	found<-0
+
+	Loop( item, aLIst )
+	{
+		if ( found ==0 )
+		{
+			rval<-rval+1 
+			if ( item == aItem )
+			{
+				found<-1
+			}
+		}
+	}
+	if ( found == 0 )
+	{
+		rval <- 0
+	}
+	return rval
+}
+
+define PrefixPrintList(aPrefix,aList)
+{
+	i<-1
+	str<-""
+	while ( i <= Length(aList))
+	{
+		str<-str+Nth(aList,i)
+		i<-i+1
+	}
+	Print(aPrefix+str)	
+}
+
+define PrintList(aList)
+{
+	PrefixPrintList("",aList)
+}
+
+define LogSpam( str )
+{
+	Print( str )
+}
+
+define StrReplace( str, from, to )
+{
+	if ( StringLength( from ) > 0 )
+	{
+		rval<-""
+		lstr<-Lowercase( str )
+		lfrom<-Lowercase( from )
+
+		last<-1
+		idx<-FindInString( lstr, lfrom, last )
+		while ( idx > 0 )
+		{
+			rval<-rval+Substring( str, last, idx - last )
+			rval<-rval+to
+
+			last<-idx+StringLength( from )
+
+			idx<-FindInString( lstr, lfrom, last+1 )
+		}
+
+		if ( last <= StringLength( str ) )
+		{
+			rval<-rval+Substring( str, last, StringLength( str ) - last + 1 )
+		}
+	} else {
+	 rval<-str
+	}
+	return rval
+}
+
+# return 1 if clicked, 0 if timeout
+define WaitForClick( a_WaitTO )
+{
+	# soak any extraneous clicks 
+	# WaitForClickOnTarget returns on pressed, behaviour can't be changed 
+	# We get the released value here with no pressed. need to see the full click
+	# here - press followed by release
+	pressed<-0 
+
+	rval<-0
+	if ( a_WaitTO > 0 )
+	{
+		# has timeout
+		continue<- 1
+		while( continue )
+		{
+			x<-WaitForMouseButtonWithTimeout( a_WaitTO )
+			if (  x   == "<timeout>" )
+			{
+				continue<- 0
+				rval<- 0 
+			} elseif ( Nth( x, 4) == "<pressed>" )
+			{
+				pressed <- 1
+			} elseif ( pressed == 1 and Nth( x, 4) == "<released>" )
+			{
+				continue<- 0
+				rval<-1
+			}
+		}
+	} else {
+		# no timeout
+		continue<- 1
+		while( continue )
+		{
+			x<-WaitForMouseButton()
+
+			if ( Nth( x, 4 ) == "<pressed>" )
+			{
+				pressed <- 1
+			} elseif ( pressed == 1 and Nth( x, 4 ) == "<released>" )
+			{
+				continue<-0
+			}
+		}
+		rval<-1
+	}
+	return rval
+}
+
+# show a single distract task, returns a list, first element 0/1 for success failure second element is time taken
+define ShowDistract(a_WaitTO)
+{
+	ShowCursor(1)
+	# fill up our list of tasks again
+	if( Length( gDistractWorkingSet ) == 0 )
+	{
+		gDistractWorkingSet<-SampleN( gDistractionTasks, Length( gDistractionTasks ) )
+	}
+
+	currDistract<-Nth(gDistractWorkingSet, 1 )
+	gDistractWorkingSet<-RemoveSubset( gDistractWorkingSet, [1])
+
+	question<-Nth( currDistract, 1 )
+	answer<-Nth( currDistract, 2 )
+	truthVal<-Nth( currDistract, 3 )
+
+	if ( gSymSpan == 0 )
+	{
+		questionLabel<-MakeLabel(question, gStimFont )
+		xPos<- gVideoWidth/2
+		yPos<- gVideoHeight/2
+		Move(questionLabel, xPos,yPos)
+		AddObject(questionLabel,gWin)
+	} else {
+		# question is already an image - just add it
+		xPos<- gVideoWidth/2
+		yPos<- gVideoHeight/2
+		AddObject( question, gWin )
+		Move( question, xPos, yPos )
+	}
+
+
+	footer <- Makelabel(gContinueText,glgFont)
+	AddObject(footer,gWin)
+	Move(footer,gVideoWidth/2,gVideoHeight-100)
+
+	Draw()
+
+	
+	elapsed<-GetTime()
+	rval<-WaitForClick( a_WaitTO )
+
+	elapsed<-GetTime() - elapsed
+	if ( gSymSpan == 0 )
+	{
+		RemoveObject(questionLabel, gWin)
+	} else {
+		RemoveObject( question, gWin )
+	}
+
+	if ( rval != 0 ) # not timeout
+	{
+		spc <- 8
+		keyHeight <- 1.9 * gLgFontSz
+		cellHeight <- keyHeight + spc
+
+		answerLabel<-MakeLabel( answer, gStimFont )
+		xPos<- gVideoWidth/2
+		yPos<- gVideoHeight/2 - cellHeight
+		Move(answerLabel, xPos,yPos)
+		AddObject(answerLabel,gWin)
+		Draw()
+
+		yPos <- yPos + 2 * cellHeight
+
+		keyWidth<-3*keyHeight
+		kb <- MakeKB( gWin, ["True","False"], xPos-keyWidth/2, yPos, 2, keyWidth, keyHeight, spc, 0)
+
+		resp<-GetKBInput( GetClickable( kb ), ["1", "0"]  )
+
+		if ( ToNumber( resp ) == truthVal )
+		{
+			# return 1 to indicate correct response
+			rval <- 1
+		} else {
+			# return 0 to indicate incorrect response
+			rval <- 0
+		}
+
+		DestroyKB( gWin, kb )
+	} else {
+		# return -1 to indicate timeout in repsonse to question
+		rval <- -1
+	}
+
+	return [rval,elapsed]
+}
+
+define ShowSymTarget( testVal, timeout )
+{
+	testVal<-ToNumber(testVal)
+	fakeKeys<-[]
+	Loop( n, Sequence( 1, gGridNumCol * gGridNumRow, 1 ) )
+	{
+		fakeKeys<-Append( fakeKeys, ""+n )	 # gotta have textuals
+	}
+
+	kbp<-GetKBPositioning()
+
+	spc <- Nth( kbp, 1 )
+	keyHeight <- Nth( kbp, 2 )
+	cellHeight <- Nth( kbp, 3 )
+	vShift<- Nth( kbp, 4 )
+	currY <- Nth( kbp, 5 )
+	currX <- Nth( kbp, 6 )
+	currX <- Nth( kbp, 7 )
+	currY <- Nth( kbp, 8 )
+
+	padKb <- MakeSqKB( gWin, fakeKeys, currX, currY, gGridNumCol, keyHeight, spc, 1 )
+
+	allLabels<-[]
+	allLabels<-Flatten([allLabels, GetLabels(padKb)])
+	# highlight target face
+	faces <- GetKeyFaces( padKb )
+	hiFace <- Nth( faces, testVal )
+	hiFace.color <- gSymShownTargetColor
+	Draw()
+
+	Wait(timeout)
+	DestroyKB( gWin, padKb )
+}
+
+define ShowTargetLetter( testVal, timeout )
+{
+	ShowCursor(0)
+	lText <- MakeLabel(testVal, gStimFont)
+	xPos<- gVideoWidth/2
+	yPos<- gVideoHeight/2
+	Move(lText, xPos,yPos)
+	AddObject(lText,gWin)
+	Draw()
+	Wait(timeout)
+	RemoveObject(lText,gWin)
+}
+
+define GetKBPositioning()
+{
+	spc <- 8
+	keyHeight <- 1.9 * gLgFontSz
+	cellHeight <- keyHeight + spc
+
+	# the main keypad
+	# positioning of main keypad starts from centre of screen
+	vShift<- 100
+	currY <- gVideoHeight/2-vShift	# TODO rename
+	currX <- gVideoWidth/2 # TODO rename
+	currX <- currX - ( gGridNumCol-1)/2 * cellHeight # height==width here
+	currY <- currY - (gGridNumRow-1)/2 * cellHeight
+
+	# now return them...
+
+	rval<-[]
+	rval<-Append(rval, spc )
+	rval<-Append(rval, keyHeight )
+	rval<-Append(rval, cellHeight )
+
+	# the main keypad
+	# positioning of main keypad starts from centre of screen
+	rval<-Append(rval, vShift )
+	rval<-Append(rval, currY )
+	rval<-Append(rval, currX )
+	rval<-Append(rval, currX )
+	rval<-Append(rval, currY )
+
+	return rval
+}
+
+define ShowTargetInputScreen(padKeys, testVals)
+{
+	kbp<-GetKBPositioning()
+
+	spc <- Nth( kbp, 1 )
+	keyHeight <- Nth( kbp, 2 )
+	cellHeight <- Nth( kbp, 3 )
+	vShift<- Nth( kbp, 4 )
+	currY <- Nth( kbp, 5 )
+	currX <- Nth( kbp, 6 )
+	currX <- Nth( kbp, 7 )
+	currY <- Nth( kbp, 8 )
+	padKb <- MakeSqKB( gWin, padKeys, currX, currY, gGridNumCol, keyHeight, spc, gSymSpan )
+
+	allClickable<-[]
+	allVals<-[]
+	allLabels<-[]
+	
+	allClickable<-Flatten([allClickable, GetClickable(padKb)])
+	allVals<-Flatten( [allVals, padKeys] ) 
+	allLabels<-Flatten([allLabels, GetLabels(padKb)])
+
+	# blank key
+	blankX<- currX + (Nth(padKb, 2) - currX)/2
+	blankY<-Nth(padKb, 3)+keyHeight+spc
+	blankKey <- [gBlankKeyText]
+	blankWidth <- ( Nth(padKb, 2) - currX ) + keyHeight # width==height
+	blankKb <- MakeKB( gWin, blankKey, blankX, blankY, 1, blankWidth, keyHeight, spc, 0 )
+
+	allClickable<-Flatten([allClickable, GetClickable(blankKb)])
+	allVals<-Flatten([allVals, blankKey])
+	allLabels<-Flatten([allLabels, GetLabels(blankKb)] )
+	
+	# destination for user output
+	padUserInput<-20
+	selLabels<-[]
+	selLabelX<-gVideoWidth/2 - ( Length( testVals ) -1 )/2* cellHeight # w==h
+	selLabelY<-blankY + cellHeight + padUserInput
+
+	Loop ( val, testVals )
+	{
+		l<-MakeLabel( gNoSelectionChar, gLgFont )
+		#l<-MakeLabel( val, gLgFont )
+		AddObject(l, gWin )
+		Move(l, selLabelX, selLabelY )
+		selLabels<-Append(selLabels, l )
+		selLabelX <-selLabelX + cellHeight
+	}
+	Draw()
+
+	# the clear/del kb
+	cdKeyWidth<-2 * keyHeight
+	cdKeys <- [gClearKeyText,gDelKeyText,gDoneKeyText]
+	cdX<-gVideoWidth/2
+	cdX<- cdX - ( cdKeyWidth + spc )
+	cdY<-selLabelY + cellHeight + padUserInput
+	cdKb <- MakeKB( gWin, cdKeys, cdX, cdY, Length(cdKeys), cdKeyWidth, keyHeight, spc, 0 )
+
+	miscLabels<-[]
+	if ( gRunningDistractTaskFeedback == 1 and gTotNumDistract > 0 )
+	{
+		# show them feedback on current pct correct on distract
+
+		topRightX <- gVideoWidth/2+(gGridNumCol+3)/2 * cellHeight 
+		topRightY <- gVideoHeight/2-(gGridNumRow+1)/2 * cellHeight - vShift
+
+
+		l1<-MakeLabel( "Target: " + Round( gBatteryThreshold * 100 )+"%", gRedFeedbackFont )
+		miscLabels<-Append(miscLabels, l1 )
+		AddObject( l1, gWin) 
+
+		distPct <-  gNumCorrectDistract / gTotNumDistract
+		l2<-MakeLabel( "Correct: "+Round(distPct*100)+"%" , gRedFeedbackFont )
+		miscLabels<-Append(miscLabels, l2 )
+		AddObject(l2, gWin)
+
+		l3<-MakeLabel( gDistractBlurbHeader, gRedFeedbackFont )
+		miscLabels<-Append(miscLabels, l3 )
+		AddObject(l3, gWin)
+
+		hShift<-0
+		maxW<-0
+		Loop( l, miscLabels )
+		{
+			sz<-GetSize(l)
+			w<-Last( sz )
+			if ( w> maxW )
+			{
+				maxW<-w
+			}
+		}
+
+		currY<-topRightY - gDistractBlurbPos * ( topRightY - 1.5 * cellHeight ) 
+		Loop( l, miscLabels )
+		{
+			w<-Last(GetSize(l))
+
+
+			xPos<-topRightX + gDistractBlurbPos * ( gVideoWidth - topRightX - maxW/2 )
+
+
+			Move( l, xPos-(maxW-w)/2, currY )
+
+			currY<-currY - cellHeight/2
+		}
+		Draw()
+	}
+
+	allClickable<-Flatten([allClickable, GetClickable(cdKb)])
+	allVals<-Flatten([allVals, cdKeys])
+	allLabels<-Flatten([allLabels, GetLabels(cdKb)] )
+
+	padFaces <- GetKeyFaces( padKb )
+
+	# get the user's input
+	userInput<-GetMouseInput( allClickable, allVals, allLabels, selLabels, padFaces )
+	PrefixPrintList("UserInput:", userInput )
+
+	# and clean up
+	DestroyKB( gWin, cdKb )
+	Loop( l, selLabels)
+	{
+		RemoveObject( l, gWin)
+	}
+	DestroyKB( gWin, blankKb )
+	DestroyKB( gWin, padKb )
+
+	loop(l,miscLabels)
+	{
+		RemoveObject( l, gWin );
+	}
+	return userInput
+}
+
+## this presents a set of (instruction) lines
+##
+
+define PresentStatic( timeout, centred, staticData, isLast )
+{
+	maxWidth<-0
+	maxHeight<-0
+	lineLabs<-[]
+	heights<-[]
+	isImgs<-[]
+
+	Loop( line, staticData )
+	{
+		isImg<-0
+		if ( StripSpace( Lowercase( line ) ) == "<blank>" ) {
+			l<-MakeLabel( "", gLgFont )
+		} elseif ( FindInString( StripSpace( Lowercase( line ) ), "<img>", 1 ) == 1 ) {
+			line<-StripSpace( line )
+			imFile<-SubString( line, 5 + 1, StringLength( line ) - 5 ) # 5 = length( "<img>" )
+			#Print( "Have ImgDef: " + line )
+			#Print( "Have ImgFile: " + imFile )
+			isImg<-1
+			l<-MakeImage( imFile )
+		} else {
+			l<-MakeLabel( line, gLgFont )
+		}
+		lineLabs<-Append(lineLabs, l )
+
+		sz<-GetSize( l )
+		h<-First(sz)
+		heights<-Append( heights, h )
+		isImgs<-Append( isImgs, isImg )
+		w<-Last(sz)
+		if ( w > maxWidth )
+		{
+			maxWidth<- w
+		}
+ 		# we'll be wanting to space lines evenly, not sure
+		# if label height varies with content
+		if ( isImg == 0 and h > maxHeight )
+		{
+			maxHeight<-h
+		}
+	}
+
+	contentHeight<-0
+	Loop( idx, Sequence( 1, Length( lineLabs ), 1 ) )
+	{
+		if ( Nth( isImgs, idx ) == 0 )
+		{
+			# we'll be wanting to space lines evenly, not sure
+			# if label height varies with content
+			SetElement( heights, idx, maxHeight )
+		}
+		contentHeight<-contentHeight+Nth(heights, idx )
+	}
+
+
+	currY <- gVideoHeight/2 - contentHeight* 0.5
+
+	Loop( idx, Sequence( 1, Length( lineLabs ), 1 ) )
+	{
+		h<-Nth( heights, idx )
+		currY<- currY + h/2
+		lab<-Nth( lineLabs, idx )
+		currX <- gVideoWidth/2
+		if ( centred == 0 )
+		{
+			#	left justify
+			currW<- Last( GetSize( lab ) ) 
+			currX <- currX - ( maxWidth - currW ) / 2
+		}
+		#Print( "(x,y)=(" + currX + ","+currY +")" )
+		Move( lab, currX, currY )
+		AddObject( lab, gWin )
+		currY<- currY + h/2
+	}
+
+	Draw()
+	if ( timeout > 0 ) {
+		WaitForClick( timeout )
+	} else {
+		if ( isLast )
+		{
+			# wait forever (1/2 an hour). Magic combo of Ctrl-Alt-Shift-\ ends pebl 
+			Wait( 1800000 ) 
+		} else {
+			# show next button
+			spc<- 100
+			keyHeight <- 1.9 * gLgFontSz
+			keyWidth<-3*keyHeight
+			kb <- MakeKB( gWin, ["Next"], gVideoWidth-keyWidth/2-spc, gVideoHeight-keyHeight/2-spc, 1, keyWidth, keyHeight, spc, 0)
+			resp<-GetKBInput( GetClickable( kb ), ["whatevs"]  )
+			DestroyKB( gWin, kb )
+		}
+	}
+
+	Loop( lab, lineLabs )
+	{
+		RemoveObject( lab, gWin )
+	}
+}
+
+define MungeString( arr)
+{
+  return    ConcatenateList(arr,"|")
+}
+
+define PresentRun(  distractMS, targetMS, numTarget, stages, feedback )
+{
+	testVals<-[]
+  padKeys<-[]
+	if ( gSymSpan == 1 )
+	{
+		Loop( n, Sequence( 1, gGridNumCol * gGridNumRow, 1 ) )
+		{
+			padKeys<-Append( padKeys, ""+n)
+		}
+	} else {
+		padKeys <- SampleN( ["A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z"], gGridNumCol * gGridNumRow)
+	}
+	if ( numTarget > 0 )
+	{
+		testVals<-SampleN(padKeys, numTarget)
+	}
+
+	rval<-[]
+
+	totDistractMS<-0
+	iShownTarget<-0
+
+	
+	##First, show a ready signal
+	ready <- MakeLabel(gReadyText,gStimFont)
+	AddObject(ready,gWin)
+	Move(ready,gVideoWidth/2,gVideoHeight/2)
+	Draw()
+	Wait(500)
+	Hide(ready)
+	Draw()
+	Wait(1000)
+
+
+	Loop( stage, stages )
+	{
+		stage <- Uppercase( stage )
+		if ( stage == "D" )
+		{
+			dRes<-ShowDistract( distractMS )
+			rval<-Append( rval, Merge( [stage], dRes ) );
+			if ( gCollectStats == 1 ) {
+				gTotNumDistract <- gTotNumDistract + 1
+				if ( Nth ( dRes, 1 ) == 1 )
+				{
+					gNumCorrectDistract <- gNumCorrectDistract + 1
+				}
+			}
+		} else {  ##Stage==T
+			iShownTarget<-iShownTarget+1
+			if ( gSymSpan )
+			{
+				ShowSymTarget( Nth( testVals, iShownTarget ), targetMS )	
+			} else {
+				ShowTargetLetter( Nth( testVals, iShownTarget ), targetMS )
+			}
+		}
+	}
+
+	if ( numTarget > 0 )
+	{
+		# show grid
+		userInput<-ShowTargetInputScreen(padKeys, testVals)
+		rval<-Append( rval, [ "T", MungeString( testVals ), MungeString( userInput ) ] )
+	}
+
+	if ( feedback == 1 )
+	{
+		distractCorrect<- 0
+		distractTotal<- 0
+		targetCorrect<- 0
+		targetTotal<- numTarget
+
+		Loop( task, rval )
+		{
+			if ( Nth( task, 1 ) == "D" )
+			{
+				if ( Nth( task, 2 ) == 1 )
+				{
+				    distractCorrect <- distractCorrect + 1
+				}
+				distractTotal<- distractTotal + 1
+			} else {
+				#targetCorrect <- targetCorrect + 1
+				i<- 1
+				while ( i <= Length( testVals ) )
+				{
+					if ( Nth( testVals, i ) == Nth( userInput, i ) )
+					{
+				  	   targetCorrect <- targetCorrect + 1
+					}
+
+					i<- i + 1
+				}
+			}
+		}
+
+		lines<-[]
+
+		if ( distractTotal > 0 )
+		{
+			if ( targetTotal > 0 )
+			{
+				lines<-gFeedbackDT
+			} else
+			{
+				lines<-gFeedbackDOnly
+			}
+		} elseif( targetTotal > 0 ) 
+		{
+			lines<-gFeedbackTOnly
+		}
+		if ( Length( lines ) > 0 )
+		{
+			dispLines<-[]
+			Loop( line, lines )
+			{
+				line<-StrReplace( line, "%CORRECT_T%", targetCorrect )
+				line<-StrReplace( line, "%CORRECT_D%", distractCorrect )
+				line<-StrReplace( line, "%NUM_T%", targetTotal )
+				line<-StrReplace( line, "%NUM_D%", distractTotal )
+				dispLines<-Append( dispLines, line )
+			}
+
+			PresentStatic( gFeedbackTimeout, 0, dispLines, 0 )
+		}
+	}
+
+ Print("Rval:")
+ Print(rval)
+ 
+	return rval
+}
+
+define GetMouseInput( clickable, values, keyLabels, selLabels, padFaces )
+{
+	ShowCursor(1)
+	SetMouseCursorPosition(Round(gVideoWidth/2), Round(gVideoHeight/2))
+
+	idxDone <- FindFirstIndex( values, gDoneKeyText )
+	idxClear <- FindFirstIndex( values, gClearKeyText )
+	idxDel <- FindFirstIndex( values, gDelKeyText )
+
+	SetFont( Nth(keyLabels, idxDone),	gLgFont_Disabled )
+	SetFont( Nth(keyLabels, idxClear),	gLgFont_Disabled )
+	SetFont( Nth(keyLabels, idxDel),	gLgFont_Disabled )
+	Draw()
+
+	if ( idxDone < 1 or idxClear < 1 or idxDel < 1 )
+	{
+		SignalFatalError( "Couldn't find control keys!" )
+	}
+
+	rval<-[]
+	done<-0 
+	while ( done == 0 )
+	{
+		resp<-GetKBInput( clickable, values )
+		if ( resp == gDoneKeyText )
+		{
+			# only valid if all values have been filled in
+			if ( Length( rval) == Length(selLabels))
+			{
+				done <- 1
+			}
+		} elseif( resp == gClearKeyText )
+		{
+			if ( Length( rval ) > 0 )
+			{
+				# only valid if we have some values
+				# - clear them all
+				# first re-enable any that've been disabeld
+				Loop( sel, rval )
+				{
+					idx<-FindFirstIndex( values, sel )
+					if ( idx > 0 )
+					{
+						SetFont( Nth( keyLabels, idx ), gLgFont )
+						if ( gSymSpan )
+						{
+							SetText( Nth( keyLabels, idx), "" )
+							selFace <- Nth( padFaces, idx )
+							selFace.color <- gKeyFace # this could be a no-op but we don't care
+						}
+					}
+				}
+				rval<-[]
+
+				# disable all control buttons
+				SetFont( Nth(keyLabels, idxDone),	gLgFont_Disabled )
+				SetFont( Nth(keyLabels, idxClear),	gLgFont_Disabled )
+				SetFont( Nth(keyLabels, idxDel),	gLgFont_Disabled )
+
+				# remove all selLabel text
+				Loop( sl, selLabels )
+				{
+					SetText( sl, gNoSelectionChar )
+				}
+				# finally re-draw
+				Draw()
+			}
+		} elseif( resp == gDelKeyText )
+		{
+			if ( Length( rval ) > 0 )
+			{
+				# only valid if we have some values
+				# - delete the last character selected
+
+				# re-enable it's selection in keypad
+				deleted<-Last( rval )
+				idx<-FindFirstIndex( values, deleted )
+				if ( idx > 0 )
+				{
+					SetFont( Nth( keyLabels, idx), gLgFont )
+
+					if ( gSymSpan )
+					{
+						SetText( Nth( keyLabels, idx), "" )
+						selFace <- Nth( padFaces, idx )
+						selFace.color <- gKeyFace # this could be a no-op but we don't care
+					}
+				}
+
+				# remove from selection & rval
+				SetText( Nth(selLabels, Length(rval)), gNoSelectionChar )
+				rval<-RemoveSubset(rval, List(Length(rval)))
+
+				# definitely can't be don
+				SetFont( Nth(keyLabels, idxDone),	gLgFont_Disabled )
+				# may still be able to clear or delete
+				if ( Length( rval ) == 0 )
+				{
+					SetFont( Nth(keyLabels, idxClear),	gLgFont_Disabled )
+					SetFont( Nth(keyLabels, idxDel),	gLgFont_Disabled )
+				}
+
+				#finally draw
+				Draw()
+			}
+		} elseif ( Length( rval ) < Length( selLabels ) )
+		{
+			# it's user input !
+			if ( resp == gBlankKeyText )
+			{
+				# is blank key
+				rval<-Append(rval, gUnknownValue )
+				SetText( Nth(selLabels, Length(rval)), gUnknownValue )
+			} elseif ( FindFirstIndex( rval, resp ) == 0 )
+			{
+				# Not already selected
+				rval<-Append(rval, resp )
+				if ( gSymSpan == 1 )
+				{
+					# for symspan we set to be the length of the rval
+					SetText( Nth(selLabels, Length(rval)), ""+Length(rval) )
+				} else {
+					SetText( Nth(selLabels, Length(rval)), resp )
+				}
+
+				# Provide visual cue it's been selected
+				idx <- FindFirstIndex( values, resp )
+				if ( gSymSpan == 1 )
+				{
+					SetText( Nth( keyLabels, idx), ""+Length( rval ) )
+					if ( gSymSpanHighlightPickedFaces <> 0 )
+					{
+						selFace<-Nth(padFaces, idx)
+						selFace.color <- gSymShownTargetColor
+					}
+				} else {
+					SetFont( Nth( keyLabels, idx), gLgFont_Disabled )
+				}
+				
+			}
+			# enable done if appropriate
+			if ( Length( rval ) == Length( selLabels ) )
+			{
+				SetFont( Nth( keyLabels, idxDone ), gLgFont )
+			}
+			# always try to enable these even though it may be a no-op
+			SetFont( Nth( keyLabels, idxClear ), gLgFont )
+			SetFont( Nth( keyLabels, idxDel ), gLgFont )
+			Draw()
+		}
+	} 
+
+	return rval
+}
+
+define DrawDebug(val)
+{
+	if ( val == 1 )
+	{
+		gDebugLab1<-MakeLabel("gVideoWidth="+gVideoWidth, gDbgFont)
+		AddObject( gDebugLab1, gWin )
+		Move( gDebugLab1, 100, 10 )
+
+		gDebugLab2<-MakeLabel("gVideoHeight="+gVideoHeight, gDbgFont)
+		Move( gDebugLab2, 110, 30 )
+		AddObject( gDebugLab2, gWin )
+
+		gYAxis<-ThickLine(gVideoWidth/2, 0, gVideoWidth/2, gVideoHeight, 2, gDbgColor )
+		AddObject( gYAxis, gWin )
+
+		gXAxis<-ThickLine(0, gVideoHeight/2, gVideoWidth, gVideoHeight/2, 2, gDbgColor )
+		AddObject( gXAxis, gWin )
+	}
+	return val
+}
+
+define ParseArgs(args)
+{
+
+   if (gTestType== "symspan" )
+      {
+        gSymSpan<-1
+	gGridNumCol<- 4
+	gGridNumRow<- 4
+	gUnknownValue <- "?"
+	gDistractBlurbHeader<-"Symmetry"
+       } elseif ( argval == "ospan" ) {
+	gDistractBlurbHeader<-"Operations"
+       } elseif ( argval == "rspan" ) {
+	gDistractBlurbHeader<-"Sentences"
+       } else {
+	Print( "Running as typetype " + argval )
+	SignalFatalError( "Invalid test type: " + argval )
+       }
+
+	Print( "Running as typetype " + gTestType )
+        gFeedbackTimeout <- gParams.feedbacktimeout
+
+        gRunFile <- gParams.runfile
+        gBatteryThreshold <- gParams.batterythreshold
+        gBatteryFeedback <- gParams.batteryfeedback
+        gDistractTimeoutMinimum <- gParams.distracttimeoutminimum
+        gDistractTimeoutMultiplier<-  gParams.distracttimeoutmultiplier
+        gRequireThresholdPreBattery <- gParams.requirethresholdprebattery
+
+	if ( gBatteryThreshold >= 1 )
+	{
+           SignalFatalError( "BatteryThreshold must be less than 1"+gBatteryThreshold )
+	}
+
+	if ( gDistractTimeoutMinimum < 100 )
+	{
+          SignalFatalError( "Invalid gDistractTimeoutMinium: " +gDistractTimeoutMinimum)
+	}
+	if(gDistractTimeoutMultiplier < 1)
+	{
+   	   SignalFatalError( "Invalid gDistractMultiplier: " +gDistractTimoutMultiplier )
+	}
+
+
+
+	# by default make these function of the test type
+	# you could override by changing order of arg listing
+	gParams.DistractionFile <- "distraction_"+gTestType+".txt"
+        gDistractionFile <- gParams.distractionfile
+	gRunFile <- "rundefn_"+gTestType+".txt"
+
+    ## } elseif ( argname == "feedbacktimeout" ) {
+    ## 				gFeedbackTimeout<-ToNumber( argval )
+    ## 				if ( gFeedbackTimeout <= 0 )
+    ## 				{
+    ## 					gFeedbackTimeout<- -1
+    ## 				}
+    ## 			} elseif ( argname == "distract" )
+    ## 			{
+    ## 				gDistractionFile<-argval
+    ## 			} elseif ( argname == "run" )
+    ## 			{
+    ## 				gRunFile<-argval
+    ## 			} elseif ( argname == "drawdebug" )
+    ## 			{
+    ## 				gDrawDebug<-ToNumber( argval )
+    ## 				if ( gDrawDebug < 1 )
+    ## 				{
+    ## 					gDrawDebug <- 0
+    ## 				} else
+    ## 				{
+    ## 					gDrawDebug <- 1
+    ## 				}
+    ## 			} elseif ( argname == "resultsdir" )
+    ## 			{
+    ## 				gResultsDir<- argval
+    ## 			} elseif ( argname == "batterythreshold" )
+    ## 			{
+    ## 				gBatteryThreshold<- ToNumber( argval )
+    ## 				if ( gBatterAbortThreshold >= 1 )
+    ## 				{
+    ## 					SignalFatalError( "BatteryThreshold must be less than 1" )
+    ## 				}
+    ## 			} elseif ( argname == "batteryfeedback" )
+    ## 			{
+    ## 				gBatteryFeedback<-ToNumber( argval )
+    ## 				if ( gBatteryFeedback <= 0 )
+    ## 				{
+    ## 					gBatteryFeedback <- 0 
+    ## 				} else {
+    ## 					gBatteryFeedback <- 1
+    ## 				}
+    ## 				Print( "gBatteryFeedback set to " + gBatteryFeedback )
+    ## 			} elseif ( argname == "distracttimeoutminimum" )
+    ## 			{
+    ## 				gDistractTimeoutMinimum<- ToNumber( argval )
+    ## 				if ( gDistractTimeoutMinium < 100 )
+    ## 				{
+    ## 					SignalFatalError( "Invalid gDistractTimeoutMinium: " +argval )
+    ## 				}
+    ## 				Print( "gDistractTimeoutMinimum set to " + gDistractTimeoutMinimum )
+    ## 			} elseif ( argname == "distracttimeoutmultiplier" )
+    ## 			{
+    ## 				gDistractTimeoutMultiplier<- ToNumber( argval )
+    ## 				if ( gDistractTimeoutMinium < 1 )
+    ## 				{
+    ## 					SignalFatalError( "Invalid gDistractMultiplier: " +argval )
+    ## 				}
+    ## 				Print( "gDistractTimeoutMultiplier set to " + gDistractTimeoutMultiplier )
+    ## 			} elseif ( argname == "requirethresholdprebattery" )
+    ## 			{
+    ## 				gRequireThresholdPreBattery<-ToNumber( argval )
+    ## 				if ( gRequireThresholdPreBattery <= 0 )
+    ## 				{
+    ## 					gRequireThresholdPreBattery <- 0 
+    ## 				} else {
+    ## 					gRequireThresholdPreBattery <- 1
+    ## 				}
+    ## 				Print( "gRequireThresholdPreBattery set to " + gRequireThresholdPreBattery )
+    ## 			} else
+    ## 			{
+    ## 				Usage()
+    ## 				SignalFatalError( "Unknown Argument: " + arg )
+    ## 			}
+    ## 		}
+    ## 	}
+}
+
+define Usage()
+{
+}
+
+define InitDefaults()
+{
+
+	##these default values are not held within
+	##the gParams
+	gSleepEasy <- 1
+
+	gGridNumCol<- 3
+	gGridNumRow<- 4
+
+	# default is not symspan
+ 	gSymSpan <- (gTestType=="symspan")
+	gSymSpanGridWidth<- 4
+	gSymSpanGridHeight<- 4
+	gSymShownTargetColor<-MakeColor( "red" )
+	gSymSpanHighlightPickedFaces<-1
+
+	gFeedbackTimeout<- 1500
+	gFeedbackTOnly <- [ "You got %CORRECT_T% of %NUM_T% correct"]
+	gFeedbackDOnly <- [ "You got %CORRECT_D% of %NUM_D% correct"]
+	gFeedbackDT <- [ "You got %CORRECT_D%/%NUM_D% problems correct and",
+										"%CORRECT_T%/%NUM_T% targets correct" ]
+
+	gAbortThresholdMsg<- [ "Test cannot proceed - not meeting distract threshold" ]
+
+	gDistractBlurbHeader<-"Distraction"
+
+	# following should be a decimal between 0 and 1. 0 is left, 1 is right, 0.5 is halfway etc
+	gDistractBlurbPos<-0.75
+
+
+	gDoneKeyText <- "Done"
+	gClearKeyText <- "Clear"
+	gDelKeyText <- "Del"
+	gBlankKeyText <- "Blank"
+	
+
+	######################################
+	# by default these are named according to the test type
+	gDistractionFile <- "" #"distraction.txt"				
+	gRunFile<- "" #"rundefn.txt"
+	######################################
+
+
+	gFGColor <- MakeColor("white")
+	##gFGColor <- MakeColor("black")
+	gFGDisabledColor <- MakeColor("grey55")
+	gBGColor <- MakeColor("black")
+	##gBGColor <- MakeColor("white")
+	gKeyBorder<-MakeColor( "grey20" )
+	gKeyFace<-MakeColor( "grey25" )
+	gDbgColor <-MakeColor("grey25")
+
+	# when a user selects a grid item, draw it as disabled to 
+	# suggest they can't select again
+	gNoSelectionChar<-"*"
+	gUnknownValue<-"_"
+
+        ##This is the font to use for static instruction screens:
+	gLgFontSz<-22
+	gKeyHeight<-2.1*gLgFontSz
+	gLgFont <- MakeFont("Vera.ttf",0,gLgFontSz,gFGColor,gBGColor,0)
+
+	gStimFontsz <- 40
+	gStimFont <- MakeFont(gPEBLBaseFont,0,gStimFontSz,gFGColor,gBGColor,0)
+
+	gLgFont_Disabled <- MakeFont("Vera.ttf",0,gLgFontSz,gFGDisabledColor,gBGColor,0)
+	gSmlFont<- MakeFont( "Vera.ttf",0,20,gFGColor,gBGColor,0)
+	gDbgFont<-MakeFont(  "Vera.ttf",0,20,gDbgColor,gBGColor,0)
+	gRedFeedbackFont<-MakeFont( "Vera.ttf",0,20, MakeColor("blue"), gBGColor, 0 )
+
+	gBatteryThreshold<-0.85
+	gBatteryFeedback<-1
+	gRunningDistractTaskFeedback<-1
+
+
+	# stats on distract tasks...
+	gCollectStats<-1
+	gBatteryDistractTimeout<- -1
+	gFirstBattery<-1
+	gTotNumDistract<-0
+	gNumCorrectDistract<-0
+	gTimesDistract<-[]
+
+	# do we abort at certain points if battery threshold not met
+	gRequireThresholdPreBattery<-0 # no
+	gDistractTimeoutMinimum<-1000
+	gDistractTimeoutMultiplier<-2.5	#timeout=avg+multiplier*stddev - 2.5*stddev is the standard value used
+
+	gShowCurrErrorRate<-1
+
+	gResultsDir<-"."
+
+	gDrawDebug<-0
+
+         gWin <- MakeWindow("black")
+}
+
+
+# return [avgTimeDistract,pctCorrectDistract]
+define ProcessRunResult( stages, runResult, write ,conds)
+{
+
+  gBatteryDistractTimeout <- First(conds)
+  target_timeout <- Nth(conds,2)
+  runLen <- Nth(conds,3)
+
+
+	pctCorrectDistract<- -1
+	avgTimeDistract<- -1
+	totTimeDistract<-0
+	numCorrectDistract<-0
+	totNumDistract<-0
+        target<- ""
+        resp <- ""
+        correct <- "NA"
+
+	Loop( result, runResult )
+	{
+		if ( Nth( result, 1 ) == "D" )
+		{
+			success<-Nth(result,2)
+			ms<-Nth(result, 3)
+			totTimeDistract<- totTimeDistract+ms
+			gTimesDistract <- Append( gTimesDistract,  ms )
+			if ( success == 1 )
+			{
+				numCorrectDistract<-numCorrectDistract+1
+			}
+			totNumDistract<- totNumDistract + 1
+	        }elseif(First(result)=="T"){
+		  target <- Second(result)
+		  resp <- Third(result)	  
+		  correct <- target==resp
+		  partial <- PartialCorrect(target,resp,"|")
+		  
+                }
+	   if ( write != 0  and First(result)=="D")
+		{
+		  FilePrint( gPositionLog, gSubNum+","+ gTrial+","+
+		    	     gBatteryDistractTimeout +","+ target_timeout +","+ runLen +","+
+			     numCorrectDistract+","+totNumDistract+","+
+			     Nth( result, 1 ) + "," + Nth( result, 2 ) + ","+Nth(result,3 ) +",")
+	       }
+	}
+
+	if ( totNumDistract > 0 ) {
+		pctCorrectDistract<- numCorrectDistract / totNumDistract
+		avgTimeDistract<- totTimeDistract / totNumDistract
+
+		gTotNumDistract <- gTotNumDistract + totNumDistract
+		gNumCorrectDistract <- gNumCorrectDistract + numCorrectDistract
+	}
+
+
+	if(write)
+        {
+        #   PRint out one line per trial:
+           FilePrint(gSubOut,gSubNum+","+ gTrial+","+gBatteryDistractTimeout +","+ target_timeout +","+ runLen + "," +
+	                    Length(SplitString(target,"|")) + "," +
+                            ","+target+","+resp+","+correct+","+ partial + ","+ avgTimeDistract+","+
+                            pctCorrectDistract+","+
+                            numcorrectdistract+","+totNumDistract + "," +
+                            gNumCorrectdistract+ "," +gTotNumDistract)
+
+        }
+
+
+	return [avgTimeDistract,pctCorrectDistract]
+}
+
+								#######Make Data files
+define OpenSubOut()
+{
+	subNoSpc<-ReplaceChar( gSubNum, " ", "_" )
+
+
+        header <- "subnum,trial,distracttimeout,targettime,runlen,length,targetseq,respseq,correct,partcorrect,avedisttime,pctcorr,numcorrdist,totnumdist,runningcorrect,runningtotal"
+	gSubOut <- GetNewdataFile(subnospc,gWin,gTestType,"csv",header)
+
+	header <- "subnum,trail,distracttimeout,targettime,runlen,numcorr,totnumdistract,type,corr,time"
+        gPositionLog <- GetNewDataFile(subNoSpc,gWin,gTestType+"-pos","csv",header)
+
+	##FilePrint( gSubOut, "NEWSESSION:" +TimeStamp() )
+}
+
+
+
+define Start(par)
+{
+     #This should be the only line that changes between ospan, symspan, and rspan::
+     gTestType<-"symspan"
+
+
+   
+    GetStrings(gLanguage)
+    InitDefaults()
+    parpairs <- [["feedbacktimeout",1500],
+		     ["runfile","rundefn.txt"],
+		     ["batterythreshold",0.85],
+		     ["batteryFeedback",1],
+		     ["distracttimeoutminimum",1000],
+                     ["distracttimeoutmultiplier",1.25],
+		     ["requirethresholdprebattery",1]]
+
+        gParams <- CreateParameters(parpairs,gParamFile)
+	ParseArgs(par)
+
+	if ( gTestType == "" )
+	{
+		Usage()
+		SignalFatalError( "No testtype specified" )
+	}
+
+	if ( gRunFile == "" )
+	{
+		Usage()
+		SignalFatalError( "No run definition specified" )
+	}
+
+	if ( gDistractionFile == "" )
+	{
+		Usage()
+		SignalFatalError( "You need to specify a file containing distraction tasks" )
+	}
+
+	# load run defn first since it determines our distractoin tasks
+	gRunDefn<-LoadRunDefn( gRunFile )
+
+	gDistractionTasks<-LoadDistractionTasks( gDistractionFile )
+	# this is essentially a clone
+	gDistractWorkingSet<-SampleN( gDistractionTasks, Length( gDistractionTasks ) )
+
+	gDrawDebug<-DrawDebug(gDrawDebug)
+	
+	if ( gSubNum == 0 )
+	{
+		gSubNum<-GetSubNum( gWin )	
+	}
+        ##Added the creation of the directory
+	MakeDirectory("data")
+	OpenSubOut()
+	# TODO replace spaces in subject with underscore
+	# TODO check for existing subject output
+
+	iDefnNum<- 0
+	abort <- 0 
+	gTrial <- 1
+
+	Loop( defn, gRunDefn )
+	{
+		if ( abort != 1 )
+		{
+			iDefnNum<-iDefnNum + 1
+			type <- Nth( defn, 1 )
+			if ( type == "run" )
+			{
+				stages<-Nth(defn, 5)
+				runRes<-PresentRun( Nth(defn, 2), Nth(defn, 3), Nth(defn, 4), stages, Nth(defn, 6) )
+				conds <- [Nth(defn, 2), Nth(defn, 3), Nth(defn, 4), stages, Nth(defn, 6) ]
+				ProcessRunResult( stages, runRes, 0,conds )	# zero means don't write
+				gTrial <- gTrial + 1
+			} elseif ( type == "static" ) {
+				PresentStatic( Nth( defn, 2), Nth( defn, 3 ), Nth(defn, 4), iDefnNum == Length( gRunDefn ) )
+
+			} elseif ( type == "pausestats" ) {
+				Print( "Paused stats" );
+				gCollectStats <- 0
+
+			} elseif ( type == "resumestats" ) {
+				Print( "Resumed stats" );
+				gCollectStats <- 1
+
+			} elseif ( type == "clearstats" ) {
+					gNumCorrectDistract <- 0
+					gTotNumDistract <- 0
+					gTimesDistract <- []
+
+			} elseif ( type == "batteryconfig" ) {
+				if ( gTotNumDistract > 0 ) {
+					pctCorrect<- gNumCorrectDistract / gTotNumDistract
+
+					if ( gRequireThresholdPreBattery == 1 and pctCorrect < gBatteryThreshold )
+					{
+						abort <- 1
+					} else {
+						gBatteryDistractTimeout <- Mean( gTimesDistract )
+						gBatteryDistractTimeout <- gBatteryDistractTimeout + gDistractTimeoutMultiplier * StdDev( gTimesDistract )
+						gBatteryDistractTimeout<- Max( [gBatteryDistractTimeout, gDistractTimeoutMinimum ] )
+					}
+				} elseif ( Length ( gTimesDistract ) > 0 ) {
+					gBatteryDistractTimeout <- Mean( gTimesDistract )
+					gBatteryDistractTimeout <- gBatteryDistractTimeout + gDistractTimeoutMultiplier * StdDev( gTimesDistract )
+					gBatteryDistractTimeout<- Max( [gBatteryDistractTimeout, gDistractTimeoutMinimum ] )
+				} else {
+					gBatteryDistractTimeout<-gDistractTimeoutMinimum
+				}
+				if ( abort == 1 ) {
+					PresentStatic( -1, 1, gAbortThresholdMsg, 1 )
+				}
+
+			} elseif ( type == "battery" ) {
+				reps<-Nth( defn, 2 )
+				min<-Nth(defn, 3)
+				max<-Nth(defn, 4 )
+				target_timeout<-Nth( defn, 5 )
+				gBatteryDistractTimeout <- -1
+
+				lens<-Sequence( min, max, 1 )
+				lens<-Flatten( ShuffleRepeat( lens, reps ) )
+
+				# PresentRun(  distractMS, targetMS, numTarget, stages, feedback )
+				Loop( runLen, lens )
+				{
+					stages<-[]
+					Loop( i, Sequence( 1, runLen, 1 ) )
+					{
+						stages<-Append(stages, "D" )
+						stages<-Append(stages, "T" )
+
+					}
+					
+					runRes<-PresentRun( gBatteryDistractTimeout, target_timeout, runLen, stages, gBatteryFeedback )
+					ProcessRunResult( stages, runRes, 1, [gBatteryDistractTimeout, target_timeout, runLen, stages, gBatteryFeedback])
+					gTrial <- gTrial + 1
+				}
+			} else {
+				SignalFatalError( "Unk run type: " +type )
+			}
+		}
+	}
+}
+
+# return [Trim(token),Trim(lineleft)]
+define ParseFirstToken(sep, line )
+{
+	idx<-FindInString( line, sep, 1 )
+	if ( idx < 1 )
+	{
+		SignalFatalError( "Invalid Distraction Spec: "+line )
+	}
+	
+	tok<-StripSpace( SubString( line, 1, idx-1 ) )
+
+	lineLen <- Length( SplitString( line, "" ) )
+	remainder<-StripSpace( SubString( line, idx+1, lineLen - idx ) )
+
+	return [tok,remainder]
+}
+
+define LineLength( line )
+{
+	return Length( SplitString( line, "" ) )
+}
+
+define LoadRunDefn( a_File )
+{
+	Print( "Loading rundefn from " + a_File +"...")
+	rval<-[]
+
+	# a run:
+	#  run:<distract_timeout>:<target_timeout>:{D|T}{1,}
+	# a special screen loaded from file
+	#  static:file.txt
+	# a battery of tests
+	#  battery:rep:min:max:target_timeout
+	#
+	#
+	#
+	# where
+	#  D : distraction task
+	#  L : target letter
+	# 
+	#
+	# eg 
+	#	-1:DDD # three distraction tasks only no timeout
+	
+
+
+	Loop( line, FileReadList( a_File ) )
+	{
+		line<-StripSpace( line )
+		idx<-FindInString( line, "#", 1 )
+		if ( idx == 1 )
+		{
+			#	it's a comment line
+		} else {
+			toks <- SplitString( line, ":")
+			if ( Length(toks) < 1 )
+			{
+				SignalFatalError( "Invalid run defn" );
+			}
+
+			type<-Lowercase( StripSpace(Nth(toks,1)) )
+			if ( type == "run" )
+			{
+				feedback<-0
+				if ( Length( toks ) != 4 )
+				{
+					SignalFatalError( "Invalid run defn: " + line )
+				}
+
+				distractMS<-ToNumber( Nth(toks, 2) )
+				targetMS<-ToNumber( Nth( toks, 3 ) )
+
+				stages<-SplitString( Nth(toks, 4 ), "" )
+
+				stagesNoFB<-[]
+
+				numTarget<-0
+				Loop( stage, stages )
+				{
+					stage <- Uppercase( stage )
+					if ( stage == "T" )
+					{
+						numTarget <- numTarget + 1
+						stagesNoFB<-Append( stagesNoFB, stage )
+					} elseif ( stage == "D" )
+					{
+						stagesNoFB<-Append( stagesNoFB, stage )
+					} elseif ( stage == "F" )
+					{
+						feedback<-1
+					} else
+					{
+						SignalFatalError( "Invalid run defn (not 'D' or 'T') " + line )
+					}
+				}
+
+				defn<-["run", distractMS, targetMS, numTarget, stagesNoFB,feedback]
+
+				rval<-Append( rval, defn )
+
+			} elseif ( type == "static" )
+			{
+
+				## this is a text instruction block:
+				##
+				if ( Length( toks ) < 3 )
+				{
+					SignalFatalError( "Unrecognised static file spec" + line )
+				}
+				# expect
+				# static:timeout:path/to/file/possibly/containing/a/colon
+				timeout<-ToNumber( Nth(toks, 2 ) )
+				file<-Nth(toks, 3 )
+				# in case it's a fully qualiified path
+				i <- 4
+				while ( i <= Length( toks ) )
+				{
+					file<-file+":"+Nth(toks, i )
+					i<-i+1
+				}
+
+				# read all the lines now so we fail hard & fast
+				lines<-FileReadList( gTextDirectory + file )
+
+				centred<-0
+				if ( Length( lines ) > 0 )
+				{
+					if ( StripSpace( Lowercase( Nth(lines, 1) ) ) == "<centretext>" )
+					{
+						lines<-Rest(lines)
+						centred<-1
+					}
+				}
+
+				defn<-["static", timeout, centred, lines]
+				rval<-Append( rval, defn )
+			} elseif ( type == "battery" )
+			{
+				if ( Length( toks ) != 5 )
+				{
+					SignalFatalError( "Unrecognised battery spec: " + line )
+				}
+				#  expect
+				#  battery:rep:min:max:target_timeout
+				reps<-ToNumber(Nth(toks, 2 ) )
+				min<-ToNumber(Nth(toks, 3 ) )
+				max<-ToNumber(Nth(toks, 4 ) )
+				timeout<-ToNumber(Nth(toks, 5 ) )
+
+				if ( reps < 1 )
+				{
+					SignalFatalError( "Bad battery spec(reps<1):" + line )
+				}
+				if ( min< 1 )
+				{
+					SignalFatalError( "Bad battery spec(min<1):" + line )
+				}
+				if ( max< min )
+				{
+					SignalFatalError( "Bad battery spec(max<min):" + line )
+				}
+				if ( timeout < 1 )
+				{
+					SignalFatalError( "Battery timeout must be positive:" + line )
+				}
+				defn<-["battery", reps, min, max, timeout]
+				rval<-Append(rval, defn )
+			} elseif ( type == "pausestats" ) {	# just an instruction, no params
+				defn<-[type]
+				rval<-Append( rval, defn )
+			} elseif ( type == "resumestats" ) {	# just an instruction, no params
+				defn<-[type]
+				rval<-Append( rval, defn )
+			} elseif ( type == "batteryconfig" ) {	# just an instruction, no params
+				defn<-[type]
+				rval<-Append( rval, defn )
+			} elseif ( type == "clearstats" ) {	# just an instruction, no params
+				defn<-[type]
+				rval<-Append( rval, defn )
+			} else {
+				SignalFatalError( "Unrecognised run defn" + type )
+			}
+		}
+	}
+
+	if ( Length( rval )== 0 )
+	{
+		SignalFatalError( "No run defns loaded" )
+	} else {
+		Print( "Loaded "+Length( rval)+" run defns" )
+	}
+
+	return rval
+}
+
+define LoadDistractionTasks( a_File )
+{
+	Print( "Loading distraction tasks from " + a_File +"...")
+	rval <- []
+	Loop( line, FileReadList( a_File ) )
+	{
+		p1<-ParseFirstToken( ",", line )
+		p2<-ParseFirstToken( ",", Nth(p1, 2 ) )
+
+		question<-Nth(p1,1)
+		if ( LineLength( question ) < 1 )
+		{
+			SignalFatalError( "Invalid Distraction Spec: "+line )
+		}
+		answer<-Nth(p2,1)
+		if ( gSymSpan != 1 and LineLength( answer ) < 1 )
+		{
+			SignalFatalError( "Invalid Distraction Spec: "+line )
+		}
+		isTF<-Lowercase(Nth(p2,2))
+		if ( LineLength( isTF ) < 1 )
+		{
+			SignalFatalError( "Invalid Distraction Spec: "+line )
+		}
+		tfValue<-Nth( SplitString( isTF, "" ), 1 )
+		if ( tfValue == "t" )
+		{
+			tfValue<-1
+		} elseif ( tfValue == "f" )
+		{
+			tfValue<-0
+		} else
+		{
+			SignalFatalError( "Invalid Distraction Spec: "+line )
+		}
+		if ( gSymSpan == 1 )
+		{
+			im<-MakeImage( question )
+			rval<-Append( rval, [im, answer, tfValue] )
+		} else {
+			rval<-Append( rval, [question, answer, tfValue] )
+		}
+	}
+
+	if ( Length( rval ) == 0 )
+	{
+		SignalFatalError( "No distraction tasks loaded" )
+	}
+	Print( "Loaded " + Length(rval)+" distraction tasks" )
+	return rval
+}
+
+define GetKBInput( kb, value_map )
+{
+	rval<- WaitForClickOnTarget(  kb, value_map )
+
+	return rval
+}
+
+define MakeSqKB(win, keys,  kbLeft, kbTop, nCol, keySz, spc, hideText  )
+{
+	return MakeKB( win, keys,  kbLeft, kbTop, nCol, keySz, keySz, spc, hideText )
+}
+
+define MakeKB(win, keys,  kbLeft,kbTop, nCol, keyWidth, keyHeight, spc, hideText  )
+{
+	border<-4
+
+	cellWidth<-keyWidth+spc
+	cellHeight<-keyHeight+spc
+	
+	xExtent<-kbLeft
+	yExtent<-kbTop
+	clickable <- []
+	labels<-[]
+	stuff <- []
+	keyFaces <- []
+	i<-1
+	loop(aKey,keys)
+	{
+		colnum <- Mod( i-1, nCol )
+		rownum <- Floor( (i-1)/nCol )
+		i<-i+1
+		
+		back1 <- Rectangle(kbLeft+colnum*cellWidth,kbTop+rownum*cellHeight,keyWidth, keyHeight,gKeyBorder,1)
+		keyFace <- Rectangle(kbLeft+colnum*cellWidth,kbTop+rownum*cellHeight,keyWidth-4,keyHeight-4, gKeyFace,1)
+		if ( hideText==1 ) {
+			lab <- MakeLabel("",gLgFont)
+		} else {
+			lab <- MakeLabel(aKey,gLgFont)
+		}
+		AddObject(back1,win)
+		AddObject(keyFace,win)
+		AddObject(lab,win)
+		x<-kbLeft+colnum*cellWidth
+		y<-kbTop+rownum*cellHeight
+		Move(lab,x,y)
+		if ( x > xExtent ) { xExtent <- x }
+		if ( y > yExtent ) { yExtent <- y }
+		clickable <- Append(clickable,back1)
+		stuff <- Append(stuff,[lab,back1,keyFace])
+		labels <- Append(labels, lab)
+		keyFaces <- Append( keyFaces, keyFace )
+	}
+	Draw()
+
+	return [clickable,xExtent,yExtent, cellWidth, Flatten(stuff), labels, keyFaces]
+}
+
+define GetClickable( kb )
+{
+	return Nth(kb, 1)
+}
+
+define GetLabels( kb )
+{
+	return Nth(kb, 6)
+}
+
+define GetKeyFaces( kb )
+{
+	return Nth(kb, 7)
+}
+
+define DestroyKB(win,kb)
+{
+	loop( obj, Flatten( Nth(kb, 5 ) ) )
+	{
+		RemoveObject( obj, win)
+	}
+}
+
+define GetStrings(lang)
+{
+  lang <- Uppercase(lang)
+
+   if(lang=="EN")
+    {
+     gReadyText <- "READY?"
+     gContinueText <- "Click mouse when you solve the problem"
+     gTextDirectory <- "translations/"+lang+"/"
+
+    } else {
+      GetStrings("EN")
+   }
+
+}
+
+
+
+define PartialCorrect(target,resp,split)
+{
+
+   targlist <- SplitString(target,split)
+   resplist <- SplitString(resp,split)
+
+   targlength <- Length(targlist)
+   resplength <- Length(resplist)
+
+   ##add stuff to the shorter one, if they are different lengths.
+
+   if(targlength < resplength)
+    {
+       targlist <-  Append(targlist, Repeat("DUMMY",resplength-targlength))
+    }
+
+
+   if(targlength > resplength)
+    {
+       resplest <-  Append(resplist, Repeat("DUMMY",-resplength+targlength))
+    }
+
+   matches <-0
+   n <- 0
+   
+   loop(pair, Transpose([targlist,resplist]))
+   {
+     if(First(pair)==Second(pair))
+     {
+       matches <- matches + 1
+     }
+      n <- n + 1
+   }
+
+
+   return(matches/n)
+}

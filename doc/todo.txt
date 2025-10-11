@@ -1,0 +1,881 @@
+
+----- Post 2.1:
+
+
+* Fix toh because when you use a move limit, the thermometer ends up on top of the display, probably for some but not all screen sizes.
+
+
+integrate lab streaming layer:
+https://github.com/sccn/labstreaminglayer
+-stringsplit in symmetryspan and ospan; -> splitstring
+
+* right now setting text with a number causes an error. We should be more forgiving here.
+
+* document how you can specify the separator character in FilePRintList and maybe printlist
+* popupentrybox breaks on black background; should allow larger entry box and 
+  font should be light if background is dark.
+
+
+
+documentation on vectimes vecsum is wrong (copy-paste error)
+-------------------------
+2.1:
+
+
+
+
+
+Bug reports from Damon Lamb:
+
+
+
+Good morning Shane,
+
+
+We finally had time to look further into this and managed to track down at least one issue which appears to fix one of the problems in the launcher with regard to the subject ID not being passed to the individual tests: lin
+e 433 
+
+
+Broadly, the issue appears to be one with overlapping/inconsistent naming of variables, in the case gsubnum, gSubCode, etc.
+
+
+I hope that's helpful for others, too.
+
+
+Damon
+
+
+ 
+
+Good afternoon Shane,
+
+I hope you had a nice trip (I'm assuming that is why you were out of town)!
+
+I'll try generating a new batch file with 2.1 and then dig into it to see where it's kicking it off. When I checked earlier it looked fine, but perhaps I missed that it was the wrong version. 
+
+I hadn't looked at the customlauncher.pbl file at all, I'll do so when I next can get onto the experimental computer.
+
+For now, I've been manually editing the config file prior to each subject. It is far from ideal, but at least it works.
+
+Thanks,
+
+Damon
+
+---------------------------------------------------------------
+
+
+
+-standalone still doesn't handle experiment chains right!
+
+-document change to WaitForClickOnTargetWithTimeout (new button arguments)
+
+- Fix 2.0 betas so they have the two translations in the tapping test.
+
+-gonogo seems to have the opposite second block that the paper it is based on does.
+
+
+
+- tapping.pbl translations files may not be included in windows
+ROTATION - translations/Rotation.pbl-en.csv
+TOWER OF HANOI (TOH) - translations/TOH.pbl-en.csv
+
+
+
+three new ratings scales from Brandon
+-fix flanker arrows just like ANT arrows.
+
+- 5-10 translation files in translations-pending\ directory here
+
+
+From Adam Raikes (adam.raikes@gmail.com; 
+    Last thing... I intend to use the color stroop as part of my battery (including this likert survey). I was looking at the summary output and it is assigning errors as all random errors. Part of the issue, I think, is that the english translation file has the sequence 1= red, 2 = blue, 3 = green, 4 = yellow. This is how it reads in line 838 (gColorNames = ...). However, lines 523, 524, 561, 562, 602, and 603 assign them backwards (e.g. green <- Nth(gColorNames,2) means that green <- "blue"). I'm still working on debugging because even when fixed, it doesn't produce the correct error summary.
+--fixed the missing assignment
+
+
+
+ Documentation for new messagebox,countdown optional arguments
+ documentation for MakeTable()
+ 
+
+TODO for 0.15
+gonogo task--needs correct column; dprime, etc.
+reading span--needs summary score (accuracy for both tasks)
+
+
+Push to 2.0+
+------------------------------------------
+SL translation of mental rotation task (see help forum)
+
+sdl_rtf???
+*RTL font rendering? (look into harfbuzz)
+
+SaveBMP function???
+
+-relative mouse mode?
+
+
+SDL2 Migration issues that remain:
+
+  - joystick changes (untested)?
+
+ -maybe have a way to have a hidden .time property of every variant, which indicates when it was last changed. To propogate event times from inner to outer stuff.us (tried--doesn't work)
+
+  Picture of balloon for BART
+  Gatekeeper task???
+
+Windows:
+
+    * fix getting a pixel color (currently, it crashes)
+    * fix setting a pixel color
+
+--------------------------------------------
+Possibles FOR 2.0
+
+-standalone seems borked when spaces are used.
+-revisit installe issues
+-fix vsearch report issues
+- vsearch syntax error does not report entire call chain.
+
+* look at gettimeHP stuff to consider a better way.
+
+eyetribe accessibility???
+
+- look into using const Variant & in all functions--this should reduce copying of variants so much.  Overally, need to reduce multiple copying during parsing/execution.
+
+- Test multi-monitor setups for fullscreen, vignetting
+
+  -Fix Inside() so it uses GetAbsolutePosition() (seems to work, except in combinedatafiles.)
+
+ --when default/optional parameters are off-by-one, strange things happened.  Look into EasyTextBox with missing fontsize,etc.
+ * Need to generalize running command to permit pebl2.exe, pebl2, etc.
+
+Launcher related:
+
+* textbox cursorline rendersin the wrong place on some fonts (international)
+
+TASKS:
+
+
+-re-examine running at high priorities on windows
+	    
+------------------------------------------
+todo for 2.0:
+
+ * simplified launcher dialog creation
+ * translation dialog
+
+
+in combinedatafiles, along with sluggish UI for large numbers of files,
+ help feedback looks for clicks at the wrong spot (but not on OSX??)
+
+Battery related:
+
+global/local task currently crashes. (fixed, but displays not shown)
+
+-squares filled vs unfilled aren't the same size (maybe AA stuff?)
+
+error in things like ANT, antisaccade:
+Resetting rendertarget failed in PlatformPolygon with error code: -1
+SDL message: That operation is not supported
+<A Polygon :27, 18:
+
+
+-hebrew translations.
+---------------------
+PEBL c++ etc
+
+  
+
+MacOS:
+
+
+sound seems borked on OSX.  See gonogo or oddball or simon task.
+
+
+
+##the following crashes (urns.pbl) with syntax error (fixed),linebreak before last )
+##
+  gInstText5 <-  SubstituteStrings(gStrings.insttext5,
+                    [["<COL1>",gParams.col1name],
+		    ["<COL2>",gParams.col2name],
+		    ["<DRAWLIMIT>",gParams.drawlimit],
+		    ["<DRAWCOST>",gParams.drawcost],
+		    ["<CORBONUS>",gParams.correctbonus],
+ 		    ["<INCOST>",gParams.incorrectcost],
+		    ["<PTS>",gPoints]]
+		   )
+
+
+=====================================
+  Completed for 2.0
+
+
+document the .filename property on files. (done)
+
+
+sound goes crazy in fourchoice. (fixed; slowed warning buzz down so it is more reasonable)
+
+set script name for all Battery tests. (DONE)
+
+ -check global/local task delta with 1.0 head. (done)
+ 
+  PCPT failure on sdt stats.   (fixed--SDTBeta/SDTDPrime so it fixes max/min HR/FAR))
+   (also look into gonogo fixes for this)
+
+
+ * Migrate all tests to new translation scheme. (done)
+ * Multi-national norm translations. (done)
+
+-DesignGrecoLatinSquare seems broken (fixed; along with rotate())
+
+- spaces in stand-alone version pathnames (fixed)
+Check beta and dprime functions for argument order (checked)
+
+-Test keypad entry, esp for digitspan. (fixed)
+--Need to reenable parameter number checking for functions. (done)
+
+ -no renderer message when popupmessagebox is run. (fixed)
+
+-look at paramfile on OSX when running command line.  doing
+ ./PEBL2 ../Resources/battery/clocktest/clocktest.pbl  produces paramfile
+ of params/./../Resources/battery/clocktest/clocktest.pbl.par. (done)
+
+ --crasher on gui.pbl and launcher  when dragging the scrollbar on pulldown. (fixed)
+
+
+- look into middle mouse button/expose this.  Right now, the scrolling on scrolling textboxes doesn't support this anymore (done)
+  
+  - Multiple windows (simple support, but incomplete, because events cannot yet tell which window they belong to)
+  
+    *UI to support vsync, softrender. etc. (done)
+ * Seeming crash onclicking on empty launcher chain. (fixed)
+-happyHTTP post command. (fixed probably)
+
+ look into updates to rs232c. md5.h, happyhttp libraries etc. (done/updated)
+  -clipboard (completed, minimally)
+
+
+  gonogo task--r/p appears on top on some but below on others.  Timing, especially on practice, seems screwed up. (done)
+   -- Also, instructions do not change for mouse interaction. (done)
+
+
+- added function to get a list of driver options (GetDriverList()) (documented)
+- added CopyToClipboard and CopyFromClipboard options (documented*)
+
+
+Look for SDL_RENDER_TARGETS_RESET events emmitted to possibly explain lack of drawing objects. (done, capture these messages and exit with error)
+
+--have a way of quitting that doesn't send the fatal error. (done: exitquietly; documented)
+
+--figure out the 'base function :Function()' thing (done)
+
+ -rendering time for ttextbox.settext is slow. (addressed)
+ 
+--Rendering issues:
+   multiple passes rendering? (addressed)
+
+ -re-enable linewrap on textboxes. (done)
+
+fixed:
+##in launcher, the following error when changing the filter on a selected list.
+Error near line 3274 of file /usr/local/share/pebl2/pebl-lib/launcher.pbl:
+Attempting to get Nth element element of  too-short list.
+Exiting PEBL because of captured signal.
+
+
+   * Turn off sticky keys in Windows (temporarily). (done)
+      https://msdn.microsoft.com/en-us/library/windows/desktop/ee416808(v=vs.85).aspx
+  hotkey active property:
+https://msdn.microsoft.com/en-us/library/windows/desktop/aa227589(v=vs.85).aspx
+
+
+
+  -look into why showmenu, hidemenu, etc. are borked (fixed)
+ - Set .aa property on relevant circles in tasks (done)
+-- 2nd window error console.
+ * initial nag screen broken in 2.0 (fixed)
+
+--entering '\' in getinput enters double \\ (fixed)
+--still some problems with UpdateCapturedScrollBoxThumb; see UI.pbl line 1189 (fixed; typo in gKeepLooking)
+ * crash of removing when the fullscreen about dialog is run (fixed)
+
+ -timing of gonogo (and probably other things using event loop registering) are completely screwed up. (fixed)
+-  ANT crashes on show1() (may be registerevent bug) (fixed; along with other stuff)
+  -fix all 'registerevent' functions so they include an (optional) event:0 argument.
+
+* GetInput should be able to use mouse to move cursor by default(done)
+-textbox cursorline renders outside box in popupentrybox! (done)
+
+todo Port from 1.0 branch:
+ -be sure launcher highlight bug is fixed (for subcode entry box)(done)
+
+
+in ui-demo.pbl
+   checkbox doesn't work/appear.  Adding a rectangle to a canvas of another  object seems to 'delete' the object.
+   -strange things with pulldown intercating with other objects on screen.  -fixed
+
+launcher
+    - edit line doesn't appear in 'command-line options' -fixed
+
+
+ - complete merge of any 1.0 pending changes ????(DONE)
+ - fixed scoring bug in dual nback task. (DONE)
+ - allow vsync to be turned off with a command-line argument or something. (done)
+ - scroll thumb grab won't let go! (Fixed)
+ - related-document new event for mouse down and mouse up.
+ * launcher in bin: blue outline but no background on error tabs. (fixed)
+ * Be sure that the 'withtimeout' functions return "<timeout>" and not ["<timeout>"]. The demo\tests\testwait.pbl file highlights numerous bugs and inconsisntencies in the waitfor functions.  (done)
+    
+  *zoom on labels breaks down (done)
+  -waave support (partial)
+
+  -line renders twice each step in getinput(fixed)
+
+
+  * Non-fatal Warning in line 33 of file ./TestDrawfor.pbl:
+	Erroneous Data type in Variant::GetInteger(); returning 0
+
+*Optional, and default parameters (need to document this)(documented)
+
+
+*segfault on ui-demo after menu is used. (done)
+*reproducible crash in gui.pbl:
+  	- choose menu option
+	- then try to drag scrollbox
+	-Program received signal SIGSEGV, Segmentation fault.
+0x00000000004b912d in PlatformWindow::Draw (this=0x766e90) at src/platforms/sdl/PlatformWindow.cpp:383
+383	            if((*p)->IsVisible())
+(gdb) bt
+#0  0x00000000004b912d in PlatformWindow::Draw (this=0x766e90) at src/platforms/sdl/PlatformWindow.cpp:383
+#1  0x00000000004b62f2 in PlatformEnvironment::Draw (this=0xadc840) at src/platforms/sdl/PlatformEnvironment.cpp:162
+#2  0x000000000045cad5 in PEBLObjects::Draw (v=...) at src/libs/PEBLObjects.cpp:818
+  crash comes on drawing a subwidget (probably an orphaned one; most likely the canvas behind the menu that was added then removed)
+
+
+-In launcher, when clicking or scrolling on parameters scrollbox on OSX:
+Error near line 1433 of file /Applications/PEBL2.app/Contents/Resources/launcher.pbl:
+Argument error in function [First(<list>)]:  Wanted list but got PEBL String Type: Current (fixed)
+
+
+*Error near line 361 of file ./barplot.pbl:
+(Trying to remove object from another object that is not its parent)
+  (this was a correct error-catch for a bug in the .pbl code)
+
+
+    * Allow namespacing for functions, to let you override something like Draw() but still use it.  Currently, this will now work for an objects's method. (Done; :Function() will execute base function even if name is overridden.  may cause problems because of optional parameter schemes in a few built-in functions)
+
+   *set gsleepeasy default to 1 *DONE
+
+   * sound problems with SDL2 branch*Fixed???
+   * access both keypress (scancode) and textedit,
+      with textedit for textboxeses.  **Fixed
+
+  * added bengali font check 
+  * WaitForAnyKeyPress() returns 'space' instead of ' ', etc.
+   * the bounce demo hangs on check for any key down (Fixed return value for IsAnyKeyDown() )
+  * vkeyboard clear doesn't clear immediately???     Fixed. fonts did not render on blank.
+  * default to 'black' window?  (Done.  May impact several battery tests)
+
+  MakeGraph and MakeBarGraph() implemented
+
+ ------Document for 2.0
+
+override defaults schemes
+
+New functions:
+- added CopyToClipboard *
+CopyFromClipboard options *
+ -New function GetEasyMultipleChoice that allows selecting as many as you want. *
+ -ExitQuietly() function.*
+ -New ConcatenateList that will makea string from a list (replaces many implementations of PrintList, ListToString, and MakeCSVLine()) *
+ -GetAbsolutePosition*
+ -GetParent() *
+-  RemoveObjects(list-of-obj,win)
+
+
+
+UI.pbl:
+DrawButton()
+DrawScrollingTextBox()
+SelectPulldownByText()
+MakeTextList()
+UpdateScrollingTextBox()
+
+UpdateCapturedScrollboxThumb()
+ClearScrollboxThumbCapture()
+
+HandleTextBoxRightClick()
+ClearTextBox()
+CopyTextbox()
+SetTextBoxCursorFromClick()
+GetAbsolutePosition()
+
+
+
+Utility.pbl: (re-document all optional parameters)
+ConcatenateList()
+SubstituteStrings()
+GetEasyChoice()
+ReadTranslation()
+FormatText()
+RemoveObjects()
+
+
+Math.pbl
+Changes to SDTDPrime, SDTBeta
+
+Document: Debug.pbl
+
+Graphics.pbl
+Thickline2 (old version, replaced by built-in thickline)
+MakeGraph()
+AddGraph()
+MoveGraph()
+
+
+Optional parameters to document:
+
+Utility.pbl:231:define CR(n:1)
+Utility.pbl:247:define Tab(n:1)
+Utility.pbl:284:define ConcatenateList(list,sep:" ")
+Utility.pbl:292:define PrintList(list,sep:" ")
+Utility.pbl:304:define FilePrintList(file,list,sep:" ")
+Utility.pbl:410:define EasyLabel(text,xx,yy,parent,fontsize:16,fg:"",style:0)
+Utility.pbl:462:   define EasyTextBox(text,x,y,win,fontsize,width,height,
+                          fgcolor:"black", bgcolor:"white")
+Utility.pbl:685:define GetEasyMultiChoice(text,choices,output,win,minchoices:1, maxchoices:1)
+UI.pbl:545:define PopUpEntryBox(text,win,xy,default:"",
+UI.pbl:1406:define UpdateCapturedScrollBoxThumb(obj,p,event:0)
+UI.pbl:1440:define ClearScrollboxThumbCapture(obj,p,event:0)
+UI.pbl:1482:define OpenSubMenus(obj,xy,extra:0)
+UI.pbl:1681:define HandleTextBoxRightClick(box,exit:"",click:0,xypos:0)
+Debug.pbl:5:define MakeWindow(color:"black")
+Math.pbl:312:define SDTDPrime(hr,far,trunc:.001) 5
+Math.pbl:337:define SDTBeta(hr,far, trunc:.001) 5
+
+New Builtin function:
+GetParent()
+GetLineBreaks()
+ThickLine()
+ExitQuietly()
+
+GetVideoModes()
+GetDrivers()
+
+CopyToClipboard
+CopyFromClipboard
+ListToString()
+ModList()
+
+
+Changes:
+
+* Document change in WaitForListKeyPressWithTimeout (third parameter is optional and currently unused.) *
+*Fixed mis-documented RemoveFile (should be deletefile) *
+ -Update to GetNIMHDemographics so that participants can select as many racial categories as they want.*
+
+ New optional arguments to EasyTextBox
+ New optional arguments to EasyLabel
+
+ MakeWindow() has optional arguments of screen size
+ window size can be obtained by win.width and win.height.
+
+ 
+ -new function: ListToText
+                ModList
+
+
+Primitives:
+
+ -document loop(i,N) syntax. (documented in ch3)
+ 
+***Document the event loop stuff.  Things have changed in 2.0 so 1.0 won't work anymore.
+
+*rework event loop programming to handle:
+     1. on-screen timers
+     2. timeout/delay
+     3. stimulus presentation time from a startpoint (not just from now?)
+     4. Multiple kinds of events (self-terminating events;  happen-once events; repeat events)
+     5. use of emscripten loops.
+     6. Find a way to have  keypress matches to anykey, so you could make your own getinput() (**done)
+
+  
+
+  --vsyncoff (and gVsync) (documented in ch3)
+  gScriptName variable. (documented in ch3)
+  
+  MakeGraph and MakeBarGraph() implemented
+  GetTimeofDay() and GetTimeHP()
+
+  Change to <timeout> in waitfor commands.
+
+  DrawGraph(),MoveGraph,etc.
+
+  Fix for RandomGeneration task--removed one of thestatistics that were calculated because it took forever.
+
+
+Bugs/wontfix
+
+  -Error message Rendering failed with error code: -1 (some but not all are fixed).
+
+
+-errant horizontal line on polygons--look at aiming test
+ -possibly be sure thickline is using new sdl_gfx function.
+
+
+========================================
+
+* figure out plug-in architecture
+ * handle space in google drive launcher.
+ * Look into  saving audio files issue with 0.14.
+
+* zoomx seems to zoom in both directions. (fixed)
+* opspan-when you miss the click for time-out, you get true/false right away and might make an error.
+
+===================================================================
+TODO for 0.14
+
+#On page 32 of the 0.14 manual, among codes for keys are listed both
+<enter> and <return>, but it seems that only the latter works, can
+anyone confirm?
+
+
+
+
+ *Add/fix probedigit
+ * flanker task--make neutral version flanked by lines (or at least add the condition) (DONE)
+ *switcher task--add debriefing (DONE)
+   - move mouse cursor a bit after each click so letter is not obscured. (DONE)
+
+ * setting bgcolor of a window doesn't seem to work; it 
+     distorts the color (at least one created with RGBColor) (FIXED)
+
+ * PropertyExists does not seem to work right (workaround with IsProperty in Utility.pbl); (now fixed).
+
+* look at Mueller-lyer illusion for better instructions (they appear not to change; works as intended)
+* Look into WritePNG on windows. (fixed)
+* Figure out d prime/beta calculation (done)
+
+ * fix/workaround or document font limitation to around 1000 fonts (mostly fixed; limit is now much higher, although not perfect)
+ * bring in satest fixes made to enable varying predator size and screen size. (DONE)
+ 
+* (temporary) xy coordinates of objectsmessedup. (fixed)
+- Seems to be a problem with setting x/y location of images that are scaled?  (Fixed)
+
+-Some crash in dots task with new evaluator. (fixed)
+ * Sublist does not provide useful error feedback. (DONE)
+ *TOH output is messed up supposedly. (DONE)
+ * Cannot enter | into text box... (fixed)
+
+ *fix subject code text getting blurry. (Done)
+ *Incorporate PAR scoring into BCST (DONE)
+
+* Mental Rotation: At least for version 0.11, there was a ton of output that takes (at least for us non-Linux users), a fair amount of post-processing. If it was possible to have a report which has the mean time and percent correct for each angle of rotation, that'd be helpful. (DONE)
+
+* Iowa: The Psychological Assessment Resources version has a brief (500 msec) delay after each selection. This helps to limit the potential that people just respond quick but thoughtlessly. There also is an audio component after each a response (I think it was a "cha-ching" after $ gained, a buzzer after $ lost). (DONE)
+
+
+ *nback hangs on second block???
+ -Runaway crash on demo/NBack.pbl  (maybe with new evaluator)(works now (or does it))
+
+ * Fix GetInput mouse event (DONE)
+ * Fix multi-parameter stuff (DONE; removed this; 
+                        need to fix the schema file for some test)
+  *Add ui for parameter sets files (DONE)
+
+   *getnewdatafile hard-codes gWin instead of win.
+
+Verify:
+
+2) Berg: If it'd be possible to get the mean (or median) response time for each response category, that'd be helpful. Admittedly, I may be the only one interested in these measures but I think there's some interesting info in these end-points that folks haven't considered because it wasn't available for the traditional (physical card) version.
+
+
+ *Document new parameter system
+ *Document new sound files *
+
+ Document the CustomObject object/functions:
+  GetPropertyList#*
+  SetProperty#*
+  GetProperty#*
+  PropertyExists#*
+  MakeCustomObject*#
+  IsCustomObject*#
+
+
+*Document the use of CombineDataFiles utility#
+*Document http check-in launcher
+
+
+
+*Document list option for second argument of ReplaceChar()#*
+*Document SplitStringSlow #*
+MakeButton*#
+PushButton*#
+MakePullDown#*
+PullDown#*
+UpdatePullDown#*
+DrawPullDown#*
+PopuUpMessageBox#
+PopuUpEntryBox#*
+MakeCheckBox*#
+ClickCheckBox*#
+SetCheckBox*#
+MakeTextlist#*
+MD5File#*
+MD5Sum#*
+GetNewDataFile()#*
+MakeScrollingTextBox*#
+SetScrollingText*#
+MakeScrollBox#*
+UpdateScrollBox#*
+DrawScrollBox#*
+ClickOnScrollBox#*
+
+InsideTB*#
+DrawObject*#,
+MoveObject*#,
+ClickOn *#
+Inside changes to handle custom objects. (DONE)
+
+MakeMenu#*
+MakeMenuItem#*
+
+ClickOnMenu#*
+OpenSubMenus+*
+
+
+
+*Document GetHTTPFile()#, GetHTTPText()#, PostHTTP()#
+
+
+ Remaining:
+
+*document  --resizeable
+* look into mis documentos\ stuff on xp and others 
+* investigate why spaces in filenames choke on windows.
+* Launcher chokes when there is a blank in the filename.(Verified works on linux)
+
+*Look at 64-bit parallel-port stuff
+ *make digitspan forward and backward parameter sets.
+
+
+ * Strange [<timeout>] response when we used waitforkeylistdown() (which is never really used).
+
+
+* zenhei font in standalone.
+
+
+
+ Blue Sky:
+*On-line experiment creator.
+ * Recording input only grabs 5 secs.
+ - Optional arguments???
+ - Allow Shuffle to take multiple arguments, which are shuffled in parallel??? (Not done)
+
+
+To Do for 0.13:
+=================================================================
+-  stdout.txt problems
+- windows launcher won't load files with spaces in their names.
+- installing overtop 0.12 can cause some problems.
+
+
+- determine whether secret abort code works on italian keyboards.
+   (fixed...)
+
+- document what happens when lookup doesn't find a match. ****Done
+
+- be sure to fix keypad entry on digit span; probably fixed for 3001; see Marco Moniz email.  ***Fixed.
+
+- New trail test (Salthouse's one). **Completed.
+
+-Document transition from list to vector; access to lists via [] not yet possible. **Complete
+
+Transpose seems to give a wrong answer for Transpose([[1,2]]), Which I think should be [[1],[2]]  FIXED--it does give this answer.
+
+- PrintProperties only works on widgets; should work on all objects. (it should work on network objects and ports etc.) PUSH
+
+- Loading/reloading sound files that are mono crashes on the conversion. (See ann gilman's bug--document this???) **documented
+
+-launcher should work on 1024x600 screen (small screen works) *Done, with button to switch.
+
+- Improved Debian Packaging. **In progress
+- debian makefile stuff. **Done
+- Incorporate documentation in makefile.**Done
+
+EasyLabel can't accept a number in the text variable. Maybe it should?
+  --fixed: autoconvert to numbers, but send a warning in case things go awry.
+
+- Perseveration stuff in BCST. (data script is fixed...may not be ready?)
+
+- possibly, do checking for screen size under fullscreen mode. (**DONE)
+
+- Fix cr/lf in windows battery files. (mostly fixed)
+
+- Have consistent solution to getting subject code in battery tests. (mostly fixed)
+
+- fix shuffling problem in BCST  ????
+
+ - for battery, fix gsubnum stuff and screen resolution stuff. (Mostly fixed)
+
+ - move GetEasychoice to libs; remove from battery tests that use it. ****DONE
+
+
+
+ - Create a PushOnEnd type function (DONE)
+
+- look at layout functions in multichoice battery test to incorporate as full function. (LayoutGrid now in function lib).
+
+- WaitForAnyKeyPressWithTimeout doesn't work.
+- WaitForAnyKeyDownWithTimeout doesn't work.
+
+-Solve CJK font issue (replace firefly and the other one??)
+
+-ANT test problems (crashes in 0.12) ***FIXED
+-TOL test problems (crasher w/too long lists) ***Fixed
+-TOH--slowdown with trials (TOH TOO?). ***Fixed for TOH
+-New: a simple ebbinghaus test
+
+ -Document Parallel port functions
+ -consider changing getstate function to return list of 0/1
+
+ -Document serial port functions
+
+ -Krystal's bug in TOHd 
+
+ -document WaitForClickOnTargetWithTimeout, remove from battery tests*****done
+ -document CountDown(), remove from battery tests.*****Done
+- document Match(), Filter(), and Levels()****Done
+- Function that determines current screen size. ****Done
+- Document GetCurrentScreenResolution and GetVideoModes()****Done
+- document RemoveFile(), changes to FileOpenWrite()****Done
+
+
+- improve  recursion stuff. (Not done)
+- new tcp/ip stuff:
+ GetMyIPAddress()  (Doesn't work/don't use it.)
+ AcceptNetworkConnection() (not sure if this is ever used)
+ OpenNetworkListener()+*
+ CheckForNetworkConnection()+*       
+
+GetPixelColor()+*
+LayoutGrid+*
+RemoveFile()+*
+GetCurrentScreenResolution()*
+CountDown()+*
+PushOnEnd()+*
+SetElement()+*
+LaunchFile()+*
+
+WaitForClickOnTargetWithTimeout()+*
+
+LoadMovie()+*
+LoadAudioFile()+*
+StartPlayback()+*
+PausePlayback()+*
+PlayMovie()+*
+
+--Already there?
+FileOpenOverwrite()+*
+MakeDirectory()+*
+AddObject() fix+*
+FileOpenWrite()+ *
+Match()+*
+Filter()+*
+Levels()+*
+GetVideoModes()+*
+GetEasyChoice()+*
+--------------------------------------------
+##Completed for 0.12
+
+- File selector: 
+                 Add a +1 button to subject code? ***Done
+
+- we seem to get unknown feedback if you use a variable that hasn't
+  been defined???? (probably the stderr problem) ***
+
+
+
+-  line wrapping: when the last token in a string is too long to fit
+   on a line and it is wrapped to the next line, it takes the previous
+   token along with it.  --***done
+
+ - Add a FileExists() function??? ***done
+
+ - Add a Dir() functions???  ***done (GetDirectoryListing()
+
+ - Document Joystick Functions **Done
+
+
+ -fix problem where clicking outside box will lose focus and finish
+  input (should be an option) ***done
+
+ -automatic subject code/experiment name logging? **Done in fileselect
+
+ - Make/document various layout functions **Done
+
+
+
+- file concatenation function (appendfile?).  **Done
+
+- streams of experiments  **done
+
+- FileExists() to test whether a file is there**done
+
+
+ - save clock test to file + instructions (it may already exist?) **Done
+
+-EasyLabel crashes silently without feedback if window is given as the
+ second argument??? ***fixed
+
+
+- allow the strings to be translated in the launcher (and possibly
+  elsewhere?) ***done
+
+
+=============================================
+Push to 0.13 or Later
+
+getText seems not to work on labels
+
+ - Let lists be defined with more whitespace options.  Currently,
+    things like this seems to fail:
+  a <- [[1]
+       ]
+     
+ - Make a function that unloads the window but keeps running the PEBL.
+
+- Launcher: randomize experiment chain
+    -save chain to a .bat file?
+    -data compiler?
+
+ - document GetMinDist (But this is just a helper function)
+
+- Print("") a message in test batteries about where data is saved.  Maybe link that to FileClose()?
+
+ - add reporting for TOL of additional statistics. 
+ - make a report for trails test.
+
+
+- Colorblind issues in TOL, Others?
+
+- makeImage will load a non-graphics file happily, but segfault
+
+- seteditable() works, but .editable doesn't
+
+-allow if() statements to be empty.  *Maybe works
+-syntax _should_ handle, shouldn't it?:
+}
+else
+{
+
+
+
+- itemorder test uses Z/Zed; change to length 7???
+
+
+
+
+- BCST: report median RTs for different response conditions
+- BCST: try the Piper alternative scoring method.
+

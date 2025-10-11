@@ -1,0 +1,54 @@
+---
+title: "R Analysis for Line Judgment data"
+output: html_notebook
+---
+This analysis script was prepared by Shane T. Mueller, Ph.D (shanem@mtu.edu).  You are free to use, adapt, and distribute it in any way.
+
+```{r}
+library(prepdat)
+data <- file_merge(folder_path="data",
+                   has_header=T,
+                   raw_file_name="linejudgment",
+                   raw_file_extension="csv")
+data <- data[data$trial!="P",]
+```
+
+
+The following maps out both the speed-accuracy trade-off (pooled across participants), and the time-to-respond as a function of absolute difference.
+```{r}
+data$delta <- abs(data$l1-data$l2)
+data.correct <- data[data$corr==1,]
+table(data$delta)
+tmp<-data #change to data.correct to get just the correct trials.
+
+data.tab <- tapply(tmp$rt,list(tmp$deadline,tmp$delta),mean)
+
+data.tabacc <- tapply(tmp$corr,list(tmp$deadline,tmp$delta),mean)
+
+par(mfrow=c(1,2))
+
+matplot(t(data.tab),type="b",col="black",ylim=c(0,max(data.tab,na.rm=T)),
+        xlab="Absolute difference (pixels)",ylab="Response time (ms)")
+
+matplot(t(data.tabacc),type="b",col="black",ylim=c(0,1),ylab="Accuracy",xlab="Absolute difference (pixels)")
+
+
+```
+
+
+Plot speed-accuracy trade-off functions.
+```{r}
+
+  plot(data.tabacc,data.tab,pch=16,cex=3,las=1,ylim=c(0,max(data.tab,na.rm=T)),
+       xlab="Accuracy rate",ylab="Response time (ms)")
+
+for(i in 1:nrow(data.tabacc))
+{
+   acc <- data.tabacc[i,]
+   rt <- data.tab[i,]
+   points(acc,rt,type="l",col=i)
+   text(acc,rt,names(acc),col="white",cex=1)
+
+}
+
+```

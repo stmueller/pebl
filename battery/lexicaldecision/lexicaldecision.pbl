@@ -1,0 +1,153 @@
+define Start(lPar)
+{
+ #######################################################
+ ## (c) 2009 Shane T. Mueller
+ ## smueller at obereed dot net
+ ## PEBL Lexical Decision Task, Version 0.2
+ ##
+ ##
+ ## For use with PEBL 0.09 or later
+ ## http://pebl.sf.net
+ ## Part of  The PEBL Psychological Testing Battery
+ ##
+ ##
+ ## Placed in the public domain 9-2008
+ ##
+ ##
+
+  gScriptName <- "PEBL Lexical Decision Task"
+
+   parpairs <- [["delay",500]] ##how long to wait before presentation
+
+   gparams<- CreateParameters(parpairs,gParamFile)
+
+  gWin <- MakeWindow()
+  ##Get subject code if we need to:
+    if(gSubNum+""=="0")
+    {
+	  gSubNum <- GetSubNum(gWin)
+    }
+
+
+  GetStrings(gLanguage)
+
+ #open a file for writing to.
+  MakeDirectory("data")
+  gFileOut <- GetNewDataFile(gSubNum,gWin,"ld","csv",
+                 "subnum,trial,stim,type,resp,corr,rt")
+  #Read in the words/nonwords.
+  words <- FileReadList("words.txt")
+  nonwords <- FileReadList("nonwords.txt")
+
+
+  #create stimuli
+  type <- Merge(Repeat("W",Length(words)),Repeat("L",Length(nonwords)))
+  stim<-Shuffle(Transpose([Merge(words,nonwords),type]))
+
+
+  #Initialize basic display objects.
+  lfG <- MakeColor("white")
+  lbG <- MakeColor("black")
+  gFont <- MakeFont(gPEBLBaseFont,0,28,lFG,lBG,0)
+
+  gHomeX <- gVideoWidth/2
+  gHomeY <- gVideoHeight/2
+
+  ShowCursor(0)
+  #handle the instructions.
+  inst <- MakeTextBox(gStrings.instructions, gFont,600,400)
+  AddObject(inst,gWin)
+  Move(inst, 100,100)
+  Draw()
+  WaitForAnyKeyPress()
+  Hide(inst)
+  tb <- EasyLabel(gStrings.footer,gVideoWidth/2,gVideoHeight-100,gWin,22)
+  Draw()
+  Wait(3000)
+
+  #Now, do the task.
+  trial <- 1
+  loop(i,stim)
+  {
+   #Print out basic info to the output file.
+   FilePrint_(gFileOut, gSubnum + "," + trial + ",")
+   Trial(i)
+   trial <- trial + 1
+  }
+  inst.text <- gStrings.debrief
+  Show(inst)
+  Hide(tb)
+  Showcursor(1)
+  FileClose(gFileOut)
+  Draw()
+  WaitForAnyKeyPress()
+
+}
+
+
+#This is a basic lexical decision trial
+define Trial(stim)
+{
+  fixation<-MakeLabel("+",gFont)
+  text <- MakeLabel(First(stim),gFont)
+  type <- Nth(stim,2)
+
+  ##Add labels to window
+  AddObject(fixation,gWin)
+  AddObject(text,gWin)
+
+  ##Move them to the same place
+  Move(fixation, gHomeX,gHomeY)
+  Move(text, gHomeX,gHomeY)
+
+  ##Show the fixation
+  Show(fixation)
+  Hide(text)
+  Draw(gWin)
+
+  #Wait a little while
+
+  Wait(gParams.delay)
+  Hide(fixation)
+  Show(text)
+  time1<-GetTime()
+  Draw(gWin)
+
+  response <- WaitForListKeyPress(["<lshift>","<rshift>"])
+
+  if(type == "W")
+    {
+      correct <- (response == "<lshift>")
+
+    } else {
+      correct <- (response == "<rshift>")
+
+    }
+
+  time2 <- GetTime()
+  FilePrint_(gFileOut,First(stim) + "," + type )
+  FilePrint_(gFileOut, "," + response)
+  FilePrint_(gFileOut,"," + correct)
+  FilePrint(gFileOut,  "," + (time2-time1))
+  RemoveObject(text, gWin)
+  RemoveObject(fixation,gWin)
+  ClearEventLoop()
+  return 1
+}
+
+
+define GetStrings(lang)
+{
+
+  lang <- Uppercase(lang)
+  fname <- "translations/lexicaldecision.pbl-"+LowerCase(lang)+".json"
+
+  if(FileExists(fname))
+  {
+    gStrings <- ReadTranslationJSON(fname,lang)
+  } else
+  {
+    gStrings <- ReadTranslationJSON("translations/lexicaldecision.pbl-en.json",lang)
+  }
+
+ }

@@ -1,0 +1,174 @@
+## Simple choice reaction time task
+## type the letter displayed on the screen.
+##
+
+define Start(lPar)
+{
+
+
+  parpairs <- [["reps",5],      #How many reps of the stimuli
+               ["soa",2000],    #how long between stimili?
+               ["numstim",6],
+               ["stim1","a"],
+               ["stim2","d"],
+               ["stim3","c"],
+               ["stim4","e"],
+               ["stim5","o"],
+               ["stim6","n"],
+               ["stim7","b"],
+               ["stim8","g"],
+               ["stim9","s"],
+               ["stim10","q"],
+	       ["timeout",1500]
+              ]
+
+  gParams <- CreateParameters(parpairs,gParamFile)
+
+  reps <- gParams.reps
+  gSoa <- gParams.soa
+
+  ##Stimuli to choose from:
+
+  stimkeys <- [gParams.stim1, gParams.stim2, gParams.stim3,
+               gParams.stim4, gParams.stim5, gParams.stim6,
+	       gParams.stim7, gParams.stim8, gParams.stim9,
+	       gParams.stim10]
+
+  numstim <- Min([gparams.numstim,10])
+  baseStim <- SubList(stimkeys,1,numstim)
+
+
+  gSleepEasy <- 1
+  #Initialize Window
+  gWindow <- MakeWindow("black")
+
+  if(gSubNum+""=="0")
+   {
+      gSubNum <- GetSubNum(gWindow)
+   }
+  GetStrings(gLanguage)
+
+  MessageBox(gStrings.inst,gWindow)
+
+
+  ShowCursor(0)
+  #Initialize Font and colors
+  fg <- MakeColor("white")
+  bg <- MakeColor("RED")
+  gFont <- MakeFont(gPEBLBaseFont,0,44,fg,bg,0)
+  gFixation <- MakeLabel(gStrings.fixation,gFont)
+  AddObject(gFixation,gWindow)
+  Move(gFixation, gVideoWidth/2,gVideoHeight/2)
+  gFooter <- EasyLabel(gStrings.footer,
+                          gVideoWidth/2,gVideoHeight-50,gWindow,25)
+  Draw()
+
+  stimuli <- Shuffle(RepeatList(CrossFactorWithoutDuplicates(basestim),reps))
+
+
+  fileOut <- GetNewDataFile(gSubNum,gWindow,"CRT","csv",
+  "subnum,targ,foil,time,delay,resp,corr,mask,presstart,respend,prestime,rt")
+
+  loop(i, stimuli)
+  {
+    time <- GetTime()
+    out <- Trial(i)
+    FilePrint_(fileout,gSubNum+","+First(i)+","+Second(i)+","+time)
+     loop(tmp,out)
+      {
+         FilePrint_(fileout,","+tmp)
+      }
+    FilePrint(fileout,"")
+    WaitUntil(time+gSOA)
+  }
+
+  MessageBox(gStrings.debrief,gWindow)
+}
+
+
+define Trial(lStim)
+{
+  targ <- First(lstim)
+  foil <- Second(lstim)
+
+  lText <- MakeLabel(First(lStim),gFont)  ##Make stimulus label
+  ##Add label to window
+  AddObject(lText,gWindow)
+
+  ##Move text to center
+  Move(lText, gVideoWidth/2,gVideoHeight/2)
+  ##Hide the text; show the fixation
+  Hide(lText)
+  Show(gFixation)
+  Draw()
+
+  #Wait 1250 msecs and hide the fixation
+  Hide(gFixation)
+  Wait(200)
+
+
+  delay <- RandomDiscrete(200)+100
+  t0 <-GetTime()
+  Draw()
+  Wait(delay)
+  Show(lText)
+  Draw()
+  t1 <-GetTime()
+  Wait(100)
+  Hide(lText)
+  Draw()
+  #Get start time.
+
+  #Wait for response, hiding stimulus as soon as it occurs.
+  order <- Sample([-1,1])
+  mask <- ListtoString(SampleN(["&","#","@","$","%","*","|","?","/","\"],3))
+  if(order==1)
+   {
+     ltext.text <- targ + "         "+mask+"          " + foil
+   }else{
+     ltext.text <- foil + "         "+mask+"          " + targ
+   }
+  Show(lText)
+  Draw()
+  start <- GetTime()
+  ##This turns off the stimulus after 00 ms
+  resp <- WaitForListKeyPressWithTimeOut(["<lshift>","<rshift>"],gParams.timeout,1)
+  #Get the response time.
+  end <- GetTime()
+
+  Draw()
+
+  corr <- (resp =="<lshift>" and order == 1) or  (resp =="<rshift>" and order == -1)
+  RemoveObject(lText, gWindow)
+  Draw()
+  return [delay,resp, corr , mask,t0,end,(t1-t0),(end - start)]
+}
+
+
+define WaitUntil(time)
+{
+
+     RegisterEvent("<TIMER>", 1, time,"<GEQ>","", [])
+     StartEventLoop()  #Start the timer
+     ClearEventLoop()  #clear it out when done.
+
+}
+
+
+define GetStrings(lang)
+{
+
+   ##Known translations: EN
+
+  lang <- Uppercase(lang)
+  fname <- "translations/ChoiceRT.pbl-"+LowerCase(lang)+".json"
+
+  if(FileExists(fname))
+  {
+    gStrings <- ReadTranslationjson(fname,lang)
+  } else
+  {
+    gStrings <- ReadTranslationjson("translations/ChoiceRT.pbl-en.json",lang)
+  }
+
+}

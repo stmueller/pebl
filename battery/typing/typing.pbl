@@ -1,0 +1,389 @@
+define Start(p)
+{
+
+  gScriptName <- "PEBL Typing Test"
+  parpairs <- [["duration","short"],
+               ["wordtype","choose"],
+	       ["set",1]]
+
+
+  gParams <- CreateParameters(parpairs,gParamFile)
+
+
+  duration <- gparams.duration  ##short or long
+  wordtype <- gParams.wordtype  ##words or lorem or choose
+  version <- gParams.set        ##1 through 4
+
+
+ gWin <- MakeWindow("black")
+ gSleepEasy <- 1
+ gCR <- "
+"
+
+ if(gSubNum + "" == "0")
+  {
+    gSubnum <- GetSubNum(gWin)
+  }
+
+
+  GetStrings(gLanguage)
+
+gFileOut <- GetNewDataFile(gSubNum,gWin,"typing","csv",
+             "sub,timestamp,condition,duration,wordtype,file,time,time2,wpm,cpm,tpm,completed,error")
+  gReportFile <- GetNewDataFile(gSubNum,gWin,"typing-report","txt","")
+
+  cont <- 1
+  while(cont)
+   {
+
+   ### Select time length or use passed-in argument.
+   ###
+   if(Lowercase(duration) == "short")
+   {
+     time <- 60000
+   }elseif(Lowercase(duration)=="long")
+   {
+
+     time <- 180000
+   }else{
+      time <- GetEasyChoice("Select time limit",["60 seconds","180 seconds"],
+                           [60000,180000],gWin)
+   }
+
+   ##Select words or loremipsum:
+   if( Lowercase(wordtype)== "words")
+   {
+     root <- "random"
+    } elseif(Lowercase(wordtype) =="nonwords")
+    {
+     root <- "lorem"
+    }else{
+
+    root <- GetEasyChoice("Select material type ",
+                         ["Words", "Nonsense words"],
+                         ["random","lorem"],gWin)
+
+    }
+
+   ##Select stimulus version
+   if(IsMember(version,[1,2,3,4]))
+   {
+      file <- "input/"+root + version   + ".txt"
+   }else{
+
+      version <- GetEasyChoice("Select text version",
+                         ["1","2","3","4"],
+                         ["1","2","3","4"],gWin)
+
+      file <- "input/"+root + version   + ".txt"
+   }
+
+   conditiontag <- duration+"|"+wordtype+ "|" + root + "|" + version
+
+
+   problem <- Uppercase(FileReadText(file))
+
+
+   MessageBox(gStrings.inst,gWin)
+
+   stats <- Trial(problem,time)
+
+   timeM <- Third(stats)/1000/60   ##time in minutes
+   cpm <- Second(stats)/timeM
+   wpm <- cpm/5  ##more uniform wpm
+   tpm <- First(stats)/timeM
+
+   errs <- Fourth(stats)/Second(stats)
+   problemlength <- Fifth(stats)
+   finished <- Nth(stats,6)
+
+report <- "Materials:         " + file+"
+Time:             " + time + "
+Actual Time:      " + timeM + " min.
+Words per min:    " + wpm + "
+Char. per min:    " + cpm + "
+Tokens per min:   " + tpm + "
+Completed:        " + Second(stats) + " of " +problemlength +"
+Accuracy:         " + (1-errs) +CR(1)
+
+   if(finished)
+   {
+     report <- report + "Problem finished"
+   } else {
+     report <- report + "Problem not finished"
+   }
+
+
+##Log this data to a file
+FilePrint(gFileOut,gSubNum+","+TimeStamp()+","  +conditiontag + ","+
+            duration+","+root+","+file+","+time+","+
+	    timeM +","+ wpm+","+cpm+","+tpm+"," + Second(stats)+","+(1-errs))
+
+   Print(report)
+   FilePrint(gReportFile,report)
+   MessageBox(report, gWin)
+
+   ##reset the hard-coded values
+   duration  <- ""
+
+   ##This could be adapted to continue running in loops.
+   cont <- 0
+  }
+}
+
+
+define Trial(probtext,time)
+{
+
+   font <- MakeFont(gPEBLBaseFontMono,0,22,MakeColor("white"),MakeColor("grey5"),0)
+   tbupper <- MakeTextBox("", font, 700, 110)
+   AddObject(tbupper,gWin)
+  # read in the text into a list of lines, based on the textbox.
+
+#   probtext <- ReplaceChar(problem,"|",CR(1))
+  textlist1 <- ParseText(probtext,tbupper)
+  textlist <- Merge([""],textlist1)
+
+
+  problem <- ConcatenateList(textlist1,"|")
+
+
+   opts <- Merge(FileReadList("Uppercase.txt"),
+                 [" ",",",".","'",";","-",gQuote])
+
+   timer <- EasyLabel(FormatTime(time/1000),gVideoWidth/2+100,30,gWin,22)
+   bgTimer <-Rectangle(gVideoWidth/2+100,50,200,20,MakeColor("grey"),0)
+   fgTimer <-Rectangle(gVideoWidth/2+100,50,200,20,MakeColor("Red"),1)
+   AddObject(fgtimer,gWin)
+   AddObject(bgtimer,gWin)
+
+   ##Upper text box where the stimulus text appears.
+#   tbupper <- MakeTextBox("", font, 700, 110)
+
+   Move(tbupper,(gVideoWidth-tbupper.width)/2,80)
+   SetEditable(tbupper,1)
+
+
+  tblower <- MakeTextBox("", font, 700, 400)
+  AddObject(tblower,gWin)
+  SetEditable(tblower,1)
+  Move(tblower,(gVideoWidth-tblower.width)/2,320)
+
+  good <- Circle(gVideoWidth/2-100,35,30,MakeColor("green"),1)
+  bad  <- Circle(gVideoWidth/2-100,35,30,MakeColor("darkred"),1)
+  AddObject(good,gWin)
+  AddObject(bad,gWin)
+  Hide(good)
+  Hide(bad)
+
+   Draw()
+  started <- 0
+  cont <- 1
+  pos <- 0      ##Position in the text block
+  boxpos <- 1   ##position in the upper text box.
+  output <- ""
+  errors <- 0
+  words <- 0
+  finished <- 0
+
+  line <- 2  #Which line are we on of the text?
+  tbupper.text <- First(textlist)+CR(1) + Second(textlist)+CR(1) + Third(textlist)
+  while(cont)
+  {
+   target <-  SubString(problem,pos+1,1)
+   SetCursorPosition(tbupper,boxpos)
+   resp <- "<timeout>"
+   ##  Loop here until we have a real response.
+   ##  update the timer if it is not one.
+   while(resp=="<timeout>")
+    {
+      resp <-(WaitForListKeyPressWithTimeout(opts,100,1))
+
+
+       #Update timer for whatever response path was taken.
+       if(started)
+       {
+         #update timer
+         timeleft <-  (endtime - GetTime())
+         ##If time is up, exit the loop.
+   	 if(timeleft < 0)
+	 {
+	  cont <- 0
+	  resp <- ""
+	 }
+        ##Update the timer text and box size.
+ 	fgTimer.width <- Round(timeleft/time*bgTimer.width)
+	fgTimer.x <- bgTimer.x-(bgtimer.width/2)+fgtimer.width/2
+        timer.text <- FormatTime(timeleft/1000)
+        }
+
+     ##Draw only when we want to update timer.
+     if(resp=="<timeout>")
+      {
+        Draw()
+      }
+    }
+
+   ##Transform the response to uppercase:
+   resp<- Uppercase(resp)
+
+   ##record start time of first key.
+   if(not started)
+   {
+     started <- 1
+     time1 <- GetTime()
+     endtime <- time1  + time
+   }
+
+   ##This might be tough on a CR/LF text
+   ##correct for CR() so so it won't autowrap.
+#   Print(target+"=="+resp)
+
+   if(target == "|")
+   {
+    target <- " "
+    correct <- (target == resp)
+    resp <- gCR
+    line <- line + 1
+
+    ##Update the text
+
+    startline <- Max([1,line-1])
+    endline  <- Min([line+1,Length(textlist)])
+    text <- ""
+
+    ##Now, handle the scolling.
+    sub <- Sublist(textlist,startline,endline)
+
+    ##Append CR to the end
+    while(Length(sub)<3)
+    {
+      sub <- Append(sub,"")
+    }
+
+    ##Mush the text together.
+    loop(i,sub)
+    {
+      text <- text + i + CR(1)
+    }
+    ##Update box cursor position.
+    boxpos <- StringLength(First(sub))
+
+    tbupper.text <- text
+
+   }else{
+    correct <- (target == resp)
+   }
+
+
+   #Now, count word breaks here.
+   if(target == " " )
+   {
+     words <- words + 1
+   }
+
+     ##light up immediate feedback.
+    if(not correct)
+    {
+     #update <- SubString(problem,1,pos-1) + "-" +
+     #            SubString(problem,pos+1, (StringLength(problem)-pos))
+   #   tbupper.text <- problem
+
+      Show(bad)
+      Hide(good)
+      errors <- errors + 1
+
+    }else{
+     Hide(bad)
+     Show(good)
+    }
+
+
+    output <- output + resp
+    tblower.text <- output
+    pos <- pos + 1
+    boxpos <- boxpos + 1
+
+    ##update the textbox text and the cursor position.
+
+    SetCursorPosition(tbupper,boxpos)
+    SetCursorPosition(tblower,StringLength(tblower.text))
+
+
+
+    Draw()
+    ##Have we typed everything?
+    if(pos >= StringLength(problem))
+    {
+      finished <- 1
+      cont <- 0
+    }
+ }
+ time2 <- GetTime()
+
+  return [words,pos,(time2-time1),errors,StringLength(problem),finished]
+
+}
+
+define FormatTime(time)
+{
+
+   secs <- "   "+Floor(time)
+   rem <- (time-Floor(time))+"000"
+   return SubString(secs,StringLength(secs)-3,4)  + "."+ SubString(rem,3,2)
+}
+
+
+      ##place cursor in the right place:
+
+
+define ParseText(text,textbox)
+{
+
+   textlist <- []
+   pos <- 1
+   end <- StringLength(text)
+
+   rest <- SubString(text,pos,end)
+   while(pos < end)
+   {
+      textbox.text <- rest
+      Draw(textbox)
+#      Draw()
+
+      newpos <-  GetTextBoxCursorFromClick(textbox,textbox.width,1)
+      pos <- pos + newpos
+
+
+      candidatetext <-  SubString(rest,1,newpos)
+      ##let's make sure no spaces appear at the end of the text.
+      l <- StringLength(candidatetext)
+      while(l>0 and SubString(candidatetext,l,l)==" ")
+      {
+        candidatetext <- SubString(candidatetext,1,l-1)
+	l <- l -1
+      }
+
+      textlist <- Append(textlist, candidatetext)
+      rest <- SubString(text,pos,end)
+
+   }
+   return textlist
+}
+
+
+define GetStrings(lang)
+{
+
+  lang <- Uppercase(lang)
+  fname <- "translations/typing.pbl-"+LowerCase(lang)+".json"
+
+  if(FileExists(fname))
+  {
+    gStrings <- ReadTranslationjson(fname,lang)
+  } else
+  {
+    gStrings <- ReadTranslationjson("translations/typing.pbl-en.json",lang)
+  }
+
+}

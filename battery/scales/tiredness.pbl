@@ -1,0 +1,236 @@
+##  This implements a novel 'current sleepiness scale', 
+##  based loosely on the Epsley scale.
+##
+define Start(p)
+{
+
+  parpairs <- [["scaleheight",300]]
+  gParams <- CreateParameters(parpairs,gParamFile)
+               
+   ##Should you collect the pairwise weights?
+
+   gScaleHeight <- gParams.scaleheight
+   gWin <- MakeWindow("black")
+   gSleepEasy <- 1
+   if(gSubNum == 0)
+   {
+     gSubNum <- GetSubNum(gWin)
+   }
+
+
+
+  labelmain <- EasyLabel("How likely would you be to fall asleep right now if you were: ",gVideoWidth/2,20,gWin,24)
+
+  scales <- [["1", "Never","Almost certain","Sitting and Reading"],
+  		   	 ["2", "Never","Almost certain","Watching TV"],
+			 ["3", "Never","Almost certain","Sitting, inactive in a public place (e.g., a theatre or a meeting)"],
+			 ["4", "Never","Almost certain","As a passenger in a car"],
+			 ["5", "Never","Almost certain","Lying in bed"],
+			 ["6", "Never","Almost certain","Sitting and talking to someone"],
+			 ["7", "Never","Almost certain","In a car, while stopped for a few minutes in traffic"]]
+
+
+
+  xs <- [-350,-240,-130,-20,90,200,310]
+
+  doit<- Transpose(Append(Transpose(scales),xs))
+
+
+  tmp <- []
+  rects <- []
+  thumbs <- []
+  loop(i,doit)
+  {
+     out <-  PlotScale(Nth(i,5)+gVideoWidth/2,400,(i) )  
+
+     tmp <- Append(tmp,out)
+	 rect <- First(out)
+	 rects <- Append(rects,rect)
+     line <- Rectangle(Nth(i,5)+gVideoWidth/2,0,31,3,MakeColor("red"),1)
+	 thumbs <- Append(thumbs,line)
+  }
+
+   Draw()
+
+   rated <- [0,0,0,0,0,0,0]
+   ratings <- [0,0,0,0,0,0,0]
+
+
+
+   while (Sum(rated)<7)
+    { 
+
+	   click <- WaitForClickOnTarget(rects,Sequence(1,7,1))
+
+	   y <- Second(gClick)
+	   
+	   rating <- 21- Round(((y-400+gScaleHeight/2)/gScaleHeight)*20) 
+	   ylev <- (400 + gScaleHeight/2) - (rating-1) * gScaleHeight/20
+       tmpthumb <- Nth(thumbs,click)
+       tmpthumb.y <- ylev
+       AddObject(tmpthumb,gWin)
+
+       rated <- SpliceList(rated,1,click)
+       ratings <- SpliceList(ratings,rating,click) 
+       Draw()
+    }
+    labelmain.text <- "Complete. Click DONE or continue to adjust"
+    doneback <- Rectangle(gVideoWidth/2,50,100,30,MakeColor("white"),0)
+
+	AddObject(doneback,gWin)
+    done <- EasyLabel("DONE",gVideoWidth/2,50,gWin,18)
+    Draw()
+
+   while (click < 8)
+    { 
+	
+	   click <- WaitForClickOnTarget(Append(rects,doneback),Sequence(1,8,1))
+
+	   if(click<7)
+       {
+ 	   y <- Second(gClick)
+	   
+	   rating <- 21- Round(((y-400+gScaleHeight/2)/gScaleHeight)*20) 
+	   ylev <- (400 + gScaleHeight/2) - (rating-1) * gScaleHeight/20
+       tmpthumb <- Nth(thumbs,click)
+       tmpthumb.y <- ylev
+       AddObject(tmpthumb,gWin)
+
+	   rated <- SpliceList(rated,1,click)
+	   ratings <- SpliceList(ratings,rating,click) 
+
+      } 
+       Draw()
+    }
+
+   Draw()
+   outline <- "tiredness,"+TimeStamp()+","+gSubNum
+
+   loop(i,ratings)
+    {
+	  outline <- outline +","+i 
+    }
+   outline <- outline + ","+GetTime()
+
+   MakeDirectory("data")
+   out <- FileOpenAppend("data/tiredness-data.csv")
+   FilePrint(out,outline)
+}
+
+
+##puts item into position on list
+define SpliceList(list,item,pos)
+{
+  i <- 1
+  tmp <- []
+  loop(itm,list)
+  {
+     if(i==pos)
+	  {
+	    itm <- item
+      }
+    tmp <- Append(tmp,itm)
+   i <- i + 1
+  }
+  return tmp
+}
+
+
+define PlotScale(x,y,info)
+{
+
+
+   black <- MakeColor("black")
+   font1 <-   MakeFont(gPEBLBaseFont,1,15,MakeColor("white"),black,0)
+   font <-   MakeFont(gPEBLBaseFont,0,12,MakeColor("white"),black,0)
+   title <- MakeTextBox(First(info),font1, 110,50)
+   AddObject(title,gWin)
+   Move(title,x-40,y-gscaleheight/2-170)
+
+
+   tb <- MakeTextBox(Fourth(info),font, 110,90)
+   AddObject(tb,gWin)
+   Move(tb,x-40,y-gscaleheight/2-120)
+   
+   labels <- [Second(info),Third(info)]
+   labheights <- [0,21]
+
+
+
+   nums <- Sequence(1,21,1)
+   lnums <- Length(nums)   
+
+   top <- y-gscaleheight/2
+   bottom <- y+gscaleheight/2
+   skip <- (bottom-top)/(lnums-1)
+
+   i <- bottom
+   ##add click-in box
+   box <- Rectangle(x,y,41,gscaleheight+2,MakeColor("grey60"),1)
+   AddObject(box,gwin)
+   tmp <- [box,title,tb] ##holder of graphical objects       
+   loop(n,nums)
+   {
+
+     #add tick
+	 if(n==11 or n==1 or n==21)
+     {
+     line <-  Line(x-18,i,37,0,black)
+     } else {
+
+     line <-  Line(x-12,i,25,0,black)
+     }
+     AddObject(line,gwin)
+     tmp <- Append(tmp,line)
+     i <- i- skip
+   }
+   
+
+
+   lab <- MakeLabel(First(labels),font)   
+   AddObject(lab,gWin)
+   Move(lab,x,bottom+15)
+   tmp <- Append(tmp,lab)
+
+   lab <- MakeLabel(Second(labels),font)   
+   AddObject(lab,gWin)
+   Move(lab,x,top-15)
+   tmp <- Append(tmp,lab)
+
+
+   #add vertical line
+   line <-    Line(x,top,0,(bottom-top),black)
+   AddObject(line,gwin) 
+   Draw()
+   tmp <- Append(tmp,line)
+
+
+  return tmp
+}
+
+define Pairs(list)
+{
+  tmp <- []
+  idi <- 1
+
+   loop(i,list)
+    {
+
+     idj <- 1
+	   loop(j,list)
+        {
+		
+
+		  if(idi<idj)
+           {
+
+		     tmp <- Append(tmp,[i,j])
+           }
+
+		  idj <- idj+1
+        }
+     idi <- idi + 1
+    }
+
+  return tmp
+}

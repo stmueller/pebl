@@ -1,0 +1,369 @@
+##  PEBL Visual Inspection Task
+##  A visual search task where participants search for a cross among horizontal and vertical lines
+##  Participants respond whether a cross is present or absent
+
+define Start(p)
+{
+  gScriptname <- "PEBL Visual Inspection Task"
+
+  parpairs <- [["numTrials", 20],
+               ["numLines", 1600],
+               ["fieldWidth", 800],
+               ["fieldHeight", 600],
+               ["gutter", 20],
+               ["lineLength", 15],
+               ["lineWidth", 3],
+               ["minDistance", 25],
+               ["gridRows", 32],
+               ["gridCols", 50],
+               ["duration", 300000],
+               ["showFeedback", 1]]
+
+  gParams <- CreateParameters(parpairs, gParamFile)
+
+  numTrials <- gParams.numTrials
+
+  gSleepEasy <- 1
+  gWin <- MakeWindow("black")
+  ShowCursor(0)
+  if(gSubNum+"" == "0")
+  {
+    gSubNum <- GetSubNum(gWin)
+  }
+
+  GetStrings(gLanguage)
+
+  gFileOut <- GetNewDataFile(gSubNum, gWin, "inspection", "csv",
+    "subnum,trial,cross_present,response,correct,rt,target_x,target_y,num_stimuli")
+
+  ## Show instructions with examples
+  inst <- EasyTextBox(gStrings.instructions,
+                      gVideoWidth/2-400, 50,
+                      gWin, 18, 800, 300)
+
+  ## Show example stimuli
+  exampleStimuli <- ShowExamples(gWin)
+
+  Draw()
+  WaitForAnyKeyPress()
+  Hide(inst)
+
+  ## Remove example stimuli
+  loop(stim, exampleStimuli)
+  {
+    RemoveObject(stim, gWin)
+  }
+
+  ## Create persistent instruction label below display field
+  fieldY <- (gVideoHeight - gParams.fieldHeight) / 2
+  labelY <- fieldY + gParams.fieldHeight + 30
+  gInstructionLabel <- EasyLabel("LEFT-SHIFT = Reject (defect)  |  RIGHT-SHIFT = Accept (good)",
+                                  gVideoWidth/2, labelY, gWin, 16)
+
+  ## Practice trials
+  ShowInstructions(gStrings.practice, gWin)
+
+  ## Record start time
+  gStartTime <- GetTime()
+
+  Trial("practice", 1, gWin)
+  Trial("practice", 0, gWin)
+  Trial("practice", 1, gWin)
+  Trial("practice", 0, gWin)
+
+  ShowInstructions(gStrings.begin, gWin)
+
+  ## Main experimental trials - half with cross, half without
+  gSumCorrect <- 0
+  trials <- Shuffle(Flatten([Repeat(1, Floor(numTrials/2)), Repeat(0, Floor(numTrials/2))]))
+
+  trialNum <- 1
+  loop(crossPresent, trials)
+  {
+    ## Check if time limit has been reached
+    if((GetTime() - gStartTime) >= gParams.duration)
+    {
+      break
+    }
+
+    result <- Trial("test", crossPresent, gWin)
+    correct <- First(result)
+    rt <- Second(result)
+    response <- Third(result)
+    targetX <- Nth(result, 4)
+    targetY <- Nth(result, 5)
+
+    FilePrint(gFileOut, gSubNum + "," + trialNum + "," + crossPresent + "," +
+              response + "," + correct + "," + rt + "," + targetX + "," + targetY + "," + gParams.numLines)
+
+    gSumCorrect <- gSumCorrect + correct
+    trialNum <- trialNum + 1
+
+    Wait(500)
+  }
+
+  ## Debrief
+  trialsCompleted <- trialNum - 1
+  if(trialsCompleted > 0)
+  {
+    accuracy <- Round((gSumCorrect / trialsCompleted) * 100)
+  } else {
+    accuracy <- 0
+  }
+  debrief <- SubstituteStrings(gStrings.debrief,
+                                [["<ACC>", accuracy]])
+  MessageBox(debrief, gWin)
+}
+
+define Trial(trialType, crossPresent, win)
+{
+  ## Clear screen
+  Draw()
+  Wait(500)
+
+  ## Show fixation
+  fixation <- Plus(gVideoWidth/2, gVideoHeight/2, 20, 3, MakeColor("white"))
+  AddObject(fixation, win)
+  Draw()
+  Wait(500)
+  RemoveObject(fixation, win)
+
+  ## Create stimulus display with lines and possibly a cross
+  stimuli <- []
+
+  ## Define search field centered on screen
+  fieldX <- (gVideoWidth - gParams.fieldWidth) / 2
+  fieldY <- (gVideoHeight - gParams.fieldHeight) / 2
+
+  ## Draw rectangle around field
+  rect <- Rectangle(fieldX + gParams.fieldWidth/2, fieldY + gParams.fieldHeight/2,
+                    gParams.fieldWidth, gParams.fieldHeight, MakeColor("white"), 0)
+  AddObject(rect, win)
+  PushOnEnd(stimuli, rect)
+
+  ## Generate positions using layout function
+  positions <- GenerateItemPositions(fieldX, fieldY)
+
+  ## Create and draw the line stimuli
+  result <- CreateLineStimuli(positions, crossPresent, win)
+  lineStimuli <- First(result)
+  crossPos <- Second(result)
+  stimuli <- Merge(stimuli, lineStimuli)
+
+  Draw()
+  time0 <- GetTime()
+
+  ## Wait for response (left-shift for present, right-shift for absent)
+  key <- WaitForListKeyPress(["<lshift>", "<rshift>"])
+  rt <- GetTime() - time0
+
+  if(key == "<lshift>")
+  {
+    response <- "present"
+  } else {
+    response <- "absent"
+  }
+
+
+  ## Check if correct
+  correct <- 0
+  if(response == "present" and crossPresent == 1)
+  {
+    correct <- 1
+  }
+  if(response == "absent" and crossPresent == 0)
+  {
+    correct <- 1
+  }
+
+  ## Show feedback if enabled
+  if(gParams.showFeedback)
+  {
+    ## Draw circle around cross on reject trials
+    if(crossPresent)
+    {
+      circle <- Circle(First(crossPos), Second(crossPos), 25, MakeColor("red"), 0)
+      AddObject(circle, win)
+    }
+
+    if(correct)
+    {
+      feedback <- EasyLabel(gStrings.correct, gVideoWidth/2, gVideoHeight/2, win, 24)
+    } else {
+      feedback <- EasyLabel(gStrings.incorrect, gVideoWidth/2, gVideoHeight/2, win, 24)
+    }
+    Draw()
+    Wait(1000)
+    Hide(feedback)
+
+  ## Remove all stimuli
+  loop(stim, stimuli)
+  {
+    RemoveObject(stim, win)
+  }
+    if(crossPresent)
+    {
+      RemoveObject(circle, win)
+    }
+  }
+
+  Draw()
+
+  return [correct, rt, response, First(crossPos), Second(crossPos)]
+}
+
+define ShowInstructions(text, win)
+{
+  inst <- EasyTextBox(text, gVideoWidth/2-400, gVideoHeight/2-100, win, 20, 800, 200)
+  Draw()
+  WaitForAnyKeyPress()
+  Hide(inst)
+  Draw()
+}
+
+define ShowExamples(win)
+{
+  allStimuli <- []
+
+  ## Create two small example displays
+  exampleWidth <- 240
+  exampleHeight <- 150
+  exampleY <- 500
+
+  ## Left example: REJECT (with cross)
+  leftX <- gVideoWidth/2 - 280
+  rejectRect <- Rectangle(leftX, exampleY, exampleWidth, exampleHeight, MakeColor("white"), 0)
+  AddObject(rejectRect, win)
+  PushOnEnd(allStimuli, rejectRect)
+
+  rejectLabel <- EasyLabel("REJECT (defect)", leftX, exampleY - 95, win, 16)
+  PushOnEnd(allStimuli, rejectLabel)
+
+  ## Generate positions for reject example
+  rejectPositions <- LayoutGrid(0, exampleWidth-20, 0, exampleHeight-20, 10, 15, 0)
+  loop(i, Sequence(1, Length(rejectPositions), 1))
+  {
+    pos <- Nth(rejectPositions, i)
+    newX <- First(pos) + leftX - exampleWidth/2 + 10
+    newY <- Second(pos) + exampleY - exampleHeight/2 + 10
+    SetElement(rejectPositions, i, [newX, newY])
+  }
+
+  rejectResult <- CreateLineStimuli(rejectPositions, 1, win)
+  allStimuli <- Merge(allStimuli, First(rejectResult))
+
+  ## Right example: ACCEPT (no cross)
+  rightX <- gVideoWidth/2 + 280
+  acceptRect <- Rectangle(rightX, exampleY, exampleWidth, exampleHeight, MakeColor("white"), 0)
+  AddObject(acceptRect, win)
+  PushOnEnd(allStimuli, acceptRect)
+
+  acceptLabel <- EasyLabel("ACCEPT (good)", rightX, exampleY - 95, win, 16)
+  PushOnEnd(allStimuli, acceptLabel)
+
+  ## Generate positions for accept example
+  acceptPositions <- LayoutGrid(0, exampleWidth-20, 0, exampleHeight-20, 10, 15, 0)
+  loop(i, Sequence(1, Length(acceptPositions), 1))
+  {
+    pos <- Nth(acceptPositions, i)
+    newX <- First(pos) + rightX - exampleWidth/2 + 10
+    newY <- Second(pos) + exampleY - exampleHeight/2 + 10
+    SetElement(acceptPositions, i, [newX, newY])
+  }
+
+  acceptResult <- CreateLineStimuli(acceptPositions, 0, win)
+  allStimuli <- Merge(allStimuli, First(acceptResult))
+
+  return allStimuli
+}
+
+define GenerateItemPositions(fieldX, fieldY)
+{
+  ## Generate positions within field (with gutter margins)
+  searchWidth <- gParams.fieldWidth - 2 * gParams.gutter
+  searchHeight <- gParams.fieldHeight - 2 * gParams.gutter
+
+  ## Use grid layout for large numbers, random layout for small
+  if(gParams.numLines > 100)
+  {
+    positions <- LayoutGrid(0, searchWidth, 0, searchHeight, gParams.gridRows, gParams.gridCols, 0)
+  } else {
+    positions <- NonOverlapLayout(0, searchWidth, 0, searchHeight, gParams.minDistance, gParams.numLines)
+  }
+
+  ## Offset positions by field location and gutter
+  loop(i, Sequence(1, Length(positions), 1))
+  {
+    pos <- Nth(positions, i)
+    newX <- First(pos) + fieldX + gParams.gutter
+    newY <- Second(pos) + fieldY + gParams.gutter
+    SetElement(positions, i, [newX, newY])
+  }
+
+  return positions
+}
+
+define CreateLineStimuli(positions, crossPresent, win)
+{
+  stimuli <- []
+  crossPos <- [-1, -1]  ## Will store [x, y] of cross if present
+
+  ## Randomly select position for cross if present
+  crossPosition <- -1
+  if(crossPresent)
+  {
+    crossPosition <- RandomDiscrete(Length(positions))
+  }
+
+  ## Create the stimuli
+  loop(i, Sequence(1, Length(positions), 1))
+  {
+    pos <- Nth(positions, i)
+    x <- First(pos)
+    y <- Second(pos)
+
+    ## This position is the cross if selected
+    if(crossPresent and i == crossPosition)
+    {
+      ## Store cross position for feedback
+      crossPos <- [x, y]
+
+      ## Create a cross (horizontal + vertical line)
+      hline <- Line(x - gParams.lineLength/2, y, gParams.lineLength, 0, MakeColor("grey20"))
+      vline <- Line(x, y - gParams.lineLength/2, 0, gParams.lineLength, MakeColor("grey20"))
+      AddObject(hline, win)
+      AddObject(vline, win)
+      PushOnEnd(stimuli, hline)
+      PushOnEnd(stimuli, vline)
+    } else {
+      ## Create either horizontal or vertical line randomly
+      if(RandomDiscrete(2) == 1)
+      {
+        ## Horizontal line
+        hline <- Line(x - gParams.lineLength/2, y, gParams.lineLength, 0, MakeColor("grey20"))
+        AddObject(hline, win)
+        PushOnEnd(stimuli, hline)
+      } else {
+        ## Vertical line
+        vline <- Line(x, y - gParams.lineLength/2, 0, gParams.lineLength, MakeColor("grey20"))
+        AddObject(vline, win)
+        PushOnEnd(stimuli, vline)
+      }
+    }
+  }
+
+  return [stimuli, crossPos]
+}
+
+define GetStrings(lang)
+{
+  lang <- Uppercase(lang)
+  fname <- "translations/inspection.pbl-" + LowerCase(lang) + ".json"
+
+  if(FileExists(fname))
+  {
+    gStrings <- ReadTranslationJSON(fname, lang)
+  } else {
+    gStrings <- ReadTranslationJSON("translations/inspection.pbl-en.json", lang)
+  }
+}

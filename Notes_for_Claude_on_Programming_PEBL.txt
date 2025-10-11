@@ -1,0 +1,731 @@
+COMMON PEBL PROGRAMMING MISTAKES TO AVOID
+==========================================
+
+This document lists common mistakes made when programming PEBL tasks and how to avoid them.
+
+EMSCRIPTEN-SPECIFIC NOTES
+--------------------------
+
+INTERPRETED FUNCTION OVERRIDES (emscripten/pebl-lib/EM.pbl):
+  - EM.pbl contains PEBL-interpreted reimplementations of functions that are normally
+    compiled C++ functions
+  - These are needed because the compiled event loop has issues in Emscripten/WebAssembly
+  - If a compiled function has problems in the Emscripten build, create an interpreted
+    version in EM.pbl to override it
+  - Examples: WaitForMouseButton, WaitForKeyPress, WaitForAnyKeyPress, etc.
+  - The interpreted versions use RegisterEvent/StartEventLoop/ClearEventLoop pattern
+  - IMPORTANT: Always include return() statement at end of these functions
+
+EMSCRIPTEN BUILD FILES:
+  - Main source: pebl-lib/ (authoritative versions)
+  - Copy for packaging: emscripten/pebl-lib/ (gets packaged into pebl2.data)
+  - Always edit BOTH versions when fixing library functions
+  - Run 'make fp' to rebuild pebl2.data after changing library files
+
+1. CONDITIONAL EXPRESSIONS
+   WRONG: isMany <- If(numDots > 7, 1, 0)
+   RIGHT: Use proper if-else statements:
+          if(numDots > 7)
+          {
+            isMany <- 1
+          } else {
+            isMany <- 0
+          }
+   NOTE: PEBL does not have a ternary If() function.
+
+2. LINE OBJECT PROPERTIES
+   WRONG: line <- Line(x, y, width, height, color)
+          line.width <- 3  ## This changes the line's horizontal extent!
+   RIGHT: Line() constructor parameters ARE the line dimensions (width/height).
+          Do not modify .width or .height properties after creation.
+   NOTE: For horizontal lines: width = length, height = 0
+         For vertical lines: width = 0, height = length
+         PEBL lines are 1 pixel thick by default.
+
+3. LABEL/TEXT PROPERTIES AND COLORS
+   WRONG: label <- EasyLabel(text, x, y, win, size)
+          label.color <- MakeColor("red")
+   RIGHT: To create labels with different colors, create different fonts first:
+          redFont <- MakeFont("VeraMono.ttf", 0, 24, MakeColor("red"), MakeColor("black"), 1)
+          greenFont <- MakeFont("VeraMono.ttf", 0, 24, MakeColor("green"), MakeColor("black"), 1)
+          redLabel <- MakeLabel("Incorrect", redFont)
+          greenLabel <- MakeLabel("Correct", greenFont)
+
+   NOTE: - You CANNOT change the color or size of a label after it is created
+         - MakeFont(fontname, style, size, fgcolor, bgcolor, antialias)
+         - EasyLabel() is a convenience wrapper but has limited color control
+         - For colored text, use MakeFont() + MakeLabel() instead of EasyLabel()
+
+4. NONOVERLAPLAYOUT FUNCTION SIGNATURE
+   WRONG: NonOverlapLayout(numItems, width, height, minDistance)
+   RIGHT: NonOverlapLayout(xmin, xmax, ymin, ymax, tolerance, num)
+   NOTE: Takes 6 arguments: bounds (xmin, xmax, ymin, ymax), minimum spacing, and item count.
+
+5. INTEGER REQUIREMENTS
+   WRONG: Repeat(1, numTrials/2)
+   RIGHT: Repeat(1, Floor(numTrials/2))
+   NOTE: Repeat() requires an integer for its second parameter.
+         Always use Round() or Floor() when division might produce non-integers.
+
+6. FUNCTION RETURN VALUES
+   ISSUE: When a function returns multiple values as a list, extract them properly.
+   EXAMPLE: result <- CreateLineStimuli(positions, crossPresent, win)
+            lineStimuli <- First(result)
+            crossPos <- Second(result)
+   NOTE: PEBL functions can only return one value, so use lists to return multiple items.
+
+7. UI ELEMENT POSITIONING
+   ISSUE: Calculate and verify positions to avoid overlapping UI elements.
+   TIP: When placing multiple elements, calculate their bounds and ensure adequate spacing.
+        Test with actual display to verify positioning.
+
+8. GENERAL BEST PRACTICES
+   - Always test code execution rather than assuming correctness
+   - Check PEBL documentation for correct function signatures
+   - Use existing PEBL battery tasks as reference for common patterns
+   - Properties like .color, .width, .height may not be modifiable on all objects
+   - Many PEBL functions expect specific parameter types (integers vs floats)
+
+9. POLYGON FUNCTION SIGNATURE
+   WRONG: poly <- Polygon(x, y, points, color, filled)
+   RIGHT: poly <- Polygon(x, y, xcoords, ycoords, color, filled)
+   EXAMPLE: shapePoints <- Transpose(MakeAttneave(100, 10, 25, 150))
+            xcoords <- First(shapePoints)
+            ycoords <- Second(shapePoints)
+            poly <- Polygon(x, y, xcoords, ycoords, MakeColor("red"), 1)
+   NOTE: Polygon requires 6 arguments. The x and y coordinates must be provided
+         as separate lists, not as a single list of points.
+
+10. CUSTOM OBJECT PROPERTIES
+    WRONG: shape <- Circle(x, y, r, color, 1)
+           shape.id <- 5  ## Cannot add custom properties!
+    RIGHT: Track object identity using list indices or parallel lists
+           shapes <- [shape1, shape2, shape3]
+           ## Use list position (1, 2, 3) as the ID
+    NOTE: You CANNOT add custom properties to PEBL objects. Only built-in
+          properties (like .x, .y, .color) can be accessed or modified.
+          Use list indices or create parallel lists to track custom data.
+
+11. WAITFORCLICKONTARGET RETURN VALUE
+    WRONG: clicked <- WaitForClickOnTarget(shapes, ids)
+           clickedId <- First(clicked)  ## Error: clicked is an integer!
+    RIGHT: clickedId <- WaitForClickOnTarget(shapes, ids)
+    NOTE: WaitForClickOnTarget returns the ID directly as an integer, not a list.
+          Do not use First(), Second(), etc. on the return value.
+
+12. LINE BREAKS IN TEXT
+    WRONG: text <- "Line 1\nLine 2\nLine 3"
+    RIGHT: text <- "Line 1" + CR(1) + "Line 2" + CR(1) + "Line 3"
+           text <- "Paragraph 1" + CR(2) + "Paragraph 2"  ## Double line break
+    NOTE: PEBL does not support \n for newlines. Use CR(1) for single line break
+          or CR(2) for a blank line between paragraphs.
+
+13. DRAW() AFTER MESSAGEBOX
+    WRONG: MessageBox("Feedback text", gWin)
+           ## MessageBox remains visible on screen
+    RIGHT: MessageBox("Feedback text", gWin)
+           Draw()  ## Clear the screen immediately
+    NOTE: After displaying a MessageBox, call Draw() to update the screen and
+          remove the message box from view. Without this, the message box may
+          remain visible during subsequent trial displays.
+
+14. MESSAGEBOX INSTRUCTIONS
+    WRONG: MessageBox("Press any key to continue", gWin)
+    RIGHT: MessageBox("Click OK to continue", gWin)
+    NOTE: MessageBox requires clicking the OK button, not pressing a key.
+          Match your instruction text to the actual user action required.
+          Use WaitForAnyKeyPress() if you want keyboard input.
+
+15. REPEAT VS REPEATLIST
+    ISSUE: Repeat() on a list creates a nested list, not a repeated flat list
+    WRONG: items <- Repeat([1, 2, 3], 3)  ## Returns [[1,2,3], [1,2,3], [1,2,3]]
+    RIGHT: items <- RepeatList([1, 2, 3], 3)  ## Returns [1,2,3,1,2,3,1,2,3]
+    NOTE: - Repeat(scalar, n) works fine: Repeat(5, 3) = [5, 5, 5]
+          - Repeat([list], n) creates nested lists
+          - Use Flatten() to unnest if needed
+          - Flatten([Repeat(3,3), Repeat(4,3)]) = [3,3,3,4,4,4]
+
+16. RETURN FROM FUNCTIONS
+    SYNTAX: return(value)  ## MUST use parentheses, MUST be at end of function
+    WRONG: return value     ## Missing parentheses
+           return lab       ## Missing parentheses
+           lab              ## Bare expression does NOT return value
+    RIGHT: return(obj)      ## Correct syntax
+           return([rt, correct, response])  ## Return multiple values as list
+
+    RULES:
+    - return() MUST be the last statement in a function
+    - return() MUST use parentheses around the value
+    - A bare expression at the end does NOT automatically return (unlike some languages)
+    - To return multiple values, return a list: return([value1, value2, value3])
+
+    EXAMPLE:
+    define MakeColorWheel(x, y, radius, parent)
+    {
+      ## ... function body ...
+      obj.vals <- vals
+      return(obj)  ## CORRECT: parentheses required, at end of function
+    }
+
+17. ELSEIF SYNTAX PLACEMENT
+    CRITICAL: elseif MUST immediately follow closing brace with no intervening content
+    WRONG: if(condition1)
+           {
+               action1()
+           }
+           ## Comment here breaks syntax!
+           elseif(condition2)
+           {
+               action2()
+           }
+
+    RIGHT: if(condition1)
+           {
+               action1()
+           }elseif(condition2)
+           {
+               ## Comments go inside blocks, not between }elseif
+               action2()
+           }elseif(condition3)
+           {
+               action3()
+           }
+
+    RULES:
+    - }elseif must appear as one unit (with optional single space: } elseif)
+    - NO comments, NO blank lines between } and elseif
+    - Comments must go INSIDE the blocks, not between them
+    - This is a parser requirement - PEBL treats }elseif as a single token
+    - Violation causes "syntax error" on the elseif line
+
+====================================================================================
+HOW TO FIND AND USE PEBL FUNCTIONS
+====================================================================================
+
+WHEN YOU NEED A FUNCTION:
+1. Check this file's function list below first
+2. If you need details, search the source files as described below
+3. Always look at battery task examples to see real-world usage
+
+WHERE TO FIND FUNCTION DEFINITIONS:
+
+A. Built-in C++ Functions (compiled into PEBL):
+   Location: src/libs/Functions.h
+   How to read:
+   - Format: {(char*)"FUNCTIONNAME", FunctionPointer, minArgs, maxArgs}
+   - Example: {(char*)"ROUND", Round, 1, 2}
+     means: Round() takes 1-2 arguments
+   - These are the authoritative built-in functions
+
+B. Standard Library Functions (automatically loaded):
+   Locations:
+   - pebl-lib/UI.pbl          (widgets, buttons, menus, file pickers)
+   - pebl-lib/Utility.pbl     (labels, textboxes, parameters, data files)
+   - pebl-lib/Design.pbl      (counterbalancing, sampling, randomization)
+   - pebl-lib/Graphics.pbl    (layout, shapes, geometry)
+   - pebl-lib/Math.pbl        (statistics, distributions)
+   - pebl-lib/HTML.pbl        (HTML generation)
+   - pebl-lib/Transfer.pbl    (file transfers)
+   - pebl-lib/EM.pbl          (event management wrappers)
+
+   How to read:
+   - Look for: define FunctionName(param1, param2, optional:default)
+   - Parameters with colons have defaults (e.g., layout:3 means layout defaults to 3)
+   - Read the function body to understand what it does
+
+C. Battery Task Examples (best for learning patterns):
+   Location: battery/*/*.pbl
+   Common patterns:
+   - battery/*/params/*.pbl.schema - parameter file formats
+   - battery/*/translations/*.json - translation file formats
+   - Look for similar tasks to what you're building
+
+HOW TO SEARCH FOR FUNCTIONS:
+
+Method 1: Grep for function definitions
+   Bash: grep -r "^define FunctionName" pebl-lib/
+   Grep tool: pattern "^define FunctionName", path pebl-lib/
+
+Method 2: Search for usage examples in battery
+   Grep tool: pattern "FunctionName\(", path battery/, output_mode "content"
+   Example: Find all uses of "NonOverlapLayout" to see how it's called
+
+Method 3: Check Functions.h for built-in functions
+   Read: src/libs/Functions.h
+   Search for function name in uppercase (e.g., "WAITFORKEYPRESS")
+
+HOW TO USE AN UNFAMILIAR FUNCTION:
+
+1. Find the definition (see above)
+2. Check the parameter count and types:
+   - Built-in: Check minArgs/maxArgs in Functions.h
+   - Library: Count parameters in define statement, note defaults
+3. Search for usage in battery tasks:
+   Grep: pattern "FunctionName\(", path battery/
+4. Read 2-3 examples to understand:
+   - What arguments are passed
+   - What the function returns
+   - Common patterns and gotchas
+5. Test with a simple case before using in complex code
+
+EXAMPLE WORKFLOW:
+
+Task: Need to create non-overlapping positions for stimuli
+
+1. Check this file -> Find "NonOverlapLayout" in Graphics.pbl section
+2. Search battery for examples:
+   Grep: pattern "NonOverlapLayout\(", path battery/, output_mode content
+3. Find example: battery/mot/MOT.pbl:536
+   Read: xys <- NonOverlapLayout(gXMin,gXMax,gYMin,gYMax,40,numobjs)
+4. Understand: Takes 6 args (xmin, xmax, ymin, ymax, minDist, count)
+5. Use in code with correct argument order
+
+COMMON PITFALLS WHEN SEARCHING:
+
+- Function names are case-insensitive in PEBL but uppercase in Functions.h
+- Some functions have both built-in and library versions (e.g., Wait)
+- Library functions may wrap or extend built-in functions
+- Always check if function takes optional parameters (param:default syntax)
+- Default parameters must be omitted or all specified (can't skip middle ones)
+
+====================================================================================
+HOW TO CREATE A NEW PEBL TEST (BATTERY TASK)
+====================================================================================
+
+DIRECTORY STRUCTURE:
+
+Create the following structure in battery/yourtaskname/:
+
+battery/yourtaskname/
+├── yourtaskname.pbl              # Main experiment file
+├── yourtaskname.pbl.about.txt    # Brief description of task
+├── params/
+│   └── yourtaskname.pbl.schema   # Parameter definitions
+├── translations/
+│   └── yourtaskname.pbl-en.json  # English language strings
+└── data/                          # Directory for data files (created at runtime)
+
+MAIN EXPERIMENT FILE (yourtaskname.pbl):
+
+Basic structure - every PEBL test follows this pattern:
+
+```
+## Brief comment describing the task
+
+define Start(p)
+{
+  ## 1. SET SCRIPT NAME
+  gScriptname <- "Your Task Name"
+
+  ## 2. DEFINE PARAMETERS
+  parpairs <- [["param1", defaultValue1],
+               ["param2", defaultValue2],
+               ["param3", defaultValue3]]
+
+  gParams <- CreateParameters(parpairs, gParamFile)
+
+  ## 3. SETUP WINDOW AND DISPLAY
+  gSleepEasy <- 1
+  gWin <- MakeWindow("black")
+
+  ## Optional: Hide cursor if not needed
+  ## ShowCursor(0)
+
+  ## 4. GET SUBJECT NUMBER
+  if(gSubNum+"" == "0")
+  {
+    gSubNum <- GetSubNum(gWin)
+  }
+
+  ## 5. LOAD TRANSLATIONS
+  GetStrings(gLanguage)
+
+  ## 6. CREATE DATA FILE
+  gFileOut <- GetNewDataFile(gSubNum, gWin, "yourtaskname", "csv",
+    "subnum,trial,variable1,variable2,rt,correct")
+
+  ## 7. SHOW INSTRUCTIONS
+  inst <- EasyTextBox(gStrings.instructions,
+                      gVideoWidth/2-400, gVideoHeight/2-200,
+                      gWin, 20, 800, 400)
+  Draw()
+  WaitForAnyKeyPress()
+  Hide(inst)
+
+  ## 8. PRACTICE TRIALS (optional)
+  ShowInstructions(gStrings.practice, gWin)
+  loop(i, Sequence(1, numPractice, 1))
+  {
+    Trial("practice", ... , gWin)
+  }
+
+  ## 9. MAIN EXPERIMENT
+  ShowInstructions(gStrings.begin, gWin)
+
+  trialNum <- 1
+  loop(condition, experimentalDesign)
+  {
+    result <- Trial("test", condition, gWin)
+
+    ## Extract results
+    rt <- First(result)
+    correct <- Second(result)
+    ## ... extract other variables
+
+    ## Write to file
+    FilePrint(gFileOut, gSubNum + "," + trialNum + "," +
+              condition + "," + rt + "," + correct)
+
+    trialNum <- trialNum + 1
+  }
+
+  ## 10. DEBRIEF
+  MessageBox(gStrings.debrief, gWin)
+}
+
+## TRIAL FUNCTION
+define Trial(trialType, condition, win)
+{
+  ## Present stimulus
+  ## Get response
+  ## Calculate results
+  ## Return [result1, result2, result3, ...]
+
+  return [rt, correct, response]
+}
+
+## HELPER FUNCTIONS
+define ShowInstructions(text, win)
+{
+  inst <- EasyTextBox(text, gVideoWidth/2-400, gVideoHeight/2-100,
+                      win, 20, 800, 200)
+  Draw()
+  WaitForAnyKeyPress()
+  Hide(inst)
+  Draw()
+}
+
+define GetStrings(lang)
+{
+  lang <- Uppercase(lang)
+  fname <- "translations/yourtaskname.pbl-" + LowerCase(lang) + ".json"
+
+  if(FileExists(fname))
+  {
+    gStrings <- ReadTranslationJSON(fname, lang)
+  } else {
+    gStrings <- ReadTranslationJSON("translations/yourtaskname.pbl-en.json", lang)
+  }
+}
+```
+
+PARAMETER SCHEMA FILE (params/yourtaskname.pbl.schema):
+
+Format: paramName|defaultValue|description
+
+```
+numTrials|20|Number of experimental trials
+stimulusDuration|1000|Duration to show stimulus in milliseconds
+responseTimeout|5000|Maximum time to wait for response in milliseconds
+showFeedback|1|Show feedback (0=no, 1=yes)
+```
+
+TRANSLATION FILE (translations/yourtaskname.pbl-en.json):
+
+Format: JSON with uppercase keys
+
+```
+{
+"INSTRUCTIONS": "Task instructions here.\n\nPress any key to continue.",
+"PRACTICE": "Practice trials.\n\nPress any key to start.",
+"BEGIN": "Practice complete. The experiment will now begin.\n\nPress any key to start.",
+"CORRECT": "Correct!",
+"INCORRECT": "Incorrect",
+"DEBRIEF": "Thank you for participating!\n\nYour accuracy: <ACC>%"
+}
+```
+
+ABOUT FILE (yourtaskname.pbl.about.txt):
+
+Single paragraph describing what the task does:
+
+```
+The 'yourtaskname' task is a [type] task where participants [what they do].
+[Brief description of stimuli, responses, and measurements]. This task measures
+[cognitive constructs].
+```
+
+COMMON PATTERNS AND CONVENTIONS:
+
+1. VARIABLE NAMING (SYNTAX REQUIREMENT):
+   - ALL variables MUST start with a lowercase letter (syntax requirement, not convention)
+   - Variables starting with 'g' are GLOBAL (e.g., gWin, gParams, gSubNum)
+   - Variables starting with other lowercase letters are local (e.g., trial, condition, response)
+   - This is part of the PEBL language syntax - global variables are determined by the 'g' prefix
+   - Constants: Often in gParams (e.g., gParams.numTrials)
+
+2. PARAMETER ACCESS:
+   - Always use gParams.parameterName after CreateParameters()
+   - Parameters are automatically read from params/taskname.pbl.schema
+
+3. DATA FILE FORMAT:
+   - CSV is standard
+   - First column usually: subnum
+   - Include: trial number, conditions, responses, RTs, accuracy
+   - Use FilePrint() to write each line
+
+4. TRANSLATION STRINGS:
+   - Keys are UPPERCASE in JSON
+   - Access via gStrings.keyname (case-insensitive)
+   - Use SubstituteStrings() for variable replacement (e.g., "<ACC>" → accuracy)
+
+5. TRIAL STRUCTURE:
+   - Trial() function should return a list of results
+   - Extract results using First(), Second(), Nth()
+   - Keep Trial() focused on single trial logic
+
+6. TIMING:
+   - Use GetTime() before response
+   - Calculate RT as GetTime() - startTime
+   - Use Wait() for delays
+
+7. EXPERIMENTAL DESIGN:
+   - Use Design.pbl functions: Shuffle, Repeat, DesignFullCounterbalance
+   - Use Sequence() for numeric ranges: Sequence(1, 10, 1) = [1,2,3...10]
+   - Use loop() to iterate over conditions
+
+EXAMPLE WORKFLOW FOR CREATING A NEW TEST:
+
+1. Copy an existing similar test from battery/ as a template
+2. Rename all files to your task name
+3. Modify the main .pbl file:
+   - Update gScriptname
+   - Define your parameters in parpairs
+   - Update data file columns
+   - Modify Trial() function for your task
+4. Update params/*.schema with your parameters
+5. Update translations/*.json with your instructions
+6. Update .about.txt with task description
+7. Test with a few trials
+8. Verify data file output is correct
+
+TASKS TO USE AS TEMPLATES:
+
+- Simple RT task: battery/crt/
+- Visual search: battery/inspection/ (created in this session)
+- Choice task: battery/choiceRT/
+- Memory task: battery/corsi/
+- Complex multi-condition: battery/stroop/
+
+TESTING YOUR NEW TASK:
+
+1. Run from command line: pebl yourtaskname.pbl
+2. Check for errors in syntax
+3. Verify data file is created in data/
+4. Check data file has correct columns and values
+5. Test with different parameter values in params/*.schema
+6. Test with practice vs. real trials
+
+====================================================================================
+COMPREHENSIVE PEBL FUNCTION LIST
+====================================================================================
+
+NOTE: The following functions are available to ALL PEBL programs:
+1. Built-in C++ functions from src/libs/Functions.h (organized by namespace below)
+2. Functions from these pebl-lib/*.pbl files:
+   - UI.pbl
+   - Utility.pbl
+   - Design.pbl
+   - Graphics.pbl
+   - Math.pbl
+   - HTML.pbl
+   - Transfer.pbl
+
+These libraries are automatically loaded and available without any include/import statement.
+
+====================================================================================
+
+BUILT-IN MATH FUNCTIONS (PEBLMath namespace):
+  Logarithmic: Log10, Log2, Ln, LogN, Exp, Pow
+  Roots: Sqrt, NthRoot
+  Trigonometric: Tan, Sin, Cos, ATan, ASin, ACos
+  Angle conversion: DegToRad, RadToDeg
+  Rounding: Round, Floor, Ceiling, AbsFloor
+  Modular: Mod, Div
+  Coercion: ToInteger, ToFloat, ToNumber, ToString
+  Other: Sign, Abs
+  Random: RandomizeTimer, SeedRNG, Random, RandomDiscrete, RandomUniform
+  Random distributions: RandomNormal, RandomExponential, RandomLogistic
+  Random distributions: RandomLogNormal, RandomBinomial, RandomBernoulli
+
+ADDITIONAL MATH (pebl-lib/Math.pbl):
+  Statistics: Sum, Mean, StdDev, Median, Min, Max, Quantile
+  List operations: Order, Rank, CumSum, VecSum, VecTimes
+  SDT: SDTDPrime, SDTBeta, NormalDensity, CumNormInv
+  Utilities: Bound, Dist, Match, Filter, SummaryStats
+
+DESIGN/EXPERIMENTAL (pebl-lib/Design.pbl):
+  Counterbalancing: DesignLatinSquare, LatinSquare, DesignGrecoLatinSquare
+  Sampling: Sample, SampleN, SampleNWithReplacement, ChooseN
+  List manipulation: Subset, ExtractListItems, Flatten, FlattenN, Reverse
+  Randomization: Shuffle, ShuffleRepeat, ShuffleWithoutAdjacents
+  Design: DesignBalancedSampling, DesignFullCounterbalance, Taguchi
+  Other: FoldList, Replace, RemoveSubset, Insert, Rest, Levels, ListBy
+
+UTILITY FUNCTIONS (pebl-lib/Utility.pbl):
+  Input: GetSubNum, GetEasyInput, GetEasyChoice, GetEasyMultiChoice
+  UI: EasyLabel, EasyTextBox, MessageBox, CountDown
+  Parameters: CreateParameters, MakeParameterObject, GetNewDataFile
+  String: Format, ZeroPad, ReplaceChar, SubstituteStrings, Enquote
+  String: StripSpace, StripQuotes, SplitStringSlow, ConcatenateList
+  List I/O: PrintList, FilePrintList, ReadCSV
+  Translation: ReadTranslation, ReadTranslationJSON
+  Geometry: Inside, Dist, MoveCorner, MoveCenter
+  Objects: DrawObject, MoveObject, RemoveObjects, ClickOn
+  File: GetNewSubNum, UploadFile, SyncDataFile
+  Text: Tab, CR, FormatText, ListToHumanText
+  Network: ConvertIPString
+  Other: Lookup, WaitForClickOnTarget, WaitForDownClick, JSONText
+
+EVENT MANAGEMENT (pebl-lib/EM.pbl):
+  Time: Wait
+  Keyboard: WaitForKeyPress, WaitForAnyKeyPress, WaitForListKeyPress
+  Keyboard w/timeout: WaitForKeyPressWithTimeout, WaitForAnyKeyPressWithTimeout
+  Keyboard w/timeout: WaitForListKeyPressWithTimeout
+  Key release: WaitForKeyRelease, WaitForAnyKeyRelease
+  Mouse: WaitForMouseButton, WaitForMouseButtonWithTimeout
+
+HTML LIBRARY (pebl-lib/HTML.pbl):
+  Tags: OT (open tag), CT (close tag), H (header), P (paragraph), HL (horizontal line)
+  Formatting: Page, Entag, Table
+  NOTE: Start() function exists but is for testing the library
+
+TRANSFER LIBRARY (pebl-lib/Transfer.pbl):
+  File operations: GetFiles, SendFile
+  NOTE: For network file transfer operations
+
+GRAPHICS LIBRARY (pebl-lib/Graphics.pbl):
+  Layout: NonOverlapLayout, LayoutGrid (see battery tasks for examples)
+  Point operations: RotatePoints, ReflectPoints, ZoomPoints
+  Shapes: Plus, BlockE, MakeStarPoints, MakeNGonPoints
+  Drawing: ThickLine2, ResetCanvas
+  Geometry: GetAngle, GetAngle3, ToRight, SegmentsIntersect, GetMinDist
+  Advanced: MakeGabor, LandoltRing, KaniszaSquare, KaniszaPolygon
+  Attneave shapes: MakeAttneave, InsertAttneavePointRandom, ValidateAttneaveShape
+  Graph/Table: MakeGraph, MakeTable
+  Color: RGBtoHSV
+  Utilities: ConvexHull, DrawObject, MoveObjectX, HideObject, ShowObject
+  Utilities: AddObjectX, RemoveObjectX
+
+UI LIBRARY (pebl-lib/UI.pbl):
+  Buttons: MakeButton, HideButton, ShowButton, PushButton, DrawButton, MoveButton
+  CheckBox: MakeCheckBox, ClickCheckBox, SetCheckBox
+  Text Entry: MakeTextEntry, GetTextEntryInput, SetTextEntry
+  TextBox: MakeScrollingTextBox, SetScrollingText, DrawScrollingTextBox
+  TextBox: ClickOnScrollingTextbox, GetFullLineBreaks, UpdateScrollingTextbox
+  TextBox editing: HandleTextBoxRightClick, ClearTextBox, CopyTextBox
+  TextBox: SetTextBoxCursorFromClick
+  PullDown: MakePullDown, SelectPullDownByText, PullDown, DrawPulldown, UpdatePulldown
+  ScrollBox: MakeScrollBox, DrawScrollBox, ClickOnScrollbox, UpdateScrollbox
+  ScrollBox: EditScrollboxValue, UpdateCapturedScrollBoxThumb, ClearScrollboxThumbCapture
+  Menu: MakeMenu, OpenSubMenus, MakeMenuItem, RemoveMenuItem
+  Menu: ShowMenu, HideMenu, ClickOnMenu, InsideMenu
+  Popups: PopupMessageBox, PopUpEntryBox
+  File: FilePicker, SortDir, FilterList
+  Utilities: MakeTextList, InsideTB, GetAbsolutePosition, VecPlus
+
+FILE I/O (PEBLStream namespace):
+  Output: Print, Print_, Format
+  File open: FileOpenRead, FileOpenWrite, FileOpenOverwrite, FileOpenAppend
+  File operations: FileClose, FilePrint, FilePrint_
+  File reading: FileReadCharacter, FileReadWord, FileReadLine, FileReadList
+  File reading: FileReadTable, FileReadText
+  File status: EndOfLine, EndOfFile
+  File manipulation: AppendFile, CopyFile
+  Network: ConnectToIP, ConnectToHost, SetNetworkPort, CheckForNetworkConnection
+  Network: OpenNetworkListener, AcceptNetworkConnection, WaitForNetworkConnection
+  Network: CloseNetworkConnection, SendData, GetData, GetMyIPAddress
+  HTTP: GetHTTPFile, GetHTTPText, PostHTTP, PostHTTPFile
+  Security: MD5Sum, MD5File
+  Image: WritePNG
+  JSON: ParseJSON
+  Ports: OpenPPort, SetPPortState, GetPPortState, SetPPortMode
+  Serial: OpenComPort, ComPortSendByte, ComPortGetByte
+
+GRAPHICS & OBJECTS (PEBLObjects namespace):
+  Window: MakeWindow, ResizeWindow, Draw, DrawFor
+  Objects: MakeImage, MakeTextBox, MakeCanvas, MakeLabel, MakeCustomObject
+  Color: MakeColor, MakeColorRGB
+  Font: MakeFont, SetFont
+  Object operations: AddObject, RemoveObject, Move, Show, Hide, GetSize
+  Canvas: SetPoint, GetPixelColor, SetPixel
+  Cursor: SetCursorPosition, GetCursorPosition
+  Properties: PrintProperties, GetPropertyList, SetProperty, GetProperty, PropertyExists
+  Text: GetParent, SetEditable, SetText, GetText, GetLineBreaks
+  Audio: LoadSound, PlayBackground, PlayForeground, Stop, SetPanning, SetPlayRepeats
+  Audio generation: MakeSineWave, MakeSquareWave, MakeSawtoothWave, MakeChirp
+  Audio input: MakeAudioInputBuffer, SaveAudioToWaveFile, GetVocalResponseTime
+  Shapes: Line, ThickLine, Rectangle, Square, Ellipse, Circle, Polygon, Bezier
+  Transformations: RotoZoom
+  Media: LoadMovie, LoadAudioFile, StartPlayback, PausePlayback, PlayMovie
+  Eye tracking: ConnectEyeTracker, GetEyeObject, SetEyeTrackerHandler
+
+ENVIRONMENT & INPUT (PEBLEnvironment namespace):
+  Time: GetTime, GetTimeHP, GetTimeOfDay, Wait, GetObjectTime, TimeStamp
+  Mouse: ShowCursor, SetMouseCursorPosition, GetMouseCursorPosition, GetMouseState
+  Mouse: WaitForMouseButton, WaitForMouseButtonWithTimeout
+  Keyboard status: IsKeyDown, IsKeyUp, IsAnyKeyDown
+  Keyboard wait: WaitForKeyDown, WaitForAnyKeyDown, WaitForKeyUp
+  Keyboard wait: WaitForKeyPress, WaitForAnyKeyPress, WaitForKeyRelease
+  Keyboard wait: WaitForListKeyPress, WaitForAllKeysUp
+  Keyboard w/timeout: WaitForAnyKeyDownWithTimeout, WaitForAnyKeyPressWithTimeout
+  Keyboard w/timeout: WaitForKeyListDown, WaitForListKeyPressWithTimeout
+  Joystick: GetNumJoysticks, OpenJoystick, GetNumJoystickAxes, GetNumJoystickBalls
+  Joystick: GetNumJoystickButtons, GetNumJoystickHats
+  Joystick state: GetJoystickButtonState, GetJoystickAxisState
+  Joystick state: GetJoystickHatState, GetJoystickBallState
+  Event loop: ClearEventLoop, RegisterEvent, StartEventLoop
+  Input: GetInput, GetTextBoxCursorFromClick
+  Functions: CallFunction
+  System: SignalFatalError, ExitQuietly, TranslateKeyCode, TranslateString
+  Display: GetCurrentScreenResolution, GetVideoModes, GetDrivers
+  Version: GetPEBLVersion, GetSystemType
+  System calls: LaunchFile, SystemCall, SystemCallUpdate
+  Clipboard: CopyToClipboard, CopyFromClipboard
+  Variables: VariableExists
+  Paths: GetExecutableName, IsDirectory, FileExists, GetDirectoryListing
+  Paths: MakeDirectory, GetHomeDirectory, GetWorkingDirectory, SetWorkingDirectory
+  Files: DeleteFile
+  Type checking: IsText, IsNumber, IsInteger, IsFloat, IsString, IsList
+  Type checking: IsTextBox, IsCanvas, IsImage, IsLabel, IsAudioOut, IsFont
+  Type checking: IsColor, IsFileStream, IsWidget, IsWindow, IsShape, IsCustomObject
+
+LIST OPERATIONS (PEBLList namespace):
+  Manipulation: Shuffle, Repeat, RepeatList, Sequence, Rotate
+  Design: DesignFullCounterbalance, CrossFactorWithoutDuplicates
+  Access: Length, First, Second, Third, Fourth, Fifth, Nth, Last
+  Combination: Merge, List, Append, PushOnEnd
+  Modification: SetElement, Sort, SortBy, Remove, RemoveDuplicates
+  Analysis: IsMember, Transpose, SubList
+  Conversion: ListToString, ModList
+  Maps: MakeMap
+
+STRING OPERATIONS (PEBLString namespace):
+  Case: Uppercase, Lowercase
+  Conversion: ToASCII
+  Analysis: StringLength, FindInString
+  Manipulation: SubString, SplitString
+  Clipboard: CopyToClipboard
+
+CONTROL STRUCTURES (language features):
+  Conditionals: if/else
+  Loops: while, loop
+  Flow: break, return
+  Functions: define (function definition)
+  Logical: and, or, not
+  Comparison: ==, !=, <, >, <=, >=
+
+OBJECT PROPERTIES (variable):
+  Can get/set: .x, .y, .text (use SetProperty/GetProperty for others)
+  WARNING: .color, .width, .height may not be modifiable on some objects
+  Use PropertyExists() to check before setting

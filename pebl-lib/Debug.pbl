@@ -1,0 +1,73 @@
+##Including this should automatically open a debugging window when MakeWindow() is called, and send any print() commands there.
+
+
+
+define MakeWindow(color:"black")
+{
+  if(GetTime() > 10000)
+  {
+   SignalFatalError("calling Makewindow too late")
+  }
+
+   #don't do this in fullscreen mode--it will just screw things up.
+   if(not gFullScreen)
+   {
+
+    :Print("calling MakeWindow override")
+    width <- gVideoWidth
+    height <- gVideoHeight
+    scriptname <- gScriptName
+
+   mainwin <- :MakeWindow(color)
+
+   gVideoWidth<- 800
+   gVideoHeight <- 300
+   gScriptName <- "Debug window"
+   gDebugWindow <- :MakeWindow("black")
+  
+   gStatuswindow <- EasyTextbox("", 10,10,gDebugWindow,12,780,280)
+   gLog <- []
+   gVideoWidth <- width
+   gVideoHeight <- height
+   gScriptName <- scriptname
+   }else{
+     mainwin <- :MakeWindow(color)
+   }
+   
+   return mainwin
+
+}
+
+
+##override Print()
+##note; the window needs to be created in the original script before than can get run.
+
+define Print(p)
+{
+   :Print(p)
+
+
+  if(VariableExists("gLog"))
+   {
+   time <- GetTime()
+   PushOnEnd(gLog,time+"  " +p)
+   if(Length(gLog)>15)
+   {
+    gLog<- SubList(gLog,2,Length(gLog))      
+   }
+
+  text <- ""
+  sep <- ""
+  loop(i,gLog)
+  {
+  text <- text + sep + i
+  sep <- CR(1)
+  }
+
+  gStatusWindow.text <- text
+
+  Draw(gDebugWindow)
+ }
+  return p
+ 
+}

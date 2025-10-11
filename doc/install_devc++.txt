@@ -1,0 +1,74 @@
+1.
+*  Download devc++ package 4.9.9.2 with mingw/GCC 3.4.2
+   http://www.bloodshed.net/dev/devcpp.html
+Install it
+
+2.  Download SDL Development runtime libraries:
+
+* SDL
+http://libsdl.org/release/SDL-devel-1.2.11-mingw32.tar.gz
+ (to access this, you may need 7-zip, available at www.7-zip.org)
+http://www.libsdl.org/release/SDL-1.2.11-win32.zip (maybe???)
+ 
+
+* SDL_ttf
+http://www.libsdl.org/projects/SDL_ttf/
+http://www.libsdl.org/projects/SDL_ttf/release/SDL_ttf-2.0.8-win32.zip (compiled .dll)
+http://www.libsdl.org/projects/SDL_ttf/release/SDL_ttf-2.0.8.zip    (development  files)
+
+* Freetype
+http://freetype.sourceforge.net/index2.html
+http://gnuwin32.sourceforge.net/packages/freetype.htm
+Setup file available from:
+http://gnuwin32.sourceforge.net/downlinks/freetype.php
+
+* SDL_image
+http://www.libsdl.org/projects/SDL_image/
+http://www.libsdl.org/projects/SDL_image/release/SDL_image-1.2.5.zip           (development files)
+http://www.libsdl.org/projects/SDL_image/release/SDL_image-1.2.5-win32.zip  (compiled library)
+
+*SDL_net
+http://www.libsdl.org/projects/SDL_net/
+http://www.libsdl.org/projects/SDL_net/release/SDL_net-1.2.6.zip               (development files)
+http://www.libsdl.org/projects/SDL_net/release/SDL_net-1.2.6-win32.zip      (compiled library)
+
+* SDL_gfx
+http://www.ferzkopp.net/joomla/content/view/19/14/
+http://www.ferzkopp.net/Software/SDL_gfx-2.0/SDL_gfx-2.0.16.tar.gz
+
+The steps are as follows:
+a. install freetype package
+b. Unzip all packages to some temporary convenient location
+c. Make a folder SDL in c:\Dev-Cpp\include
+
+d. Copy the header files to the appropriate location:
+  i.  Copy SDL-1.2.11\include\* to  c:\Dev-Cpp\include\SDL\
+  ii. Copy SDL_ttf-2.0.8\SDL_ttf.h to c:\Dev-Cpp\include\SDL\
+  iii. Copy SDL_image-1.2.5\SDL_image.h to c:\Dev-Cpp\include\SDL\
+  iv. Copy SDL_net-1.2.6\SDL_net.h to c:\Dev-Cpp\include\SDL\
+  v. Copy SDL_ gfx-2.0.16\SDL-gfxPrimitives.h to c:\Dev-Cpp\include\SDL\
+
+(PEBL should now *compile* correctly, although it will not link properly because the libraries are not available.)
+
+e.  All the above libraries used by PEBL are precompiled EXCEPT SDL_gfx. To compile:
+    i.  Unzip SDL_gfx-2.0.16\Other Builds\Dev-Cpp.zip into SDL_gfx-2.0.16
+    ii.  open SDL_gfx.dev with devcpp.
+    iii. Change the settings so the project knows where to find sdl:
+	* open Project|Project Options
+            * select Directories | Include Directories
+            * Browse to c:\Dev-Cpp\include\SDL.  Make sure to hit the Add button.
+    iv.  Compile using execute|compile
+    v.   This will create a file SDL_gfx.dll in the directory.
+
+f.  Dev-cpp expects a few library files to be present:
+  i  Copy SDL-devel-1.2.11-mingw32.tar.gz\SDL-1.2.11\lib\libSDLmain.a to c:\Dev-Cpp\lib
+  ii  Cop SDL_gfx-2.0.16\libSDL_gfx.a to c:\Dev-Cpp\lib
+
+
+g.  The .dll files need to be moved to both c:\Dev-Cpp\lib and PEBL\bin, so the executable can find them:
+ i. Copy SDL-1.1.11-win32.zip/SDL.dll to c:\Dev-Cpp\lib\ and PEBL\bin
+  ii. Copy SDL_ttf-.0.8-win32.zip/SDL_ttf.dll to c:\Dev-Cpp\lib\ and PEBL\bin
+  iii. Copy SDL_image-1.2.5-win32.zip\*.dll to c:\Dev-Cpp\lib\ and PEBL\bin (jpeg.dll, libpng12.dll, libtiff.dll, SDL_image.dll, zlib1.dll)
+  iv. Copy SDL_net-1.2.6-win32.zip\SDL_net.dll to c:\Dev-Cpp\lib and PEBL\bin
+  v.  Copy SDL_gfx-2.0.16\SDL_gfx.dll to c:\Dev-Cpp\lib  and PEBL\bin (This is the one compiled in step e).
+

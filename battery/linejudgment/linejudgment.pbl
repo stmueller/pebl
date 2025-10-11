@@ -1,0 +1,423 @@
+## Line judgment task similar to Henmon, 1910
+##
+##
+##  This is intended to map out a speed-accuracy tradeoff. You can use
+##  as many of the blocks as you wish (up to 5).
+##
+define Start(p)
+{
+
+   gScriptName <- "PEBL Line Judgment Task"
+  gWin <- MakeWindow("black")
+  gSleepEasy <- 1
+
+
+   GetStrings(gLanguage)
+
+   if(gSubNum+""=="0")
+   {
+     gSubNum <- GetSubNum(gWin)
+   }
+
+
+   gFileOut <-GetNewDataFile(gSubNum,gWin,"linejudgment-data","csv",
+          "subnum,block,trial,blocktrial,deadline,usetimer,l1,l2,x1,y1,x2,y2,toolong,resp,corr,rt,time0")
+
+  gReportOut <- FileOpenAppend("data/"+gSubNum+"/linejudgment-report-"+gSubNum+".txt")
+
+
+  parPairs <- [["numtrials",50],
+               ["usetimer",1],
+       	       ["offset",40],
+	       ["numblocks",5],
+
+
+	       ["deadline1",10000],
+       	       ["deadline2",2000],
+       	       ["deadline3",1000],
+      	       ["deadline4",700],
+       	       ["deadline5",500],
+
+	       ["minlength",110],
+	       ["maxlength",120]]
+
+
+
+  gParams <- CreateParameters(parpairs,gParamFile)
+
+
+  numtrials <- gParams.numtrials
+  usetimer <- gParams.usetimer
+  lengths <- Sequence(gParams.minlength,gParams.maxlength,1)
+
+
+
+  msg <- "Results of the line judgment task" +CR(1)
+  msg <- msg + "Data code: " + gSubNum+ CR(1)
+  msg <- msg + "This report stored in " + gReportOut.filename + CR(3)
+   msg <- msg +
+"---------------------------------------------------------------------"+CR(1)+
+"Deadline      N   Accuracy     Accuracy    Response  Correct Incorrect  Too"+CR(1)+
+"                 (completed)                 time      RT       RT      slow"+CR(1)+
+"--------------------------------------------------------------------"+CR(1)
+
+FilePrint(gReportOut,msg)
+
+
+  MessageBox(gStrings.inst1,gWin,30,200,200,300,1,["<lshift>","<rshift>"])
+
+  lab <- EasyLabel(gstrings.lab1,gVideoWidth/2,gVideoHeight/2-150,gWin,30)
+
+
+  ##Set up timer globals
+  timerBack <-  Rectangle(gVideoWidth/2,gVideoHeight-200,300,20,
+                    MakeColor("grey"),0)
+
+  timerFront <-  Rectangle(gVideoWidth/2,gVideoHeight-200,300,20,
+                           MakeColor("red"),1)
+  AddObject(timerFront,gWin)
+  AddObject(timerBack,gWin)
+
+
+  gTimer <- MakeCustomObject("timer")
+  gTimer.front <- timerFront
+  gTimer.back <- timerBack
+  gTimer.show <- "ShowTimer"
+  ShowTimer(gTimer,0)
+
+
+   blocks <- SubList([gParams.deadline1,  gParams.deadline2,
+              gParams.deadline3,   gParams.deadline4, gParams.deadline5],
+	      1,Max([1,Min([5,gParams.numBlocks])]))
+
+  gFeedback <- EasyLabel(gStrings.respond,gVideoWidth/2,gVideoHeight/2,gWin,45)
+
+
+  trial <- 1
+  blockID <- 0
+
+  blockIDs <- []
+  rts <- []
+  accs <- []
+  deltas <- []
+  toolongs <- []
+
+
+  meanRTs <- []
+  meanAccs <- []
+  sumMiss <- []
+  dattable <- []
+
+  ##do some practice trials.
+  MessageBox(gStrings.inst2,gWin,30,200,200,300,1,["<lshift>","<rshift>"])
+  Hide(lab)
+  ShowCursor(0)
+  CountDown(gWin)
+  Trial(40,60,5000,1)
+  Trial(60,40,5000,1)
+  Trial(48,52,5000,1)
+  Trial(51,49,5000,1)
+  ShowCursor(1)
+  MessageBox(gStrings.inst3,gWin,30,200,200,300,1,["<lshift>","<rshift>"])
+ Show(lab)
+ loop(deadline,blocks)
+  {
+   blockID <- blockID + 1
+  Show(gTimer,0)
+  Show(gFeedback)
+  gFeedback.text  <- gSTrings.cont
+  Draw()
+  WaitForListKeyPress(["<lshift>","<rshift>"])
+  Hide(lab)
+  ShowCursor(0)
+  CountDown(gWin,1)
+
+
+  blocktrial <- -100
+
+   ##let's always do four practice trials before each block, to get in the swing of things.
+
+   loop(tmp, [[gParams.minlength,gParams.maxlength],[gParams.maxlength,gParams.minlength],
+              [gParams.minlength,gParams.minlength+1],[gParams.maxlength,gParams.maxlength-1]])
+    {
+      time0 <- GetTime()
+      out <- Trial(First(tmp),Second(tmp),deadline,usetimer)
+      toolong <- First(out)
+     resp <- Second(out)
+     corr <- Third(out)
+     rt <- Fourth(out)
+
+     ##print this out anyway.  Remove the P trials if you don't want them.
+     FilePrint(gFileOut,gSubNum+","+blockid+",P,P,"+ deadline + ","+ usetimer+","+First(tmp)+","+Second(tmp)+","+
+     	  Nth(out,5) +","+ Nth(out,6) +","+ Nth(out,7) +","+ Nth(out,8) +","+
+          toolong+","+resp+","+corr+","+rt+","+time0)
+
+
+    }
+
+  ##we want to sample deltas evenly--not lengths.  We should sample deltas evenly within the range of smallest to largest.
+
+   deltas <- DesignBalancedSampling(Sequence(1, gParams.maxlength-gParams.minlength,1),numtrials)
+  blocktrial <- 1
+  while(blocktrial <= numtrials)
+   {
+
+     delta <- Nth(deltas,blocktrial)
+
+     shorter <- Sample(Sequence(gParams.minlength,gParams.maxlength-delta,1))
+     longer <- shorter+delta
+     tmp <- Shuffle([shorter,longer])
+     time0 <- GetTime()
+
+     out <- Trial(First(tmp),Second(tmp),deadline,usetimer)
+     toolong <- First(out)
+     resp <- Second(out)
+     corr <- Third(out)
+     rt <- Fourth(out)
+
+     FilePrint(gFileOut,gSubNum+","+blockid+","+trial+","+blocktrial+","+ deadline + ","+ usetimer+","+First(tmp)+","+Second(tmp)+","+
+     	  Nth(out,5) +","+ Nth(out,6) +","+ Nth(out,7) +","+ Nth(out,8) +","+
+          toolong+","+resp+","+corr+","+rt+","+time0)
+
+
+
+     PushOnEnd(blockIDs,blockID)
+     PushOnEnd(rts,rt)
+     PushOnEnd(accs,corr)
+     PushOnEnd(toolongs,toolong)
+     PushOnEnd(deltas,(Second(tmp)-First(tmp)))
+
+    trial <- trial   + 1
+    blocktrial <- blocktrial   + 1
+   }
+
+   tmpRT <- Filter(rts,Match(blockIDs,blockID))
+   tmpAcc <-Filter(accs,Match(blockIDs,blockID))
+   tmpMiss <-Filter(toolongs,Match(blockIDs,blockID))
+
+
+
+   brts <- Filter(tmpRT,Match(tmpMiss,0))
+   baccs <- Filter(tmpAcc,Match(tmpMiss,0))
+
+
+   blockCorrRTs <-Filter(brts,Match(baccs,1))
+   blockIncRTs <- Filter(brts,Match(baccs,0))
+
+  if(IsList(brts) and Length(brts)>0)
+   {
+      blockRT <- Round(Mean(brts))
+   }else{
+      blockRT <- "NA"
+   }
+
+
+
+ if(IsList(baccs) and Length(baccs)>0)
+   {
+      blockAcc <- Round(Mean(baccs),3)
+   }else{
+      blockAcc<- 0
+   }
+
+
+   if(IsList(blockCorrRTS) and Length(blockCorrRTs)>0)
+    {
+       blockCorrRT <- Round(Mean(blockCorrRTs))
+    }else{
+       blockCorrRT <- "NA"
+    }
+
+   if(IsList(blockIncRTS) and Length(blockIncRTs)>0)
+    {
+       blockIncRT <- Round(Mean(blockIncRTs))
+    }else{
+       blockIncRT <- "NA"
+    }
+
+
+
+   blockCompleteRate <- 1-Mean(tmpMiss)
+   blockComplete <- Sum(tmpMiss)
+
+
+   PushOnEnd(dattable, [deadline,Length(tmpRT),Round(blockAcc*100,2),
+            Round(blockAcc*blockCompleteRate*100,2),
+            (blockRT),blockCorrRT,blockIncRT,
+            blockComplete])
+
+   line <- Format(deadline,14) +
+            Format(numtrials,4)+
+            Format(Round(blockAcc*100,2),14) +
+	    Format(Round(blockAcc*blockCompleteRate*100,2),14)+
+            Format((blockRT),14) +
+            Format((blockCorrRT),14) +
+            Format((blockIncRT),14) +
+            Format(blockComplete,14)
+
+    msg <- msg + CR(1)+line
+
+    FilePrint(gReportOut,line)
+    ##we need 700 width to make the table legible.
+
+    tab <-  MakeTable(dattable,["Deadline","N",["Accuracy","(completed)"],"Accuracy","RT", ["Corr.","RT"], ["Inc.","RT"],["Too","slow"]],
+            700,100+50*blockID,18,MakeColor("white"),MakeColor("grey30"),2)
+    AddObject(tab,gWin)
+    Move(tab,gVideoWidth-tab.width/2-10,gVideoHeight/2)
+    ShowTimer(gTimer,0)
+    SetMouseCursorPosition(gVideoWidth/2,gVideoHeight/2)
+    MessageBox(gStrings.interim,gWin,30,20,tab.width+40,300,0,["<lshift>","<rshift>"])
+    RemoveObject(tab,gWin)
+   }
+   FilePrint(gReportOut,"--------------------------------------------------------------------")
+
+   MessageBox(gStrings.debrief,gWin)
+}
+
+
+define Trial(left,right,deadline,usetimer)
+{
+      footer <- EasyLabel(gStrings.footer,
+                         gVideoWidth/2,gVideoHeight-100,gWin,40)
+
+      color <- MakeColor("white")
+
+      jitter <- Sample(Sequence(-5,5,1))
+
+      ljitter <- Sample([-2,-1,0,1,2])
+      rjitter <- Sample([-2,-1,0,1,2])
+
+     x1 <- Floor(gVideoWidth/2-gParams.offset+ljitter)
+     y1 <- Floor(gVideoHeight/2-jitter-left/2)
+     x2 <- Floor(gVideoWidth/2+gParams.offset+rjitter)
+     y2 <- Floor(gVideoHeight/2+jitter-right/2)
+
+      stim1 <- Line(x1,y1,0,left,color)
+      stim2 <- Line(x2,y2,0,right,color)
+      AddObject(stim1,gWin)
+      AddObject(stim2,gWin)
+
+      Hide(gFeedback)
+
+      Draw()
+      toolong <- 0
+       if(usetimer)
+       {
+
+        Show(gTimer,1)
+        time1 <- GetTime()
+        timeout <- time1+deadline
+
+
+        RegisterEvent("<TIMER>", 1, Gettime(),"<GEQ>","UpdateTimer", [timeout,deadline,gTimer])
+        RegisterEvent("<TIMER>", 1, timeout,"<GEQ>","EndTrial", [deadline])
+        resp <- WaitForListKeyPress(["<lshift>","<rshift>"])
+        time2 <- GetTime()
+
+      if(resp=="<unknown>")
+        {
+	  resp <- "<timeout>"
+        }
+
+
+       if(resp=="<timeout>")
+       {
+          toolong <- 1
+        }
+
+       }else{
+
+
+        Show(gTimer,0)
+        time1 <- GetTime()
+        resp <- WaitForListKeyPressWithTimeout(["<lshift>","<rshift>"],deadline,1)
+        time2 <- GetTime()
+       toolong <- resp=="<timout>"
+
+       }
+
+
+      leftlonger <- (left>right)
+
+      if(resp=="<timeout>")
+      {
+           toolong <- 1
+           corr <- 0
+           gfeedback.text <- gStrings.tooslow
+      }else{
+          if(resp=="<lshift>")
+            {
+                  corr <- leftlonger
+            } else {
+                  corr <- 1- leftlonger
+            }
+         if(corr)
+          {
+             gfeedback.text <- gSTrings.correct
+          }else{
+             gfeedback.text <- gStrings.incorrect
+          }
+      }
+     Hide(stim1)
+     Hide(stim2)
+     Show(gfeedback)
+     Draw()
+     Wait(500)
+     Hide(gFeedback)
+
+  return [toolong,resp,corr,(time2-time1),x1,y1,x2,y2]
+}
+
+
+
+
+define UpdateTimer(endtime,maxtime,timer,evt:0)
+{
+
+    prop <- Max([0,endTime - GetTime()])/maxtime
+    front <- gTimer.front
+    back <- gTimer.back
+    front.width <- back.width * prop
+    Draw()
+}
+
+
+define EndTrial(p,evt:0)
+{
+ gKeeplooping <- 0
+ Draw()
+ return "<REMOVE>"
+}
+
+
+
+define ShowTimer(p,onoff,evt:0)
+{
+   if(onoff)
+   {
+      Show(p.front)
+      Show(p.back)
+   }else{
+
+       Hide(p.front)
+       Hide(p.back)
+   }
+}
+
+
+
+define GetStrings(lang)
+{
+
+
+  lang <- Uppercase(lang)
+  fname <- "translations/linejudgment.pbl-"+LowerCase(lang)+".json"
+
+  if(FileExists(fname))
+  {
+    gStrings <- ReadTranslationJSON(fname,lang)
+  } else
+  {
+    gStrings <- ReadTranslationJSON("translations/linejudgment.pbl-en.json",lang)
+  }
+}

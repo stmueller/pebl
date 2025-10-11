@@ -1,0 +1,781 @@
+
+define Branding()
+{
+
+   ##This all specifies color and shape of the launcher.
+   gbg <- MakeImage("launcher-bg.jpg")
+   gbg.zoomX <- .7
+   gbg.zoomY <- .7
+   AddObject(gBG,gWin)
+   Move(gBG,400,200)  ##Adjust placement of bg image so it looks nice.
+ 
+   font <- MakeFont(gPEBLBaseFont,0,22,MakeColor("grey30"),MakeColor("white"),0)
+ 
+   gBrandLabel <- MakeLabel("© 2004-2018 PEBL Project | Licensed under GPL 2.0",font)
+   AddObject(gBrandLabel,gWin)
+   Move(gBrandLabel,gVideoWidth/2,gVideoHeight-20)
+   gLogo <- MakeImage("pebl2.png")
+   scale <- 150/gLogo.width
+   gLogo.zoomX <- scale
+   gLogo.zoomY <- scale
+   AddObject(gLogo,gWin)
+   Move(gLogo,gVideoWidth-gLogo.width/2-5,gVideoHeight-gLogo.height/2-5)
+   
+   gheaderText <- "PEBL Experiment Launcher"
+   gbranding  <- "PEBL Custom Launcher"
+   gbranding2 <- "http://pebl.sourceforge.net"
+   gbrandcolorFG <- MakeColor("navy")     ##  Main brand color
+   gBRandColorAccent <- MakeColor("grey30")  ##  Brand accent color
+   gScriptName <- gBranding
+   
+
+
+  gBrandFont <- MakeFont(gPEBLBaseFont,0,14,gBrandColorFG,MakeColor("white"),0)
+  gindfont <- MakeFont("DejaVuSans.ttf",0,42,gBrandColorFG,MakeColor("black"),0)
+  gindfont2 <- MakeFont("DejaVuSans.ttf",0,42,gBrandColorAccent,MakeColor("black"),0)
+  gactivefont <-  MakeFont(gPEBLBaseFont,0,18,gBrandColorFG,MakeColor("white"),0)
+  gdoneFont <- MakeFont(gPEBLBaseFont,0,18,gBrandColorFG,MakeColor("white"),0)
+  gheaderFont <-  MakeFont(gPEBLBaseFont,0,28,gBrandColorFG,MakeColor("white"),0)
+
+  gInfoFont <- MakeFont(gPEBLBaseFont,0,18,gBrandcolorFG,MakeColor("white"),0)
+
+   ##
+   
+   gHeader <- MakeLabel(gheadertext,gheaderfont)
+   Move(gHeader,gVideoWidth/2,gheader.height/2+10)
+
+   gHeaderbg1 <- Rectangle(gHeader.x,gHeader.y,gHeader.width+20,gHeader.height+6,gBrandColorAccent,0)
+   gHeaderbg2 <- Rectangle(gHeader.x,gHeader.y,gHeader.width+20,gHeader.height+6,MakeColor("grey90"),1)
+   AddObject(gHeaderBG2,gWin)  
+   AddOBject(gHeaderbg1,gWin)
+   AddObject(gHeader,gWin)
+   
+}
+
+
+
+define Start(p)
+{
+  
+   mode <- 2  ## mode=1 subject mode
+              ## mode=2 testing/debug  mode 
+
+
+ ##should you run uninterrupted (default value)
+ uninterruptedstate <- 1
+
+ ##  Some settnigs:
+  allowFullScreen <- 1  ## should fullscreen checkbox be enabled?
+
+  if(Length(p)>0)
+   {
+    if(FileExists("configfiles/"+First(p)))
+    {
+         gConfigName <- First(p)
+    }else{
+        gConfigName <- "default.config"
+    }
+   }
+
+
+  gVideoWidth <- 1000
+  gVideoHeight <- 600
+
+
+  gDoTimer <- 1  ##Should the timer be used?
+  allowEdits <- 0 ##do you allow editing after you begin?  
+
+  prompts <- ["Click START to begin testing",
+               "Click NEXT to start next test",
+               "Testing complete."]
+
+  ytop  <- 100
+
+  ##fonts:
+    buttonText <- ["START","NEXT","DONE"]
+
+  gSleepEasy <- 1
+  gUseReloc <- 0  ##Only use on window relocatable version
+
+  Initialize()
+  gWin <- MakeWindow("white")
+  Branding()
+  
+  gfullscreen <- 0
+
+##read basic information.
+  ReadConfigFile(gConfigName)   
+
+  ##Get basic 
+  subid <-PopUpEntryBox("Enter participant code, or blank for random participant code",gWin,[gVideoWidth/2,gVideoheight/2],gSubCode)
+  subid <- ReplaceChar(subid+""," ", "")
+  if(subid=="")
+  {  
+     subid <- Floor(100000+(Random()*999999))
+  }
+  gSubNum <- subid
+  gSubCode <- subid
+  Print("creating subdir logs in: " + GetWorkingDirectory())
+  MakeDirectory("logs")
+  logFile <- FileOpenAppend("logs/PEBLLaunch-log.txt")
+
+ 
+  expchain <- MakeExpChainList(gExpChain)
+
+
+ ##########################################################
+ ##    Add parameter setting section
+ ##########################################################
+  targets <- []
+  keys <- []
+
+
+
+
+  ########################################################
+  ##Information screen near middle bottom.
+   
+   
+   rect <- Rectangle(620,400,300,250,gBrandColorAccent,0)
+   rtitle <- EasyTextBox("",rect.x-rect.width/2,rect.y-rect.height/2,gWin,18,rect.width,rect.height)
+   AddObject(rtitle,gWin)
+   AddObject(rect,gWin)
+   
+   rtitle.text <- "Information:" +CR(2) + "Participant code: " + gSubNum + CR(1) + TimeStamp()
+
+
+  ########################################################
+   ## Specify fullscreen
+
+ if(allowFullScreen)
+  {
+   fullscreenbox <-  MakeCheckBox("Fullscreen",gVideoWidth-200,250,gwin,180)
+   SetCheckBox(fullscreenbox,gFullScreen)
+   PushOnEnd(targets,fullscreenbox)
+   PushOnEnd(keys,"fullscreen")
+  }
+
+if(1)
+{
+  ########################################################
+   ## Specify uninterrupted running
+   uninterrupted <- MakeCheckBox("Run uninterrupted",gVideoWidth-200,280,gwin,180)
+   SetCheckBox(uninterrupted,uninterruptedstate)
+
+   PushOnEnd(targets,uninterrupted)
+   PushOnEnd(keys,"uninterrupted")
+
+}
+ 
+  ########################################################
+   ## Timer
+
+if(gDotimer)
+{
+  timeback <- Rectangle(10,10,10,10,MakeColor("grey90"),1)
+  AddObject(timeback,gWin)
+  timelabel <- MakeLabel("Elapsed time:",gactivefont)
+  timevalue <- MakelabeL("0:00",gindFont)
+  AddObject(timelabel,gWin); Move(timelabel,gVideoWidth-120,ytop+50)
+  AddObject(timevalue,gWin);Move(timevalue,gVideoWidth-120,ytop+80)
+  Move(timeback,gVideoWidth-120,ytop+65)
+  timeback.width <- timevalue.width+40
+  timeback.height <- 60
+  timeStart <- GetTime()
+}
+  ########################################################
+  ## Information/status bar on top
+  statusback <- Rectangle(gVideoWidth/2,80,gVideoWidth-400,24,MakeColor("grey90"),1)
+  Addobject(statusback,gWin)
+  status <- EasyLabel(First(prompts),statusback.x,statusback.y,gWin,22,("grey10"))
+
+
+  ######################################################
+  ##create a set of labels and UI for launching the chain.
+  if(Length(gExpChain)==0)
+  {
+    MessageBox("Custom launcher chain did not contain any tests",gWin)
+    SignalFatalError("no tests specified")
+  }
+  
+  labs <- []
+  backs <- []
+  other <- []  ##other garbage we don't need to keep track of.
+  circles <- []
+  clickbacks <- [] ##sets up click targets for testing mode.
+  yval <- ytop
+
+  loop(i,gExpChain)
+  {
+    tmp <- EasyLabel(Second(i),yval,100,gWin,18)
+    tmp.font <- gactivefont
+    MoveCorner(tmp,110,yval)
+    PushOnEnd(labs,tmp)
+
+    back2 <- Rectangle(yval,100,300,tmp.height,MakeColor("white"),1)
+    AddObject(back2,gWin)
+    MoveCorner(back2,100,yval)
+
+    back1 <- Rectangle(yval,100,300,tmp.height,MakeColor("grey30"),0)
+    AddObject(back1,gWin)
+    MoveCorner(back1,100,yval)
+    AddObject(tmp,gWin)
+#    
+    PushOnEnd(backs,back1)
+    PushOnEnd(backs,back2)
+    PushonEnd(clickbacks,back1)
+
+    circ <- Circle(85,yval+back1.height/2,12,MakeColor("grey80"),1)
+	circ.aa <- 1
+    AddObject(circ,gWin)
+    PushOnEnd(circles,circ)
+
+    circ2 <- Circle(85,yval+back1.height/2,10,MakeColor("grey90"),1)
+    circ2.aa <- 1
+    AddObject(circ2,gWin)
+    PushOnEnd(other,circ2)
+    yval <-yval + tmp.height+2
+
+
+  }
+
+  completeCheck <- "✓"
+  arrow <- "➲"
+  indicator <- MakeLabel(arrow,gindfont2)
+  AddObject(indicator,gWin)
+  Move(indicator,85, ytop+back1.height/2)
+
+
+
+  ################################################################
+  ## The big button:
+
+  if(FileExists("bigbuttonback.png"))
+  {
+     bigButton <- MakeImage("bigbuttonback.png")
+     Move(bigButton,620,ytop+50)
+  }else{
+     bigButton <- Rectangle(620,ytop+50,300,100,gBrandColorFG,1)
+  }
+
+
+  AddObject(bigButton,gWin)
+  bigLabel <- Easylabel(First(buttonText),bigButton.x,bigButton.y,gWin,50,"grey90")
+
+
+
+  ################################################################
+  ##Run things here!
+  running <- 0  
+  index <- 1
+  targets <- Append(targets,bigButton)
+  keys <- Append(keys,"bigbutton")
+
+  if(mode==2)  ##mode 2 is testing mode (for debugging; should allow resetting sequence
+   {
+     targets <- Merge(targets,clickbacks)
+     keys <- Merge(keys,Sequence(1,Length(clickbacks),1))
+   }
+  
+  
+  while(index <= Length(gExpChain))
+  {
+
+#    Print(index + " ==" + Length(gExpChain))
+    currentcirc <- Nth(circles,index)  
+    Move(indicator,currentcirc.x+1,currentcirc.y-1)
+    Draw()
+	
+	
+    if(running and uninterruptedstate)
+     {
+	   ##simulate click on big button when uninterrupted running
+       click <- "bigbutton"
+	   
+     }else{
+
+
+      ##Mini-loop to update timer until we get a real click.
+       cont <- 1
+       while(cont)
+       {
+
+           click <- WaitForClickOnTargetWithTimeout(targets,keys,100)
+           #Print("click:" +click)
+	   if(click=="<timeout>")
+	   {
+	     now <- GetTime()
+	     etime <- now - timeStart
+	     totalsecs <- Round(etime/1000)
+	     mins <- totalsecs/60
+	     min1 <- Floor(mins)
+	     secs <- Floor(60*(mins-min1))
+	     ##update timer
+	     timevalue.text <- ZeroPad(min1,2)+":"+ZeroPad(secs,2)
+	     Draw()
+	   }else{
+   	     cont <- 0
+	   }
+       }
+     }
+
+  # Print("click:" + click)
+
+  ##check on each UI element
+  if(click=="fullscreen")
+    {
+         ClickCheckBox(fullscreenbox,[0,0])
+         gfullscreen <- fullscreenbox.state
+
+    }elseif(click=="uninterrupted")
+    {
+
+        ClickCheckBox(uninterrupted,[0,0])
+    	uninterruptedstate <- uninterrupted.state
+        running <- 0  ##make sure you stop running 
+		
+  }elseif(IsNumber(click))
+    {
+      #Print("clicked on a test")
+      ##We've clicked on a test--adjust the location fo the test.
+      index <- click
+	  
+	  
+    } else {
+
+      running <- 1
+      ##Do we allow editing between tests?  if not, redo targets to prevent further interactions
+      if(Length(targets)>1 and (not allowEdits))
+      {
+	    #Print("resseting targets")
+        targets <- [bigbutton]
+        keys <- ["bigbutton"]
+     }
+
+
+      ##Run here.
+      
+      #Print("RUN:" + Nth(gExpChain,index) + " --s "+gSubCode)
+      info  <- Nth(gExpChain,index)
+      label <- Nth(labs,index)
+      label.font <- gdonefont
+    
+      RunScript(First(info),Third(info),gfullscreen,glanguage,
+                logfile,gsubcode,"CUSTOM",Fourth(info),gVSyncState)
+      index <- index + 1
+
+      bigLabel.text <- Second(buttonText)
+      status.text <-  Second(prompts)
+
+    comp <- MakeLabel(completecheck,gindfont)
+    AddObject(comp,gWin)
+    Move(comp, indicator.x,indicator.y)
+    PushOnEnd(labs,comp)
+
+    }
+
+
+  }
+
+
+  Hide(indicator)
+  bigLabel.text <- Third(buttonText)
+  status.text <-  Third(prompts)
+
+    #update timer
+    now <- GetTime()
+    etime <- now - timeStart
+    totalsecs <- Round(etime/1000)
+    mins <- totalsecs/60
+    min1 <- Floor(mins)
+    secs <- Floor(60*(mins-min1))
+    timevalue.text <- ZeroPad(min1,2)+":"+ZeroPad(secs,2)
+
+  Draw()
+  click <- WaitForClickOnTarget([bigbutton],[1])
+
+}
+
+
+
+##This makes the text to put in the expchain box.
+define MakeExpChainList(expchain)
+{
+  tmp <- []
+  loop(i,expchain)
+    {
+ 	PushOnEnd( tmp,DirlistToText(First(i))+Third(i) + " --pfile "+gQuote+Fourth(i) +gQuote)
+    }
+  return tmp	
+}
+
+
+
+define ReadConfigFile(configname)
+{
+   ##This reads in some configuration stuff from the current
+   ## config file.
+   configfname <- "configfiles/"+configname
+
+   if(FileExists(configfName))
+      {
+           config <- (ReadCSV(configfname))
+	   
+	   ##read in the keys--first characters.
+	   keys <- []
+	   loop(i,config)
+	   {
+	     keys<- Append(keys,First(i))
+           }
+
+	   tmpres <- First(gScreenResInitial)+"x"+Second(gScreenResInitial)
+           ##This is the text description of the screenres.
+	   gScreenRes <- GetConfig("screenres",keys,config,tmpres)
+	   ##we need to set the pulldown default here.
+	   
+	   gfullscreen <- ToNumber(GetConfig("fullscreen",keys,config,0))
+	   gnimhdemographics <- ToNumber(GetConfig("nimhdemo",keys,config,0))
+	   gsubcode    <- GetConfig("subcode",keys,config,"0")
+
+
+	   gDefaultHostName <- GetConfig("ipaddress",keys,config,"localhost")
+	   gCommandLineText <- GetConfig("commandline",keys,config,"")
+	   gexperimenter <-GetConfig("experimenter",keys,config,"default")
+	   glanguage <-GetConfig("language",keys,config,"en")
+	   gVSyncState <- ToNumber(GetConfig("vsync",keys,config,0))
+           gDriver     <- GetConfig("driver",keys,config,"")
+	   gRandomizeChain <- ToNumber(GetConfig("randomizechain",keys,config,0))
+   	   gexpchain <- []         ##sequence of experiments to run
+   	   ##Get all config entries named 'expchain'
+	   chains <- Filter(config,Match(keys,"EXPCHAIN"))
+	   loop(i,chains)
+            {
+
+             ##we need to extract
+               #4+1  dirchain path (variable length so saved last) #1
+               #1+1. human label (at end) #2
+	       #2+1. script file name,     #3
+               #3+1. parameter file,       #4
+
+              PushOnEnd(gexpchain, 
+                
+                  MakeChainEntry(SubList(i,5,Length(i)),
+                            Second(i),Third(i),Fourth(i)))
+
+            }  
+
+      } else {
+      ##We don't have a config file.
+        gDefaultHostName <- "localhost"
+        gCommandLineText <- ""
+        gfullscreen <- 0
+        gVSyncState <- 0
+        gDriver <- ""
+        gsubcode <- "1"
+        gexperimenter <- "default"
+        glanguage <- "en"
+  
+        gexpchain <- []         ##sequence of experiments to run
+	    gnimhdemographics <- 0
+        gScreenRes <-  First(gScreenResInitial)+"x"+Second(gScreenResInitial)
+	    gRandomizeChain <- 0
+      }
+
+}
+
+##appends a set of nested directories into a path.
+define DirlistToText(list)
+{
+  tmp <- ""
+  if(GetSystemType()=="WINDOWS")
+    {
+	   sep <- "\"
+	} else {
+	   sep <- "/"
+
+	}
+  loop(i,list)
+  {		 
+     tmp <- tmp + i+ sep
+  }
+  return tmp
+}
+## a robust version of lookup:
+define GetConfig(key, keys, database,empty)
+{
+   line <- Lookup(key,keys,database)
+   if(Length(line)==0)
+   {
+    ret <- empty
+   }else{
+   ret <- Second(line)
+   }
+  return ret
+}
+
+
+define RunScript(dirChain,filename,fullscreen,language,logfile,subcode,experimenter,
+                 pset,vsync:0)
+{
+  ##Additional command-line parameters that should be hardcoded:
+  ## put --driver  --video, etc. here. 
+  gCommandLineAdd <- " " + gCommandLineText
+
+   type <- GetSystemType()
+   if(type== "LINUX" or type=="OSX")
+   {
+     sep <- " ; "
+   } else {
+     sep <- " & "
+   }
+   
+  ##On windows, should the launcher run from a PEBL subdirectory rather than C:\Program Files\pebl
+   if(gUseReloc)
+     {
+
+        sep <- CR(1)
+        gPEBLName <- "\bin\pebl2.exe"  ##The relative location should be bin\pebl2.exe
+		callstring <- "set ABSPATH=%CD%"+sep+"cd " + DirListToText(dirchain) + sep + gQuote+"%ABSPATH%\PEBL\" +gPEBLName +gQuote+ " " +filename + " -s " + subcode
+    		 ##callstring <- "set ABSPATH=%CD%"+gPEBLname+ CR(1)+ " cd "+DirListToText(dirchain)+CR(1)+gQuote+"%ABSPATH%"+gquote + " " + filename +" "  
+
+     }else {
+         
+    		 callstring <- "cd " + gQuote+DirListToText(dirChain)+gQuote + sep  +
+                              gQuote+  gPEBLName + gQuote+ " "  +gQuote+filename+gQuote + " -s " + subcode
+##    		 callstring <-  gPEBLName + " "  +gQuote+filename+gQuote + " -s " + subcode
+
+
+      }
+
+
+      ##Get the current screen size to use for launching experiments,
+      ##the preferred size should be set or read in from config file.
+      ## if we are not fullscreen.
+
+       gScreenResLine <- "--display " + gScreenRes
+
+       
+      if(vsync)
+       { 
+          gScreenResLine <- gScreenResLine + " --vsyncon "
+       }
+
+       if(fullscreen)
+         {
+	     callstring <- callstring + " --fullscreen " + gScreenResLine
+
+         }else{
+              ##If not fullscreen, use something sligtly smaller
+              ##to make way for toolbars etc.
+             callstring <- callstring + " " + gScreenResLine
+          }
+
+	  if(not pset == "")
+           {
+             callstring <- callstring + " --pfile " +gQuote+ pset+gQuote
+           }
+
+	        callstring <- callstring + " --language " + language  + " " + gCommandLineAdd
+  
+
+          if(type =="LINUX" or type == "OSX" or type == "WINDOWS")
+           {
+            if(gDebug)
+  	       {
+		  if(type == "WINDOWS")
+		    {
+			   callstring <- callstring + sep+"pause"
+		    }
+                }
+               callstring <- callstring + " > stdout.txt 2> stderr.txt"
+
+           }
+
+         FilePrint(logfile,TimeStamp() + "," + DirListToText(dirChain)+ filename+","+GetPEBLVersion() + "," + experimenter + "," + subcode + "," +"fullscreen:["+fullscreen+"],"+ language + "," + callstring+ ","+"STARTED")
+
+         #### Run the experiment!!!!
+         Print("Executing : [" + callstring + "]")
+
+  if(gUseReloc)
+      {
+
+          runfile <- FileOpenOverWrite("tmp.bat")
+     ##     FilePrint(runfile,callstring+sep+"pause") ##Use for debugging purposes.
+          FilePrint(runfile,callstring)
+          FileClose(runfile)
+          SystemCallUpdate("tmp.bat","")
+      }else{
+	     #MessageBox(callstring,gWin)
+	     Print(GetWorkingDirectory())
+         Print(SystemCallUpdate(callstring,""))
+      }
+
+         FilePrint(logfile,TimeStamp() + "," + DirListToText(dirChain)+filename+","+GetPEBLVersion() +
+		 "," + experimenter + "," + subcode + "," +"fullscreen:["+fullscreen+"],"+ language + "," + callstring+ ","+"FINISHED")
+
+}
+
+
+
+define Initialize()
+{
+
+
+  gDebug <- 0
+  gScreenresInitial <- GetCurrentScreenResolution()
+  systemType <- GetSystemType()
+  if(systemType == "LINUX") 
+   {
+      gPEBLName      <-  gExecutableName#"pebl2"
+   }elseif(systemType=="WINDOWS")   {
+     gPEBLDir <- "%ProgramFiles%\PEBL"
+     gPEBLName     <- gQuote+gPEBLDir+"\bin\pebl2.exe"+gQuote+ " "
+    gPEBLName <- gExecutableName
+
+   }elseif(systemType == "OSX"){
+     gPEBLName      <- gExecutableName
+}
+}
+
+
+##This returns a list of 0/1, for each element of list that matches item.
+define Matchn(list,item)
+{
+  if(not IsList(list))
+  {
+     SignalFatalError("First argument of [Match(list,item)] must be a list.")
+  }
+
+  Print("Computing match of " + item)
+
+   out <- []
+   loop(i,list)
+   {
+
+     Print(item+"=="+i+">>>" + (item==i))
+     out  <- Append(out, item==i)
+   }
+   return out
+}
+
+
+define ShowAll(objs,state)
+{
+  if(IsList(objs))
+   {
+       loop(i,objs)
+        {
+	  ShowAll(i,state)
+	}     
+   }else{
+
+   if(PropertyExists(objs,"visible"))
+     {
+       objs.visible <- state
+     }
+   }
+}
+
+##test function:
+define Dummy()
+{
+   t <- SplitString(TimeStamp()," ")
+   y <- Nth(t,5)
+   if(ToNumber(y)>999+1017)
+   {
+
+     SignalFatalError("Fatal Error")
+   }
+}
+
+
+define GetDemographics(win)
+{
+
+  event <- TimeStamp()
+
+  subid <-PopUpEntryBox("Enter participant code, or blank for random participant code",gWin,[gVideoWidth/2,gVideoheight/2])
+
+  subid <- ReplaceChar(subid+""," ", "")
+  Print("subid: ["+subid+"]")
+  enterdemo <- 0
+  if(subid=="")
+  {	
+      gSubNum <- Floor(1+(Random()*99999))
+	  enterdemo <- 1
+
+  }else{
+   ##look up subject code.
+    gSubNum <- subid
+	Print(GetDirectoryListing("./"))
+	MakeDirectory("battery/pooleddata")
+    filename  <- "battery/pooleddata/PEBLData-"+subid+".csv"
+    if(FileExists(filename))
+    {
+	   data0 <- ReadCSV(filename) 
+       data <- Transpose(data0)
+	   key <- Nth(data,6)
+       value <- Nth(data,7)
+       #name <- Lookup("name",key,value)
+       #organization <- Lookup("org",key,value)
+       #usertitle <- Lookup("title",key,value)
+       enterdemo <- 0
+    }else{
+       enterdemo <- 0
+	}
+  }
+
+
+  if(enterdemo)
+  {
+
+    name  <-  PopUpEntryBox("Enter your name",gWin,[gVideoWidth/2,gVideoheight/2])
+    organization <- PopUpEntryBox("Enter your Organization",gWin,[gVideoWidth/2,gVideoheight/2])
+    userTitle  <- PopUpEntryBox("Enter your title/position",gWin,[gVideoWidth/2,gVideoheight/2])
+  }
+
+  name <- "Unspecified"
+  organization <- "Unspecified"
+  userTitle <- "Unspecified"
+  event <- "Unspecified"
+  
+  gUserData <-MakeCustomObject("userdata")
+  gUserData.name <- name
+  gUserData.organization <- organization
+  gUserData.event <- event
+  gUserdata.title <- userTitle
+  gUserData.code <- gSubNum
+
+  
+  text <-   "Test Code: "+gSubNum
+
+  tb <- MakeTextBox(text,gInfoFont,300,300)
+
+   PEBLLog(gSubnum,gParamFile,"demographics","subnum",gQuote+gSubNum+gQuote)
+
+  ##we should record data here.
+  return tb
+
+}
+
+
+
+
+
+
+define PEBLLog(subnum,round,test,ivname,value)
+{
+ 
+  MakeDirectory("battery/pooleddata")
+  file <-  FileOpenAppend("battery/pooleddata/pebl-"+subnum+".csv")
+  FilePrint(file,subnum+","+TimeStamp()+","+Round((GetTime()/1000))+","+round+","+test+","+ivname+","+value)
+  FileClose(file)
+}
+
+
+## This makes a chain entry for gDirChain.
+define MakeChainEntry(dirchain,label,filename,parameterset)
+{
+
+  return [dirchain,label,filename,parameterset]
+}

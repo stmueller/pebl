@@ -1,0 +1,240 @@
+#####################################################
+## PEBL  Time Wall, Version 0.1
+##
+## As described by  Jerison, Crannell, & Pownall,(1957), and
+##    Jerison and Arginteanu (1958), as reported by
+##     Test 18 of the  UTC test battery.
+##
+## Jerison, H. H., C. W. Crannell, and 0. Pownall, 1957, Acoustic Noise and
+## Repeated Time Judgements in a Visual Movement Prroection Task, (WAUC-IR-b7-
+## 54), Wright Air Development Center, Wright-Patterson Air Force Base, Ohio.
+##
+## Jerison, H. J. and J. Arginteanu, 1958, Time Judgements, Acoustic Noise, and
+## Judgement Drift, (WADC-TR-57-454) Wright Air Development Center, Wright-
+## Patterson Air Force Base, Ohio (AJ-130963).
+##
+## Perez,  W. A., Masline, P. J., Ramsey, E. G. and Urban, K. E. (1984).
+##  UNIFIED TRI-SERVICES COGNITIVE PERFORMANCE  ASSESSMENT BATTERY:
+##  REVIEW AND METHODOLOGY, DTIC Document #ADA181697
+##  http://stinet.dtic.mil/oai/oai?verb=getRecord&metadataPrefix=html&identifier=ADA181697
+##
+##
+## Version 0.1 (c) 2008-2021 Shane T. Mueller
+## smueller@obereed.net
+##
+#####################################################
+
+define Start(p)
+{
+
+
+
+  gScriptName <- "Time Wall Task"
+
+  parpairs <- [   ["numTrials", 20 ],       #Number of trials
+   ["feedback", 1 ],      #Whether or not to give feedback
+   ["mintime", 2000  ],     #Minimum transit time
+   ["maxtime", 10000],        #Maximum transit time
+   ["generateRandom",0],      ##whether to generate random values within the range, or just equallyspaced samples.
+   ["spaceheight",600],
+   ["spacewidth",800],
+   ["randomseed","timer"],        ##if 0, randomize timer, otherwise, use that seed.
+   ["bgcol","lightblue"],
+   ["wallcol","darkred"],
+   ["targcol","darkgreen"]  ]
+
+  gParams <- CreateParameters(parpairs,gParamFile)
+
+  numTrials <- gParams.numtrials           #Number of trials
+  feedback <- gParams.feedback             #Whether or not to give feedback
+  mintime <- gParams.mintime           #Minimum transit time
+  maxtime <- gParams.maxtime         #Maximumu transit time
+  gSleepEasy <- 1
+
+ if(gParams.randomseed == "timer")
+ {
+   RandomizeTimer()
+   
+ } else{
+    SeedRNG(gParams.randomseed)
+ }
+ 
+  gWin <- MakeWindow("black")
+
+
+   if(gSubNum+""=="0")
+   {
+      gSubNum <- GetSubNum(gWin)
+    }
+
+
+  GetStrings(gLanguage)
+
+  ##Hide the mouse:
+  Showcursor(0)
+
+  gFileOut <- GetNewDataFile(gSubNum,gWin,"timewall","csv",
+                "subnum,trial,targtime,resptime,acc,shortlong")
+
+  inst <- ReplaceChar(gStrings.inst,"<NUMTRIALS>",numtrials)
+
+  instruct <- EasyTextBox(inst, 50,50,gWin,18,gVideoWidth-100,400)
+  Draw()
+  WaitForAnyKeyPress()
+  Hide(instruct)
+
+  bgcol <- MakeColor(gParams.bgcol)
+  wallcol <- MakeColor(gParams.wallcol)
+  targcol <- MakeColor(gParams.targcol)
+
+  ##let's fix the size of the task to be 800x600, regardless of screen size.
+
+  gSpacewidth <- gParams.spacewidth
+  gSpaceheight <- gParams.spaceheight
+
+  bg  <- Rectangle(gVideoWidth/2,gVideoHeight/2,
+                   gSpacewidth,gSpaceheight,bgCol,1)
+  AddObject(bg,gWin)
+
+
+  gWallheight <- Ceiling(gSpaceHeight*.333)
+  #Position of wall on screen
+  gWallpos    <- gVideoHeight/2 + gSpaceheight/2 -gWallheight
+
+
+  gStartY <- gVideoHeight/2-gSpaceHeight/2
+
+  gTarg <- Square(gVideoWidth/2,4,8,targcol,1)
+  wall <- Rectangle(gVideoWidth/2,
+  gVideoHeight/2 + gSpaceHeight/2-gWallheight/2,
+      gSpacewidth, gwallheight,wallcol,1)
+
+  notch <-Square(gVideoWidth/2,gVideoHeight/2+gSpaceHeight/2-4,8,bgcol,1)
+
+  gFeedback <- EasyLabel("",gVideoWidth/2,gVideoHeight/2-gSpaceheight/2+50,gWin,28)
+  Hide(gFeedback)
+
+  AddObject(gTarg,gWin)
+  AddObject(wall,gWin)
+  AddObject(notch,gWin)
+
+  Draw()
+
+
+
+if(gParams.generaterandom == 1)
+{  traveltimes <- []
+   loop(i,gParams.numtrials)
+   {
+      PushOnEnd(traveltimes, gParams.mintime + (Random()*(gParams.maxtime-gParams.mintime)))
+   }
+} else{
+   ##pre-generate stimuli equally spaced
+
+   delta<-  (gParams.maxtime-gParams.mintime)/(gParams.numtrials-1)
+   traveltimes <- Shuffle(Sequence(gParams.mintime,gParams.maxtime,delta))
+
+}
+
+  trial <- 1
+  while(trial <= numtrials)
+   {
+
+
+    res <-   Trial(Nth(traveltimes,trial))
+    targ <- First(res)
+    resp <- Nth(res,2)
+
+
+    msg <- SubstituteStrings(gStrings.status,
+               [["<T>",trial],
+	        ["<N>",numtrials]])
+
+     ##Give positive feedback if within 5%
+     acc <- Abs(targ - resp)/targ
+
+ if(feedback)
+   {
+    if(acc < .05)
+     {
+       msg <- msg+gStrings.great
+
+     } elseif( First(res) < Nth(res,2))
+     {
+        msg <- msg+gStrings.toolong
+     } else{
+       msg <- msg+gStrings.tooshort
+    }
+       msg <-  msg + "  " + Round(resp/1000,2) + gStrings.vs +  Round(targ/1000,2)
+   }
+
+   gFeedback.text <- msg
+   shortlong <-  Sign(resp-targ)
+   Show(gFeedback)
+   Draw()
+   FilePrint(gFileOut,gSubNum + "," + trial +"," + targ + "," + resp + "," + acc + "," + shortlong)
+  WaitForAnyKeyPress()
+  Hide(gFeedback)
+  trial <- trial + 1
+  }
+
+  instruct.text <- gStrings.thanks
+  Show(instruct)
+  Draw()
+  WaitForAnyKeyPress()
+  FileClose(gFileOut)
+}
+
+
+
+
+define Trial(traveltime)
+{
+   Show(gTarg)
+
+   ##Compute how long the target should take to reach the cutout:
+
+  # traveltime <- gParams.mintime + (Random()*(gParams.maxtime-gParams.mintime))
+   start <- GetTime()
+   endtime <- start + traveltime
+   disappeartime <- start + traveltime * .66667
+
+   moverate <- gSpaceHeight/traveltime
+
+   time <- start
+
+   while(time < disappeartime)
+   {
+
+     time <- GetTime()
+     ypos <- gStartY+(time - start)* moverate
+     gTarg.y <- ypos
+     Draw()
+     Wait(10)
+
+   }
+   Hide(gtarg)
+   Draw()
+   x <-  WaitForAnyKeyPress()
+   est <- GetTime()
+   return [traveltime, (est-start)]
+
+}
+
+
+define GetStrings(language)
+{
+
+##Known trasnlations:  EN
+  lang <- Uppercase(language)
+  fname <- "translations/timewall.pbl-"+LowerCase(lang)+".json"
+
+  if(FileExists(fname))
+  {
+    gStrings <- ReadTranslationjson(fname,lang)
+  } else
+  {
+    gStrings <- ReadTranslationjson("translations/timewall.pbl-en.json",lang)
+  }
+
+}

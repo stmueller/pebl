@@ -1,0 +1,304 @@
+
+##  This demo is intended to simulate an aimed targeting scheme;
+##  akin to pool/billiards.  It has both direction and strength control,
+##  with different sized targets available.
+
+define Start(p)
+{
+
+  gScriptname <- "PEBL Ballistic Aimed Movement Task"
+
+  parpairs <- [["targ1",25],
+               ["targ2",50],
+	       ["targ3",100],
+	       ["dist1",200],
+	       ["dist2",500],
+	       ["dist3",800],
+	       ["distjitter",200],
+	       ["reps",5]]
+
+
+ gParams <- CreateParameters(parpairs,gParamFile)
+
+  targsize <- [gParams.targ1,gParams.targ2,gParams.targ3]
+  distances <- [gParams.dist1,gParams.dist2,gParams.dist3]
+  reps <- gParams.reps
+
+
+  gSleepEasy <- 1
+
+  yrange <- 400  ##vertical range in pixels of target.
+
+  gWin<- MakeWindow("black")
+   if(gSubNum+"" == "0")
+    {
+      gSubNum <- GetSubNum(gWin)
+    }
+
+   GetStrings(gLanguage)
+
+
+  gFileOut <- GetNewdataFile(gSubNum,gWin,"aiming","csv",
+    "subnum,trial,time,distancecat,targsize,distance,posx,posy,targ.x,targ.y,hit,hadit,nailedit,tooshort,overshot,delta,aimtime")
+
+ gStatus <- EasyLabel("",gVideoWidth/2,gVideoHeight-75,gWin,20)
+ gStatus2 <- EasyLabel(gStrings.practice,gVideoWidth/2,gVideoHeight-100,gWin,20)
+ gInst <- EasyTextBox("",gVideoWidth/2-500,20,gWin,20,1000,150)
+
+##practice trials.
+ gInst.text <-gStrings.inst1
+
+#  r <- Rectangle(200+(Max(distances)+200)/2,gVideoHeight/2,Max(distances)+100,yrange,MakeColor("grey"),0)
+#  AddObject(r,gWin)
+  Draw()
+  gStatus.text <- gStrings.practice
+  Trial(25,100,0,200,gVideoheight/2,gWin)
+
+
+    gStatus.text <- gStrings.statusanother
+  Trial(35,300,0,200,gVideoheight/2,gWin)
+
+    gStatus.text <- gStrings.statusanother
+  Trial(40,500,0,200,gVideoheight/2,gWin)
+
+     gStatus.text <- gStrings.statusanother
+  Trial(45,700,0,200,gVideoheight/2,gWin)
+
+    gStatus.text <- gStrings.statusanother
+  Trial(45,900,0,200,gVideoheight/2,gWin)
+
+
+   Hide(gInst)
+   gStatus.text <-gStrings.statuscomplete
+   Draw()
+   WaitForDownClick()
+   WaitForMouseUp()
+
+
+  trials <-FlattenN(ShuffleRepeat(DesignFullCounterbalance(targsize,distances),reps),1)
+  trial <- 1
+
+  gSumcorrect <- 0
+ loop(i,trials)
+  {
+     yval <- (Random()-.5)*yrange
+     trialstart <- GetTime()
+     xbase <- Second(i)
+     xreal <- xbase + (Random()-.5)*gParams.distjitter  ##add a little l/r jitter
+     gStatus2.text <-  gSumCorrect+ SubstituteSTrings(gSTrings.trial,           [["<I>",(trial-1)],["<N>",Length(trials)]])
+
+
+     out <-Trial(First(i), xreal, yval ,200,gVideoHeight/2,gWin)
+
+    FilePrint(gFileOut,ConcatenateList(Merge([gSubNum,trial,trialstart,xbase],out),","))
+    gSumCorrect <- gSumCorrect + Nth(out,7)
+    trial <- trial + 1
+  }
+
+  MessageBox(ReplaceChar(gStrings.debrief,"<SUM>",gSumcorrect),gWin)
+}
+
+
+define Trial(targsize,distance,yval,homeX,homeY,win)
+{
+
+
+  ShowCursor(0)
+  WaitForMouseUp()
+  SetMouseCursorPosition(gVideoWidth/2,gVideoheight/2)
+
+  decay <- .4  ##rate of decay of velocity per second
+  vnot <- 1000      ##initial rate, in pixels per second
+  vmin <- 15      ##stop when v reaches this.
+  ##create target:
+  targ <- Circle(homeX + distance,homeY+yval,targsize,MakeColor("white"),1)
+  AddObject(targ,win)
+  targ2 <- Circle(homeX + distance,homeY+yval,targsize-3,MakeColor("black"),1)
+  AddObject(targ2,win)
+  plus <- Plus(homeX+distance,homeY+yval,targsize-2,3,MakeColor("white"))
+  AddObject(plus,win)
+
+  lab <- EasyLabel(gstrings.target,homeX+distance,homeY+yval+targsize+10,gWin,15)
+
+  normal <- MakeColor("darkgreen")
+  inside <- MakeColor("green3")
+  ontarget <- Makecolor("green1")
+  cuerad <- 15
+
+  tooshort <- "NA"
+  overshot <- "NA"
+  hadit <- 0   #were you on target at some point?
+  nailedIt <- 0 ##were exactly on-center
+
+  cue <- Circle(homeX,homeY,cuerad,normal,1)
+  AddObject(cue,win)
+
+  ## Create line indicating aim.
+  strengthline <- Line(homeX,homeY,cuerad,0,MakeColor("red"))
+  cueline <- Line(homeX,homeY,cuerad+100,0,MakeColor("white"))
+  AddObject(cueline,win)
+  AddObject(strengthline,win)
+
+  ##now, do the aim/control.
+  strength <- 0
+  cueangle <- 0
+  cont <- 1
+  gStatus.text <-  gStrings.aim
+  ##Do aiming
+ Draw()
+ aimtime0 <- GetTime()
+ while(cont)
+      {
+
+        xy <- GetMouseState()
+
+       if(Third(xy)==1)
+	{
+	 ##SHOOT!
+  	 cont <- 0
+	}else{
+
+	height <- - (Second(xy) - homeY)/(gVideoheight/2)
+        ##strength is 0 to 1.0
+        strength <- Max( [0,gVideoWidth/2-First(xy)])/(gVideoWidth/2)
+
+        ##Change the display of the cue according to height and strength.
+	cueangle <- DegToRad((height/2)*180+180)
+	cuelength <- cuerad + 100*strength
+
+        endcueX <- Cos(-cueangle)*cuelength
+	endcueY <- Sin(-cueangle)*cuelength
+
+        strengthline.width <- endcueX
+        strengthline.height <- - endcueY
+	cueline.x <- strengthline.x + strengthline.width
+	cueline.y <- strengthline.y + strengthline.height
+        cueline.width <- Cos(-cueangle)*(100+cuerad) - strengthline.width
+	cueline.height <- -Sin(-cueangle)*(100+cuerad)-strengthline.height
+
+         Draw()
+
+	 Wait(1)
+        }
+
+    }
+  gStatus.text <-  gstrings.inmotion
+aimtime1 <- GetTime()
+## for rate v and decay of alpha,
+## total distance travelled is (using closed-form integral)
+## v0 * (alpha^t-1)/ln(alpha)
+
+   time0 <- GetTime()
+   cont <- 1
+   while(cont)
+   {
+     time <- (GetTime() - time0)/1000
+     distance <- vnot * strength*(decay^time - 1)/Ln(decay)
+     vCurr <- vnot *strength*decay^time
+
+     posx <- homeX - Cos(cueangle)*distance
+     posY <- homeY - Sin(cueangle)*distance
+
+    Move(cue,posx,posy)
+
+    if(Inside([posx,posy],targ))
+     {
+
+       if(Inside([targ.x,targ.y],cue))
+       {
+
+        cue.color <-ontarget
+	nailedIt <- 1
+       }else{
+         cue.color <- inside
+         hadIt <- 1
+       }
+     }else{
+       cue.color <-normal
+     }
+
+    rad <- Floor(vcurr)
+    dec <- vcurr - rad
+    #lab.text <- rad + "." + Format((dec*100)+"000",2)
+    Draw()
+    Wait(5)  ##run the event loop a little
+#   if((posX > targ.x+targ.r+100) or
+    if(       targ.y<0 or targ.y > gVideoHeight or vCurr<vmin)
+    {
+       cont <- 0
+    }
+   }
+
+  Draw()
+  ##Check to see if we hit!
+  hit <- 0
+  if(Inside([posx,posy],targ))
+  {
+   gStatus.text <- gStrings.hit
+   hit <- 1
+  }else{
+   gStatus.text <- gStrings.miss
+   hit <- 0
+  }
+  gStatus2.text <-  ""
+
+  if(hit==0)
+  {
+    if(posX<targ.x-targ.R)
+    {
+     tooshort <- 1
+    }else{
+     tooshort <- 0
+    }
+    if(posX>targ.x+targ.R)
+    {
+      overshot <- 1
+    }else{
+      overshot <- 0
+    }
+}
+
+
+  Draw()
+  Wait(250)
+  ClearEventLoop()
+  WaitForMouseButton()
+
+  delta <- Sqrt((targ.x-posX)^2+(targ.y-posY)^2)
+
+  return [targsize,distance,posx,posy,targ.x,targ.y,hit,hadit,nailedit,tooshort,overshot,delta,(aimtime1-aimtime0)]
+
+}
+
+
+define WaitForMouseUp()
+{
+  cont <- 1
+
+ while(cont)
+  {
+    mouse <- GetMouseState()
+    Draw()
+    cont <- not (Third(mouse)==0)
+  }
+}
+
+
+
+define GetStrings(lang)
+{
+
+   ##Known trasnlations: EN
+
+  lang <- Uppercase(lang)
+  fname <- "translations/aiming.pbl-"+LowerCase(lang)+".json"
+
+  if(FileExists(fname))
+  {
+    gStrings <- ReadTranslationJSON(fname,lang)
+  } else
+  {
+    gStrings <- ReadTranslationJSON("translations/aiming.pbl-en.json",lang)
+  }
+
+}

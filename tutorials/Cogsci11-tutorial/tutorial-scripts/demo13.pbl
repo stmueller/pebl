@@ -1,0 +1,67 @@
+define Start(p)
+{ 
+  gWin <- MakeWindow("black")  ##Variables that start with a g are global!
+  gSleepEasy <- 1
+
+  targs <- ["T","O"]
+  foils <- ["L","I","F","E"]
+  numFoils <- 50
+  numstim  <- 5  #number of T or F trials.  
+
+  stimsequence <- Shuffle(RepeatList(targs,numstim))  #Create a list of Ts and Es    
+  trial <- 1 
+  loop(i,stimsequence)
+    {
+      out <- Trial(i,foils,numfoils)
+      Print(trial + " " + out)
+      trial <- trial + 1
+    }
+}
+
+define Trial(stim,foils,numfoils)
+{
+  baseX <- 400
+  baseY <- 300
+  sd <- 80      ##standard distribution of spread
+  
+  ##Create a list of foils:
+  foilStim <- SampleNWithReplacement(foils,numfoils)
+  
+  ##Add them to the center, in a random normal bivariate distribution
+   foils  <- []
+   loop(i, foilStim)
+    {
+      tmp <- EasyLabel(i,RandomNormal(baseX,sd), RandomNormal(baseY, sd),gWin,22)
+      foils <- Append(foils,tmp)  ## We need to hold onto each foil 
+                                  ## or it will disappear.
+     #Don't draw here because we want to display them all at once.
+    }  
+   targ  <- EasyLabel(stim,RandomNormal(baseX,sd), 
+                        RandomNormal(baseY, sd),gWin,22)
+   footer <- EasyLabel("Press O or T when you see an O or T",baseX, 550,gWin,30)
+   Draw()
+   time1 <- GetTime()
+   resp <- WaitForListKeyPress(["o","t"])
+   time2 <- GetTime()
+   tx <- targ.x
+   ty <- targ.y
+
+   loop(i,foils)
+    {
+      RemoveObject(i,gWin)  ##Remove the foils  
+    }
+        
+    corr <- (Uppercase(resp) == Uppercase(stim))
+    if(corr)
+     {
+      footer.text <- "Correct"
+     } else {
+      footer.text <- "Incorrect"
+     }
+    Draw()
+    Wait(500)
+    RemoveObject(footer,gWin)
+    RemoveObject(targ,gWin)
+    Draw()
+   return [resp, corr, tx, ty, (time2-time1)]
+}

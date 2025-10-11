@@ -1,0 +1,204 @@
+## Dr. Brandon S. Perelman
+## U.S. Army Research Laboratory
+## 9 MAY 2017
+
+define Start(p)
+{
+
+  gDoIntro <- 1
+  gDoOutro <- 1
+
+  gQuestionHead <- "Indicate how much you are experiencing each symptom right now"
+  gLikertoptions <-   ["None",
+		   "Slight",
+		   "Moderate",
+                       "Severe"]
+
+
+
+   gWin <- MakeWindow("black")
+
+   if(gSubNum+""=="0")
+   {
+    gSubNum <- GetSubNum(gWin)
+   }
+
+   if(gDoIntro)
+   {
+    intro <- EasyLabel("Please click the mouse button when you are ready to begin",gVideoWidth/2,(gVideoHeight/2)-200,gWin,24)
+	Draw()
+
+	WaitForDownClick()
+	
+	RemoveObject(intro,gWin)
+	Draw()
+   }
+   
+  MakeDirectory("data")
+  fname <- "data/SimSickness.csv"
+  if(not FileExists(fname))
+  {
+     gFileOut <- FileOpenAppend(fname)
+     FilePrint(gFileOut,  "subnum,timestamp,q1,q2,q3,q4,q5,q6,q7,q8,q9,q10,q11,q12,q13,q14,q15,q16,q17,q18,q19,q20,q21,q22,q23,q24,q25,q26,q27,q28,t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12,t13,t14,t15,t16,t17,t18,t19,t20,t21,t22,t23,t24,t25,t26,t27,t28" )
+     
+     } else{
+      gFileOut <- FileOpenAppend(fname)
+     }
+
+   
+   ##  Print the question labels
+  
+   gQuestfont <- MakeFont(gPEBLBaseFont,0,35,MakeColor("white"),MakeColor("black"),0)
+   gSmallFont <- MakeFont(gPEBLBaseFont,0,18,MakeColor("white"),MakeColor("black"),0)
+  
+ q1 <- "General discomfort"
+ q2 <- "Fatigue"
+ q3 <- "Boredom"
+ q4 <- "Drowsiness"
+ q5 <- "Headache"
+ q6 <- "Eye strain"
+ q7 <- "Difficulty focusing"
+ q8 <- "Salivation increased"
+ q9 <- "Salivation decreased"
+ q10 <- "Sweating"
+ q11 <- "Nausea"
+ q12 <- "Difficulty concentrating"
+ q13 <- "Mental depression"
+ q14 <- "Fullness of the head"
+ q15 <- "Blurred vision"
+ q16 <- "Dizziness with eyes open"
+ q17 <- "Dizziness with eyes closed"
+ q18 <- "Vertigo (loss of orientation with respect to vertical upright)"
+ q19 <- "Visual flashbacks (false sensations of movement when NOT in the simulator)"
+ q20 <- "Faintness"
+ q21 <- "Aware of breathing"
+ q22 <- "Stomach awareness (feeling of discomfort just short of nausea)"
+ q23 <- "Loss of appetite"
+ q24 <- "Increased appetite"
+ q25 <- "Desire to move bowels"
+ q26 <- "Confusion"
+ q27 <- "Burping"
+ q28 <- "Vomiting"
+ 
+  
+  
+  
+  questions <- [q1,q2,q3,q4,q5,q6,q7,q8,q9,q10,q11,q12,q13,q14,q15,q16,q17,q18,q19,q20,q21,q22,q23,q24,q25,q26,q27,q28]
+  
+   responsesout <- []
+   timesout <- []
+   
+  responsesout <- Append(responsesout, gSubNum + ",")
+ # timesout <- Append(timesout, gSubNum + ",")
+
+   ##### Instructions go here if you feel like adding them 
+   
+   startTime <- GetTime()
+  
+   
+   loop(q,questions)
+   {
+	t1 <- GetTime()
+        resp <- Likert(q)
+	t2 <- GetTime()
+
+	PushOnEnd(responsesout, resp)
+	PushOnEnd(timesout, t2-t1)
+   }
+   
+   # Print the whole output file for the subject 
+	
+    FilePrint_(gFileOut,gSubNum+","+gQuote+TimeStamp()+gQuote+",")
+    FilePrint(gFileOut, ConcatenateList(Merge(responsesout,timesout),","))
+
+	
+  if(gDoIntro)
+   {
+    outro <- EasyLabel("This phase of the experiment is complete. Click the mouse to continue.",gVideoWidth/2,(gVideoHeight/2)-200,gWin,24)
+	Draw()
+
+	WaitForDownClick()
+	
+	RemoveObject(outro,gWin)
+	Draw()
+   }
+	
+	
+}
+
+define MakeCSVLine(list)
+{
+  sep <- ""
+  out <- ""
+  loop(i,list)
+  {
+    out <- out + sep + i
+    sep <- ","
+  }
+ return out
+}
+
+
+##These helper functions require gTextBox, gHeader, and gFooter to work.
+define Likert(question)
+{
+    ##spread should be a total of at least 640 pixels, or 80 per option
+    skip <- 150
+
+    ## Add the question heading (this describes the Likert responses)
+	
+    questionHead <- MakeLabel(gQuestionHead, gQuestFont)
+    AddObject(questionHead,gWin)
+    Move(questionHead,gVideoWidth/2,150)
+
+	## Add the specific question
+	
+	question <- MakeLabel(question, gQuestFont)
+	AddObject(question, gWin)
+	Move(question, gVideoWidth/2, 300)
+	
+   # question <- EasyTextBox(question,gVideoWidth/2,gVideoHeight/4+75,gWin,24,900,75)
+   # AddObject(question,gWin)
+   # MoveCenter(question,gVideoWidth/2,300)
+
+    left <- gVideoWidth/2-skip*2.5
+    yval <- gVideoHeight/2+100
+
+    backs <- []
+    nums <- []
+    texts <- []
+
+    loop(i,[1,2,3,4])
+     {
+
+      x <- left + skip * i
+      back <- Rectangle(x,yval+50,skip-10,180,MakeColor("white"),0)
+      num <- MakeLabel(i-1+"",gQuestFont)
+      Move(num, x,yval)
+      AddObject(num,gWin)
+      AddObject(back,gWin)
+
+     
+      optLabel  <- MakeTextBox(Nth(gLikertOptions,i),gSmallFont,skip-15,80) 
+      AddObject(optLabel,gWin)
+      Move(optlabel,x-optLabel.width/2,yval+50)
+
+      PushOnEnd(backs,back)
+      PushOnEnd(nums,num)
+      PushOnEnd(texts,optlabel)
+       
+     }
+
+
+  Draw()
+  #t1 <- GetTime()
+  response <- WaitForClickOnTarget(backs,[1,2,3,4])
+  #t2 <- GetTime()
+
+  return response
+}
+
+   
+
+
+

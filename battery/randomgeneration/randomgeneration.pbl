@@ -1,0 +1,782 @@
+define Start(p)
+{
+  gScriptName <- "Random Generation Task"
+  parpairs <- [["numtrials",162],
+	       ["practicetrials",15],
+	       ["isi",800],
+	       ["usebeep",1],
+	       ["useflash",1]
+               ]
+   GetStrings(gLanguage)
+   gParams <- CreateParameters(parpairs,gParamFile)
+
+   ##Here are the tokens to accept and the keys to use:
+   ##you should be able to change these, plus some instructions, and
+   ##use a smaller set.
+
+   tokens <- Sequence(0,9,1)
+   keys <- ["0","1","2","3","4","5","6","7","8","9",
+           "<kp_1>","<kp_2>","<kp_3>","<kp_4>","<kp_5>","<kp_6>",
+            "<kp_7>","<kp_8>","<kp_9>","<kp_0>"]
+
+   numBeeps <- gParams.numtrials
+   practice <- gParams.practicetrials  ##how many practice beeps
+   isi <- gParams.isi
+   useBeep <- gParams.useBeep
+   useFlash <- gParams.useFlash
+
+   gSleepEasy <- 1
+   gwin <- MakeWindow("black")
+   MakeDirectory("data")
+
+
+   gFileOut <- GetNewDataFile(gSubNum,gWin,"randomgen","csv",
+                      "SubNum,type,trial,resp,abstime,rt")
+   ##Here is the tone:
+   beep <- MakeSineWave(300,200,.9)
+   flash <- Circle(gVideoWidth/2,gVideoHeight/2,100,MakeColor("red"),1)
+   flash.aa <- 1
+   AddObject(flash,gWin)
+   responded <- Circle(gVideoWidth/2,gVideoHeight/2,100,MakeColor("white"),0)
+   responded.aa <- 1
+
+   AddObject(responded,gWin)
+   Hide(responded)
+   header <- EasyLabel("",gVideoWidth/2,100,gWin,24)
+   footer <- EasyLabel("",gVideoWidth/2,gVideoHeight-150,gWin,24)
+
+
+  log <- FileOpenAppend("data/runlog.txt")
+  FilePrint(log, gSubNum + "," + TimeStamp() + ",Random generation started")
+
+   MessageBox(gStrings.inst1,gWin)
+   MessageBox(gStrings.inst2,gWin)
+   MessageBox(gStrings.inst3,gWin)
+
+   test <- []
+   times <-[]
+
+  header.text <- gStrings.header
+  footer.text <- gStrings.footer
+
+  ShowCursor(0)
+  Draw()
+  Hide(header)
+  WaitForListKeyPress(keys)
+  Draw()
+
+  ##Turn this to 0 to check the RNG stat calculation without doing the
+  ## actual test.
+  doTest <- 1
+  if(doTest)
+  {
+  CountDown(gWin)
+  trial <- 1
+  type <- "PRACTICE"
+  ##Let's do an initial practice, then a second 'hidden' practice
+  totaltrials <- numBeeps + practice*2
+
+  time0 <- GetTime()
+  while(trial <= totaltrials)
+  {
+
+   trialEnd <- time0 + trial * isi
+
+
+   if(trial == practice+1)
+   {
+       ShowCursor(1)
+       MessageBox(gStrings.testinst,gWin)
+       ShowCursor(0)
+       Show(header)
+       Draw()
+       Hide(header)
+       WaitForListKeyPress(keys)
+       Draw()
+
+   }
+   if(trial==(practice*2+1))
+     {
+
+       type <- "TEST"
+     }
+
+    if(useBeep)
+    {
+       PlayBackground(beep)
+    }
+
+    if(useFlash)
+    {
+
+      RegisterEvent("<TIMER>", 1, GetTime()+200,"<GEQ>","HIDEME", [flash])
+      Show(flash)
+      Draw()
+
+    }
+
+      time1 <- GetTime()
+      timeleft <-  trialEnd-time1
+      resp <- WaitForListKeyPressWithTimeout(keys,timeleft,1)
+      time2 <- GetTime()
+      Show(responded)
+
+      if(resp=="<timeout>")
+      {
+        resp <- "-1"
+      } else {
+
+        if(type=="TEST")
+           {
+           PushOnEnd(test,ToNumber(resp))
+           PushOnEnd(times,(time2-time1))
+           }
+      }
+
+      Hide(flash)
+      Draw()
+      FilePrint(gFileOut,gSubNum+","+type+","+trial+","+ resp + ","+time1+","+(time2-time1 ))
+      Wait(trialEnd-GetTime())
+      trial <- trial + 1
+      Hide(responded)
+    }
+
+
+ }  else {
+
+   test <- [1, 1, 2, 7, 0, 9, 8, 6, 7, 8, 9, 0, 1, 3, 4]
+   times <- [1, 1, 2, 7, 0, 9, 8, 6, 7, 8, 9, 0, 1, 3, 4]
+
+ }
+
+   ShowCursor(1)
+   Hide(responded)
+   Show(header)
+   header.text <-gStrings.calc
+   Draw()
+
+   ##Compute a bunch of statistics:
+
+   length <- Length(test)
+   rt <- Mean(times)
+   coupon <- CouponScore(test,tokens)
+   redun <- Redundancy(test,tokens)
+   rng <-  RNG(test)
+   nsq <- NSQ(test,tokens)
+   adj <- Adjacency(test)  ##contains two items.
+   tpi <- TPI(test)
+   rg <- RepetitionGap(test)
+   meanrepgap <-  Mean(rg)
+   medrepgap <- Median(rg)
+   moderepGap <- Mode(rg)
+   rng2  <- RNG2(test)
+
+
+
+
+   out <- Print("Random Generation task Assessment.  PEBL Random Number Generation Test.")
+   out <- out + CR(1) + Print(" Shane T. Mueller, Ph.D.")
+   out <- out + CR(1) + Print(" Based on method described by Miyake et al.")
+   out <- out + CR(1) + Print(" Randomness scoring using metrics described by Towse & Niel, 1998" )
+   out <- out + CR(1) + Print(Timestamp())
+   out <- out + CR(2)+   Print("Number of responses:             " + length)
+   out <- out + CR(1)+   Print("Mean response time:              " + rt)
+   out <- out + CR(1) + Print("Response table:")
+
+   table <-ListBy(test,test)
+   out <- out + CR(1)+  Print( "--------------------")
+   out <- out + CR(1)+  Print( "Number       Count ")
+   out <- out + CR(1)+  Print( "--------------------")
+   loop(i,Transpose(table))
+   {
+       out <- out + CR(1) + Print(First(i) + "        " + Length(Second(i)))
+   }
+
+   out <- out + CR(1)+  Print( "--------------------")
+
+
+   out <- out + CR(1)+ Print("Coupon score:                              " +coupon)
+   out <- out + CR(1)+  Print("Redundancy:                                "+redun)
+   out <- out + CR(1)+  Print("RNG Score:                         [1-0]   " +rng)
+   out <- out+ CR(1)+ Print("Guttmann's Null-score Quotient:    [0-100] " + nsq)
+
+
+   out <- out + CR(1)+Print("Adjacency score (Ascending):               " +  First(adj))
+   out <- out + CR(1)+Print("Adjacency score (Descending):              " +  Second(adj))
+
+
+
+   out <- out + CR(1)+ Print("Turning point  (100 is expected):          " +  Round(tpi))
+   out <- out + CR(1)+Print("Phase length:")
+   out <- out + CR(1)+ Print("--------------------------------------")
+   out <- out + CR(1)+ Print("Phase length   Count   Expected")
+   out <- out + CR(1)+ Print("--------------------------------------")
+
+   loop(i, PhaseLength(test))
+    {
+     out <- out + CR(1)+ Print(First(i) + "               " + Second(i) + "       " + Third(i))
+    }
+   out <- out + CR(1)+   Print("--------------------------------------")
+   out <- out +  Print(CR(2))
+
+
+ out <- out+CR(1) +   Print("Repetition gap Mean:                        " + meanRepGap)
+ out <- out+CR(1) +   Print("Repetition gap Median:                      " + medRepGap)
+ out <- out+CR(1) +   Print("Repetition gap Mode:                        " + modeRepGap)
+
+if(0)
+{
+  ##this seems to take a long time to compute--either the algorithm is
+  ##very inefficient, or broken, or tends to get hung.
+  out <- out+CR(1) +   Print("First order distance:")
+
+  foddist <- FOD(test,tokens)
+  out <- out + CR(2)+ Print("   First-order distance")
+ out <- out + CR(1)+ Print("--------------------------------------")
+  out <- out + CR(1)+ Print("Difference    Produced     Expected (est)")
+  out <- out + CR(1)+   Print("--------------------------------------")
+   loop(i, foddist)
+    {
+        out <- out + CR(1)+ Print(Format(First(i),8) + "      " + Format(Second(i),12) + " " + Third(i))
+    }
+
+}
+  out <- out + CR(1)+   Print("--------------------------------------")
+  out <- out + CR(1)+   Print(CR(1))
+  out <- out + CR(1)+  Print("RNG2:                                    "+rng2)
+
+  out <- out + CR(1)+   Print("--------------------------------------")
+   ##Now, we need to make different computations of the values.
+   Print(out)
+   out2 <- FileOpenAppend("data/"+gSubNum+"/summary.txt")
+   FilePrint(out2,out)
+   FileClose(out2)
+
+
+   if(not FileExists("data/randompool.csv"))
+   {
+   pooled <- FileOpenAppend("data/randompool.csv")
+   FilePrint(pooled, "SubNum,TimeStamp,length,rt,coupon,redun,rng,nsq,adjFor,adjBack,tpi,meanrepgap,medrepgap,moderepgap,rng2")
+
+   } else {
+   pooled <- FileOpenAppend("data/randompool.csv")
+   }
+
+   FilePrint(pooled, gSubNum+","+TimeStamp()+","+length+","+rt+","+
+           coupon + "," + redun + "," + rng + "," + nsq+","+First(adj)+","+
+           Second(adj)+","+tpi+","+meanrepgap+","+medrepgap+","+moderepgap+","+rng2)
+
+   MessageBox("Thank you for taking part in this study. The results are saved in data\"+gSubNum+" folder.",gWin)
+  FilePrint(log, gSubNum + "," + TimeStamp() + ",Random generation ended")
+}
+
+
+define HideMe(obj,evt:0)
+{
+   Hide(obj)
+   Draw()
+  return "<REMOVE>"
+}
+
+
+## Adjacency measures upward and downward answers in sequence.
+##
+define Adjacency(seq)
+{
+  prev <- Rotate(seq,1)
+
+  pairs <- Transpose([seq,prev])
+
+  sumA <- 0
+  sumD <- 0
+
+  loop(i,pairs)
+  {
+
+   first <- First(i)
+   second <- Second(i)
+   if(first == second+1)
+   {
+    sumD <- sumD + 1
+   }
+
+   if(first == second-1)
+   {
+    sumA <- sumA +1
+   }
+
+  }
+
+  adjA <- sumA / Length(seq) * 100
+  adjD <- sumD / Length(seq) * 100
+
+  return [adjA,adjD]
+}
+
+
+##Default to a lag of 1
+define MakeAdjMatrix(seq,lag)
+{
+  prev <- Rotate(seq,lag)
+  set <- ListBy(seq,seq)
+  elements <- First(set)
+
+  matrix <- []
+  loop(i,elements)
+  {
+   tmpRow <- Repeat(0,Length(elements))
+   ##Go through each element
+   jj<- 1
+   loop(j, elements)
+    {
+      SetElement(tmpRow,jj, Sum(ListAnd(Match(seq,i),Match(prev,j))))
+      jj <- jj +1
+    }
+    PushOnEnd(matrix,tmpRow)
+  }
+
+  return matrix
+}
+
+
+##evans RNG score computes entropy over pairs
+define  RNG(seq)
+{
+
+  matrix <- MakeAdjMatrix(seq,1)
+  Print(matrix)
+  ##Now that we have the matrix, we need to do sum nijlognij / sumnij/logn
+  top <- 0
+  bottom <- 0
+  loop(row,matrix)
+   {
+     loop(element,row)
+       {
+         rowsum <- Sum(row)
+          if(element>0)
+	  {
+	     top <- top + element * Log2(element)
+	     bottom <- bottom + element * Log2(rowsum)
+	  }
+       }
+   }
+
+   return top/bottom
+}
+
+## Guttman's null-score quotient
+##
+define NSQ(seq,set)
+{
+  ##This reuses some of the matrix code of RNG.
+  ##First, make the pairs.
+
+  matrix <- MakeAdjMatrix(seq,1)
+
+  ##we need to count how many elements of matrix are empty:
+  fmat <- Flatten(matrix)
+  empty <- 0
+  loop(i, fmat)
+  {
+     empty <- empty + (i==0)
+  }
+
+   return 100 * empty / (Length(set)^2-1)
+}
+
+
+define ListAnd(list1,list2)
+{
+   if(not (Length(list1)==Length(list2)))
+   {
+    SignalFatalError("AND requires list of equal length")
+   }
+  out <- []
+  loop(i,Transpose([list1,list2]))
+    {
+     PushOnEnd(out,First(i) and Second(i))
+    }
+
+  return out
+}
+
+define Redundancy(seq,opts)
+{
+
+  a <- Length(opts)
+
+  levs <-  (ListBy(seq,seq))
+
+  sum <- Length(seq)
+  n <- Length(First(levs))
+  dist <- []
+  hSum <- 0
+
+  loop(i,Second(levs))
+  {
+    p <-  Length(i)/sum
+    PushOnEnd(dist, Length(i)/sum)
+    hSum <- p * Log2(p)
+  }
+
+   hh <- Log2(n) - 1/n * hSum
+   hmax <- Log2(a)
+
+  return (1-hh/hmax)*100
+}
+
+## This counts how long it took to generate all the tokens
+
+define CouponScore(seq,values)
+{
+   valuesfound <- Repeat(0,Length(values))
+   iter <- Sequence(1,Length(seq),1)
+
+   ##add a repetition of each one at the end, in case it wasn't provided.
+   seq2 <- Merge(seq,values)
+   iter2 <- Merge(iter, Repeat(Length(seq)+1,Length(values)))
+
+   ##add a set of values at the end
+
+   agg <- Second(ListBy(Transpose([seq2,iter2]),seq2))
+
+   ##now, go through each subset, and pick the smallest/first
+   selection <- []
+
+   loop(i,agg)
+   {
+     PushOnEnd(selection,First(i))  #could be 'min' here
+   }
+
+   return   (Max(Second(Transpose(selection))))
+}
+
+
+##Turning points; Azouvi et al.
+define TPI(seq)
+{
+
+  if(Length(seq)<3)
+  {
+   ret <- 0
+  } else {
+
+  tp <- 0
+  curDir <- Sign(Second(seq)-First(seq))
+  loop(i, Sequence(3,Length(seq),1))
+   {
+      newDir <- Sign(Nth(seq,i) - Nth(seq,i-1))
+      if(curDir != newDir)
+       {
+         tp <- tp + 1
+	 curDir <- newDir
+       }
+   }
+
+   tpExp <- 2/3 * (Length(seq)-2)
+
+   ret <-  100 * tp / tpExp
+  }
+  return ret
+}
+
+##This creates a table of observed phase lengths, alongside the expected value.
+##phase is the dual aspect of a turning point.
+define PhaseLength(seq)
+{
+
+ phases <- []
+ firstturn <- 0
+
+  tpIndex <- 0
+
+  curDir <- Sign(Second(seq)-First(seq))
+  index <- 1
+  loop(i, Sequence(2,Length(seq),1))
+   {
+      newDir <- Sign(Nth(seq,i) - Nth(seq,i-1))
+      if(curDir != newDir)
+       {
+
+	 if(tpIndex == 0)
+	 {
+	   ##don't include this phase
+
+	 }else{
+
+	    PushOnEnd(phases,(index-tpIndex))
+	 }
+	 curDir <- newDir
+	 tpIndex <- index
+       }
+
+      index <- index + 1
+   }
+
+
+
+   table <-  ListBy(phases,phases)
+   phases <- First(table)
+
+   counts <- []
+   expected <- []
+   n <- Length(seq)
+
+   loop(i,Second(table))
+   {
+      PushOnEnd(counts,Length(i))
+      d <- First(i)
+      PushOnEnd(expected,2 *(n - d -2)* (d^2+3*d+1) / Factorial(d+3))
+
+   }
+
+   return Transpose([phases,counts,expected])
+}
+
+
+define Factorial(val)
+{
+  if(val >1)
+  {
+    out <- val * Factorial(val-1)
+  }else {
+    out <- val
+  }
+  return out
+}
+
+
+
+##First-order differences:
+define FOD(seq,values)
+{
+  fod1 <- FODDist(seq)
+
+  ##Use a uniform set within the range as the expected distribution.
+  fodBG <- FODDist(Shuffle(RepeatList(values,1000)))
+
+
+  ##Use a common range for both
+  min <- Min(Merge(fodBG,fod1))
+  max <- Max(Merge(fodBG,fod1))
+  range <- Sequence(min,max,1)
+
+  d1dist <-ToDistribution(fod1,range)
+  dbgdist <- ToDistribution(fodBG,range)
+
+  out <-  Transpose([First(d1dist),Second(d1dist),Second(dbgdist)])
+
+  return out
+}
+
+
+define ToDistribution(values,range)
+{
+  n <- Length(values)
+  bylist <- ListBy(values,values)
+  labels <- First(bylist)
+  sets <- Second(bylist)
+
+  probs <- Repeat(0,Length(range))
+
+  id <- 1
+  loop(i,range)
+  {
+    ##we need to find the value that matches i.
+    indexSet <- Lookup(i,labels,sets)
+    SetElement(probs,id ,Length(indexSet)/n)
+    id <- id + 1
+  }
+
+ return [range,probs]
+
+}
+
+##This creates the FOD sequence for a single sequence.
+define FODdist(seq)
+{
+  prev <- Rotate(seq,1)
+  pairs <-  Transpose([seq,prev])
+  fods <- []
+
+   loop(i,Sequence(2,Length(seq),1))
+   {
+     pair <- Nth(pairs,i)
+     PushOnEnd(fods,Second(pair)-First(pair))
+   }
+
+##fod is the first-order-difference data set. Get the distrubition
+  return fods
+}
+
+
+
+define RepetitionGap(seq)
+{
+
+  ##First, make a pairwise repetition matrix.
+
+  matrix <- []
+  loop(i,seq)
+  {
+   tmpRow <- Repeat(0,Length(seq))
+   ##Go through each element
+   jj<- 1
+   loop(j, seq)
+    {
+      SetElement(tmpRow,jj, i==Nth(seq,jj))
+      jj <- jj +1
+    }
+    PushOnEnd(matrix,tmpRow)
+  }
+
+
+  ##Row, we need to assess the distance between repeats. We
+  ##essentially need to find the first matching element in the upper
+  ##diagonal for each row.
+  lags <- []
+  loop(i, Sequence(1,Length(seq),1))
+    {
+       j <- i + 1
+       found <- 0
+       while(j < Length(seq) and (not found))
+       {
+
+	 if(Nth(Nth(matrix,i),j)==1)
+	  {
+
+	   PushOnEnd(lags,j-i)
+	   found <- 1
+	  }
+         j <- j + 1
+       }
+    }
+
+
+
+ return lags
+}
+
+define Phi(seq)
+{
+
+}
+
+define RNG2(seq)
+{
+  matrix <- MakeAdjMatrix(seq,2)
+  ##Now that we have the matrix, we need to do sum nijlognij / sumnij/logn
+  top <- 0
+  bottom <- 0
+  loop(row,matrix)
+   {
+     loop(element,row)
+       {
+         rowsum <- Sum(row)
+          if(element>0)
+	  {
+	     top <- top + element * Log2(element)
+	     bottom <- bottom + element * Log2(rowsum)
+	  }
+       }
+   }
+
+   return top/bottom
+
+}
+
+
+define Aggregate(list,keylist)
+{
+
+  levels <- Levels(keylist)
+
+  masterlist <- []
+  loop(i,levels)
+  {
+      sub <- Filter(list,Match(keylist,i))
+      PushOnEnd(masterlist,sub)
+  }
+  return masterlist
+}
+
+define GetNewFile(subnum,win,basename,extension)
+{
+  MakeDirectory("data")
+  needsubnum <- 0
+  if(gSubNum+""=="0")
+  {
+    needsubnum <- 1
+   }
+
+  if(FileExists("data/"+subNum))
+   {
+    needsubnum <- 1
+   }
+
+ if(not needsubnum)
+  {
+    MakeDirectory("data/"+subNum)
+    fileOut <- FileOpenAppend("data/"+gSubNum+"/"+ basename +"-"+gSubNum+"."+extension)
+  }
+
+  while(needSubNum)
+  {
+   subNum <- GetSubNum(win)
+   if(FileExists("data/"+subnum))
+    {
+      opt <- GetEasychoice("Subject code already in use.  Choose new code or add session?",
+          ["Choose new code","Add Session"], ["new","add"],win)
+
+      if(opt == "add")
+      {
+        needsubnum <- 0
+	fileOut <- FileOpenAppend("data/"+subNum+"/"+basename+"-"+gSubNum+"."+extension)
+      }
+     } else {
+       needsubnum <- 0
+       MakeDirectory("data/"+subnum)
+       fileOut <- FileOpenWrite("data/"+subNum+"/"+basename+"-"+gSubNum+"."+extension)
+     }
+  }
+
+  gSubNum <- subnum
+  return fileout
+}
+
+
+define Mode(seq)
+{
+  lb <- ListBy(seq,seq)
+  lb2 <- Transpose(lb)
+  longest <- 0
+  mode <- 0
+  loop(i,lb2)
+  {
+     if(Length(Second(i))>longest)
+     {
+        longest <- Length(Second(i))
+	mode <- First(i)
+     }
+  }
+
+  return mode
+}
+
+
+
+define GetStrings(lang)
+{
+
+  lang <- Uppercase(lang)
+  fname <- "translations/randomgeneration.pbl-"+LowerCase(lang)+".json"
+
+  if(FileExists(fname))
+  {
+    gStrings <- ReadTranslationjson(fname,lang)
+  } else
+  {
+    gStrings <- ReadTranslationjson("translations/randomgeneration.pbl-en.json",lang)
+  }
+
+ }

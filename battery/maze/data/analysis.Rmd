@@ -1,0 +1,28 @@
+---
+title: "Untitled"
+author: "Shane T. Mueller"
+date: "`r Sys.Date()`"
+output:
+  pdf_document: default
+  rmdformats::readthedown:
+    gallery: yes
+    highlight: kate
+    self_contained: no
+  word_document:
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r}
+library(prepdat)
+library(tidyverse)
+data <- file_merge(folder_path="./",
+                   has_header=TRUE,
+                   raw_file_name = "mazesolving-",
+                   raw_file_extension="csv",
+                   notification = TRUE)
+
+data %>% select(subnum:totaltime) %>% group_by(maze) %>% summarize(moves=mean(totalmoves-shortestpath),plan=mean(planningtime),sol=mean(solutiontime)) |>
+  arrange(moves)
+```

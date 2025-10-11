@@ -1,0 +1,503 @@
+##  PEBL Go-Nogo task
+##  Designed after method described in:
+##  Bezdjian, S. Baker, L. A., Lozano, D. I & Raine, A. (2009).
+##    Assessing inattention and impulsivity in children during the Go/NoGo task
+##    Br J Dev Psychol. 2009 June 1; 27(2): 365–383.
+##    doi: 10.1348/026151008X314919.
+##    http://www.ncbi.nlm.nih.gov/pmc/articles/PMC2757760/
+##
+##  Croation translation (HR) By Silvija Rucevicgon
+##  Italian translation (IT) by Antonella Somma
+
+define Start(p)
+{
+  ##default values to use if .par file is not found
+  parpairs <- [["reps",32], ##Number of repetitions of P/R blocks (with trials shuffled)
+               ["isi",1500], ##Time between stimuli
+	       ["pStim","P"],
+	       ["rStim","R"],
+               ["numTarg", 4],  ##Number of 'p' trials per block
+	       ["numFoil", 1],  ##Number of 'R' trials per block
+               ["stimtime",500],
+	       ["color","blue"], ##color of stimulus.
+               ["usemouse",1],     ##use mouse for response rather than keyboard
+	       ["useBJDP",1 ]]    ##use 80% targets in both rounds, as in the original BJDP paper.
+
+ gParams <- CreateParameters(parpairs,gParamFile)
+
+ reps <-gParams.reps   ##number of repetitions of the PPPPR design
+ gisi <- gParams.isi  ##inter-stimulus interval
+
+  GetStrings(gLanguage)
+
+  gWin <- MakeWindow("black")
+
+  gSleepEasy <- 1
+
+  ShowCursor(0)
+
+   ##Get subject code if we need to:
+   if(gSubNum+""=="0")
+    {
+	  gSubNum <- GetSubNum(gWin)
+    }
+
+
+
+   gFileOut <- GetNewDataFile(gSubNum,gWin,"gonogo","csv",
+ "subnum,block,type,correctresponse,trial,choice,x,y,stim,present,response,responded,corr,starttime,rt")
+
+   gPooledFileOut <- FileOpenAppend("data/gonogo-pooled.csv")
+   gSumFileOut <-GetNewDataFile(gSubNum,gWin,"gonogo-report","txt","")
+
+   gLog <- FileOpenAppend("data/gonogo-log.csv")
+   gPooledSummary <- FileOpenAppend("data/gonogo-all.csv")
+   FilePrint(gLog, gSubNum + "," + gLanguage + "," + TimeStamp()+",GONOGO,INITIATED")
+
+  ##Keep track of some data
+  gBlockNums <- []
+  gRTs <- []
+  gErrors <- []
+  gStim <- []
+  gResponded <- []
+
+   design1 <- Merge(Repeat(gParams.pstim,gParams.numTarg),
+                  Repeat(gParams.rstim,gParams.numFoil))
+   design2 <- Merge(Repeat(gParams.rstim,gParams.numTarg),
+                  Repeat(gParams.pstim,gParams.numFoil))
+
+	design <- design1
+  practice <-  Shuffle(RepeatList(design,2))
+
+  gBlock <- 0
+  MessageKeyBox(gInst1)
+  CountDown(gWin)
+  FilePrint(gLog, gSubNum + "," + gLanguage + "," + TimeStamp()+",GONOGO,ROUND1 Start")
+  DoBlock(practice,gParams.pstim,"practice",gParams.color)
+
+  #The stimuli are the same for both blocks of trials.
+  stim <- Shuffle(RepeatList(design,reps))
+
+
+ #Condition 1 is the 'P-Go' condition, with 160 trials
+  gBlock <- 1
+  MessageKeyBox(gInst2)
+  CountDown(gWin)
+   FilePrint(gLog, gSubNum + "," + gLanguage + "," + TimeStamp()+",GONOGO,ROUND2 Start")
+  DoBlock(stim,gParams.pstim,"test",gParams.color)
+  stim <- Shuffle(stim)
+
+  if(gParams.useBJDP)
+  {
+    design <- design2
+  }
+
+
+##Do a second practice block
+   practice <-  Shuffle(RepeatList(design,2))
+   stim <- Shuffle(RepeatList(design,reps))
+
+
+    gBlock <- 2
+    MessageKeyBox(gInst3)
+   CountDown(gWin)
+   FilePrint(gLog, gSubNum + "," + gLanguage + "," + TimeStamp()+",GONOGO,ROUND3 Start")
+   DoBlock(practice,gparams.rstim,"practice",gParams.color)
+
+
+ #Condition 2 is the R-Go condition
+ gBlock <- 3
+ MessageKeyBox(gInst2)
+ CountDown(gWin)
+  FilePrint(gLog, gSubNum + "," + gLanguage + "," + TimeStamp()+",GONOGO,ROUND4 Start")
+  DoBlock(stim,gparams.rstim,"test",gParams.color)
+
+
+   FilePrint(gLog, gSubNum + "," + gLanguage + "," + TimeStamp()+",GONOGO,DONE")
+  ##We want to report:
+  ##P-go errors (round 1)
+  ##R-go errors (round 2)
+  ##R-nogo errors (round 1)
+  ##P-nogo errors (round 2)
+
+  ## P-go rt (round 1)
+  ## R-go RT (round 2)
+
+  round1<- Match(gBlockNums,1)
+  err1 <- Filter(gErrors,round1)
+  rt1 <- Filter(gRTs,round1)
+  stim1 <- Filter(gStim,round1)
+  resp1 <- Filter(gResponded,round1)
+
+  round2<- Match(gBlockNums,3)
+  err2 <- Filter(gErrors,round2)
+  rt2 <- Filter(gRTs,round2)
+  stim2 <- Filter(gStim,round2)
+  resp2 <- Filter(gResponded,round2)
+
+  statserr1 <- SummaryStats(err1,stim1)
+  statserr2 <- SummaryStats(err2,stim2)
+
+  ##RT should only be aggregated for actual responses.
+
+  rt1r <- Filter(rt1,resp1)
+  stim1r <- Filter(stim1,resp1)
+
+  rt2r <- Filter(rt2,resp2)
+  stim2r <- Filter(stim2,resp2)
+
+  statsrt1  <- SummaryStats(rt1r,stim1r)
+  statsrt2  <- SummaryStats(rt2r,stim2r)
+
+   FilePrint(gSumFileOut,"-----------------------------------------------")
+   FilePrint(gSumFileOut,"PEBL Go-No-Go Task, Version 1.0")
+   FilePrint(gSumFileOut,"http://pebl.sf.net")
+   FilePrint(gSumFileOut,"Shane T. Mueller")
+   FilePrint(gSumFileOut, GetPEBLVersion())
+   FilePrint(gSumFileOut, GetSystemType())
+   FilePrint(gSumFileOut, "Use mouse: " + gParams.usemouse)
+
+   FilePrint(gSumFileOut,"-----------------------------------------------")
+   FilePrint(gSumFileOut,"Screen width x height: " +gVideoWidth+ "x"+gVideoHeight)
+   FilePrint(gSumFileOut, "Subject code: "+gSubNum)
+   FilePrint(gSumFileOut, "Time:         "+TimeStamp())
+   FilePrint(gSumFileOut,"-----------------------------------------------")
+
+   FilePrint(gSumFileOut,"Total Correct:          "+Sum(Merge(err1,err2)))
+   FilePrint(gSumFileOut,"Total Errors:           "+(Length(Merge(err1,err2))-Sum(Merge(err1,err2))))
+
+   FilePrint(gSumFileOut,"Mean Accuracy:          "+(Mean(Merge(err1,err2))))
+   FilePrint(gSumFileOut,"Mean Error:             "+(1-Mean(Merge(err1,err2))))
+  FilePrint(gSumFileOut, "                 ROUND 1 Accuracy         ")
+   FilePrint(gSumFileOut,"----------------------------------------")
+   FilePrint(gSumFileOut,"Cond    N       median  mean    sd")
+   FilePrint(gSumFileOut,"----------------------------------------")
+   loop(i,statserr1)
+    {
+     tmp <- ""
+      loop(j,i)
+       {
+         tmp <- tmp + Format(j,7) + " "
+       }
+      FilePrint(gSumFileOut,tmp)
+     }
+  FilePrint(gSumFileOut, "              ROUND 2 Accuracy rate")
+   FilePrint(gSumFileOut,"----------------------------------------")
+   FilePrint(gSumFileOut,"Cond    N       median  mean    sd")
+   FilePrint(gSumFileOut,"----------------------------------------")
+   loop(i,statserr2)
+    {
+     tmp <- ""
+      loop(j,i)
+       {
+         tmp <- tmp + Format(j,7) + " "
+       }
+      FilePrint(gSumFileOut,tmp)
+     }
+   FilePrint(gSumFileOut,"----------------------------------------"+CR(2))
+
+   FilePrint(gSumFileOut,"Round 1 Response time")
+   FilePrint(gSumFileOut,"----------------------------------------")
+   FilePrint(gSumFileOut,"Cond    N       median  mean    sd")
+   FilePrint(gSumFileOut,"----------------------------------------")
+   loop(i,statsrt1)
+    {
+     tmp <- ""
+      loop(j,i)
+       {
+         tmp <- tmp + Format(j,7) + " "
+       }
+      FilePrint(gSumFileOut,tmp)
+     }
+   FilePrint(gSumFileOut,"----------------------------------------"+CR(2))
+
+   FilePrint(gSumFileOut,"Round 2 Response time")
+   FilePrint(gSumFileOut,"----------------------------------------")
+   FilePrint(gSumFileOut,"Cond    N       median  mean    sd")
+   FilePrint(gSumFileOut,"----------------------------------------")
+   loop(i,statsrt2)
+    {
+     tmp <- ""
+      loop(j,i)
+       {
+         tmp <- tmp + Format(j,7) + " "
+       }
+      FilePrint(gSumFileOut,tmp)
+     }
+
+  ##Save some coarse data to a pooled file, one line per subject.
+   FilePrint_(gPooledSummary,gSubNum+","+TimeStamp()+","+GetTime() + "," +
+       Sum(Merge(err1,err2))+","+(1-Mean(Merge(err1,err2)))+",")
+
+ ## This output causes crashes when we have 0 error rates, etc.
+ #  tmp <- Nth(Transpose(statserr1),4)
+ #  FilePrint_(gPooledSummary,First(tmp)+","+Second(tmp))
+ #  tmp <- Nth(Transpose(statserr2),4)
+ #  FilePrint_(gPooledSummary,First(tmp)+","+Second(tmp))
+ #  tmp <- Nth(Transpose(statsrt1),4)
+ #  FilePrint_(gPooledSummary,First(tmp)+","+Second(tmp))
+ #  tmp <- Nth(Transpose(statsrt2),4)
+ #  FilePrint(gPooledSummary,First(tmp)+","+Second(tmp))
+
+  ##Debrief at the end.
+  MessageKeyBox(gDebrief)
+}
+
+
+define DoBlock(trials,correctresponse,type,col:"blue")
+{
+
+  linecol <- MakeColor("darkgrey")
+  color <- MakeColor(col)
+  sizegrid <- 200
+  xhome <- gVideoWidth/2
+  yhome <- gVideoHeight/2
+   xs <- [xhome-sizegrid/2,xhome+sizegrid/2,xhome-sizegrid/2,xhome+sizegrid/2]
+   ys <-[yhome-sizegrid/2,yhome-sizegrid/2,yhome+sizegrid/2,yhome+sizegrid/2]
+
+  xys <- Transpose([xs,ys])
+
+   ##Make the grid
+   lines <- [ThickLine(xhome-sizegrid,yhome-sizegrid,xhome+sizegrid,yhome-sizegrid,5,linecol)]
+   lines <- Append(lines,ThickLine(xhome-sizegrid,yhome,xhome+sizegrid,yhome,5,linecol))
+   lines <- Append(lines,ThickLine(xhome-sizegrid,yhome+sizegrid,xhome+sizegrid,yhome+sizegrid,5,linecol))
+
+   lines <- Append(lines,ThickLine(xhome-sizegrid,yhome-sizegrid,xhome-sizegrid,yhome+sizegrid,5,linecol))
+   lines <- Append(lines,ThickLine(xhome,yhome-sizegrid,xhome,yhome+sizegrid,5,linecol))
+   lines <- Append(lines,ThickLine(xhome+sizegrid,yhome-sizegrid,xhome+sizegrid,yhome+sizegrid,5,linecol))
+
+  AddObjects(lines,gWin)
+
+  ##stim should be below the stars:
+  stim <- EasyLabel("",xhome,yhome, gWin,40)
+  Hide(stim)
+
+   stars <- []
+  pts <- MakeStarPoints(40,20,6)
+  loop(xy, xys)
+     {
+
+          shape <- Polygon(First(xy),Second(xy),First(pts),Second(pts),color,1)
+ 	  AddObject(shape,gWin)
+	  shape.aa <- 1
+          stars <- Append(stars,shape)
+
+     }
+  head <- EasyLabel(gLab +correctresponse,xhome,20, gWin,30)
+
+
+   feedback <- EasyLabel("X",xhome,yhome,gWin,60)
+  Hide(feedback)
+
+  #Wait some unspecified duration
+  timenow <- GetTime()
+  timeend <- timenow
+  trial <- 1
+  loop(i,trials)
+  {
+
+     timeend <- timeEnd + gisi
+     choice <- RandomDiscrete(4)
+     xy <- Nth(xys,choice)
+     Move(stim,Round(First(xy)),Round(Second(xy)))
+     star <- Nth(stars,choice)
+     Hide(star)
+     stim.text <- i
+     Show(stim)
+
+     Draw()
+     starttime <- GetTime()
+     gStimOn <- 1
+     ##make the stimulus disappear after 500 ms
+
+     RegisterEvent("<TIMER>", 1, starttime+gParams.stimtime,"<GEQ>","HIDEME", [stim,star])
+     if(gParams.usemouse)
+     {
+       resp <- WaitForMouseButtonWithTimeout(gParams.isi-50)
+       ##this will eithe be ["<timeout>"] or [x,y,button,state]
+     }else{
+      resp <- WaitForListKeyPressWithTimeout(["<lshift>","<rshift>"],gParams.isi-50,1)
+      #this will either be [<timeout>] or <buttonname>
+     }
+
+
+     endtime <- GetTime()
+     HideMe(stim,star)
+     ClearEventLoop()
+
+     if(resp=="<timeout>")
+        {
+           resp <- "NONE"
+        } else{
+
+	   if(IsList(resp))
+	    {
+              resp <- CollapseList(resp)
+            }
+        }
+
+      ##RECODE Whether they responded
+      if(resp=="NONE")
+       {
+	   responded <- 0
+       } else
+       {
+          responded <- 1
+       }
+
+
+      if(i == correctresponse)
+         {
+            present <- 1
+         } else {
+            present <- 0
+         }
+
+
+       corr <- ((responded and (correctresponse==i)) or
+               ((not responded) and (not (correctresponse==i))))
+
+       ##Give feedback if this was practice.
+	   if(type=="practice")
+	   {
+             if(corr==0)
+             {
+    	           Move(feedback,stim.x,stim.y)
+		   Show(feedback)
+		   Draw()
+		   Wait(1000)
+		   Hide(feedback)
+		   Draw()
+             }
+           }
+
+
+
+           outline <- gSubNum+","+gBlock+","+type+","+correctresponse+","+trial+","+choice+","+First(xy)+","+Second(xy)+","+i+","+present+","+resp+","+responded+","+corr+","+starttime + ","+(endtime-starttime)
+	   FilePrint(gFileOut,outline)
+	   FilePrint(gPooledFileOut,outline)
+	   ##Append some data
+	   gBlockNums <- Append(gBlockNums,gBlock)
+	   gRTs	      <- Append(gRTs,(endtime-starttime))
+	   gErrors    <- Append(gErrors, corr)
+           gStim     <-  Append(gStim,i)
+           gResponded <- Append(gResponded,responded)
+
+	   trial<-trial + 1
+	   WaitUntil(timeend)
+ }
+
+
+   RemoveObjects(stars,gWin)  ##these don't quite get cleaned up; maybe because of the
+                              ##event-loop functions.
+   Draw()
+}
+
+
+define AddObjects(list,win)
+{
+   loop(i,list)
+    {
+      AddObject(i,win)
+    }
+}
+
+
+
+define GetStrings(lang)
+{
+
+
+
+##Known trasnlations: HR, EN, PT, ES
+  lang <- Uppercase(lang)
+  fname <- "translations/gonogo.pbl-"+LowerCase(lang)+".json"
+
+  if(FileExists(fname))
+  {
+    gStrings <- ReadTranslationJSON(fname,lang)
+  } else
+  {
+    gStrings <- ReadTranslationJSON("translations/gonogo.pbl-en.json",lang)
+  }
+
+
+ if(gParams.usemouse)
+   {
+   method <- gStrings.methodmouse
+   } else {
+   method <- gStrings.methodKey
+   }
+
+
+   gLab <- method
+   gInst1 <- SubstituteStrings(gStrings.inst1,
+                [["<TARG>", gparams.pstim],
+		 ["<FOIL>", gParams.rstim],
+		 ["<METHOD>",method]])
+		 
+   gInst2 <- SubstituteStrings(gStrings.inst2,
+                 [["<METHOD>",method]])
+
+   gInst3 <- SubstituteStrings(gStrings.inst3,
+                [["<TARG>", gParams.pstim],
+		 ["<FOIL>", gParams.rstim],
+		 ["<METHOD>", method]])
+ 
+
+   gDebrief <- gStrings.debrief
+   gMethodMouse <- gStrings.methodmouse
+   gMethodKey <- gStrings.methodkey
+
+}
+
+
+define MessageKeyBox(message)
+{
+
+  tb <- EasyTextBox(message,100,100,gWin,28,gVideoWidth-200,gVideoHeight-200)
+  Draw()
+
+  if(gParams.usemouse)
+  {
+    WaitForDownClick()
+   } else {
+    WaitForAnyKeyPress()
+
+  }
+
+
+  RemoveObject(tb,gWin)
+
+}
+
+
+define WaitUntil(time)
+{
+
+     RegisterEvent("<TIMER>", 1, time,"<GEQ>","", [])
+     StartEventLoop()  #Start the timer
+     ClearEventLoop()  #clear it out when done.
+
+}
+
+define HideMe(stim,star,evt:0)
+{
+
+  if(gStimOn)
+  {
+     Hide(stim)
+     Show(star)
+     gStimOn <- 0
+     Draw()
+  }
+
+ return "<REMOVE>"
+}
+
+
+
+define CollapseList (list)
+{
+  return ConcatenateList(list,"|")
+}

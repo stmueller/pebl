@@ -1,0 +1,981 @@
+#################################################
+##
+##   PEBL's Tower of Hanoi
+##
+##   Released May 2010
+##
+##  Shane Mueller (smueller@obereed.net)
+##
+## For Bishop problems, see J Child
+##Psychol Psychiatry. 2001 May;42(4):551-6.  Individual differences in
+##cognitive planning on the Tower of Hanoi task: neuropsychological
+##maturity or measurement error?  Bishop DV1, Aamodt-Leeper G,
+##Creswell C, McGurk R, Skuse DH.
+##
+##
+##  Minor fixes contributed by Ross Spoon.
+
+define Start(p)
+{
+
+  gScriptName <- "PEBL Tower of Hanoi"
+##  Basic translations strings are assigned in GetStrings (see bottom of file).
+##
+##
+
+   parpairs <- [["showhand",1],
+                ["problemset","random3"], ##currently random3 or bishop
+                ["numtrials",10],         ##number of trials for random sets
+                ["usetimer",0],
+                ["timelimit",120],
+		["useturnlimit",0]]
+
+
+   gParams <- CreateParameters(parpairs,gParamFile)
+
+   GetStrings(gLanguage)
+
+  gShowHand     <- 1  #Show the hand graphic?
+  Init()
+
+  gInstructions <- MakeTextBox("",gFont,gVideoWidth-100,560)
+  AddObject(gInstructions,gWin)
+  Move(gInstructions,50,20)
+
+  if(gParams.problemset=="random3")
+   {
+    ##Make random trials:
+   stim <- MakeProblems3(gParams.numtrials)
+  }elseif(gParams.problemset=="bishop")
+  {
+   stim <- MakeBishopProblems()
+  } else {
+
+    SignalFatalError("Unknown test type: " +gParams.problemset)
+  }
+
+   gUseTimer <- gParams.usetimer  ##This hard-codes use of timer. Uncomment to
+                   ##override the defaults built into each particular test function.
+
+   gTimeLimit <- gParams.timelimit  ##default time limit, in seconds.
+   gUseTurnLimit <- gParams.useturnlimit  ##this hard-codes turn limits, overiding
+
+
+  gInstructions.text <- gInstText1
+
+  if(gUseTimer)
+   {
+     gInstructions.text <- gInstructions.text + gInstText2
+   }
+  if(gUseTurnLimit)
+   {
+     gInstructions.text <- gInstructions.text +gInstText3
+   }
+
+
+  gInstructions.text <- gInstructions.text + CR(1) + gBegin
+  gInstructions.font <- gFont2
+  Draw()
+
+  WaitForDownClick()
+  Hide(gInstructions)
+  Draw()
+
+  InitPoles()
+
+
+  gInstructions.width <- 220
+  gInstructions.height <- 520
+  Move(gInstructions,gVideoWidth/2+ 200,50)
+  gInstructions.text <- gContinue
+
+
+  gTrial  <- 1
+
+  loop(pair, stim)
+  {
+     TrialTOH(pair)
+     gTrial <- gTrial + 1
+  }
+
+   gInstructions.text <- gDebriefing
+
+   Show(gInstructions)
+   Draw()
+   WaitForAnyKeyPress()
+}
+
+
+
+
+define TrialTOH(pair)
+{
+
+    config <- First(pair)
+    config1 <- Second(pair)
+
+    startlab <- Third(pair)
+    endlab <- Fourth(pair)
+    shortest <- Fifth(pair)
+
+    numdisks <- Length(Flatten(config))
+
+    origstring <- MakeStateString(config)
+    gMovesranout <- 0
+    gTimeranout <- 0
+
+    ## Make standard and new configurations
+    ##This will move the disks into the right configuration, even though
+    ## they have already been added to the window.
+    c1 <- PlotDisksAnimate(config,440,gDisks,5)
+    c2 <- PlotDisksAnimate(config1,120,gDisks2,5)
+
+    ##if we have a valid turn limit, and turnlimit is turned on, make a graph.
+    if(shortest > 0 and gUseTurnLimit)
+    {
+      cGraph <- MakeGraph(shortest,shortest,650,400,gClickLab,shortest)
+    }
+
+    ##Initiate timing
+    startTime <- GetTime()
+    lasttime <- GetTime()
+    time <- GetTime()
+    FilePrint(gfileout, gSubNum + "," + gTrial + "," + numdisks + "," +
+                  MakeStateString(config) + "," +
+                  MakeStateString(config1) + ",0," + starttime + ",0,"+
+                  (time - lasttime)  + ",0")
+    #Allow disk moves until the two have identical configurations.
+    gEndTime <- time + gTimeLimit*1000
+    if(gUseTimer)
+    {
+      ##Timegraph defaults to 120 sec.
+      ##the ticks hsould be every 10 sec, unless there are less than 4
+      ## ticks. then every 5, then every 1 sec
+      numticks <- gTimeLimit/10
+      if(numticks < 4)
+       {
+         numticks <- gTimeLimit/5
+       }
+      if(numticks < 3)
+       {
+         numticks <- gTimeLimit
+       }
+
+
+      gTimeGraph <- MakeGraph(gTimeLimit,gTimeLimit,710,400,gTimeLab,numticks)
+    }
+
+   ##Add the two sets of disks to the window:
+    disks0 <- SubList(gDisks,1,Length(config))
+    ##Add the disks to the window.
+    loop(disk,disks0)
+    {
+     AddObject(disk,gWin)
+    }
+
+    disks2 <- SubList(gDisks2,1,Length(config))
+    ##Add the disks to the window.
+    loop(disk,disks2)
+    {
+
+     AddObject(disk,gWin)
+    }
+
+    Draw()
+
+    continue <- 1
+    step <- 1
+
+
+    while(continue)
+    {
+
+      ##This function gets the next move, and returns the new configuration
+
+      config <- MoveDisk(config)
+      time <- GetTime()
+      FilePrint_(gfileout, gSubNum + "," + gTrial + "," + numdisks + "," +
+                  MakeStateString(config) + "," +
+                  MakeStateString(config1) +","+
+                 step + "," + time +
+                  "," + (time - starttime) +"," + (time-lasttime))
+
+      lasttime <- time
+
+     ##Check to see if we have succeeded
+     if(ListEqual(config,config1))
+       {
+         success <- 1
+         continue <- 0
+         FilePrint(gfileout, ",1")
+       } else {
+         FilePrint(gfileout, ",0")
+       }
+
+    ##only update the graph if we have a good measure of
+    ## shortest path, and if the global flag specifies it.
+
+    if(shortest > 0 and gUseTurnLimit)
+     {
+
+        rem <- Max([0,shortest-step])
+        UpdateGraph(cgraph,rem, 650,400,shortest)
+        #if no moves remain:
+        if(rem == 0)
+         {
+
+
+           #if continue == 0, we have solved the puzzle already.
+           if(continue == 0)
+              {
+
+                  success <- 1
+  		  result <- 1
+              }else{
+
+                  gMovesRanOut <- 1
+                  continue <- 0
+                  success <- 0
+		          result <- 0
+              }
+         }
+     }
+
+
+    if(gUseTimer)
+     {
+         if(gTimeRanOut)
+          {
+              success <- 0
+              continue <- 0
+          }
+     }
+
+    Draw()
+
+    step <- step + 1
+
+
+   }
+
+    Wait(100)
+   FilePrint(gFileOutSum, gSubNum + "," + gTrial + "," + numdisks +
+       ","+ shortest + ","  +   startlab+ ","+ endlab + "," +
+       origstring  + "," +  MakeStateString(config1) + "," + success + ","+
+      (step-1) + "," + (time-starttime))
+
+   if(success)
+    {
+     gInstructions.text <- gContinue
+    } else {
+     gInstructions.text <- gIncomplete
+     if(gMovesRanOut)
+      {
+        ginstructions.text <- gInstructions.text +gMovesOutLab
+      }elseif(gtimeRanOut)
+      {
+        ginstructions.text <- gInstructions.text + gTimeOutLab
+      }else{
+        gInstructions.text <- gInstructions.text+CR(2)+ gContinue
+       }
+    }
+   RemoveObject(gInstructions,gWin)
+   AddObject(gInstructions,gWin)
+   Show(gInstructions)
+   Draw()
+   WaitForDownClick()
+   Hide(gInstructions)
+#   HideAll()
+
+   if(gUseTimer)
+    {
+      RemoveComplex(gTimeGraph)
+    }
+
+   if(shortest > 0 and  gUseTurnLimit)
+   {
+     RemoveComplex(cGraph)
+   }
+ RemoveComplex(disks0)
+ RemoveComplex(disks2)
+
+return success
+}
+
+
+define HideAll()
+{
+   loop(i, Merge(gDisks,gDisks2))
+   {
+     Hide(i)
+   }
+}
+
+define Init()
+{
+  gSleepEasy <- 1
+
+  gPoleHeights <- 6
+#  gVideoWidth <- 800
+#  gVideoHeight <- 600
+#  ShowCursor(0)
+  gWin <- MakeWindow("black")
+
+   if(gSubNum+""=="0")
+   {
+     gSubNum <- GetSubNum(gWin)
+   }
+
+  ##  gPEBLBaseFont <- "Vera.ttf"  ##uncomment for version 0.10
+  ##These may need to be changed for a particular language.
+  gFont <- MakeFont(gPEBLBaseFont,0,15,MakeColor("white"),MakeColor("black"),1)
+  gFont2 <- MakeFont(gPEBLBaseFont,0,24,MakeColor("white"),MakeColor("black"),1)
+}
+
+define InitPoles()
+{
+##Make hot zones for each stack.
+
+   gBasex <- 250
+
+   height <- (gPoleHeights)*30+15
+   y <- 470-height/2
+   r1 <-  Rectangle(gbaseX+155,y,150,height,MakeColor("white"),1)
+   height <-(gPoleHeights)*30+15
+   y <- 470-height/2
+   r2 <-  Rectangle(gbaseX+310,y,150,height,MakeColor("white"),1)
+   height <- (gPoleHeights)*30+15
+   y <- 470-height/2
+   r3 <-  Rectangle(gbaseX+465,y,150,height,MakeColor("white"),1)
+
+   AddObject(r1,gWin)
+   AddObject(r2,gWin)
+   AddObject(r3,gWin)
+   gZones <- [r1,r2,r3]
+
+  gDisks <- []
+  gDisks2 <- []
+
+
+  loop(i,Sequence(1,6,1))
+   {
+          tmp <- MakeImage("png/disk"+i+".png")
+          gDisks <- Append(gDisks,tmp)
+
+          tmp <- MakeImage("png/disk"+i+".png")
+          gDisks2 <- Append(gDisks2,tmp)
+
+   }
+
+   if(gShowHand)
+    {
+     gHand   <- MakeImage("png/hand.png")
+     AddObject(gHand,gWin)
+     Move(gHand,gBaseX+310,225)
+    }
+
+
+   footerfont <-   MakeFont(gPEBLBaseFont,0,20,MakeColor("grey"),MakeColor("black"),1)
+
+   gFooter <- MakeLabel(gFooterLab,footerfont)
+   AddObject(gFooter,gWin)
+   Move(gFooter,gBaseX+310,490)
+
+   gHeader <- MakeLabel(gHeaderLab,footerfont)
+   AddObject(gHeader,gWin)
+   Move(gHeader,gbaseX,165)
+  ##Keep track of the image complex:
+  gComplex <- []
+
+  gRect <- Rectangle(gbaseX+310,80,460,140,MakeColor("white"),1)
+  AddObject(gRect,gWin)
+
+
+  gFileOut <- GetNewDataFile(gSubNum,gWin,"toh","csv",
+    "sub,trial,size,current,end,step,abstime,trialtime,clicktime,done")
+
+  gFileOutSum <- GetNewDataFile(gSubNum,gWin,"toh-summary","csv",
+      "sub,trial,size,shortest,startlab,endlab,startconf,endconf,success,steps,time")
+
+
+ }
+
+
+
+define PlotDisksAnimate(config,ybase,disks,steps)
+{
+
+  ydelta <- 20
+  yheights <- Repeat(0,Length(disks))
+
+  ##Get starting locations of disks.
+  startxy <- []
+
+  disks2 <- SubList(disks,1,Length(config))
+
+  loop(i, disks2)
+   {
+     startxy <- Append(startxy, [i.x,i.y])
+   }
+
+  x <- gBaseX
+  complex <- []
+
+
+  ##Go through each column of the config string
+  endxy <- []
+
+  loop(disk,config)
+  {
+
+   if(disk == 0)
+     {
+       endXY <- Append(endXY, [gBaseX+310,225])  ##Move to hand.
+     }else{
+
+       endXY <- Append(endXY, [x+155*disk,ybase+Nth(yheights,disk)])
+       yheights <-AddToListItem(yheights,disk,-ydelta)
+     }
+
+  }
+
+
+  ##compute the xy vector that each disk must move on each step
+  startend <- Transpose([startxy, endxy])
+  stepxy <- []
+  loop(i, startend)
+   {
+      start <- First(i)
+      end <- Second(i)
+      stepxy <- Append(stepxy,[(First(end)-First(start))/steps,
+                               (Second(end)-Second(start))/steps])
+   }
+
+
+  ##animate for the steps.
+  diskstep <- Transpose([disks2,endxy,stepxy])
+  step <- 1
+  while(step <= steps)
+  {
+    loop(i, diskstep)
+     {
+        disk <- First(i)
+        end <- Second(i)
+        diff <- Third(i)
+
+        disk.x <- First(end) - First(diff)   * (steps-step)
+        disk.y <- Second(end) - Second(diff) * (steps-step)
+     }
+
+   Draw()
+   step <- step + 1
+  }
+
+ return  complex
+}
+
+
+define AddToListItem(list,element,addend)
+{
+  newlist <- []
+  index <- 1
+  loop(i,list)
+   {
+     if(index == element)
+      {
+        tmp <- i + addend
+      }else{
+        tmp <- i
+      }
+   newlist <- Append(newlist, tmp)
+   index <- index + 1
+   }
+ return newlist
+}
+
+define MoveDisk(config)
+{
+
+   if(gUseTimer)
+   {
+    cont <- 1
+    while(cont)
+    {
+         first <- WaitForClickOnTargetWithTimeout(gZones, [1,2,3],100)
+         if(first=="<timeout>")
+           {
+	      timeleft <- (gEndTime-GetTime())/1000
+              if(timeleft < 0)
+               {
+                   gTimeRanOut <- 1
+                   cont <- 0
+               }
+              UpdateGraph(gTimegraph,Max([0,timeleft]), 710,400,gTimeLimit)
+              Draw()
+
+           } else {
+
+              ##Make sure you click on on something with a disk.
+			   if(IsMember(first,config))
+                {
+                 cont <- 0
+                }
+           }
+    }
+
+   } else {
+       ##No timer, so use just standard click.
+       first <- WaitForClickOnTarget(gZones, [1,2,3])
+
+   }
+
+
+
+    config <- RemoveDisk(first,config)
+
+
+   if(1)
+    {
+      ##Remove the disk complex so it can be re-drawn
+      RemoveComplex(gComplex)
+      gComplex <- PlotDisksAnimate(config,440,gDisks,5)
+      Draw()
+
+
+      cont <- 1
+      while(cont)
+      {
+       #Now, get the target pile 1-3
+
+
+     if(gUseTimer)
+     {
+
+      cont <- 1
+      if(CheckValid(config,next))
+        {
+	     cont <- 0
+	    }
+
+
+      while(cont)
+      {
+         next <- WaitForClickOnTargetWithTimeout(gZones, [1,2,3],100)
+
+         if(next=="<timeout>")
+           {
+	          timeleft <- (gEndTime-GetTime())/1000
+              UpdateGraph(gTimegraph,Max([0,timeleft]), 710,400,gTimeLimit)
+              Draw()
+              if(timeleft < 0)
+               {
+                   gTimeRanOut <- 1
+               }
+
+
+           } else {
+               cont <- 0
+           }
+       }
+
+      } else {
+        ##No timer, so use just standard click.
+        next <- WaitForClickOnTarget(gZones, [1,2,3])
+        while(not CheckValid(config,next))
+         {
+           next <- WaitForClickOnTarget(gZones, [1,2,3])
+         }
+          cont <- 0
+       }
+
+      }
+
+
+      RemoveComplex(gComplex)
+      config <- AddDisk(config,next)
+      gComplex <- PlotDisksAnimate(config,440,gDisks,5)
+      Draw()
+    }
+   return config
+}
+
+define RemoveComplex(x)
+{
+    loop(i,x)
+    {
+       RemoveObject(i,gWin)
+    }
+}
+
+##Returns a string describing a state of the problem
+define MakeStateString(config)
+{
+  string <- ""
+  loop(i,config)
+  {
+      string <- string + i
+  }
+
+  return string
+}
+
+##This works just on the data structure, not on the display.
+
+define RemoveDisk(col,ind)
+{
+
+##It removes the topmost (smallest/rightmost) item on a column,
+##setting it to 0
+
+   rev <- Reverse(ind)
+   removed <- 0
+
+   newcomp <- []
+   loop(i,rev)
+   {
+
+    if(i == col and removed == 0)
+    {
+        tmp <- 0
+        removed <- 1
+    } else {
+        tmp <- i
+    }
+    newcomp <- Append(newcomp,tmp)
+   }
+
+  return Reverse(newcomp)
+}
+
+
+define AddDisk(config,nextcol)
+{
+
+  ##There is currently a disk in hand (marked 0)
+  ## when you find it, mark it nextcol.
+   newcomp <- []
+   loop(i,config)
+   {
+
+
+    if(i==0)
+    {
+      newcomp <- Append(newcomp, nextcol)
+
+    } else {
+     newcomp <- Append(newcomp,i)
+    }
+
+   }
+
+  return newcomp
+}
+
+
+
+##checks to see if the configuration is valid.
+define CheckValid(config,next)
+{
+
+ ## We wanted to place the thing in 0 onto the next pile.
+ ## It will only be legal if there are no smaller disks
+ ## on that pile already.
+
+
+   founddisk <- 0
+   foundsmaller <- 0
+
+    rev <- Reverse(config)
+
+    loop(pile,rev)
+     {
+       if(pile==next)
+	   {
+	     foundsmaller <- 1
+       }
+
+       if(pile==0)
+       {
+         founddisk <- 1
+         break
+       }
+     }
+
+
+   ## At this point, if founddisk ==0, it is OK (no disk in hand)
+   ##                                  even if foundsmaller==1
+   ## if founddisk == 1, there is a disk in hand,
+   ##      if foundsmaller == 1, there was a smaller disk on that pile; bad
+   ##      if foundsmaller == 0, there is no smaller disk, OK
+
+  if(founddisk == 0)
+   {
+     ok <- 1
+   }else{
+
+        if(foundsmaller == 1)
+        {
+         ok <- 0
+
+        }else{
+         ok <- 1
+        }
+   }
+ return ok
+}
+
+define MakeProblems3(num)
+{
+   dists <-  TOH3Dists()
+   states <-  TOH3states()
+
+    i <- 1
+   probs <- []
+   while(i <= num)
+   {
+     probs <- Append(probs,MakeProblem3(states,dists))
+
+     i <- i + 1
+   }
+  Print(probs)
+
+  return probs
+}
+
+
+
+##makes a problem of size 3
+define MakeProblem3(probs,dists)
+{
+   startend <- SampleN(Sequence(1,27,1),2)
+   startid <- First(startend)
+   endid   <- Second(startend)
+
+   startstate <- Nth(probs,startid)
+   endstate   <- Nth(probs,endid)
+
+
+   startlab <- ListToString(startstate)
+   endlab <- ListToString(endstate)
+
+   dist <-M(dists,startid,endid)
+
+   return [startstate,endstate,startlab,endlab,dist]
+}
+
+
+define M(m,i,j)
+{
+  return Nth(Nth(m,i),j)
+}
+
+
+
+define MakeGraph(remaining,total,x,y,label,numticks)
+{
+
+    ##Sets up some basic parameters for plotting the graph at the bottom of the screen
+    font <- MakeFont(gPEBLBaseFont,0,12,MakeColor("grey80"),MakeColor("black"),0)
+    height <- 250
+    dataheight <- remaining/total * height
+    width  <- 20
+    scale <- height/total      ##pixels/unit
+
+    ycenter <- y
+    xcenter <- x
+
+
+	bgcol <- MakeColor("grey20")
+#    fgcol <- MakeColor("red")
+    fgcol <- MakeColorRGB(170,0,0)
+    black <- MakeColor("grey80")
+
+
+    #Create rectangle for background and for data
+    back <- Rectangle(xcenter,ycenter, 70, height+50, bgcol, 1)
+    data <- Rectangle(xcenter,ycenter + height/2 - dataheight/2, width, dataheight, fgcol, 1)
+    lab <- MakeLabel(label,font)
+    Move(lab,xcenter, ycenter+height/2+14)
+
+
+    AddObject(back,gWin)
+    AddObject(data,gWin)
+    AddObject(lab,gWin)
+    ##Create all the labels, based on yvals. Add each label to the
+    ##appropriate location, and combine them all into a single
+    ##composite to make removal easier.
+    ##These labels are all re-created each trial--they could be
+    ##static, which would be a little more efficient, but it is really
+    ##fast as is.
+    composite <-[back,data,lab]
+
+
+
+    yvals <- Sequence(0, total, total/numticks)
+
+     loop(i,yvals)
+      {
+        yy <- MakeLabel(i+"", font)
+        AddObject(yy,gWin)
+        Move(yy,  xcenter-20, ycenter + height/2 - i*scale)
+        Show(yy)
+        composite <- Append(composite,yy)
+        tick <- Line(Floor(xcenter-width/2),ycenter+height/2-i*scale,width,0,black)
+        AddObject(tick,gWin)
+        composite <- Append(composite,tick)
+
+      }
+    Draw()
+
+
+    return composite
+}
+
+define UpdateGraph(myGraph, remaining, x,y, total)
+{
+
+    ##Sets up some basic parameters for plotting the graph at the bottom of the screen
+
+    height <- 250
+    dataheight <- remaining/total * height
+
+    ycenter <- y
+    xcenter <- x
+
+    #Extract the data from graph.
+    data <- Second(myGraph)
+    data.height <- dataheight
+    data.y <- Floor(ycenter + height/2 -dataheight/2)
+
+}
+
+##
+##
+##
+
+define ListEqual(l1,l2)
+{
+  if(Length(l1)==Length(l2))
+  {
+   same <- 1
+
+
+   loop(i,Transpose([l1,l2]))
+    {
+     if(not (First(i) == Nth(i,2)))
+      {
+        same <- 0
+      }
+
+    }
+   } else {
+     same <- 0
+   }
+  return same
+}
+
+
+## This provides basic translations, with strings appearing in
+## translations/ folder.
+
+define GetStrings(lang)
+{
+
+##Known trasnlations:  EN,ES
+  lang <- Uppercase(lang)
+  fname <- "translations/TOH.pbl-"+LowerCase(lang)+".json"
+
+  if(FileExists(fname))
+  {
+    gStrings <- ReadTranslationjson(fname,lang)
+  } else
+  {
+    gStrings <- ReadTranslationjson("translations/TOH.pbl-en.json",lang)
+  }
+
+    gSelect <- gStrings.select
+    gHeaderLab <- gStrings.headerlab
+    gFooterLab <- gStrings.footerlab
+    gInstText1 <- gStrings.insttext1
+    gInstText2 <- gStrings.insttext2
+    gInstText3 <- gStrings.insttext3
+
+    gBegin <-  gStrings.begin
+    gRepeatLab <- gStrings.repeatlab
+    gContinue <- gStrings.continue
+    gIncomplete <- gStrings.incomplete
+    gClickLab <- gStrings.clicklab
+    gTimeLab <-  gStrings.timelab
+    gMovesOutLab <- gStrings.movesoutlab
+    gTimeOutLab <-  gStrings.timeoutlab
+    gDebriefing <- gStrings.debriefing
+
+}
+
+
+
+define TOH3states()
+{
+  ##These are the 27 states in TOH-3
+  x <- [[1,1,1],[1,1,2],[1,1,3],[1,3,2],[1,2,3],[1,3,3],[1,3,1],[1,2,1],[1,2,2],[2,3,3],
+        [3,2,2],[2,3,1],[2,3,2],[3,2,3],[3,2,1],[2,2,1],[2,1,2],[3,1,3],[3,3,1],[2,2,2],
+        [2,2,3],[2,1,3],[2,1,1],[3,1,1],[3,1,2],[3,3,2],[3,3,3]]
+
+  return x
+}
+
+
+
+define TOH3Dists()
+{
+  dist <-[[0,1,1,2,2,3,3,3,3,4,4,5,5,5,5,6,6,6,6,7,7,7,7,7,7,7,7],
+[1,0,1,1,2,2,2,3,3,3,4,4,4,5,5,5,5,6,6,6,6,6,6,7,7,7,7],
+[1,1,0,2,1,3,3,2,2,4,3,5,5,4,4,6,6,5,5,7,7,7,7,6,6,6,6],
+[2,1,2,0,3,1,1,2,3,2,4,3,3,5,5,4,4,6,6,5,5,5,5,6,7,7,7],
+[2,2,1,3,0,3,2,1,1,4,2,5,5,3,3,6,6,4,4,7,7,7,6,5,5,5,5],
+[3,2,3,1,3,0,1,2,3,1,4,2,2,5,5,3,3,6,6,4,4,4,4,5,6,7,7],
+[3,2,3,1,2,1,0,1,2,2,3,3,3,4,4,4,4,5,5,5,5,5,5,6,6,6,6],
+[3,3,2,2,1,2,1,0,1,3,2,4,4,3,3,5,5,4,4,6,6,6,6,5,5,5,5],
+[3,3,2,3,1,3,2,1,0,4,1,5,5,2,2,6,6,3,3,7,7,6,5,4,4,4,4],
+[4,3,4,2,4,1,2,3,4,0,5,1,1,6,6,2,2,5,7,3,3,3,3,4,5,6,7],
+[4,4,3,4,2,4,3,2,1,5,0,6,6,1,1,7,5,2,2,7,6,5,4,3,3,3,3],
+[5,4,5,3,5,2,3,4,5,1,6,0,1,6,7,1,2,5,7,2,2,3,3,4,5,6,7],
+[5,4,5,3,5,2,3,4,5,1,6,1,0,5,6,2,1,4,6,3,3,2,2,3,4,5,6],
+[5,5,4,5,3,5,4,3,2,6,1,6,5,0,1,6,4,1,2,6,5,4,3,2,2,3,3],
+[5,5,4,5,3,5,4,3,2,6,1,7,6,1,0,7,5,2,1,7,6,5,4,3,3,2,2],
+[6,5,6,4,6,3,4,5,6,2,7,1,2,6,7,0,3,5,7,1,1,2,3,4,5,6,7],
+[6,5,6,4,6,3,4,5,6,2,5,2,1,4,5,3,0,3,5,3,2,1,1,2,3,4,5],
+[6,6,5,6,4,6,5,4,3,5,2,5,4,1,2,5,3,0,3,5,4,3,2,1,1,2,3],
+[6,6,5,6,4,6,5,4,3,7,2,7,6,2,1,7,5,3,0,7,6,5,4,3,2,1,1],
+[7,6,7,5,7,4,5,6,7,3,7,2,3,6,7,1,3,5,7,0,1,2,3,4,5,6,7],
+[7,6,7,5,7,4,5,6,7,3,6,2,3,5,6,1,2,4,6,1,0,1,2,3,4,5,6],
+[7,6,7,5,7,4,5,6,6,3,5,3,2,4,5,2,1,3,5,2,1,0,1,2,3,4,5],
+[7,6,7,5,6,4,5,6,5,3,4,3,2,3,4,3,1,2,4,3,2,1,0,1,2,3,4],
+[7,7,6,6,5,5,6,5,4,4,3,4,3,2,3,4,2,1,3,4,3,2,1,0,1,2,3],
+[7,7,6,7,5,6,6,5,4,5,3,5,4,2,3,5,3,1,2,5,4,3,2,1,0,1,2],
+[7,7,6,7,5,7,6,5,4,6,3,6,5,3,2,6,4,2,1,6,5,4,3,2,1,0,1],
+[7,7,6,7,5,7,6,5,4,7,3,7,6,3,2,7,5,3,1,7,6,5,4,3,2,1,0]]
+
+  return dist
+}
+
+## Problems defined by Bishop:
+##
+define MakeBishopProblems()
+{
+    probs <- [[[1,1], [3,3], 11, 33, 3],
+             [[1,2,2],[3,3,3],122,333,4],
+             [[1,1,1],[3,2,2],111,322,4],
+	         [[1,2,3],[3,3,3],123,333,5],
+	         [[1,1,1],[3,2,1],111,321,5],
+	         [[1,1,3],[3,3,3],113,333,6],
+	         [[1,1,1],[3,3,1],111,331,6],
+	         [[1,1,1],[3,3,3],111,333,7],
+	         [[1,1,1],[2,1,1],111,211,7],
+	         [[2,1,1,1],[3,3,3,3],2111,3333,8],
+	         [[1,1,1,1],[2,3,3,3],1111,2333,8],
+	         [[2,1,1,3],[3,3,3,3],2113,3333,9],
+             [[1,1,1,1],[2,3,3,1],1111,2331,9]      ]
+
+  return probs
+}

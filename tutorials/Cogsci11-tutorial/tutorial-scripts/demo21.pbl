@@ -1,0 +1,45 @@
+define Start(p)
+{
+
+   win <- MakeWindow()
+   label  <- EasyLabel("Press number key shown",gVideoWidth/2,gVideoHeight/2,win,44)
+
+
+   Draw()
+   WaitForAnyKeyPress()
+
+   gRTS <- []  
+   gAcc <- []
+   conds <- Shuffle([1,1,1,2,2,2,3,3,3,4,4,4])
+   loop(i,conds)
+   {
+     itext <- i+""
+     label.text <- itext
+     Draw()
+     time1 <- GetTime()
+     resp <- WaitForListKeyPress(["1","2","3","4"])
+     time2 <- GetTime()
+
+      label.text  <- ""
+      Draw()
+      gRTs <- Append(gRTS, (time2-time1))
+      gAcc <- Append(gAcc, resp == itext)
+      Wait(200)
+   }
+
+ aggRT <- []
+ aggAcc <- []
+ loop(i, [1,2,3,4])
+  {
+    match <- Match(conds,i)
+    subRT <- Filter(gRTs,match)
+    subAcc <- Filter(gAcc,match)
+    aggRT <- Append(aggRT, Mean(subRT))
+    aggAcc <- Append(aggAcc,Mean(subAcc))
+  }
+##Now, aggRT and aggACC contain mean RT and accuracy for each stimulus condition.
+
+ Print("Results:")
+ Print(aggRT)
+ Print(aggAcc)
+}

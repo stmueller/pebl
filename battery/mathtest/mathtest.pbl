@@ -1,0 +1,322 @@
+##A simple math test for practec or
+##
+##
+
+define Start(p)
+{
+
+  parpairs <- [["duration",60],   ##time duration  of test in seconds
+  	      ["blocks",7],
+               ["block1","a"],      ##add all types that you want to use
+               ["block2","A"],      ##ASMD = hard addition/subtr/mult/div
+               ["block3","aA"],     ##asmd = easy add/sub/mult/div
+               ["block4","m"],      ##Add as many as you want.
+               ["block5","M"],      ##Examples: Aa mixes easy and hard addition
+               ["block6","mM"],     ##          ad mixes easy addition and division
+               ["block7","aAmM"],
+               ["requirecorrect",1],
+	       ["givefeedback",1],
+	       ["shuffleblocks",1],
+	       ["allowErrors",1] ##should you restart on error, or move on
+               ]
+
+
+  gParams <- CreateParameters(parpairs,gParamFile)
+
+  gScriptName <- "PEBL Math Skills Test"
+
+  gDuration <- gParams.duration
+  gTesttype <- ""  ##easy or diff
+  gConditiontag <- "X"  ##is there a special condition tag?
+
+
+
+  gWin <- MakeWindow("black")
+  gsleepEasy <- 1
+
+
+
+  if(gSubNum+""=="0")
+  {
+   gSubNum <- GetSubNum(gWin)
+  }
+
+
+   GetStrings(gLanguage)
+
+
+    gFileOutS <- GetNewDataFile(gSubNum,gWin,"mathtest","csv",
+        "sub,timestamp,condition,duration,testtype,probset,time,completed,errors,rtmean")
+    gFileOutD <- GetNewDataFile(gSubNum,gWin,"mathtest-detailed","csv",
+        "sub,timestamp,condition,duration,testtype,endtime,problem,correctanswer,answer,correct,try,rt")
+
+
+   gTimeLimit <- gParams.duration * 1000
+
+
+
+  counter <- EasyLabel("",gVideoWidth/2,gVideoHeight/2+200,gWin,18)
+  font <- MakeFont(gPEBLBaseFontMono,0,44,
+                    MakeColor("black"),MakeColor("white"),0)
+   gProblem <-  EasyLabel("", gVideoWidth/2,gVideoHeight/2-150,gWin,44)
+   gAnswer <- EasyTextBox("",gVideoWidth/2-150,gVideoHeight/2-35,gWin,44,300,70)
+   gAnswer.font <- font
+
+
+  ShowCursor(0)
+
+
+  Messagebox(gStrings.inst1,gWin)
+
+  problems <- ReadCSV("mathprobs.csv")
+
+
+
+  message <- EasyLabel("",gVideoWidth/2,gVideoHeight/2-200,gWin,28)
+
+   ##Set up timer globals
+  timerBack <-  Rectangle(gVideoWidth/2,gVideoHeight/2+100,300,20,
+                    MakeColor("grey"),0)
+
+  timerFront <-  Rectangle(gVideoWidth/2,gVideoHeight/2+100,300,20,
+                           MakeColor("red"),1)
+   AddObject(timerFront,gWin)
+   AddObject(timerBack,gWin)
+   gTimer <-[timerFront,timerBack]
+
+
+  allblocks <- [gParams.block1,gParams.block2,
+  	        gParams.block3,gParams.block4,
+                gParams.block5,gParams.block6,gParams.block7]
+
+   blocks <- SubList(allblocks,1,gParams.blocks)
+
+
+  if(gParams.shuffleblocks)
+   {
+        blocks <- Shuffle(blocks)
+   }
+
+
+   trial <- 1
+   block <- 1
+   loop(blockcode, blocks)
+   {
+
+    ##Pick out the codes that match!
+    codes <- SplitString(blockcode,"")
+    trials <- []
+
+
+    loop(code,codes)
+    {
+
+     filter <- Match(Nth(Transpose(problems),3),code)
+     PushOnEnd(trials,Filter(problems,filter))
+    }
+
+    ##Mix up the trials:
+
+    trials <- Shuffle(FlattenN(trials,1))
+    message.text <- gStrings.ready
+
+   Draw()
+   WaitForAnyKeyPress()
+   Hide(message)
+   CountDown(gWin)
+   complete <- 0
+   gEndTime <- GetTime() + gTimeLimit
+   data <- []
+
+
+
+   loop(problem,trials)
+    {
+
+      counter.text <- gStrings.counter+ " ["+complete+"]"
+      out <-  DoProblem(First(problem),Second(problem))
+      PushOnEnd(data,out)
+     ##If we ran out of time, break out, ignore data
+
+
+      trial <- trial + 1
+      complete <- complete + 1
+
+     if(GetTime()>gEndTime)
+	{
+             break
+	}
+
+    }
+
+
+    td <- Transpose(data)
+
+    errors <- Sum(First(td))-Sum(Third(td))
+    rtmean <- Mean(Second(td))
+
+    Print(td)
+
+    FilePrint(gFileOutS,gSubNum+","+TimeStamp()+","+gconditiontag+","+blockcode+","+
+         gduration+","+gtesttype+","+gTimeLimit+","+complete+
+	 ","+ errors + "," + rtMean)
+
+
+    message.text <- gStrings.counter + " ["+complete+"]  ["+
+                    (gTimeLimit/1000)+"] "+gSTrings.seconds+
+                      " ("+errors  +" " + gStrings.errors+")." + gStrings.continue
+
+    Show(message)
+    Draw()
+    WaitForKeyPress(" ")
+    block <- block + 1
+  }
+   MessageBox(gStrings.debrief,gWin)
+}
+
+
+define DoProblem (problemtext, correctanswer)
+{
+
+   gProblem.text <- problemtext
+   gAnswer.text <- ""
+   Draw()
+   tries <- 0
+   ans <- ""
+   time1 <- GetTime()
+
+   cont <- 1
+
+     while(cont)
+       {
+            tries <- tries + 1
+            ans <- GetNumberInput(gAnswer)
+	    time2 <- GetTime()
+	    corr <-ans == correctanswer
+
+
+            if(gParams.givefeedback)
+	    {
+              if(corr)
+              {
+ 	       gProblem.text <- gStrings.correct
+
+	      }else {
+               gProblem.text <- gSTrings.incorrect
+              }
+
+		Draw()
+		Wait(250)
+		gAnswer.text <- ""
+		gProblem.text <- ""
+              } else {
+    	      gAnswer.text <- ""
+              }
+
+	     Draw()
+
+	     FilePrint(gFileOutD,gSubNum+","+time2+","+gConditionTag+","+gDuration+","+gTestType+","+
+gEndTime+"," + problemtext + "," + correctanswer + ","+ans + "," + corr+","+tries+","+(time2-time1))
+
+         if(GetTime()>gEndTime)
+           {
+             cont <- 0
+           }
+	 if(gParams.allowerrors)
+           {
+            cont <- 0
+           }elseif(ans == correctanswer)
+          {
+             cont <- 0
+          }
+
+        }
+
+
+  return [tries, (time2-time1),corr]
+}
+
+
+
+define GetNumberInput(label)
+{
+  opts <- ["1","2","3","4","5","6","7","8","9","0",
+           "<kp_1>","<kp_2>","<kp_3>","<kp_4>","<kp_5>","<kp_6>",
+           "<kp_7>","<kp_8>","<kp_9>","<kp_0>",
+            "<backspace>","<return>" ,"<kp_enter>"]
+
+  done <- 0
+
+  out <- ""
+  while (not done)
+  {
+
+     RegisterEvent("<TIMER>", 1, Gettime(),"<GEQ>","UpdateTimer", [gTimelimit])
+
+     resp <- WaitForListKeyPressWithTimeout(opts,500,1)
+     if(resp=="<timeout>")
+      {
+         if(GetTime()>gEndTime)
+         {
+          done <- 1
+         }
+      } elseif( resp == "<return>" or resp == "<kp_enter>")
+     {
+       done <- 1
+     } else {
+
+     if(resp == "<backspace>")
+     {
+      if(StringLength(out)<=1)
+      {
+        out <- ""
+      } else {
+        start <- 1
+        max <- Max([1,StringLength(out)-1])
+        out <- SubString(out,1,max)
+      }
+     } else {
+
+      out <- out + resp
+     }
+
+      label.text <- out
+      Draw()
+
+     }
+
+  }
+
+ return out
+
+}
+
+define UpdateTimer(max,evt:0)
+{
+    prop <- Max([0,gEndTime - GetTime()])/max
+    front <- First(gTimer)
+    back <- Second(gTimer)
+    front.width <- back.width * prop
+    Draw()
+}
+
+
+
+
+
+
+define GetStrings(lang)
+{
+
+  lang <- Uppercase(lang)
+  fname <- "translations/mathtest.pbl-"+LowerCase(lang)+".json"
+
+  if(FileExists(fname))
+  {
+    gStrings <- ReadTranslationJSON(fname,lang)
+  } else
+  {
+    gStrings <- ReadTranslationJSON("translations/mathtest.pbl-en.json",lang)
+  }
+
+ }

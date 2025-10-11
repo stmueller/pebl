@@ -1,0 +1,1965 @@
+#//////////////////////////////////////////////////////////////////////////////
+#//    Name:       src/pebl-lib/Utility.pbl
+#//    Purpose:    Contains PEBL functions used for various purposes
+#//    Author:     Shane T. Mueller, Ph.D.
+#//    Copyright:  (c) 2004-2020 Shane T. Mueller <smueller@obereed.net>
+#//    License:    GPL 2
+#//
+#//
+#//
+#//     This file is part of the PEBL project.
+#//
+#//    PEBL is free software; you can redistribute it and/or modify
+#//    it under the terms of the GNU General Public License as published by
+#//    the Free Software Foundation; either version 2 of the License, or
+#//    (at your option) any later version.
+#//
+#//    PEBL is distributed in the hope that it will be useful,
+#//    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#//    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#//    GNU General Public License for more details.
+#//
+#//   You should have received a copy of the GNU General Public License
+#//   along with PEBL; if not, write to the Free Software
+#//   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#//////////////////////////////////////////////////////////////////////////////
+
+
+#  The functions defined here are available for use in any PEBL program.
+#  They are written in PEBL itself, and so are interpreted, but the ease of
+#  writing them in PEBL far outweighed the possible speed-up that
+#   might be gained by writing them directly in C++.
+
+
+define GetNIMHDemographics(code,window, file)
+{
+
+
+        background <- MakeColor("grey40")
+    	bg <- MakeCanvas(gVideoWidth,gVideoHeight,background)
+	AddObject(bg,window)
+	Move(bg,gVideoWidth/2,gVideoHeight/2)
+	Draw(bg)
+
+        #####################################################
+        ##First, ask about gender.
+
+
+        responseGender <- GetEasyChoice("What is your sex/gender?",
+		 				["1. Male", "2. Female", "3. Prefer not to say"],
+						["M","F","N"],window)
+
+        Draw()
+
+        ##########################################################
+        ##Ask about hispanic heritage(ethnicity)
+        responseEthnicity <- GetEasyChoice("Are you of Hispanic or Latino/Latina Heritage?",
+		 				["Yes", "No"],
+						["hisp","nothisp"],window)
+
+
+        ##########################################################
+        ##Ask about Race
+         racecodes <-     ["amind","asian","afam","pacis","white","other"]
+         responseRace <- GetEasyMultiChoice("What is your race (select as many as apply)",
+           ["American Indian or Native American",
+	    "Asian",
+ 	    "Black/African American",
+            "Native Hawaiian or Other Pacific Islander",
+  	    "White",
+	    "Other/Prefer not to say"],
+             racecodes,
+	    window,1,6)
+
+
+
+        ##############################################################
+        ##Ask about Age.
+		responseAge <- GetEasyInput("How old are you (in years)?",window)
+
+
+
+        fileOut <- FileOpenAppend(file)
+        FilePrint(fileOut, code + "," + TimeStamp() + "," + responseGender+ "," + responseEthnicity +
+	"," + ConcatenateList(responseRace,",") + "," + responseAge)
+        FileClose(fileOut)
+        RemoveObject(bg,window)
+}
+
+
+define MoveCorner(object,x, y)
+{
+  if(IsTextBox(object))
+  {
+   Move(object,x,y)
+  } else {
+  size    <- GetSize(object)
+  centerY <- y + First(size)/2
+  centerX <- x + Nth(size,2)/2
+  Move(object, centerX, centerY)
+  }
+}
+
+
+
+
+define MoveCenter(object,x, y)
+{
+  if(IsTextBox(object))
+  {
+  size    <- GetSize(object)
+  newY <- y - First(size)/2
+  newX <- x - Nth(size,2)/2
+  Move(object, newX, newY)
+
+  } else {
+   Move(object,x,y)
+  }
+}
+
+
+
+## This splits 'string' into a list, breaking each time 'split'
+## appears in sting.  It discards the split token(s).
+## if split is "", split at each letter.
+
+
+## This splits 'string' into a list, breaking each time 'split'
+## appears in sting.  It discards the split token(s).
+## if split is "", split at each letter.
+
+
+define SplitStringSlow(string, split)
+{
+
+  ##Check to see if the arguments are of the right type.
+ if(not IsString(string))
+  {
+    SignalFatalError("First argument of function[SplitString(<string>,<string>)] is not a string")
+  }
+
+ if(not IsString(split))
+  {
+    SignalFatalError("Second argument of function[SplitString(<string>,<string>)] is not a string")
+  }
+
+  ##Pre-calculate the lengths.
+  splitLength <- StringLength(split)
+  strLength   <- StringLength(string)
+
+
+ if(splitLength<=1)
+ {
+  returnlist <- SplitString(string,split)
+
+  }else{
+
+##we have a longer split string that normal splitstring can't handle.
+   returnList <- []   ##Make a blank list to return
+   index <- 1         ##Start at the first letter
+   laststart <- 1
+   length <- 0        ##With a 0-length list
+
+   while(index <= (strLength-splitlength+1))
+   {
+
+
+     if(split ==  SubString(string,index,splitlength))
+     {
+
+       ##grab the current string.
+       cut <- SubString(string,laststart,index-laststart)
+       PushOnEnd(returnlist,cut)
+
+       index <- index+splitlength
+       laststart <- index
+
+
+     }else{
+
+       index <- index + 1
+     }
+
+   }
+
+  if(laststart>strlength)
+  {
+   PushOnEnd(returnlist,"")
+   }else{
+
+   PushOnEnd(returnlist,SubString(string, laststart,strlength-laststart+1))
+   }
+  }
+
+   return returnList
+}
+
+
+
+
+##These helper functions require gTextBox, gHeader, and gFooter to work.
+define LikertTrial(text)
+{
+  SetText(gTextBox,text)
+  SetText(gHeader,"How much you agree with the following statement:")
+  SetText(gFooter,"   1     2     3     4     5     6")
+  SetText(gFooter2,"Not at all                       Strongly")
+  Draw()
+
+  t1 <- GetTime()
+  response <-WaitForListKeyPress(["1","2","3","4","5","6"])
+  t2 <- GetTime()
+  return "LK " + response + " " + (t2 - t1)
+}
+
+##These helper functions require gTextBox, gHeader, and gFooter to work.
+define YesNoTrial(text)
+{
+  SetText(gTextBox,text)
+  SetText(gHeader,"Do you agree or disagree with the following statement:")
+  SetText(gFooter," 'Z'                   '/'")
+  SetText(gFooter2,"YES                      NO")
+
+  Draw()
+  t1 <- GetTime()
+  response <-WaitForListKeyPress(["Z","/"])
+  t2 <- GetTime()
+  return "YN " + response + " " + (t2 - t1)
+}
+
+
+
+define CR(n:1)
+{
+
+  x <- "
+"
+if(n==1)
+{
+  ret <- x
+} else {
+
+  y <- Repeat(x,n)
+  ret <-  ListToString(y)
+}
+ return ret
+}
+
+define Tab(n:1)
+{
+ x <- "	"
+ if(n==1)
+ {
+   ret <- x
+ }else{
+   y <- Repeat(x,n)
+   ret <- ListToString(y)
+ }
+ return ret
+}
+
+
+## This makes a 'formatted' text string,
+## making sure it has length size.  If val is too short,
+## it chops off the end of val; if it is too short, it pads
+## the end of val with spaces.
+define Format(val, size)
+{
+
+  string <- "" + val
+
+  len <- StringLength(string)
+
+  #If size is smaller than length,
+  if(size <= len)
+  {
+    string <- SubString(string,1,size)
+  }else {
+   pad <- ListToString(Repeat(" ",size - len))
+   string <- string + pad
+  }
+
+  return string
+}
+
+define ConcatenateList(list,sep:" ")
+{
+  return ListToString(list,sep)
+
+}
+## PrintList and FilePrintList
+## prints a list on a single line, without formatting (, or [])
+
+define PrintList(list,sep:" ")
+{
+
+  if(not IsList(list))
+   {
+     SignalFatalError("Object" + list + "is not a list in PrintList")
+   }
+
+  return   Print(ConcatenateList(list,sep))
+}
+
+
+define FilePrintList(file,list,sep:" ")
+{
+
+  if(not IsList(list))
+   {
+     SignalFatalError("Object" + list + "is not a list in FilePrintList")
+   }
+   outlist <- ConcatenateList(list,sep)
+   FilePrint(file,outlist)
+   return outlist
+}
+
+
+define ConvertIPString(ip)
+{
+	nums <- SplitString(ip,".")
+	if(not Length(nums) == 4)
+    {
+        SignalFatalError("IP Address must have four parts")
+    }
+
+   base <- 1
+   address <- 0
+
+   loop(i,Reverse(nums))
+   {
+      address <- 256*address + ToNumber(i)
+   }
+   return address
+}
+
+
+## This replaces all instances of a character in a string with another character
+## Useful for saving participant input that might have spaces.
+
+define ReplaceChar(word,char, char2)
+{
+    ##Handle character sets for replacement recursively.
+    if(IsList(char))
+    {
+       out <- word
+       loop(c,char)
+       {
+         out <- ReplaceChar(out,c,char2)
+       }
+    }else{
+
+   list <- SplitStringSlow(word, char)
+   newString <- ""
+   begin <- 0
+   loop(i,list)
+   {
+     if(begin == 0)
+     {
+       newString <- newString + i
+       begin <- 1
+     } else {
+       newString <- newString + char2 + i
+     }
+   }
+   out <- newString
+  }
+    return out
+}
+
+
+define SubstituteStrings(text,replist)
+{
+
+  loop(i,replist)
+  {
+     text <- ReplaceChar(text,First(i),Second(i))
+  }
+
+  return text
+
+}
+
+
+## Returns the element of database corresponding to the first match of
+## key to items in keylist.  If nothing is found, it returns an empty list.
+
+define Lookup(key, keylist, database)
+{
+  if(not Length(keylist) == Length(database))
+  {
+    SignalFatalError("In Function Lookup, keylist and database must be the same length")
+  }
+  found <- []
+  table <- Transpose([keylist, database])
+   loop(i, table)
+   {
+
+     if(key == First(i))
+     {
+       found <- Nth(i,2)
+       break
+     }
+   }
+
+   return found
+}
+
+
+## makes a label with a standard font, black on grey, in specified location.
+##
+define EasyLabel(text,xx,yy,parent,fontsize:16,fg:"",style:0)
+{
+
+
+ if(not IsText(text+""))
+   {
+      SignalFatalError("First argument of EasyLabel[text,x,y,parent,fontsize] must be text")
+   }
+
+  ##Convert x/y to numbers.
+  x <- ToNumber(xx)
+  y <- ToNumber(yy)
+ if(not (IsNumber(xx) and IsNumber(yy)))
+   {
+      Print("Warning: Second and third argument of EasyLabel[text,x,y,parent,fontsize] should be numbers.  Autoconverting from ['"+xx+"','"+yy+"'] to [" +x+","+y+"]")
+   }
+
+  if(not IsWidget(parent))
+  {
+    SignalFatalError("EasyLabel[text,x,y,parent,fontsize] must be added to a window, not [" + parent+"]")
+  }
+
+  bgcol <- parent.BGCOLOR
+
+
+  if(fg=="")
+  {
+   ##Print("auto-generating fg color in EasyLabel")
+   ##HSV val is the max of RGB
+   val <- Max([bgcol.RED, bgcol.GREEN, bgcol.BLUE])
+
+   ##Make it white if the background is too dark.
+  if(val <=	100)
+     {
+      fgcol <- MakeColor("white")
+     } else {
+       fgcol <- MakeColor("black")
+     }
+   } else {
+    fgcol <- MakeColor(fg)
+  }
+  font <-  MakeFont(gPEBLBaseFont,style,fontsize,fgcol,bgcol,0)
+  lab <- MakeLabel(text,font)
+  AddObject(lab,parent)
+  Move(lab,x,y)
+
+  return lab
+}
+
+
+## makes a label with a standard font, black on grey, in specified location.
+##
+define EasyTextBox(text,x,y,win,fontsize,width,height,
+                     fgcolor:"black", bgcolor:"white")
+{
+
+#  if(not IsWindow(win))
+#  {
+#    SignalFatalError("EasyTextbox[text,x,y,window,fontsize] must be added to a window, not [" + parent+"]")
+#  }
+#  Print("making easytextbox")
+#  Print(gPEBLBaseFont)
+  font <-  MakeFont(gPEBLBaseFont,0,fontsize,MakeColor(fgcolor),
+                    MakeColor(bgcolor),1)
+#  Print(font)
+  tb <- MakeTextBox(text+"",font,width,height)
+#  Print(tb)
+
+  AddObject(tb,win)
+  Move(tb,x,y)
+
+  return tb
+}
+
+
+
+##Make an easy-to-use getsubnum function here.
+define GetSubNum(win)
+{
+
+  if(not IsWindow(win))
+  {
+    SignalFatalError("GetSubNum(win) needs a window to be specified, not [" + win + "]")
+  }
+
+   bg    <- MakeCanvas(450,100,MakeColor("grey20"))
+   Move(bg,gVideoWidth/2,90)
+   AddObject(bg,win)
+
+    if(gLanguage == "PT" or gLanguage == "BR")
+    {
+     ##Thanks Marco Moniz
+     text <- "Código Participante"
+
+    } elseif(gLanguage == "DE")
+    {
+     ##Thanks Sven Blankenberger and Katrin Bittrich
+     text <- "Bitte den Versuchspersonen-Code eingeben"
+
+    }elseif(gLanguage == "HU")
+    {
+
+    ##Thanks Péter Juhász
+    text <- "Adja meg a résztvevő kódját"
+
+    }elseif(gLanguage == "ES")
+    {
+    ##Thanks Ernesto Reyes Zamorano
+    text <- "Ingrese el código del participante"
+
+   }elseif(gLanguage=="SE") #swedish by Kim Karlsson
+    {
+    text <- "Fyll i ärendekod"
+
+    }   else {
+   ##Default to English
+    text <- "Enter Participant Identifier"
+    }
+
+   query <- EasyLabel(text,225,20,bg,20)
+   Draw(query)
+ #  Hide(query) ##we don't want this re-imprinting on the canvas.
+
+   box <- EasyTextBox("",gVideoWidth/2-50,100, win,20,160,25)
+   Draw()
+   subnum <- GetInput(box,"<return>")
+
+   RemoveObject(query,bg)
+   RemoveObject(box,win)
+   RemoveObject(bg,win)
+   return subnum
+}
+
+
+##Make an easy-to-use getsubnum function here.
+define GetEasyInput(text,win)
+{
+
+  if(not IsWindow(win))
+  {
+    SignalFatalError("GetEasyInput(win) needs a window to be specified, not [" + win + "]")
+  }
+
+   bgcol <- win.BGCOLOR
+
+   ##Get foreground color
+   ##HSV val is the max of RGB
+    val <- Max([bgcol.RED, bgcol.GREEN, bgcol.BLUE])
+
+    ##Make it white if the background is too dark.
+    if(val <=	100)
+    {
+      fgcol <- MakeColor("white")
+    } else {
+      fgcol <- MakeColor("black")
+    }
+
+
+
+   bg2    <- Rectangle(gVideoWidth/2+2,gVideoHeight/2+2,406,406,Makecolor("grey50"),1)
+   AddObject(bg2,win)
+   bg    <- Rectangle(gVideoWidth/2,gVideoHeight/2,400,400,bgcol,1)
+   AddObject(bg,win)
+
+   font <- MakeFont("Caliban.ttf",0,22,fgcol,bgcol,0)
+   query <- MakeLabel(text,font)
+   AddObject(query, win)
+   Move(query, bg.x,bg.y-bg.height/2+20)
+   box <- EasyTextBox("",bg.x-bg.width/2+50,bg.y-bg.height/2+50 ,win,30,300,200)
+   Draw()
+   input <- GetInput(box,"<return>")
+
+   RemoveObject(query,win)
+   RemoveObject(box,win)
+   RemoveObject(bg,win)
+   RemoveObject(bg2,win)
+   Draw()
+
+   return input
+}
+
+
+##Make an easy-to-use messagebox function.
+define MessageBox(text,win,
+                  fontsize:20,xleftgutter:100,xrightgutter:100,
+		  bottomgutter:200,
+		  useBG:1,
+		  ack:"<OK>")
+{
+  if(not IsWindow(win))
+  {
+    SignalFatalError("MessageBox(text,win) needs a window to be specified, not [" + win + "]")
+  }
+   bgcol <- win.BGCOLOR
+
+   ##Get foreground color
+   ##HSV val is the max of RGB
+    val <- Max([bgcol.RED, bgcol.GREEN, bgcol.BLUE])
+
+    ##Make it white if the background is too dark.
+    if(val <=	100)
+    {
+      fgcol <- MakeColor("white")
+    } else {
+      fgcol <- MakeColor("black")
+    }
+
+
+   if(useBG)
+     {
+      bg  <- MakeCanvas(gVideoWidth,gVideoHeight,bgcol)
+      Move(bg,gVideoWidth/2,gVideoHeight/2)
+      AddObject(bg,win)
+     }
+
+   box <- EasyTextBox(text,xleftgutter,50, win,fontsize,
+                      gVideoWidth-xleftgutter-xrightgutter,gVideoHeight-bottomgutter)
+
+   if(ack=="<OK>")
+   {
+     ok <- EasyLabel("OK",gVideoWidth/2,gVideoHeight-100,win,44)
+     back <- Rectangle(gVideoWidth/2,gVideoHeight-100,ok.width+20,40,fgcol,0)
+     AddObject(back,win)
+
+   }else{
+      ok <- EasyLabel("Press "+ListToHumantext(ack,"or")+" to continue.",
+                          gVideoWidth/2,gVideoHeight-100,win,25)
+
+   }
+
+   Draw()
+   ShowCursor(1)
+#   Print(back)
+  if(ack=="<OK>")
+   {
+     WaitForClickOnTarget([back],[1])
+
+   } else{
+     WaitForListKeyPress(ack)
+   }
+
+
+   Draw()
+
+}
+
+
+define ListToHumanText(list,connector:"or")
+{
+  out <- ""
+  sep <- ""
+  index <- 1
+
+  if(Length(list)>1)
+  {
+  loop(i,list)
+  {
+
+    if(index == Length(list))
+     {
+        sep <- " "+connector+" "
+     }
+    out <- out + sep  + i
+    sep <- ", "
+    index <- index + 1
+  }
+  } elseif(Length(list)==1) {
+   out <- First(list)
+  } else{
+    out <- ""
+  }
+  return out
+}
+
+define GetEasyChoice(text,choices,output,win)
+{
+
+ ShowCursor(1)
+ if(not IsWindow(win))
+  {
+    SignalFatalError("GetEasyChoice(win) needs a window to be specified, not [" + win + "]")
+  }
+
+  if(not(Length(choices) == Length(output)))
+   {
+     SignalFatalError("In GetEasyChoice(text,choices,output,win), choices and output need to be lists of the same length")
+   }
+
+   bgcol <- win.BGCOLOR
+   bg  <- MakeCanvas(gVideoWidth,gVideoHeight,bgcol)
+   Move(bg,gVideoWidth/2,gVideoHeight/2)
+   AddObject(bg,win)
+
+
+
+
+  ##HSV val is the max of RGB
+  val <- Max([bgcol.RED, bgcol.GREEN, bgcol.BLUE])
+
+  ##Make it white if the background is too dark.
+  if(val <=	100)
+    {
+      fgcol <- MakeColor("white")
+    } else {
+      fgcol <- MakeColor("black")
+    }
+
+   box <- EasyTextBox(text+CR(1)+"Click box to select option.",50,50, win,20,gVideoWidth-100,100)
+
+
+   tmp <- []
+   clickon <- []
+   y <- 200
+
+
+   skip <- Min([(gVideoHeight-220)/Length(output),100])
+   squaresize <- Min([40,skip-5])
+
+   loop(i, choices)
+    {
+      bg1 <- Square(180,y,squaresize,fgcol,0)
+	  AddObject(bg1,win)
+
+      lab <- EasyLabel(i,80, y,win,25)
+	  Move(lab, 220+ lab.width/2,y)
+
+      clickon <- Append(clickon,bg1)
+      y <- y + skip
+
+      tmp <- Append(tmp,lab)
+
+    }
+
+   Draw()
+
+   x <-   WaitForClickOnTarget(clickon,output )
+
+   RemoveObject(bg,win)
+
+   loop(i,Transpose([tmp,clickon]))
+    {
+      RemoveObject(First(i),win)
+      RemoveObject(Second(i),win)
+    }
+   RemoveObject(box,win)
+   Draw()
+  return x
+}
+##  The minchoices and maxchoices gives the range of the number of choices permitted.
+##
+define GetEasyMultiChoice(text,choices,output,win,minchoices:1, maxchoices:1)
+{
+
+ ShowCursor(1)
+ if(not IsWindow(win))
+  {
+    SignalFatalError("GetEasyMultiChoice(win) needs a window to be specified, not [" + win + "]")
+  }
+
+  if(not(Length(choices) == Length(output)))
+   {
+     SignalFatalError("In GetEasyMultiChoice(text,choices,output,win), choices and output need to be lists of the same length")
+   }
+
+   bgcol <- win.BGCOLOR
+   bg  <- MakeCanvas(gVideoWidth,gVideoHeight,bgcol)
+   Move(bg,gVideoWidth/2,gVideoHeight/2)
+   AddObject(bg,win)
+
+
+
+
+  ##HSV val is the max of RGB
+  val <- Max([bgcol.RED, bgcol.GREEN, bgcol.BLUE])
+
+  ##Make it white if the background is too dark.
+  if(val <=	100)
+    {
+      fgcol <- MakeColor("white")
+    } else {
+      fgcol <- MakeColor("black")
+    }
+
+   box <- EasyTextBox(text+CR(1)+"Click box to select option.",50,50, win,20,gVideoWidth-100,100)
+
+
+   tmp <- []
+   clickon <- []
+   chosen <- []
+   y <- 200
+   checks <- []
+
+   skip <- Min([(gVideoHeight-220)/(Length(output)+1),100])
+   squaresize <- Min([40,skip-5])
+
+   loop(i, choices)
+    {
+       bg1 <- Square(180,y,squaresize,fgcol,0)
+       AddObject(bg1,win)
+       tmpX <- EasyLabel("X",bg1.x,bg1.y,win,20)
+       Hide(tmpX)
+       PushOnEnd(checks,tmpX)
+       lab <- EasyLabel(i+"",80, y,win,25)
+       Move(lab, 220+ lab.width/2,y)
+
+      clickon <- Append(clickon,bg1)
+      y <- y + skip
+
+       tmp <- Append(tmp,lab)
+      PushOnEnd(chosen,0)
+    }
+
+    okback <- Rectangle(200,y,100,50,fgcol,0)
+    AddObject(okback,win)
+    ok<- EasyLabel("OK",okback.x,okback.y,win,25)
+    PushOnEnd(clickon,okBack)
+    out <- Sequence(1,Length(clickon),1)
+    Draw()
+
+   cont <- 1
+
+   while(cont)
+    {
+       x <-   WaitForClickOnTarget(clickon,out)
+       if(x==Length(out))
+       {
+         numchosen <- Sum(chosen)
+          if(numchosen >= minchoices and numchosen <= maxchoices)
+	  {
+            cont <- 0
+	  }
+       }else{
+        ##swap the selection.
+        SetElement(chosen,x,(1-Nth(chosen,x)))
+	check <- Nth(checks,x)
+	check.visible <- Nth(chosen,x)
+	Draw()
+      }
+
+    }
+
+  outputList <- []
+  loop(i,Length(chosen))
+  {
+      if(Nth(chosen,i))
+      {
+         PushOnEnd(outputList,Nth(output,i))
+      }else{
+         PushOnEnd(outputList,"")
+      }
+  }
+  return outputlist
+}
+
+
+
+##  This takes a number, and pads
+##  it with zeros size places to the left
+##  of the decimal point,
+##  returning a string
+
+define ZeroPad(num, size)
+{
+  if(not IsNumber(num))
+  {
+    SignalFatalError("First argument of ZeroPad(num,size) must be a	number")
+  }
+
+  if((not IsInteger(size)) or (size >= 20) or (size < 1))
+  {
+    SignalFatalError("Second argument of ZeroPad(num,size) must be a positive integer 20 or less")
+  }
+
+
+  tmp <- Floor(num)+""
+  tmplen <- StringLength(tmp)
+
+  padlen <- Max([0,size-tmplen])
+
+  pad <- ""
+  if(padlen>0)
+  {
+      pad <- ListToString(Repeat("0",padlen))
+  }
+
+  return pad+num
+}
+
+
+
+## This should handle 'Inside' calls for almost anything
+## but it only works reliably for things attached to the main window
+## (or a canvas the same size as the window).
+define Inside(click,object)
+{
+
+    if(not IsList(click))
+    {
+      SignalFatalError("First argument of Inside(<click>, <object>) must be a list specifying [x,y] position.")
+    }
+
+    x <- First(click)
+    y <- Second(click)
+
+
+    if((not IsNumber(x)) or (not IsNumber(y)))
+     {
+       SignalFatalError("First argument of Inside(<click>, <object>) is not a list of numbers.  It must specify [x,y] position.")
+     }
+
+   called <- 0
+   if(IsCustomObject(object))
+    {
+
+      if(PropertyExists(object,"inside"))
+      {
+          inside <- CallFunction(object.inside, [click,object])
+	        called <- 1
+      }
+     }
+
+   if(not called)
+    {
+
+    xadj <- 0
+    yadj <- 0
+
+    ##see if we are attached to a canvas; the 'parent' property must be used.
+    if(PropertyExists(object,"parent"))
+    {
+      parent <- object.parent
+      if(IsCanvas(parent))
+      {
+       xadj <-  parent.x - parent.width/2
+       yadj <-  parent.y - parent.height/2
+      }
+    }elseif(PropertyExists(object,"window"))
+     {
+      if(IsCanvas(parent))
+      {
+       xadj <-  parent.x - parent.width/2
+       yadj <-  parent.y - parent.height/2
+      }
+     }
+#   Print(object)
+#   PrintProperties(object)
+
+
+   if(IsImage(object) or IsLabel(object) or  IsCanvas(object) or
+      object.name == "<RECTANGLE>" or object.name == "<SQUARE>" or
+      Uppercase(object.name) == "<CUSTOMOBJECT>")
+    {
+	##First, determine object limits
+	xlow <- object.x - object.width/2 +xadj
+	xhigh <- object.x + object.width/2+xadj
+
+	ylow <- object.y - object.height/2+yadj
+	yhigh <- object.y + object.height/2+yadj
+
+    inside <- (x >= xlow) and (x  <= xhigh) and (y >= ylow) and (y <= yhigh)
+
+   } elseif (IsTextBox(object))
+   {
+     xlow <- object.x+xadj
+     xhigh <- object.x+object.width+xadj
+     ylow <- object.y+yadj
+     yhigh <- object.y+object.height+yadj
+     inside <- (x >= xlow) and (x  <= xhigh) and (y >= ylow) and (y <= yhigh)
+
+   } elseif(object.name == "<CIRCLE>")
+       {
+          d <- Dist([x,y],[object.x+xadj,object.y+yadj])
+          inside  <- (d <= object.r)
+
+   } else {
+       SignalFatalError("Second argument of Inside(<click>,<object>) must either be an image, label, textbox, rectangle, square, or circle, or <CUSTOMOBJECT>.")
+   }
+}
+	return inside
+
+}
+
+
+define Dist(a,b)
+{
+  if((not IsList(a)) or (not IsList(b)))
+   {
+     SignalFatalError("Arguments of Dist(a,b) must both be [x,y] lists.")
+   }
+  return   Sqrt((First(a)-First(b))^2 + (Second(a) -Second(b))^2)
+}
+
+
+## This will read a CSV file into a nested list.  The CSV file should
+## allow quoted text, and not break on commas within quotes.
+
+define ReadCSV(filename)
+{
+#   if(not IsText(filename))
+#    {
+#      SignalFatalError("ReadCSV(filename) must be given a text-based file name")
+#    }
+  #open the file
+
+  file <- FileOpenRead(filename)
+  char <- FileReadCharacter(file)
+
+  ##Process each line until the end of the file.
+  table <- []
+  while(not EndOfFile(file))
+   {
+    line <- []
+    inquote <- 0
+    token <- ""
+
+    ##Process each character in the line.
+    while(not EndOfLine(file))
+    {
+
+
+      ##Determine what to do with it:
+      if(char == gQuote and (not inquote))
+       {
+         inquote <- 1
+         token <- token + char
+
+       }elseif(char ==gQuote and inquote)
+       {
+         inquote <- 0
+         token <- token + char
+
+       }elseif(char == "," and (not inquote))
+	   {
+
+##there is a possible bug here when a token is a blank space.
+#       Print("token:[" + token + "]")
+       token <- StripSpace(token)
+       line <- Append(line,StripQuotes(token))
+       token <- ""
+
+       }else{
+         token <- token + char
+       }
+
+     char <- FileReadCharacter(file)
+    }
+
+    ##Add the last character onto the token
+      ##Determine what to do with it:
+      if(char == gQuote and (not inquote))
+       {
+         inquote <- 1
+         token <- token + char
+
+
+       }elseif(char ==gQuote and inquote)
+       {
+         inquote <- 0
+         token <- token + char
+
+       }elseif(char == "," and (not inquote))
+	   {
+
+
+       token <- StripSpace(token)
+
+          line <- Append(line,StripQuotes(token))
+          token <- ""
+
+       }else{
+
+         token <- token + char
+       }
+
+
+    ##Add the token onto the line
+
+    token <- StripSpace(token)
+
+    line <- Append(line,StripQuotes(token))
+
+
+    ##Add the line onto the table
+    if(not EndOfFile(file))
+     {
+	     table <- Append(table,line)
+     }
+
+    #eat and discard the newline character
+    FileReadCharacter(file)
+    char <- FileReadCharacter(file)
+
+	}
+
+  return table
+}
+
+define Enquote(text)
+{
+ return gQuote + text + gQuote
+}
+
+
+define StripSpace(text)
+{
+   start <- 1
+   end <- StringLength(text)
+
+   if(end > 0)
+   {
+   while(Substring(text,start,1) == " " and start <= end)
+     {
+       start <- start + 1
+     }
+   while(Substring(text,end,1) == " " and end > start)
+     {
+       end <- end - 1
+     }
+
+   ret <- SubString(text,start,end)
+
+   } else {
+    ret <- text
+   }
+   return ret
+}
+
+##remove quotes from outside of text (but not the inside)
+define StripQuotes(text)
+{
+#   if(not IsText(text))
+#    {
+#       SignalFatalError("Argument of StripQuotes(text) must be text.")
+#    }
+   start <- 1
+   end <- StringLength(text)
+
+   if(end > 0)
+   {
+
+   if(SubString(text,end,1)==gQuote)
+    {
+      end <- end - 1
+    }
+   if(SubString(text,1,1)== gQuote)
+    {
+      start <- 2
+      end <- end -1
+    }
+
+   ret <- SubString(text,start,end)
+
+   } else {
+    ret <- text
+   }
+   return ret
+}
+
+
+##targetlist is a set of graphical objects,
+##keylist is a set of keys whose corresponding
+##value should be returned when a graphical object is clicked upon.
+
+define WaitForClickOnTarget(targetlist,keylist)
+{
+
+  if(not IsList(targetlist))
+  {
+    SignalFatalError("First argument of WaitForClickOnTarget(targetlist,keylist) must be a list of graphical objects")
+  }
+
+  if(not IsList(keylist))
+  {
+    SignalFatalError("Second argument of WaitForClickOnTarget(targetlist,keylist) must be a list")
+  }
+
+  if(Length(targetlist) <> Length(keylist))
+  {
+    SignalFatalError("Arguments of WaitForClickOnTarget(targetlist,keylist) must be the same length")
+  }
+
+  ret <- ""
+  testlist <- Reverse(Transpose([targetlist,keylist]))
+
+   wait1 <- 1
+   while(wait1)
+     {
+      wait2 <- 1
+      while(wait2)
+       {
+         pos <- WaitForMouseButton()
+	 ##Print(pos)
+
+         if((Nth(pos,4)=="<pressed>") or
+   	       (Nth(pos,4)=="<wheel>"))
+          {
+            wait2 <- 0
+            gClick <- pos
+          }
+       }
+
+      newtargs <- []
+
+      loop(i,testlist)
+          {
+
+             if(Inside(pos,First(i)))
+             {
+	              wait1 <- 0
+                ret <- Nth(i,2)
+                break
+             }
+
+          }
+     }
+  return ret
+}
+
+
+
+
+##targetlist is a set of graphical objects,
+##keylist is a set of keys whose corresponding
+##value should be returned when a graphical object is clicked upon.
+## This modifies the built-in waitforclickontarget so that it will
+## Return the button that is clicked, along with the target,
+## and the target object
+define WaitForButtonClickOnTarget(targetlist,keylist)
+{
+
+  if(not IsList(targetlist))
+  {
+    SignalFatalError("First argument of WaitForButtonClickOnTarget(targetlist,keylist) must be a list of graphical objects")
+  }
+
+  if(not IsList(keylist))
+  {
+    SignalFatalError("Second argument of WaitForButtonClickOnTarget(targetlist,keylist) must be a list")
+  }
+
+  if(Length(targetlist) <> Length(keylist))
+  {
+    SignalFatalError("Arguments of WaitForButtonClickOnTarget(targetlist,keylist) must be the same length")
+  }
+
+  obj <- ""
+  ret <- ""
+  testlist <- Reverse(Transpose([targetlist,keylist]))
+
+   wait1 <- 1
+   while(wait1)
+     {
+      wait2 <- 1
+      while(wait2)
+       {
+         pos <- WaitForMouseButton()
+         if((Nth(pos,4)=="<pressed>") or
+            (Nth(pos,4)=="<wheel>"))
+          {
+            wait2 <- 0
+            gClick <- pos
+          }
+       }
+
+      newtargs <- []
+
+      loop(i,testlist)
+          {
+
+            if(Inside(pos,First(i)))
+              {
+	        obj <- First(i)
+	        wait1 <- 0
+                ret <- Nth(i,2)
+                break
+             }
+
+          }
+	  wait1 <- 0
+     }
+  ##Print([ret,pos,obj])
+  return [ret,pos,obj]
+}
+
+
+
+
+
+
+##  This just waits for a 'down' click.
+##
+define WaitForDownClick()
+{
+   continue <- 1
+   while(continue)
+    {
+	x <- WaitForMouseButton()
+        if(Nth(x,4) == "<pressed>")
+        {
+         continue <- 0
+        }
+    }
+     return x
+}
+
+
+##targetlist is a set of graphical objects,
+##keylist is a set of keys whose corresponding
+##value should be returned when a graphical object is clicked upon.
+##optional argument button1,button2, button3 determine whether just
+##normal left-click triggers, or also 2nd and 3rd button.
+define WaitForClickOnTargetWithTimeout(targetlist,keylist,time,
+         button1:1,button2:0,button3:0)
+{
+
+
+   ##code which buttons will be tested for. Fallback to left-click
+   ##if they put 0 for all the buttons.
+   buttons <- Filter([1,2,3],[button1,button2,button3])
+   if(Length(buttons)==0)
+   {
+     buttons <- [1]
+   }
+  ret <- ""
+  testlist <- Transpose([targetlist,keylist])
+
+   wait1 <- 1
+   while(wait1)
+     {
+      wait2 <- 1
+      while(wait2)
+       {
+         pos <- WaitForMouseButtonWithTimeout(time)
+
+ 	 if(IsList(pos))
+          {
+
+           if(Nth(pos,4)=="<pressed>" and IsMember(Nth(pos,3),buttons))
+            {
+              wait2 <- 0
+              gClick <- pos
+            }
+         } else {
+	   ##timeout!!!
+            wait2 <- 0
+	    wait1 <- 0
+            gClick <- [-1,-1,0,"<timeout>"]
+            ret <- "<timeout>"
+
+         }
+       }
+
+       ##only loop through the test if wait1 is 0; otherwise
+       ##we timed out.
+      if(wait1)
+      {
+       newtargs <- []
+
+       loop(i,testlist)
+          {
+
+             if(Inside(pos,First(i)))
+             {
+		wait1 <- 0
+                ret <- Nth(i,2)
+                break
+             }
+          }
+     }
+    }
+  return ret
+}
+
+
+
+##  This gives a short 3 2 1 countdown, 500 ms ISI.
+##
+define CountDown(win,usebg:1)
+{
+
+  if(not IsWindow(win))
+  {
+    SignalFatalError("CountDown(win) needs a window to be specified, not [" + win + "]")
+  }
+
+
+    bgcol <- win.BGCOLOR
+    if(useBG)
+     {
+      rect <- Rectangle(gVideoWidth/2,gVideoHeight/2,gVideoWidth,gVideoHeight,bgcol,1)
+      AddObject(rect,win)
+    }
+
+    label <- EasyLabel("",gVideoWidth/2,gVideoHeight/2,win,100)
+    labs <- [3,2,1]
+    loop(i,labs)
+     {
+    	label.text <- i
+        Draw()
+	Wait(500)
+     }
+#   RemoveObject(rect,win)
+   RemoveObject(label,win)
+}
+
+
+
+define CreateParameters(defaults,file)
+{
+
+
+    ##We read in the file. Now add any of the default parameter that don't already exist.
+    ##(in case the file is broken or faulty).
+
+    if(IsList(defaults))
+    {
+      par1 <-  MakeParameterObject(defaults)
+    } else {
+      par1 <- MakeCustomObject("parameters")
+    }
+
+
+
+
+  ##############################
+  ##Now, read in values from the file
+  if(FileExists(file))
+   {
+    parampairs <- ReadCSV(file)
+    par2 <- MakeParameterObject(parampairs)
+
+  ##now, we need to merge the two parameter sets together.
+  ##we should use defaults as the base, but copy anything from
+  ## file to replace.
+
+  props <- GetPropertyList(par2)
+  loop(p,props)
+  {
+     #add/overwrite anything from props
+     SetProperty(par1,p,GetProperty(par2,p))
+  }
+ }
+#   Print("Parameters used:")
+#   PrintProperties(par1)
+  return par1
+}
+
+## This creates an object called 'parameters' with
+## property-value pairs specified by pairs, and
+## will load duplicate properties into lists.
+define MakeParameterObject(pairs)
+{
+
+   parameters <- MakeCustomObject("parameters")
+
+    if(IsList(pairs))
+    {
+    ##Set the defaults.
+    loop(i,pairs)
+     {
+
+      if(Length(i)>=2)
+       {
+         property <- First(i)
+         val <- Second(i) ##use the format here directly;
+                          ## these were set in-script
+
+	if(not val=="")
+        {
+
+         fval <- ToNumber(val)
+         if(IsFloat(fval) and fval <> 0.0)
+	 {
+          ##if the value is really 0.0, then we handle it elsewhere; it should
+	  ##probably be fine if handled via the string route below.
+	  ##it could go wrong if the parameter value entered is something like
+	  ##0.000000000, but it would also go wrong if it were 000.000.
+
+	   val <- fval
+
+           if(Abs(Round(val)-val)<.0000000001)
+	   {
+	      val <- ToInteger(val)
+	   }
+	 }elseif(IsString(val))
+	 {
+           ##convert to a number, if it will work
+           ##this apparently keeps the first 6 decimal points only.
+           valstring <- ToNumber(val)+""
+
+         if(valstring==val or valstring=="0"+val)
+          {
+            ##valstring is really a number; convert it.
+            val <- ToNumber(val)
+          }
+
+         }
+        }
+	  ##does the property already exist?
+	  ##if so, add it to a list, which we create if needed.
+	  if(PropertyExists(parameters,property))
+	  {
+	     oldvalue <- GetProperty(parameters,property)
+  	     if(not IsList(oldvalue))
+	     {
+              oldvalue <- [oldvalue]
+	     }
+
+
+	     PushOnEnd(oldvalue,val)
+	     val <- oldvalue
+	  }
+
+         SetProperty(parameters,First(i),val)
+
+
+    }
+  }
+}
+
+ return parameters
+}
+
+
+##PropertyExists doesn't currecly work, so use this workaround
+#define IsProperty(object,prop)
+#{
+#   list <- GetPropertyList(object)
+#   return(IsMember(prop,list))
+#}
+
+
+## This will attempt to get an unused data file, with specified parameters; if it fails,
+## it query for a new subject code.
+##
+
+define GetNewDataFile(subraw,win,basename,extension,header)
+{
+
+  ##for robustness, get rid of spaces and strange characters
+  ## in subject codes/basenames
+  subraw <- subraw+""
+  basename <- basename+""
+  gSubnum<-ReplaceChar(subraw, [" ","/","\",",",":"], "_" )
+  basename <-ReplaceChar(basename, [" ","/","\",",",":"], "_" )
+
+  MakeDirectory("data")
+  MakeDirectory("data/"+gSubnum)
+
+  fname <- "data/"+gSubNum+"/"+ basename +"-"+gSubNum+"."+extension
+
+  if(not FileExists(fname))
+  {
+      fileOut <- FileOpenWrite(fname)
+      if(not header=="")
+         {
+            FilePrint(fileOut,header)
+         }
+
+
+   }else {
+
+   ##the file already exists!!!
+   ##skip the ask of we have reset the subnum previously.
+   ##that is, if we are saving multiple files and have already agreed
+   ##to append, a previous file, we should append this file too.
+
+
+   cont <- 1
+   while(cont)
+   {
+
+     ##loop until we either append or make a new file.
+     ##  Print("greset:" + gResetSubNum)
+      if(gresetSubNum)
+       {
+        opt <- "add"
+       }else
+      {
+      opt <- GetEasychoice("Subject code ["+gSubnum+"] already in use for file ["+fname+"].  Choose new code or add session?",
+          ["Choose new code","Add Session"], ["new","add"],win)
+      }
+
+
+      if(opt == "add")
+      {
+        cont <- 0
+	fileOut <- FileOpenAppend(fname)
+	gResetSubNum <- 1
+      } else {
+
+        needsubcode <- 1
+        while(needsubcode)
+        {
+          ##Choose new code
+          gSubNum <- GetSubNum(win)
+          fname <- "data/"+gSubNum+"/"+ basename +"-"+gSubNum+"."+extension
+          if(not FileExists(fname))
+          {
+	    Print("file does not exist. creating it.")
+            MakeDirectory("data/"+gSubnum)
+            fileOut <- FileOpenWrite(fname)
+	    if(not header=="")
+              {
+               FilePrint(fileOut,header)
+   	      }
+           needsubcode <- 0
+           cont <- 0
+
+          }
+
+         }
+   }
+}}
+
+  return fileout
+}
+
+
+##
+##
+define DrawObject(p)
+{
+
+  if(IsCustomObject(p))
+   {
+     if(PropertyExists(p,"draw"))
+     {
+      CallFunction(p.draw,[p])
+     }else {
+      Draw(p)
+     }
+   }else{
+    Draw(p)
+  }
+}
+
+
+##
+define MoveObject(p,x,y)
+{
+  if(IsCustomObject(p))
+   {
+     if(PropertyExists(p,"move"))
+     {
+      CallFunction(p.move,[p,x,y])
+     }else {
+      Move(p,x,y)
+     }
+   }else{
+    Draw(p,x,y)
+  }
+}
+
+
+
+
+##
+define ClickOn(obj,xy)
+{
+  if(IsCustomObject(obj))
+   {
+     if(PropertyExists(obj,"clickon"))
+     {
+      CallFunction(p.clickon,[p,x,y])
+     }
+    }
+}
+
+
+define ReadTranslation(filename,lang)
+{
+
+  obj <- MakeCustomObject("translations")
+  obj.language <- Lowercase(lang)
+  if(not FileExists(filename))
+  {
+    SignalFatalError("No translation file exists for ["+lang+"] ("+
+      filename +")")
+  }
+
+  stringlist <- ReadCSV(filename)
+ # Print(stringlist)
+  cr <- CR(1)
+ # Print(stringlist)
+  loop(i,stringlist)
+  {
+   #  Print(i)
+    ##Add CR to the
+     text <- Second(i)
+     text2 <- FormatText(text)
+     SetProperty(obj,First(i),text2)
+  }
+  return obj
+}
+
+
+
+define ReadTranslationJSON(filename,lang)
+{
+
+
+
+  if(not FileExists(filename))
+  {
+    SignalFatalError("No translation file exists for ["+lang+"] ("+
+      filename +")")
+  }
+
+  obj <- ParseJSON(FileReadText(filename))
+  obj.language <- Lowercase(lang)
+
+
+##we need to transform using formattext now.
+ proplist <- GetPropertyList(obj)
+ loop(prop,proplist)
+ {
+   text <- FormatText(GetProperty(obj,prop))
+    SetProperty(obj,prop,FormatText(GetProperty(obj,prop)))
+ }
+
+  return obj
+}
+
+##this works at replacing carriage returns (\n) etc. from text
+define FormatText(text)
+{
+
+
+   list <- SplitStringSlow(text,"\n")
+   out <- ConcatenateList(list,CR(1))
+   return out
+}
+
+##This is a recursive removeobjects
+define RemoveObjects(list,win)
+{
+	loop(i,list)
+    {
+	   if(IsList(i)  )
+ 	     {
+   	   RemoveObjects(i,win)
+         }else{
+           RemoveObject(i,win)
+         }
+    }
+}
+
+
+
+##this will print the JSON object in a format that can be saved.
+##It requires an PCustomObject, which is created with ParseJSON() function.
+define JSONText(obj, indent:0)
+{
+
+#if(not IsCustomObject(obj))
+# {
+#   SignalFatalError("JSONText must be given a custom object")
+# }
+
+ if((not IsInteger(indent) ) or (indent<0))
+ {
+   SignalFatalError("JSONText indent argument must be a positive integer")
+ }
+
+  indentation <- ConcatenateList(Repeat(" ",indent))
+
+
+  if(IsNumber(obj))
+  {
+    out <- obj
+  }elseif(IsText(obj))
+  {
+    out <- gQuote+obj+gQuote
+  } elseif(IsList(obj))
+  {
+
+     sep <- ","
+     cursep <- ""
+
+     out <-  "["
+     indentation2 <- indentation + " "
+     cursep <- ""
+     loop(item,obj)
+     {
+
+       out <- out + cursep + JSONText(item,indent+3)
+       cursep <- sep
+     }
+
+     out <- out +"]"
+
+
+  } elseif(IsCustomObject(obj))
+  {
+
+  out <- "{"
+   ##the obj is a custom object. Let's get the values out:
+#  Print("*******************************")
+  sep <- ","+CR(1)
+  cursep <- ""
+  
+  plist <- GetPropertyList(obj)
+  loop(i , plist)
+  {
+
+    out <- out + cursep
+    cursep <- sep
+    value <- GetProperty(obj,i)
+    #    Print(i + "-->" + value)
+    if(IsCustomObject(value))
+    {
+      out <- out + gQuote + i + gQuote + ": " +
+                  JSONText(value,indent+3)
+
+
+    }else{
+      out <- out + gQuote + i + gQuote + ": "  +JSONText(value, indent)
+    }
+
+  }
+     out <- out + "}"
+  }
+
+  return out
+}
+
+
+
+
+define GetNewSubNum(server,page,port,username,pword)
+{
+   file <- page + "?user_name="+username+"&upload_password="+pword
+   out <- GetHTTPText(server,port,file)
+
+   if(First(out)==200)
+    {
+      subraw <- Second(out)
+      len <- StringLength(subraw)
+      sub <- SubString(Second(out),1,len-1)
+    } else {
+      sub <- RandomDiscrete(999999)
+
+    }
+    return sub
+}
+
+
+
+
+define UploadFile(subcode,datafilename,settings:"upload.json")
+{
+  settings  <- ParseJSON(FileReadText(settings))
+  host <- settings.host
+  page <- settings.page
+  port <- ToInteger(settings.port)
+  username <- settings.username
+  uploadpassword <- settings.uploadpassword
+  taskname <- settings.taskname
+  if(taskname == "<USE_TASK_NAME>")
+  {
+    taskname <- gScriptName
+  }
+  
+  out <-   SyncDataFile(host,page,port,username,uploadpassword,taskname,subcode,datafilename)
+
+ return out
+}
+
+define SyncDataFile(server,page,port,username,pword,taskname,subcode,datafilename)
+{
+
+  filecontent <-FileReadText(datafilename)
+
+
+  cr <- CR(1)
+
+  bound <- "**boundary**"
+  boundary <- "--"+bound
+
+
+  content <- cr+boundary  +cr+
+  "Content-Disposition: form-data; name="+gQuote+"upfile"+gQuote+"; filename="+gQuote+"testpost.pbl"+gQuote +
+  cr+
+  "Content-Type: application/octet-stream "+cr+  ## text/plain" need the space or extra cr here.
+  cr+
+  filecontent +
+  boundary + "--"
+  cl <- StringLength(content)+1
+
+  args <- ["user_name",username,
+           "upload_password",pword,
+	   "taskname",taskname,
+	   "subnum",subcode]
+
+  headers <- ["Connection","close",
+  	      "Accept", "text/plain",
+              "Content-Type", "multipart/form-data; boundary="+bound,
+              "Content-Length",((cl)+"")]
+
+  out <-  PostHTTPFile(server,port,page,args,datafilename,"fileToUpload")
+
+ return out
+}
+
+
+
+
+define DirToText(dirlist,filelist,path)
+{
+  timeStart <- GetTime()
+  tmp1 <- ModList(dirlist,"","\")
+  tmp <- Merge(tmp1,filelist)
+
+ return tmp
+}
+
+
+define AppendDirList(dirlist,dir)
+{
+
+ if(dir == ".")
+   {
+     dirlist <- dirlist
+   }elseif(not dir == "..")
+   {
+      dirlist <- Append(dirlist,dir)
+   } else {
+      if((not Last(dirlist) == ".") and
+	     (not Last(dirlist) == ".."))
+	  {
+	      dirlist <- SubList(dirlist,1,Length(dirlist)-1)
+      } else {
+	      dirlist <- Append(dirlist,dir)
+      }
+   }
+
+   return dirlist
+}
+
+
+##appends a set of nested directories into a path.
+define DirlistToText(list)
+{
+
+  if(GetSystemType()=="WINDOWS")
+    {
+	   sep <- "\"
+	} else {
+	   sep <- "/"
+
+	}
+    out <- ListToString(list,sep) + sep
+    return out
+}

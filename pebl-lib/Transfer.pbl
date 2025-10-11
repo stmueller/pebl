@@ -1,0 +1,65 @@
+## Functions to support downloading/transferring files via http and
+## other network protocols.
+
+
+
+##This will attempt to retrieve all the files in filelist.
+##
+define GetFiles(filelist,filebase,urlbase)
+{
+
+  good <- 1
+  success <- []
+  loop(file,filelist)
+   {
+    if(not FileExists(filebase+file))
+    {
+       filesuccess <- GetHTTPFile(urlbase+file,filebase+file)
+       PushOnBack(success,filesuccess)
+       if(filesuccess)
+       {
+       Print("File:["+file+"] successfully downloaded." )
+       }else{
+       Print("File:["+file+"] download failed." )
+        good <- 0
+       }
+    } else {
+       PushOnBack(success,1)
+       Print("File:["+file+"] previously downloaded." )
+    }
+
+   }
+
+ return good
+}
+
+
+define SendFile(network,filename,id)
+{
+   Print("loading filename: ["+filename+"]")
+   text <- FileReadText(filename)
+   length <- StringLength(text)+""
+
+   if(StringLength(length)>16)
+   {
+     SignalFatalError("Cannot send a file this long:"+length)
+   }
+
+   Print("Sending: [" +id +"] : "+length)
+   message <-  Format(id,32)+Format(length,16) + text
+   label <- EasyLabel("Attempting to send data to server (up to 10 secs)", gVideoWidth/2,gVideoHeight/2,gWin,22)
+   Draw()
+   Wait(500)
+   success <- SendData(network,message)
+   if(success)
+   {
+      label.text <- "Succeeded at sending data"
+      Draw()
+      Wait(500)
+   } else {
+      label.text <- "Failed to send data.  Please try again later or send data files directly. Press any key to begin."
+      Draw()
+      WaitForAnyKeyPress()
+   }
+   return success
+}

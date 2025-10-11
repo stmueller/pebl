@@ -1,0 +1,175 @@
+define Start(p) 
+{
+  gWin <- MakeWindow()
+  gSleepEasy <- 1
+  scename <- "labels.csv"
+  targets <- ReadCSV(scename)  
+  fileOut <- FileOpenAppend("log-"+gSubNum+".csv")
+  loghist <- 12  ##The number of items in the log history.
+  targcol <- MakeColor("darkblue")
+  bgcol <- MakeColor("grey")
+  buttoncol <- MakeColor("grey20")
+  targfont <-MakeFont("Vera.ttf",1,22,targcol,bgcol,0)
+  head <- EasyLabel("Click to make note in log", gVideoWidth/2,20,gWin,18)
+  quit <- MakeLabel("QUIT",targfont); Move(quit,200,375)
+  quitback <- Rectangle(200,375,160,30,targcol,0)
+  AddObject(quitback,gWin)
+  AddObject(quit,gWin)
+  entry <- MakeTextBox("NOTE",targfont,700,40); Move(entry,50,240)
+  noteback <- Rectangle(400,257, 700, 30, targcol,0)
+  AddObject(entry,gWin)
+  AddObject(noteback,gWin)
+  entry.text <- "Click to make note"
+  Show(entry)
+  clickon <- [quitback,noteback]
+  tmp <- []
+  keys <- Merge(["QUIT","NOTE"],First(Transpose(targets)))
+
+## Add all the targets in the targets list
+  loop(i,targets)
+    {
+      logtext <- First(i)
+      type <- Second(i)
+      xpos <- ToNumber(Third(i))
+      ypos <- ToNumber(Fourth(i))
+
+      if(type == "button")
+         {
+           x1 <- MakeLabel(logtext,targfont); Move(x1,xpos,ypos)
+           back <- Rectangle(xpos,ypos,330,32,targcol,0)
+           AddObject(back,gWin)
+           AddObject(x1,gWin)
+           clickon <- Append(clickon, back)            
+           tmp <- Append(tmp,x1)
+         } 
+
+    }
+  Draw()
+ 
+  timer <- EasyLabel("Time remaining: 300 sec",600,375,gWin,33)
+  logger <-  EasyTextBox("",50,400,gWin,12,700,190)
+  logger.linewrap <- 0
+
+  Draw()
+
+  MessageBox("Hit ok to begin logging",gWin)
+  starttime <- GetTime()
+  endtime <- starttime + 1000*5*60
+
+  targ <- "" 
+  lasttime <- GetTime()
+  time <- lasttime
+  loglist <-[]
+  count <- 1
+
+  while(UpperCase(targ) <> "QUIT")
+  {
+    Draw()
+    xy <- WaitForDownClickWithTimeout(100)
+
+    if(First(xy)=="<timeout>")
+     {
+       timer.text <- "Time left: " + Floor((endtime - GetTime())/1000)
+       Draw()
+     } else {
+     
+       targ <- IsClickOnTarget(xy, clickon,keys)
+
+       if(targ <> "")
+       {
+        lasttime <- time
+        time <- GetTime()
+
+    if(Uppercase(targ) == "NOTE")
+     {
+       entry.text <- ""
+       label2 <- GetInput(entry,"<return>")
+       label2 <- ReplaceChar(label2,",", ";")
+       entry.text <- "Click to make note"
+       Draw()
+     }else{
+
+       label2 <- ReplaceChar(targ," ", "_")
+     }
+
+     logline <- MakeCSVLine([TimeStamp(),gSubNum,count,label2,
+                 First(xy), Second(xy), time,(time-lasttime), (endtime -time)])
+     FilePrint(fileout,logline)
+     loglist <- Pushon(loglist, logline,loghist)
+     logtext <- MakeLogText(loglist)
+     logger.text <- logtext
+     count <- count + 1
+    }
+    }
+  }
+}
+
+##adds logline to the end of loglist, but drops the beginning items 
+## so the list is shorter than loghist.
+define Pushon(loglist, logline,loghist)
+{
+   tmp <- Append(loglist, logline)
+   len <- Length(tmp)
+   start <- Max([1,len-loghist+1])
+   return SubList(tmp,start,Length(tmp))
+}
+
+define MakeLogText(loglist)
+{
+  x <- ""
+  loop(i,loglist)
+  {
+    x <- x + i + CR(1)
+  }
+  return x
+}
+
+define MakeCSVLine(list)
+{
+  txt <- ""
+
+  loop(i,list) 
+   {
+     txt <- txt + i + ", "
+   }
+ return txt
+}
+
+##targetlist is a set of graphical objects,
+##keylist is a set of keys whose corresponding 
+##value should be returned when a graphical object is clicked upon.
+
+define IsClickOnTarget(pos,targetlist,keylist)
+{
+  ret <- ""
+  testlist <- Transpose([targetlist,keylist])     
+
+   loop(i,testlist)
+      {
+       if(Inside(pos,First(i)))
+         {
+            wait1 <- 0
+            ret <- Nth(i,2)
+            break
+         }
+      }
+  return ret
+}
+
+define WaitForDownClickWithTimeout(time)
+{
+  ret <- ""
+  wait2 <- 1
+  while(wait2)
+     {
+        pos <- WaitForMouseButtonWithTimeout(time)
+        if(First(pos) == "<timeout>") 
+          {
+            wait2 <- 0    
+          } elseif(Nth(pos,4)=="<pressed>")
+          {
+           wait2 <- 0
+         }
+    }
+  return pos
+}

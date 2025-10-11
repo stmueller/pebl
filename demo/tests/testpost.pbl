@@ -1,0 +1,113 @@
+define Start(p)
+{
+  ## This tests http post, using a minimal fileserver (e.g., droopy)
+  ## running on localhost:8000
+
+#  host <- "127.0.0.1:8080"
+
+cr <- CR(1)
+
+
+## this is for droopy.  It almost works, but hangs, causing a server error when you
+##break out, and it misses sending the first line.
+
+  host <- "localhost"
+  port <- 8000
+  page <- "/" 
+
+  filecontent <-FileReadText("testaudio.pbl")
+  bound <- "**boundary**"
+  boundary <- "--"+bound
+
+
+  content <- cr+boundary  +cr+
+  "Content-Disposition: form-data; name="+gQuote+"upfile"+gQuote+"; filename="+gQuote+"testaudio.pbl"+gQuote +
+  cr+
+  "Content-Type: application/octet-stream "+cr+  ## text/plain" need the space or extra cr here.
+  cr+
+  filecontent +
+  boundary + "--"
+  cl <- StringLength(content)+1
+  
+  headers <- ["Connection","close",
+  	      "Accept", "text/plain",
+              "Content-Type", "multipart/form-data; boundary="+bound,
+              "Content-Length",((cl)+"")]
+
+
+##	      "Content-Type","text/plain"]
+
+
+
+if(1)
+{
+
+
+## this is for phpsimplyfile
+  host <- "localhost"
+  port <- 8000
+  page <- "/upload.php" 
+        
+  filecontent <-FileReadText("testaudio.pbl")       
+  bound <- "**boundary**"
+  boundary <- "--"+bound
+
+
+  content <- cr+boundary  +cr+
+  "Content-Disposition: form-data; name="+gQuote+"fileToUpload"+gQuote+"; filename="+gQuote+"testaudio.pbl"+gQuote +
+  cr+
+  "Content-Type: application/octet-stream "+cr+  ## text/plain" need the space or extra cr here.
+  cr+
+  filecontent +
+  boundary + "--"
+  cl <- StringLength(content)+1
+  
+  headers <- ["Connection","close",
+  	      "Accept", "text/plain",
+              "Content-Type", "multipart/form-data; boundary="+bound,
+              "Content-Length",((cl)+"")]
+
+
+
+
+}
+
+
+if(0)
+{
+
+## this is for phpsimplyfile
+  host <- "posttestserver.com"
+  port <- 80
+  page <- "/post.php" 
+
+  filecontent <-FileReadText("testaudio.pbl")
+  bound <- "**boundary**"
+  boundary <- "--"+bound
+
+
+  content <- cr+boundary  +cr+
+  "Content-Disposition: form-data; name="+gQuote+"upfile"+gQuote+"; filename="+gQuote+"testaudio.pbl"+gQuote +
+  cr+
+  "Content-Type: application/octet-stream "+cr+
+## text/plain" +
+  cr+
+  filecontent +
+  boundary + "--"
+  cl <- StringLength(content)+1
+  
+  headers <- ["Content-Type", "multipart/form-data; boundary="+bound,
+              "Content-Length",((cl)+"")]
+
+
+}
+
+ Print("CONTENT:" )
+Print(content)
+
+  out <-  PostHTTPFile(host,port,page,"testpost.pbl")
+  Print("-------------------")
+  Print(out)
+  Print("-------------------")
+
+} 

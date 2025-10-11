@@ -1,0 +1,253 @@
+define Start(p)
+{
+
+   gVideoWidth <- 1440
+   gVideoHeight <- 900
+   gHomeX <- gVideoWidth/2
+   gHomeY <- gVideoHeight/2
+   gSleepEasy <- 1
+   gWin <- MakeWindow()
+	
+   dat <- ReadCSV("test.csv")
+
+
+   vals <- TextToNum(Third(Transpose(dat)))
+   x <-  BarPlot(vals,"","Hello World","Seconds",gWin)
+   Print("barplotdone")
+   AddObject(x,gWin)
+   Move(x,500,300)
+   Draw()
+   WaitForAnyKeyPress()
+
+
+
+
+#   RemoveComplex(x)
+#   x <-  BarPlot([1,10,3,4],"","Goodbye","Seconds",gWin)
+#   Draw()
+#   WaitForAnyKeyPress()  
+#   RemoveComplex(x)
+
+  ##We basically want to be able to plot
+  ##some numbers in a barplot.
+
+}
+
+define TextToNum(list)
+{
+   x <- []
+   loop(i,list)
+    { 
+      x <- Append(x, ToNumber(i))
+    }
+  return x
+}
+
+define BarPlot(data,labels,title,ylab,win,xsize:800,ysize:400)
+{
+
+
+
+  obj <- MakeCustomObject("bargraph")
+
+
+    ##Location of the min and max y in pixels
+    ## remember that y coordinates are inverted from 'normal'
+    ybottom <- ysize*.8
+    ytop  <- ysize*.1
+    xbottom <- xsize*.2
+    xtop    <- xsize*.9
+
+    numpoints <- Length(data)
+    ##parameters for how to draw picture.
+    maxbarwidth <- Round(xsize/numpoints*.9)
+    minbarspace <- 5
+       
+    ##range of the data.
+    datamin <- 0
+    datamax <- Max(data)
+
+    ##Data value max to plot.
+    plotmax <- Ceiling(datamax * 1.2)
+    plotmin <- Min([0,datamin])
+
+    ##Numbers per pixel:  
+    scale <-  (ybottom-ytop)/(plotmax-plotmin)
+
+
+    numdat <- Length(data)
+    ##Compute 'real' plot width'
+
+    ##numdat + barwidth + (numdat-1) * space = (xsize)
+
+    barwidth <- Min([((xtop-xbottom-10) -  (numdat)*minbarspace)/numdat,maxbarwidth])
+    barspace <- ((xtop-xbottom-10) - numdat*barwidth)/(numdat)
+
+
+    bgcol <- MakeColor("steelblue")
+    fgcol <- MakeColor("navyblue")
+    black <- MakeColor("black") 
+     objs <- []
+
+    ##Make a background field
+    bg <- MakeCanvas(xsize,ysize, bgcol)
+    obj.bg <- bg
+    objs <- Append(objs,bg)
+
+    ##Make bars
+    curx <- xbottom+barwidth/2 + barspace/2
+    jumpx <- barwidth+barspace
+    loop(val,data)
+	{
+       hght <- scale*val
+       bar <- Rectangle(curx,ybottom-hght/2,barwidth,hght,fgcol,1)
+
+       AddObject(bar,bg)
+       PushOnEnd(objs,bar)
+       curx <- curx + jumpx
+    }
+
+
+
+   titlefontsize <- Round(ysize/12)
+   labfontsize <-Round(titlefontsize*.6)
+   ##Make a title
+   titlefont <- MakeFont("Vera.ttf",0,titlefontsize,black,bgcol,0)
+   labfont <- MakeFont("Vera.ttf",0,labfontsize,black,bgcol,0)
+   titlelab <- MakeLabel(title,titlefont)
+   AddObject(titlelab,bg)
+   Move(titlelab,xsize/2,ytop)
+   objs <- Append(objs,titlelab)
+
+
+   ##Make two axes
+   xaxis <- ThickLine(xbottom,ybottom, xtop, ybottom, 3, black)
+   yaxis <- ThickLine(xbottom,ybottom,xbottom,ytop,3,black)
+   AddObject(xaxis,bg)
+   AddObject(yaxis,bg)
+   objs <- Append(objs,xaxis)
+   objs <- Append(objs,yaxis)
+
+
+   ##Now, determine the tick unit.  It should be the nearest power of
+   tick <- 10^Floor(LogN(plotmax/2,10))
+   i <- 0
+   curtick <- ybottom - tick * scale * i
+
+   while(curtick >= ytop)
+    {
+
+      val <- tick *i
+      lab <- MakeLabel(val+"",labfont)
+      AddObject(lab,bg)
+      Move(lab,xbottom-35,curtick)
+      objs <- Append(objs,lab)
+
+      tmp <- ThickLine(xbottom-10, curtick, xbottom, curtick, 2, black)
+      AddObject(tmp,bg)
+      objs <- Append(objs,tmp)
+  
+
+      i <- i + 1
+      curtick <- ybottom - tick * scale * i
+    }
+   
+    lab <- MakeLabel(ylab,titlefont)
+    lab.rotation <- 90
+    AddObject(lab,bg)
+    Move(lab,xbottom-80,(ytop+ybottom)/2)
+    objs <- Append(objs,lab)
+    obj.objs <- objs
+    obj.AddObject<- "AddBarplot"
+    obj.Move<- "MoveBarplot"
+    obj.Draw<- "DrawBarplot"
+
+   Draw(bg)
+   return obj
+}
+
+define AddBarPlot(barplot,win)
+{
+
+#   Print("Adding barplot")
+#   PrintProperties(barplot)
+   AddObject(barplot.bg,win)
+   
+}
+
+define MoveBarPlot(barplot,x,y)
+{
+
+   Move(barplot.bg,x,y)
+   
+}
+
+
+define DrawBarPlot(obj)
+{
+   Draw(obj)
+}
+
+##Gets an angle, in degrees, of an X,Y vector
+define GetAngle(dx, dy)
+{
+
+  baseangle <- RadToDeg(ATan(dy/dx))
+  
+  ##Ultimate angle depends on the quadrant, if you use ATN
+  if(dx >0 and dy > 0)  ##1st quadrant
+   {
+       ret <- baseangle
+   } elseif(dx<0 and dy> 0) {         ##2nd quadrant
+       ret <- 180+baseangle 
+   } elseif(dx<0 and dy<0) {          ##3rd quadrant
+       ret <- 180+baseangle
+   } else {                           ##4th quadrant
+       ret <- 360+baseangle
+   }
+
+   return Mod(ret,360)
+}
+
+##remove quotes from outside of text (but not the inside)
+define StripQuotes(text)
+{
+   start <- 1
+   end <- StringLength(text)
+  
+   if(end > 0)
+   {
+
+   if(SubString(text,end,1)==gQuote)
+    {
+      end <- end - 1
+    }
+   if(SubString(text,1,1)== gQuote)
+    {
+      start <- 2
+      end <- end -1
+    }
+
+   ret <- SubString(text,start,end)
+
+   } else {
+    ret <- text
+   }
+   return ret
+}
+
+
+
+
+
+
+
+define RemoveComplex(targs)
+{
+ 
+   loop(i, targs)
+   {
+
+     RemoveObject(i,gWin)
+   }
+}

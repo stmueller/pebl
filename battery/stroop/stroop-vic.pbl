@@ -1,0 +1,865 @@
+define Start(p)
+{
+##
+## "Victoria" implementation of the stroop task.
+##
+##
+##
+##  Translations:
+##  Chinese by Ron Ye
+##  Portuguese (Brazilian)
+##  Dutch by Alien Van der Sluis
+##  Turkish by Zeynel Baran
+## Spanish by user Carlos from Ecuador
+
+   gScriptName <- "Victoria Stroop Task--PEBL Implementation"
+   parpairs <- [["rounds",1],  #rounds is the number of times you go through form 1-2-3
+                ["numcolumns",6],
+		["numrows",  4],
+		["timelimit",0]]
+   gParams <- CreateParameters(parpairs,gParamFile)
+
+
+   ##The number of trials per block (and condition)
+   ##This is really the number of columns, and shouldn't be changed
+   gColumns <- gParams.numcolumns
+   gRows <-  gParams.numRows
+   gTimeLimit <- gParams.timelimit
+   
+  
+   ## Uncomment to eliminate busy-wait (mostly for older machines or
+   ## laptops that might overheat.)
+   gSleepEasy <- 1
+   Initialize()
+
+  if(gSubNum+""=="0")
+   {
+     gSubNum <- GetSubNum(gWin)
+   }
+
+
+
+
+
+   ##CReate the response order at the bottom
+   colororder <- Shuffle([1,2,3,4])
+   gColorNames <- SortBy(gColorBaseNames,colororder)
+
+   ##Do not transate these color strings
+   gColors     <- SortBy(["red","green","blue","yellow"],colororder)
+
+
+
+  ##############
+  ## Create the basic stimuli
+  #############
+
+
+   gBlack  <- MakeColor("black")
+   gRed    <- MakeColor("red")
+   gGreen  <- MakeColor("darkgreen")
+   gBlue   <- MakeColor("navy")
+   gYellow <- MakeColor("yellow1")
+
+   colors <- [gRed, gGreen, gBlue, gYellow]
+
+
+  gFontBlack        <- MakeFont(gPEBLBaseFontMono, 0, 24, gBlack,gBg,0)
+  gFontRed          <- MakeFont(gPEBLBaseFontMono, 0, 24, gRed,gbg,0)
+  gFontGreen        <- MakeFont(gPEBLBaseFontMono, 0, 24, gGreen,gbg,0)
+  gFontBlue         <- MakeFont(gPEBLBaseFontMono, 0, 24, gBlue,gbg,0)
+  gFontYellow       <- MakeFont(gPEBLBaseFontMono, 0, 24, gYellow,gbg,0)
+
+
+
+
+  ##  There are 4 blocks; color & name with colored targets;
+  ##  color & name with black targets.
+
+
+
+  MakeDirectory("data")
+
+  gFileOut <- GetNewDataFile(gSubNum,gWin,"vstroop","csv",
+   "subnum,round,block,trial,word,color,part,xpos,ypos,resp,rname,correct,intrusion,numresponses,time0,timea,timeend,trialtime,responsetime")
+  gSumFileOut <- GetNewDataFile(gSubNum,gWin,"vstroop-report","txt","")
+
+
+  gTrial <- 0
+  gBlock <- 0
+  gRound <- 1
+
+  ##This works by presenting a specific stimulus, and giving the option of four responses.
+  ##The stimulus must be categorized either by color or by name.
+  ##There are two control conditions for comparison purposes.
+
+
+
+
+
+   ########################################################
+   ## Begin experiment
+
+
+
+
+
+   gInstructions.text <- gInst1
+
+
+   Show(gInstructions)
+   Hide(gHeader)
+   Draw()
+   WaitForAnyKeyPress()
+   Hide(gInstructions)
+   Show(gHeader)
+   Draw()
+
+
+   #Initialize data collectors
+   gErr  <- []; gRT   <- []; gCond <- []
+
+   gHead <- gHeadBlock
+
+  text <- ""
+   dotraining <- 1
+  loop(round,Sequence(1,gparams.rounds,1))
+   {
+
+   ########################################################
+   ##Do the Dot naming  (block 1)
+
+
+  ########################################
+  ## round 1 is "Part D": colored dots
+
+
+
+  stim1 <-  PasteTables(ShuffleMe([0,0,0,0],gColors,1,gColumns*gRows),
+                         Transpose([Repeat("d",gColumns*gRows)]))
+
+
+
+   gBlock <- 1
+   out1 <-   Block(stim1,dotraining,gTimeLimit)
+
+   resp1 <- First(out1)
+   time1 <- Second(out1)
+   intrusions1 <- Third(out1)
+   corrects1 <- Fourth(out1)
+   errors1 <- Fifth(out1)
+   
+   dotraining <- 0  ##only do training on the very first block
+
+
+
+   ########################################################
+   ##Do the word naming  (block 2)
+
+
+
+
+
+
+
+  #########################################
+  ## Round 2 is "Part W": colored words
+
+  stim2 <- PasteTables(ShuffleMe(gWords,gColors,1,gColumns*gRows),
+                       Transpose([Repeat("w",gColumns*gRows)]))
+
+
+
+   gInstructions.text <- gInst2
+   Show(gInstructions)
+   Hide(gHeader)
+   Draw()
+   WaitForAnyKeyPress()
+   Hide(gInstructions)
+   Show(gHeader)
+   Draw()
+
+   gBlock <- 2
+   out2 <-  Block(stim2,0,gTimeLimit)
+   resp2 <- First(out2)
+   time2 <- Second(out2)
+   intrusions2 <- Third(out2) ##should be 0
+   corrects2 <- Fourth(out2)
+   errors2 <- Fifth(out2)
+
+
+
+
+
+   ########################################################
+   ##Do the color naming  (block 3)
+
+
+  #########################################
+  ## some trials where all colors are black
+
+   stim3 <- PasteTables(ShuffleMe(gColorNames,gColors,0,gColumns*gRows),
+                        Transpose([Repeat("c",gColumns*gRows)]))
+
+
+
+   gInstructions.text <- gInst3
+   Show(gInstructions)
+   Hide(gHeader)
+   Draw()
+   WaitForAnyKeyPress()
+   Hide(gInstructions)
+   Show(gHeader)
+   Draw()
+
+
+   gBlock <- 3
+   out3 <-  Block(stim3,0,gTimeLimit)
+   resp3 <- First(out3)
+   time3 <- Second(out3)
+   intrusions3 <- Third(out3)
+   corrects3 <- Fourth(out3)
+   errors3 <- Fifth(out3)
+
+
+   text <- CR(3)+
+            "(Round "+round+")   Time taken     Responses  Correct Errors  Intrusions"+CR(1)+
+            "--------------------------------------------------------------"+CR(1)+
+            "Part D:            "+Format(Round(time1/10)/100,10) + "     " + resp1+ "  "+ corrects1 +"  "+ errors1 + "  "+ intrusions1+ CR(1)+
+            "Part W:            "+Format(Round(time2/10)/100 ,10) +"     " + resp2+ "  "+ corrects2 +"  "+ errors2 + "  "+ intrusions2+ CR(1)+
+            "Part C:            "+Format(Round(time3/10)/100,10) + "     " + resp3+ "  "+ corrects3 +"  "+ errors3 + "  "+ intrusions3+ CR(1)+
+            "Efficiency(C/D):   "+Format((time3/time1),10) +       "     "+ resp3/resp1+ "   " + corrects3/corrects1+"  "  + errors3/errors1 +CR(1)+
+            "Efficiency(C/W):   "+Format((time3/time2),10) +       "     "+ resp3/resp2+ "   " + corrects3/corrects2 + "  "+  errors3/errors2 + CR(1)
+
+    gRound <- gRound + 1
+
+   }
+
+
+
+   FilePrint(gSumFileOut,"------------------------------------------")
+   FilePrint(gSumFileOut,"PEBL Victoria-Stroop Task, Version 1.0")
+   FilePrint(gSumFileOut,"http://pebl.sf.net")
+   FilePrint(gSumFileOut,"Shane T. Mueller & Arthur Kümmer")
+   FilePrint(gSumFileOut, GetPEBLVersion())
+   FilePrint(gSumFileOut,"------------------------------------------")
+   FilePrint(gSumFileOut,"Response Order:"+gColors)
+   FilePrint(gSumFileOut, "Subject code: "+gSubNum)
+   FilePrint(gSumFileOut, "Time:         "+TimeStamp())
+   FilePrint(gSumFileOut,"------------------------------------------")
+   FilePrint(gSumFileOut,text)
+   FilePrint(gSumFileOut,"------------------------------------------")
+
+   filesum <- FileOpenAppend("data/stroop-v-all.csv")
+   FilePrint(filesum, gSubNum + "," + TimeStamp() + "," + GetTime()+"," +
+     time1+ ","+ resp1+","+ intrusions1+","+corrects1+","+errors1+","+
+     time2+ ","+resp2+","+ intrusions2+","+corrects2+","+errors2+","+
+     time3+ ","+resp3+","+ intrusions3+","+corrects3+","+errors3)
+
+#   MessageBox("This output only provided for testing.  Uncomment for deployment"+CR(1)+text,gWin)
+   MessageBox(gExitText,gWin)
+}
+
+
+##
+##
+define PrintMe(file,text)
+{
+  FilePrint(file,text)
+  Print(text)
+}
+
+define PrintMe_(file,text)
+{
+  FilePrint_(file,text)
+  Print_(text)
+
+}
+
+define PrintTable(file,table)
+{
+   PrintMe(file,"------------------------------------")
+   loop(i,table)
+   {
+       loop(j,i)
+         {
+            PrintMe_(file,RoundOff(j,3) + Tab(1))
+
+         }
+      PrintMe(file,"")
+
+   }
+   PrintMe(file,"------------------------------------")
+
+}
+
+
+##The btype variable controls whether the block is a color or a word block.
+##  It should only affect scoring; it assumes stim is made correctly.
+##  btype == 1: by name
+##  btype == 2: by shade
+##  If colorresp!=0, then the respnonses are labeled with their
+## corresponding colors.
+## timelimit:0 is no time limit
+define Block(stim,dotraining,timelimit: 0)
+{
+
+     red    <- gFontBlack
+     green  <- gFontBlack
+     blue   <- gFontBlack
+     yellow <- gFontBlack
+
+
+     foot1 <- MakeLabel("["+First(gKeys)+"] "+First(gColorNames),red)
+     foot2 <- MakeLabel("["+Second(gKeys)+"] "+Second(gColorNames),green)
+     foot3 <- MakeLabel("["+Third(gKeys)+"] "+Third(gColorNames),blue)
+     foot4 <- MakeLabel("["+Fourth(gKeys)+"] "+Fourth(gColorNames),yellow)
+
+
+   feet <- [foot1,foot2,foot3,foot4]
+   AddObject(foot1,gWin);   AddObject(foot2,gWin);
+   AddObject(foot3,gWin);   AddObject(foot4,gWin);
+   Move(foot1, gVideoWidth/2-300, gVideoHeight-100)
+   Move(foot2, gVideoWidth/2-100, gVideoHeight-100)
+   Move(foot3, gVideoWidth/2+100, gVideoHeight-100)
+   Move(foot4, gVideoWidth/2+300, gVideoHeight-100)
+
+
+if(dotraining)
+{
+
+##Do the practice here:
+   ##Lets do a little learning about the key mappings
+   gInstructions.text <- gPracticeText
+   Show(gInstructions)
+    patch <- Rectangle(gVideoWidth/2,gVideoHeight/2+60,300,100,MakeColor("black"),1)
+    AddObject(patch,gWin)
+    Draw()
+    resp <- 1
+	patch.color <- gblack
+	Draw()
+    while(not (resp == 5))
+      {
+
+
+         resp <- WaitForIt(Append(gKeys," "))
+		 if(resp != 5)
+          {
+            colname <- Nth(gColors, resp)
+            patch.color <- ChooseColor(colname)
+            Draw()
+           }
+      }
+
+    RemoveObject(patch,gWin)
+    Hide(gInstructions)
+   }
+
+  Show(gHeader)
+   ##Create the grid layout.
+   ##rectangle is 120 x 60
+   width <-  Min([120 * (gColumns),gVideoWidth-100])
+   height <- Min([60*gRows,gVideoHeight-100])
+
+   xypoints <- LayoutGrid(gVideoWidth/2-width/2,gVideoWidth/2+width/2,
+                          (gVideoHeight-height)/2,(gVideoHeight+height)/2,
+			  gRows,gColumns,0)
+
+    ##Wait at this point for the subject to press a key to begin.
+    gHeader.text <- gHeadBegin
+    Draw()
+
+    WaitForAnyKeyPress()
+    gHeader.text <- gHead
+
+    time1 <- GetTime()
+
+    #Add the highlight rectangle BEHIND the stimulus
+
+    highlight <- Rectangle(0,0,120,60,MakeColor("grey"),0)
+    AddObject(highlight,gWin)
+
+
+   ##Add the stimuli
+   tmp <- []
+   complex <- PasteTables(stim,xypoints)
+    loop(id,complex)
+     {
+        targ <- First(id)
+        color <- Second(id)
+        type <- Third(id)
+        x <- Fourth(id)
+        y <- Fifth(id)
+        if(targ == 0)
+         {
+            stim <- Circle(x,y,20,ChooseColor(color),1)
+
+         } else {
+            stim <- MakeLabel(targ,ChooseFont(color))
+            Move(stim,x,y)
+         }
+         AddObject(stim,gWin)
+
+         tmp <- Append(tmp,stim)
+     }
+
+
+
+    ##Create an 'error' highlight
+    highlight2 <- Rectangle(0,0,120,60,MakeColor("grey"),1)
+    AddObject(highlight2,gWin)
+    Hide(highlight2)
+
+    trial <- 1
+    responses <- 0
+    corrects <- 0
+    errors <- 0
+    intrusions <- 0
+    startTime <- GetTime()
+    
+    ##Collect responses
+    loop(id,complex)
+     {
+
+        Move(highlight,Fourth(id),Fifth(id))
+        Draw()
+
+        corr <- 0
+        time0 <- GetTime()  #time 0 is start of trial
+
+
+        while(not corr)
+         {
+           timea <- GetTime()      #timea is start of last presentation
+           resp <-  WaitForIt(gKeys)
+           timeend <- GetTime()      #time1 is end response
+
+           corr <- ScoreTrial(resp,"",Second(id),2)
+           colname <- Nth(gColorNames, (resp))
+
+
+           if(not corr)
+           {
+                Move(highlight2,highlight.x,highlight.y)
+                Show(highlight2)
+                Draw()
+                Wait(250)
+                Hide(highlight2)
+                Draw()
+                ## If it was an error, was it a match to the word text?
+                intrusion <- colname == First(id)
+                errors <- errors + 1
+		intrusions <- intrusions + intrusion
+           } else{
+             intrusion <- 0
+             corrects <- corrects + corr
+           }
+         responses <- responses + 1
+
+       FilePrint(gFileOut,gSubNum+ "," +gRound+","+ gBlock + "," +trial + "," + First(id) + "," + Second(id)+
+        "," + Third(id) + "," + Fourth(id) + ","+ Fifth(id)+ "," + resp + "," + colname + ","  + corr + "," +intrusion + ","+responses + "," +
+        time0+ ","+ timea + "," + timeend + "," +(timeend-time0) + "," + (timeend-timea))
+         }
+	 
+
+
+
+      if(timelimit > 0 and (GetTime() - starttime) > timelimit * 1000)
+      {
+        break
+      }
+      trial <- trial + 1
+     }
+   time2 <- GetTime()
+
+
+
+
+ return [responses,time2-time1,intrusions,corrects,errors]
+}
+
+##for now, assumes the tables are the same size
+define PasteTables(tab1,tab2)
+{
+   a <- Transpose(tab1)
+   b <- Transpose(tab2)
+
+   return Transpose(Merge(a,b))
+}
+
+
+
+define ChooseColor(name)
+{
+   if(name == "black") {col <- gBlack}
+   if(name == "blue")  {col <- gBlue}
+   if(name == "red")   {col <- gRed}
+   if(name == "green") {col <- gGreen}
+   if(name == "yellow"){col <- gYellow}
+
+  return col
+}
+
+define ChooseFont(name)
+{
+   if(name == "black") {font <- gFontBlack}
+   if(name == "blue")  {font <- gFontBlue}
+   if(name == "red")   {font <- gFontRed}
+   if(name == "green") {font <- gFontGreen}
+   if(name == "yellow"){font <- gFontYellow}
+
+  return font
+}
+
+
+##depending upon condition,
+define ScoreTrial(resp,wordname,colorname,btype)
+{
+ ##  responses are: 1.red 2.green 3.blue 4.yellew
+
+  corr <- 0
+
+
+  ##There are really just two ways of scoring:
+  ## by color and by name.
+  if(btype==1)
+  {
+    if( Nth(gColors, resp) ==wordname)
+      {
+ 	  corr <- 1
+      }
+  } else {
+    if( Nth(gColors, resp) ==colorname)
+     {
+       corr <- 1
+     }
+  }
+    return corr
+  }
+
+
+
+
+
+##  This is a standard initializer function that sets up typical
+##  objects used in experiments.
+define Initialize()
+{
+#  gVideoWidth  <-800
+#  gVideoHeight <- 600
+
+  ##Initialize Window, etc.
+  gWin <- MakeWindow("grey40")
+  ShowCursor(0)
+  ##Initialize Font and colors
+
+   gBG <- MakeColor("grey40")
+   fg  <- MakeColor("black")
+
+
+   Getstrings(gLanguage)
+
+   gInstructionsFont <- MakeFont(gPEBLBaseFont,0,18, fg,MakeColor("white"),1)
+   gHeaderFont       <- MakeFont(gPEBLBaseFont, 0,36,fg,gBG,1)
+
+   ## Make and place the instruction box, then hide it
+   gInstructions <- MakeTextBox("", gInstructionsFont, 600,300)
+   AddObject(gInstructions, gWin)
+   Move(gInstructions, gVideoWidth/2-300, gVideoHeight/2-150)
+
+   Show(gInstructions)
+
+   ## Make and hide a header label
+   gHeader <- MakeLabel("",gHeaderFont)
+   AddObject(gHeader,gWin)
+   Move(gHeader, gVideoWidth/2, 50)
+   Hide(gHeader)
+
+   gStimLabel <- MakeLabel("",gHeaderFont)
+   AddObject(gStimLabel,gWin)
+   Move(gStimLabel, gVideoWidth/2, gVideoHeight/2)
+   Hide(gStimLabel)
+
+   gFeedback <- MakeLabel("INCORRECT",gHeaderFont)
+   AddObject(gFeedback,gWin)
+   Move(gFeedback, gVideoWidth/2, gVideoHeight/2+70)
+   Hide(gFeedback)
+
+}
+
+define GetStrings(language)
+{
+
+##Known trasnlations:
+  lang <- Uppercase(language)
+  fname <- "translations/stroop-vic.pbl-"+LowerCase(lang)+".json"
+
+  if(FileExists(fname))
+  {
+    gStrings <- ReadTranslationJSON(fname,lang)
+  } else
+  {
+    gStrings <- ReadTranslationJSON("translations/stroop-vic.pbl-en.json",lang)
+  }
+
+   gKeys <- [gStrings.key1,gStrings.key2,gStrings.key3,gStrings.key4]
+
+   keystring <- SubstituteStrings(gStrings.keystring,
+              Transpose([["<KEY1>","<KEY2>","<KEY3>","<KEY4>"],
+	                 gKeys]))
+
+
+   gColorBaseNames <- [gStrings.color1,
+                       gStrings.color2,
+		       gStrings.color3,
+		       gStrings.color4]
+
+   gWords <- [gStrings.word1,gStrings.word2,
+              gStrings.word3,gStrings.word4]
+  gPracticeText<-ReplaceChar(gStrings.practicetext,"<KEYSTRING>",keystring)
+  gInst1 <- ReplaceChar(gStrings.inst1,"<KEYSTRING>",keystring)
+  gInst2 <- ReplaceChar(gStrings.inst2,"<KEYSTRING>",keystring)
+  gInst3 <- gStrings.inst3
+
+   gHeadBegin <- gStrings.headbegin
+   gHeadBlock <- gStrings.headblock
+   gExitText  <- gStrings.exit
+
+ }
+
+
+
+
+## This finds mean and SD RT for
+## each of the conditions specified in delays
+##
+define Aggregate(vals, cond)
+{
+
+  ## start by sorting values by condition,
+  ## then move through them and analyze subparts.
+
+  valX <- SortBy(vals,cond)
+  condX <- Sort(cond)
+  trials <- Transpose([condX,valX])
+
+  stats <- []
+  lastVal <- First(condX)
+
+  tmpVals <- []
+
+  loop(i, trials)
+  {
+
+     ## if the current delay differs from the previous delay,
+	 ## we should analyze what is in tmp right now.
+     if(First(i) != lastVal)
+     {
+
+       stats <- Append(stats,
+                      [lastVal, Length(tmpVals), Median(tmpVals),
+	                  Mean(tmpVals), StdDev(tmpVals)])
+       tmpVals <- []
+     }
+
+    lastVal <- First(i)
+    tmpVals <- Append(tmpVals, Nth(i, 2))
+ }
+
+  stats <- Append(stats,
+                [lastVal, Length(tmpVals),
+                 Median(tmpVals), Mean(tmpVals), StdDev(tmpVals)])
+
+
+ return stats
+}
+
+define RoundOff(val,sig)
+ {
+   s <- 10 ^ sig
+
+  return   Round( val *s)/s
+
+ }
+
+##Finds difference between two lists.
+define ListDiff(l1,l2)
+{
+  tmp <- Transpose([l1,l2])
+  new <- []
+  loop(i,tmp)
+   {
+      new <- Append(new,First(i)-Second(i))
+   }
+ return new
+}
+
+
+##This creates a stimulus deck with the special
+## constraints of vic-stroop.  It creates a balanced list
+## rowsxcolumns (=24 by defaullt) items long of pairs of words and colors
+
+
+
+define ShuffleMe(words, colors, matchesOK,length)
+{
+
+##If matchesOK==1, then matching is OK (blocks 1 and 2)
+##In that case, we can just create individual lists and shuffle.
+
+  if(matchesOK)
+   {
+
+       ##Create baseline shuffled templates
+       basewords <- RepeatEnough([1,2,3,4],length)
+       basecols <- RepeatEnough([1,2,3,4],length)
+
+      outwords <- Replace(basewords, Transpose([[1,2,3,4],words]))
+      outcols  <- Replace(basecols, Transpose([[1,2,3,4],colors]))
+      outlist <- Transpose([outwords,outcols])
+
+
+   } else {
+
+
+      list <- []
+      i <- 1
+      while(i <= length)
+       {
+        ##we need to be sure words and colors do not match
+        matchany <- 1
+        while(matchany)
+         {
+
+            trywords <- Shuffle([1,2,3,4])
+    	    trycols <- Shuffle([1,2,3,4])
+            matchany <- MatchAny(trywords,trycols)
+         }
+
+
+        out <- Transpose([trywords,trycols])
+
+       ##Make sure the transition doesn't repeat
+       if(i>1)
+       {
+
+            lastpair <- Last(list)
+            lastword <- First(lastpair)
+            lastcol <- Second(lastpair)
+
+          ##Make sure the transition between sublists is good.
+          badtransition <- 1
+          while(badtransition)
+           {
+            out <- Rotate(out,1)
+
+            nextpair <- First(out)
+            nextword <-First(nextpair)
+            nextcol <- Second(nextpair)
+
+
+            badtransition <- (nextword==lastword) or  (nextcol==lastcol)
+
+
+           }
+
+       }
+          list <- Merge(list,out)
+        i <- i + 1
+      }
+
+     ##list just contains numbers. Recode into the proper labels
+      tmp <- Transpose(list)
+
+      outwords <- Replace(First(tmp), Transpose([[1,2,3,4],words]))
+      outcols  <- Replace(Second(tmp), Transpose([[1,2,3,4],colors]))
+      outlist <- Transpose([outwords,outcols])
+      outlist <- Sublist(outlist,1,length)
+   }
+   return outlist
+
+}
+
+
+define RepeatEnough(list,length)
+{
+
+   l <- Length(list)
+   times <- Ceiling(length/l)
+   tmp <- Flatten(ShuffleRepeat(list,times))
+
+
+   return SubList(tmp,1,length)
+}
+
+
+
+define MatchAny(list1,list2)
+{
+   match <- 0
+   loop(i,Transpose([list1,list2]))
+    {
+        if(First(i)==Second(i))
+        {
+            match <- 1
+           if(match)
+            {
+              break
+            }
+        }
+    }
+  return match
+}
+
+
+
+
+##Note that shufflerepeat ensures that there are no
+##duplicates at transitions between lists.  This could lead
+##to infinite loops if you shuffle a list of identical items
+
+define ShuffleRepeat(list, n)
+{
+
+   ##Shuffle the first copy:
+   tmp <- [Shuffle(list)]
+
+   ##Add additional sets to the end
+   if(n>1)
+   {
+   loop(i, Sequence(1,n-1,1))
+    {
+      try <- Shuffle(list)
+
+      while(Last(Last(tmp)) == First(try))
+          {
+
+           try <- Shuffle(list)
+
+          }
+       tmp <- Append(tmp,try)
+    }
+   }
+  return tmp
+}
+
+
+##This enables using other keys to do input.
+##it takes a list of keys, and returns the relative index.
+define WaitForIt(keylist)
+{
+   code <- Sequence(1,Length(keylist),1)
+
+   resp <- (WaitForListKeyPress(keylist))
+   outid <- 0
+   loop(i,Transpose([keylist,code]))
+    {
+       if(Uppercase(resp) == Uppercase(First(i)))
+       {
+	    outid <- Second(i)
+	    break
+       }
+    }
+
+   return (outid)
+}

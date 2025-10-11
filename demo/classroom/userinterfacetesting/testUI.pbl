@@ -1,0 +1,168 @@
+define Start(p)
+{
+
+
+  gWin <- MakeWindow("grey90")
+  gSleepEasy <- 1
+  
+  gfont <- MakeFont(gPEBLBaseFont,0,14,MakeColor("gold"),MakeColor("black"),0)
+  inputfilename <- ""
+  while(not FileExists(inputfilename))
+   {
+    files <- FilterDir(GetDirectoryListing("./"),".dsn")
+    choice <- GetEasyChoice("Select  definition filename",files,
+                                     Sequence(1,Length(files),1),gWin)
+
+    inputfilename <- Nth(files,choice)
+   }
+
+  def <-ReadCSV(inputfilename)
+  MakeDirectory("data")
+  gFileOut <-  FileOpenAppend("data/"+inputfilename+".csv")
+
+ buttons <- []
+ labs <- []
+  stim <- []
+   loop(i,def)
+   {
+    x <- ToNumber(First(i))
+    y <- ToNumber(Second(i))
+    w <- ToNumber(Third(i))
+    h <- ToNumber(Nth(i,4))
+    text <- Nth(i,5)
+    tmp <- MakeAButton(x,y,w,h,text,gWin)
+    PushOnEnd(buttons,tmp)
+    PushOnEnd(labs,text)
+
+  }
+
+
+   reps <- ToNumber(GetEasyInput("How many repetitions?",gWin))
+   trials <- Shuffle(Flatten(Repeat(Sequence(1,Length(def),1),reps)))
+
+   cue <- EasyLabel("Search target:" ,gVideoWidth/2,gVideoHeight/2,gWin,30)
+   times <- []
+   conds <- [] 
+   trialnum <- 1
+   loop(i,trials)
+   {
+   ShowCursor(0)
+   cue.text <- "READY" 
+   Show(cue)
+   Draw()
+   Wait(1000)
+   cue.text <- "Search target:  " + Nth(labs,i)
+
+
+   SetMouseCursorPosition(Round(gVideoWidth/2+ (Random()-.5)*400),
+                          Round(gVideoHeight/2+ (Random()-.5)*400 ))
+
+#  Hide(cue)
+   ShowCursor(1)
+   Draw()
+   time0 <- GetTime()
+   cont <- 1
+   found <- 0
+   while(cont)
+    {
+     
+     resp <- WaitForClickOnTargetWithTimeout(buttons,labs,5000)
+     
+     found  <- resp==Nth(labs,i)
+     cont <- (not (resp==Nth(labs,i))) and (not (resp=="<timeout>"))
+    }
+
+    time1 <- GetTime()
+    if(found)
+    {
+       PushOnEnd(conds,i)
+       PushOnEnd(times,(time1-time0))
+    }
+
+    FilePrint(gFileOut,inputfilename+","+trialnum+","+i+","+(time1-time0)+","+found)
+    trialnum <- trialnum + 1
+  }
+
+
+   text <- ""
+   sumfile <- FileOpenAppend("data/"+ inputfilename+"-summary.csv")
+
+    sum <- SummaryStats(times,conds)
+    time <- TimeStamp()
+   loop(datline,sum)
+    {
+       i <- First(datline)
+       button <- Nth(buttons,i)
+       area <- Sqrt(button.width * button.height)
+       line <- time+","+button.text+","+area+","+button.width+","+button.height+","+button.x+","+button.y+ ","+Nth(datline,2)+","+ Nth(datline,3) +","+ Nth(datline,4)
+       text <- text + line + CR(1)
+       FilePrint(sumfile,line)
+     }
+
+
+
+  MessageBox("Evaluation complete. Data file save in "+sumfile.filename +CR(1)+text,gWin)
+  
+}
+
+
+
+define MakeAButton(x,y,width,height,text,win)
+{
+
+  bg <- Rectangle(x+1,y+1,width,height,MakeColor("white"),1)
+  AddObject(bg,win)
+  fg <- Rectangle(x,y,width,height,MakeColor("navy"),1)
+  AddObject(fg,win)
+
+  bg2 <- Rectangle(x,y,width,height,MakeColor("grey"),0)
+  AddObject(bg2,win)
+  
+  lab <- MakeLabel(text,gFont)
+  AddObject(lab,gWin)
+  Move(lab,fg.x,fg.y)
+
+
+  obj <- MakeCustomObject("button")
+  obj.width<-width
+  obj.height <-height
+  obj.x <- x
+  obj.y <- y
+  obj.bg <- bg
+  obj.bg2 <- bg2
+  obj.fg <- fg
+  obj.lab <- lab
+  obj.text <- text
+  obj.name <- "<CUSTOMOBJECT>"
+  return obj
+}
+
+
+
+##This filter returns only files,whose
+##final characters match type.
+define FilterDir(inlist,type)
+{
+
+  outlist <- []
+  typelen <- StringLength(type)
+  loop(i, inlist)
+   {
+
+    if(not IsDirectory(i))
+      {
+        len <- StringLength(i)
+        if(len>=typelen)
+           {
+               if(SubString(i,len-typelen+1,typelen)==type)
+	     	{
+		   PushOnEnd(outlist,i)
+                }
+           }
+       }
+     }
+
+  return outlist
+
+}
+

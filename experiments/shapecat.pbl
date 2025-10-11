@@ -1,0 +1,407 @@
+ define Start(par)
+{
+
+   gRed <- [MakeColorRGB(255,0,0),
+				MakeColorRGB(255,50,50),
+				MakeColorRGB(255,100,100),
+				MakeColorRGB(230,0,0),
+				MakeColorRGB(200,0,0)	]
+
+   gBlue <- [MakeColorRGB(0,0,255),
+				MakeColorRGB(50,50,255),
+				MakeColorRGB(100,100,255),
+				MakeColorRGB(0,0,230),
+				MakeColorRGB(0,0,200)	]
+
+
+	gGreen <-[MakeColorRGB(0,255,0),
+				MakeColorRGB(50,255,50),
+				MakeColorRGB(100,255,100),
+				MakeColorRGB(0,230,0),
+				MakeColorRGB(0,200,0)	]
+
+
+	gYellow <-[MakeColorRGB(255,255,0),
+				MakeColorRGB(215,215,0),
+				MakeColorRGB(185,185,0),
+				MakeColorRGB(255,255,25),
+				MakeColorRGB(255,255,55)	]
+
+
+	gWin <- MakeWindow("grey")
+
+    gCorrect <- MakeImage("smiley-big.png")
+    gIncorrect <- MakeImage("frowney-big.png")
+    AddObject(gCorrect,gWin)
+    AddObject(gIncorrect,gWin)
+    Move(gCorrect,gVideoWidth/2,gVideoheight/2)
+    Move(gIncorrect,gVideoWidth/2,gVideoHeight/2)
+    Hide(gCorrect)
+    Hide(gIncorrect)
+
+
+    gFont <- MakeFont("Vera.ttf",0,18,MakeColor("black"), MakeColor("grey"),1)
+	gHeader <- MakeLabel("",gFont)
+    AddObject(gHeader,gWin)
+    Move(gHeader,gVideoWidth/2,50)
+
+
+    gShapeA <- Rectangle(gVideoWidth/2,gVideoHeight/2,50,50,MakeColor("red"),1)
+    gShapeB <- Ellipse(gVideoWidth/2,gVideoheight/2,50,50,MakeColor("red"),1)
+
+    AddObject(gShapeA,gWin)
+    AddObject(gShapeB,gWin)
+    Show(gShapeA)
+    Show(gShapeB)
+    Draw()
+    resp <- ""
+    while (not resp == "x")
+    { 
+      TaskSingle()
+      TaskChoose()
+      TaskMatch()
+
+
+	gHeader.text <- "Take a break.  Hit X to end, any key to continue."
+    Draw()  
+    resp <- WaitForAnyKeyPress()
+   }
+
+}
+
+
+define TaskSingle()
+{
+    
+    Move(gShapeA,gVideoWidth/2,gVideoHeight/2-100)
+    Move(gShapeB,gVideoWidth/2,gVideoHeight/2-100)
+    Hide(gShapeA)
+    Hide(gShapeB)
+
+    gHeader.text <- "Categorize shape as 1 or 2"
+
+    ##First, do primary gShape learning
+    resp <- ""
+    trial <- 1
+     while(trial < 10)
+    {
+	  gender <- RandomBernoulli(.5)
+   	  type <- RandomBernoulli(.5)	
+      if(gender == 0) 
+      {
+       targ <-  gShapeA
+       ChangeRectangle(gShapeA,MakeA(type))
+	  } else {
+
+       targ <- gShapeB
+       ChangeEllipse(gShapeB,MakeB(type))
+      }
+      Show(targ)
+      Draw()
+      resp <-  WaitForListKeyPress(["1","2"])
+      Hide(targ)
+
+      if((resp == "1" and type==0) or 
+         (resp == "2" and type==1))
+      {
+          corr <- 1
+        feedback <- gCorrect
+      } else {
+          corr <- 0
+        feedback <- gIncorrect
+      }
+
+     Show(feedback)
+     Draw()
+     Wait(400)
+     Hide(feedback)
+     Draw()
+
+     trial <- trial + 1
+    }
+
+}
+
+
+
+define TaskChoose()
+{
+    
+    Move(gShapeA,gVideoWidth/2-100,gVideoHeight/2-100)
+    Move(gShapeB,gVideoWidth/2+100,gVideoHeight/2-100)
+    Hide(gShapeA)
+    Hide(gShapeB)
+	
+
+    optA1 <- Rectangle(gVideoWidth/2-100,gVideoHeight/2-100,50,50,MakeColor("red"),1)
+    optA2 <- Rectangle(gVideoWidth/2-100,gVideoHeight/2-100,50,50,MakeColor("red"),1)
+    optB1 <- Ellipse(gVideoWidth/2+100,gVideoHeight/2-100,50,50,MakeColor("red"),1)
+    optB2 <- Ellipse(gVideoWidth/2+100,gVideoHeight/2-100,50,50,MakeColor("red"),1)
+
+    AddObject(optA1,gWin)
+    AddObject(optA2,gWin)
+    AddObject(optB1,gWin)
+    AddObject(optB2,gWin)
+	
+
+    Hide(optA1)
+    Hide(optA2)
+    Hide(optB1)
+    Hide(optB2)
+
+
+    gHeader.text <- "Which shape goes with the top target [1 or 2]?"
+    trial <- 1
+    resp <- "" 
+    sum <- 0
+    grandsum <- 0
+    while(trial < 10)
+    { 
+    ## first, select the probe.  Then, choose a type.  Finally, 
+    ## generate one opposite member of the same type, and one of the opposite type.
+  
+	 probe <- RandomBernoulli(.5)
+     type  <- RandomBernoulli(.5)
+     order <- RandomBernoulli(.5)
+
+     if(order)
+     {
+       optA1.x <- 200
+       optA2.x <- 460
+       optB1.x <- 200
+       optB2.x <- 460
+     }else{
+       optA2.x <- 200
+       optA1.x <- 460
+       optB2.x <- 200
+       optB1.x <- 460
+     }
+
+     if(probe==0)
+     {
+     a <- MakeA(type)
+     targ <- MakeB(type)
+     foil <- MakeB(1-type)
+     ChangeRectangle(gShapeA,a)
+     ChangeEllipse(optB1,targ)
+     ChangeEllipse(optB2,foil)
+     Show(gShapeA)
+      Show(optB1)
+      Show(optB2)
+     
+     } else {
+    
+      b <- MakeB(type)
+      targ <- MakeA(type)
+      foil <- MakeA(1-type)
+      ChangeEllipse(gShapeB,b)
+      ChangeRectangle(optA1,targ)
+      ChangeRectangle(optA2,foil) 
+      Show(gShapeB)
+      Show(optA1)
+      Show(optA2)
+	}
+
+
+     Draw() 
+
+
+     resp <-  WaitForListKeyPress(["1","2"])
+      if((resp == "1" and order == 1) or
+         (resp == "2" and order == 0))
+        {
+     feedback <- gCorrect   
+     corr <- 1
+
+        }else{
+     feedback <- gIncorrect   
+     corr <- 0
+  }
+ 
+     Hide(gShapeA)
+     Hide(gShapeB)
+     Hide(optA1)
+     Hide(optA2)
+     Hide(optB1)
+     Hide(optB2)
+
+     Show(feedback)
+     Draw()
+     Wait(400)
+     Hide(feedback)
+     Draw()
+
+     sum <- sum + corr
+     grandsum <- grandsum + corr
+     trial <- trial + 1
+    }
+	RemoveObject(optA1,gWin)
+	RemoveObject(optA2,gWin)
+	RemoveObject(optB1,gWin)
+	RemoveObject(optB2,gWin)
+
+}
+    
+
+
+define TaskMatch()
+{   
+
+    Move(gShapeA,gVideoWidth/2-100,gVideoHeight/2-100)
+    Move(gShapeB,gVideoWidth/2+100,gVideoHeight/2-100)
+
+    ## Now, do conjunction learning.
+	gHeader.text <- "Do these shapes go together (Y or N)"
+    trial <- 1
+    resp <- ""
+    sum <- 0
+    grandsum <- 0
+    while(trial < 100)
+    { 
+     if(Mod(trial,10)==0)
+     { 
+      Print(sum + " of " + 10 + "; " + grandsum + " of " + trial + ": " + Round((grandsum/trial)*100) + "%")
+      sum <- 0
+
+     }
+
+	 typeA <- RandomBernoulli(.5)
+     typeB <- RandomBernoulli(.5)
+     a <- MakeA(typeA)
+     b <- MakeB(typeB)
+
+     ChangeRectangle(gShapeA,a)
+     ChangeEllipse(gShapeB,b)
+     Show(gShapeA)
+     Show(gShapeB)
+     Draw() 
+
+
+     resp <-  WaitForListKeyPress(["Y","N"])
+
+     if((typeA == typeB and resp == "y") or
+        ((not (typeA == typeB)) and (resp == "n")))
+     {
+        corr <- 1
+        feedback <- gCorrect
+     } else {
+        feedback <- gIncorrect
+        corr <- 0 
+     }
+      
+
+     Hide(gShapeA)
+     Hide(gShapeB)
+     Show(feedback)
+     Draw()
+     Wait(400)
+     Hide(feedback)
+     Draw()
+
+     sum <- sum + corr
+     grandsum <- grandsum + corr
+     trial <- trial + 1
+    }
+
+}
+    
+
+
+
+
+
+##A has two types.  Each type has two exemplars.
+define MakeA(type)
+{
+
+  exemplar <- RandomBernoulli(.5)
+
+  if(type==1 and exemplar ==1)
+  {
+  
+	height <- RandomUniform(50) + 100
+    width  <- height#RandomUniform(50) + 20
+    color <- First(ChooseN(gRed,1))
+	
+  }
+
+ if(type==1 and exemplar == 0)
+  {
+	height <- RandomUniform(50) +20
+    width  <- height#RandomUniform(50) + 100
+    color <- First(ChooseN(gBlue,1))
+  }
+
+  if(type==0 and exemplar ==1)
+  {
+  
+	height <- RandomUniform(50) + 100
+    width  <- height# RandomUniform(50) + 20
+    color <- First(ChooseN(gBlue,1))
+	
+  }
+
+ if(type==0 and exemplar == 0)
+  {
+	height <- RandomUniform(50) +20
+    width  <- height#RandomUniform(50) + 100
+    color <- First(ChooseN(gRed,1))
+  }
+ return [height,width,color]
+}
+
+
+
+##A has two types.  Each type has two exemplars.
+define MakeB(type)
+{
+  exemplar <- RandomBernoulli(.5)
+
+  if(type==1 and exemplar ==1)
+  {
+  
+	height <- RandomUniform(25) + 80
+    width  <- RandomUniform(25) + 20
+    color <- First(ChooseN(gGreen,1))
+	
+  }
+
+ if(type==1 and exemplar == 0)
+  {
+	height <- RandomUniform(25) +20
+    width  <- RandomUniform(25) +80
+    color <- First(ChooseN(gYellow,1))
+  }
+
+  if(type==0 and exemplar ==1)
+  {
+  
+	height <-RandomUniform(25) + 80
+    width  <- RandomUniform(25) + 20
+    color <- First(ChooseN(gYellow,1))
+	
+  }
+
+ if(type==0 and exemplar == 0)
+  {
+	height <- RandomUniform(25) +20
+    width  <- RandomUniform(25) +80
+    color <- First(ChooseN(gGreen,1))
+  }
+ return [height,width,color]
+}
+
+
+define ChangeRectangle(shape,specs)
+{
+   shape.height <- First(specs)
+   shape.width <- Nth(specs,2)
+   shape.color <- Nth(specs,3)
+}
+
+define ChangeEllipse(shape,specs)
+{
+   shape.ry <- First(specs)
+   shape.rx<- Nth(specs,2)
+   shape.color <- Nth(specs,3)
+}

@@ -1,0 +1,205 @@
+
+
+
+define Start(p)
+{
+
+  gSleepEasy <- 1
+  gWin <- MakeWindow("black")
+  canv <- MakeCanvas(400,400,MakeColor("brown"))
+  AddObject(canv,gWin)
+  Move(canv,gVideoWidth/2,gVideoHeight/2)
+
+  tokens <- [Circle(0,0,20,MakeColor("red"),1),
+	     Circle(0,0,20,MakeColor("darkgreen"),1),
+	     Circle(0,0,20,MakeColor("blue"),1),
+	     Circle(0,0,20,MakeColor("orange"),1),
+	     Circle(0,0,20,MakeColor("violet"),1)]
+
+  loop(i,tokens)
+  {
+    AddObject(i,canv)
+  }
+
+
+   prob <- MakeProblem(5,5,[1,2,3])
+
+
+  loop(i, Sequence(1,10,1))
+   {
+    PlotGrid(prob,canv,tokens)
+    Draw()
+    WaitForAnyKeyPress()
+
+    prob <- Collapse(RemoveSets(prob),[1,2,3])
+
+   }
+
+
+}
+
+
+
+define PlotGrid(problem,canvas,stamps)
+{
+  if(Max(Flatten(problem))>Length(stamps))
+  {
+     SignalFatalError("Unable to plot problem--too few tokens")
+  }
+
+  xGutter <- 50
+  yGutter <- 50  
+
+  deltX <- (canvas.width-xgutter*2)/(Length(problem)-1)
+  deltY <- (canvas.height-ygutter*2)/(Length(First(problem))-1)
+
+  ##assume that stamps have already been added to the canvas.
+  loop(col,Sequence(1,Length(problem),1))
+   {
+    loop(row,Sequence(1,Length(Nth(problem,col)),1))
+     {
+        Move(Nth(stamps,Nth(Nth(problem,col),row)), 
+                 xGutter + deltX * col,
+		 yGutter + deltY * row)
+        Draw(canvas)
+     }
+   }
+}
+
+define MakeProblem(x,y,tokens)
+{
+  return FoldList(SampleNWithReplacement(tokens,x*y),x)
+}
+
+
+##This takes any elements that are 0, removes them, and pushes
+##down on the stack, adding new tokens.
+
+define Collapse(problem,tokens)
+{
+  #Go through each column of the problem: 
+  newProblem <- []
+  loop(column,problem)
+   {
+      newlist <- []
+      length <- Length(column)
+      loop(j,column)
+      {
+
+
+        if(not j == 0)
+         {
+           PushOnEnd(newlist,j)
+	 }
+
+
+      }
+
+         addto <- length-Length(newlist)
+
+	 if(addto>0)
+          {
+	    newlist <- Merge(SampleNWithreplacement(tokens,addto),newlist)
+          }
+
+
+      PushOnEnd(newProblem,newlist)
+
+   }
+
+ return newProblem
+}
+
+##this finds all possible sets,
+##and transforms them to 0s.  Later, 
+define RemoveSets(problem)
+{
+   ##This needs to be a deep copy.
+   newV1 <- CopyList(problem)
+
+   matchCol <- EliminateColumnMatches(newV1)
+   Print("matchcol:")
+   Print(matchcol) 
+
+   matchRow <- Transpose(EliminateColumnMatches(Transpose(newV1)))
+   Print("matchrow:")
+   Print(matchrow)   
+   ##Now, these need to be merged:
+   
+   newproblem <- CombineProblems(matchCol,matchRow)
+
+  return (newproblem)
+}
+
+
+##Finds a run in one direction and zeroes them out.
+define ELiminateColumnMatches(prob)
+{
+  newProb <- CopyList(prob)
+
+  ##Do row-major sets
+  loop(col,Sequence(1,Length(prob),1))
+   {
+    start <- 1
+    runsize <- 1
+    current <-First(Nth(prob,col))
+    loop(row,Sequence(2,Length(Nth(prob,col)),1))
+      {
+
+        ##look for a run of the same types
+        if(Nth(Nth(prob,col),row)==current)
+        {
+	   runsize <- runsize + 1
+
+        } else {
+
+           ##end of run. Is it big enough?
+  	   if(runsize >=3)
+           {
+	     loop(x,Sequence(row-runsize,row-1,1))
+	     {
+	        SetElement(Nth(newprob,col),x,0)
+	     }
+	   }
+	    current <- Nth(Nth(prob,col),row)
+	    runsize <- 1
+	}
+       }
+     }
+  return newprob
+}
+
+define CombineProblems(set1,set2)
+{
+   ##If either set1 or set2 is 0 set the merged to 0.
+   ##in other words, do a min, since set1 and set2 should otherwise be 
+   ## identical.
+   newset <- []
+   loop(i,Sequence(1,Length(set1),1))
+     {
+       newrow <- []
+	loop(j,Sequence(1,Length(First(set1)),1))
+           {
+              Pushonend(newRow, Min([Nth(Nth(set1,i),j),Nth(Nth(set2,i),j)]))
+           }
+	PushOnEnd(newSet,newRow)
+     }   
+ return newset
+}
+
+
+define CopyList(list)
+{
+  newlist <- []
+  loop(i,list)
+  {
+    if(IsList(i))
+    {
+      PushOnEnd(newlist,CopyList(i))
+    }else{
+      PushOnEnd(newlist,i)
+    }
+
+  }
+ return newlist
+}

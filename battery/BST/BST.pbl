@@ -1,0 +1,785 @@
+## Esposito's Bivalent Shape Task (BST)
+##
+## Version 1.2
+## Developed by Shane T. Mueller & Alena Esposito
+##
+##
+## See: Esposito, A. G., Baker-Ward, L., & Mueller, S. T. (2013). Interference
+## suppression vs. response inhibition: An explanation for the
+## absence of a bilingual advantage in preschoolers’ Stroop task
+## performance. Cognitive Development.
+## http://www.sciencedirect.com/science/article/pii/S0885201413000518.
+##
+## This file is part of the PEBL project and the PEBL Test Battery
+## http://pebl.sourceforge.net
+##
+##
+## To run this test, you must first install PEBL on your computer. Then,
+## place this file and related media files in a subdirectory of the
+## PEBL experiment directory (e.g., Documents\pebl-exp-0.14\) Finally,
+## run the PEBL launcher and navigate to this file in order to run the
+## test. Data will be saved in the data\ sub-directory of the folder this
+## file was saved in, in a file named BST-XXX.csv, where XXX
+## is the participant code entered in the PEBL Launcher.
+##
+##
+## For help installing, running, or interpreting data from this test,
+## please email the pebl-list: pebl-list@lists.sourceforge.net
+##
+## This program is free software: you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation, either version 3 of the License, or
+## (at your option) any later version.
+##
+## This program is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this program. If not, see <http://www.gnu.org/licenses/>.
+
+
+define Start(p)
+{
+
+
+   ##These default values are used if a .par file does not exist.
+   parpairs <- [["userandom",1],
+                ["horizontaloffset",130],##Pixels from center line that the responses are placed
+                ["verticaloffset",150], ##Height of responses. Override for better control.
+		["timelimit",3000], ##Timeout in ms.
+		["usevideofeedback",1],
+		["useaudiofeedbackalways",0],
+		["useaudiofeedbackpractice",1],
+		["numtrials",20], ##How many trials per block?
+		["usemouse",1]]##Use mouse/touch input (1) versus keyboard (0)
+
+   gparams <- CreateParameters(parpairs,gParamFile)
+
+
+   ##Control parameters. Change the following values to
+   ##use a different version of the experiment.
+   gWin <- MakeWindow("white")
+
+   GetStrings(gLanguage)
+
+   gUseRandom <- gParams.userandom ##set to 1 to make each test different
+
+
+   if(not gUseRandom)
+    {
+      SeedRNG(1000)
+    }
+
+   gResponseOffset <- gParams.horizontaloffset
+   gResponseY <- gVideoHeight/2+gParams.verticaloffset
+
+   gResponseTimeLimit <- gParams.timelimit
+
+   ##Give visual feedback of 'correct' and 'incorrect'
+   gUseVisualFeedback <- gParams.useVideofeedback
+
+   gUseAudioFeedbackAlways <- gParams.useaudiofeedbackalways
+   gUseAudioFeedbackPractice <- gParams.useaudiofeedbackpractice
+
+   numTrials <- gParams.numtrials
+   gUseMouse <- gParams.usemouse
+
+
+   gSleepEasy <- 1 ##Set from 0 to 1 to reserve batteries.
+   if(gSubNum+""=="0")
+    {
+       gSubNum <- GetSubNum(gWin)
+    }
+
+   fileOut <- GetNewDataFile(gSubNum,gWin,"BST","csv",
+     "subnum,type,block,congruency,trial,stim,resp,corr,rt,tooslow")
+
+   inst <- EasyTextBox("",50,50,gWin,30,gVideoWidth-100,gVideoHeight-200)
+
+   if(gUseMouse)
+    {
+      ShowCursor(1)
+    }else{
+      ShowCursor(0)
+    }
+
+########################################################
+## Set up the images, sounds, and text labels on screen
+########################################################
+
+### Make the feedback sounds:
+
+    gCorrectSound <- LoadSound("beep.wav")
+    gIncorrectSound <- LoadSound("buzz.wav")
+    gUseAudioFeedback <- 0 ##Do not change this variable--this is a temporary
+                            ##state flag set by the program.
+
+
+#### Create the images. A1 and B1 are the standards, A2 and B2 are
+#### the opposites.
+
+  ##Note that 1/2 are not consistently mapped to circle/square by design
+
+   picnameA1 <- "redcircle.png"
+   picnameA2 <- "redsquare.png"
+   picnameB1 <- "bluesquare.png"
+   picnameB2 <- "bluecircle.png"
+
+   picnameN1 <- "blackcircle.png"
+   picnameN2 <- "blacksquare.png"
+
+   picA1 <- MakeImage(picnameA1)
+   picA2 <- MakeImage(picnameA2)
+   picB1 <- MakeImage(picnameB1)
+   picB2 <- MakeImage(picnameB2)
+
+   picN1 <- MakeImage(picnameN1)
+   picN2 <- MakeImage(picnameN2)
+
+   AddObject(picA1,gWin)
+   AddObject(picA2,gWin)
+   AddObject(picB1,gWin)
+   AddObject(picB2,gWin)
+   AddObject(picN1,gWin)
+   AddObject(picN2,gWin)
+
+   Hide(picA1)
+   Hide(picA2)
+   Hide(picB1)
+   Hide(picB2)
+   Hide(picN1)
+   Hide(picN2)
+
+
+   Move(picA1,gVideoWidth/2,gVideoHeight/2)
+   Move(picA2,gVideoWidth/2,gVideoHeight/2)
+   Move(picB1,gVideoWidth/2,gVideoHeight/2)
+   Move(picB2,gVideoWidth/2,gVideoHeight/2)
+   Move(picN1,gVideoWidth/2,gVideoHeight/2)
+   Move(picN2,gVideoWidth/2,gVideoHeight/2)
+
+   gPics <- [picA1,picA2,picB1,picB2,picN1,picN2]
+   label <- EasyLabel("",gVideoWidth/2,gVideoHeight-60,gWin,24)
+
+   ##Make the footer response images.
+   footA <- MakeImage(picnameA1)
+   footB <- MakeImage(picnameB1)
+   AddObject(footA,gWin)
+   AddObject(footB,gWin)
+   Move(footA, gVideoWidth/2-gResponseOffset,gResponseY)
+   Move(footB, gVideoWidth/2+gResponseOffset,gResponseY)
+   Scale(footA,100)
+   Scale(footB,100)
+
+   gFeet <- [footA, footB]
+
+########################################################
+########################################################
+## START TESTING HERE
+########################################################
+########################################################
+
+  Show(picB2)
+
+  text1 <- gStrings.inst1
+
+ if(gUseMouse)
+  {
+    inst.text <- text1 + CR(1)+gStrings.instmouse
+  } else {
+    inst.text <- text1 + CR(1)+gStrings.instkeys
+  }
+ Draw()
+ WaitForAnyKeyPress()
+ Hide(picB2)
+
+
+
+   ########################################################################
+   ###
+   ### Practice round--mixed
+
+   trial <- 1
+
+
+   if(gUseMouse)
+   {
+   inst.text <- gStrings.inst2mouse
+
+   }else{
+   inst.text <- gStrings.inst2keys
+}
+
+   Show(inst)
+   Draw()
+   WaitForAnyKeyPress()
+   Hide(inst)
+   Draw()
+
+
+   dataMatrix <- []
+
+
+   stimSequence <- Shuffle(RepeatList([1,2,3,4,5,6],1))
+
+   block <- 0
+
+
+   if(gUseMouse)
+   {
+      label.text <- gStrings.labelmouse
+    }else{
+      label.text <- gStrings.labelkeys
+   }
+
+    if(gUseAudioFeedbackPractice)
+     {
+gUseAudioFeedback <- 1
+     }
+
+   loop(i,stimSequence)
+   {
+
+    if(i ==2 or i == 4)
+{
+           consistency <- -1
+}elseif(i==1 or i==3) {
+           consistency <- 1
+}else{
+consistency <- 0
+          }
+
+      out <- Trial(i,consistency)
+      FilePrint(fileout,gSubNum+",practice," + block+","+consistency+","+trial+","+i+","+First(out)+","+Second(out)+","+Third(out)+","+Fourth(out))
+      PushOnEnd(dataMatrix, [gSubNum,"practice",block,consistency,trial,i,First(out),Second(out),Third(out),Fourth(out)])
+
+      trial <- trial + 1
+
+if(trial > 6 and gUseAudioFeedbackPractice)
+       {
+         gUseAudioFeedback <- 0
+       }
+
+
+   }
+
+   ##add a delay to prevent keying through
+   Wait(1000)
+   ################################################################
+   ##now, a pure neutral block
+   block <- 1
+   trial <- 1
+
+   if(gUseMouse)
+   {
+    inst.text <- gStrings.block1mouse
+    label.text <-gStrings.mouselab
+   }else{
+    inst.text <-  gStrings.block1keys
+    label.text <- gStrings.keyslab
+   }
+
+   Show(inst)
+   Draw()
+   WaitForAnyKeyPress()
+   Hide(inst)
+   Draw()
+
+# stimSequence <- Shuffle(RepeatList([5,6],Round(numtrials/2)))
+    stimSequence <- ShuffleDeck([5,6],Floor(numtrials/2))
+   loop(i,stimSequence)
+   {
+
+     if(i ==2 or i == 4)
+     {
+           consistency <- -1
+     }elseif(i==1 or i==3) {
+           consistency <- 1
+     }else{
+           consistency <- 0
+     }
+
+
+      out <- Trial(i,consistency)
+      FilePrint(fileout,gSubNum+",neutral,"+ block+","+consistency+"," +trial+","+i+","+First(out)+","+Second(out)+","+Third(out)+","+Fourth(out))
+      PushOnEnd(dataMatrix, [gSubNum,"neutral",block,consistency,trial,i,First(out),Second(out),Third(out),Fourth(out)])
+       trial <- trial + 1
+      }
+
+
+   ##add a delay to prevent keying through
+   Wait(1000)
+
+  #########################################################
+   ##now, a pure congruent block
+   block <- 2
+   trial <- 1
+
+   if(gUseMouse)
+   {
+    inst.text <-gStrings.block2mouse
+    label.text <-gStrings.mouselab
+   }else{
+     inst.text <- gStrings.block2keys
+     label.text <- gStrings.keyslab
+}
+
+   Show(inst)
+   Draw()
+   WaitForAnyKeyPress()
+   Hide(inst)
+   Draw()
+
+   ## stimSequence <- Shuffle(RepeatList([1,3],Round(numtrials/2)))
+    stimSequence <- ShuffleDeck([1,3],Floor(numtrials/2))
+
+   loop(i,stimSequence)
+   {
+      if(i ==2 or i == 4)
+{
+           consistency <- -1
+}elseif(i==1 or i==3) {
+           consistency <- 1
+}else{
+consistency <- 0
+          }
+
+
+      out <- Trial(i,consistency)
+      FilePrint(fileout,gSubNum+",congruent," + block+","+consistency+"," +trial+","+i+","+First(out)+","+Second(out)+","+Third(out)+","+Fourth(out))
+      PushOnEnd(dataMatrix, [gSubNum,"congruent",block,consistency,trial,i,First(out),Second(out),Third(out),Fourth(out)])
+      trial <- trial + 1
+   }
+
+
+   ##add a delay to prevent keying through
+   Wait(1000)
+
+  #########################################################
+  ##now, a pure INcongruent block
+   block <- 3
+   trial <- 1
+
+   if(gUseMouse)
+   {
+    inst.text <-gStrings.block3mouse
+    label.text <-gStrings.mouselab
+   }else{
+     inst.text <- gStrings.block3keys
+     label.text <- gStrings.keyslab
+  }
+
+
+   Show(inst)
+   Draw()
+   WaitForAnyKeyPress()
+   Hide(inst)
+   Draw()
+
+## stimSequence <- Shuffle(RepeatList([2,4],Round(numtrials/2)))
+   stimSequence <- ShuffleDeck([2,4],Floor(numtrials/2))
+   loop(i,stimSequence)
+   {
+
+      if(i ==2 or i == 4)
+    {
+           consistency <- -1
+    }elseif(i==1 or i==3) {
+           consistency <- 1
+    }else{
+           consistency <- 0
+      }
+
+
+      out <- Trial(i,consistency)
+      FilePrint(fileout,gSubNum+",incongruent," + block+","+consistency+"," +trial+","+i+","+First(out)+","+Second(out)+","+Third(out)+","+Fourth(out))
+      PushOnEnd(dataMatrix, [gSubNum,"incongruent",block,consistency,trial,i,First(out),Second(out),Third(out),Fourth(out)])
+      trial <- trial + 1
+   }
+
+
+
+
+   ##add a delay to prevent keying through
+   Wait(1000)
+
+   ########################################################################
+   ####
+   ### Testing--mixed block
+
+   block <- 4
+   trial <- 1
+
+   if(gUseMouse)
+   {
+    inst.text <-gStrings.block4mouse
+    label.text <-gStrings.mouselab
+   }else{
+     inst.text <- gStrings.block4keys
+     label.text <- gStrings.keyslab
+  }
+
+
+   Show(inst)
+   Draw()
+   WaitForAnyKeyPress()
+   Hide(inst)
+   Draw()
+
+
+   ##This block may be a bit longer than the standard block size to incorporate all the types.
+# stimSequence <- Flatten(Shufflerepeat([1,2,3,4,5,6],Ceiling(numtrials/4)))
+  stimSequence <- ShuffleDeck([1,2,3,4,5,6],Floor(numtrials/4))
+  loop(i,stimSequence)
+   {
+
+      if(i ==2 or i == 4)
+{
+           consistency <- -1
+}elseif(i==1 or i==3) {
+           consistency <- 1
+}else{
+consistency <- 0
+          }
+
+
+      out <- Trial(i,consistency)
+      FilePrint(fileout,gSubNum+",mixed," + block+","+consistency+"," +trial+","+i+","+First(out)+","+Second(out)+","+Third(out)+","+Fourth(out))
+      PushOnEnd(dataMatrix, [gSubNum,"mixed",block,consistency,trial,i,First(out),Second(out),Third(out),Fourth(out)])
+      trial <- trial + 1
+   }
+
+
+
+   ##############################################################
+   ##############################################################
+   ##Now, do some basic summary stats.
+
+
+
+   ##do a meta-condition:
+   tdat <- Transpose(datamatrix)
+   cond <- Transpose([Nth(tdat,2),Nth(tdat,4)])
+   cond2 <- []
+   loop(i,cond)
+    {
+      PushOnEnd(cond2,First(i)+"-"+Second(i))
+    }
+
+    acc <- SummaryStats(Nth(tdat,8),cond2)
+    rt <- SummaryStats(Nth(tdat,9),cond2)
+
+    meanACC <- Nth(Transpose(acc),4)
+    meanRT <- Nth(Transpose(rt),4)
+
+
+#  Print(acc)
+#  Print(rt)
+
+    ##The data we want are in rows [2,6,1] (pure blocks)
+    ## and [3,4,5] (mixed block)
+
+   pureACC <- ExtractListItems(meanACC,[2,6,1])
+   mixedACC <- ExtractListItems(meanACC,[3,4,5])
+
+   pureRT <- ExtractListItems(meanRT,[2,6,1])
+   mixedRT <- ExtractListItems(meanRT,[3,4,5])
+
+
+
+   report <- ""
+
+  report <- report + Print("-------------------------------------------------------------") + CR(1)
+  report <- report + Print("Esposito's Bivalent Shape Task (BST)")+ CR(1)
+report <- report + Print("Participant code: " + gSubnum)+ CR(1)
+report <- report + Print(Timestamp())+ CR(1)
+report <- report + Print("Response time:")+ CR(1)
+report <- report + Print("Condition Incongruent"+Tab(1)+"Neutral "+Tab(1)+"Congruent")+ CR(1)
+report <- report + Print("PURE: " + ConcatenateList(pureRT,Tab(2)))+ CR(1)
+report <- report + Print("MIXED: " + ConcatenateList(mixedRT,Tab(2)))+ CR(1)
+
+
+report <- report + Print(CR(3)+"Accuracy:")+ CR(1)
+report <- report + Print("Condition Incongruent"+Tab(1)+"Neutral "+Tab(1)+"Congruent")+ CR(1)
+report <- report + Print("PURE: " + ConcatenateList(pureACC,Tab(2)))+ CR(1)
+report <- report + Print("MIXED: " + ConcatenateList(mixedACC,Tab(2)))+ CR(1)
+
+report <- report + Print("-------------------------------------------------------------")+ CR(1)
+
+
+    reportfile <- FileOpenWrite("data/report-"+gSubNum+".txt")
+    FilePrint(reportfile,report)
+
+    ##Figure out if we need to add the header:
+    if(FileExists("data/pooled.csv"))
+    {
+       doheader <- 0
+    } else {
+       doheader <- 1
+    }
+
+
+    summaryfile <- FileOpenAppend("data/pooled.csv")
+
+    ##Add the header, if necessary:
+    if(doheader)
+      {
+        FilePrint(summaryfile,"pcode,timestamp,ACC_PI,ACC_PN,ACC_PC,ACC_MI,ACC_MN,ACC_MC,RT_PI,RT_PN,RT_PC,RT_MI,RT_MN,RT_MC")
+      }
+
+    outlist <- Flatten([gSubNum,TimeStamp(), pureACC,mixedACC,pureRT,mixedRT])
+    FilePrint(summaryfile,ConcatenateList(outlist, ","))
+
+   Hide(picA1)
+   Hide(picA2)
+   Hide(picB1)
+   Hide(picB2)
+   Hide(picN1)
+   Hide(picN2)
+   Hide(footA)
+   Hide(footB)
+   Hide(label)
+
+
+   ShowCursor(1)
+   inst.text <- gStrings.debrief
+   Show(inst)
+   Draw()
+   WaitForAnyKeyPress()
+}
+
+
+
+
+####################################################################
+## The following function runs a single trial of the experiment.
+## i indicates the id of gPics that will be used for the stimulus.
+## consistency indicates whether it should be scored positive or
+## negative. consistency=1 maps i={1,2} to left, i={3,4} to right;
+## . consistency=-1 maps i={1,2} to right, i={3,4} to left;
+
+define Trial(i,consistency)
+{
+    if(gUseMouse)
+     {
+         SetMouseCursorPosition(Round(gVideoWidth/2),Round(gVideoHeight/2))
+         Draw()
+     }
+     Wait(200)
+
+    id <- i
+    targ <- Nth(gPics,id)
+
+    #First, show the target:
+    Show(targ)
+    Draw()
+    time1 <- GetTime()
+
+    ##Collect the response:
+    if(gUseMouse)
+     {
+        resp <- WaitForClickOnTargetWithTimeout(gFeet,["<lshift>","<rshift>"],gResponseTimeLimit)
+     } else {
+        resp <- WaitForListKeyPressWithTimeout(["<lshift>","<rshift>"],gResponseTimeLimit,1)
+     }
+    time2 <- GetTime()
+
+
+    if(resp == "<timeout>")
+    { #This was a timeout trial; score incorrect and move on.
+      timeout <- 1
+      resp <- -1
+      corr <- 0
+    } else {
+      timeout <- 0
+      corr <- ScoreTrial(resp,id,consistency)
+    }
+
+    Hide(targ)
+    Draw()
+
+
+
+   if(gUseVisualFeedback)
+    {
+     if(corr)
+      {
+       feedback <- gStrings.correct
+      } else {
+       feedback <- gStrings.incorrect
+      }
+
+    lab <- EasyLabel(feedback,gVideoWidth/2,gVideoHeight/2,gWin,44)
+    Draw()
+    Wait(250)
+    Hide(lab)
+    }
+
+
+if(gUseAudioFeedbackAlways or gUseAudioFeedback)
+{
+   if(corr)
+    {
+      PlayForeground(gCorrectSound)
+    } else {
+      PlayForeground(gInCorrectSound)
+    }
+ }
+
+    Draw()
+
+   return [resp,corr,(time2-time1),timeout]
+}
+
+
+
+## This function scores whether the trial is correct, based on
+## the response, the type, and the consistency.
+## It expects responses to be recorded as '<lshift>' and '<rshift>',
+## and so mouse responses must be recoded into these tokens.
+##
+define ScoreTrial(resp,type, consistency)
+{
+
+ if(IsList(resp))
+   {
+   corr <- 0
+   } else {
+  if(consistency==1)
+   {
+      if(resp == "<lshift>")
+       {
+           corr <- (type==1 or type==2 )
+       }else{
+           corr <- (type==3 or type==4 )
+       }
+   } elseif(consistency==-1){
+      if(resp == "<lshift>")
+       {
+           corr <- (type==3 or type==4 )
+       }else{
+           corr <- (type==1 or type==2 )
+       }
+   } elseif(consistency ==0) ##incorporate neutral (non-color) stimuli
+   {
+      if(resp == "<lshift>")
+       {
+           corr <- (type==5)
+       }else{
+           corr <- (type==6)
+       }
+   }
+ }
+  return corr
+}
+
+
+
+## This just scales both the xzoom and yzoom of
+## an image by the same factor to fit a specified
+## pixel size.
+define Scale(pic,size)
+{
+   if(pic.width>pic.height)
+    {
+       scale <- size/pic.width
+    } else {
+       scale <- size/pic.height
+    }
+   pic.zoomX <- scale
+   pic.zoomY <- scale
+}
+
+
+## Be sure that you don't get too many in a row of one type!
+##
+define ShuffleDeck(items, eachcard)
+{
+
+
+if(eachcard<=4)
+{
+   out <- Flatten(Shufflerepeat(items,eachcard))
+
+}else
+ {
+  ##first, find a way to divvy up eachcard into a set of runs
+  ##making sure no runs are greater than 2 in a row.
+
+
+##how many should be from 1-peats, 2-peats
+  reps1 <- Floor(eachcard * .4) ##make singletons less than 1/2
+  reps2 <- Floor((eachcard-reps1)/2)
+  ##redo reps1 for rounding error:
+  reps1 <- eachcard-reps2*2
+
+
+
+  sequencecount <- Flatten([Repeat(1,reps1),
+                            Repeat(2,reps2)])
+
+  numsets <- Length(sequencecount)
+  #Now, for each item, generate the sequence
+  sequences <- []
+  loop(i, items)
+   {
+     PushOnEnd(sequences, Shuffle(sequencecount))
+   }
+
+
+  ##Now, we have a sequence of run-lengths for each stimulus set.
+  ## Let's figure out the order we go through the sets:
+
+  itemorder <- []
+  loop(i,Sequence(1,Length(items),1))
+    {
+      itemorder <- Append(itemorder, Repeat(i,numsets))
+    }
+
+    ##not sure if we will always get a true non-adjacent ordering,
+    ##so let's try up to ten times.
+    itemSetSequence <- ShuffleWithoutAdjacents(itemorder,10)
+
+
+    ##Now, we need to work through itemsequence to generate the
+    ##stimulus sequence
+
+  itemsequence <- []
+   loop(i, itemsetsequence)
+    {
+
+        ##i tells us which card to use:
+cardtype <- i
+reps <- First(Nth(sequences,cardtype))
+SetElement(sequences,cardtype, Rotate(Nth(sequences,cardtype),1))
+PushOnEnd(itemsequence, Repeat(Nth(items,cardtype),reps))
+    }
+
+
+ out <- Flatten(itemsequence)
+}
+ return out
+}
+
+
+
+
+define GetStrings(lang)
+{
+
+   ##Known trasnlations: EN
+
+  lang <- Uppercase(lang)
+  fname <- "translations/BST.pbl-"+LowerCase(lang)+".json"
+
+  if(FileExists(fname))
+  {
+    gStrings <- ReadTranslationjson(fname,lang)
+  } else
+  {
+    gStrings <- ReadTranslationjson("translations/BST.pbl-en.json",lang)
+  }
+
+}

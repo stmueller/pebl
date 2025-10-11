@@ -1,0 +1,991 @@
+## The Maze-solving task.
+## Shane T Mueller (smueller@obereed.net)
+## Feb 2023
+##
+
+
+##Notes:
+## 15 has a swastika?
+
+
+## 24: good/complex
+## 25: easy
+
+define Start(p)
+{
+
+  gWin <- MakeWindow("black")
+   ##Get subject code if we need to:
+    if(gSubNum+""=="0")
+    {
+	  gSubNum <- GetSubNum(gWin)
+    }
+
+  gFileOut <- GetNewDataFile(gSubNum,gWin,"mazesolving","csv",
+        "subnum,maze,shortestpath,totalmoves,pathlength,planningtime,firstmovetime,solutiontime,totaltime,moveseq,bestseq")
+
+  gLogFile <- GetNewDataFile(gSubNum,gWin,"mazesolving-log","csv",
+        "subnum,maze,event,move,pos,x,y,abstime")
+
+  gReportFile <- FileOpenAppend("data/"+gSubnum+"/report-"+gSubnum+".txt")
+
+  GetStrings("EN")
+
+
+  width <- 15
+  height <- 15
+  gPreviewtime <- 0
+  gShowSolving <- 0
+  gMazecenterX <- gVideoWidth/2
+  gMazecenterY <- gVideoHeight/2-150
+  
+
+  gResponseType <- "mouse"
+  gResponseType <- "keyboard"
+  gMoveArrows <- 0  ##move response arrows for each response.
+
+
+  Setup()
+  inst <- EasyTextBox(gStrings.inst1,gVideoWidth/2-450,100,gWin,18,900,150)
+  SeedRNG(100)
+  practice <-  MakeMaze(5,5,[1,1],[5,5],gVideoWidth/2,gVideoHeight/2,400,400)
+  practice.id <- "PRACTICE"
+  Kruskal(practice)
+  x  <-   PlotMaze(practice,gWin,2,MakeColor("green"))
+  Draw()
+  WaitForKeyPress(" ")
+  inst.text <- gStrings.inst2
+  Draw()
+  WaitForKeyPress(" ")
+  inst.text <- gSTrings.inst3
+  Draw()
+  WaitForKeyPress(" ")
+  SeedRNG(100)
+   x <- 0
+  inst.text <- ""
+  Hide(inst)
+  RemoveObjects(x,gWin)
+  Draw()
+  DoMazeTrial(practice)
+
+
+  inst.text <- gStrings.inst2
+  Draw()
+  
+   mazeList <- Sequence(1,25,1)
+   i <- 1
+   header <- EasyLabel("["+i+"] of " + Length(mazelist) + ". Press space bar to see next maze",gVideoWidth/2,gVideoHeight/2,gWin,30)
+   
+
+
+   loop(mazeid,mazelist)
+   { 
+    seed <- mazeid
+    SeedRNG(seed)
+    header.text <- "["+i+"] of " + Length(mazelist) + ". Press space bar to see next maze"
+    Show(header)
+    Draw()
+
+#   maze <- ReadMaze("mazes/maze-"+seed+".json",mazeCenterX,mazeCenterY)
+   testmaze <- MakeMaze(width,height,[1,1],[height,width],
+                   gVideoWidth/2,gVideoHeight/2, 800,800)
+		   
+   testmaze.id <-mazeid
+   WaitForKeyPress(" ")
+   Hide(header)
+   Draw()
+   
+   out <- DoMazeTrial(testmaze)
+   FilePrint(gReportFile,out)
+#   MessageBox(out,gWin)
+   Draw()
+   i <- i + 1
+ }
+
+}
+
+
+
+define DoMazeTrial(maze)
+{
+  lines  <-   PlotMaze(maze,gWin,2,MakeColor("green"))
+  Kruskal(maze) ##make a kruskal-style maze.
+
+  if(gShowSolving)
+  { 
+    maze.lines <- PlotMaze(maze,gWin,2,MakeColor("white"))
+    bestsolution <-  SolveMaze(maze,1,[],[],[],gWin)
+  } else{
+    bestsolution <-  SolveMaze(maze,1,[],[],[],0)
+    maze.lines <- PlotMaze(maze,gWin,2,MakeColor("white"))
+  }
+
+
+  if(gPreviewtime>0)
+  {
+    inst1 <- gStrings.preview
+  }else{
+    inst1 <- gStrings.prompt
+  }
+  header <- EasyLabel(inst1, gVideoWidth/2,50,gWin,30)
+  timepreview0 <- GetTime()
+  Draw()
+  WaitForKeyPress(" ")
+  
+
+  if(gPreviewtime > 0)
+  {
+     out <- DrawPath(bestsolution,maze,gWin,MakeColor("red"))
+     Draw()
+     Wait(gPreviewtime)
+     RemoveObjects(out,gWin)
+  }
+
+  Draw()
+  time0 <- GetTime()
+
+  me <- EasyLabel("+",0,0,gWin,40)
+  AddObject(me,gWin)
+
+  xy <- CalcXY(maze.start,maze)
+  Move(me,First(xy),Second(xy))
+  Draw()
+  header.text <- gStrings.solving
+  cont <- 1
+  pos <- maze.start
+  success <- 0
+  path <- [RCToIndex(maze.start,maze)]
+  firstresp <- 0
+  while(cont)
+  {
+
+    drawnpath <- DrawPath(path,maze,gWin,MakeColor("cadetblue4"))
+    Draw()
+
+    resp <- GetResponse(pos,maze)
+    curtime <- GetTime()
+    if(firstresp==0)
+    {
+      firstresp <-curTime
+    }
+    if(First(resp) == "X")
+     {
+      cont <- 0
+     }  else {
+      pos <- First(resp)
+      index <- RCToIndex(pos,maze)
+      PushOnEnd(path,index)
+      xy <- CalcXY(pos,maze)
+      Move(me,First(xy),Second(xy))
+
+
+
+    
+    if(index == RCToIndex(maze.end,maze))
+     {
+      cont <- 0
+      success <- 1
+     }
+   }
+    Draw()
+    FilePrint(gLogFile,ConcatenateList([gSubNum,maze,"MOVE",pos,First(xy),Second(xy),curtime],","))
+  }
+
+  moveseq <- path
+  path <- RemoveDuplicates(moveseq)
+  timeend <- GetTime()
+
+  out <- Print("Maze ID: " + maze.id)+CR(1)
+  out <- out + gSubNum + " " + TimeStamp() + CR(1)
+  out <- out + Print("Path succeeded? ["+success+"]")+CR(1)
+  out <- out + Print("optimal path length:      " + Length(bestsolution))+ CR(1)
+  out <- out + Print("number of moves:          " + Length(moveseq)) + CR(1)
+  out <- out + Print("Participant path length:  " + Length(path))+ CR(1)
+  out <- out + Print("Planning Time:            " + (time0-timepreview0)) + CR(1)
+  out <- out + Print("Time to first move:       " + (firstresp-timepreview0)) + CR(1)
+  out <- out + Print("Solving Time:             " + (timeend- firstresp)) + CR(1)
+  out <- out + Print("Total time:               " + (timeend - timePreview0)) +CR(1)
+  out <- out + Print(path)+CR(1)
+  out <- out + "-------------------------------------------"+CR(5)
+
+  
+FilePrint(gFileOut,ConcatenateList(
+     [gSubNum,maze.id,
+     Length(bestsolution),
+     Length(moveseq),Length(path),(time0-timePreview0),
+     (firstresp-timePreview0),(timeend-firstresp),(timeend-timePreview0),
+    ConcatenateList(path,"|"),
+    ConcatenateList(bestsolution,"|")],","))
+
+ ##clean up display:
+ RemoveObjects(drawnpath,gWin)
+ RemoveObjects(maze.lines,gWin)
+ RemoveObject(me,gWin)
+ 
+  return out
+
+}
+
+define MakeMaze(width,height,start,end,x,y,xrange,yrange)
+{
+  maze <- MakeCustomObject("maze")
+  maze.width <- width
+  maze.height<-height
+  maze.size <- width*height
+  maze.north <- Repeat(0,width*height)
+  maze.south <- Repeat(0,width*height)
+  maze.east <- Repeat(0,width*height)
+  maze.west <- Repeat(0,width*height)
+  maze.start <- start
+  maze.end <- end
+  top <- y - yrange/2
+  left <- x - xrange/2
+  cellwidth <- (xrange / maze.width)
+  cellheight <- (yrange / maze.height)
+#  cellwidthR <- Round(xrange / maze.width)
+#  cellheightR <- Round(yrange / maze.height)
+
+  maze.x <- x
+  maze.y <- y
+  maze.xrange <- xrange
+  maze.yrange <- yrange
+  maze.cellwidth <- cellWidth
+  maze.cellheight <- cellheight
+  maze.top <- top
+  maze.left <- left
+
+  
+  return maze
+}
+
+define SaveMaze(maze,filename)
+{
+ text <- JSONText(maze)
+ Print(text)
+ f <- FileOpenOverwrite(filename)
+ FilePrint(f,text)
+}
+
+define ReadMaze(filename,xcenter,ycenter)
+{
+ f <- FileReadText(filename)
+ obj <- ParseJSON(f)
+ obj.size <- ToInteger(obj.size)##this gets read as a number but we need it as an integer.
+ obj.height <- ToInteger(obj.height)
+ obj.width <- ToInteger(obj.width)
+ obj.x <- xcenter
+ obj.y <- ycenter
+ obj.left <- Floor(xcenter-obj.xrange/2)
+ obj.top <- Floor(ycenter-obj.yrange/2)
+ return obj
+}
+
+
+define CalcXY(rc,maze)
+{
+
+ row <- First(rc)
+ column <- Second(rc)
+  index <- maze.width*(row-1)+column
+  middlex <- Floor(maze.left + maze.cellwidth*(column-1)+ maze.cellwidth/2)
+  middley <- Floor(maze.top + maze.cellheight*(row-1) + maze.cellheight/2)
+  return [middlex,middley]
+}
+
+##Identifies the cell up from the given cell. If outside the maze, returns current cell
+define North(rowcol,maze)
+{
+row <- First(rowcol)
+col <- Second(rowcol)
+
+  if(row==1)
+  {
+    newrow <- 1
+  } else {
+    newrow <- row -1
+  }
+  return [newrow,col]
+}
+
+define South(rowcol,maze)
+{
+ row <- First(rowcol)
+ col <- Second(rowcol)
+  if(row>=maze.height)
+  {
+    newrow <- row
+  } else {
+    newrow <- row + 1
+  }
+  return [newrow,col]
+}
+
+define West(rowcol,maze)
+{
+row <- First(rowcol)
+col <- Second(rowcol)
+
+  if(col==1)
+  {
+   newcol <- 1
+  }else {
+   newcol <- col - 1
+  }
+  return [row,newcol]
+}
+
+define East(rowcol,maze)
+{
+row <- First(rowcol)
+col <- Second(rowcol)
+
+  if(col >= maze.width)
+  {
+    newcol <- col
+  } else{
+    newcol <- col + 1
+  }
+  return [row,newcol]
+}
+
+define RCToIndex(rc,maze)
+{
+  r <- First(rc)
+  c <- Second(rc)
+   return ToInteger((maze.width * (r-1) + c))
+}
+
+define IndexToRC(index,maze)
+{
+  row <- Floor(((index-1)/maze.width))+1
+  col <- Mod(index-1,maze.width)+1
+
+  return [row,col]
+}
+
+
+define GetResponse(rc,maze)
+{
+
+  ##move these out of the way so they don't
+  ##create problems for collecting data.
+  Move(gUp,0,0)
+  Move(gDown,0,0)
+  Move(gLeft,0,0)
+  Move(gRight,0,0)
+  AddObject(gUp,gWin)
+  AddObject(gDown,gWin)
+  AddObject(gLeft,gWin)
+  AddObject(gRight,gWin)
+  
+   r <- First(rc)
+   c <- Second(rc)
+
+   index <- RCToIndex(rc,maze)
+   time0 <- GetTime()
+
+  if(gMoveArrows)
+  {
+
+   
+   xyW <-  CalcXY(West(rc,maze),maze)
+   xyN <-  CalcXY(North(rc,maze),maze)
+   xyS <-  CalcXY(South(rc,maze),maze)
+   xyE <-  CalcXY(East(rc,maze),maze)
+   if(Nth(maze.west,index)==0)
+   {
+     Move(gLeft,First(xyW),Second(xyW))
+     Show(gLeft)
+   } else{
+     Hide(gLeft)
+   }
+
+   if(Nth(maze.north,index)==0)
+   {
+      Move(gUp,First(xyN),Second(xyN))
+     Show(gUp)
+   } else{
+     Hide(gUp)
+   }
+
+   if(Nth(maze.south,index)==0)
+   {
+   Move(gDown,First(xyS),Second(xyS))
+     Show(gDown)
+   } else{
+     Hide(gDown)
+   }
+
+
+   if(Nth(maze.east,index)==0)
+   {
+     Move(gRight,First(xyE),Second(xyE))
+     Show(gRight)
+   } else{
+     Hide(gRight)
+   }
+   Draw()
+  }
+
+   if(gResponseType =="mouse")
+   {
+
+     Print(gLeft)
+     PrintProperties(gLeft)
+     resp <- WaitForClickOnTarget([gLeft,gRight,gUp,gDown],["<left>","<right>","<up>","<down>"])
+    Print(resp)     
+   } else{
+
+   resp <- WaitForListKeyPress(["<left>","<right>","<up>","<down>","X"])
+
+   }
+
+
+   time2 <- GetTime()
+   ret <- rc
+
+   if(resp=="x")
+   {
+     ret <- "X"
+   }
+   if(resp=="<left>" and Nth(maze.west,index)==0)
+   {
+     ret <- West(rc,maze)
+   }
+
+    if(resp == "<right>" and Nth(maze.east,index)==0)
+   {
+     ret <- East(rc,maze)
+   }
+
+   if(resp=="<up>" and Nth(maze.north,index)==0)
+   {
+     ret <- North(rc,maze)
+   }
+
+    if(resp=="<down>" and Nth(maze.south,index)==0)
+   {
+     ret <- South(rc,maze)
+   }
+
+ return [ret, (time2-time0)]
+}
+
+
+define PlotMaze(maze,win,linewidth,color, plotSW:0)
+{
+
+  cellwidth <- maze.cellwidth
+  cellheight <- maze.cellheight
+   
+  rect <- Rectangle(maze.x,maze.y,maze.xrange,maze.yrange,color,0)
+  AddObject(rect,win)
+  lines <- [rect]
+
+  startindex <- RCToIndex(maze.start,maze)
+  endindex   <- RCToIndex(maze.end,maze)
+
+
+  loop(row, ToInteger(maze.height))
+  {
+
+    loop(column,ToInteger(maze.width))
+    {
+
+       index <- RCToIndex([row,column],maze)
+       xy <- CalcXY([row,column],maze)
+       middleX <- First(xy)
+       middleY <- Second(xy)
+
+      if(index == startindex)
+      {
+
+       lab <- EasyLabel("S",middlex,Round(middley),win,20)
+
+
+        PushOnEnd(lines,lab)
+      }
+
+
+      if(index == endindex)
+      {
+        lab <- EasyLabel("E",middlex,middley,win,20)
+        PushOnEnd(lines,lab)
+      }
+
+
+
+      if(Nth(maze.north,index))
+      {
+         tmp<- ThickLine(middlex-cellwidth/2  ,
+                         middleY-cellHeight/2  ,
+                         middleX+cellwidth/2  ,
+		         middleY-cellHeight/2  ,3,
+		    color)
+
+        AddObject(tmp,win)
+        PushOnEnd(lines,tmp)
+      }
+
+
+##we don't really need ns and ew, so just plot one if needed.
+if(plotSW) {
+
+    if(Nth(maze.south,index))
+      {
+         tmp<- ThickLine(middlex-cellwidth/2  ,
+                    middleY+cellHeight/2  ,
+                    middlex+cellwidth/2  ,
+		    cellWidth,
+	            middleY+cellHeight/2 ,3,
+		    color)
+        AddObject(tmp,win)
+        PushOnEnd(lines,tmp)
+      }
+
+    if(Nth(maze.west,index))
+      {
+         tmp<- ThickLine(middlex-cellwidth/2+1,
+                    middleY-cellHeight/2+1,
+		    middlex-cellwidth/2+1,
+                   middleY+cellHeight/2+1,
+                    3,color)
+        AddObject(tmp,win)
+        PushOnEnd(lines,tmp)
+      }
+  }
+
+
+
+
+   if(Nth(maze.east,index))
+      {
+         tmp<- ThickLine(middlex+cellwidth/2,
+                    middleY-cellHeight/2,
+		    middlex+cellwidth/2,
+		    middleY+cellHeight/2,
+		    3,
+		    color)
+        AddObject(tmp,win)
+        PushOnEnd(lines,tmp)
+      }
+
+
+    }
+  }
+  return lines
+}
+
+define SetWall (maze,rowcolumn,direction,onoff)
+{
+  row <- First(rowcolumn)
+  column <- Second(rowcolumn)
+
+ index1 <- RCtoIndex([row,column],maze)
+ if(direction=="n")
+ {
+  SetElement(maze.north,index1,onoff)
+  if(row>1)
+  {
+    index2 <-RCToIndex(North([row,column],maze),maze)
+    SetElement(maze.south,index2,onoff)
+
+   }
+  }
+
+ if(direction=="s")
+ {
+  SetElement(maze.south,index1,onoff)
+  if(row<maze.height)
+    {
+      index2 <- RCToIndex( South([row,column],maze),maze)
+      SetElement(maze.north,index2,onoff)
+    }
+  }
+
+
+ if(direction=="e")
+ {
+  SetElement(maze.east,index1,onoff)
+  if(column <maze.width)
+  {
+      index2 <- RCToIndex(East([row,column],maze),maze)
+
+      SetElement(maze.west,index2,onoff)
+  }
+  }
+
+
+ if(direction=="w")
+ {
+  SetElement(maze.west,index1,onoff)
+
+  if(column>1)
+  {
+      index2 <- RCToIndex(West([row,column],maze),maze)
+      SetElement(maze.east,index2,onoff)
+   }
+  }
+
+ return(maze)
+}
+
+
+
+##This creates a Kruskal-style maze
+define Kruskal(maze)
+{
+
+  time1 <- GetTime()
+  maze.north <- Repeat(1,maze.size)
+  maze.south <- Repeat(1,maze.size)
+  maze.east <- Repeat(1,maze.size)
+  maze.west <- Repeat(1,maze.size)
+
+  ##create a set of all locations/indexes.
+  cellsets <- Sequence(1,maze.size,1)
+
+  ##create a set of all walls. These are NSEW blocks associated with each cell, so that
+  ## for cell 1, NSEW are 1234.
+  walls <-Repeat(0,4*maze.size)
+  wallorder <- Shuffle(Sequence(1,4*maze.size,1)) #The order walls will be considered.
+
+ step <- 0
+  loop(wall,wallorder)
+  {
+     step <- step + 1
+#    Print(step + "  " + wall + "--" + GetTime())
+    cell1ID <- Floor((wall-1)/4)+1
+    cell1 <- IndexToRC(cell1ID,maze)
+    dir <- Mod(wall-1,4)+1
+    if(dir==1)
+    {
+      cell2 <- North(cell1,maze)
+    }elseif(dir==2)
+    {
+      cell2 <- South(cell1,maze)
+    }elseif(dir==3)
+    {
+      cell2 <- East(cell1,maze)
+    } else{
+      cell2 <- West(cell1,maze)
+    }
+
+    cell2ID <- RCtoIndex(cell2,maze)
+    if(cell1ID != cell2ID)
+    {
+       #these differ. If they are the same, we are at an edge, and we shouldn't do anything.
+       ##In this case, we remove the wall, and merge the two sets.
+
+       set1 <- Nth(cellsets,cell1ID)
+       set2 <- Nth(cellsets,cell2ID)
+       if(set1 != set2)
+       {
+          ##remove the wall. This removes both walls.
+          SetWall(maze,cell1,Nth(["n","s","e","w"],dir),0)
+
+          ##merge the sets. name set2 to set1
+          rep <- [[set2,set1]]
+          cellsets <- Replace(cellsets,rep)
+
+
+       }
+    }
+
+  }
+  time2 <- GetTime()
+  Print("time to create maze of size:" + maze.width +  "x" + maze.height + ": ["+((time2-time1)/1000)+"s]")
+}
+
+define PathOpen(cell,dir,maze)
+{
+  wall <- Nth([maze.north,maze.south,maze.east,maze.west],dir)
+  open <- Nth(wall,cell)==0
+  return open
+}
+
+
+##this determines what cell you move to when you are in a cell and walk in some direction.
+## It starts and ends with the index, not the RC
+define MoveToCell(cell,dir,maze)
+{
+
+ rc <- IndexToRC(cell,maze)
+  ret <- -99
+ if(dir=="n")
+  {
+    ret <- North(rc,maze)
+  } elseif(dir == "s")
+  {
+    ret <- South(rc,maze)
+
+  } elseif(dir=="e")
+  {
+    ret <- East(rc,maze)
+  } elseif(dir=="w")
+  {
+    ret <- West(rc,maze)
+  }
+  return RCToIndex(ret,maze)
+}
+
+
+define SolveMaze(maze,currcell, cells, dirs, visited, watchwindow:0)
+{
+
+  if(watchwindow)
+  {
+    if(Length(cells)>0)
+    {
+    p <-  DrawPath(cells,maze,watchwindow,MakeColor("orange"))
+    Draw()
+    RemoveObjects(p,watchwindow)
+    p <- []
+  }
+ }
+
+  
+  if(Length(cells)==0)
+  {
+   cells <- [currcell]
+   dirs <- [1]
+   visited <- Repeat(0,maze.size) ##mark which nodes have been visited so you don't backtrack or repeat.
+  }
+  
+ dirnames <- ["n","s","e","w"]
+
+
+##Go through each direction at each cell 1234, following until we succeed. If we fail at cell 1 direction 4, there is no solution.
+#test current direction/cell.
+
+  SetElement(visited,currcell,1)
+  
+  if(currcell == RCToIndex( maze.end,maze))
+  {
+   ##We win!! return the path.
+    ret <- cells
+  }  else{
+    ## we haven't solved it, so check each direction from this cell in turn.
+    dir <- 0
+    ret <- 0
+    while(dir<4 and ret==0)
+   {
+      dir <- dir + 1
+     # Print("trying node/direction: "+ currcell+"|" + dir)
+
+      newcell <- MoveToCell(currcell,Nth(dirnames,dir),maze)
+      if(PathOpen(currcell,dir,maze) and Nth(visited,newcell)==0)
+      {
+        ret <- SolveMaze(maze,newcell,Append(cells,newcell),Append(dirs,dir),visited,watchwindow)
+      } else{
+        #  Print("path closed")
+      }
+    }
+   }
+
+   return ret
+}
+
+##This draws a path.  
+define DrawPath(points,maze,win,color)
+{
+
+
+    lines <- []
+    
+    if(Length(points)>0)
+     {
+
+
+
+    ##Add initial circle
+    xy <- CalcXY(IndexToRC(First(points),maze),maze)
+
+    tmp2 <- Circle(First(xy),Second(xy),3,color,1)
+    AddObject(tmp2,win)
+    PushOnEnd(lines,[tmp2])
+   if(Length(points)>1)
+   {
+  
+   first <- Sublist(points,1,Length(points)-1)
+   second <- Rest(points)
+
+   
+  loop(i, Transpose([first,second]))
+  {
+    xy1 <- CalcXY(IndexToRC(First(i),maze),maze)
+    xy2 <- CalcXY(IndexToRC(Second(i),maze),maze)
+    tmp <- ThickLine(First(xy1),Second(xy1),First(xy2),Second(xy2),3,color)
+    tmp2 <- Circle(First(xy2),Second(xy2),3,color,1)
+    AddObject(tmp,win)
+    AddObject(tmp2,win)
+    PushOnEnd(lines,[tmp,tmp2])
+  }
+  }
+
+}
+
+  return lines
+
+}
+
+
+define Setup()
+{
+
+  gUp <- Arrow(1,MakeColor("darkgreen"),   40,gWin,gVideoWidth/2,gVideoHeight/2+300-50)
+  gDown <- Arrow(3,MakeColor("darkgreen"), 40,gWin,gVideoWidth/2,gVideoHeight/2+300+50)
+  gLeft <- Arrow(2,MakeColor("darkgreen"), 40,gWin,gVideoWidth/2-50,gVideoHeight/2+300)
+  gRight <- Arrow(4,MakeColor("darkgreen"),40,gWin,gVideoWidth/2+50,gVideoHeight/2+300)
+  Hide(gUp)
+  Hide(gDown)
+  Hide(gLeft)
+  Hide(gRight)
+}
+
+
+define Arrow(direction,fg,size,window,x,y)
+{
+
+        obj <- MakeCustomObject("arrow")
+
+	xmid <- size/2
+	bgcolor <- window.bgcolor
+	color <- bgcolor
+#	color.alpha <- 0
+	canv <- MakeCanvas(size,size,color)
+	obj.canv <- canv
+        xmid <- canv.width/2
+        ymid <- canv.height/2
+
+
+if(direction==1) ## up
+{
+   triy <- [size/4,-size/8, -size/8, -size/2, -size/8, -size/8,size/4]
+   trix <- [size/8, size/8, size/4, 0,     -size/4,-size/8,-size/8]
+
+
+} elseif(direction==2) ##left
+{
+   trix <- [size/4,-size/8, -size/8, -size/2, -size/8, -size/8,size/4]
+   triy <- [size/8, size/8, size/4, 0,     -size/4,-size/8,-size/8]
+
+
+}elseif(direction==3)##down
+{
+   trix <- [size/8, size/8, size/4, 0,     -size/4,-size/8,-size/8]
+   triy <- [-size/4,size/8, size/8, size/2, size/8, size/8,-size/4]
+
+
+
+}else{##right
+   trix <- [-size/4,size/8, size/8, size/2, size/8, size/8,-size/4]
+   triy <- [size/8, size/8, size/4, 0,     -size/4,-size/8,-size/8]
+
+
+
+}
+
+
+head <- Polygon(xmid,ymid,trix,triy,fg,1)
+	   AddObject(head,canv)
+	   Draw(head)
+           obj.head <- head
+
+
+  obj.name <- "<CUSTOMOBJECT>"
+  obj.x <- x
+  obj.y <- y
+  obj.width  <- size
+  obj.height <- size
+  obj.Draw <- "DrawArrow"
+  obj.move <- "MoveArrow"
+  obj.addobject <- "AddArrow"
+  obj.removeobject <- "RemoveArrow"
+  obj.show <- "ShowArrow"
+  obj.hide <- "HideArrow"
+
+  AddObject(obj,gWin)
+  Move(obj,x,y)
+
+  return obj
+} #- End Arrow
+
+
+
+define HideArrow(obj)
+{
+   canv <- obj.canv
+   Hide(canv)
+}
+
+
+define ShowArrow(obj)
+{
+   canv <- obj.canv
+   Show(canv)
+}
+
+define AddArrow(obj,win)
+{
+  AddObject(obj.canv,win)
+}
+
+define RemoveArrow(obj,win)
+{
+  RemoveObject(obj.canv,win)
+}
+
+define MoveArrow(obj, x,y)
+{
+  Move(obj.canv,x,y)
+  obj.x <- x
+  obj.y <- y
+}
+
+
+define DrawArrow(obj)
+{
+  Draw(obj.canv)
+}
+
+#this just removes duplicated locations--false moves into walls.
+define RemoveDuplicates(path)
+{
+  newpath <- []
+  lastpos <- -1
+
+  loop(i,path)
+  {
+   if(i!=lastpos)
+   {
+      PushOnEnd(newpath,i)
+      lastpos <- i
+   }
+  }
+  return newpath
+}
+
+define RemoveObjects000(objs,win)
+{
+  loop(i ,objs)
+  {
+    RemoveObject(i,win)
+  }
+}
+
+
+
+
+define GetStrings(language)
+{
+    gStrings <- MakeCustomObject("strings")
+
+   gStrings.inst1 <- "In this task, you will be asked to solve a series of  maze puzzles, like the one you see below.  Each puzzle will have two phases: a PLANNING PHASE, in which you look at the maze and make a plan for how you will solve it, and a SOLVING PHASE, in which you use the arrow keys on the keyboard to make a path from the start (S) to the end (E).  Press the space bar to continue."
+   gStrings.inst2 <- "In the maze, there is only one path from start to finish. During the PLANNING PHASE, do not touch the keyboard, and try to make a plan for how you will solve the maze.  Your goal will be to solve it via the shortest path possible, so you should have a pretty good idea of the route before you start solving.   Once you have a plan, hit the space bar and use the arrow keys to execute the plan in the SOLVING PHASE. Press the space bar to continue."
+   gStrings.inst3 <- "Remember: 1. take as long as you want to plan.  2. Once you start solving, try to find the shortest path you can, without backtracking or mistakes. 3. Try to solve as quickly as you can, as long as you do not make any mistakes. Let's start with a practice round--plan how you will solve this maze and then hit space bar to begin."
+   gStrings.preview <-"Press any key to see preview"
+   gStrings.prompt <- "PLANNING PHASE: Press the space bar when you have finished making your plan. Then solve the maze using arrow keys"
+   gStrings.solving <- "SOLVING PHASE: move from S to E using arrow keys on keyboard"
+
+}

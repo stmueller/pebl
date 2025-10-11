@@ -1,0 +1,772 @@
+#///////////////////////////////////////////////////////////////////////////////
+#//    Name:       src/pebl-lib/Design.pbl
+#//    Purpose:    Contains PEBL functions used for experiment design
+#//    Author:     Shane T. Mueller, Ph.D.
+#//    Copyright:  (c) 2004-2016 Shane T. Mueller <smueller@obereed.net>
+#//    License:    GPL 2
+#//
+#//
+#//
+#//     This file is part of the PEBL project.
+#//
+#//    PEBL is free software; you can redistribute it and/or modify
+#//    it under the terms of the GNU General Public License as published by
+#//    the Free Software Foundation; either version 2 of the License, or
+#//    (at your option) any later version.
+#//
+#//    PEBL is distributed in the hope that it will be useful,
+#//    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#//    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#//    GNU General Public License for more details.
+#//
+#//    You should have received a copy of the GNU General Public License
+#//    along with PEBL; if not, write to the Free Software
+#//   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#//////////////////////////////////////////////////////////////////////////////
+
+
+#  The functions defined here are available for use in any PEBL program.
+#  They are written in PEBL itself, and so are interpreted, but the ease of
+#  writing them in PEBL far outweighed the possible speed-up that
+#  might be gained by writing them directly in C++.
+
+define DesignLatinSquare(list1, list2)
+{
+    #Ensure that both arguments are actually lists
+   if(not IsList(list1))
+      {
+	SignalFatalError("First argument of function [DesignLatinSquare(<list>,<list>)] is not a list")
+      }
+   if(not IsList(list2))
+      {
+	SignalFatalError("Second argument of function [DesignLatinSquare(<list>,<list>)] is not a list")
+      }
+
+      #The first entry is just the paired items from the list
+    returnlist <- []
+
+    loop(i, Sequence(0, Length(list1)-1,1) )
+      {    
+ 	#add each rotation of the second list
+         returnlist <- Append(returnlist, Transpose([list1, Rotate(list2, i)]))
+       }
+   
+    return returnlist
+}
+
+##This is a simple version of above, taking only one list, and outputting a slightly different form.
+define LatinSquare(list)
+{
+    #Ensure that both arguments are actually lists
+   if(not IsList(list))
+      {
+	SignalFatalError("First argument of function [LatinSquare(<list>)] is not a list")
+      }
+
+   n <- Length(list)
+   sequence <- [list]
+   tmp <- list
+   ## Go through the list N times, rotating the temporary list 1 on each iteration,
+   ## and adding the result to sequence.
+   loop(l, Sequence(1,(n-1),1))
+    {
+      tmp <- Rotate(tmp,1)
+      sequence <- Append(sequence, tmp)
+    }
+  return sequence
+}
+
+
+
+##This will return ABC triplets counterbalanced in a greco-latin square fashion.
+
+define DesignGrecoLatinSquare(a,b,c)
+{
+
+    #Ensure that all arguments are actually lists
+   if(not IsList(a))
+      {
+	SignalFatalError("First argument of function [DesignGrecoLatinSquare(<list>,<list>)] is not a list")
+      }
+   if(not IsList(b))
+      {
+	SignalFatalError("Second argument of function [DesignGrecoLatinSquare(<list>,<list>)] is not a list")
+      }	
+   if(not IsList(c))
+      {
+	SignalFatalError("Second argument of function [DesignGrecoLatinSquare(<list>,<list>)] is not a list")
+      }	
+
+      returnList <- []
+      loop(i, Sequence(0,Length(a)-1,1))
+      {
+        returnList <- Append(returnList, Transpose([a,Rotate(b,i), Rotate(c,-i)]))
+      }
+      
+    return returnList
+}
+
+
+## This is like SampleWithReplacement, but it makes sure that each item is sampled roughly 
+## equally. First, the list is shuffled, then repeated so that it is longer than the number you need.  
+## Then, it is truncated to be the right number.  Finally, it is shuffled again.  This ensures that
+## each item will be sampled a roughly equal number of times. (+/-1)
+define DesignBalancedSampling(list, number)
+{
+
+   #Ensure that all arguments are actually lists
+   if(not IsList(list))
+      {
+    	SignalFatalError("First argument of function [DesignBalancedSampling(<list>,<int>)] is not a list")
+      }
+   if(not IsInteger(number) )
+      {
+	    SignalFatalError("Second argument of function [DesignBalancedSampling(<list>,<int>)] is not an integer")
+      }	
+
+
+  ## Get repeated list (too long)
+  listlength <- Length(list)
+  multiply <- Ceiling(number / listlength)
+  i <- 1
+  fullStim <- []
+  while(i <= multiply)
+  {
+   tmp <- Shuffle(list)
+
+   ## make sure that we don't repeat any first-to-last, 
+   ## skip the test when length == 0.
+   if(Length(fullStim) !=  0)
+   {
+     if(First(tmp) == Nth(fullStim,Length(fullStim)))
+     {
+       tmp <- Rotate(tmp,1)
+     }
+   }
+   fullStim <- Merge(fullStim, tmp)
+   i <- i + 1
+  }
+  newStim <- SubList(fullStim,1,number)
+  
+  return newStim
+}
+
+
+##  This function takes a list of anything, and a list of indexes
+##  specifying the items to extract from the list.  The indexes can
+##  be in any order, but the extracted list will be in the order 
+##  of the original list.  Items that are not numbers less than or 
+##  equal to the length of the list will be ignored.
+define Subset(list, items)
+{
+   #Check the arguments to insure they are the proper type
+    if(not IsList(list))
+	{
+	    SignalFatalError("First argument of function [Subset(<list>,<items>)] is not a list")
+	}
+    if(not IsList(items))
+	{
+	    SignalFatalError("First argument of function [Subset(<list>,<items>)] is not a list")
+	}
+
+
+    returnList <- []      #Make an initial blank list to return
+    index <- 1            #keep track of the index
+    loop(i, list)
+    {
+	#If the index is in the items list, add it to the return list
+	if(IsMember(index, items))
+	{
+	    returnList <- Append(returnList, i)
+	}
+	index <- index + 1
+    }
+
+    return returnList
+}
+
+## This function operates like Subset, but each item index
+## specified is placed in the returned list in the specified order,
+## and items can appear multiple times.
+define ExtractListItems(list, items)
+{
+   #Check the arguments to insure they are the proper type
+    if(not IsList(list))
+	{
+	    SignalFatalError("First argument of function [ExtractListItems(<list>,<list>)] is not a list.")
+	}
+    if(not IsList(items))
+	{
+	    SignalFatalError("Second argument of function [ExtractListItems(<list>,<list>)] is not a list.")
+	}
+
+    returnList <- []      #Make an initial blank list to return
+    index <- 1            #keep track of the index
+    loop(i, items)
+    {
+	if(not IsNumber(i))
+	{
+	    SignalFatalError("Element " + index + " of second argument in ExtractListItems is not a number.")
+	}
+	if(i < 1 or i > Length(list))
+	{
+	    SignalFatalError("Element " + index + " of second argument in ExtractListItems is out of bounds.")
+	}
+	
+
+	returnList <- Append(returnList, Nth(list,i))
+ 	index <- index + 1
+    }
+
+    return returnList
+}
+
+
+# Returns a list which contains <number> items from the list,
+# selected without replacement.  If <number> is larger 
+# than the size of the list,
+# the entire list is returned. Consequently, fewer than N items will be
+# chosen. Items will be returned in the order they appear in the list.
+# See also:  SampleN, SampleNWithReplacement, SampleNWithoutReplacement
+
+define ChooseN(list, number)
+{
+   #Check the arguments to insure they are the proper type
+    if(not IsList(list))
+	{
+	    SignalFatalError("First argument of function [ChooseN(<list>,<number>)] is not a list.")
+	}
+    if(not IsNumber(number))
+	{
+	    SignalFatalError("Second argument of function [ChooseN(<list>,<number>)] is not an integer.")
+	}
+
+   #Construct a list of items to select:
+   returnNum <- Max([0, number])
+   returnNum <- Floor(Min([returnNum, Length(list)]))
+   indexes <- SubList(Shuffle(Sequence(1, Length(list),1)), 1, returnNum)
+   return  SubSet(list, indexes)
+}
+
+
+# SampleN operates like ChooseN, but it returns a randomly-ordered list.
+define SampleN(list, number)
+{
+
+  #Check the arguments to insure they are the proper type
+    if(not IsList(list))
+	{
+	    SignalFatalError("First argument of function [SampleN(<list>,<number>)] is not a list.")
+	}
+    if(not IsNumber(number))
+	{
+	    SignalFatalError("Second argument of function [SampleN(<list>,<number>)] is not an number:"+number)
+	}
+
+  return Shuffle(ChooseN(list, number))
+}
+
+define SampleNWithReplacement(list, number)
+{
+  #Check the arguments to insure they are the proper type
+    if(not IsList(list))
+	{
+	    SignalFatalError("First argument of function [SampleN(<list>,<number>)] is not a list.")
+	}
+    if(not IsNumber(number))
+	{
+	    SignalFatalError("First argument of function [SampleN(<list>,<number>)] is not an number.")
+	}
+
+     i <- 1
+     l <- Length(list)
+     indexList <- []
+    while(i <= number)
+    {
+       indexList <- Append(indexList, RandomDiscrete(l))
+       i <- i + 1
+    }
+   return ExtractListItems(list, indexList)
+}
+
+## This 'folds' a list into length-sized sublists.
+## If the length of the list is not equally divisible
+## by the sublist length, the last sublist is shortened.
+define FoldList(list, length)
+{
+
+   if(not IsList(list))
+      {
+		  SignalFatalError("First Argument of FoldList(<list>,<integer>) must be a list.")
+      }
+		  
+   if(not IsInteger(length))
+     {
+		  SignalFatalError("Second Argument of FoldList(<list>,<integer>) must be an integer.")
+     }
+ 
+    start <- 1
+    end   <- length
+    listlength <- Length(list)
+    returnlist <- []
+
+    while(end <= listlength)
+    {
+
+		  returnlist <- Append(returnlist, SubList(list,start,end))
+		  start <- end + 1
+        end   <- end + length
+    }
+
+	 if(start <= listlength and end > listlength)
+    {
+       returnlist <- Append(returnlist,	 SubList(list,start, listlength))
+    }
+
+	 return returnlist
+}
+
+
+
+##This flattens a nested list into a single list.
+define Flatten(list)
+{
+	if(not IsList(list))
+	{
+	  SignalFatalError("First Argument of Flatten(<list>) must be a list.")
+	}
+
+	newlist <- []
+
+	loop(i,list)
+	{
+	  if(IsList(i))
+      {
+		  newlist <- Merge(newlist, Flatten(i))
+	
+      } else {
+	     newlist <- Append(newlist,i)
+      }
+
+	}
+
+  return newlist
+}
+
+define FlattenN(list, n)
+{
+
+	if(not IsList(list))
+	{
+	  SignalFatalError("First Argument of FlattenN(<list>) must be a list.")
+	}
+
+	if(not IsInteger(n))
+	{
+	  SignalFatalError("Second Argument of FlattenN(<list>) must be an integer.")
+	}
+
+
+	newlist <- []
+	loop(i,list)
+	{
+	  if(IsList(i) and n > 0)
+      {
+		  newlist <- Merge(newlist, FlattenN(i, n-1))
+	
+      } else {
+	     newlist <- Append(newlist,i)
+      }
+
+	}
+
+  return newlist
+}
+
+
+## This will create a copy of template (a possibly nested list),
+## replacing every element in template that matches a first member 
+## of a pair listed in replacementList with the second member.
+
+
+define Replace(template, replacementList)
+{
+	if((not IsList(replacementList)))
+	{
+	   SignalFatalError("Second argument of function[Replace(<list>,<list-of-lists>)] is not a string")
+	}
+
+
+	if( IsList(template))
+	{
+	      returnVal <- []
+
+	  loop(i, template) 
+       {
+		returnVal <- Append(returnVal, Replace(i,replacementList))
+	   }
+
+	}else{
+     returnVal <- template
+
+	 loop(j, replacementList)
+		{
+
+		  if(First(j) == template)
+			{
+			   returnVal <- Nth(j,2)
+			}
+	    }
+	}
+
+	return returnVal
+}
+
+
+
+define Reverse(list)
+{
+
+   newlist <- []
+   loop(i, list)
+   {
+     newlist <- Merge([i], newList)
+   }
+
+ return(newlist)
+}
+
+
+
+##Note that shufflerepeat ensures that there are no
+##duplicates at transitions between lists.  This could lead
+##to infinite loops if you shuffle a list of identical items
+
+define ShuffleRepeat(list, n)
+{
+
+   ##Shuffle the first copy:
+   tmp <- [Shuffle(list)]
+
+   ##Add additional sets to the end
+   if(n>1)
+   {
+   loop(i, Sequence(1,n-1,1))
+    {
+      try <- Shuffle(list)
+      while(First(try) ==  Nth(tmp,Length(tmp)))
+          { 
+           try <- Shuffle(list)
+          }
+       tmp <- Append(tmp,try)
+    }
+   }
+  return tmp
+}
+
+
+## Usage: ShuffleWithoutAdjacents([[1,1],2,[3,3,4,5],6,7,8,9],1)
+##
+## This shuffling scheme is approximate.  You could easily give it a 
+## shuffling scheme that could never work, such as [[1,1,1,1,1,],2].
+## The optional parameter tries indicates the max number of attempts to do this
+## shuffling--if it can't succeed by this many tries, it will return
+## the last one.  Typically, this ends up having intra-set runs getting
+## pushed to the end of the list.
+##
+## tries <=1 (i.e., 0 or -1) will trust that the user has given it a problem
+## for which a solution is feasible, and will repat until it finds one that
+## satisfies its checks.  This could take a long time, or forever, if the
+## shuffling is very difficult.
+
+define ShuffleWithoutAdjacents(list,tries:1)
+{
+
+  cont <- 1
+  attempt <- 0
+
+  while(cont)
+  {
+
+     attempt <- attempt + 1
+
+     newlist <- ShuffleWithoutAdjacentsOnce(list)
+
+     ##We need to check for adjacents in newlist.
+      newlist2 <- Rotate(newlist,-1)
+      pairlist <- SubList(Transpose([newlist2,newlist]),2,Length(newlist))
+
+      ##check each pair to determine whether they share a set.
+      ##this will not work as intended if you duplicate tokens
+      ## across exclusivity sets.
+      
+      ok <- 1
+      loop(i,pairlist)
+      {
+          id1 <- FindToken(First(i),list)
+	  id2 <- FindToken(Second(i),list)
+
+	  if(id1==id2)
+	  {
+
+   	     ok <- 0  ##we have failure
+	     break
+	  }
+
+      }
+ 
+
+       ##Exit if we have a good list or if we have tried long enough.
+       if(ok or (attempt >= tries and tries>0))
+       {
+          cont <- 0
+       }
+
+  }
+
+  return newlist
+}
+
+
+define FindToken(token, nestedlist)
+{
+   index <- 1
+   found <- 0
+   loop(i,nestedlist)
+   {
+      if(IsList(i))
+      {
+         out <- FindToken(token,i)
+      }else {
+         out <- (token == i)
+      }
+
+     if(out)
+     {
+      found <- 1
+      ret <- index
+      break
+     }
+     index <- index + 1
+   }
+
+  ##return index if found; otherwise 0
+  return  found * index
+}
+
+##this is a helper function; it does not need to be
+##documented for end users.
+
+define ShuffleWithoutAdjacentsOnce(list)
+{
+  #This does mixed shuffling of a list of subsets, so that
+  #within-set tokens are not adjacent in the outcome list.
+ 
+
+  # First, make a template with integers describing the tokens to be shuffled 
+  # in this crazy way.
+
+  template <- []
+  index <- 1
+
+  ##shuffledList shuffles items within the class for later use.
+  shuffledList <- []
+
+  loop(i,list)
+    { 
+
+
+      if(IsList(i))
+       {
+         tmpList <- []
+         loop(j, i)
+          {
+           tmpList <- Append(tmpList, index)
+           }
+	   
+         template <- Append(template,tmpList)
+         index <- index + 1
+
+         shuffledList <- Append(shuffledList, Shuffle(i))
+       } else {
+         template <- Append(template,index)
+         index <- index + 1
+        shuffledList <- Append(shuffledList, i)
+      }
+    }
+
+  
+    ## now, template is a list with unique integers that map the classes of items on the list.
+    ## these can't touch.
+
+    flatTemplate <-Shuffle(Flatten(template))
+    finalTemplate <- []
+
+    last <- 0
+    rest <- flatTemplate
+    while(Length(rest) > 0)
+    {
+
+     next <- First(rest)
+     ##If the transition is bad, try to find one that works:
+     tries <- 0
+     maxTries <- Length(rest)
+     while(next == last and tries <= maxTries)
+      {
+
+       rest <- Rotate(rest,1)
+       next <- First(rest)
+       tries <- tries + 1
+      }
+      
+     ##Add the next legal item to the final template.
+     finalTemplate <- Append(finalTemplate, next)    
+     last <- next
+     if(Length(rest)==1)
+     {
+      rest <- []
+     } else {
+       rest <- SubList(rest,2,Length(rest))
+     }  
+    i <- i + 1
+    }
+
+
+   #OK, now finaltemplate shows us how to order things from the shuffledList
+
+
+   flatList <- FlattenN(shuffledList,1)
+   key <- SortBy(Sequence(1,Length(flatList),1), finalTemplate)
+ 
+   return SortBy(flatList, key)
+}
+
+
+
+define Sample(list)
+{
+ return  First(SampleN(list,1))
+}
+
+
+## Segments a set of numbers into lists by 
+## the values in a second condition.
+define ListBy(vals,cond)
+{
+  newlist <- []
+  condlist <- []
+
+  condlist <- Levels(cond)
+
+  loop(i, condlist)
+   { 
+     subset <- Filter(vals,Match(cond,i))
+     PushOnEnd(newlist,subset)
+   }
+
+ return ([condlist, newlist])
+}
+
+
+## Extract the distinct levels of a list.
+##
+
+define Levels(list)
+{
+   if(not IsList(list))
+     {
+	   SignalFatalError("Argument of 'Levels(list)' is not a list")
+     }
+
+   levellist <- []
+   tmp <- Sort(list)
+   loop(i,tmp)
+   {
+    if(not IsMember(i,levellist))
+     {
+       PushOnEnd(levellist,i)
+     } 
+   }
+  ##this has trouble with mixed-form lists. Sort in lexicographical order
+  llist2 <- []
+  loop(i,levellist)
+  {
+   llist2 <- PushOnEnd(llist2,i+"")
+  }
+   return SortBy(levellist,llist2)
+}
+
+
+
+
+##  This function takes a list of anything, and a list of indexes
+##  specifying the items to extract from the list.  The indexes can
+##  be in any order, but the extracted list will be in the order 
+##  of the original list.  Items that are not numbers less than or 
+##  equal to the length of the list will be ignored.
+define RemoveSubset(list, items)
+{
+   #Check the arguments to insure they are the proper type
+    if(not IsList(list))
+	{
+	    SignalFatalError("First argument of function [RemoveSubset(<list>,<list>)] is not a list")
+	}
+    if(not IsList(items))
+	{
+	    SignalFatalError("First argument of function [RemoveSubset(<list>,<list>)] is not a list")
+	}
+
+
+    returnList <- []      #Make an initial blank list to return
+    index <- 1            #keep track of the index
+    loop(i, list)
+    {
+	#If the index is in the items list, add it to the return list
+	if(not IsMember(index, items))
+	{
+	    returnList <- Append(returnList, i)
+	}
+	index <- index + 1
+    }
+
+    return returnList
+}
+
+
+## New for PEBL 0.11
+##
+
+define Insert(list, item, pos)
+{ 
+   if(pos == 0)
+    { 
+      new <- Merge([item],list)
+    } elseif(pos >= Length(list))
+    {
+      new <- Append(list, item)    
+ 
+    }else {
+
+      new <- FlattenN([SubList(list,1,pos),
+                      [item], 
+                      SubList(list,pos+1,Length(list))],1)
+   }
+
+  return new
+}
+
+
+define Rest(list)
+{
+  if(not IsList(list))
+   { 
+     SignalFatalError("Rest(<list>) must be given a list as argument")
+   }
+  if(Length(list)<2)
+    {
+      ret <- []
+    } else {
+      ret <- SubList(list,2,Length(list))
+}
+  return ret
+}

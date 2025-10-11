@@ -1,0 +1,35 @@
+##This measures the refresh rate full-bore.
+define Start(p)
+{
+    gVideoWidth <- 800
+    gVideoHeight <- 600
+   gWin <- MakeWindow()
+   label <- Easylabel("Press any key to begin testing",gVideoWidth/2,gVideoHeight/2,gWin,44) 
+
+   Draw()
+   WaitForAnyKeyPress()
+   label.text <- "Testing"
+
+   startTime <- GetTime()
+   i <- 1
+   times <- []
+   prevTime <- starttime
+   while(i < 100)
+    {
+     label.text <- "Testing: " + i
+     Draw()
+     time <- GetTime()
+     delta <- time-prevTime
+     prevTime <- time
+     PushOnEnd(times,delta)
+     i <- i + 1
+   }
+   endTime <- GetTime()
+
+ out <-   Print("PEBL refresh rate timing utility")
+out <- out + CR(1)+  Print("Total time drawing 100 (ms):       " +(endTime-startTime))
+out <- out + CR(1)+    Print("Mean duration between draws (ms):  "  +Mean(times))
+out <- out + CR(1)+    Print("Time spent per each (ms):          "  +(endTime-startTime)/100)
+out <- out + CR(1)+    Print("Standard Deviation: (ms):          "+StdDev(times))
+ MessageBox(out,gWin)
+}

@@ -1,0 +1,146 @@
+##Simple free recall task, using toronto word pool
+
+define Start(p)
+{
+
+  parpairs <- [["numlists",3],
+               ["listlength",10],
+	       ["timeperword",2000],
+	       ["isi",250],
+	       ["delay",1000],##delay before recall
+	       ["stimfile","torontowordpool.txt"]]##word file to use.
+
+  gParams <- CreateParameters(parpairs,gparamFile)
+
+
+  gWin <- MakeWindow("black")
+  gSleepEasy <- 1
+   if(gSubNum+""=="0")
+   {
+     gSubNum <- GetSubNum(gWin)
+   }
+
+   GetStrings(gLanguage)
+
+   header <- "subnum,block,pos,resp,onlist,repeat,corr,time,abstime"
+   gFileOut <- GetNewDataFile(gSubNum,gWin,"freerecall","csv",header)
+   header <- "subnum,block,position,word,time"
+   gPresentedFile <- GetNewDataFile(gSubNum,gWin,"freerecall-presented","csv",header)
+
+
+
+  words <- Shuffle(FileReadList(gParams.stimfile))
+
+  subset <- SampleN(words,gParams.numlists*gParams.listlength)
+
+  lists <- FoldList(subset,gParams.listlength)
+
+   MessageBox(gStrings.inst1,gWin)
+
+   stim <- Easylabel("+", gVideoWidth/2,gVideoHeight/2,gWin,60)
+   header <- Easylabel(gStrings.header, gVideoWidth/2,150,gWin,25)
+   input <- EasyTextbox("",gVideoWidth/2-200,gVideoheight/2+100,gWin,30,400,80)
+
+
+  gBlock <- 1
+  loop(words,lists)
+   {
+   Hide(input)
+   MessageBox(gStrings.hitok,gWin)
+   Draw()
+   Showcursor(0)
+   Wait(1000)
+
+
+     uwords <- []
+     position <- 1
+     loop(word,words)
+     {
+      PushOnEnd(uwords,Uppercase(word))   ##make uppercase words for matching
+      Show(stim)
+      stim.text <- word
+      Draw()
+      Wait(gParams.timeperword)
+      Hide(stim)
+      Draw()
+      Wait(gParams.isi)
+      FilePrint(gpresentedfile,gSubnum+","+gBlock+","+position+","+word+","+GetTime())
+      position <- position   + 1
+
+     }
+
+     ##do recall
+
+     Hide(stim)
+     header.text <- ""
+     Draw()
+     Show(input)
+
+     Wait(gParams.delay)
+     header.text <- gStrings.respond
+     Draw()
+
+     resps <- []
+     resp <- "X"
+     position <- 1
+     sequence <- Sequence(1,gparams.listlength,1)
+     while(not resp =="")
+     {
+       time1 <- GetTime()
+       input.text <- ""
+       resp<- GetInput(input,"<return>")
+       time2 <- GetTime()
+
+       onlist <- Lookup(Uppercase(resp),uwords,sequence)
+       repeat <- Lookup(Uppercase(resp),resps,Repeat(1,Length(resps)))
+
+       if(IsList(onlist))
+       {
+           correct <- 0
+	   onlist <- 0
+       } else {
+           correct <- 1
+       }
+
+       ##score any repeats as 0/incorrect
+       if(IsList(repeat))
+       {
+        repeat <- 0
+       } else {
+          correct <- 0
+       }
+
+
+         FilePrint(gFileOut,gSubNum+","+gBlock+","+position+","+
+                 resp+","+
+                 onlist+","+ repeat+","+correct+","+(time2-time1)+","+time2)
+         position <- position+ 1
+     }
+
+     gBlock <- gBlock + 1
+   }
+
+
+}
+
+
+
+
+define GetStrings(lang)
+{
+
+   ##Known translations: EN
+
+  lang <- Uppercase(lang)
+  fname <- "translations/freerecall.pbl-"+LowerCase(lang)+".json"
+
+  if(FileExists(fname))
+  {
+    gStrings <- ReadTranslationJSON(fname,lang)
+  } else
+  {
+    gStrings <- ReadTranslationJSON("translations/freerecall.pbl-en.json",lang)
+  }
+
+
+}

@@ -1,0 +1,363 @@
+## Basic Luck and Vogel change-detection task.
+##
+##
+
+define Start(p)
+{
+
+  parpairs <- [["fieldWidth",400],
+               ["fieldheight",400],
+               ["squaresize",50],
+	       ["prestime",300],
+	       ["delaytime",1000],
+	       ["length1",1],
+	       ["length2",2],
+	       ["length3",3],
+	       ["length4",4],
+	       ["length5",8],
+	       ["length6",12],
+	       ["trialsperlength",10], ##per length and same/diff condition
+	       ["givefeedback",1],
+	       ["blocksize",40],
+	       ["useAudiofeedback",1]
+              ]
+
+  gParams <- CreateParameters(parpairs,gParamFile)
+
+
+   gParams.length <- [gParams.length1,gParams.length2,gParams.length3,
+                      gparams.length4,gParams.length5,gParams.length6]
+
+
+   if(gParams.UseAudioFeedback)
+   {
+     gCorrectSound <- LoadSound("correct.wav")
+     gIncorrectSound <-LoadSound("buzz500ms.wav")
+   }
+
+
+   ##These should be basically color-blind safe:
+   gCols <- [MakeColorRGB(230,159,0),  #orange
+   	    MakeColorRGB(86,180,233),  #skyblue
+	    MakeColorRGB(0,158,115),   #blue-green
+      	    MakeColorRGB(240,228,66),  #yellow
+	    MakeColorRGB(213,94,0), #vermillion (red)
+            MakeColorRGB(255,255,255),  #white
+            MakeColorRGB(0,0,0)         #Black
+           ]
+
+   gColNames <- ["orange","skyblue","bluegreen","yellow","red","white","black"]
+   gShapeNames <- ["circle","square","plus","ellipse","star"]
+
+
+  gScriptName <- "PEBL Visual Change Detection Task"
+
+  gWin <- MakeWindow("black")
+  gSleepEasy <- 1
+  ShowCursor(0)
+
+  if(gSubNum+""=="0")
+   {
+      gSubNum <- GetSubNum(gWin)
+   }
+
+
+  GetStrings(gLanguage)
+
+
+  gFileOut <- GetNewDataFile(gSubNum,gWin,"luckvogel","csv",
+               "subnum,trial,prestime,delay,size,same,resp,corr,rt")
+
+  gHeader <- EasyLabel("",gVideoWidth/2,gVideoHeight/2-gParams.fieldheight/2-30,gWin,30)
+
+  bgField <- Rectangle(gVideoWidth/2,gVideoHeight/2,
+               gParams.fieldwidth,gParams.fieldheight,
+              MakeColor("grey50"),1)
+  AddObject(bgField,gWin)
+  font <- Makefont(gPEBLBaseFont,0,50,MakeColor("black"),MakeColor("white"),0)
+  gStatus <- MakeLabel("",font)
+  Move(gStatus,gVideoWidth/2,gVideoHeight/2)
+  AddObject(gStatus,gWin)
+
+
+   instbox <- EasyTextBox(gStrings.inst,20,20,gWin,18,gVideoWidth-40,120)
+
+   displays <- MakeStimSet(5,"box",1)
+   cont <- 1
+   ShowAll(First(displays),1)
+   Draw()
+   WaitForAnyKeyPress()
+
+   instbox.text <- instbox.text + gStrings.continue
+   ShowAll(First(displays),0)
+   Draw()
+   Wait(1000)
+   gHeader.text <- gStrings.headersame
+   while(cont)
+   {
+
+     displays <- MakeStimSet(5,"box",1)
+     ShowAll(First(displays),1)
+     Draw()
+     Wait(500)
+     ShowAll(First(displays),0)
+     Draw()
+     Wait(1000)
+     ShowAll(First(displays),1)
+     Draw()
+     out <-  WaitForListKeyPress([" ","X"])
+     ShowAll(First(displays),0)
+     Draw()
+     Wait(1000)
+     cont <- (out==" ")
+
+   }
+
+  instbox.text <-gStrings.inst2
+
+   gHeader.text <-gStrings.headerdifferent
+   Draw()
+   WaitForAnyKeyPress()
+
+   instbox.text <- instbox.text +gStrings.continue2
+    cont <- 1
+
+  while(cont)
+   {
+    displays <- MakeStimSet(5,"box",1)
+    ShowAll(First(displays),1)
+     Draw()
+     Wait(500)
+     ShowAll(First(displays),0)
+     Draw()
+     Wait(1000)
+     ShowAll(Second(displays),1)
+     Draw()
+     out <-  WaitForListKeyPress([" ","X"])
+     ShowAll(Second(displays),0)
+     Draw()
+     Wait(1000)
+     cont <- (out==" ")
+
+   }
+
+
+   instbox.text <- gStrings.inst3
+   gHeader.text <- gStrings.header
+   Draw()
+   WaitForAnyKeyPress()
+   Hide(instbox)
+   CountDown(gWin)
+
+   loop(i,[1,0,1,0,0,1])
+     {
+       out <-  TrialSquares(3,i)
+     }
+
+  design <- DesignFullCounterbalance(gParams.length,[0,1])
+  stim <- Shuffle(RepeatList(design,gParams.trialsperlength))
+
+   instbox.text <-gStrings.inst4
+   Show(instbox)
+   Draw()
+   WaitForAnyKeyPress()
+   Hide(instbox)
+   CountDown(gWin)
+
+   ##also, burn a couple trials of the test set:
+   out <-  TrialSquares(3,1)
+   out <-  TrialSquares(3,0)
+
+   trial <- 1
+   loop(i,stim)
+    {
+      out <-  TrialSquares(First(i),Second(i))
+      FilePrint(gfileOut,gSubNum+","+trial+","+gParams.prestime+","+gParams.delaytime+","+
+                First(i)+","+First(out)+","+Second(out)+","+Third(out)+","+Fourth(out))
+
+     if(Mod(trial,gParams.blocksize)==0)
+     {
+     breaktext <- ReplaceChar(gStrings.break,"<TRIAL>",trial+"")
+     breaktext <- ReplaceChar(breaktext,"<LENGTH>",Length(stim)+"")
+
+
+       instbox.text <- breaktext
+       Show(instbox)
+       Draw()
+       Hide(instbox)
+        WaitForAnyKeyPress()
+        CountDown(gWin)
+        out <-  TrialSquares(3,1)
+        out <-  TrialSquares(3,0)
+
+     }
+
+      trial <- trial + 1
+    }
+  MessageBox(gStrings.debrief,gWin)
+}
+
+define TrialSquares(number,change)
+{
+    gHeader.text <- gStrings.trialheader
+    displays <- MakeStimSet(number,"box",change)
+    gStatus.text <- gStrings.ready
+    Draw()
+    Wait(500)
+    gStatus.text <- ""
+    Draw()
+    Wait(1000)
+
+    ShowAll(First(displays),1)
+    Draw()
+    Wait(gParams.prestime)
+    ShowAll(First(displays),0)
+    Draw()
+    Wait(gParams.delaytime)
+    ShowAll(Second(displays),1)
+
+    Draw()
+
+    time1 <- GetTime()
+    resp <- WaitForListKeyPress(["<lshift>","<rshift>"])
+    time2 <- GetTime()
+
+    if(change)
+        {
+              corr <- resp=="<rshift>"
+        }else {
+              corr <- resp=="<lshift>"
+        }
+
+   if(gParams.givefeedback)
+   {
+      ShowAll(Second(displays),0)
+      gStatus.text <- Nth([gStrings.incorrect,gStrings.Correct],corr+1)
+      Draw()
+      if(gParams.UseAudioFeedback)
+       {
+       if(corr)
+        {
+          PlayForeground(gCorrectSound)
+        }else{
+          PlayForeground(gIncorrectSound)
+        }
+      }
+
+
+      Wait(350)
+      gStatus.text <- ""
+      Draw()
+   }
+  return [change,resp,corr,(time2-time1)]
+}
+
+
+define MakeStimSet(number,type,change)
+{
+
+
+
+  if(type=="box")
+  {
+
+  ##create the positions here:
+  gLeft <- gVideoWidth/2-gParams.fieldwidth/2 +gParams.squaresize/2+10
+  gRight <- gVideoWidth/2+gParams.fieldwidth/2-gParams.squaresize/2-10
+  gUpper <- gVideoHeight/2-gParams.fieldheight/2+gParams.squaresize/2+10
+  gLower <- gVideoHeight/2+gParams.fieldheight/2-gParams.squaresize/2-10
+
+    ##pick the colors (we have 7)
+    indices <- Shuffle(Sequence(1,7,1))
+    swaps <- SampleN(indices,2)  ##these won't match
+
+   if(number==1)
+    {
+      positions <- [[gLeft+Random()*(gRight-gLeft),
+                     gUpper+Random()*(gLower-gUpper)]]
+
+      colors1 <- [First(swaps)]
+     if(change)
+     {
+      colors2 <- [Second(swaps)]
+     }else{
+      colors2 <-[First(swaps)]
+     }
+
+    }else {
+
+     positions <- NonOverlapLayout(gLeft,gRight,gUpper,glower,
+                            gParams.squaresize*2,number)
+
+     rest <- DesignBalancedSampling(indices,number-1)
+     colors1 <- Append(rest,First(swaps))
+     if(change)
+     {
+      colors2 <- Append(rest,Second(swaps))
+     }else{
+      colors2 <- Append(rest,First(swaps))
+     }
+
+     }
+
+
+    cnames1 <- ExtractListItems(gColNames,colors1)
+    cnames2 <- ExtractListItems(gColNames,colors2)
+    col1 <- ExtractListItems(gCols,colors1)
+    col2 <- ExtractListItems(gCols,colors2)
+
+    display1 <- []
+    display2 <- []
+
+    loop(i,Sequence(1,number,1))
+    {
+        xy <- Nth(positions,i)
+	sq1a <- Square(First(xy),Second(xy),gParams.squaresize+4,  MakeColor("black"),1)
+        sq1 <- Square(First(xy),Second(xy),gParams.squaresize,  Nth(col1,i),1)
+	sq2a <- Square(First(xy),Second(xy),gParams.squaresize+4,  MakeColor("black"),1)
+        sq2 <- Square(First(xy),Second(xy),gParams.squaresize,  Nth(col2,i),1)
+
+        AddObject(sq1a,gWin)
+        AddObject(sq1,gWin)
+	AddObject(sq2a,gWin)
+	AddObject(sq2,gWin)
+
+	PushOnEnd(display1,sq1)
+	PushOnEnd(display1,sq1a)
+	PushOnEnd(display2,sq2)
+	PushOnEnd(display2,sq2a)
+    }
+
+  }
+ ShowAll(display1,0)
+ ShowAll(display2,0)
+ return [display1,display2]
+}
+
+
+define ShowAll(set,onoff)
+{
+   loop(i,set)
+    {
+      i.visible <- onoff
+    }
+}
+
+
+define GetStrings(lang)
+{
+
+   ##Known translations: EN
+
+  lang <- Uppercase(lang)
+  fname <- "translations/luckvogel.pbl-"+LowerCase(lang)+".json"
+
+  if(FileExists(fname))
+  {
+    gStrings <- ReadTranslationJSON(fname,lang)
+  } else
+  {
+    gStrings <- ReadTranslationJSON("translations/luckvogel.pbl-en.json",lang)
+  }
+
+}

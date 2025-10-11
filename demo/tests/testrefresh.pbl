@@ -1,0 +1,59 @@
+define Start(p)
+{
+
+  gWin <- MakeWindow()
+  gSleepEasy <- 1
+  TestRefresh(gWin,200)
+}
+
+
+define TestRefresh(window, cycles)
+{
+
+  text <- "Refresh Rate Tester"+CR(2)+
+  "Screen width:         " + gVideoWidth + CR(1)+
+  "Screen height:        " + gVideoHeight + CR(1)+
+  "Cycles:               "+ cycles
+
+   tb <- EasyTextBox(text+"Press any key to begin test",50,50,window,12,400,200)
+   tb.text <- text + "Press any key to begin test"
+   Draw()
+
+   WaitForAnyKeyPress()
+   tb.text <- text + "TESTING"
+   pebl <- MakeImage("pebl.png")
+   AddObject(pebl,window)
+   Move(pebl,550,100)
+   Draw()
+    times <- []   
+    deltas <- []
+    show <- 1
+    time <- GetTime()
+    time0 <- time
+    loop(i,Sequence(1,cycles,1))    
+     {
+      pebl.visible <- show
+      show <- 1-show
+      Draw()
+      newtime <- GetTime()      
+      PushOnEnd(times,newtime)
+      PushOnEnd(deltas,(newtime-time))
+      time <- newtime
+      tb.text <- text + "("+i+")"+CR(1)+time+CR(1)
+     }
+
+
+     tb.text  <- text + 
+         "Number of refreshes:        " + cycles + CR(1)  +
+         "Mean Time per refresh:      " + Mean(deltas)  + " ms "+ CR(1) +
+         "SD of  Time per refresh:    " + StdDev(deltas)  + " ms "+ CR(1) +
+	 "Time for test:              " + (GetTime()-time0)/1000 + " s"
+
+
+       mygraph <- MakeGraph(deltas,500,200,300,600)
+       AddObject(mygraph,window)
+       Move(mygraph,300,400)
+       Draw()
+       WaitForAnyKeyPress()
+  
+   }

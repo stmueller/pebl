@@ -1,0 +1,56 @@
+define Start(parameter)
+{
+## This program tests file reading and writing functions.
+##
+
+	Print("Opening tmp.dat for writing")
+	xFile <- FileOpenWrite("tmp.dat")
+
+	Print("Writing Lines")
+	FilePrint(xFile, "Line 1")
+	FilePrint(xFile, "Line 2")
+	FilePrint(xFile, "Line 3")
+	FilePrint(xFile, "Line 4")
+	FilePrint(xFile, "Line 5")
+	
+	Print("Closing tmp.dat")
+	FileClose(xFile)
+
+	Print("Opening tmp.dat for reading")
+	xFile <- FileOpenRead("tmp.dat")
+	
+	Print("Reading characters")
+
+	Print("["+FileReadCharacter(xFile)+"]")
+	Print("["+FileReadCharacter(xFile)+"]")
+	Print("["+FileReadCharacter(xFile)+"]")
+	Print("["+FileReadCharacter(xFile)+"]")
+	Print("["+FileReadCharacter(xFile)+"]")
+	Print("["+FileReadCharacter(xFile)+"]")
+	Print("["+FileReadCharacter(xFile)+"]")
+	Print("["+FileReadCharacter(xFile)+"]")
+	Print("["+FileReadCharacter(xFile)+"]")
+
+	Print("Reading a line")
+	Print("["+FileReadLine(xFile)+"]")	
+
+	Print("Reading a line")
+	Print("["+FileReadLine(xFile)+"]")	
+
+	Print("Reading a word at a time")		
+	while(EndOfFile(xFile) == 0)
+	{
+	  while(EndOfLine(xFile) + EndOfFile(xFile) == 0)
+	  {	
+
+	    Print("["+FileReadWord(xFile)+"]")
+
+            }
+
+	    FileReadLine(xFile)
+	}
+
+	Print("Closing the file")
+
+	FileClose(xFile)
+}

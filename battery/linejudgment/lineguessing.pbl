@@ -1,0 +1,335 @@
+###########################################################
+##  Line Numerosity Judgment Task
+##  Multiple trials with random number of lines
+##  Determines whether display has high or low number of lines
+###########################################################
+
+define Start(lPar)
+{
+  ## Initialize PEBL
+  gSleepEasy <- 1
+  Initialize()
+
+  ## Get subject number
+  gSubNum <- GetSubNum(gWin)
+
+  ## Parameters
+  criteria <- 30.5           ## Decision criterion between low and high
+  meanLow <- 25            ## Mean of low distribution
+  meanHigh <- 36           ## Mean of high distribution
+  sdLow <- 5               ## SD of low distribution
+  sdHigh <- 5              ## SD of high distribution
+  numTrials <- 100          ## Total number of trials (must be divisible by 4)
+
+  ## Line length parameters
+  shorteningFactor <- 0.75  ## Factor to shorten lines in 'short' condition
+
+  ## Response mode: "2AFC" or "CONF"
+  responseMode <- "CONF"
+
+  ## Create instruction text
+  if(responseMode == "2AFC")
+  {
+    instText <- "You will see a display of random lines." + CR(2) + "Press LEFT SHIFT if you think there are a LOW number of lines." + CR(1) + "Press RIGHT SHIFT if you think there are a HIGH number of lines." + CR(2) + "You will start with 12 practice trials with feedback. Press any key to begin practice."
+  } else {
+    instText <- "You will see a display of random lines." + CR(2) + "Rate how confident you are about the number of lines:" + CR(1) + "2 = Certainly Low    5 = Maybe Low" + CR(1) + "6 = Maybe High       9 = Certainly High" + CR(2) + "You will start with 12 practice trials with feedback. Press any key to begin practice."
+  }
+
+  inst <- EasyTextBox(instText, 100, 100, gWin, 18, gVideoWidth-200, gVideoHeight-200)
+  Draw()
+  WaitForAnyKeyPress()
+  Hide(inst)
+  Draw()
+
+  ## Open data file
+  gFileOut <- GetNewDataFile(gSubNum, gWin, "lineguess", "csv",
+                             "subNum,block,trial,numLines,lineLength,totalLength,criteria,response,correct,rt")
+
+  ## PRACTICE BLOCK - 12 trials with feedback (3 per condition in 2x2 design)
+  practiceTrials <- 12
+
+  ## Create factorial design: number (low/high) x line length (short/long)
+  design <- DesignFullCounterbalance(["low", "high"], ["short", "long"])
+
+  ## Repeat design for full practice block and shuffle
+  fullDesign <- Shuffle(RepeatList(design, Round(practiceTrials / Length(design))))
+
+  loop(trial, Sequence(1, practiceTrials, 1))
+  {
+    ## Get trial conditions
+    trialConditions <- Nth(fullDesign, trial)
+    numberType <- First(trialConditions)
+    lineLengthType <- Nth(trialConditions, 2)
+
+    ## Sample number of lines based on condition
+    if(numberType == "low")
+    {
+      numLines <- Round(RandomNormal(meanLow, sdLow))
+    } else {
+      numLines <- Round(RandomNormal(meanHigh, sdHigh))
+    }
+
+    ## Ensure numLines is positive
+    if(numLines < 1)
+    {
+      numLines <- 1
+    }
+
+    ## Run trial with feedback
+    ##sample shorteningfactor on each trial.
+
+    sfactor <- .25+ RandomUniform(1)*.5 ##.25 to .75 as long.
+
+    result <- DoTrial(numLines, criteria, 1, lineLengthType, sFactor, responseMode, trial, practiceTrials)
+
+    ## result is [accuracy, rt, numLines, response, totalLength]
+    accuracy <- First(result)
+    rt <- Nth(result, 2)
+    resp <- Nth(result, 4)
+    totalLength <- Nth(result, 5)
+
+    ## Save data
+    FilePrint(gFileOut, gSubNum + ",practice," + trial + "," + numberType + "," + numLines + "," + lineLengthType + "," + totalLength + "," + criteria + "," + resp + "," + accuracy + "," + rt)
+    Print(              gSubNum + ",practice," + trial + "," + numberType + "," + numLines + "," + lineLengthType + "," + totalLength + "," + criteria + "," + resp + "," + accuracy + "," + rt)
+
+    ## Brief pause between trials
+    Wait(500)
+  }
+
+  ## Instructions for test block
+  inst2 <- EasyTextBox("Practice complete!" + CR(2) + "You will now complete the test trials. Please respond as quickly and accurately as possible." + CR(2) + "There will be no feedback during the test. Press any key to begin.",
+                       100, 100, gWin, 18, gVideoWidth-200, gVideoHeight-200)
+  Draw()
+  WaitForAnyKeyPress()
+  Hide(inst2)
+  Draw()
+
+  ## TEST BLOCK - numTrials without feedback (factorial design)
+  ## Create factorial design: number (low/high) x line length (short/long)
+  designTest <- DesignFullCounterbalance(["low", "high"], ["short", "long"])
+
+  ## Repeat design for full test block and shuffle
+  fullDesignTest <- Shuffle(RepeatList(designTest, Round(numTrials / Length(designTest))))
+
+  loop(trial, Sequence(1, numTrials, 1))
+  {
+    ## Get trial conditions
+    trialConditions <- Nth(fullDesignTest, trial)
+    numberType <- First(trialConditions)
+    lineLengthType <- Nth(trialConditions, 2)
+
+    ## Sample number of lines based on condition
+    if(numberType == "low")
+    {
+      numLines <- Round(RandomNormal(meanLow, sdLow))
+    } else {
+      numLines <- Round(RandomNormal(meanHigh, sdHigh))
+    }
+
+    ## Ensure numLines is positive
+    if(numLines < 1)
+    {
+      numLines <- 1
+    }
+
+    ## Run trial without feedback
+    result <- DoTrial(numLines, criteria, 0, lineLengthType, shorteningFactor, responseMode, trial, numTrials)
+
+    ## result is [accuracy, rt, numLines, response, totalLength]
+    accuracy <- First(result)
+    rt <- Nth(result, 2)
+    resp <- Nth(result, 4)
+    totalLength <- Nth(result, 5)
+
+    ## Save data
+    FilePrint(gFileOut, gSubNum + ",test," + trial + "," + numLines + "," + lineLengthType + "," + totalLength + "," + criteria + "," + resp + "," + accuracy + "," + rt)
+    Print(gSubNum + ",test," + trial + "," + numLines + "," + lineLengthType + "," + totalLength + "," + criteria + "," + resp + "," + accuracy + "," + rt)
+
+    ## Break every 20 trials
+    if(Mod(trial, 20) == 0 and trial < numTrials)
+    {
+      breakStatus <- EasyLabel("Trial " + trial + " of " + numTrials, gVideoWidth - 100, 30, gWin, 18)
+      breakMsg <- EasyLabel("Rest briefly for a few seconds, and then hit any key to continue.", gVideoWidth/2, gVideoHeight/2, gWin, 24)
+      Draw()
+      WaitForAnyKeyPress()
+      Hide(breakStatus)
+      Hide(breakMsg)
+      Draw()
+    }
+
+    ## Brief pause between trials
+    Wait(500)
+  }
+
+  ## Thank you message
+  thanks <- EasyLabel("Thank you!", gVideoWidth/2, gVideoHeight/2, gWin, 32)
+  Draw()
+  Wait(2000)
+}
+
+define Initialize()
+{
+  ## Set up display
+#  gVideoWidth <- 800
+#  gVideoHeight <- 600
+ gWin <- MakeWindow("black")
+}
+
+define DoTrial(numLines, criteria, showFeedback, lineLengthType, shorteningFactor, responseMode, trialNum, totalTrials)
+{
+  ## Parameters
+  circleRadius <- 250  ## Radius of circle containing lines
+  centerX <- gVideoWidth/2
+  centerY <- gVideoHeight/2 - 40  ## Move circle up to avoid label overlap
+
+  ## Create status bar in upper right corner
+  statusText <- "Trial " + trialNum + " of " + totalTrials
+  statusLabel <- EasyLabel(statusText, gVideoWidth - 100, 30, gWin, 18)
+ 
+  ## Create fixation cross
+  fix <- EasyLabel("+", centerX, centerY, gWin, 44)
+  Draw()
+  Wait(500)
+  Hide(fix)
+
+  ## Create response key label at bottom based on mode
+  if(responseMode == "2AFC")
+  {
+    keyLabel1 <- EasyLabel("LEFT SHIFT        RIGHT SHIFT", centerX, centerY + circleRadius + 50, gWin, 18)
+    keyLabel2 <- EasyLabel("Low               High", centerX, centerY + circleRadius + 70, gWin, 18)
+  } else {
+    keyLabel1 <- EasyLabel("2     3     4     5      6     7     8     9", centerX, centerY + circleRadius + 50, gWin, 18)
+    keyLabel2 <- EasyLabel("Certainly Low <-> Maybe Low      Maybe High <-> Certainly High", centerX, centerY + circleRadius + 70, gWin, 18)
+  }
+
+  ## Create circle boundary
+  circle <- Circle(centerX, centerY, circleRadius, MakeColor("white"), 0)
+  AddObject(circle, gWin)
+
+  ## Generate and display random lines
+  lines <- []
+  totalLength <- 0
+
+  loop(i, Sequence(1, numLines, 1))
+  {
+    ## Random starting point within circle
+    r1 <- Sqrt(RandomUniform(1)) * circleRadius
+    angle1 <- RandomUniform(360)
+    x1 <- centerX + r1 * Cos(DegToRad(angle1))
+    y1 <- centerY + r1 * Sin(DegToRad(angle1))
+
+    ## Random ending point within circle
+    r2 <- Sqrt(RandomUniform(1)) * circleRadius
+    angle2 <- RandomUniform(360)
+    x2 <- centerX + r2 * Cos(DegToRad(angle2))
+    y2 <- centerY + r2 * Sin(DegToRad(angle2))
+
+    ## Calculate deltas
+    dx <- x2 - x1
+    dy <- y2 - y1
+
+    ## Apply shortening factor for short lines
+    if(lineLengthType == "short")
+    {
+      dx <- dx * shorteningFactor
+      dy <- dy * shorteningFactor
+    }
+
+    ## Calculate and accumulate line length
+    lineLength <- Sqrt(dx * dx + dy * dy)
+    totalLength <- totalLength + lineLength
+
+    ## Create line
+    line <- Line(x1, y1, dx, dy, MakeColor("white"))
+    AddObject(line, gWin)
+    PushOnEnd(lines, line)
+  }
+
+  ## Show lines and record time
+  Draw()
+  time1 <- GetTime()
+
+  ## Get response based on mode
+  if(responseMode == "2AFC")
+  {
+    ## Get response (left shift = low, right shift = high)
+    respKey <- WaitForListKeyPress(["<lshift>","<rshift>"])
+    rt <- GetTime() - time1
+
+    ## Map response to l/h
+    if(respKey == "<lshift>")
+    {
+      resp <- "l"
+    } else {
+      resp <- "h"
+    }
+  } else {
+    ## CONF mode: get number key response
+    respKey <- WaitForListKeyPress(["2","3","4","5","6","7","8","9"])
+    rt <- GetTime() - time1
+
+    ## Store the actual number as response
+    resp <- respKey
+
+    ## Map to l/h for accuracy calculation
+    ## 2-5 = low, 6-9 = high
+    if(respKey == "2" or respKey == "3" or respKey == "4" or respKey == "5")
+    {
+      respCategory <- "l"
+    } else {
+      respCategory <- "h"
+    }
+  }
+
+  ## Clear display
+  Hide(keyLabel1)
+  Hide(keyLabel2)
+  RemoveObject(circle, gWin)
+  loop(i, lines)
+  {
+    RemoveObject(i, gWin)
+  }
+  Draw()
+
+  ## Determine correct response
+  correctResp <- "l"
+  if(numLines > criteria)
+  {
+    correctResp <- "h"
+  }
+
+  ## Calculate accuracy
+  accuracy <- 0
+  if(responseMode == "2AFC")
+  {
+    if(resp == correctResp)
+    {
+      accuracy <- 1
+    }
+  } else {
+    if(respCategory == correctResp)
+    {
+      accuracy <- 1
+    }
+  }
+
+  ## Show feedback if requested
+  if(showFeedback)
+  {
+    if(accuracy == 1)
+    {
+      fb <- EasyLabel("CORRECT" + CR(1) + " Number of lines: " + numLines, centerX, centerY, gWin, 28)
+    } else {
+      fb <- EasyLabel("INCORRECT" + CR(1) + " Number of lines: " + numLines, centerX, centerY, gWin, 28)
+    }
+    Draw()
+    Wait(1000)
+    Hide(fb)
+    Draw()
+  }
+
+   Hide(statusLabel)
+
+  ## Return [accuracy, rt, numLines, response, totalLength]
+  return [accuracy, rt, numLines, resp, totalLength]
+}

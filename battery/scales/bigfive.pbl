@@ -1,0 +1,264 @@
+##Big-five scale, from ipip.ori.org:
+##Although none of the IPIP scales have official names, one should refer 
+## to them by the scales on which they are based.  Hence, these scales 
+##could be labeled "the 50-item (or 100-item) IPIP representation of the
+## Goldberg (1992) markers for the big-five factor structure" or something
+## like that.
+##http://ipip.ori.org/
+##
+## See:  Goldberg, L. R. (1992).  The development of markers for the
+##      Big-Five factor structure.  Psychological Assessment, 4, 26-42.
+##
+
+define Start(p)
+{
+
+  parpairs <- [["shufflequestions",1],
+               ["doExt",1],
+               ["doAgr",1],
+               ["doCon",1],
+               ["doEmo",1],
+               ["doInt",1]]
+
+
+
+  gParams <- CreateParameters(parpairs,gParamFile)
+  traitfilter <- [gParams.doext,gParams.doagr,gParams.docon,gParams.doemo,gParams.doint]
+
+  gSleepEasy <- 1
+  GetStrings(gLanguage)
+  MakeDirectory("data")
+
+   gWin <- MakeWindow("black")
+
+   if(gSubNum+""=="0")
+   {
+    gSubNum <- GetSubNum(gWin)
+   }
+
+   
+  fname <- "data/bigfive.csv"
+  if(not FileExists(fname))
+     {
+       pooledfile <- FileOpenWrite(fname)
+       FilePrint(pooledfile,  "subnum,timestamp,time,q1,q2,q3,q4,q5,q6,q7,q8,q9,q10,q11,q12,q13,q14,q15,q16,q17,q18,q19,q20,q21,q22,q23,q24,q25,q26,q27,q28,q29,q30,q31,q32,q33,q34,q35,q36,q37,q38,q39,q40,q41,q42,q43,q44,q45,q46,q47,q48,q49,q50,EXT,AGR,CONS,EMO,INT")
+       
+
+     }else {
+
+      pooledfile <- FileOpenAppend(fname)
+
+     }
+
+
+  if(not FileExists("data/bigfive+"+gSubnum+".csv"))
+     {
+       suboutfile <- FileOpenWrite("data/bigfive-"+gSubnum+".csv")
+       FilePrint(suboutfile,  "subnum,order,time,qnum,ques,dim,valence,resp,rt")
+       
+     }else {
+
+      suboutfile <- FileOpenWrite("data/bigfive-"+gSubnum+".csv")
+
+     }
+
+
+
+   gQuestfont <- MakeFont(gPEBLBaseFont,0,35,MakeColor("white"),MakeColor("black"),0)
+   gSmallFont <- MakeFont(gPEBLBaseFont,0,18,MakeColor("white"),MakeColor("black"),0)
+  
+  inputfname <- "bigfive-"+gLanguage+".csv"
+  questions <- ReadCSV(inputfname)
+   if(gParams.shufflequestions)
+    {
+      questions <- Shuffle(questions)
+    }
+   responses <- []
+   data <- []
+
+   ##DO THE INSTRUCTIONS:
+   MessageBox(gInst,gWin)
+
+   startTime <- GetTime()
+   questorder <- 1
+   loop(q,questions)
+   {
+     type <- ToNumber(Nth(q,3))
+     
+     doQuestion <- Nth(traitfilter,type)
+      if(doQuestion)
+      {
+        resp <- Likert(Second(q))
+        dataline <- Flatten([[gSubNum,questorder,GetTime()],q,resp])
+        FilePrint(subOutFile,ConcatenateList(dataline,","))
+        PushOnEnd(responses,resp)
+        PushonEnd(data,dataline)
+        questorder <- questorder + 1
+      } else {
+        PushOnEnd(responses,["NA","NA"])
+      }
+
+   }
+
+
+
+
+   tDat <- Transpose(data)
+   
+   ##Now, compute composite scores.
+   traits <- ["Extroversion", "Agreeableness","Conscientiousness",
+              "Emotional Stability","Intellect/Imagination"]
+
+   values <- []
+   loop(i,[1,2,3,4,5])
+    {
+
+      Print(Nth(traitfilter,i))
+      if(Nth(traitfilter,i))
+       {
+
+         
+       filter <- Match(Nth(tDat,6),i+"")
+       subSet <- Filter(data,filter)
+       sum <- 0
+       loop(q,subset)	
+       {
+         if(ToNumber(Nth(q,7))<0)
+         {
+          sum <- sum + 6- ToNumber(Nth(q,8))
+         } else {
+          sum <- sum + ToNumber(Nth(q,8))
+         }
+
+       }
+      PushOnEnd(values,sum)
+     } else {
+      PushOnEnd(values,"NA")
+     }
+   }
+
+
+   completiontime <- ((GetTime()-starttime)/1000/60) 
+   ratings <- First(Transpose(responses))
+   FilePrint_(pooledfile,gSubNum+","+TimeStamp()+","+completiontime + ","+ConcatenateList(ratings,",")+",")
+   FilePrint(pooledfile,ConcatenateList(values,","))
+
+
+    ##Now, create a report file to output
+   reportFile <- FileOpenWrite("data/bigfivereport-"+gSubNum+".txt")
+   FilePrint(reportfile,CR(2)+"--------------------------------------------------------------------")
+   FilePrint(reportfile,"50-item  IPIP representation of the Goldberg (1992) markers for the big-five factor structure.")
+   FilePrint(reportfile,"see http://ipip.ori.org/")
+   FilePrint(reportfile,"Implementation part of the PEBL Project")
+   FilePrint(reportfile,"http://pebl.sf.net"+CR(3))
+   FilePrint(reportfile,CR(2)+"--------------------------------------------------------------------")
+   FilePrint(reportfile,"see  Goldberg, L. R. (1992).  The development of markers for the Big-Five factor structure.  Psychological Assessment, 4, 26-42.")
+
+   FilePrint(reportfile,CR(2)+"--------------------------------------------------------------------")
+   FilePrint(reportfile,TimeStamp())
+   FilePrint(reportfile,GetPEBLVersion())
+   FilePrint(reportfile,"Participant code:" +gSubNum)
+##   FilePrint(reportfile,"Data saved in "+ suboutfile.filename)
+   FilePrint(reportfile,"Time to complete: "+ completiontime + " min.")
+
+   FilePrint(reportfile,CR(2)+"Composite score for each dimension:")
+
+
+   loop(i,Transpose([traits,values]))
+    {
+       FilePrint(reportfile,Format(First(i)+":",25)+""+ Second(i))
+    }
+
+   FilePrint(reportfile,CR(2)+"--------------------------------------------------------------------")
+  MessageBox(gDebriefing,gWin)
+}
+
+
+
+##These helper functions require gTextBox, gHeader, and gFooter to work.
+define Likert(question)
+{
+
+   
+    ##spread should be a total of at least 640 pixels, or 80 per option
+    skip <- 150
+
+    ##Add the question:
+    questionHead <- MakeLabel(gQuestionHead, gQuestFont)
+    AddObject(questionHead,gWin)
+    Move(questionHead,gVideoWidth/2,150)
+
+
+    question <- MakeLabel(question,gQuestFont)
+    AddObject(question,gWin)
+    Move(question,gVideoWidth/2,300)
+
+    left <- gVideoWidth/2-skip*3
+    yval <- gVideoHeight/2+100
+
+    backs <- []
+    nums <- []
+    texts <- []
+
+    loop(i,[1,2,3,4,5])
+     {
+
+      x <- left + skip * i
+      back <- Rectangle(x,yval+50,skip-10,180,MakeColor("white"),0)
+      num <- MakeLabel(i+"",gQuestFont)
+      Move(num, x,yval)
+      AddObject(num,gWin)
+      AddObject(back,gWin)
+
+     
+      optLabel  <- MakeTextBox(Nth(gLikertOptions,i),gSmallFont,skip-15,80) 
+      AddObject(optLabel,gWin)
+      Move(optlabel,x-optLabel.width/2,yval+50)
+
+      PushOnEnd(backs,back)
+      PushOnEnd(nums,num)
+      PushOnEnd(texts,optlabel)
+       
+     }
+
+
+  Draw()
+  t1 <- GetTime()
+  response <-WaitForClickOnTarget(backs,[1,2,3,4,5])
+  t2 <- GetTime()
+
+  return [response,(t2-t1)]
+}
+
+   
+define GetStrings(lang)
+ {
+
+ if(lang=="EN")
+  {
+
+
+   gInst <- "How Accurately Can You Describe Yourself?
+
+Describe yourself as you generally are now, not as you wish to be in the future. Describe yourself as you honestly see yourself, in relation to other people you know of the same sex as you are, and roughly your same age. So that you can describe yourself in an honest manner, your responses will be kept in absolute confidence. 
+
+Indicate for each statement whether it is: 
+1. Very Inaccurate, 
+2. Moderately Inaccurate, 
+3. Neither Accurate Nor Inaccurate, 
+4. Moderately Accurate, or 
+5. Very Accurate as a description of you."
+
+
+  gQuestionHead <- "How does this statement describe you?"
+  gLikertoptions <-   ["Very Inaccurate",
+                       "Moderately Inaccurate",
+                       "Neither Inaccurate nor Accurate",
+                       "Moderately Accurate",
+                       "Very Accurate"]
+
+
+  gDebriefing <- "Thank you for participating in this survey."
+}
+
+}

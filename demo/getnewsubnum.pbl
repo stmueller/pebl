@@ -1,0 +1,75 @@
+define Start(p)
+{
+ # host <- "challenge.cls.mtu.edu/pds/"
+ # port <- 80
+
+  host <- "127.0.0.1"
+  host <- ""
+  port <- 8080
+  Print("getting new subnum") 
+  gSubnum <- GetNewSubnum(host,port,"nestify","nestify")
+  Print("New subject code: [" +gSubnum + "]")
+
+}
+
+
+
+define GetNewSubNum(server,port,username,pword)
+{
+   file <- "/getNewSubNum.php?user_name="+username+"&upload_password="+pword
+
+   Print(file)
+
+
+   out <- GetHTTPText(server,port,file)
+
+   Print("done getting text")
+    
+   if(First(out)==200)
+    {
+      subraw <- Second(out)
+      len <- StringLength(subraw)
+      Print(len)
+      sub <- SubString(Second(out),2,len-2)
+    } else {
+      sub <- RandomDiscrete(999999)
+      
+    }
+    return sub
+}
+
+define SyncDataFile(server,port,username,pword,taskname,subcode,datafilename)
+{
+
+  filecontent <-FileReadText(datafilename)
+
+  page <- "/uploadPEBL.php" 
+  cr <- CR(1)
+
+  bound <- "**boundary**"
+  boundary <- "--"+bound
+
+
+  content <- cr+boundary  +cr+
+  "Content-Disposition: form-data; name="+gQuote+"upfile"+gQuote+"; filename="+gQuote+"testpost.pbl"+gQuote +
+  cr+
+  "Content-Type: application/octet-stream "+cr+  ## text/plain" need the space or extra cr here.
+  cr+
+  filecontent +
+  boundary + "--"
+  cl <- StringLength(content)+1
+
+  args <- ["user_name",username,
+           "upload_password",pword,
+	   "taskname",taskname,
+	   "subnum",subcode]
+
+  headers <- ["Connection","close",
+  	      "Accept", "text/plain",
+              "Content-Type", "multipart/form-data; boundary="+bound,
+              "Content-Length",((cl)+"")]
+
+  out <-  PostHTTPFile(server,port,page,args,datafilename,"fileToUpload") 
+
+
+}

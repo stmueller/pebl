@@ -1,0 +1,296 @@
+## This is intended to do simple binary decision tasks at different peripheral distances.
+##
+
+define Start(p)
+{
+
+
+ gWin <- MakeWindow("black")
+ gSleepEasy <- 1
+ gSubNum <- GetSubNum(gWin)
+
+  MessageBox("Students reported that when comparing X versus O, it was giving backward feedback.  This neeeds to be checked before reusing.",gWin)
+
+
+
+    parpairs <- [ ["n",20],
+    	         ["mask","#"],
+                 ["prestime",100],
+		 ["target","X"],
+ 		 ["foils","X"],
+                 ["colorTarg","blue"],
+		 ["colorFoil","white"],
+		 ["stimsize",10]
+                 ]
+
+
+   gParams <- CreateParameters(parpairs,gParamFile)
+
+
+  n <-gParams.n
+  mask <- gParams.mask
+  timing <- gParams.prestime   ##Presentation time before mask
+  target <- gParams.target
+  foils  <- SplitString(gParams.foils,"")
+  size <- gParams.stimsize
+  colorTarg <- gParams.colorTarg
+  colorFoil <- gParams.colorFoil
+
+  gFileOut <- GetNewDataFile(gSubNum,gWin,"eyezones","csv", "subnum,trial,")
+
+  ##number of trials of each pairing at each periphery
+
+  ecc <- [20,100,200,500,gVideoWidth-200]
+  ##specify the targets
+
+ ##calibrate!!!
+
+ text <- EasyLabel("Measure and enter length of line (in or cm units)",gVideoWidth/2,100,gWin,22)
+ line <- Line(gVideoWidth/2-Max(ecc)/2,200,Max(ecc),0,MakeColor("blue"))
+ AddObject(line,gWin)
+ tb <- EasyTextBox("",gVideoWidth/2-200,120,gWin,18,400,40)
+ Draw()
+
+ width <- 0
+ while(width==0)
+  {
+    width <- ToNumber(GetInput(tb,"<return>"))
+  }
+  tb.text <-"" 
+
+  text.text <- "Enter distance from screen  (same units)"
+
+  eyedist <- 0
+  while(eyedist==0)
+  {
+     eyedist <- ToNumber(GetInput(tb,"<return>"))
+  }
+
+  Hide(tb)
+  Hide(line)
+  Hide(text)
+  
+  pixelsperunit <- (Max(ecc))/width
+  eyepixeldistance <- eyedist * pixelsperunit ##how many pixels away the eye is.
+  ##Now, we want to come up with a coefficient that transforms
+  ##pixels from center of screen to degrees visual angle.
+
+  ##this is how many
+  ##tan(1) is the ratio of rise/run for 1 degree.
+  ##so, tan(theta0* eyepixeldistance = the number of pixels in 1 degree visual angle.
+
+  gPixelRatio <-  (Tan(DegToRad(1.0)) * eyepixeldistance)
+
+  Print(gPixelRatio)
+
+  ##'center' at the left to maximize visual angle
+  xCenter <- 50
+  ycenter <- gVideoHeight/2
+
+  
+  fontTarg <- Makefont(gPEBLBaseFont,0,size,MakeColor(colorTarg),MakeColor("black"),0)
+  fontFoil <- Makefont(gPEBLBaseFont,0,size,MakeColor(colorFoil),MakeColor("black"),0)
+
+  fontMask1 <- Makefont(gPEBLBaseFont,0,22,  MakeColor(colorTarg),MakeColor("black"),0)
+  fontMask2 <- Makefont(gPEBLBaseFont,0,22,  MakeColor(colorFoil),MakeColor("black"),0)
+
+
+  fixation <- EasyLabel("+",xcenter,ycenter,gWin,15)
+  
+  targstim <- MakeLabel(target,fontTarg)
+  AddObject(targstim,gWin)
+  Hide(targstim)
+
+  targstim2 <- MakeLabel(target,fontTarg)
+  AddObject(targstim2,gWin)
+
+
+  foilstim <- MakeLabel("",fontFoil)
+  AddObject(foilstim,gWin)
+  Hide(foilstim)
+
+
+  mask1 <- MakeLabel(mask,fontMask1)
+  mask2 <- MakeLabel(mask,fontMask2)
+  AddObject(mask1,gWin)
+  AddObject(mask2,gWin)
+  Hide(mask1)
+  Hide(mask2)
+
+  correctlab<- EasyLabel("Correct",xCenter,yCenter,gWin,22)
+  incorrectlab<- EasyLabel("Incorrect",xCenter,yCenter,gWin,22)
+  Hide(correctlab)
+  Hide(incorrectlab)
+  Draw()
+
+    Messagebox("In this task, you will see fixation on the left side of the screen. You will be given a target to watch for.  Throughout the task, ALWAYS LOOK AT THE FIXATION BOX.  As letters appear across the screen, hit the space bar when the target appears, but not when the target does not appear.  If the target is not present, just wait for the next target to appear.  TRY NOT TO GUESS--only respond when you see the target.  Press OK to begin.",gWin)
+
+    prompt <- EasyLabel("Press space bar to begin.  Target is: ",gVideoWidth/2,100,gWin,30)
+    Move(targstim2,prompt.x+prompt.width/2+30,prompt.y)
+    Draw()
+    WaitForListKeyPress([" "])
+
+    prompt.text <- "Press space bar to begin when target appears.  Target is: "
+    Move(targstim2,prompt.x+prompt.width/2+20,prompt.y)
+    
+    Wait(250)
+    Hide(correctlab)
+    Draw()
+
+
+  tfs <- Sequence(1,Length(foils)+1,1)
+  tftemplate <-   Append(foils,target)
+
+  ##target is tfs==1
+  stim <- Shuffle(FlattenN(Repeat(DesignFullCounterbalance(ecc, tfs),n),1))
+
+  
+  trial <- 1
+  data <- []
+
+  loop(i,stim)
+   {
+
+
+
+    targetpresent <- Second(i)==1
+    stimulus <- Nth(tftemplate,Second(i))
+    ecc <- First(i)
+
+    if(targetpresent)
+     {
+      stim <-targstim
+     }else{
+      stim <-foilstim
+     }
+     stim.text <- stimulus
+
+
+    Show(fixation)
+    Hide(stim)
+    Draw()
+    
+    Wait(500 + Random()*200)
+    
+    Move(stim,xcenter+ecc,ycenter)
+    Move(mask1,stim.x+3,stim.y)
+    Move(mask2,stim.x-3,stim.y)
+    Hide(fixation)
+
+    Show(stim)
+    Draw()              ####Show stimulus
+    time1 <- GetTime()
+    gmaskHidden <- 0
+    RegisterEvent("<TIMER>", 1, time1+timing,"<GEQ>","HIDEMASK", [stim,mask1,mask2])
+    Draw()
+   
+    resp<- WaitForListKeyPressWithTimeout([" "],1000,1)
+    time2 <- GetTime()
+    if(IsList(resp))
+    {
+      resp <- "<timeout>"
+    }
+
+    saidpresent <- (resp==" ")
+    
+    correct <- targetpresent==saidpresent
+    rt<-(time2-time1)
+    outline <- gSubNum+","+trial+","+targetpresent+","+ Second(i)+","+First(i)+","+resp+","+correct+","+rt
+
+    Print(outline)
+    FilePrint(gFileOut,outline)
+    Hide(mask1)
+    Hide(mask2)
+
+   if(correct)
+    {
+          Show(correctlab)
+	  Draw()
+	  Wait(500)
+	  Hide(correctlab)
+	  Draw()
+	  
+       }else{
+       
+          Show(incorrectlab)
+	  Draw()
+	  Wait(500)
+	  Hide(incorrectlab)
+	  Draw()
+     }
+
+    PushOnEnd(data,[trial,First(i),Second(i),targetpresent,correct,rt])
+    trial <- trial + 1
+  }
+
+##now, do some stats on the data.
+  td <- Transpose(data)
+  
+  aggacc <- SummaryStats(Nth(td,5),Nth(td,2))
+  aggrt  <- SummaryStats(Nth(td,6),Nth(td,2))
+
+  presentdat <- Transpose(Filter(data,Nth(td,4)))
+  aggpresacc <- SummaryStats(Nth(presentdat,5),Nth(presentdat,2))
+  
+  aggacc <- Transpose(SortBy(aggacc,First(Transpose(aggacc))))
+  aggrt <- Transpose(SortBy(aggrt,First(Transpose(aggrt))))
+  aggpresacc <-Transpose(SortBy(aggpresacc,First(Transpose(aggpresacc))))
+
+ sumFile <-   FileOpenWrite("data/"+gSubNum+"/summary-"+gSubNum+".txt")
+
+
+
+  FilePrint(sumFile,"Eccentricity choice task")
+  FilePrint(sumFile,TimeStamp())
+  FilePrint(sumfile, gPixelRatio)
+  
+  FilePrint(sumFile,"Elapsed time: " + GetTime()/1000 + " s")
+  FilePrint(sumfile,"Size:     "+size)
+
+  FilePrint(sumfile,"target:          "+target)
+  FilePrint(sumfile,"Target Color:    "+colorTarg)
+
+  FilePrint(sumfile,"foils:           "+foils)
+  FilePrint(sumfile,"Target Color:    "+colorFoil)
+
+
+  tmp <- FilePrint(sumfile,"Data:" )
+  tmp<-tmp+CR(1)+  FilePrint(sumfile,"-----------------------------------------------")
+  tmp<-tmp+CR(1)+ FilePrint(sumfile,"Ecc      Ecc             Mean    Present    Median")
+  tmp<-tmp+CR(1)+ FilePrint(sumfile,"(px)   (angle)      N  accuracy  accuracy     RT")
+  tmp<-tmp+CR(1)+  FilePrint(sumfile,"-----------------------------------------------")
+
+  Print(gSubNum)
+
+  datatable <- Transpose([ First(aggacc),
+                          Second(aggacc),
+                          Fourth(aggacc),
+			  Fourth(aggpresacc),
+                          Third(aggrt)])
+
+   Print(datatable)
+   loop(i,datatable)
+    {
+     line <- First(i)+ "     " + ToNumber(First(i))/gPixelRatio+ "        "+ Second(i) + "     "+Third(i) + "    "+Fourth(i)+ "   "+ Fifth(i)
+     tmp<-tmp+CR(1)+ line
+     FilePrint(sumfile,line)
+
+    }
+  FilePrint(sumfile,"----------------------------------------------------")
+  MessageBox(tmp,gWin)
+}
+
+
+
+define HideMask(stim,mask1,mask2,opt:1,opt2:2)
+{
+   if(not gMaskHidden)
+   {
+
+    Show(mask1)
+    Show(mask2)
+    Hide(stim)
+    Draw()
+    gmaskHidden <- 1
+   }
+}

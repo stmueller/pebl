@@ -1,0 +1,377 @@
+define Start(lPar)
+{
+
+  #Create stimuli and cue lists.
+
+  wordlists <- FileReadTable("words.txt")
+
+  trialStimuliList <- []
+  trialCueList     <- []
+  gTrialNum <- 1
+
+  ##Figure out the subject number; it is 0 unless it is
+  ## in with the -v command-line parameter.
+
+  if(IsList(lPar))
+     {
+	    gSubNum   <- First(lPar)     
+	  } else  {
+       gSubNum <- 0
+    }
+
+
+	 
+  datafilename <- "x0401-" + gSubNum + ".dat"
+  gFileOut <- FileOpenWrite(datafilename)
+
+   Print("Running Subject " + gSubNum + ". Saving to file [" + datafilename + "].")
+
+  ##This loop creates a list of lists containing everything
+  ##needed for running a single 'trial'; the presentation of a
+  ##list and cues.
+
+  loop(wordlist, wordlists)
+  {
+   ##The following commands extract the data and cues from the wordlists, and labels them according to condition.
+	stim <- ExtractListItems(wordlist, [1,3,5,6,8,9,11,12,13,15,16,17, 19,21,23, 24, 26, 27, 29, 30, 31, 33, 34, 35])
+	stimFrequency <- Merge(Repeat("L",12), Repeat("H",12))
+	cues   <- ExtractListItems(wordlist, Merge([2,4,7,10, 14, 18, 20, 22, 25, 28, 32, 36], Sequence(37,48,1)))
+	cueFrequency <- Merge(Merge(Repeat("L", 6), Repeat("H", 6)),Merge(Repeat("L", 6), Repeat("H", 6)))
+
+	stimCategorySize <- RepeatList([1,1,2,2,2,2,3,3,3,3,3,3],2)
+  	cueCategorySize <-  	Merge(RepeatList([1,1,2,2,3,3],2), [0,0,0,0,0,0,0,0,0,0,0,0])
+
+	trialStim <- Transpose([stim, stimFrequency, stimCategorySize])
+   trialCues <- Transpose([cues, cueFrequency, cueCategorySize])
+
+	trialStimuliList <- Append(trialStimuliList, trialStim)
+	trialCueList <-   Append(trialCueList, trialCues)
+  }
+
+
+  trialList <- Shuffle(Transpose([trialStimuliList,  trialCueList]))
+  #Preliminary definitions
+  gWin <- MakeWindow("grey")
+  fg <- MakeColor("Black")
+  bg <- MakeColor("Grey90")
+  instructionsFont <- MakeFont("Vera.ttf",0,18,fg, bg,1)
+  gStimulusFont <- MakeFont("Vera.ttf", 0, 28, fg, MakeColor("grey"),1)
+  gCueFont      <- MakeFont("VeraMono.ttf", 0, 22, MakeColor("red"), MakeColor("grey"),1)
+  gInputFont    <- MakeFont("VeraMono.ttf", 0, 22, fg, MakeColor("white"),1)
+  
+  
+  gCorrectFont <-  MakeFont("Vera.ttf",0,20,MakeColor("forestgreen"),MakeColor("white"),1)
+  gIncorrectFont <-  MakeFont("Vera.ttf",0,20,MakeColor("red"),MakeColor("white"),1)
+
+   
+  ## Get demographic information.
+  GetNIMHDemographics(gSubNum, gWin, "x0401-demographics.txt")
+
+  instructionsBase <- "In this experiment, you will see a " +
+  "series of 24 word fill-ins. Each fill-in will consist of " +
+  "a beginning and end letter, with dashes " +
+  "in between. For each fill-in, we want you to guess "+
+  "what word this came from.  If you are able to guess 18  "+
+  "correctly, you will go on to the next stage; "+
+  "otherwise, you will repeat the fill-in stage.  This is very difficult; if you are " +
+  "unsure of what the word is, guess and try to remember it for the next round.   When you are ready to begin, hit the X key."
+
+
+  instructionsResponse <- "Now, we will show you a series of " +
+    "new words.  Some will be related to words from the fill-ins, and "+
+    "others won't be.  Read each word, and determine whether it "+ 
+    "reminds you of any of the fill-in words from the last fill-in stage.  YOU DO NOT NEED TO " +
+    "REMEMBER THE ORIGINAL WORD; simply decide if the current word seems similar "+
+    "to one of the previous words.  If you say yes, you will be asked to recall a word " +
+    "you were reminded of.  If you are uncertain what word you remember, leave the entry " +
+	 "blank or make the best guess you can.  Press the X key to continue."
+
+
+  instructionsBetweenBlock <- "You will now see a new set of " +
+  "24 fill-ins, unrelated to earlier words. Once again, " +
+  "we want you to guess what word each fill-in came from.  If you are able to guess 18  "+
+  "correctly, you will go on to the next stage; "+
+  "otherwise, you will repeat the fill-in stage. When you are ready, hit the X key to begin."
+
+
+
+  instructionsDone <- "Thank you for participating in the " +
+  " experiment!  You may now leave the booth."
+  gInstructions <- MakeTextBox(instructionsBase, instructionsFont, 400, 300)
+
+  gKeyCues <- MakeLabel("Dummy Instructions.",instructionsFont)
+
+  AddObject(gInstructions, gWin)
+
+  Move(gInstructions, 125, 100)
+
+  instructions <- instructionsBase
+
+  ###Present the stimuli
+  loop(trials, trialList)
+   {
+
+	##################################################
+	#Show the relevant instructions (either base or between-block.)
+	SetText(gInstructions, instructions)
+	Show(gInstructions)
+	Draw()
+
+	WaitForKeyPress("X")
+	Hide(gInstructions)
+	instructions <- instructionsBetweenBlock
+
+	stimuli <- First(trials)
+   cues <- Nth(trials, 2)
+
+
+        #repeat until they get 12 correct or they do it 4 times.
+        times <- 1
+        correct <- 0
+        gRound <- 1
+
+        while(correct < 18 and times < 6)
+        {
+     	
+          correct <- PresentList(stimuli)
+          times <- times + 1
+
+          if(correct < 18 and times < 6)
+			 {
+			    SetText(gInstructions,"Sorry, you did not guess " +
+             "enough words correctly. Another round of learning is " +
+             "required. You will see the same fill-ins in the next round." +
+             "  Press any key to continue.")
+			 } else 
+          {
+			    SetText(gInstructions,"Congratulations! You have " +
+              "learned these words well enough to go on to the next stage.  Press any key to continue.")
+			 }
+          gRound <- gRound + 1  #increment round counter
+			 Show(gInstructions)
+			 Draw()
+          WaitForAnyKeyPress()
+			 Hide(gInstructions)
+          Draw()
+        }
+	    #####################################################		
+	    #Change the text of the instructions box for use later.
+       SetText(gInstructions, instructionsResponse)
+ 	    Show(gInstructions)
+	    Draw(gWin)
+    	 WaitForKeyPress("X")
+	    Hide(gInstructions)
+
+		
+	     PresentCues(cues)
+	
+       gTrialNum <- gTrialNum + 1
+    }
+    SetText(gInstructions, instructionsDone)
+    Show(gInstructions) 
+    Draw(gWin)
+    Wait(1000)
+    WaitForKeyPress("X")
+    Hide(gInstructions)
+  
+}
+
+
+##This function presents a list as word fill-ins,  keeping track of how many
+## are completed correctly.
+
+define PresentList(stimuli)
+{
+
+   #This is where the word is presented
+  stimulusLabel <- MakeLabel("---",gStimulusFont)
+  AddObject(stimulusLabel, gWin)
+  Move(stimulusLabel, 320, 240)
+  
+   #Keeps track of how many are correct. 
+   correct <- 0
+  
+   #Data
+   tb <-MakeTextBox("",gInputFont,200,30)
+   AddObject(tb,gWin)
+   Move(tb,200,100)
+   Show(tb)
+  
+   AddObject(gKeyCues,gWin)
+   Move(gKeyCues, 320, 300)
+   Show(gKeyCues)
+
+  
+  stimuli <- Shuffle(stimuli)
+  spos <- 1
+  loop(i, stimuli)
+  {
+     word <- Nth(i,1)
+	  text <- MakeStem(word)
+     SetText(stimulusLabel,text)
+     SetText(gKeyCues, "[" + spos + "]      " + correct + " of 24 items correct."  )
+     SetText(tb,"")
+
+	  Show(stimulusLabel)
+	  Show(gKeyCues)
+	  Draw()
+	  time0 <- GetTime()
+
+
+	  response <- GetInput(tb, "<return>")
+	  time1 <- GetTime()
+
+	  ##Add the key cues (defined in the main program)
+	  Draw(gWin)
+  
+          if(Uppercase(response) == Uppercase(word))
+          {
+             correct <- correct + 1
+             SetText(stimulusLabel,"Correct! The word was: " + word)
+				 SetFont(stimulusLabel,gCorrectFont)
+
+          } else {
+             SetText(stimulusLabel, "Incorrect. The word was: " + word)
+				 SetFont(stimulusLabel, gIncorrectFont)
+          }
+
+  	 Draw()
+    WaitForAnyKeyPress()
+    SetFont(stimulusLabel, gStimulusFont)
+
+	  FilePrint_(gFileOut,"PRES: " + gSubNum + " " + gRound +
+	  " " + gTrialNum + " " + spos + " " + word + " " +Nth(i, 2) + " " +  Nth(i,3) )
+	  FilePrint(gFileOut,  " " + (time1 - time0) + " |" + response ) 
+	  spos <- spos + 1
+  }
+	  RemoveObject(stimulusLabel, gWin)
+	  RemoveObject(gKeyCues,gWin)
+          RemoveObject(tb,gWin)
+       return(correct)
+}
+
+define PresentCues(cues)
+{
+	 ##This is where the cue is presented
+    cueLabel <- MakeLabel("---", gCueFont)
+    AddObject(cueLabel, gWin)
+    Move(cueLabel,320, 240)
+
+	 ##This is where the participant enters the response.
+    tb <-MakeTextBox("",gInputFont,200,30)
+    AddObject(tb,gWin)
+    Move(tb,200,100)
+    Hide(tb)
+  
+    #This is a little instruction/status bar.
+    AddObject(gKeyCues,gWin)
+    Move(gKeyCues, 320, 300)
+    Show(gKeyCues)
+
+
+    cues <- Shuffle(cues)
+	 spos <- 1
+	 ##Loop through each cue list
+	 loop(i, cues)
+		{
+
+        SetText(gKeyCues,"Hit [Y] if related to earlier word, [N] otherwise.")
+             
+		  cueText <- First(i)
+		  SetText(cueLabel,cueText)
+		  Show(cueLabel)
+		  time0 <- GetTime()
+		  Draw()
+
+		  response <-  WaitForListKeyPress(["Y", "N"])
+		  time1 <- GetTime()
+		  Hide(cueLabel)
+              if(response == "y")
+              {
+		SetText(gKeyCues, "If you can, enter the word " + First(i) + " reminds you of.")
+		Draw()
+                Show(tb)
+                resp <- GetInput(tb, "<return>")
+                SetText(tb,"")
+                Hide(tb)
+              } else  {
+	        resp <- "X"
+              }
+              
+		  FilePrint_(gFileOut,"TEST: " +   gSubNum + " " + gTrialNum + " " +  spos + " ")
+		  FilePrint_(gFileOut,cueText + " "  + Nth(i, 2) + " " + Nth(i,3))		
+	  	  FilePrint_(gFileOut," "  +	 response + " " + (time1 - time0))
+		  FilePrint(gFileOut, " | " + resp )
+		  spos <- spos + 1
+      }   
+    Wait(500)
+
+  RemoveObject(gKeyCues,gWin)
+  RemoveObject(cueLabel,gWin)
+  RemoveObject(tb,gWin)
+
+}
+
+
+define GetStimuli()
+{
+
+  words <- FileReadTable("words.txt")
+  trials <- []
+
+  loop(word, words)
+  {
+
+	stim <- ExtractListItems(words, [1,3,5,6,8,9,11,12,13,15,16,17, 19,21,23, 24, 26, 27, 29, 30, 31, 33, 34, 35])
+	stimFrequency <- Merge(Repeat("l",16), Repeat("h",16))
+	cues   <- ExtractListItems(words, [2,4,7,10, 14, 18, 20, 22, 25, 28, 32, 36])
+	cueFrequency <- Merge(Repeat("l", 6), Repeat("h", 6))
+
+	stimCategorySize <- RepeatList([1,1,2,2,2,2,3,3,3,3,3,3],2)
+  	cueCategorySize <-  RepeatList([1,1,2,2,3,3],2)
+
+	trialStim <- Transpose([stim, stimFrequency, stimCategorySize])
+	trialCues <- Transpose([cues, cueFrequency, cueCategorySize])
+	trial <- [trialStim, trialCues]
+	trials <- Append(trials, trial)
+  }
+
+return trials
+}
+
+define MakeStem(word)
+{
+  length <- StringLength(word)
+
+  if(length == 0)
+    { 
+      stem <- ""
+    } else {
+    if(length == 1)
+	 {
+  	  stem <-  "_"
+    } else {
+      if(length == 2)
+        {
+          stem <- SubString(word,1,1) + " _"
+        } else {
+ 
+           dashes <- ""
+	       loop(i, Sequence(2, length-1, 1))
+   	     {
+
+             #For long words, replace an intermediate dash with a letter
+             if((length >= 6 and  i == 5) or  (length >= 10 and i == 9))
+               { 
+                dashes <- dashes + SubString(word,i,1) 
+               } else { 	 
+                dashes <- dashes + " _ "
+               }
+           }
+
+	       stem <- SubString(word,1,1) + dashes + SubString(word,length,1)
+       }
+    }
+   } 
+   return(stem)
+}

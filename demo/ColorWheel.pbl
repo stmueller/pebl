@@ -1,0 +1,69 @@
+
+
+define Start(p)
+{
+
+ win <- MakeWindow("black")
+
+  swatch <- Square(500,200,100,MakeColor("white"),1)
+  AddObject(swatch,win)
+
+  wheel <- MakeColorWheel(200,200,100,win)
+  Draw()
+  quit <- EasyLabel("Quit",200,350,win,15)
+
+  cont <- 1
+vals <- Append(Reverse(wheel.vals),quit)
+while(cont)
+ {
+  out <-    WaitForClickOnTarget(vals,Sequence(361,0,-1))
+
+   if(out==0)
+    {
+     cont <- 0
+    }else{
+  colorswatch <-Nth(wheel.vals,out)
+  #AddObject(colorswatch,out.bg)
+  color <- colorswatch.color
+  swatch.color <- color
+  Draw()
+    }
+  }
+}
+
+
+
+define Makecolorwheel(x,y,radius,parent)
+{
+ circlerad <- 10
+
+
+  obj <- MakeCustomObject("colorwheel")
+  bg <- MakeCanvas((radius+circlerad)*2+5,(radius+circlerad)*2+5,MakeColor("white"))
+  obj.bg <- bg
+
+  AddObject(bg,parent)
+  Move(bg,x,y)
+
+frequency <- 1;
+ vals <- []
+ loop (i,Sequence(0,360,1))
+ {
+   red   <-ToInteger(Sin(frequency*i + 0) * 127 + 128)
+   green <- ToInteger(Sin(frequency*i + 2) * 127 + 128)
+   blue  <- ToInteger(Sin(frequency*i + 4) * 127 + 128)
+
+   col <- MakeColorRGB(red,green,blue)
+   tmp  <-  Circle(radius+circlerad+3+Cos(i)*radius,
+                   radius+circlerad+3+Sin(i)*radius,circlerad,col,1)
+
+  AddObject(tmp,bg)
+  PushOnEnd(vals,tmp)
+}
+
+  obj.vals <- vals
+  return obj
+}
+
+
+

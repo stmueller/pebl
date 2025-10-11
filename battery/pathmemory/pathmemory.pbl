@@ -1,0 +1,353 @@
+define Start(p)
+{
+
+
+  gScriptName <- "PEBL Path Memory Task"
+
+  parpairs <- [["stepsize",0.2]]  #small number specifying hom many rads/ms the
+                                  #apparatus moves
+  gParams <- CreateParameters(parpairs,gParamFile)
+
+  ##Currently designed for 800x600:
+  gVideoWidth <- 800
+  gVideoHeight<- 600
+
+
+  gStepSize <- gParams.stepsize
+  gSleepEasy <- 1
+
+  gWin <- MakeWindow("black")
+  gCanvas <- MakeCanvas(800,600,MakeColor("darkblue"))
+  AddObject(gCanvas,gWin)
+  Move(gCanvas,400,300)
+
+  gridcol <- MakeColor("grey20")
+  gTargetcolor <- MakeColor("salmon")
+  gDrawColor <- MakeColor("green")
+
+  gHomeX <- gVideoWidth/2
+  gHomeY <- gVideoheight/2
+
+  if(gSubNum+""=="0")
+  {
+    gSubNum <- GetSubNum(gWin)
+  }
+
+
+  GetStrings(gLanguage)
+
+  gFileOut <- GetNewDataFile(gSubNum,gWin,"pathmemory","csv",
+                            "subNum,sample,path,x,y,time")
+
+  grid <-[]
+  x <- Sequence(0,800,100)
+  y <- Sequence(0,600,100)
+  #Vertical lines
+  loop(i,x)
+   {
+     line <-Line(i,0,0,gVideoHeight,gridcol)
+     AddObject(line,gWin)
+     grid <-Append(grid,line)
+   }
+  loop(i,y)
+   {
+     line <-Line(0,i,gVideoWidth,0,gridcol)
+     AddObject(line,gWin)
+     grid <-Append(grid,line)
+   }
+
+
+   MessageBox(gStrings.inst1,gWin)
+
+  instr <- EasyLabel(gStrings.footer1,  gHomeX,gVideoHeight-25,gWin,15)
+  instrb<- EasyLabel(gStrings.footer2,  gHomeX,gVideoHeight-10,gWin,15)
+
+  path <- 1
+  font <- MakeFont(gPEBLBaseFont,0,18,MakeColor("white"),MakeColor("black"),1)
+  gInstr2 <- MakeLabel("",font)
+  AddObject(gInstr2,gWin)
+  Move(gInstr2,gVideoWidth/2,50)
+  Draw()
+
+  ##Get the paths data file names:
+   paths <- []
+   seq <- Sequence(1,16,1)
+   loop(i,seq)
+   {
+     PushOnEnd(paths,"paths/test"+i+".csv")
+   }
+
+   paths <- Shuffle(paths)
+
+
+  ##Loop through the problems:
+  loop(i,Sequence(1,Length(paths),1))
+   {
+
+     results <-  Trial(Nth(paths,i))
+
+
+   ##Record results:
+   loop(sample,results)
+     {
+
+       FilePrint(gFileOut,gSubNum+","+i+","+Nth(paths,i)+","+First(sample)+","+Second(sample)+","+Third(sample))
+     }
+   }
+}
+
+define Trial (pathname)
+ {
+
+    ResetCanvas(gCanvas)
+    gInstr2.text  <- gStrings.space
+    Show(gInstr2)
+    Draw()
+    WaitforKeyPress(" ")
+    Hide(gInstr2)
+
+    pathxy <- ReadPath(pathname)
+
+    Print("drawing path")
+    p1 <-  DrawPath(pathxy)
+
+    Wait(2000)
+
+
+    Show(gInstr2)
+    RemoveObject(gInstr2,gWin)
+    AddObject(gInstr2,gWin)
+    gInstr2.text  <- gStrings.todraw
+    ResetCanvas(gCanvas)
+    Draw()
+
+    Hide(gInstr2)
+
+    path <-   CollectPath(pathxy)
+
+    return path
+}
+
+
+
+define ReadPath(filename)
+  {
+    data <- ReadCSV(filename)
+    newdat <- []
+
+    loop(i,data)
+    {
+      PushOnEnd(newdat, [ToNumber(First(i)),ToNumber(Second(i)) ])
+    }
+  return (newdat)
+}
+
+define WriteCSV(file,table)
+{
+   file <- FileOpenWrite(file)
+   loop(i,table)
+   {
+       FilePrintList(file, i,",")
+   }
+   FileClose(file)
+}
+
+
+
+
+define CollectPath(oldpath)
+{
+
+
+  color <- MakeColor("green")
+  gInstr2.text <-gStrings.collect
+  cont <- 1
+
+
+  WaitForDownClick()
+  lastpos <- GetMouseCursorPosition()
+  points <- [Append(lastpos,GetTime())]
+  lines <- []
+
+  while(cont)
+   {
+      mousepos <- WaitForMouseButtonWithTimeout(10)
+      if(mousepos=="<timeout>")
+       {
+	mousepos <- GetMouseCursorPosition()
+        cont <- 1  ##keep looping
+         if(not ListEqual(mousepos,lastpos))
+          {
+            SetPoint(gCanvas,First(mousepos),Second(mousepos),color)
+
+            line <-  Line(First(lastpos),
+                          Second(lastpos),
+                           First(mousepos)-First(lastpos),
+                           Second(mousepos)-Second(lastpos),color)
+             AddObject(line,gWin)
+
+	    PushOnEnd(points,Append(mousepos,GetTime()))
+	    PushOnEnd(lines,line)
+	  }
+
+	  lastpos <- mousepos
+       } else {
+        ##a mouse click
+        cont <- 0
+       }
+
+
+      Draw()
+   }
+
+   DrawPath(oldpath)
+
+   RemoveComplex(points)
+   RemoveComplex(lines)
+
+  return points
+}
+
+
+## This draws a pre-specified path
+
+define DrawPath(path)
+{
+      step <- 10
+
+      lastpoint <- First(path)
+      lastdrawpoint <- lastpoint
+      trace <- [lastpoint]
+      trline <- []
+
+       loop(i,path)
+        {
+
+         point <- i
+
+        change <- Abs(First(point)-First(lastdrawpoint))+  Abs(Second(point)-Second(lastdrawpoint))
+
+        tr1 <-  ThickLine(First(lastdrawpoint),
+                          Second(lastdrawpoint),
+                           First(point),
+                           Second(point),2,gTargetColor)
+
+         AddObject(tr1,gWin)
+         PushOnEnd(trline,tr1)
+         SetPoint(gCanvas,First(point),Second(point),gTargetColor)
+
+         lastdrawpoint <- point
+         Draw()
+         Wait(step)
+
+        }
+
+
+    lastpoint <- point
+
+}
+
+
+
+define RemoveComplex(objs)
+{
+    loop(i,Flatten(objs))
+   {
+      if(IsWidget(i))
+      {
+      RemoveObject(i,gWin)
+      }
+   }
+}
+
+
+
+##Computes a-b
+define VecDiff(a,b)
+{
+   return [First(a)-First(b),Second(a)-Second(b)]
+}
+
+
+
+
+define PathLength(pts)
+{
+   length <- 0
+   lastpt <- First(pts)
+
+   loop(point,SubList(pts,2,Length(pts)))
+   {
+      length <- length + Dist(lastpt,point)
+      lastpt <- point
+   }
+  return length
+}
+
+
+define ResetCanvas(canvas)
+{
+   canvas.bgcolor <- canvas.bgcolor
+}
+
+
+##This finds the distance between a set of points p1 and p2, using
+##the "surveyor's formula" of the polygon formed by concatenating the two.
+define SurveyorsDistance(p1, p2)
+{
+   pall <- Merge(p1,Reverse(p2))
+   pall2 <- Rotate(pall,1)
+
+   points <- Transpose(Merge(Transpose(pall), Transpose(pall2)))
+
+   dist <- 0
+   loop(i,points)
+   {
+    ##     Add determinate of p1p2
+     dist <- dist + (First(i) * Fourth(i) - Third(i)*Second(i))
+   }
+
+ return dist/2
+}
+
+
+
+define ListEqual(l1,l2)
+{
+  if(Length(l1) == Length(l2))
+  {
+     equal <- 1
+     loop(i,Transpose([l1,l2]))
+      {
+         if(not First(i)==Second(i))
+         {
+            equal <- 0
+         }
+	 if(not equal)
+	 {
+          break
+	 }
+      }
+
+  }else{
+   equal <- 0
+  }
+
+ return equal
+}
+
+define GetStrings(lang)
+{
+
+  lang <- Uppercase(lang)
+  fname <- "translations/pathmemory.pbl-"+LowerCase(lang)+".json"
+
+  if(FileExists(fname))
+  {
+    gStrings <- ReadTranslationJSON(fname,lang)
+  } else
+  {
+    gStrings <- ReadTranslationJSON("translations/pathmemory.pbl-en.json",lang)
+  }
+
+ }

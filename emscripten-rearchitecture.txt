@@ -1,0 +1,422 @@
+===============================================================================
+EMSCRIPTEN ARCHITECTURE RESTRUCTURING PLAN
+Using Asyncify to Restore Native PEBL Event Loop Behavior
+===============================================================================
+
+DATE: 2025-10-11
+STATUS: PLANNED (not yet implemented)
+
+===============================================================================
+PROBLEM STATEMENT
+===============================================================================
+
+Current emscripten implementation has two architectural issues:
+
+1. EVENT LOOP POLLING PROBLEM:
+   - Main loop runs 200 evaluator steps per frame (60fps)
+   - Event loop Loop1() checks once and returns <unknown> if no event ready
+   - Keyboard events arrive asynchronously from JavaScript between frames
+   - Register-check-clear pattern happens too fast (200x per frame)
+   - Result: Only ~1 in 60 keypresses are detected
+
+2. ARCHITECTURAL MISMATCH:
+   Native PEBL:
+   - Evaluator runs freely
+   - WaitForKeyPress() → Loop1() blocks/spins until event
+   - Draw() flips screen immediately
+   - Event loop blocks execution until trigger fires
+
+   Current Emscripten:
+   - Evaluator tied to 60fps frame loop (200 steps per frame)
+   - Loop1() cannot block (would freeze browser)
+   - Screen updates tied to frame loop
+   - Two competing loops: evaluator loop vs event loop
+
+3. NESTED EVENT LOOP CRASHES:
+   - GetInput() in C++ calls nested event loop
+   - Causes memory explosion in emscripten
+   - Required reimplementation in PEBL code (EM.pbl)
+
+===============================================================================
+PROPOSED SOLUTION: ASYNCIFY-BASED BLOCKING
+===============================================================================
+
+CORE STRATEGY:
+1. Decouple evaluator from frame loop - let it run freely
+2. Make event loop actually block using Emscripten's Asyncify
+3. Draw() flips immediately (not tied to frame rate)
+4. Use frame loop only for SDL event pumping (browser input)
+
+WHAT IS ASYNCIFY?
+- Emscripten feature that allows C++ code to "pause" and resume
+- emscripten_sleep(N) yields to browser for N milliseconds
+- Browser processes events, then C++ resumes exactly where it left off
+- Implemented via WASM stack unwinding/rewinding
+- Cost: ~10-15% larger WASM file
+
+===============================================================================
+IMPLEMENTATION PLAN
+===============================================================================
+
+FILE 1: Makefile
+----------------
+Location: Lines 412-439 (em-opt target)
+
+ADD Asyncify flags:
+  -s ASYNCIFY=1 \
+  -s ASYNCIFY_STACK_SIZE=32768 \
+  -s ASYNCIFY_IMPORTS='["emscripten_sleep"]' \
+  -s ASYNCIFY_IGNORE_INDIRECT=1 \
+
+Explanation:
+- ASYNCIFY=1: Enable Asyncify support
+- ASYNCIFY_STACK_SIZE=32768: Stack space for unwinding (32KB)
+- ASYNCIFY_IMPORTS: Tell Asyncify that emscripten_sleep pauses execution
+- ASYNCIFY_IGNORE_INDIRECT: Performance optimization
+
+
+FILE 2: src/apps/PEBL.cpp
+--------------------------
+Location: Lines 200-276 (emscripten-specific code)
+
+CURRENT STRUCTURE:
+  void loop_fn(void *arg) {
+      // Runs 200 evaluator steps OR one event loop iteration
+      switch(ctx->mState) {
+          case PEM_EVAL:
+              for(int i = 0; i < 200 && myEval->GetNodeStackDepth() > 0; i++)
+                  myEval->Evaluate1();
+              break;
+          case PEM_EVENT:
+              loop->Loop1();
+              break;
+      }
+  }
+
+NEW STRUCTURE:
+  // Minimal frame loop - just pump SDL events
+  void pump_events_fn(void* arg) {
+      SDL_PumpEvents();  // Process browser input events into SDL queue
+  }
+
+  // Evaluator runs asynchronously in background
+  void run_evaluator_async(void* arg) {
+      Evaluator* eval = (Evaluator*)arg;
+
+      cout << "Starting async evaluator\n";
+
+      while(eval->GetNodeStackDepth() > 0) {
+          eval->Evaluate1();
+
+          // Yield occasionally to prevent blocking browser UI
+          // Every 1000 steps is ~once per few seconds
+          static int stepCount = 0;
+          if (++stepCount % 1000 == 0) {
+              emscripten_sleep(0);  // Yield immediately, resume ASAP
+          }
+      }
+
+      cout << "Program complete\n";
+      emscripten_cancel_main_loop();
+  }
+
+  // In PEBLInterpret(), replace emscripten_set_main_loop_arg:
+  int PEBLInterpret(...) {
+      // ... existing setup ...
+
+      myEval->Evaluate1(head);  // Start evaluation
+
+      // Start event pump at 60fps
+      emscripten_set_main_loop(pump_events_fn, 60, 1);
+
+      // Run evaluator in background (Asyncify makes this work)
+      emscripten_async_call(run_evaluator_async, myEval, 0);
+
+      return 0;
+  }
+
+Explanation:
+- pump_events_fn: Runs at 60fps, only processes browser events into SDL
+- run_evaluator_async: Runs independently, evaluates PEBL code freely
+- When evaluator hits WaitForKeyPress(), it will block via Loop1()
+- Asyncify allows this blocking without freezing the browser
+
+
+FILE 3: src/devices/PEventLoop-es.cpp
+--------------------------------------
+Location: Lines 270-521 (Loop1() function)
+
+MODIFY Loop1() to actually block until event arrives:
+
+PEvent PEventLoop::Loop1()
+{
+    PEvent returnval(PDT_UNKNOWN,0,0);
+    unsigned int result = 0;
+
+    // Loop until we get a matching event or gKeepLooping becomes false
+    while(mNumStates > 0 &&
+          (pInt)(myEval->gGlobalVariableMap.RetrieveValue("gKeepLooping"))) {
+
+        bool matched = false;
+
+        // Prime the event queue (process pending SDL events)
+        gEventQueue->Prime();
+
+        // Check all registered event conditions
+        for(int i = 0; i < mNumStates; i++) {
+
+            if(mIsEvent[i]) {
+                // EVENT-BASED CHECK (keyboard, mouse, etc.)
+                if(!gEventQueue->IsEmpty() &&
+                   gEventQueue->GetFirstEventType() == mStates[i]->GetDeviceType()) {
+
+                    result = mStates[i]->TestDevice();
+                    if(result) {
+                        returnval = gEventQueue->GetFirstEvent();
+
+                        if(mNodes[i]) {
+                            myEval->Push(mParameters[i]);
+                            myEval->NodeStackPush(mNodes[i]);
+                        } else {
+                            myEval->gGlobalVariableMap.AddVariable("gKeepLooping", 0);
+                        }
+                        matched = true;
+                        goto end;
+                    }
+                }
+            } else {
+                // STATE-BASED CHECK (timer, etc.)
+                result = mStates[i]->TestDevice();
+                if(result) {
+                    // ... handle timer/state events ...
+                    matched = true;
+                    goto end;
+                }
+            }
+        }
+
+end:
+        gEventQueue->PopEvent();
+
+        if(matched) {
+            break;  // Got an event, exit loop
+        }
+
+        // No match - yield to browser and wait for events
+#ifdef PEBL_EMSCRIPTEN
+        emscripten_sleep(10);  // Sleep 10ms, let keyboard events arrive
+                               // Asyncify pauses execution here, browser runs,
+                               // then we resume and check again
+#endif
+    }
+
+    Clear();
+    return returnval;
+}
+
+Explanation:
+- Loop continues checking until event matches
+- emscripten_sleep(10) yields 10ms to browser (events can arrive)
+- Asyncify makes this work - evaluator pauses but browser doesn't freeze
+- When event arrives, loop resumes and detects it
+- 10ms latency is acceptable for keyboard input
+
+
+FILE 4: src/platforms/sdl/PlatformWindow.cpp (or similar)
+----------------------------------------------------------
+Location: Draw() implementation
+
+ENSURE Draw() flips immediately:
+
+void PlatformWindow::Draw() {
+    // ... existing rendering code ...
+
+    SDL_RenderPresent(renderer);  // Flip immediately, not tied to frame loop
+
+#ifdef PEBL_EMSCRIPTEN
+    // Optionally yield momentarily to let browser render
+    // emscripten_sleep(0);  // Uncomment if drawing seems laggy
+#endif
+}
+
+Explanation:
+- Draw() should flip screen immediately when called
+- Not dependent on 60fps frame loop
+- Optional yield if we need browser to process render
+
+
+FILE 5: emscripten/pebl-lib/EM.pbl (REVERT CHANGES)
+----------------------------------------------------
+Location: Lines 231-287 (GetInput function)
+
+REVERT to original or simpler implementation:
+
+## GetInput can now use the C++ version safely
+## Or keep minimal PEBL version without polling hacks
+
+define GetInput(textbox, exitkey)
+{
+    SetEditable(textbox, 1)
+    SetText(textbox, "")
+    Draw()
+
+    text <- ""
+    continue <- 1
+
+    while(continue)
+    {
+        key <- WaitForAnyKeyPress()  // This now properly blocks via Asyncify
+
+        if(Lowercase(key) == Lowercase(exitkey))
+        {
+            continue <- 0
+        }elseif(key == "<backspace>")
+        {
+            if(StringLength(text) > 0)
+            {
+                text <- SubString(text, 1, StringLength(text) - 1)
+                SetText(textbox, text)
+                Draw()
+            }
+        }elseif(StringLength(key) == 1)
+        {
+            text <- text + key
+            SetText(textbox, text)
+            Draw()
+        }
+    }
+
+    SetEditable(textbox, 0)
+    return text
+}
+
+Explanation:
+- Remove all polling/<unknown> handling
+- WaitForAnyKeyPress() now blocks properly via Asyncify
+- Each keystroke reliably detected
+- Draw() updates screen immediately
+
+ALTERNATIVELY: Remove GetInput from EM.pbl entirely and use C++ version
+
+
+FILE 6: Add #include to files using emscripten_sleep
+-----------------------------------------------------
+Any file calling emscripten_sleep() needs:
+
+#ifdef PEBL_EMSCRIPTEN
+#include <emscripten.h>
+#endif
+
+===============================================================================
+EXPECTED OUTCOMES
+===============================================================================
+
+IMPROVEMENTS:
+1. All keystrokes reliably captured (no more 1-in-60 problem)
+2. Event loop properly blocks like native PEBL
+3. Draw() works immediately, not tied to frame rate
+4. GetInput() works without memory explosion
+5. Architecture matches native PEBL behavior
+6. Cleaner separation: event pump vs evaluator
+
+PERFORMANCE:
+- WASM file ~10-15% larger (~400KB increase)
+- Slight input latency (10ms) - acceptable for psychology experiments
+- Evaluator runs freely, not limited to 200 steps per frame
+- Should feel more responsive overall
+
+TESTING:
+1. test.pbl with GetInput() - type rapidly, all keys should register
+2. WaitForKeyPress() - should not busy-loop
+3. Draw() commands - screen should update immediately
+4. GetSubNum() - should work without memory crash
+5. Complex experiments with multiple Wait/Input functions
+
+===============================================================================
+ROLLBACK PLAN
+===============================================================================
+
+If this doesn't work:
+1. Revert to git commit before changes
+2. Files modified: Makefile, PEBL.cpp, PEventLoop-es.cpp, EM.pbl
+3. Alternative approaches:
+   - JavaScript event queue buffer
+   - Hybrid: Asyncify only in event loop, not evaluator
+   - Different sleep intervals
+
+===============================================================================
+ALTERNATIVE APPROACHES (IF ASYNCIFY FAILS)
+===============================================================================
+
+ALTERNATIVE 1: JavaScript Event Buffer
+- Add JS event listeners that queue events
+- Loop1() reads from JavaScript queue instead of SDL
+- Avoids Asyncify overhead
+- Requires more JS/C++ integration
+
+ALTERNATIVE 2: Partial Asyncify
+- Keep current loop_fn structure
+- Only add Asyncify to Loop1() blocking
+- Less invasive change
+- Still has 200-steps-per-frame limitation
+
+ALTERNATIVE 3: Increase Yield Frequency in Evaluator
+- Keep current structure
+- Yield more often during evaluation
+- Less architectural change
+- May not fully solve timing issue
+
+===============================================================================
+IMPLEMENTATION CHECKLIST
+===============================================================================
+
+Before starting:
+[ ] Create git repository
+[ ] Commit current working state
+[ ] Create new branch: emscripten-asyncify-restructure
+
+Implementation steps:
+[ ] 1. Modify Makefile - add Asyncify flags to em-opt target
+[ ] 2. Modify PEBL.cpp - restructure main loop and evaluator
+[ ] 3. Modify PEventLoop-es.cpp - add blocking with emscripten_sleep
+[ ] 4. Verify Draw() implementation flips immediately
+[ ] 5. Simplify EM.pbl GetInput() - remove polling hacks
+[ ] 6. Add #include <emscripten.h> where needed
+[ ] 7. Build with: make em-opt -j 10
+[ ] 8. Test with test.pbl - type rapidly
+[ ] 9. Test complex experiment with multiple Wait functions
+[ ] 10. Performance testing - check WASM size, responsiveness
+
+Success criteria:
+[ ] All keystrokes captured when typing rapidly
+[ ] No <unknown> spam in console
+[ ] Screen updates immediately on Draw()
+[ ] GetInput() works without memory issues
+[ ] Overall responsive feel
+
+If successful:
+[ ] Remove debug Print() statements from EM.pbl
+[ ] Update documentation
+[ ] Merge branch to main
+
+If unsuccessful:
+[ ] Revert to main branch
+[ ] Document what didn't work
+[ ] Try alternative approach
+
+===============================================================================
+NOTES AND OBSERVATIONS
+===============================================================================
+
+Key insight: Native PEBL has evaluator running freely with blocking event loop.
+Emscripten implementation tried to timeslice both into frame loop, causing
+the architectural mismatch. Asyncify restores the original blocking behavior
+without freezing the browser.
+
+The 200-steps-per-frame limitation was artificial - only needed because we
+couldn't block. With Asyncify, evaluator can run freely and only blocks when
+PEBL code explicitly waits for events.
+
+===============================================================================
+END OF PLAN
+===============================================================================

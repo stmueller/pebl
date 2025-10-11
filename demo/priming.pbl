@@ -1,0 +1,211 @@
+define Start(lPar)
+{
+
+	##results are stored in tmpresults.dat
+	gResultsFile <-FileOpenAppend("results.txt")
+	
+	##the control file is called prime-ctl.txt
+	##Its first line is a random number seed used for this subject
+	##After that, whenever a block is run, a timestamp is placed on each
+	##consecutive line telling when the block was run, and other interesting stuff.
+	##Consequently, one can determine which block we are on by doing a FileReadList()
+	##and counting the length of the file.
+    
+	control <- FileReadList("prime-ctl.txt")
+	
+	##Seed rng with first item in the list, which is the subject number
+	subject <- First(control)
+	SeedRNG(subject)
+	
+	block <- Length(control)  #Determine the current block number
+	Print("********************************************")
+	
+	
+	Print("********************************************")
+	Print(" Executing Block "+ block + " out of 13.")
+	Print("********************************************")
+
+	##Open the control file and write out some things.
+	tmpFile <-FileOpenAppend("prime-ctl.txt")
+	FilePrint_(tmpFile, "Block " + block + ":  " + subject + "  " + TimeStamp())
+	FileClose(tmpFile) 
+
+	## ##################################
+	## Reading Stimuli	
+	Print("Reading Base Stimuli.")
+    i <-  FileReadList("media/text/Uppercase.txt")
+
+	#Get a list of all pairs.
+	Print("Making Stimuli") 
+	stimuli <- CrossFactorWithoutDuplicates(i)
+	##There should be 26*25 = 650 pairs.
+	##repeat 2 times and shuffle the stimuli
+
+	Print("Duplicating and shuffling list")
+	shuffledStimuli <- Shuffle(RepeatList(stimuli,2))
+	
+	Print("Stimuli Shuffled.")
+	##Now, based on the block, use a different set of stimuli.  
+	## There should be many in shuffledStimuli.  do 13 blocks of 100 trials
+	
+	##Determine which trial we are on.
+	blockStim <- SubList(shuffledStimuli, (block - 1) * 10 + 1, block * 10)##Change to 100 for experiment
+	Print("Sublist Extracted")
+	
+    RandomizeTimer()
+	##Initialize Window, etc.
+	gWindow <- MakeWindow("black")   
+	
+	##Initialize Font and colors
+	
+	bg <- MakeColor("black")
+	fg <- MakeColor("white")
+   
+	gFontStim  <- MakeFont("media/fonts/VeraMono.ttf", 0,22,fg,bg,1)	 
+	gFontMask  <- MakeFont("media/fonts/VeraMono.ttf", 0,30,fg,bg,1)	 
+	gFixation  <- MakeLabel("+",gFontStim)				 
+	gMask      <- MakeLabel("@@@", gFontMask)
+	
+	instructions <- MakeLabel("Use 'z' and '/' keys to respond. Press any key to begin",gFontStim)
+	AddObject(instructions, gWindow)
+	Move(instructions, 320, 200)
+	Show(instructions)
+	Draw()  
+	WaitForAnyKeyDown()
+	Hide(instructions)
+	Draw()
+	RemoveObject(instructions, gWindow)
+	Print("Waiting")
+	Wait(2000)
+
+	##Print a header on the first block
+	if(block == 1)
+	{
+	FilePrint(gResultsFile, "block  targ foil    order pres.time  response   rt")
+	}
+	
+	if(block <= 13)
+	{
+    Print("Looping")
+    loop(stim, blockStim)
+	{
+	FilePrint_(gResultsFile, block + "       " + stim + "        ")
+	time <- Trial(stim)
+	}
+	} else {
+	Print("Experiment Complete.")
+	}
+	FileClose(gResultsFile)
+	
+	}
+
+
+
+define Trial(lStimulus)
+	{
+	
+	##stimulus is a list of two things. The first is
+	##the prime and the second is the foil.
+	##The first item will be flashed for a short period of time,
+	##followed by a pause, and then the two items will appear 
+	## side-by-side.
+	Print("Executing Trial")
+	prime <- First(lStimulus)
+	probe <- Nth(lStimulus,2)
+	
+	
+	lStim <- MakeLabel(prime, gFontStim)  ##Make stimulus label
+	lChoiceOrder<-RandomDiscrete(2)
+	
+	FilePrint_(gResultsFile, lChoiceOrder + "       ")
+	
+	
+	if(lChoiceOrder == 1)
+	{
+	lChoices <- MakeLabel(prime + "               " + probe,gFontStim) 
+	} else  {
+	lChoices <- MakeLabel(probe + "               " + prime,gFontStim)
+	}
+	
+	
+	##Add labels to window
+	AddObject(lStim,gWindow)	
+	AddObject(lChoices, gWindow)
+	AddObject(gFixation, gWindow)
+	AddObject(gMask, gWindow)
+	
+	##Move text to center
+	
+	Move(lChoices, 320,200)
+	Move(lStim, 320,200)
+	Move(gFixation, 320,200)
+	Move(gMask, 320,200)
+	
+	
+	
+	##Hide the text; show the fixation
+	Hide(lStim)
+	Hide(lChoices)
+	Hide(gMask)
+	Show(gFixation)
+	Draw(gWindow)
+	
+	
+	##Wait 200 msecs and hide the fixation
+	Hide(gFixation)
+
+  Wait(300)
+  Draw(gWindow)
+
+
+  #Wait up to 200-300 msecs and show the stimulus sequence.
+   #Show(gMask)   
+   Wait(200 + RandomDiscrete(100))
+   #Draw()
+
+
+
+  #Show the text briefly
+  Show(lStim)
+  Hide(gMask)
+  Wait(100 + RandomDiscrete(200))
+  Draw()
+   
+  
+   #Wait X ms and hide it.
+   ltmptimestart <-GetTime()
+   Hide(lStim)
+   Show(gMask)
+
+   Wait(28)
+   Draw()
+   ltmptimeend <- GetTime()
+
+
+   #Wait 500 ms and show the options.
+   Hide(gMask)	
+   Show(lChoices)
+   Wait(500)
+   Draw()
+   #Get start time.
+   start <- GetTime()
+
+
+	##Wait for response,
+	lResponse <-WaitForListKeyPress(["Z","/"])
+  
+	##Get the response time.
+	end <- GetTime()
+	Hide(lChoices)
+	Draw()
+	## print the actual display time and the response.
+	FilePrint_(gResultsFile, (ltmptimeend - ltmptimestart)  + "        " + lResponse + "       ")
+	FilePrint(gResultsFile, end-start)
+    Wait(500)
+	RemoveObject(lStim,gWindow)
+	RemoveObject(lChoices, gWindow)
+	RemoveObject(gFixation, gWindow)
+	RemoveObject(gMask, gWindow)
+	return (end - start)
+}
+

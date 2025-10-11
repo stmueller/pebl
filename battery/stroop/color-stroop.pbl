@@ -1,0 +1,1060 @@
+ #######################################################
+ ##
+ ## Color Stroop Task, with option for vocal response
+ ##
+ ## (c) 2011 Shane T. Mueller
+ ## smueller at obereed dot net
+ ## PEBL Color Stroop Task, Version 0.1
+ ##
+ ##
+ ## Modeled to be roughly equivalent to the number stroop task
+ ## also available via the PEBL Test Battery.
+ ##
+ ##
+ ## This version uses only the ink-naming version, which
+ ## requires suppressing the pre-potent reading response.
+ ## the option to use verbal coding requires hand-coding of responses
+ ## for later scoring.
+
+define Start(p)
+{
+
+   gScriptName <- "Color stroop task"
+
+   #gVideoWidth <- 800
+   #gVideoHeight <- 600
+
+   parpairs <- [["stimsize",60],         ##Stimulus size of font.
+                ["responsetype","keyboard"],  ##"keyboard",  "audio", or  "ask"
+		["scorerealtime",0],
+
+                 ["usepreset",1],   ## If set to 1, it will use the same sequence of stimuli every time.
+                                    ## If set to 0, it will regenerate randomly on each run.
+
+                ["custompractrials",8], ##number of practice trials if usepreset =0
+		["customtrials",28],    ##Number of trials per block if usepreset=0
+
+                 ["fixationTime",1000],    #time for the fixation cross
+                 ["responseTimeout",3000], #Time limit given for responding
+
+  		 ["practicethreshold",0], ##whether to require practice round to threshold.
+		                            ##value of 0 means no threshold; 1 means practice
+					    #round requires 100% accuracy.
+                 ["maxpracticerounds",10],  ##Maximum number of practice rounds.
+                 ["GiveFeedback", 1],     ##should you give feedback?  This will be reset later
+                                         ##to 0 for test trials, and 1 for practice trials.
+
+                  ## The voice key will trip when 55% of the last
+                  ## gVoiceKeyDuration 1-ms bins are above the threshold.
+                  ## Based on input power and microphone noise, you may
+                  ## need to adjust these parameters.
+                ["voicekeythreshold",.35],
+		["voiceKeyDuration", 200],
+   		["saveAudio",1],   ##Should the audio buffer be saved?
+
+   		["compressAudio", 0],   ##command to compress audio
+   		["compressor","oggenc "]
+
+               ]
+
+   gParams<- CreateParameters(parpairs,gParamFile)
+
+   gStimSize <- gParams.stimsize
+
+
+   ##
+   ##  Options:
+   ##  Set gResponseType to either "keyboard" or "audio" to change the
+   ## response method
+   ##
+   gResponseType <- gParams.responsetype
+
+   Initialize()
+
+   if(gSubNum +""=="0")
+   {
+     gSubNum <- GetSubNum(gWin)
+   }
+
+
+   if(gResponseType=="ask")
+   {
+     gResponseType <- GetEasyChoice("Select input type ",
+                               ["1-2-3-4 Number Line on keyboard",
+                               "Vocal input from microphone"],
+                               ["keyboard","audio"], gWin)
+
+   }
+
+   ##for audio, set this to 1 to score real-time with keyboard.
+   ##otherwise, you need to go back through and code responses afterward.
+   gScoreRealtime <- gParams.scorerealtime
+
+
+   ##Determine which conditions you want to use here:
+
+   ##should you give feedback?  This will be reset later
+   ##to 0 for test trials, and 1 for practice trials.
+   gGiveFeedback <- gParams.givefeedback
+
+
+
+   ## The voice key will trip when 55% of the last
+   ## gVoiceKeyDuration 1-ms bins are above the threshold.
+   ## Based on input power and microphone noise, you may
+   ## need to adjust these parameters.
+
+   gVoiceKeyThreshold <- gParams.voicekeythreshold
+   gVoiceKeyDuration  <- gParams.voicekeyduration
+
+   ##Should the audio buffer be saved?
+   gSaveAudio <- gParams.saveaudio
+
+   ##command to compress audio
+   gCompressAudio <- gParams.compressaudio
+   gCompressor <- gParams.compressor
+
+
+   ## If set to 1, it will use the same sequence of stimuli every time.
+   ## If set to 0, it will regenerate randomly on each run.
+   usePreset <- gParams.usepreset
+
+   gFixationTime    <- gParams.fixationtime    #time for the fixation cross
+   gResponseTimeout <- gParams.responsetimeout #Time limit given for responding
+
+   ##Set gLanguage here to hard code
+
+   GetStrings(gLanguage)
+   fileheader <-  "subnum,responsecond,code,block,trial,stimword,stimcolorid,stimcolorname,cond,responded,response,correct,abstime,rt,randomerror,incong,speechduration,recordtime"
+
+  gFileOut <- GetNewDataFile(gSubNum,gWin,"colstroop-"+gResponseType,"csv",fileheader)
+
+  gSumFileOut <- GetNewDataFile(gSubNum,gWin,
+                    "colstroop-"+gResponseType+"-summary",
+                     "txt","")
+
+
+   gPooledFileOut <- FileOpenAppend("data/colstroop-"+gResponseType+"-pooled.csv")
+
+   gLog <- FileOpenAppend("data/colstroop-log.csv")
+
+
+   ##Add headers onto files.
+   flen <- Length(FileReadList("data/colstroop-"+gResponseType+"-pooled.csv"))
+   if(flen==0)
+    {
+      Print("empty pooled data file.  Adding header")
+      FilePrint(gPooledFileOut, fileheader)
+    }
+
+
+
+   FilePrint(gLog, gSubNum + "," + gLanguage + "," + TimeStamp()+",COLOR STROOP,"+gResponseType+",STARTED")
+
+   ##Create a vocal buffer if we have one
+
+   if(gResponseType == "audio")
+    {
+       Print("Making audio input buffer")
+       ##3000/3500 doesn't seem to work in linux:???
+       gResponseBuffer <- MakeAudioInputBuffer(5000)
+    }
+
+  ###############################
+  ## Create the basic stimuli
+  ###############################
+
+   ## This does not use word-reading as a response--just color-naming.
+   ##
+    ##This, by default, reads in a fixed set.
+    block0 <- PracticeTrials(usepreset,"color",gParams.custompractrials)
+    block1 <- Round1Trials(usepreset,"color",gParams.customtrials)
+    block2 <- Round2Trials(usepreset,"color",gParams.customtrials)
+
+
+  #################################
+  ##Show the instructions.
+   gInstructions.text <- gInstructionsText
+   Show(gInstructions)
+   Hide(gHeader)
+   Draw()
+   WaitForAnyKeyPress()
+   Hide(gInstructions)
+   gHeader.text <- gPracticeHeaderText
+
+
+   Show(gHeader)
+   Draw()
+
+
+   #Initialize data collectors
+   gErr  <- []; gRT   <- []; gCond <- []
+
+
+   needpractice <- gParams.maxpracticerounds>0
+   practiceround <- 1
+   gTrial <- -10000
+
+   while(needpractice)
+    {
+    gBlock <- "Practice"+practiceround
+    if(gResponseType == "keyboard")
+     {
+       DoPractice()
+     }
+
+   gErrors          <- 0    ##All errors
+   gCongruenceErrors <- 0    ##Errors indicating using the wrong dimension
+   gRandomErrors    <- 0    ##Errors not attributable to incongruency
+   gTooSlows        <- 0    ##too slow errors
+
+   gHeader.text <- gPracticeHeaderText
+
+   #############################################
+   ##Do the practice round
+   ##
+
+
+  gGiveFeedback <- 1
+
+   loop(trial,Shuffle(block0))
+   {
+      ##give twice the timeout here.
+      DoTrial(trial,gResponseType,"data/"+gSubNum+"/trial-"+ZeroPad(gTrial,3)+"-",
+               gParams.responsetimeout*2,gParams.fixationtime)
+      gTrial <- gTrial + 1
+   }
+
+
+    pracacc <- 1- gErrors/Length(block0)
+    practicethreshold <- ToNumber(gParams.practicethreshold)
+
+
+    if(pracacc < practicethreshold and practiceround<gParams.maxpracticerounds)
+     {
+
+       MessageBox(gStrings.needmore1 + (practicethreshold*100)+
+                    "%  " + gStrings.needmore2 + Round(pracacc*100,3),gWin)
+
+     }else{
+       needpractice <- 0
+     }
+
+     if(practiceround > gParams.maxPracticeRounds)
+      {
+         needpractice <- 0
+      }
+
+    practiceround <- practiceround +1
+
+   }
+
+
+
+
+   #ReInitialize data collectors after practice
+   gErr  <- []; gRT   <- []; gCond <- []
+
+   gErrors          <- 0    ##All errors
+   gCongruenceErrors <- 0    ##Errors indicating using the wrong dimension
+   gRandomErrors    <- 0    ##Errors not attributable to incongruency
+   gTooSlows        <- 0    ##too slow errors
+   gInstructions.text <- gBreak1Text
+   Show(gInstructions)
+   Hide(gFooter1);Hide(gFooter2);Hide(gFooter1a)
+   Draw()
+   WaitForAnyKeyPress()
+   Hide(gInstructions)
+   Draw()
+   gHeader.text <- gTestHeaderText
+
+   gGiveFeedback <- gParams.givefeedback
+
+   gBlock <- 1
+   gTrial <- 1
+   ##Do Round 1
+   ##
+
+   if(gResponseType == "keyboard")
+   {
+    DoPractice()
+   }
+
+   loop(trial,block1)
+   {
+      DoTrial(trial,gResponseType,"data/"+gSubNum+"/trial-"+ZeroPad(gTrial,3)+"-",
+             gParams.responsetimeout,gParams.fixationtime)
+	  gTrial <- gTrial + 1
+   }
+
+
+   gInstructions.text <- gBreak2Text
+   Show(gInstructions)
+   Hide(gFooter1);Hide(gFooter2);Hide(gFooter1a)
+   Draw()
+   WaitForAnyKeyPress()
+   Hide(gInstructions)
+   Draw()
+
+   if(gResponseType == "keyboard")
+   {
+    DoPractice()
+   }
+
+   gBlock <- 2
+   ##Do Round 2
+   ##
+   loop(trial,block2)
+   {
+      DoTrial(trial,gResponseType,"data/"+gSubNum+"/trial-"+ZeroPad(gTrial,3)+"-",
+                   gParams.responsetimeout,gParams.fixationtime)
+      gTrial <- gTrial + 1
+   }
+
+   ##These compute: condition,  length, median, mean, stdev
+   statsCorr <- SummaryStats(gErr,gCond)
+   statsRT <- SummaryStats(gRT,gCond)
+
+
+
+
+   FilePrint(gSumFileOut,"------------------------------------------")
+   FilePrint(gSumFileOut,"PEBL Numerical Stroop Task, Version 1.0")
+   FilePrint(gSumFileOut,"http://pebl.sf.net")
+   FilePrint(gSumFileOut,"Shane T. Mueller")
+   FilePrint(gSumFileOut, GetPEBLVersion())
+   FilePrint(gSumFileOut,"------------------------------------------")
+   FilePrint(gSumFileOut, "Subject code: "+gSubNum)
+   FilePrint(gSumFileOut, "Time:         "+TimeStamp())
+   FilePrint(gSumFileOut, "Response condition: " + gResponseType)
+   FilePrint(gSumFileOut,"------------------------------------------")
+
+   FilePrint(gSumFileOut,"Total Errors:           "+gErrors)
+   FilePrint(gSumFileOut,"Incongruency Errors:    "+gCongruenceErrors)
+   FilePrint(gSumFileOut,"Random Errors:          "+gRandomErrors)
+   FilePrint(gSumFileOut,"Too Slow Errors:        "+gTooSlows)
+
+   FilePrint(gSumFileOut,"--------------------------------"+CR(2))
+   FilePrint(gSumFileOut," [C]ongruent, [I]ncongruent, [N]eutral")
+   FilePrint(gSumFileOut,"       Response time")
+   FilePrint(gSumFileOut," Cond    Mean    N")
+   FilePrint(gSumFileOut,"--------------------------------")
+
+   loop(i,statsRT)
+    {
+	   FilePrint(gSumFileOut, "   "+ First(i)+ "      " +Nth(i,4) + "       " + Second(i))
+    }
+
+   FilePrint(gSumFileOut,"       Accuracy")
+   FilePrint(gSumFileOut," Cond    Mean    N")
+   FilePrint(gSumFileOut,"--------------------------------")
+   loop(i,statsCorr)
+    {
+	   FilePrint(gSumFileOut, "   "+ First(i)+ "      " +Nth(i,4) + "       " + Second(i))
+    }
+  FilePrint(gSumFileOut,"--------------------------------")
+
+
+   filesum <- FileOpenAppend("data/colorstroop-sumall.csv")
+
+   flen <- Length(FileReadList("data/colorstroop-sumall.csv"))
+   if(flen==0)
+    {
+	    FilePrint(filesum,"sub,timestamp,response,duration,errors,congruence_errors,random_errors,too_slows,RTC,RTI,RTN,AccC,AccI,AccN")
+    }
+
+
+   FilePrint_(filesum, gSubNum + "," + TimeStamp() + "," +gResponseType+","+ GetTime()+"," + gErrors+ ","+ gCongruenceErrors+","+ gRandomErrors+","+gTooSlows)
+   loop(i,statsRT)
+   {
+    FilePrint_(filesum,","+Nth(i,4))
+   }
+   loop(i,statsCorr)
+   {
+    FilePrint_(filesum,","+Nth(i,4))
+   }
+    FilePrint(filesum,"")
+
+   FilePrint(gLog, gSubNum + "," + gLanguage + "," + TimeStamp()+","+"COLOR STROOP,"+gResponseType+",ENDED")
+   MessageBox(gExitText,gWin)
+}
+
+###################################################
+## basic function for a single trial
+
+define DoTrial(stim,cond,code,timeout:3000,fixationtime:1000)
+{
+
+  ##stim has three values;
+  ##first is the condition
+  ##second is the word to print
+  ##third is the index of the color/font to use to print it.
+
+
+   fname <- code + "-"+First(stim)+"-"+Second(stim)+"-"+Third(stim)+".wav"
+
+   ##Condition is the response type.
+   type <- First(stim)
+
+   gFooter2.text <- gFooter2Text
+  if(cond == "keyboard")
+  {
+   gFooter1.text <- gFooter1textManual
+   gFooter1a.text <- ""
+   Show(gFooter1)
+   Show(gFooter1a)
+   Show(gFooter2)
+  } else{
+   gFooter1.text <- gFooter1textVocal
+   gFooter1a.text <- ""
+   Show(gFooter1)
+   Show(gFooter1a)
+   Show(gFooter2)
+  }
+
+
+   gStimLabel.text <- "+"
+   Show(gStimLabel)
+   Draw()
+   Wait(fixationtime)
+
+
+   gStimLabel.text <- Second(stim)
+   gStimLabel.font <- Nth(gFonts,Third(stim))
+
+   Draw()
+
+   time1 <- GetTime()
+   gStimLabel.font <- Nth(gFonts,5)
+   if(cond == "keyboard")
+    {
+
+        resp <-WaitForListKeyPressWithTimeout(gKeys,timeout,1)
+        time2 <- GetTime()
+	#Print(resp)
+         if(resp=="<timeout>")   ##Check to see if there was a time-out.
+           {
+             gStimLabel.text <- gTooSlow
+             Draw()
+             Wait(500)
+             responded <- 0
+	     corr <- 0
+
+           } else{
+
+             responded <- 1
+           }
+
+
+        corr <- ToNumber(resp) == Third(stim)
+        tooslow <- resp == "<timeout>"
+
+       if(tooslow)
+        {
+	  respcol <- "NA"
+        }else{
+	  respcol <- Nth(gColorNames,ToInteger(resp))
+        }
+
+        if(corr or tooslow)
+	 {
+	 randerror <- 0
+	 congerror <- 0
+	 }else{
+          congerror <- Uppercase(respcol) == Uppercase(Nth(stim,2))
+          randerror <- (1-congerror)
+         }
+        gErrors <- gErrors + (1-corr)
+        gCongruenceErrors <- gCongruenceErrors + congerror
+        gRandomErrors <- gRandomErrors + randerror
+        gtooSlows <- gtooSlows + tooslow
+
+
+
+
+
+	     if(gGiveFeedback)
+	     {
+	      if(corr)
+	      {
+     	       gStimLabel.text <-gCorrect
+	      }else{
+     	       gStimLabel.text <-gIncorrect
+	      }
+
+	     Draw()
+	     Wait(500)
+
+	     }
+
+
+
+        rt <-(time2-time1)
+
+    	out <- gSubNum + "," + cond + "," + code + "," + gBlock +","+ gTrial + "," +
+            Second(stim)+"," +Third(stim) + "," +Nth(gColorNames,ToInteger(Third(stim)))+","+
+            First(stim)+"," +responded+","+ resp + ","+corr+"," + time1 + ","+
+	     rt+","+ randerror+","+congerror+",0"+ "," +(time2-time1)
+
+    }elseif(cond=="audio")
+    {
+
+        SignalFatalError("This mode not supported in PEBL 2.0")
+
+         resp0 <-  GetVocalResponseTime(gResponseBuffer,gVoiceKeyThreshold, gVoiceKeyDuration)
+#        Wait(300)
+
+        time2 <- GetTime()
+
+        if(Third(resp0)==0)
+         {
+            gStimLabel.text <- gStrings.tooslow
+            Draw()
+            Wait(500)
+         }
+
+        rt <- First(resp0)
+        endtime  <- Second(resp0)
+	responded <- Third(resp0)
+
+     if( gScoreRealtime )
+      {
+        gFooter1.text <- gFooter1textManual2
+	gFooter1a.text <- ""
+	Hide(gStimLabel)
+        Draw()
+
+
+        resp <-WaitForListKeyPress([1,2,3,4])
+	corr <- ToNumber(resp)==length
+
+      } else {
+         #Use -1 as the non-score indicator.
+         resp <- -1
+	 corr <- -1
+      }
+
+	out <- gSubNum + "," + cond + "," + code + "," + gBlock +","+ gTrial + "," +
+            Second(stim)+"," +Third(stim) + ","+ Nth(gColorNames,ToInteger(Third(stim))) +
+	    ","+First(stim)+"," +responded+","+ resp + ","+corr+"," + time1 + ","+
+	    rt+","+ randomerror+","+incongerror+ ","+(endtime-rt) + "," +(time2-time1)
+
+
+	} else{
+     SignalFatalError("Unknown response type: "+cond)
+    }
+
+    Hide(gStimLabel)
+    Draw()
+
+    if(cond=="audio" and gSaveAudio)
+         {
+            SaveAudioToWaveFile(fname,gResponseBuffer)
+ 	if(gCompressAudio)
+             {
+			    SystemCall(gCompressor + fname,"")
+				if(GetSystemType()=="LINUX" or GetSystemType()=="OSX")
+             {
+     				SystemCall("rm "+fname,"")
+             } else {
+     				SystemCall("del "+fname,"")
+             }
+	   }
+         }
+
+
+    FilePrint(gFileOut,out)
+    FilePrint(gPooledFileOut,out)
+
+
+    ##Update some counters:
+    gErr <- Append(gErr,corr)
+    gRT  <- Append(gRT, rt)  #this adds too-slow errors as part of RT.
+    gCond<- Append(gCond,First(stim))
+
+
+
+    Wait(500)
+
+}
+
+
+
+##
+##
+define PrintMe(file,text)
+{
+  FilePrint(file,text)
+  Print(text)
+}
+
+define PrintMe_(file,text)
+{
+  FilePrint_(file,text)
+  Print_(text)
+
+}
+
+
+
+
+define PracticeTrials(usepreset,dim,trials:8)
+{
+  if(usePreset)
+   {
+
+
+    red <- Nth(gColorNames,1)
+    blue <- Nth(gColorNames,2)
+    green <- Nth(gColorNames,3)
+    yellow <- Nth(gColorNames,4)
+
+   w1 <-Nth(gNeutralNames,1)
+   w2 <-Nth(gNeutralNames,2)
+   w3 <-Nth(gNeutralNames,3)
+   w4 <-Nth(gNeutralNames,4)
+
+     ##Hardcode list here.
+     ##These lists determine the stimuli in the test;
+   ##the first is the condition (cong, neut, incong)
+   ##the second is the word
+   ##the third is the color id (element of gColors, where 5 indicates black)
+      if(dim=="color")
+      {
+      x <-[["I",yellow,2],["N",w1,4],["C",green,3],["N",w2,1],
+           ["C",yellow,4],["I",green,2],["C",blue,2],["N",w3,3],
+           ["I",blue,3],["I",yellow,3],["C",red,1],["N",w2,2],
+   	   ["C",green,3],["C",red,1],["N",w3,1],["C",blue,2],
+	   ["C",yellow,4],["I",red,3],["N",w3,4],["N",w4,2],
+	   ["I",green,4],["N",w1,2],["I",yellow,1],["I",red,4]]
+      }else{
+       x <- GenerateStimuli(trials,dim)
+      }
+   }else {
+       x <- GenerateStimuli(trials,dim)
+   }
+  return x
+}
+
+##trials is not used for preset; just for other condition.
+define Round1Trials(usepreset,dim,trials:28)
+{
+  if(usePreset)
+   {
+
+    red <- Nth(gColorNames,1)
+    blue <- Nth(gColorNames,2)
+    green <- Nth(gColorNames,3)
+    yellow <- Nth(gColorNames,4)
+
+   w1 <-Nth(gNeutralNames,1)
+   w2 <-Nth(gNeutralNames,2)
+   w3 <-Nth(gNeutralNames,3)
+   w4 <-Nth(gNeutralNames,4)
+
+   if(dim=="color")
+   {
+   ##the first is the condition (cong, neut, incong)
+   ##the second is the word
+   ##the third is the color id (element of gColors, where 5 indicates black)
+    x <- [["I",green,4],["C",blue,2],["N",w3,4],["I",blue,1],["I",green,4],["N",w3,1],["N",w3,3],["N",w2,1],
+          ["C",green,3],["I",yellow,1],["C",red,1],["C",yellow,4],["C",blue,2],["I",red,4],["C",green,3],["C",red,1],
+          ["N",w2,2],["N",w4,1],["N",w4,4],["C",yellow,4],["I",green,2],["C",blue,2],["N",w2,2],["C",red,1],
+          ["N",w1,4],["I",green,1],["N",w2,1],["N",w2,4],["I",blue,3],["N",w1,1],["I",green,2],["C",red,1],
+          ["I",blue,4],["I",yellow,1],["I",yellow,3],["N",w2,3],["C",yellow,4],["C",green,3],["I",red,2],["N",w1,4],
+          ["C",red,1],["N",w1,3],["N",w4,2],["N",w3,4],["I",yellow,3],["C",green,3],["I",red,3],["I",red,2],
+          ["N",w4,4],["C",yellow,4],["N",w2,4],["C",blue,2],["I",blue,3],["C",yellow,4],["C",green,3],["C",blue,2],
+          ["N",w1,2],["N",w1,2],["I",yellow,2],["I",red,4],["N",w3,3],["I",green,1],["I",blue,1],["C",green,3],
+          ["I",red,3],["I",blue,4],["C",red,1],["N",w4,3],["I",yellow,2],["C",yellow,4],["C",blue,2],["N",w3,2]]
+    } else {
+     x <- GenerateStimuli(trials,dim)
+    }
+   }else {
+      x <- GenerateStimuli(trials,dim)
+
+
+   }
+  return x
+}
+
+
+##trials is not used for preset; just for other condition.
+define Round2Trials(usepreset,dim,trials:28)
+{
+  if(usePreset)
+  {
+
+    red <- Nth(gColorNames,1)
+    blue <- Nth(gColorNames,2)
+    green <- Nth(gColorNames,3)
+    yellow <- Nth(gColorNames,4)
+
+   w1 <-Nth(gNeutralNames,1)
+   w2 <-Nth(gNeutralNames,2)
+   w3 <-Nth(gNeutralNames,3)
+   w4 <-Nth(gNeutralNames,4)
+
+   if(dim=="color")
+   {
+   ##the first is the condition (cong, neut, incong)
+   ##the second is the word
+   ##the third is the color id (element of gColors, where 5 indicates black)
+   ##in color dimension, there are no 'black' (neutral).
+
+  x <- [["I",yellow,3],["I",green,2],["I",red,2],["N",w2,4],
+ ["C",blue,2],["I",yellow,2],["N",w1,4],["N",w1,3],["N",w3,2],
+ ["I",green,4],["I",yellow,2],["I",blue,4],["I",blue,3],
+ ["I",green,4],["I",blue,1],["C",red,1],["I",blue,4],
+ ["N",w3,1],["N",w4,4],["C",yellow,4],["C",blue,2],["C",green,3],
+ ["C",red,1],["I",blue,3],["C",green,3],["I",green,2],
+ ["C",blue,2],["I",red,4],["I",red,3],["N",w4,4],["C",red,1],
+ ["N",w3,3],["C",yellow,4],["N",w4,3],["C",green,3],
+ ["N",w2,2],["C",blue,2],["C",red,1],["N",w3,2],
+ ["C",green,3],["I",blue,1],["N",w3,3],["N",w1,2],
+ ["C",yellow,4],["N",w2,2],["N",w4,1],["I",green,1],
+ ["C",blue,2],["I",yellow,3],["I",yellow,1],["I",green,1],
+ ["C",red,1],["I",red,4],["I",yellow,1],["N",w2,3],
+ ["N",w1,1],["C",green,3],["C",red,1],["C",yellow,4],
+ ["C",yellow,4],["I",red,3],["N",w4,2],["N",w1,1],
+ ["I",red,2],["N",w2,1],["C",yellow,4],["N",w3,1],
+ ["C",blue,2],["N",w2,1],["N",w3,4],["C",green,3],["N",w4,2]]
+
+   }else{
+      x <- GenerateStimuli(trials,dim)
+   }
+   }else {
+      x <- GenerateStimuli(trials,dim)
+
+   }
+  return x
+}
+
+##create a shuffled set of stimuli with
+##num stimili from each of the three sets.
+define GenerateStimuli(num,responsedim)
+{
+
+   ##This returns a list of triplets;
+   ##the first is the condition (cong, neut, incong)
+   ##the second is the word
+   ##the third is the color id (element of gColors, where 5 indicates black)
+
+   ##We need neutral, congruent, and incongruent stimuli here.
+
+
+   ##Generate stimili for a word reading condition.
+   if(responseDim == "word")
+    {
+
+	congbase <- Transpose([gColorNames,[1,2,3,4]])
+	neutbase <- Transpose([gColorNames, Repeat(5,4)])
+
+	incongbase0 <- CrossFactorWithoutDuplicates([1,2,3,4])
+ 	incongbase <- []
+	loop(i,incongbase0)
+	{
+	   incongbase <- Append(incongbase, [Nth(gColorNames,First(i)),
+	   	                             Second(i)])
+	}
+
+    congruents <- RepeatEnough(congbase,num)
+    neutrals <- RepeatEnough(neutbase,num)
+    incongruents <- RepeatEnough(incongbase,num)
+
+
+
+   }elseif(responseDim=="color")
+    {
+
+
+	congbase <- Transpose([gColorNames,[1,2,3,4]])
+	neutbase <- DesignFullCounterbalance(gNeutralNames,[1,2,3,4])
+
+	incongbase0 <- CrossFactorWithoutDuplicates([1,2,3,4])
+ 	incongbase <- []
+	loop(i,incongbase0)
+	{
+	   incongbase <- Append(incongbase,[ Nth(gColorNames,First(i)),
+	   	                             Second(i)])
+	}
+
+
+    congruents <- RepeatEnough(congbase,num)
+    neutrals <- RepeatEnough(neutbase,num)
+    incongruents <- RepeatEnough(incongbase,num)
+
+
+    }else{
+      SignalFatalError("Unknown responseDim type")
+    }
+
+
+   type <- Flatten([Repeat("N",num),Repeat("I",num),Repeat("C",num)])
+   stimbase <- Transpose(FlattenN([neutrals,incongruents,congruents],1))
+
+  return Shuffle(Transpose([type,First(stimbase),Second(stimbase)]))
+
+}
+
+
+##for now, assumes the tables are the same size
+define PasteTables(tab1,tab2)
+{
+   a <- Transpose(tab1)
+   b <- Transpose(tab2)
+
+   return Transpose(Merge(a,b))
+}
+
+
+
+
+
+
+
+##  This is a standard initializer function that sets up typical
+##  objects used in experiments.
+define Initialize()
+{
+
+  ## Uncomment to eliminate busy-wait (mostly for older machines or
+  ## laptops that might overheat.)
+  gSleepEasy <- 1
+  ##Initialize Window, etc.
+  gWin <- MakeWindow("grey40")
+
+
+  ShowCursor(0)
+  ##Initialize Font and colors
+
+   gBG <- MakeColor("grey40")
+   fg  <- MakeColor("black")
+
+
+
+
+
+
+   gInstructionsFont <- MakeFont(gPEBLBaseFont,0,22, fg,MakeColor("white"),1)
+   gHeaderFont       <- MakeFont(gPEBLBaseFont, 0,20,fg,gBG,1)
+   gStimFont         <- MakeFont(gPEBLBaseFont,0,60,fg,gBG,0)
+
+
+   ## Make and place the instruction box, then hide it
+   gInstructions <- MakeTextBox("", gInstructionsFont, 600,400)
+   AddObject(gInstructions, gWin)
+   Move(gInstructions, gVideoWidth/2-300, 100)
+   Hide(gInstructions)
+
+   ## Make and hide a header label
+   gHeader <- MakeLabel("",gStimFont)
+   AddObject(gHeader,gWin)
+   Move(gHeader, gVideoWidth/2, 50)
+   Hide(gHeader)
+
+   gStimLabel <- MakeLabel("",gStimFont)
+   AddObject(gStimLabel,gWin)
+   Move(gStimLabel, gVideoWidth/2, gVideoHeight/2)
+   Hide(gStimLabel)
+
+   gFooter1 <- MakeLabel("",gHeaderFont)
+   AddObject(gFooter1,gWin)
+   Move(gFooter1, gVideoWidth/2, gVideoHeight-150)
+   Hide(gFooter1)
+
+   gFooter1a <- MakeLabel("",gHeaderFont)
+   AddObject(gFooter1a,gWin)
+   Move(gFooter1a,gVideoWidth/2,gVideoHeight-125)
+   Hide(gFooter1a)
+
+   gFooter2 <- MakeLabel("",gHeaderFont)
+   AddObject(gFooter2,gWin)
+   Move(gFooter2, gVideoWidth/2, gVideoHeight-100)
+   Hide(gFooter2)
+
+ if(not FileExists("data"))
+    {
+       Print("Creating 'data' directory")
+       MakeDirectory("data")
+
+    } elseif(not IsDirectory("data"))
+    {
+       SignalFatalError("File named 'data' exists.  Remove so data directory can be created.")
+    }
+
+
+   ##Create the actual colors to be used.
+   gPEBLColorNames  <- ["red","navy","darkgreen","yellow1","black"]
+   gColors <- []
+   loop(i,gPEBLColorNames)
+   {
+     gColors <- Append(gColors,MakeColor(i))
+   }
+   gBlack <- MakeColor("black")
+   gBg <- MakeColor("grey")
+
+   gFonts <- []
+   loop(i,gColors)
+   {
+      gFonts <- Append(gFonts, MakeFont(gPEBLBaseFontMono, 0, gStimSize, i,gBg,0))
+   }
+
+
+
+}
+
+define GetStrings(language)
+{
+
+##Known trasnlations:  EN, ES, TR
+  lang <- Uppercase(language)
+  fname <- "translations/color-stroop.pbl-"+LowerCase(lang)+".json"
+
+  if(FileExists(fname))
+  {
+    gStrings <- ReadTranslationjson(fname,lang)
+  } else
+  {
+    gStrings <- ReadTranslationjson("translations/color-stroop.pbl-en.json",lang)
+  }
+
+
+  #start with english for fallback, then redefine  for specific languages.
+
+   ##Ignore the translation for now.
+   gColorNames      <- [gStrings.color1,gSTrings.color2,gSTrings.color3,gStrings.color4]
+   gBlackName <- gStrings.black
+   gNeutralNames    <- [gSTrings.word1,gSTrings.word2,gStrings.word3,gStrings.word4]
+
+   gCorrect <- gStrings.correct
+   gIncorrect <- gStrings.incorrect
+   gTooSlow <- gStrings.tooslow
+
+
+
+  if(gResponseType=="keyboard")
+   {
+     gKeys <- [1,2,3,4]
+     keystring <-  gStrings.keyheader
+     }else{
+      gKeys <- [1,2,3,4]
+      keystring <-gStrings.sayheader
+   }
+
+    gPracticeText <- gStrings.practicetext
+    gInstructionsBase<- gStrings.instructionsbase
+    gKeyManual <- gStrings.keymanual
+    gKeyVocal <- gStrings.keyvocal
+
+
+if(gResponseType=="keyboard" )
+  {
+    gInstructionsText <- gInstructionsBase+gKeyManual
+  }else{
+    gInstructionsText <- gInstructionsBase+gKeyVocal
+  }
+
+
+    gBreak1Text <- gStrings.break1text
+    gBreak2Text <- gStrings.break2text
+
+    gPracticeHeaderText <- gStrings.practiceheadertext
+    gTestHeaderText    <-  gStrings.testheadertext
+
+    gFooter1TextManual  <- ReplaceChar(gStrings.footer1textmanual,"<KEYSTRING>",keystring)
+    gFooter1TextManual2 <- ReplaceChar(gSTrings.footer1textmanual2,"<KEYSTRING>",keystring)
+    gFooter1TextVocal   <- ReplaceChar(gstrings.footer1textvocal,"<KEYSTRING>",keystring)
+
+    gFooter2Text <- gStrings.footer2text
+    gExitText    <- gStrings.exit
+
+
+}
+
+
+
+
+
+
+
+
+## Repeat list enough times to make it length long.
+##
+define RepeatEnough(list,length)
+{
+
+   l <- Length(list)
+   times <- Ceiling(length/l)
+   tmp <- FlattenN(ShuffleRepeat(list,times),1)
+
+   return SubList(tmp,1,length)
+}
+
+
+define DoPractice()
+{
+   ##Do the practice here:
+   ##Lets do a little learning about the key mappings
+   instructions <- EasyTextBox(gPracticeText,
+                   10,10,gWin,28,gVideoWidth-20,200)
+
+    Show(instructions)
+    Show(gFooter1)
+    Show(gFooter2)
+    patch <- Rectangle(gVideoWidth/2,gVideoHeight/2+60,300,100,MakeColor("black"),1)
+    AddObject(patch,gWin)
+    Draw()
+    resp <- 1
+    patch.color <- gblack
+    Draw()
+    tmp <- EasyLabel("",gVideoWidth/2,gVideoHeight/2+60,gWin,50)
+    while(not (resp == 5))
+      {
+
+
+         resp <- WaitForIt(["1","2","3","4"," "])
+	 if(resp != 5)
+          {
+            patch.color <-Nth(gColors, resp)
+	    tmp.text <- Nth(gColorNames,resp)
+            Draw()
+           }
+      }
+
+
+}
+
+
+
+define ChooseColor(name)
+{
+   if(name == "black") {col <- gBlack}
+   if(name == "blue")  {col <- gBlue}
+   if(name == "red")   {col <- gRed}
+   if(name == "green") {col <- gGreen}
+   if(name == "yellow"){col <- gYellow}
+
+  return col
+}
+
+
+
+##This enables using other keys to do input.
+##it takes a list of keys, and returns the relative index.
+define WaitForIt(keylist)
+{
+   code <- Sequence(1,Length(keylist),1)
+
+   resp <- (WaitForListKeyPress(keylist))
+   outid <- 0
+   loop(i,Transpose([keylist,code]))
+    {
+       if(Uppercase(resp) == Uppercase(First(i)))
+       {
+	    outid <- Second(i)
+	    break
+       }
+    }
+
+   return (outid)
+}

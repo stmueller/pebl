@@ -1,0 +1,536 @@
+##################################################################
+ ## PEBL Balloon Analog Risk Task (BART)
+ ##
+ ##
+ ##  Part of the PEBL Test Battery
+ ## (c) 2011 Shane T. Mueller
+ ## smueller at obereed dot net
+ ##
+ ##  Version of original task by Lejuez, available for
+ ##  free download from
+ ##  http://www.addiction.umd.edu/CAPERWebSite/downloads.html
+ ##
+ ##  See:
+ ##
+ ##
+ ## Lejuez, C. W., Read, J. P., Kahler, C. W., Richards, J. B., Ramsey,
+ ## S. E., Stuart, G. L., Strong, D. R., & Brown, R. A. (2002). Evaluation
+ ## of a behavioral measure of risk-taking: The Balloon Analogue Risk Task
+ ## (BART). Journal of Experimental Psychology: Applied, 8, 75-84.
+ ##
+ ##
+ ##
+ ##
+ ## For use with PEBL 0.12 or later
+ ## http://pebl.sf.net
+ ## Part of  The PEBL Psychological Testing Battery
+ ##
+ ##
+ ##  Translations to DE and FR by Mareike Augsburger
+ ##
+###############################################################
+
+define Start(p)
+{
+
+
+     ##Set initial values to use if .par file does not exist.
+     parpairs <- [["allowAutoPump",0],##Does the balloon continue to pump up while holding the button down?
+                  ["startBalloonSize",10],
+		  ["moneyPerPump",.05],
+		  ["life1",8],
+		  ["life2",16],
+		  ["life3",128],
+		  ["trialsperset",10],
+		  ["use1",1],
+  		  ["use2",1],
+  		  ["use3",1],
+		  ["phase1",1],
+		  ["phase2",1],
+		  ["minpumps",0]
+
+                 ]
+
+     gParams <- CreateParameters(parpairs,gParamFile)
+
+
+
+  ##   gAllowAutoPump <- 0   ##Does the balloon continue to pump up while holding the button down?
+  ##   gStartBalloonSize <- 10
+  ##   gMoneyPerPump <- .05  #How much money do you get per pump
+
+     ##Get the translation text
+     GetStrings(gLanguage)
+
+    gWin <- MakeWindow("black")
+
+   ##Get subject code if we need to:
+   if(gSubNum+""=="0")
+    {
+       gSubNum <- GetSubNum(gWin)
+    }
+
+    ##Initialize a bunch of book-keeping stuff.
+    Init()
+    Draw()
+
+     ##values
+     gTotal <- 0
+     gLast  <- 0
+
+
+    ##Define the balloon types:
+     btypes <- [1,2,3]
+     lifes <- [gParams.life1,gParams.life2,gParams.life3]
+     cols <- [MakeColor("darkorange"),Makecolor("gold"),MakeColor("darkslateblue")]
+
+     gFileOut <- GetNewDataFile(gSubNum,gWin,"bart","csv","subnum,trial,type,life,pumps,total,collected,burst,time")
+      ##Do the instructions
+      inst <- EasyTextBox(gInstructions, gVideoWidth/2-400,10,gWin,18,800,400)
+
+	  Draw()
+	  WaitForAnyKeyPress()
+	  Hide(inst)
+	  Draw()
+
+	  tps <- gParams.trialsperset
+	  ##Each one of these can take a few seconds
+          m <- gParams.minpumps
+	  ##Phase 1:
+	  set1 <- Transpose([SampleBreakPointSet(gParams.life1,tps,m),Repeat(First(cols),tps),Repeat(1,tps)])
+	  set2 <- Transpose([SampleBreakPointSet(gParams.life2,tps,m),Repeat(Second(cols),tps),Repeat(2,tps)])
+	  set3 <- Transpose([SampleBreakPointSet(gParams.life3,tps,m),Repeat(Third(cols),tps),Repeat(3,tps)])
+
+
+          ##Phase 2:
+	  set4 <- Transpose([SampleBreakPointSet(gParams.life1,tps,m),Repeat(First(cols),tps),Repeat(1,tps)])
+	  set5 <- Transpose([SampleBreakPointSet(gParams.life1,tps,m),Repeat(First(cols),tps),Repeat(1,tps)])
+
+	  set6 <- Transpose([SampleBreakPointSet(gParams.life2,tps,m),Repeat(Second(cols),tps),Repeat(2,tps)])
+	  set7 <- Transpose([SampleBreakPointSet(gParams.life2,tps,m),Repeat(Second(cols),tps),Repeat(2,tps)])
+
+	  set8 <- Transpose([SampleBreakPointSet(gParams.life3,tps,m),Repeat(Third(cols),tps),Repeat(3,tps)])
+	  set9 <- Transpose([SampleBreakPointSet(gParams.life3,tps,m),Repeat(Third(cols),tps),Repeat(3,tps)])
+
+          phase1set <- []
+	  phase2set <- []
+         if(gParams.phase1)
+	  {
+
+              if(gParams.use1)
+	       {
+	         PushOnEnd(phase1set,set1)
+               }
+
+              if(gParams.use2)
+	       {
+	         PushOnEnd(phase1set,set2)
+               }
+
+              if(gParams.use3)
+	       {
+	         PushOnEnd(phase1set,set3)
+               }
+             phase1set <- Shuffle(FlattenN(phase1set,1))
+	  }
+
+
+
+ 	 if(gParams.phase2)
+	  {
+  	     group1b <- Merge(set4,set5)
+	     group2b <- Merge(set6,set7)
+	     group3b <- Merge(set8,set9)
+
+              if(gParams.use1)
+	       {
+	         PushOnEnd(phase2set,group1b)
+               }
+
+              if(gParams.use2)
+	       {
+	         PushOnEnd(phase2set,group2b)
+               }
+
+              if(gParams.use3)
+	       {
+	         PushOnEnd(phase2set,group3b)
+               }
+
+             phase2set <- FlattenN(phase2set,1)
+
+          }
+
+
+     trials <- Merge(phase1set,phase2set)
+     if(Length(trials)==0)
+     {
+       SignalFatalError("Testing error: Parameter settings involve no trials")
+     }
+
+
+
+      ##  Set up some global data here.
+      ##
+          gTimes <- []
+	  gClicks <- []
+	  gBursts <- []
+
+	  trial <- 1
+	  loop(i,trials)
+           {
+  	     FilePrint_(gFileOut,gSubNum+","+trial+","+Third(i)+",")
+             Trial(First(i),Second(i))
+             trial <- trial + 1
+           }
+
+
+          Show(inst)
+	  inst.text <- gDebrief
+	  Draw()
+	  WaitForAnyKeyPress()
+
+}
+
+
+
+##life describes the actual breakpoint of the balloon--not the maximum.
+define Trial(life,color)
+{
+
+
+	  radius <- gParams.StartBalloonSize
+	  gBalloon <-Circle(gVideoWidth/2,GetY(radius),radius,color,1)
+	  AddObject(gBalloon,gWin)
+	  gBalloon.aa <- 1
+
+	  temp <- 0
+   	  UpdateScreen(radius)
+	  Hide(gCollectLab)   ##Don't show the hide message on the
+	  Hide(gCollectBox)       ##	  first click
+	  Draw()
+          cont <- 1
+	  pumps <- 0
+
+	  startTime <- GetTime()
+
+	  burst <- 0
+
+        while(cont)
+	   {
+		   ##Accept a click or a pump
+
+		   if(pumps == 0)
+           {
+             clickon <- [gpumpbox]
+           }else{
+             clickon <- [gpumpbox,gcollectbox]
+           }
+
+	    if(gParams.AllowAutoPump)
+                 {
+                   time1 <- GetTime()
+  		   mousestate <- GetMouseState()
+		   if(Inside(mousestate,gPumpBox) and   Third(mousestate))
+			 {
+		          resp <- 1
+                          Wait(250)
+  			 } else
+                         {
+          	            resp <- WaitForClickOnTarget(clickon, Sequence(1,Length(clickon),1))
+                          }
+   		             time2 <- GetTime()
+
+
+                   } else {
+	          	   time1 <- GetTime()
+     	           resp <- WaitForClickOnTarget(clickon, Sequence(1,Length(clickon),1))
+        		   time2 <- GetTime()
+                   }
+
+
+
+		   #Determine which one it is.
+        	  if(resp==1)  #click on pump
+	        		  {
+
+                  	   pumps <- pumps + 1
+                        PlayBackground(gBlow)
+
+						##pump up the balloon
+						if(pumps == life)
+						{
+
+							##BURST
+
+	 				    	PlayBackground(gPop)
+							AnimateBalloon(170,6)
+							cont <- 0
+							temp <- 0
+							radius <- gParams.StartBalloonSize
+							gLast <- 0
+							UpdateCash(radius)
+							burst <- 1
+
+						}else{
+
+ 				        temp <- temp + gParams.MoneyPerPump
+						radius <- radius + 2
+
+						}
+            		   } else {
+					    ##Response == 2
+		   	 		    ##Keep the money
+						PlayBackground(gKaching)
+
+
+						gTotal <- gTotal + temp
+						gLast <- temp
+						UpdateCash(radius)
+						#AnimateBalloon(gParams.StartBalloonSize,10)
+						temp <- 0
+						radius <- gParams.StartBalloonSize
+			  			cont <- 0
+
+
+              		   }
+## This could print out to a by-move log
+#		   	    Print(gTotal + " " +gLast + " " +pumps +" " + life)
+	  		    Show(gCollectLab)   ##Don't show the hide message on the
+  			    Show(gCollectBox)       ##	  first click
+
+				UpdateScreen(radius)
+				Draw()
+	          }
+
+		  donetime <- GetTime()
+	      FilePrint(gFileOut,life+","+pumps+","+gTotal + "," +gLast + "," +
+                  	         burst + "," + (donetime-starttime))
+		  RemoveObject(gBalloon,gWin)
+		  Draw()
+		  Wait(150)
+
+}
+
+
+
+
+
+##this creates a set of sampled breakpoints
+##such that the mean of the set is equal to the
+##actual mean plus min. min=0 is the default, standard approach.
+##changing min will let a certain number of pops always happen
+define SampleBreakpointSet(life, num,min:0)
+{
+   set <- []
+   loop(i,Sequence(1,num,1))
+    {
+	set <- Append(set,SampleBreakpoint(life)+min)
+    }
+
+   sum <-Sum(set)
+
+   while(Abs(sum/num -min - life/2)>.1)
+    {
+
+	  candidate <- SampleBreakPoint(life)+min
+	  sum <- sum - First(set) + candidate
+	  set <- Append(Rest(set),candidate)
+
+    }
+
+  return set
+}
+
+
+define SampleBreakpoint(life)
+{
+  cont<- 1
+  while(cont)
+  {
+    if(RandomDiscrete(life)==1)
+      {
+        cont <- 0
+      } else {
+
+	    life <-  life - 1
+      }
+  }
+  return life
+}
+
+
+define AnimateBalloon(newsize, steps)
+{
+	##move from current to new size smoothly in steps steps.
+
+	sizes <- []
+	i <- 1
+     step <- (newsize-gBalloon.R)/(steps-1)
+ 	 size <- gBalloon.R
+     while(i < steps)
+    {
+	 size <- size + step
+ 	 sizes <- Append(sizes,size)
+     i <- i + 1
+     }
+
+   loop(radius, sizes)
+    {
+	  gballoon.R <- radius
+  	  gballoon.y <- GetY(radius)
+	  Draw()
+    }
+
+}
+define Init()
+{
+
+	  gSleepEasy <- 1
+
+	  gXB <- gVideoWidth/2
+	  gYB <- gVideoHeight-150
+
+    glabfont <- MakeFont(gPEBLBaseFont,0,18,MakeColor("white"),MakeColor("black"),0)
+	  gcollectLab <- MakeTextBox(gCollectMessage,glabfont,158,52)
+	  gpumpLab    <- MakeTextBox(gPumpMessage,glabfont, 200,52 )
+	  gtotalLab1 <- MakeTextBox(gTotalMessage,glabfont,158,52)
+	  gtotalLab2 <- MakeLabel(gMoney+" 00.00",glabfont)
+	  glastLab1 <- MakeTextBox(gLastMessage,glabfont,158,52)
+	  glastLab2 <- MakeLabel(gMoney+" 00.00",glabfont)
+
+	  Move(gcollectLab,gXB-329,gYB - 25)
+	  Move(gpumpLab,  gXB-99,  gYB - 25)
+	  Move(gtotalLab1,gXB+171, gYB-50-25)
+	  Move(gtotalLab2,gXB+281, gYB-50)
+	  Move(glastLab1, gXB+171, gYB+50-25)
+	  Move(glastLab2, gXB+281, gYB+50)
+
+      gpumpBox   <- Rectangle(gXB,gYB,210,64,MakeColor("white"),0)
+	  gcollectBox <- Rectangle(gXB-250,gYB,160,64,MakeColor("white"),0)
+	  gtotalBox <- Rectangle(gXB+250,gYB-50,160,64,MakeColor("white"),0)
+	  glastBox <- Rectangle(gXB+250,gYB+50,160,64,MakeColor("white"),0)
+
+	  ##the circle's bottom is 60 up from the baseline.
+	  ##the pumpbox's top is 32 up from the baseline.
+	  ##height is 28, center is 46
+	  gpedestal <-  Rectangle(gXB,gYB-46,25,28,MakeColor("white"),1)
+
+	  AddObject(gpedestal,gWin)
+	  AddObject(gpumpBox,gWin)
+	  AddObject(gcollectBox,gWin)
+      AddObject(gtotalBox,gWin)
+      AddObject(glastBox,gWin)
+
+	  ##Add the text
+	  AddObject(gcollectLab,gWin)
+	  AddObject(gpumpLab,gWin)
+	  AddObject(gtotalLab1,gWin)
+	  AddObject(gtotalLab2,gWin)
+	  AddObject(glastLab1,gWin)
+  	  AddObject(glastLab2,gWin)
+
+
+      Hide(gCollectBox)
+	  Hide(gCollectLab)
+      gBlow <-LoadSound("sounds/blow2.wav")
+      gPop <- LoadSound("sounds/pop.wav")
+      gKaching <- LoadSound("sounds/kaching.wav")
+}
+
+define UpdateScreen(radius)
+{
+	gballoon.y <- GetY(radius)
+	gballoon.R <- radius
+}
+
+
+##Update the cash, as well as the balloon size.
+define UpdateCash(radius)
+{
+
+
+
+    step <- .05  #animate the cash update in steps of this size.
+	if(gLast >1)
+	{
+	    step <- .1
+    }
+
+    if(gLast >4)
+    {
+	   step <- .5
+    }
+
+
+
+	moneysequence <- Sequence( gTotal-gLast, gTotal, step)
+
+
+	balloonstep <-  (gParams.StartBalloonSize-radius)  /(Length(moneysequence)-1)
+
+	loop(i,moneysequence)
+     {
+     	gTotalLab2.text <- MakeMoney(i)
+     	gLastLab2.text <- MakeMoney(i-gTotal+gLast)
+
+		gballoon.R <- radius
+		gballoon.y <- GetY(radius)
+
+
+		Draw()
+		radius <- radius + balloonstep
+     }
+
+  	gTotalLab2.text <- MakeMoney(gTotal)
+	gLastLab2.text <- MakeMoney(gLast)
+	gballoon.R <- gParams.StartBalloonSize
+	gballoon.y <- GetY(gParams.StartBalloonSize)
+
+	Draw()
+
+
+}
+
+
+define MakeMoney(num)
+{
+    cents <- SubString(Round(Mod(num*100,100))+"00",1,2)
+    dollars <- Floor(num)
+    return gMoney+" " +dollars+"."+cents
+}
+
+
+##Get the y offset of the balloon, given radius
+define GetY(radius)
+{
+    return gYB-radius-60
+}
+
+
+define GetStrings(lang)
+{
+
+
+
+##Known trasnlations: HR, EN, PT, ES
+  lang <- Uppercase(lang)
+  fname <- "translations/bart.pbl-"+LowerCase(lang)+".json"
+
+  if(FileExists(fname))
+  {
+    gStrings <- ReadTranslationJSON(fname,lang)
+  } else
+  {
+    gStrings <- ReadTranslationJSON("translations/bart.pbl-en.json",lang)
+  }
+
+      gInstructions   <- gStrings.instructions
+      gMoney          <- gStrings.money
+      gCollectMessage <- gStrings.collect
+      gPumpMessage    <- gStrings.pump
+      gTotalMessage   <- gStrings.total
+      gLastMessage    <- gStrings.last
+      gDebrief       <-  gStrings.debrief
+
+}

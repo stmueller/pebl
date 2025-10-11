@@ -1,0 +1,112 @@
+define Start(p)
+{ 
+  gWin <- MakeWindow()  ##Variables that start with a g are global!
+  gSleepEasy <- 1
+  rect <- Rectangle(400,300,700,500,MakeColor("black"),1)
+  AddObject(rect,gWin)
+  
+
+  targs <- [1,4]
+  foils <- [2,3]
+  numFoils <- 20
+  numstim  <- 5  #number of T or F trials.  
+
+  stimsequence <- Shuffle(RepeatList(targs,numstim))  #Create a list of Ts and Es
+  trial <- 1 
+  loop(i,stimsequence)
+    {
+      out <- Trial(i,foils,numfoils)
+      Print(trial + " " + out)
+      trial <- trial + 1
+    }
+}
+
+
+define Trial(stim,foils,numfoils) 
+{
+  baseX <- 400
+  baseY <- 300
+  
+  ##Create a list of foils:
+  foilStim <- SampleNWithReplacement(foils,numfoils)
+  
+   ##Add them to the center, in a random normal bivariate distribution
+   foils  <- []
+   loop(i, foilStim)
+    {
+      tmp <- Makestim(i)
+      AddObject(tmp,gWin)
+      foils <- Append(foils,tmp)  ## We need to hold onto each foil or it will disappear.
+    }  
+   targ  <- MakeStim(stim)
+
+   numpoints <- numfoils+1
+   points <- NonOverlapLayout(60,740,60,540, 21,numpoints)
+
+   targpoint <- First(points)
+   foilpoints <- SubList(points,2,Length(points))
+   loop(i,Transpose([foilpoints,foils]))
+    {
+     pos <- First(i)
+     shape <- Second(i)
+     shape.x <- First(pos)
+     shape.y <- Second(pos)
+    }
+    AddObject(targ,gWin)
+    Move(targ,First(targpoint),Second(targpoint))
+
+  
+  
+   footer <- EasyLabel("Look for oddball. Press left shift for square " + 
+                        "and right shift for circle",baseX, 580,gWin,22)
+   Draw()
+   time1 <- GetTime()
+   resp <- WaitForListKeyPress(["<lshift>","<rshift>"])
+   time2 <- GetTime()
+   tx <- targ.x
+   ty <- targ.y
+
+
+     corr <- ((stim==2 or stim==4) and resp == "<lshift>") or
+               ((stim==1 or stim==3) and resp == "<rshift>")
+
+   loop(i,foils)
+    {
+      RemoveObject(i,gWin)  ##Remove the foils  
+    }
+        
+    if(corr)
+     {
+      footer.text <- "Correct"
+     }else{
+      footer.text <- "Incorrect"
+     }
+    Draw()
+    Wait(500)
+    RemoveObject(footer,gWin)
+    RemoveObject(targ,gWin)
+    Draw()
+   return [resp, corr, tx, ty, (time2-time1)]
+}
+
+
+
+
+
+define MakeStim(code)
+{
+  if(code < 3)
+  {
+    color <- MakeColor("red")
+  } else {
+    color <- MakeColor("blue")
+  }
+
+ if(code == 1 or code == 3)
+  {
+   stim <- Circle(0,0,10,color,1)
+  } else {
+   stim <- Square(0,0,10,color,1)
+  }
+  return stim
+}

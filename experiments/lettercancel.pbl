@@ -1,0 +1,149 @@
+##
+##   This is a basic version of a letter cancellation task. 
+##   The goal is to click on all the "T"s
+##
+##
+##
+##
+##
+##
+##
+
+
+
+
+define Start(p)
+{
+
+  gSleepEasy <- 1
+
+  gWin <- MakeWindow()
+  gstimFont <- MakeFont("VeraMono.ttf",1,24,MakeColor("black"),MakeColor("grey90"),1)
+  gfoundFont <-MakeFont("VeraMono.ttf",1,24,MakeColor("grey80"),MakeColor("grey90"),1)
+  numtargets <- 5
+  tl         <- "T"
+  ##make 20 stimuli, with 5 targets
+  stim <- Shuffle(Merge(Repeat(tl,numtargets),
+					["E","F","H","I","L","E","F","H","I","L","E","F","H","I","L"]))
+
+  xs <- RepeatList([100,200,300,400,500],4)
+  ys <- Flatten([Repeat(100,5),Repeat(200,5),Repeat(300,5),Repeat(400,5)])
+
+   
+  stuff <- Transpose([xs,ys,stim])
+
+  stimobjects <- []
+  targets <- []      # a list of target locations with pointers to the letters.
+
+
+
+
+inst <- "In this demo, your goal is to 'cancel out' all of the "+ tl  +"'s on the screen. Move the cursor and click on each one. When you click, it will become grey.  When you have clicked on them all, the task will be complete.
+
+    Press the mouse button to continue."
+    tb  <- EasyTextBox(inst,20,20,gWin,12,gVideoWidth-40,200)
+    Draw()
+    WaitForMouseButton()   
+    Hide(tb)
+    Draw()
+
+
+  ##Add the target characters:
+  loop(i,stuff)
+   {
+ 
+     letter <- Nth(i,3)
+     obj <- AddTarget(Nth(i,1),Nth(i,2),letter)
+
+ 	 objrect <- [[obj.x-obj.width/2,obj.x+obj.width/2],
+                 [obj.y-obj.height/2,obj.y+obj.height/2]]
+    
+      
+     stimobjects <- Append(stimobjects,obj)    
+     if(letter==tl)
+     {
+        targets <- Append(targets,[objrect,obj])
+     }
+   }
+
+ 
+   Draw()
+   hits <- 0
+   starttime <- GetTime()
+
+   while(Length(targets)>0)
+    {
+      wait <- 1
+      while(wait)
+       {
+         pos <- WaitForMouseButton()
+         if(Nth(pos,4)=="<pressed>")
+          {
+            wait <- 0
+          }
+       }
+
+
+      newtargs <- []
+	  
+      loop(i,targets)
+          {
+             if(Inside(pos,i))
+             {
+
+  			   # Hide(Nth(i,2))
+                 targ <- Nth(i,2)
+
+                 targ.font <- gFoundfont
+                 hits  <- hits + 1
+                 #The target position needs to be removed now.
+             } else {
+
+ 			     newtargs <- Append(newTargs,i)
+             }
+  
+			 Draw()
+          }
+        targets <- newtargs
+    }
+   time <- GetTime()-starttime
+   RemoveObjects(stimObjects,gWin)
+   
+   tb.text<- "Congratulations. You made it in "+ time/1000 +" seconds Hit any key to finish"
+   Show(tb)
+   Draw() 
+   WaitForAnyKeyPress()    
+
+
+}
+
+
+
+define Inside(pos, rectpair)
+{
+   x<-First(pos)
+   y<-Nth(pos,2)
+   rect <- First(rectpair)
+   xrange <- Nth(rect,1)
+   yrange <- Nth(rect,2)
+
+  return ((x >= Nth(xrange,1)) and (x <= Nth(xrange,2)) and
+         ( y >= Nth(yrange,1)) and( y<=Nth(yrange,2)))
+}
+
+define AddTarget(x,y,letter)
+{
+   lab <- MakeLabel(letter,gstimFont)
+   AddObject(lab,gWin)
+   Move(lab,x,y)
+   
+   return lab 
+}
+
+define RemoveObjects(list,win)
+{
+   loop(i,list) 
+   { 
+     RemoveObject(i,win)
+   }
+}

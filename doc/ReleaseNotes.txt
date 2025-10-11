@@ -1,0 +1,1690 @@
+
+--------------------------------------------------
+PEBL: Psychology Experiment Building Language
+http://pebl.sourceforge.net
+pebl-list at lists  sourceforge  net
+http://lists.sourceforge.net/lists/listinfo/pebl-list
+--------------------------------------------------
+ 
+
+About: 
+
+PEBL is a new programming language and interpreter/compiler designed
+to make experiment-writing easy. It is cross-platform, written in C++,
+and relies on a Flex/Bison parser. Although other platforms are
+possible, we currently use the SDL game-programming library
+(http://libsdl.org) to easily support multiple platforms with one code
+base. PEBL does not require you to purchase anything in order to use
+it. It does not require a compiler or experience using any other
+programming system.  PEBL is designed to be an open system.  It
+requires no licensing or registration fees to use, and you can re-use
+the source code as long as you abide by the GNU GPL. This allows you
+to freely share your experiments with others without worrying about
+licenses, vendor lock-in, or whether you will be able to run your
+experiments down the road when your current hardware systems are
+obsolete. 
+
+
+
+
+
+2.2:
+
+Compiler and Build System Improvements (10/2024):
+- Fixed buffer overflow warning in lexer (Pebl.l) with larger buffer and snprintf
+- Fixed dangling pointer warning in Variant.cpp string assignment
+- Updated deprecated Emscripten canvas API to new emscripten_get_canvas_element_size
+- Replaced deprecated ostrstream with ostringstream in PEBLMath.cpp
+- Fixed extern variable initializer warnings by converting to proper definitions
+- Updated utfcpp library from old version to 4.0.5, eliminating deprecation warnings
+- Updated parser/lexer generation to Bison 3.8.2 and current Flex
+- Enabled HTTP support by default in Makefile (requires libcurl)
+- All major compiler warnings eliminated for modern C++ compilers
+- Fixed Linux launcher functionality: removed Windows-only freopen("CON") calls that broke stdout/stderr
+- Fixed launcher to run automatically when pebl2 invoked with no arguments (previously displayed help text)
+- Added stub implementations for network functions when USE_NETWORK disabled, preventing runtime errors while maintaining compatibility with scripts that reference network functions
+
+- add Center() to Reitan points in TOL to center the points. (2/2024)
+
+-updated physioscales to fix a data save bug.
+
+
+- Update SRT to allow it to take mouse input.
+- Adding screenshot capabilities back in with WritePNG()
+- fixed json parser errors on nested lists and other complexities.
+- new maze task prototype
+-fixed SNARC which could not find its english translation
+
+
+added functions: WaitforButtonClickonTarget,WaitForDownClick,GetNewSubnum,UploadFile,SyncDataFile,DirToText,AppendDirList,Dirlisttotext to support file selecion etc.
+
+-Improved capability to make multiple windows.
+-filepicker.pbl demo shows off multiple windows and provides a half-decent file picker tool.
+
+
+-adding eyechart.pbl basic discriminability test (not normed) as a demo.
+
+
+
+-Fixed bad font-height for font-size 12 impacting scrollboxes--hardcoded the fix on linux.
+
+added options for random/fixed interval generation in time wall (made this the default).
+Adding dutch translation to digit span from Ruth Van Hecke
+Added portuguese translation of hungry donkey task by Ana Rita Cruz
+Adding french translation of BST from Ilse Coolen
+
+fixing gonogo so you can use custom stimuli (it was previosuly broken)
+fixing gonogo instructions so it shows stimuli
+fixing survey so it won't crash if you don't give it the likert options.
+
+fixed errant header line in toronontonounpool.txt
+-added HTML formatting library for formatted output.
+
+-fixed some UI issues for scrollingtextboxes on unique font sizes that appear broken in sdl
+-fixed JSONText so it can handle lists properly
+added --upload command-line argument to specify an upload json file to sync to PEBL data server.
+
+-minor fix to scoring calculation in WFT
+-fix so output data gets printed to file in probedigit.
+
+
+
+Tasks revised for large screensizes:
+aiming: no change
+
+
+
+
+
+
+                 RELEASE NOTES 2.1
+
+
+
+- Added optician sans
+- Added simple json parser,
+JSON functions: ParseJSON() Parses a json file and creates a pebl object from it.
+                JSONText() Outputs an object to JSON format (should work with any custom object)
+- Changed language/text translation from .csv to .json files. You can edit in a .json editor or in the pebl built-in one.
+-GetLanguageJSON() function
+- html via curl
+
+
+
+Version 2.1
+
+ Added some new short questionnaires: simulatorsickness, systemusability, and shortstressstate, affect grid.
+ 
+
+- Seeming problem in pursuit rotor task and others that read in floating-point parameters (platform dependent).
+
+-changing sound system to use SDL_Mixer.  This has much better timing performance, fewer pops, allows panning/volume control, and has support for mp3, ogg, flac, MIDI, and other file formats.
+SetPanning()
+PlaySetRepeats()
+
+Improved handling of UTF-8 text.
+
+Functions:
+  changed WaitForClickOnTargetWithTimeout to allow you to specify which button to click with.
+
+
+Test battery:
+ updates to fix SAtest, plus some parameter updates for more control.
+ -minor fix to text box in digitspan task.
+ -fix data output edge case error in gonogo task.
+ -for flanker task, fixed parameter mix-up.
+ -added more detailed data recording to hicks law test.
+ -fixing default parameter setting for matchtosample task.
+ -move to target task: some minor tweaks, plus some non-translation parameters.
+ -color stroop--additional practice mode.
+
+
+Translations:
+
+
+-  pcpt translations to en, it, and pt.
+-swedish translations to: Vsearch, matchtosample, nback, ppvt
+- chinese translations to: simon task, switcher, BART, digitspan,
+- Updated french translation to iowa task to add accents etc.
+- bcst translations to he and tr
+- gonogo translation to FR and HE
+ -gonogo french translation  and igt translation by Oleg Douditch-Pergola
+
+========================================================================================
+
+
+Version 2.0 (Released January 2018)
+
+
+
+*Edited simon to save the summary file in the subject data file directory.
+*ppvt fix when using mouse to make responses
+*Added ability to set custom file for RAT task.
+*fix instruction problem in NBACK
+*fix header in sternberg task.
+* add R analyis file to MoveToTarget
+* in simon task, record side + improved summary/reporting
+
+
+
+* Fixes to launcher:
+  - fix problem where config pulldown doesn't work
+  - fullscreen didn't work when saved in default.config
+  - similarly, vsync may not have updated from default.config
+  - handle / and \ seperately for directory seperators.  
+
+* SDTBeta fixed so it computes bias statistic appropriately.
+
+*Demos:
+  - fix black-on-black display in multioption.pbl
+  - ui-demo.pbl problem when clicking on some menu options
+  - add exit button for ColorWheel.pbl
+
+Version 2.0 betas
+
+*Translations:
+  -Spanish translation to corsi
+  -spanish translation to NBACK (Daniel Aguirre)
+  -spanish translation to switcher task (Daniel Aguirre)
+  -German translation of ANT, iowa
+  -Fix BART instructions in english and DE to not mention number of balloons.(Karim H)
+  -German translation to color stroop, weather prediction task. (Karim H)
+  -updated german translation for iowa gambling task. (Karim H)
+
+  
+ PEBL Test Battery:
+
+ New tasks:
+  -Adding Rating Scale of Mental Effort (RSME, in scales\RSME.pbl)
+  -Adding Shiffrin & Schneider Memory automaticity task (battery\memoryautomaticy\)
+  -Adding SNARC task, by Laurent Schüpbach
+  -TSP task described by Mueller et al included.
+  -PlusMinus task, an executive function task.
+  -aiming task, which is sort of like controlling a billiard cue ball
+  - added  tracking and movetotarget tasks, two similar tasks that involve learning a transposed mouse control scheme. movetotarget is like whackamole.
+  -Added PASAT (done)
+  -Added urns task  (done)
+  
+Translations:
+  -PCPT:add italian translation; some additional report summary stats.
+  -BART:translations to German and French by Mareike Augsburger
+  -Color stroop: translations to spanish, italian, Korean
+  -Number stroop: improved spanish translation
+  -Victoria stroop: spanish translation by carlos from Ecuador
+  -Go/no-go task: add italian, spanish translations; *
+  -Iowa task: italian and hungarian translations. Hungarian translation by Kriszta lakatos
+  -Hungry Donkey--hungarian translation (Krisztina Lakatos)
+  -Corsi blocks translation to Korean Lithuanian
+  -spanish translation of flanker task
+  -Swedish translation of subject code from Kim Karlsson
+
+
+## New translation scheme:
+  ANT (en, pt/br)
+  antisaccade (en)
+  BART (en, de,fr,hr)
+  bcst:  cardsort and bcst-64 (LT, SI, EN, ES, PT, CN, KO, FR)
+  brownpeterson:(EN)
+  BST: (en)
+  changedetection: (en)
+  clocktest: (en)
+  connections: (en, es)
+  Corsi blocks (LT, PT, HR, EN)
+  crt (ChoiceRT): (en)
+  dexterity: (en)
+  digitspan: (en)
+  donkey: (hungry donkey) (en, hu, hr, es)
+  dotjudgment: (en)
+  ebbinghaus: (en)
+  evenodd: (en)
+  Flanker (en, es, lt)
+  freerecall (en)
+  generation (en)
+  global-local task (en)
+  gonogo (en, PT, HR, IT, ES,HE)
+  hicks (en)
+  itemorder test (en)
+  letterdigit (en) *
+  lexicaldecision (en) *
+  luckvogel (en)*
+  manikin (en)*
+  matchtosample (en)*
+  mathproc (en)*
+  mathtest (en)*
+  matrixrotation (en)*
+  memoryautomaticity (en)*
+  movetotarget (en) *
+  mspan (buildup and staircase) (en) *
+  mullerlyer (en) *
+  nback (en) *
+  objectjudgment (en; objectjudgment and objectjudgment-inv) *
+  oddball (en, pt) *
+  
+  Partial Report (en) *
+  PASAT (en) *
+  pathmemory (en) *
+  patterncomparison (patterncomparison, pattern-sequential, pattern-samediff, en) *
+  pcpt (en, it, pt) *
+  plusminus (en) *
+  ppvt (en, pt) *   
+  probmon (en) *
+  probrev (en) *
+  ptracker (en) *
+  ptrails (en) *
+  pursuitrotor (en) *
+  randomgeneration (en) *
+  rotation (en, tr) *
+  satest (en, tr) *
+  snarc (en,de,fr) *
+  spatialcueing (en) *
+  spatialpriming (en) *
+  srt (SimpleRT: en) *
+  sternberg (en) *
+  stroop: number stroop (en, es, tr)*
+  stroop: stroop-vic.pbl (cn,en,es,nl,pt,ru,tr)*
+  stroop: color-stroop.pbl (ko, en, it, es)*
+  switcher (en) *
+  symbolcounter (en) *
+  tapping test (en, pt)*
+  timetap (en) *
+  timewall (en) *
+  toav (en) *
+  TOH (en, es)*
+  TOL (en, es, br, pl, hr, it, lt, tr)*
+  tracking (en) *
+  tsp (en) *
+  twocoladd (en) *
+  typing (en) *
+  vigilance (en) *
+  vsearch (en) *
+  
+  wpt (en) *
+
+
+
+## Removed from battery:
+  devicemimicry test
+  
+##untranslated
+ DRM
+ iat
+ ospan
+ pairedassociates
+ pcards
+ RAT
+ readingspan
+ scales (tlx,physioscales,handedness, RSME, bigfive, BNT)
+ survey
+ symmetryspan
+ wft
+  
+Hebrew supported RTL text in limited ways.
+
+to document/port/add:
+
+aman
+control (need to port from class notes)
+dmts (face task--need new imagery to add)
+figuralfluency (not complete)
+multichoice (not a test)
+noiseid (broken)
+sketcher (to demo\; needs fixed)
+SRRT (unimplemented)
+tracking and Movetotarget (added, not documented)
+ufov
+
+mathproc: fixed so sum can't be 5
+
+Fixes, improvements, other:
+
+ -GetInput will now allow you to reposition cursor with mouse automatically.
+ 
+
+
+-fixes to NBack task scoring
+  -fixed syntax error in WFT code.
+  -ANT task: add intermediate summaries by block.  
+  -Go/no-go task: option for response with mouse button, minor changes to data output.
+ - Set keys on mental rotation task.
+ - fix max monitors in probmonitor
+ - summary data file for ptracker task.
+ -allow timeout in bcst-64 task; adding italian and slovakian translations.
+ -adding report stats to clocktest.
+ -in vsearch, parameter to allow 3rd target # condition optional (so to have only absent/present conditions), and compute summary statistics.
+- In PPVT, allow responses using mouse buttons instead of keyboard.
+- fix to SDTBeta function to return NA on bogus input.
+- Removed sluggish firstorderdistance calculation from RandomGenretaion task.
+
+-fixes to sPlitStringSlow for speed and avoiding a missing split at the end.
+
+- SDTBeta and SDTDPrime now truncate hit rate and false alarm rate to the range .001 < x < .999.  This prevents undefined errors, but has some arbitrariness.
+
+PEBL Primitives
+
+- Antialiased shapes can be drawn using the .aa property 
+- Added pop-up message boxes, used for error messages on crash.
+- Created ThickLine primitive (previously had just been a tweaked polygon)
+
+
+- new syntax available for a loop()
+  you can now do loop(i,100) and it will implicitly loop over
+  values 1...100.  It does this by creating a hidden integer loop, which should be fine up to millions.  Essentially, under the hood the following two do exactly the same thing:
+
+ loop(i,Sequence(1,100,1))
+  {
+  }
+
+ loop(i, 100)
+  {
+  }
+
+* all waitfor() functions now return '<timeout>' on timeout, instead of inconsistent return values 
+
+
+*Multiple windows can be used for display.  This is sort of experimental, and currently, none of the input functions (e.g, mouse position, etc.) tell you which window you are clicking on, but it is useful for debugging screens and for doing experimenter-input during verbal input.
+
+-Debugging window.
+ If you write experiments in PEBL, you can use Print() to help figure out what is going on. However, unless you are running on Linux,the output doesn't appear until the end of the experiment when you return to the launcher.  With the new ability to open multiple screens, when you run with the 'debug window' check box checked, a second window will appear and anything you Print() within the scirpt will appear in that window (along with a timestamp).
+
+
+ -New functions:
+
+  - VariableExists("variablename")
+
+
+
+
+
+
+======================================================
+Version 0.14 (June 2014)
+-Added ability to skip trials in TOL.
+-Added RSME rating scale.
+Translations by Antonella Soma:
+color stroop
+bcst
+iowa
+gonogo
+pcpt
+
+
+--PPVT will allow mouse responses.
+
+
+New tests: PASAT
+           Plus-minus task
+           Anti-saccade task
+
+-Fixed bug in BNT (recording data/output quantiles.)
+
+
+Version 0.14
+
+
+===New Custom Object===
+- We've implemented a custom object data type, which can be created using MakeCustomObject().  The properties of a custom object can be created using either:
+object.property <- value
+
+or
+SetProperty(object,property,value)
+
+This comes with functions PropertyExists(), GetProperty, and GetPropertyList()
+
+This means that variable property names can be set from resource files. We have used this to create a new parameter setting convention that is now part of almost all test battery scripts.  The upshot is that all user-settable parameters are self-documented, default values can be overriden, and different version of a test can be run by setting up different parameter files via the launcher UI. 
+
+ 
+===HTTP access===
+ We've added several simple functions for interacting with internet services.  These include GetHTTPFile, GetHTTPText, PostHTTP, MD5Sum, and MD5File functions.  These should allow building interfaces to automatically upload data to a server, to download resources of an experiment, verify files are correct, etc.  
+
+(see http.pbl for example code)
+
+===Data saving===
+All the test battery tests now use a new function for data saving; GetNewdataFile().  THis will check to be sure you are not overwriting an old data file, and ask for renaming/appending.  New data files will all have header rows.  Also, each participant gets their own subdirectory.  
+
+
+===Data merging tool===
+To help combine data from multiple participants, we've added a little data file merger tool.  This can be used on any text-based data files (.txt, .csv, etc.), and will attempt to merge multiple files, enable pattern matching, remove header files, etc. 
+
+===PEBL Launcher===
+As discussed above, there are several updates to the PEBL Launcher:
+- Along with a button to access the data merger button
+- Donate button?
+- Parameter-setting
+- Version check-in
+- Randomize chain
+- Improvements to the file listing (you can now drag the listing around)
+- Better display of test previews; it now works when you just click on a directory.
+
+
+ Interface functions available outside:
+  Makebutton, makecheckbox, PushButton, ClickCheckbox,
+  Popupmessagbox
+  
+===Internal Updates and other new functions===
+-Updating Levels(), IsProperty(), ListBy(), and NonOverlapLayout()
+- Document ExtractListItems() function
+
+- internal things: evaluator is now a pointer,
+- Evaluator is now iterative rather than recursive.
+
+- Font handling: SDL library has a problem freeing font resources; this meant that if you opened too many fonts (around 1000, depending on OS), you could crash because you max out the file handles available.  We've created a workaround that let's you load more, at least until your memory runs out.  This is still a memory leak, and so you can avoid it by reusing fonts (and avoiding EasyLabel and EasyTextBox() functions within a trial), but we hope moving the SDL 2.0 will improve this.
+
+==The Toronto Word pool==
+The toronto word pool is now included, and can be accessed using FileLoadList("torontowordpool.txt").  This is handy for many types of list memory tests, including a new free recall task.
+
+===Minor fixes===
+
+* now, a file will have two properties: filename, and direction.  Filename will get bound to the actual filename used to save the file (if a new filename was used because of a conflict).  Direction will get ethier READ or WRITE.
+
+-Fixed SDTDPrime so it computes d prime correctly (thanks Carlos Schlottfildt and others)
+-Setting xy position of scaled objects fixed.
+
+-you can now reset the background color of a window using the .bgcolor property
+
+
+-Audio playback issues.  If you try to load multiple soundfiles using LoadSound(), they need to get converted internally to a common playback format.  PEBL will use the format of the first sound file loaded in order to do this. However, you need to be careful when loading sounds of different sampling rates, because the internal functions in SDL 1.2 that do this are not able to do conversions that are not a power of 2. That is, if your first file has a rate of 44100 and your later files are 22050, you are fine, but if the later files are 16000, it will not be able to cleanly convert.  The newest version of SDL 2.03 supposedly fixes this, but we have not yet migrated to SDL 2.  the workaround is to resample your audio sothat they are at the same sampling rate (i.e., use audacity).
+
+
+
+
+
+===New Test Battery Tasks and major improvements===
+
+- New scales: Handedness inventory, bigfive personality scales, Berlin Numeracy Test (BNT)
+- Added Esposito's BST
+- Added Random number generation
+- Added TSP task
+- A GlobalLocal task implemented.
+- New spatial priming task (see paper in PTR)
+- Dot judgment task revised
+- new Paired Associates Learning task.
+- new mathtest for training or testing simple math facts
+- Added Weather Prediction Task (Knowlton, Gluck)
+- Added simple change detection (Luck and Vogel procedure) task.
+- PAR scoring for BCST test
+- CPT-AX test (in the PCPT folder)
+- Reading span, Symmetry span, and Operation span task (contributed by David Hegarty)
+- Free recall task
+- RAT task (remote associates)
+- probe-digit (waugh and norman) task
+- Deese-roediger-mcdermott recognition memory paradigm
+- Ebbinghaus-inspired CVC learning task
+- Brown-peterson task
+
+
+
+===Other specific Test Battery Improvements===
+- Great improvements to Bechara's (Iowa) gambling task contributed by Peter Bull.  This makes the default version much more like the PAR version. It now includes much better feedback about whether errors are being made. These were provided by Peter Bull, and they supercede the older version.  Users who wish to use the old version can do so using iowa-old.pbl.
+- Berg's (wisconsin) card sorting task now also computes perseverations using the WCST rules.
+- SATest now lets you specify number of predators and prey.
+-Improvements to the ANT task, contributed by  Paulo H Moraes, july 2013
+-Polish translation of TOL from Magda Piorkowska
+-Spanish translation of Hungry Donkey task Gabriela Guadalupe De Gyves Montes
+-Fixed pcpt.pbl randomization (thanks Philip Brittain)
+-TOL-dx test now defaults to no turn limit (consistent with Culburtson)
+- Fixed dspan data entry.
+- save survey.pbl files with 1/subject per row.
+- Added --<-- and -->-- type neutral conditions to flanker task.
+- Options in ptrails for improved path creation.
+- mouse movement in switcher task so it won't obscure the letter
+- many small fixes to test battery tests, improving layout for different screen sizes, data saving formats, and other minor bugs too numerous to mention
+- Added debriefing to switcher task
+- Updated stroop tests: the old stroop task, which was mainly a demo, is now called stroop-demo.  Color and number-based stroop tests are available, as well as the short 'victoria' stroop (stroop-vic.pbl).
+
+#################################################################3
+###
+Version 0.13
+
+
+ * With the help of the ffmpeg and the waave  libraries, PEBL now supports loading and playing a number of media file formats (movies and audio).  This includes .avi, .wmv, .mp3, .ogg, and others.  This support added the functions:
+  LoadMovie()
+  LoadAudioFile()
+  StartPlayback()
+  PausePlayback()
+  PlayMovie()
+
+ - Rename files that collide with FileOpen (Probably was in 0.12)
+ - By default, PEBL now uses the current screen size, and accepts
+   any widthxheight screen size when you use the --display
+   command-line option.  There is also an option on the launcher to force specific screen resolutions or use the current one.
+
+-three types of trials in fitts stuy.
+
+- GetCurrentScreenResolution function
+-lists now use an underlying vector container.  As it turns out, PEBL was not using many or any of the unique capabilities of list-based data structures, and the limitations it had were no different than those imposed by vectors.  Now you can get an arbitrary list element in constant time with the Nth function, and set an arbitrary list element in constant time with the SetElement function.
+
+-Fixed syntax where we couldn't previously have the end-of-list bracket be on a new line.
+
+-Allow empty code blocks for functions and if/else statements
+
+-Added PushOnEnd() to replace Append() efficiently.  Note that for convenience,
+ you can replace x <- Append(x,i) with x <- PushOnEnd(x,i), but only 
+ PushOnEnd(x,i) is really needed, and saves maybe 10% of the time.
+
+Changed lists to use a vector internally.  This means that now, list access using Nth() can be made directly in constant time.  Also, you can change particular list members using SetElement(list,element). Look forward in the future to accessing and setting elements using the [] syntax familiar to many other languages.
+
+ -Fixed gonogo task so total errors/total correct is computed correctly (Thx Marco Moniz)
+- Minor fixes to TOH task (including some contributed by Ross Spoon)
+
+-if you use AddObject to a window that it is already added to, it will automatically remove it first, to avoid automatically multiple references in the child widget list.
+
+New task: The Connections task, a version of the trail-making test popularized by Tim Salthouse.
+Hungry Donkey task now works with mouse (by default; old keypress can still be used)
+
+
+-------------------------------------------------
+
+Version 0.12
+
+  The latest public release of PEBL brings with it a lot of new
+  features and capabilities.  Highlights include support for a number
+  of hardware interface devices, a new launcher, over 250 total
+  functions, audio input, and a number of new tests in the PEBL Test
+  Battery, and many bug fixes and improvements. Details include:
+
+
+
+  * A new launcher, written entirely in PEBL. It provides previews of
+   experiments and brief descriptions (see the manual for instruction on
+   how to enable launcher previews for your own scripts).  Because it
+   is written in PEBL, it is cross-platform (giving OSX and linux
+   users a real launcher), and has a number of improvements over the
+   old VB launcher.  If you liked the old one, it is still available,
+   but you have to set it up yourself.  Importantly, it will: 
+
+   	   - Save  your settings and reload them on the next load 
+	   - Save a line to a logfile every time you run a study.  
+	   - Provide a direct link to editing the script 
+	   - allows you to create and save 'experiment chains',	sets of
+	     experiments that get run in sequence
+
+
+
+
+  * A number of improvements to the Textbox object and Textbox entry:
+    -key repeats are now enabled during text box text  entry using GetInput().
+    -GetInput also now takes a third parameter, which if non-zero will accept
+      a mouse click as an exit condition.  see fileselect.pbl for an example
+      of how to use this.
+    - Added .LineWrap property to textboxes, which defaults to 1 (the
+      previous behavior).  If set to 0, it will ONLY wrap lines at
+	  hard/soft returns, and cut off the rest of each line.  This is
+	  used in the new launcher, to allow file listings to behave better.
+
+
+
+ * You can now use a joystick or gamepad for input.  There is a simple
+   demo called joysticktest.pbl which will open a gamepad and visually
+   display the state of all the buttons. This brings with it a bunch
+   of new functions:
+     - GetNumJoysticks()
+     - OpenJoystick()
+     - GetNumJoystickAxes()
+     - GetNumJoystickBalls()
+     - GetNumJoystickButtons()
+     - GetNumJoystickHats()
+     - GetJoystickAxisState()
+     - GetJoystickHatState()
+     - GetJoystickButtonState()
+
+ * Fallback screen resolutions.  PEBL now takes the screen resolution
+   as a request, not a requirement.  If the system cannot support the
+   requested resolution, it falls back to another one.  Currently, the
+   fallback is likely to be the current resolution, or one recommended
+   by the driver.  In the future, this may change to be one as close
+   as possible to the requested resolution.  Because of this, the
+   values of the variables gVideoWidth
+   and gVideoHeight can therefore change once MakeWindow() is called.
+
+
+ * On OSX, we now release an real OSX application, which should work
+   on both 32-bit and 64-bit platforms (sorry, no PPC).  The executable
+   can still be launched from the command line using (assuming the
+   bundle is in /Applications/:
+   > /Applications/PEBL_OSX.app/MacOS/PEBL_OSX script.pbl
+
+
+
+ * Initial support for controlling parallel port devices. This is
+   enabled by four new functions:
+  
+    - OpenPPort()
+    - SetPPortState()
+    - SetPPortMode()
+    - GetPPortState()
+
+ * Initial support for controlling serial port devices.  This is a
+    window into accessing FTDI USB chips, which masquerade as serial
+    devices. This is enabled by three new functions:
+
+     - OpenCOMPort()
+     - COMPortSendByte()
+     - COMPortGetByte()
+
+    The internal COM port system supports more than this, and some of
+    these functions will be built up over future released of PEBL.  I
+    have read that several standard USB button-boxes are based on FTDI
+    chipset, and so this should open up the capabilities to use those
+    response boxes.
+
+
+	SetNetworkPort
+	CheckForNetworkConnection
+
+
+ * Audio Input/Output
+
+   - Better Audio playback.  Previous playback was very laggy and
+     only acceptable for very limited feedback purposes.  These issues
+     have been addressed, and now playback should be acceptable for most
+     research purposes.
+
+   - Audio recording/saving and a simple software audio voicekey was
+     added to collect response time.  Unfortunately, this only works
+     on Windows and Linux platforms.  This adds the following
+     functions:
+     - MakeAudioInputBuffer
+     - SaveAudioToWaveFile
+     - GetVocalResponseTime
+
+* Improved filesystem access, supporting the new launcher. These include:
+     -GetDirectoryListing(): Gets a list of files
+     -FileExists():          Tests whether a file exists
+     -IsDirectory():         Checks whether something is a subdirectory        
+     -MakeDirectory():       Creates a direcotry      
+     -AppendFile():          Appends two files
+     -LaunchFile():          Opens a file using platform-specific handler
+     -SystemCall():          New systemcall function on Windows will
+                         	 run without opening a terminal window.
+
+ * Smaller fixes and improvements:
+   -fixed grammer to allow empty code blocks. (may not have worked)
+
+   -Reworked GetNIHMDemographics() so it now uses mouse input
+
+   - Round can now take either one or two parameters, the second one being a precision value, so you get.
+     Round(3.14159)     #=3, an integer
+     Round(3.14159,0)   #= 3.0, a float
+     Round(3.14159,1)   #= 3.1, a float
+     Round(13.14159,-1) #= 10, a float
+
+
+   - Improved Recursion facilities.
+
+   - FileOpenWrite will not overwite an existing file if you try to
+     reuse a file name (usually by accident).  Now, it will append a
+     -1, -2, etc. to the end of the main filename so it is harder to
+     lose your data.  To absolutely overwrite, use the new function
+     FileOpenOverwrite.
+
+   - A virtual keyboard functions are now available in
+     demo/vkeyboard.pbl.  Use it to get text entry on touch screens and
+     the like. I haven't yet included this in the standard libraries.  
+     To use, copy the function into your experiment.
+
+We now include just one CKJ Font, replacing UnBatang.ttf and
+ukai.ttf, called "wqy-zenhei.ttc".  When PEBL is started with an
+appropriate language code, gPEBLBaseFont and its related default fonts
+will default to wqy-zenhei.ttf.
+
+
+ 
+ *Other New functions:
+
+     -RegisterEvent(). Add an event to the event loop
+     -StartEventLoop(). Start the event loop.
+     -ClearEventLoop(). Clear the event loop.
+     -GetEasyChoice(). Easy multiple-choice screen.
+     -Match().  Finds which items match a target.
+     -Filter().  Filters a list by another list.
+     -Levels().  Finds unique values in a list
+     -GetVideoModes().  Returns a list of video modes. 
+     -NonOverlapLayout().  Creates a set of points in an x,y
+      space that have a minimum overlap tolerance.  Very useful 
+      for stimulus design, visual search tasks, and general 
+      layout.   
+     -MakeSineWave().  Creates a sine wave.
+     -KaniszaSquare(squaresize, circleradius,fg,bg)
+     -KaniszaPolygon(points, circTF, circleradius,fg,bg,show) 
+     -GetMouseState(), which returns a 5-list including the state of
+	   each of three buttons.
+     -GetTextBoxCursorFromClick(), returns the character position you
+       are clicking on.
+	 -MakeGabor(). Create a gabor patch stimulus.
+
+
+ *Many improvements and additions to the test battery:
+
+ - A number of new translations of tasks, supplied by users around
+    the world (Including, but not limited to Ron Ye, Vladimir
+    Bogdanov, and Alena Esposito)
+
+ - Fixed a bug in Mental Rotation task (reported randomly-generated
+  response instead of actual response)
+
+
+ -update PCPT to remove pauses between blocks, to compute more
+  statistics, and to do more reporting in more files.
+
+ -Fixed TOAV test so that a few of the summary stats in for the second
+  half were computed correctly (Thanks Chadi Maghaizel!)
+
+ - Many tasks data were changed to save in .csv format.
+
+ - Updated manual dexterity test
+
+ -Digit span task now allows backward recall, and allows experimenter
+  to specify whether backspace and the skip character are allowed.
+
+ - corsi blocks update: We now support both forward and backward, do
+   much more instrumentation/data saving, and allow for beeps when
+   you click on a target. (Thanks Reid Olsen for many fixes)
+ - Fixed bug in TOL; added TOL-DX problem set.
+
+ - BCST: you can turn on inter-set feedback (telling you when the rule shifts)
+
+ *New Tasks in the Test Battery (Now, version 0.7):
+
+
+  - BART task (Balloon Analog Risk Task). Supposedly measures risk-seeking.
+  - The Eriksen Flanker task.  Requires attentional filtering
+  - The ANT test (Attentional Network Test). A souped-up flanker
+    task + Posner Cueing Task
+  - The 'Oddball' task
+  - Number Stroop Task (with vocal input)
+  - New PCARDS 'PEBL CARD SORTING TEST' test. An adaptation of a
+    number of card-sorting tests, but it has only two responses and
+    ten possible categories.
+
+
+
+
+
+================================================================================
+Version 0.11
+
+Major changes:
+-Fixed a number of insidious and nasty memory leaks. These caused the
+ parameter passed to any function to not be cleaned up when the
+ function exited. Also, most graphical objects were never cleaned up
+ when PEBL finished using them.  For short experiments, this probably
+ made little difference, but it could lead to memory growing out-of-control if
+ the experiment uses a control loop to repeatedly call a function, or
+ for experiments that take a long time. These massive changes will in
+ the long run improve performance of PEBL substantially, but there may
+ be edge cases here and there that create unwanted crashes.  
+
+- Fixed the GetInput function so it accepts the uppercase characters
+  on numbers and other special characters.  This only help US
+  keyboards probably.
+
+- Added a new canvas object to allow an easy resettable drawing object.
+
+
+- Added SetPixel() function to allow you to draw on any graphical
+  widget (labels, imagebox, canvas, textbox, but not windows or
+  shapes) 
+
+- Also, made MakeGabor() function which uses SetPixel and canvases to
+  create parametric gabor patches.
+
+- After several versions without an OSX release, I once again
+  have a version of PEBL that runs on OSX.   It is not as polished as
+   most Mac users expect, but seems to work fairly well.  I'm not releasing an
+  OSX version of 0.11 right away as there are a lot of issues needed to handle to distribute on OSX,
+  but can give help compiling it, and will work toward a precompiled version.
+
+- One sort of important change in how parent/children are handled.
+  Previously, you could add a child to a parent and it would stay
+  there until removed, no matter what.  Even if you did this within a
+  Function, and kept the object in a local store which got deleted
+  when the function was done. This would of course give you no way to
+  access it later, so it probably only happened occasionally, for
+  widgets that remained on screen forever.  No more.  Now, you need to
+  pass the variable out of the function or make it a global, because
+  a locally-defined widget will get destroyed when the function ends,
+  and will get removed from the parent automatically.
+
+
+- A number of changes to make translation easier:
+
+  + Created new global variables gPEBLBaseFont, gPEBLBaseFontSerif,
+  gPEBLBaseFontMono, which name, by default, the newly-included DejaVu
+  series fonts. This should improve translation, because the previous
+  'default' font had poor coveragge for international characters, while
+  DejaVu has much better.  Plus, for character sets DejaVu doesn't
+  handle, you can override with a custom font which should then work
+  for helper functions like EasyTextBox().
+
+  + Added three new DEJAVU fonts, which are now used by default in most
+  experiments.  This will have enable easier internationalization,
+  because DEJAVU will work for a wider variety of scripts
+  out-of-the-box. 
+
+  + Added ukai and UnBatang fonts to enable handling of Chinese,
+  Korean, and Japanese text.
+
+  + The command-line option --language is now available.  This does
+  two things.  First, it sets the global variable gLanguage to the string
+  specified on the command line.  This is used to select text
+  strings in order to choose the proper translation on several of the
+  battery tests.  Currently, the iowa task, the bcst,
+  task, and the Tower of London task will look for gLanguage and
+  select text strings based on it, but only a crude spanish version
+  (--language "ES") exists for TOL and no alternate translations exist
+  for the other tasks.  In addition, it will set the gPEBLBaseFont
+  specified to ukai.ttc if you specify CN, or UnBatang.ttf if you
+  specify KO or JP.
+
+  + Translation of BCST into polish, Korean, and Chinese.
+  + Translation of Bechara's cardsort into Polish, Korean, Chinese.
+  + Translation of TOL into spanish, as a demo (gracias google).  A
+  Portuguese version is in the works.
+
+Minor changes:
+
+-Changed WaitForClickOnTarget to go from end to front, rather than
+front to end.  This should make it easier to click on the topmost of
+overlapping targets. See poetry demo for example.
+
+
+- Note that Draw() function allows 'imprinting' images on other widgets.
+
+
+- The last parameter of MakeFont() was previously not well documented
+  or completely consistent.  Using 1 gives the font (and ultimately,
+  the label) a solid background; using 0 gives it a clear background,
+  and so ignored bgcolor.  Previously, using 1 did the same thing, but
+  rendered the text without smoothing so it could look blocky.  I've
+  changed this so it renders smoothly in both cases.  This should not
+  impact textboxes, because the background is still in effect.  It
+  will impact EasyLabel, which now renders transparently, rather than
+  in a color matching the background.
+
+- Changed the order of precedence of unary minus and power
+  function. previously, -1^2 was +1; now it operates as expected.
+
+
+New functions:
+
+Rest():   returns end of a list
+Insert(): puts an item into a list
+RemoveSubset(): removes a subset of elements from a list
+ListBy():  aggregates a list by sublists defined by another list.
+Sample():  pick one item from a list.
+MakeAttneave(): create an attneave shape.
+SegmentsIntersect(): see if two segments intersect
+ToRight():  see if a point is to the right of a segment
+GetAngle3():  get the angle abc
+ConvexHull(): finds convex hull of a set of points
+ResetCanvas(): erases anything that has been drawn on a canvas
+GetEasyInput(): simple way to get text input.
+MessageBox():  simple way to give a message
+IsText():     is this text?
+IsString():  is this text?
+MakeCanvas(): creates a canvas
+IsCanvas():  tests whether something is a canvas
+SetPixel():  changes the color of a pixel on a canvas
+SetPoint():  identical to SetPixel
+WaitForMouseClickWithTimeout(): make a click within a time limit.
+
+
+PEBL TEST BATTERY VERSION 0.6
+
+New tasks:
+
+scales:  A set of  four visual-analog scales commonly used for
+ rating comfort.  Can be embedded within another experiment.
+
+
+Item-order test: see two character strings and determine whether they
+  are the same or different.
+
+Clock test: attentional vigilance task: pips on a clock face light up
+  once per second; respond when a pip is skipped.
+
+Corsi blocks: classic visuo-spatial working memory task.
+Tapping: tap as fast as you can
+Tower of Hanoi: crude version of TOH task.
+
+I've also included a set of tasks designed for an upcoming paper,
+called the "PEBL Cognitive Decathlon".  Among several existing tasks,
+it also includes:
+
+Device mimicry: Make copies of a figure with a 4-df etch-a-sketch
+
+objectjudgment: Are two attneave shapes identical?  Are they identify
+if rotated?
+
+ptracker: Compensatory tracker task 
+
+visual search:  Classic visual search paradigm; fairly flexible.
+
+Major improvements:
+
+ Tower of London: Substantial improvements;  We now include about 10
+ pre-canned published problem sets, including Fimbel's and TOL-R.
+
+
+---------------------------------------------------------------
+Version 0.10
+
+
+* PEBL should read more UTF-8 formats (including ones with BOF
+  markers, as produced by notepad), and should give useful 
+  errors when reading UTF-16 files, which PEBL cannot use.
+
+* After using PEBL in fullscreen mode, your computer should return to
+  the original screen resolution under more conditions than before.
+
+
+* Added a new special variable gQuote, which is equal to a quotation
+  mark (").  Now, if you need that special character in a text string, 
+  you can do things like:
+    text <- "Stop when you see the word " +gQuote + "STOP" + gQuote + "."
+
+
+ * Added a WritePNG(filename, widget) function, to allow for easy creation of 
+   screenshots and such.
+
+*  Added GetSystemType() function.  It will return either "OSX",
+   "LINUX", or "WINDOWS", depending on your system.
+
+*  Added SystemCall() function.  Allows you to run command-line
+   functions, passed in as a text string.  Note that the output of a
+   command-line argument is generally not passed back into PEBL; just
+   the function's return code, which is usually 0 on success or some
+   other number on failure (depending upon the type of failure).  Some
+   uses might include:
+      if(GetSystemType() == "WINDOWS")
+       {
+         x <- SystemCall("dir input.txt") 
+       } else {
+         x <- SystemCall("ls input.txt") 
+       }
+
+      if(x <> 0)
+      {
+         SignalFatalError("Expected file input.txt does not exist")
+      }
+
+
+
+* Added a number of new functions:
+   - ZeroPad(number, base) pads the number with up to base 
+     zeroes to the left of the decimal place.
+
+New Functions:
+  ReadCSV()
+  Inside()
+  Enquote()
+  StripSpace()
+  StripQuotes()
+  Dist()
+  ZeroPad()
+  RGBtoHSV()
+  WritePNG()
+  SystemCall()
+  GetSystemType()
+  WaitForClickOnTarget()
+  WaitForDownClick()
+  GetAngle()  
+  ThickLine() 
+
+
+* Added some public domain images for giving feedback  *
+* Fixed DegToRad and RadToDeg--they worked opposite to expected.
+
+* Added the .name property to most objects.  This lets you do some
+  minimal introspection and decide what kind of thing an object is.
+
+PEBL Test Battery
+
+  We've added a number of new experiments to the test battery.  
+
+
+-------------------------------------------------- 
+Version 0.09
+
+
+* Added RotoZooming code.  Now, all graphical objects (textboxes,
+labels, imageboxes, but not currently simple shapes) have properties
+xzoom, yzoom, and rotation.  These objects can be stretched and
+rotated using these properties;
+
+
+Also, two new generic drawing objects have been added: Polygon and Bezier:
+
+  Polygon(<x>,<y>,<xpoints>,<ypoints>,<color>,<filled>)
+  Bezier(<x>, <y>, <xpoints>, <ypoints>, <steps>, <color>)
+
+
+These allow arbitrary polygons to be created.  
+
+  Three new functions allow fairly flexible operations 
+  on sets of points, which can then be turned into polygons.
+  They take a list of x,y pairs, and perform the  appropriate operation
+
+  RotatePoints(points,theta)      Where theta is in radians
+  ReflectPoints(points)           Reflects left-right along vertical axis
+  ZoomPoints(points, xzoom,yzoom) Resizes x/y dimensions of set of points
+             
+
+  Two helper functions create sets of points that can be used
+  in the above, or fed into polygon.
+
+  MakeStarPoints(<outer radius>, <inner radius>, <number of peaks>)
+  MakeNGonPoints(<radius>,<number of edges>)
+
+
+A few helper functions build ready-made polygons that can be added
+directly to a window:
+    
+ BlockE(x,y,h,w,thickness,direction,color)
+  Here, direction indicates where the E is pointing: 
+     1=right, 2=down, 3=left, 4=up.
+
+ Plus(x,y,size, width, color)
+
+
+* Made package relocatable on linux/mac (thanks to binreloc)
+
+* Added a script variable to control busy-waiting:
+    set gSleepEasy <- 1 to put mini sleeps in the busy wait loop.
+    This reduces the timing resolution by a little (tests show it
+    can lose  1-2 ms in comparison to the busy-wait strategy.
+    This may make PEBL useable on some older systems, and may make
+    worst-case timing better with a small sacrifice of typical-case.
+    Furthermore, it can be changed during the script, so you don't peg
+    cpu time while instructions are being read.
+
+* Fixed labels so that you can assign a font with label.font <- font
+
+* The color of the window can be accessed with window.BGCOL
+
+* Added limited mouse events.  The new functions include:
+  WaitForMouseButton(),
+  This takes no arguments, and returns a 4-tuple list, indicating:
+  [xpos, ypos, button_id [1-3], "<pressed>" or "<released>"]
+  SetMouseCursorPosition(x,y)
+  GetMouseCursorPosition()  (returns [x,y]
+
+ A new version of the "iowa" gambling task demos clicking
+  interface instead of keyboard.  In addition, a new demo experiment
+  hunt.pbl uses some mouse-controlled event to search for a target.
+
+* Added IsWindow() and IsShape()
+
+* Helper functions for easy creation of labels and textboxes:
+
+ EasyLabel(text,x,y,win,fontsize)
+ EasyTextBox(text,x,y,win,fontsize,width,height)
+
+ No need to define fonts, colors, sizes, or even adding/moving to the
+ location you want--It does it all as a one-liner.
+
+* Helper function to get subject number (if none was set in the
+  launcher
+
+ GetSubNum(win) 
+
+  It will get and return a subject identifier.  
+  After a window has been defined, a simple thing to do is
+
+  if(gSubNum == 0)
+  {
+   gSubNum <- GetSubNum(win)
+  }
+
+* Added SummaryStats(<data>, <conditions>) , a statistic summarizer
+  function, which computes  means/sds/medians of <data> by
+  <conditions>.  Currently, <data> must be a single list
+  
+* Added PrintList(<list>) and FilePrintList(<file>,<list>), which
+  print out a list without the , and [] formatting.
+
+* Fixed some bugs in the windows launcher
+
+* Added a PrintProperties() function, mainly for debugging.  Use it to 
+display the properties an object has defined.
+
+* Fixed a bunch of things in the test battery.  This release
+  officially contains Battery Version 0.3.
+
+   Ten new tests: 
+   	   * The Stroop test, 
+	   * 2-column addition
+ 	   * 4-choice RT, 
+	   * Lexical Decision task, 
+	   * (Posner's) Spatial Cueing task,
+	   * PEBL Manual Dexterity task
+       * PEBL compensatory tracking task (ptracker)
+       * A Mental rotation task 
+ 	   * Matrix rotation task
+       * Time wall, a visual time production/estimation task.
+   -Much improved version of Berg's Cardsort. Fixed bugs, added proper
+   computation of perseverations, etc.
+   -Added a mouse-driven version of Bechera's Gambling Task, and some
+   other fixes.
+
+Summary list of new functions:
+ IsShape 
+ IsWindow 
+ GetSubNum 
+ PrintList 
+ FilePrintList 
+ SummaryStats 
+ EasyLabel
+ EasyTextBox
+ WaitForMouseButton 
+ GetMouseCursorPosition 
+ SetMouseCursorPosition 
+ BlockE 
+ Plus 
+ MakeStarPoints 
+ MakeNGonPoints 
+ ZoomPoints
+ ReflectPoints
+ RotatePoints
+ Polygon
+ Bezier
+ PrintProperties 
+
+
+-------------------------------------------------- 
+Version 0.08
+September 2007
+
+
+* Unicode support for foreign scripts.
+* Fixed bug which made abs and < not work properly
+* Fixing cr\lf parse errors on Unix
+* fixed .height and .width properties for images
+* Fix crasher when drawing cursor out-of-bounds in textboxes
+* Fixed cursor formatting error when reflowing text
+* Adding functions to compute normal distribution:
+   CumNormInv(p) (uses accurate numerical approximation)
+   NormalDensity(x)
+   SDTDPrime(hr,far)
+   SDTBeta(hr,far) 
+ 
+* Update the launcher so it doesn't give misleading feedback when no
+  stdout.txt file is created
+* Fix launcher so it correctly uses subject number.
+* Return to compiling with gcc on windows (after previous use of MSVC++ Express)
+
+Test Battery:
+  * Fixes to IGT, add feedback graph
+  * fixes to  probabilistic reversal, 
+  * Added Hungry Donkey, a kid's version of IGT
+  * BCST (compute perseverations), compute trial number
+  * Add Psychomotor Vigilance Task (PVT)
+  * Add working Partial report (iconic memory) experiment.
+  * Added Tower of London demo experiment
+
+* Updated launcher and output handling to avoid the 'cannot find file'
+  bug people get scared off by.
+
+Now, stdout.txt and stderr.txt are stored in the file that the script
+is run from, and the launcher looks there for the output.  Now,
+stdout.txt should alway be written, even if it just a blank file, and
+so no informative message should appear.
+
+
+* Standard script files (including all the demo and the battery
+  scripts) are now found in pebl-exp0.08, instead of just pebl-exp.
+  This is just so nobody gets their custom scripts overwritten.
+
+
+
+--------------------------------------------------
+Version 0.07
+June 2006
+
+The seventh release of PEBL has arrived. This release incorporates a
+set of functions allowing network communication via tcp/ip, a number
+of bugfixes for the property system, a bunch of new functions, new
+fonts, and several new mini-projects associated with PEBL.  Along with
+releasing the standard PEBL distribution, we are releasing (1) The
+PEBL Test Battery, a set of tasks often used for clinical and
+neuropsychological purposes; (2) PEBL image archive, a set of
+public-domain images for use in experiments, and (3) PEBL sound
+archive, a set of .wav files useful in experiments.
+
+New fonts: 
+ I've tracked down a bunch of fonts with really liberal
+ licensing, which should fill in a few gaps left in the Bitstream
+ Vera fonts.  New fonts are listed below, and all fonts are viewable
+ by running the fonts.pbl script in the demo directory.  One font,
+ called Stimulasia.ttf, is our own custom font that will be used to
+ put custom glyphs useful in experimental research.
+
+Caliban.ttf       CharisSILR.ttf           FreeSansOblique.ttf     
+Caslon-Black.ttf  DoulosSILR.ttf           FreeSans.ttf            
+CaslonBold.ttf    FreeMonoBoldOblique.ttf  FreeSerifBoldItalic.ttf  
+CaslonItalic.ttf  FreeMonoBold.ttf         FreeSerifBold.ttf        
+CaslonRoman.ttf   FreeMonoOblique.ttf      FreeSerifItalic.ttf      
+CharisSILBI.ttf   FreeMono.ttf             FreeSerif.ttf            
+CharisSILB.ttf    FreeSansBoldOblique.ttf  GenI102.ttf              
+CharisSILI.ttf    FreeSansBold.ttf         GenR102.ttf              
+Humanistic.ttf    Stimulasia.ttf
+
+These new fonts add considerably to the download size, but it is still
+pretty small, and it is pretty important to have a common set that can
+be counted on being present.
+
+Network Communication:
+ To enable synchronizing and communicating between computers, a set of
+ functions have been added that allows primitive communication via
+ TCP/IP.  We use the sdl_net library to achieve this, and so that
+ library is now required to build and use PEBL.
+
+
+Syntax:  
+ Syntax has been polished to allow a bit more freedom in where
+ brackets { and } are placed, and we've added an elseif (){}
+ continuation to the if() statement, so you can do things like:
+
+##This should print out "THREE"
+  if(3 == 1) {
+             Print("ONE")
+  }elseif(3==4){
+             Print("TWO")
+  }elseif(4==4){
+             Print("THREE")
+  }elseif(4==4){
+             Print("FOUR")
+  }else{Print("FIVE")}
+
+
+New functions:
+*Tab(<n>)          Adds a tab character to a text string
+*CR(<n>)            Adds newline/carriage return
+*Format()       Prints a number/string with a specific number of
+               characters, either by truncating or padding with spaces.
+*ListToString() Concatenates everything in a list into a string.
+*ShowCursor()   Hides or shows cursor
+*WaitForListKeyPressWithTimeout()
+               Waits for either a keypress from a specified set or a timeout.
+*Quantile(<list>,<quantile>)     Computes specific quantile of a list of data.
+          
+*ShuffleRepeat()  Repeats a list, shuffling each time.
+
+*ShuffleWithoutAdjacents() 
+               Shuffles a list, allowing one to specify 
+               items that should not be adjacent in output list
+                          
+*LatinSquare()  Quick-and-dirty latin square
+*ReplaceChar()  Substitutes  one character for another in a string.
+*Lookup(<key>,<keylist>,<database>)        Returns element matching a lookup key in another list.
+
+*ConnectToIP(<ip>,<port>)   
+               Connects to a port on another computer, returning
+               network object.
+
+
+*ConnectToHost(<hostname>,<port>) 
+               Connects to a port on another computer, returning
+               network object.
+
+
+*WaitForNetworkConnection(<port>)
+               Listens on a port until another computer connects,
+               returning a network object
+
+*CloseNetworkConnection(<network>)  
+               Closes network connection
+*SendData(<network>,<datastring>)  
+               Sends a data string over connection.
+*GetData(<network>,<length>) 
+               Return a string from network connection
+*ConvertIPString(<ip-as-string>)  
+               Changes an ip-string into integer
+
+Misc & Bugfixes:
+ * Arrow keys can be used--use "<left>", "<right>", "<up>" and "<down>" in
+ functions like WaitForKeyPress().
+ * The mathematical power operator (^) now works.
+ * Fixed a bug that introduced garbage characters when converting
+ number to string or printing numbers
+ * Fixed a wrapping bug in textboxes where a single letter followed
+ by a return would not wrap to the next line.
+ * When creating a file in a non-existent directory, PEBL did not
+ previously complain, but no file would be created.  Now, the script
+ fails with appropriate warning.
+ * Fixed MakeColorRGB(). Previously, this function had defined colors with an
+alpha transparency set to completely transparent, rather than
+solid. Now it should be possible to create colors that can be seen!
+
+
+
+ 
+
+
+--------------------------------------------------
+Version 0.06
+January 2006
+
+The sixth version of PEBL has been released. While the previous
+release focused on stability, this release brings some substantial
+changes to the underlying object management system.  Consequently, we
+expect a few bugs to have crept in undetected.  Major user-visible
+changes include the ability to create simple shape objects (like
+Circle(), Ellipse(), etc.), the ability to access object properties
+directly with a variable.property syntax, and a few new statistical
+functions.  A new command-line option, -s, enables you to set the
+variable gSubNum automatically at initiation, and the global variables
+gVideoWidth and gVideoHeight can now be changed at the beginning of a
+script, affecting the display screen size when MakeWindow() is called.
+We also have a nicely improved 100-page manual in pdf and html format
+thanks to the efforts of Gulab Parab and Samuele Carcegeno, a new
+tutorial for beginners trying to learn PEBL, and a WIKI available on
+the website for help and tips, and where you can post your own
+experiments.  We have improved PEBL's handling of international
+keyboards, and so a number of non-US keyboards may now work better, albeit
+with a few problems.  The windows version seems to not work however, so please
+test your favorite keyboard setup with the testinput.pbl script and
+send us feedback. This will be a priority for version 0.07.
+
+SHAPES. 
+ Now, several graphical 'shape' objects can be created and
+displayed directly, as an alternative to generating an image file with
+an external drawing program and loading it with MakeImage().  These
+include Line(), Square(), Rectangle(), Circle(), and Ellipse().  They
+can be created as filled or unfilled objects, moved around with the
+Move() function or .x and .y properties.  Like regular images, they
+must be added to the parent window with the AddObject() function, and
+are drawn when the Draw() function is called.  Shapes definition
+function include their initial coordinates in the parent window.
+Shapes come courtesy of the sdl_gfx library, so if you are compiling
+on linux, you need this library installed.
+
+Object/Properties.
+Previously, properties of objects were held privately by the object
+and were essentially inaccessible to user experiments, and modified by
+special functions.  With the new changes, object properties are
+available directly from the variable using a variable.property
+syntax.  All properties of an object are available for reading, and
+many can be set using the assignment symbol '<-'.  For example, if a
+variable representing an object has the property TEXT, it can be
+accessed like:
+  myText <-  object.TEXT
+  Print(myText)
+
+and it can be modified by doing something like:
+  object.TEXT <- "New Text"
+
+Old accessor functions are still available, so
+  SetText(object, "Alternative new text")
+still works.
+
+Properties are case insensitive, and are currently predefined for all
+objects.  Some objects and their accessible properties:
+
+
+All Widgets:          .X, .Y, .Width, .Height, .Visible
+Text-based widgets:   .Font, .Text
+TextBoxes:            .CursorPos, .Editable
+Colors:               .Red, .Green, .Blue, .Alpha
+Fonts:                .Bold, .Italic, .Underline, .Filename, .FGColor,
+                      .BGColor
+All Shapes:           properties of widgets, .Color, .OutlineColor, .Filled
+Circle:               .Radius
+Square:               .Size
+Rectangle:            .SizeX, .SizeY
+Ellipse:              .rX, .rY
+Line:                 .dX, dY
+     
+
+
+
+New Functions:
+  PEBL 0.06 introduces several new for creating shapes:  Circle(),
+  Square(), Line(), Ellipse(), Rectangle().  Median(), Mean(),
+  Order(), Rank(), Sum(), and StdDev()
+
+--------------------------------------------------
+Version 0.05
+July 2005
+
+The fifth PEBL release (named 0.05 rather than 0.5) focuses on memory
+management and other infrastructure.  There are few user-visable changes,
+but there are substantial beneath-the-hood fixes thanks to memory
+profiling tools like memprof and valgrind.  Most of the reckless use
+of pointers has been changed to counted pointers; std::string has
+replaced most of the use of char*, the parser doesn't leak memory
+anymore, the parse tree gets cleaned up properly, and the default
+compile options use -pedantic, forcing me to fix all wierd warnings
+that will hopefully catch errors as well.
+
+There are a couple cool additions to the syntax.  First, character
+strings in programs can span multiple lines, and those linebreaks are
+reflected in TextBoxes.  This makes it easier to put instructions
+in-line, because you don't have to do "text part one" + " text part
+two" to span lines.   Next, I've added a 'break' keyword that allows
+you to escape out of loops immediately.  I've also made keywords case
+insensitive, as was originally described in the manual but was never
+really true.
+
+I've also added the function 'DesignBalancedSampling', which works
+sort of like SampleWithReplacement:  You give it a list and a length
+of list you need--this list can (should) be longer than the list.  It
+will return a list of items which contains multiple shuffled copies
+of the original list, so that every instance on the list is present
+before any are repeated, and so that there are no direct repeats on
+the cusps between lists.  It chops off the last shuffled list.  If
+the epoch-shuffling is not desired, one can Shuffle() it afterwards.
+
+For linux users, I've mocked up a script (in the bin/ directory)
+that provides a demonstration on how to use the zenity program as a
+front-end launcher for your experiments, allowing you to enter things
+like subject numbers and conditions before the experiment launches.
+For emacs users, there is a new (and simplistic) .el mode available,
+which performs syntax highlighting but doesn't do proper indentation
+yet.  Finally, earlier this year I released an experimental version of
+PEBL 0.4 for Mac OSX, and 0.05 will be the first official release of
+PEBL for OSX.
+
+
+--------------------------------------------------
+Version 0.4
+March 2, 2005
+
+The fourth release of PEBL is here.  This release includes a bunch of
+new functions, some ready-to-run experiments I have prepared, and it
+allows you to set the display options as arguments, enabling different
+screen sizes, full-screen or windowed operation, and specifying the
+SDL driver you want to use.  I am also experimenting with an an
+automatic setup utility on Windows that puts PEBL into c:\Program
+files\PEBL, creates a PEBL experiment folder in My Documents, and
+creates launchers that run these nicely.
+
+Details:
+
+  New Command-line arguments:
+  --driver <drivername> 
+    e.g., on linux, dga for direct access or xf86 for X11
+    driver. No real difference on Windows
+     
+--display  <widthxheight>
+  Controls the screen width and height (in pixels). Defaults to 640x480.
+  Currently, only the following screens are supported:
+                512x384
+                640x480
+                800x600
+                960x720
+                1024x768
+                1152x864
+                1280x1024
+  Note: the way this is invoked may be changed in the future.
+
+--depth
+  Controls the pixel depth.  Depends on your video card.  Currently,
+  depths of 2,8,15,16,24, and 32 are allowed on the command-line.
+--windowed
+--fullscreen
+  Controls whether the script will run in a window or fullscreen.
+
+  These are accessible on windows through new controls in the launcher
+  application.  
+
+
+  New Functions:
+    FoldList
+    Flatten
+    FlattenN
+    Replace
+    MoveCorner
+    MoveCenter
+  
+
+I now include a set of experiments in the 'experiments' directory, which appears
+in My Documents\PEBL-exp in windows.  These include:
+
+    cue.pbl:             List learning/Gist recall experiments
+    IAT.pbl:             Implicit Association Test (http://implicit.harvard.edu/implicit/)
+    rsvp.pbl:            A demo trial to test RSVP-type presentation
+    lexicaldecision.pbl: Sample lexical decision task
+    masking.pbl:         A 2AFC visual perception task with briefly-presented stimuli
+    letterstrings:       Another 2AFC task, with letter strings.
+
+
+Other demo scripts that are not necessarily
+full-fledged experiments still live in the PEBL/demo directory. 
+
+   Notes:  There is a scoping/reference counter problem so that some
+   memory sometimes doesn't get released properly at the end of a
+   program, causing a segfault.  This is annoying, but pretty
+   harmless.
+
+
+--------------------------------------------------
+Version 0.3
+September 13, 2004
+
+The third public release of PEBL is now available!  In addition
+to the fixing of numerous bugs, I have improved the event
+handling system for better performance, added an
+abort-execution keyboard shortcut, added numerous new
+functions, including an all-in-one function that collects
+the demographic information required by NIMH, and have enabled
+text entry into textboxes.  I have been using and testing
+this version for a few months, and I think it is ready to
+release.
+
+Details:
+ 
+  * Added an event queue that captures OS events, along with
+    'state' events previously handled.
+  * TextBoxes are user-editable with the GetInput() function
+  * GetNIMHDemographics() collects NIMH data
+  * New event-related functions: 
+                                         WaitForKeyPress(),
+                                         WaitForAnyKeyPress(),
+                                         WaitForKeyRelease(),
+                                         WaitForListKeyPress(),
+                                                         
+  * New String handling functions:
+                                         Uppercase(),
+                                         Lowercase(),
+                                         StringLength()
+                                         SubString(),
+                                         FindInString(),
+					                     SplitString()
+  
+  * Programs can be aborted with <CTRL><ALT><SHIFT><\>
+  * Other new functions:
+                                    MoveCorner()
+	                                GetInput()
+                                    SetFont()
+
+--------------------------------------------------
+Version 0.2 
+January 25, 2004
+
+The second release of PEBL is now available.  In preparing a new experiment,
+ I found and fixed many bugs and implemented a dozen or so new functions.  
+Highlights include a new textbox object for displaying instructions and other
+text, and primitive windows launcher that allows you to set arguments like the 
+subject number or condition.
+
+Notes:
+
+ * Primitive TextBox objects are available
+ * Several fixes to bugs in grammar
+ * Win32 launcher
+ * On Windows (tm), PEBL now runs at HIGH priority
+ * Included some new sample images.
+ * Improved manual modestly.
+ * Began implementing useful library of built-in PEBL functions
+
+
+--------------------------------------------------
+Version 0.1
+January 3, 2004
+
+I would like to announce the first public release of PEBL, the
+cross-platform open source system for creating psychology experiments.
+It is incomplete and certainly contains bugs that limit its
+usefulness. With this release, it is usable on Linux and Microsoft
+Windows.
+
+
+
+Notes:  
+
+The first release of PEBL offers basic stimulus presentation and
+response collection capabilities.  PEBL can present many different
+kinds of images, it can present text using any truetype font, and it
+can present sounds stored in the .wav format.  It can collect
+responses using a standard computer keyboard. It is designed for
+controlling short experiments typically associated with cognitive
+psychology, on human subjects using standard computer systems.
+Consequently, it does not currently offer the ability to control or
+detect external devices, like the kind typically used in animal
+research labs (as well as in many cognitive and neuroscience research
+programs).
+
+For detailed descriptions on how to use PEBL, consult the PEBL manual
+found in the source or executable distributions at doc/manual.txt.
+
+PEBL is still embryonic, and the form it will eventually take will be
+driven by what its users want and need.  If you are interested in
+guiding its future, sign up to the email list at
+http://lists.sourceforge.net/lists/listinfo/pebl-list.  We welcome
+contributions at any level; from testing and bug-reporting, to the
+creation of new sample experiments, to the writing of documentation,
+to web site design and maintenance, to hard-core programming. Come
+join us and help build a better system for designing experiments.
+
+Despite its nascent state, the system is sufficient for many types of
+experiments.  It currently offers a library of about 125 functions
+that allow complex experiments to be created, and simplify many of the
+common tasks associated with creating an experiment.  We hope you find
+it useful and an attractive alternative to the expensive and
+proprietary solutions that currently exist.
+
+
+Caveats:  
+
+PEBL does not yet have great control over presentation timing,
+nor does it manage its priority well so it will easily get
+interrupted by the operating system.  Do not rely on this system for
+collecting reaction times or presenting tachistoscopic stimuli  
+unless it is acceptable to be tens of milliseconds off.  The control
+over stimulus presentation is compromised because the SDL library
+API does not provide a way to sync with the video card vertical
+blank.  Timing in general is compromised by the fact that it runs on
+time-sharing operating systems that do not allow for real-time
+scheduling.  The timing can be improved by running at a higher
+priority and shutting off unnecessary programs, as well as by using
+an operating system that supports low-latency kernel pre-emption (like
+Linux 2.6).
+
+Many of the documented functions are not implemented yet.  If you
+attempt to use an unimplemented function, it will signal a fatal
+error that will tell you that the function is not implemented. Sorry
+for the inconvenience.
+
+I anticipate making a bug-fix release in early 2004
+--------------------------------------------------

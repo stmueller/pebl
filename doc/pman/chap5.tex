@@ -1,0 +1,540 @@
+\chapter{ Function Quick Reference} 
+\label{sec:five} 
+
+Table \ref{tab:quick} lists the functions available for use with PEBL. 
+Those that are unimplemented are noted as such. If you want the functionality of an unimplemented function, or want functionality 
+not provided in any of these functions, contact us, or better yet, 
+contribute to the PEBL project by implementing the function yourself. 
+
+
+
+\begin{longtable}{|p{3.5cm}|p{3cm}|p{6cm}|} 
+\caption{Function Quick Reference} \label{tab:quick} \\ 
+\toprule 
+\textbf{Name} & \textbf{Arguments} & \textbf{Description}\\ 
+\midrule 
+\addlinespace[0.2cm] 
+\endfirsthead 
+
+\midrule 
+\textbf{Name} & \textbf{Arguments} & \textbf{Description}\\ 
+\midrule 
+\addlinespace[0.2cm] 
+\endhead 
+
+\midrule 
+\endfoot 
+
+\bottomrule 
+\endlastfoot 
+
+\multicolumn{3}{c}{\textbf{Math Functions}}\\ 
+
+\midrule
+\verb+Log10+ &\verb+<num>+ &Log base 10 of \verb+<num>+\\ 
+\verb+Log2+ &\verb+<num>+ &Log base 2 of \verb+<num>+ \\ 
+\verb+Ln+ &\verb+<num>+ &Natural log of \verb+<num>+\\ 
+\verb+LogN+ &\verb+<num> <base>+ &Log base\verb+ <base>+ of \verb+<num>+\\ 
+\verb+Exp+ &\verb+<pow>+ &$e$ to the power of \verb+<pow>+ \\ 
+\verb+Pow+ &\verb+<num> <pow>+ &\verb+<num>+ to the power of \verb+<pow>+\\ 
+\verb+Sqrt+ &\verb+<num>+ &Square root of \verb+<num>+\\ 
+\verb+NthRoot+ &\verb+<num> <root>+ &\verb+<num>+ to the power of 1/\verb+<root>+\\ 
+\verb+Tan+ &\verb+<deg>+ &Tangent of \verb+<deg>+ degrees \\ 
+\verb+Sin+ &\verb+<deg>+ &Sine of \verb+<deg>+ degrees \\ 
+\verb+Cos+ &\verb+<deg>+ &Cosine of \verb+<deg>+ degrees \\ 
+\verb+ATan+ &\verb+<num>+ &Inverse \verb+Tan+ of \verb+<num>+, in degrees\\ 
+\verb+ASin+ &\verb+<num>+ &Inverse Sine of \verb+<num>+, in degrees\\ 
+\verb+ACos+ &\verb+<num>+ &Inverse Cosine of \verb+<num>+, in degrees\\ 
+\verb+DegToRad+ &\verb+<deg>+ &Converts degrees to radians\\ 
+\verb+RadToDeg+ &\verb+<rad>+ &Converts radians to degrees\\ 
+\verb+Round+ &\verb+<num>+, \verb+<precision> (opt)+ &Rounds \verb+<num>+ to nearest integer, or optionally power of 1/ten precision.\\ 
+\verb+Floor+ &\verb+<num>+ &Rounds \verb+<num>+ down to the next integer\\ 
+\verb+Ceiling+ &\verb+<num>+ &Rounds \verb+<num>+ up to the next integer\\ 
+\verb+AbsFloor+ &\verb+<num>+ &Rounds \verb+<num>+ toward 0 to an integer\\ 
+\verb+Mod+ &\verb+<num> <mod>+ &Returns \verb+<num>+ mod \verb+<mod>+ or remainder of \verb+<num>/<mod>+ \\ 
+\verb+Div+ &\verb+<num> <mod>+ &Returns \verb+round(<num>/<mod>)+ \\ 
+\verb+ToInteger+ &\verb+<num>+ &Rounds a number to an integer, and changes internal representation\\ 
+\verb+ToFloat+ &\verb+<num>+ &Converts number to internal floating-point representation\\ 
+\verb+ToNumber+ &\verb+<>+ & \\ 
+\verb+ToString+ &\verb+<num>+ &Converts a numerical value to a string representation\\ 
+\verb+Sign+ &\verb+<num>+ &Returns +1 or -1, depending on sign of argument\\ 
+\verb+Abs+ &\verb+<num>+ &Returns the absolute value of the number\\ 
+\verb+CumNormInv+&\verb+<p>+&Returns accurate numerical approximation of cumulative normal inverse.\\
+\verb+NormalDensity+&\verb+<x>+&Returns density of standard normal distribution.\\
+\verb+SDTDPrime+&\verb+<hr>+,\verb+<far>+, \verb+<tol>+(opt) &Computes SDT dprime.\\
+\verb+SDTBeta+&\verb+<hr>+,\verb+<far>+, \verb+<tol>+(opt)&Computes SDT beta.\\
+\verb+Order+ &\verb+<list>+ &Returns a list of integers representing the order of \verb+<list>+\\ 
+\verb+Rank+ &\verb+<list>+ &Returns integers representing the ranked indices of the numbers of\verb+<list>+\\ 
+\verb+Median+ &\verb+<list>+ &Returns the median value of the numbers in \verb+<list>+\\ 
+\verb+Min+ &\verb+<list>+ &Returns the smallest of \verb+<list>+\\ 
+\verb+Max+ &\verb+<list>+ &Returns the largest of \verb+<list>+\\ 
+\verb+Bound+&\verb+<val>+, \verb+<min>+, \verb+<max>+& Returns val, bounded by min and max.\\
+\verb+StDev+ &\verb+<list>+ &Returns the standard dev of \verb+<list>+ \\ 
+\verb+Sum+ &\verb+<list>+ &Returns the sum of the numbers in \verb+<list>+\\ 
+\verb+CumSum+&\verb+<list-of-numbers>+&Returns the cumulative sums of a set of numbers\\
+\verb+VecSum+&\verb+<list1>+,\verb+<list2>+&Returns the pairwise sums of two lists of numbers\\
+\verb+VecTimes+&\verb+<list1>+,\verb+<list2>+&Returns the pairwise products of two lists of numbers\\
+\verb+Median+ &\verb+<list>+ &Returns the median of a set of values \\ 
+\verb+Quantile+ &\verb+<list> <num>+ &Returns the \verb+<num>+ quantile of the numbers in \verb+<list>+\\ 
+\verb+SummaryStats+ &\verb+<data>+,\verb+<cond>+ &Returns statistics (cond, N, median, mean, sd) computed on data for each distinct value of \verb+<cond>+\\ 
+\verb+SeedRNG+ &\verb+<num>+ &Seeds the random number generator with \verb+<num>+ to reproduce a random sequence\\ 
+\verb+RandomizeTimer+ & - & Seeds the RNG with the current time\\ 
+\verb+Random+ & - & Returns a random number between 0 and 1\\ 
+\verb+RandomDiscrete+ &\verb+<num>+ &Returns a random integer between 1 and \verb+<num>+ \\ 
+\verb+RandomUniform+ &\verb+<num>+ &Returns a random floating-point number between 0 and \verb+<num>+ \\ 
+\verb+RandomNormal+ &\verb+<mean> <stdev>+ &Returns a random number according to the standard normal distribution with \verb+<mean>+ and \verb+<stdev>+\\ 
+\verb+RandomExponential+ &\verb+<mean>+ &Returns a random number according to exponential distribution with mean \verb+<mean>+ (or decay 1/mean)\\ 
+\verb+RandomLogistic+ &\verb+<p>+ &Returns a random number according to the logistic distribution with parameter \verb+<p>+\\ 
+\verb+RandomLogNormal+ &\verb+<median> <spread>+ &Returns a random number according to the log-normal distribution with parameters \verb+<median>+ and \verb+<spread>+\\ 
+\verb+RandomBinomial+ &\verb+<p> <n>+&Returns a random number according to the Binomial distribution with probability \verb+<p>+ and repetitions \verb+<n>+\\ 
+\verb+RandomBernoulli+ &\verb+<p>+ &Returns 0 with probability \verb+(1-<p>)+ and 1 with probability \verb+<p>+\\ 
+
+\verb+ZoomPoints+&\verb+<[xs,yy]>+, \verb+<xzoom>+, \verb+<yzoom>+&Zooms a set of points in 2 directions\\
+\verb+ReflectPoints+&\verb+<[xs,yy]>+&Reflects points on vertical axis\\
+\verb+RotatePoints+ &\verb+<[xs,yy]>+,\verb+<angle>+&Rotates point \verb+<angle>+ degrees\\
+\verb+GetAngle+&\verb+<x>+,\verb+<y>+&Returns the angle in degrees of a vector.\\
+\verb+Dist+&\verb+<x1,y1>+,\verb+<[x2,y2]>+&Returns distance between two points.\\
+\verb+ToRight+&\verb+<p1,p2,p3>+&Determines whether p3 is te the right of line p1p2\\
+\verb+GetAngle3+&\verb+<a,b,c>+ & Gets angle abc.\\
+\verb+SegmentsIntersect+ & \verb+<ax,ay,+ \verb+bx,by,+ \verb+cx,cy,+ \verb+dx,dy>+  &Determines whether line segment ab intersects cd.\\
+\verb+NonOverlapLayout+&\verb+<xmin,xmax,+ \verb+ymin,ymax,+ \verb+tol,num>+  &Creates a set of num points that don't overlap, but fails gracefully\\
+\verb+LayoutGrid+& \verb+<minx,maxx,+ \verb+miny,maxy,+ \verb+height,width,+ \verb+vertical>+
+                          &Creates [x,y] pairs in a grid for graphical layout \\
+%% these are not released yet:
+%%  \verb+LayoutGrid2&\verb++&Creates [x,y] pairs in a grid for graphical layout \\
+
+
+\\
+\newpage
+\addlinespace[0.2cm] 
+
+\cmidrule(l{.5cm}r{.5cm}){1-3} 
+\multicolumn{3}{c}{\textbf{File/Network/Device Functions}}\\ 
+\cmidrule(l{.5cm}r{.5cm}){1-3} 
+
+\verb+Print+ &\verb+<value>+ &Prints \verb+<value>+ to \texttt{stdout}, appending a new line afterwards. \texttt{stdout} is the console (in Linux) or the file \texttt{stdout.txt} (in Windows)\\ 
+\verb+Print_+ &\verb+<value>+ &Prints \verb+<value>+ to stdout, without appending a newline afterwards\\ 
+\verb+PrintList+&\verb+<value>+ &Prints \verb+<list>+, getting rid of '[', ']' and ',' characters.\\ 
+\verb+Format+ &\verb+<object>+ \verb+<size>+ &Prints a number with specified spaces by truncating or padding \\ 
+\verb+ZeroPad+ &\verb+<number>+ \verb+<size>+ &Pads the beginning of a number with 0s so the number is size long\\
+\verb+FileOpenRead+ &\verb+<filename>+ &Opens a filename, returning a stream to be used for reading information\\ 
+\verb+FileOpenWrite+ &\verb+<filename>+ &Opens a filename, returning a stream that can be used for writing information. Creates new file if file already exists\\ 
+\verb+FileOpenOverwrite+ &\verb+<filename>+ &Opens a filename, returning a stream that can be used for writing information. Overwrites if file already exists\\ 
+\verb+FileOpenAppend+ &\verb+<filename>+ &Opens a filename, returning a stream that can be used for writing info. Appends if the file already exists, opens if file does not\\ 
+\verb+FileClose+ &\verb+<filestream>+&Closes a filestream variable. Pass the variable name, not the filename\\ 
+\verb+FilePrint+ &\verb+<filestream>+ \verb+<value>+ &Like \verb+Print+, but to a file.\\ 
+\verb+FilePrint_+ &\verb+<filestream>+ \verb+<value>+ &Like \verb+Print_+, but to a file.\\ 
+\verb+FilePrintList+&\verb+<file>+\verb+<list>+ &Prints \verb+<list>+ to \verb+<file>+, getting rid of '[', ']' and ',' characters.\\ 
+\verb+FileReadCharacter+ &\verb+<filestream>+ &Reads and returns a single character from a filestream\\ 
+\verb+FileReadWord+ &\verb+<filestream>+&Reads and returns a `word' from a file; the next connected stream of characters not including a \texttt{` '} or a newline. Will not read newline characters\\ 
+\verb+FileReadLine+ &\verb+<filestream>+&Reads and returns a line from a file; all characters up until the next newline or the end of the file\\ 
+\verb+FileReadList+ &\verb+<filename>+ &Given a filename, will open it, read in all the items into a list (one item per line), and close the file afterwards\\ 
+\verb+FileReadTable+ &\verb+<filename>+ \verb+<opt-sep>+ &Like \verb+FileReadList+, but reads in tables. Optionally, specify a token separator\\ 
+\verb+GetNewDatafile+&\verb+<id-code>+, \verb+<window>+, \linebreak \verb+<basename>+,\linebreak \verb+<extension>+, \verb+<header>+& Opens a data file in subnum directory\\
+\verb+ReadCSV+ &\verb+<filename>+&Opens a csv file returning a table with its elements\\ 
+\verb+FileReadText+ &\verb+<filename>+ &Reads all of the text in the file into a variable\\ 
+\verb+EndOfLine+ &\verb+<filestream>+&Returns true if at end of line \\ 
+\verb+EndOfFile+ &\verb+<filestream>+&Returns true if at the end of a file\\ 
+\verb+GetDirectoryListing+
+                  &\verb+<path>+&Returns a list of all the files/subdirectories in a path\\
+\verb+FileExists+&\verb+<path>+&Checks whether a file exists\\
+\verb+IsDirectory+&\verb+<path>+&Checks whether a file is a directory\\
+\verb+MakeDirectory+&\verb+<path>+,\verb+<dirname>+&Creates a directory in path\\
+\verb+AppendFile+   & \verb+<file1>+ ,\verb+<file2>+ & Appends a file2 to file1\\
+\verb+CopyFile+     &\verb+<file>+,\verb|<newfile>|&Makes a copy of a file\\
+\verb+DeleteFile+& \verb+<file1>+ & Deletes a file\\
+\verb+ConnectToIP+ &\verb+<ip>+ \verb+<port>+&Connects to a port on another computer, returning network object.   \\
+\verb+ConnectToHost+&\verb+<hostname>+ \verb+<port>+&Connects to a port on another computer, returning network object.\\
+\verb+WaitForNetwork+ \verb+   Connection+&  \verb+<port>+&Listens on a port until another computer connects, returning a network object\\
+\verb+CloseNetwork+ \verb+   Connection+& \verb+<network>+& Closes network connection\\
+\verb+SendData+&\verb+<network>+ \verb+<datastring>+&  Sends a data string over connection.\\
+\verb+GetData+&\verb+<network>+ \verb+<length>+&return a string from network connection\\
+\verb+ConvertIPString+&\verb+<ip-as-string>+&Converts an
+ip-number-as-string to usable address \\
+\verb+OpenNetworkListener+ & \verb+<port>+&Opens a port for listening\\
+\verb+CheckForNetwork+ \verb+   Connection+&\verb+<network>+&Checks for incoming connection\\
+\verb+GetHTTPFile+&\verb+<server>+, \verb+<file>+,\newline \verb+<outputfile>+&Gets and saves a file from a website\\
+\verb+GetHTTPText+&\verb+<server>+, \newline \verb+<file>+&Gets a file from a website and saves it to a variable.\\
+
+\verb+PostHTTP+&\verb+<host>+,\verb+<page>+, \newline \verb+<headers>+, \verb+<content>+ &Post to a server form.\\
+\verb+MD5Sum+&\verb+<text>+& Computes MD5 checksum on text\\
+\verb+MD5File+&\verb+<filename>+&Computes MD5 Checksum on file.\\
+
+
+\verb+WritePNG+&\verb+<filename>+, \verb+<object>+ &Makes a .png from a window or object\\
+
+\verb+GetNumJoysticks+        & no argument&Determines how many joysticks are available\\
+\verb+OpenJoystick+           & \verb+joystick_id+& Gets a joystick object\\
+\verb+GetNumJoystickAxes+     &\verb+joystick_object+&Counts how many axes on a joystick\\
+\verb+GetNumJoystickBalls+    &\verb+joystick_object+&Counts how many balls on a joystick\\
+\verb+GetNum+ \verb+   JoystickButtons+  &\verb+joystick_object+&Counts how many buttons on a joystick\\
+\verb+GetNumJoystickHats+     &\verb+joystick_object+&Counts how many hats on a joystick\\
+\verb+GetJoystickAxisState+   &\verb+joystick_object+, \verb+axis_id+&Gets the state of a joystick axis\\
+\verb+GetJoystickHatState+    &\verb+joystick_object+, \verb+hat_id+&Gets the state of a joystick hat\\
+\verb+GetJoystick+ \verb+ButtonState+ &\verb+joystick_object+, \verb+button_id+&Gets the state of a joystick button\\
+\verb+GetJoystickBallState+   &\verb+joystick_object+, \verb+ball_id+&Gets the state of a joystick ball\\
+
+\verb+OpenCOMPort+    & \verb+<portnum>+, \verb+<baud>+ & Opens a serial (com) port\\
+\verb+COMPortGetByte+ &\verb+<port>+                    & Gets a byte from the comport\\
+\verb+COMPortSendByte+  &\verb+<port>+,\verb+<byte>+   & Sends a character to the comport\\
+
+
+\verb+OpenPPort+     & \verb+<portname>+ & Opens parallel port\\
+\verb+SetPPortMode+  & \verb+<port>+ \verb+<mode>+& Sets parallel port mode (input/output)\\
+\verb+SetPPortState+ & \verb+<port>+ \verb+<state>+& Sets parallel port state\\
+\verb+GetPPortState+ & \verb+<port>+ & Gets state of parallel port data bits\\
+
+\addlinespace[0.2cm] 
+
+\cmidrule(l{.5cm}r{.5cm}){1-3} 
+\multicolumn{3}{c}{\textbf{Graphical Objects Functions}}\\ 
+\cmidrule(l{.5cm}r{.5cm}){1-3} 
+
+\verb+MakeWindow+ &\verb+<colorname>+ (opt),
+                 \verb+<width>+(opt),
+                  \verb+<height>+(opt) &Creates main window, in color named by argument, or grey if no argument is named\\ 
+\verb+MakeImage+ &\verb+<filename>+ &Creates an image by reading in an image file (jpg, gif, png, bmp, etc.)\\ 
+\verb+MakeLabel+ &\verb+<text> <font>+&Creates a single line of text filled with \verb+<text>+ written in font \verb+<font>+\\ 
+\verb+MakeTextBox+ &\verb+<text> <font>+ &Creates a sized box filled \\ 
+&\verb+<width> <height>+& with \verb+<text>+ written in font \verb+<font>+ \\ 
+\verb+MakeCanvas+& \texttt{<width>, <height>,} &Creates a blank canvas\\
+                  &  \texttt{<color>} &to add objects to or draw on\\
+\verb+ResetCanvas+&\verb+<canvas>+&Resets a canvas to its background,
+erasing anything drawn on the canvas\\
+\verb+EasyLabel+ &\verb+<text>+ \verb+<x>+\verb+<y>+ \verb+<win>+\verb+<fontsize>+&Creates a single line of text and adds it to win at \verb+<x>+\verb+<y>+\\ 
+\verb+EasyTextBox+ &\verb+<text>+ \verb+<x>+ \verb+<y>+ \verb+<win>+ \verb+<fontsize>+ \verb+<width>+ \verb+<height>+&Creates a textbox and adds it to \verb+<win>+ at \verb+<x>+\verb+<y>+\\ 
+\verb+MakeColor+ &\verb+<colorname>+ & Creates a color based on a color name\\ 
+\verb+MakeColorRGB+ &\verb+<red>+ \verb+<green>+ \verb+<blue>+ & Creates a color based on red, green, and blue values\\ 
+\verb+RGBToHSV+ &\verb+<color>+ & Converts a color to HSV triple\\ 
+\verb+MakeFont+ &\verb+<ttf_filename>+ \verb+<style>+ \verb+<size>+ \verb+<fgcolor>+ \verb+<bgcolor>+ \verb+<anti-aliased>+&Creates a font which can be used to make labels \\ 
+\verb+SetCursorPosition+\\
+   &\verb+<textbox>+ \verb+<position>+ & \verb+Move+ the editing cursor in a textbox\\ 
+\verb+GetCursorPosition+\\
+   &\verb+<textbox>+ &Gets the position of the editing cursor\\ 
+\verb|GetAbsolutePosition| & \verb|<widget>| & Gets the absolute window position of a widget\\
+\verb+SetEditable+ &\verb+ <textbox>+ \verb+<status>+& Turns on or off the editing cursor\\ 
+\verb+GetTextBoxCursor+ \verb+   FromClick+& \verb+<relx>, +\verb+<rely>+ & Gets a cursor position (in characters) from a mouse click.\\
+\verb+GetText+ &\verb+<textobject>+ &Returns the text in a textbox or label\\ 
+\verb+GetInput+ &\verb+<textbox>+ \verb+<escape-key>+& Allows a textbox to be edited by user, returning its text when \verb+<escape-key>+ is pressed.\\ 
+\verb+SetText+ &\verb+<textobject>+, \verb+<text>+ &Sets the text in a textbox or label\\ 
+\verb+SetFont+ &\verb+<textobject>+, \verb+<font>+ &Changes the font of a text object \\ 
+\verb+Move+ &\verb+<object>+ \verb+<x>+ \verb+<y>+& \verb+Move+ an object (e.g., an image or a label to an x,y location) \\ 
+\verb+MoveCorner+ &\verb+<object>+ \verb+<x>+ \verb+<y>+& Moves an image or label by its upper corner.\\ 
+\verb+GetSize+ &\verb+<object>+ &Returns a list of dimensions \verb+<x,y>+ of a graphical object.\\ 
+\verb|GetLineBreaks|&\verb|<textbox>|&Computes the line breaks for a textbox text.\\
+
+\verb|GetParent| & \verb|<widget>| & Gets the parent widget of a widget.\\
+\verb+AddObject+ &\verb+<object>+ \verb+<parent>+ & Adds an object to a parent object (window)\\ 
+\verb+RemoveObject+ &\verb+<object>+ \verb+<parent>+ &Removes an object from a parent window\\ 
+\verb+RemoveObjects+ &\verb+<list-of-objects>+ \verb+<parent>+ &Removes a (possibly nested) list of objects from a parent window\\ 
+
+\verb+Show+ &\verb+<object>+ &Shows an object\\ 
+\verb+Hide+ &\verb+<object>+ &Hides an object\\ 
+\verb+ShowCursor+ &\verb+<object>+ &Hides or show mouse cursor.\\
+\verb+GetMouse+ \verb+   CursorPosition+ & &Gets [x,y] position of mouse\\
+\verb+GetMouseState+&&Gets [x,y,b1,b2,b3] list of mouse state, including button states\\
+\verb+SetMouse+ \verb+   CursorPosition+ &\verb+<x>+,\verb+<y>+ &Sets x,y position of mouse\\
+
+\verb+Draw+ &\verb+<object>+ or no argument &Redraws a widget and its children\\ 
+\verb+DrawFor+ &\verb+<object>+ \verb+<cycles>+ &Draws for exactly \verb+<cycles>+ cycles, then returns\\ 
+\verb+Circle+ &\verb+<x>+ \verb+<y>+ \verb+<r>+  \verb+<color>+ \verb+<filled>+&Creates circle with radius r centered at position x,y\\ 
+\verb+Ellipse+ &\verb+<x>+ \verb+<y>+ \verb+<rx>+ \verb+<ry>+\verb+<color>+ \verb+<filled>+&Creates ellipse with radii rx and ry centered at position x,y\\ 
+\verb+Square+ &\verb+<x>+ \verb+<y>+ \verb+<size>+ \verb+<color>+ \verb+<filled>+&Creates square with width size centered at position x,y\\ 
+\verb+Rectangle+ &\verb+<x>+ \verb+<y>+ \verb+<dx>+ \verb+<dy>+\verb+<color>+ \verb+<filled>+ &Creates rectangle with size (dx, dy) centered at position x,y\\ 
+\verb+Line+ &\verb+<x>+ \verb+<y>+ \verb+<dx>+ \verb+<dy>+  \verb+<color>+ &Creates line starting at x,y and ending at x+dx, y+dy\\ 
+
+\verb+Polygon+ &\verb+<x>+ \verb+<y>+ \verb+<xpoints>+ \verb+<ypounts>+  \verb+<color>+\verb+<filled>+ &Creates polygon centered at x,y with relative points \verb+<xpoints>+,\verb+<ypoints>+\\ 
+\verb+Bezier+ &\verb+<x>+ \verb+<y>+ \verb+<xpoints>+ \verb+<ypoints>+ \verb+<steps>+ \verb+<color>+ &Creates bezier curve centered at x,y with relative points \\ 
+\verb+BlockE+         &\verb+<x> <y> <h> <w>+ \verb+<thickness>+ \verb+<orientation>+ \verb+<color>+ &Creates a block E as a useable polygon which can be added to a window directly.\\ 
+\verb+Plus+           &\verb+<x> <y>+ \verb+<size> <w>+ \verb+<color>+
+&Creates a plus sign as a useable polygon which can be added to a window directly.\\ 
+\verb+MakeStarPoints+ &\verb+<r_outer>+ \verb+<r_inner>+ \verb+<npeaks>+ &Creates points for a star, which can then be fed to Polygon\\ 
+\verb+MakeNGonPoints+ &\verb+<radius>+ \verb+<npeaks>+ &Creates points for a polygon, which can then be fed to Polygon\\ 
+\verb+ThickLine+ &\verb+<x1>+ \verb+<y1>+ \verb+<x2>+ \verb+<y2>+ \verb+<thickness>+ \verb+<color>+ &Creates a thick line between two points\\ 
+\verb+MakeAttneave+&\verb+<radius>+, \verb+<numpoints>+, \verb+<minangle>+, \verb+<maxangle>+&Makes a complex ``Attneave'' polygon\\
+\verb+ConvexHull+&\verb+<list-of-pts>+& Returns a convex subset of
+points for a set\\
+\verb+KaneszaSquare+& \verb+<squaresize>+, \verb+<circleradius>+, \verb+<fg>+, \verb+<bg>+ & Creates a 'Kanesza Square' stimulus.\\
+\verb+KaneszaPolygon+&\verb+<points>+, \verb+<circTF>+, \verb+<circleradius>+, \verb+<fg>+, \verb+<bg>+,\verb+<show>+& Create generic Kanesza polygon.\\
+ 
+
+\verb+Inside+  & \verb+<[x,y]>+ \verb+<object>+ & Determines whether a point is inside a graphical object\\ 
+\verb+SetPixel+&\verb+x,y,color+&Sets the color of a pixel on an image or canvas to \verb+color+\\
+\verb+SetPoint+&\verb+x,y,color+&Sets the color of a pixel on an image or canvas to \verb+color+\\
+\verb+GetPixelColor+&\verb+<obj>,x,y+&Gets the color of a specified pixel on a widget\\
+\verb+MakeGabor+&\verb+<size>+, \verb+<freq>+, \verb+<sd>+, \verb+<angle>+, \verb+<phase>+, \verb+<bglev>+
+      &Creates a 'gabor patch' with specified parameters\\
+\addlinespace[0.2cm] 
+\cmidrule(l{.5cm}r{.5cm}){1-3} 
+\multicolumn{3}{c}{\textbf{Sound Objects Functions}}\\ 
+\cmidrule(l{.5cm}r{.5cm}){1-3} 
+
+\verb+LoadSound+ &\verb+<filename>+ &Loads a soundfile from the filename, returning a variable that can be played\\ 
+\verb+PlayForeground+ &\verb+<sound>+ &Plays the sound `in the foreground', not returning until the sound is complete\\ 
+\verb+PlayBackground+ &\verb+<sound>+ &Plays the sound 'in the background', returning immediately\\ 
+\verb+SetPanning+ &\verb+<sound>+, +<left>+, +<right>+ &Sets volume of left and right channel.\\
+\verb+SetPlayRepeats+ &\verb+<sound>+, +<reps>+ &Sets a repeat count on a sound playback.\\
+\verb+Stop+ &\verb+<sound>+ &Stops a sound playing in the background from playing\\ 
+
+\verb+MakeSineWave+ & \verb+freq+, \verb+duration+, \verb+amplitude+& Creates a pure sine wave.\\ 
+
+\verb+MakeAudioInputBuffer+ & \verb+<time-in-ms>+ &Creates a buffer to record audio input\\
+
+\verb+SaveAudioToWaveFile+ & \verb+<filename>+, \verb+<buffer>+  & Saves buffer to a .wav file format\\
+
+\verb+GetVocalResponseTime+  &\verb+<buffer>+, \verb+<threshold>+, \verb+<duration>+  &A simple voice key\\
+
+%\verb+MakeSquareWave+ & & NOT IMPLEMENTED\\ 
+%\verb+MakeSawtoothWave+ & & NOT IMPLEMENTED\\ 
+%\verb+MakeChirp+ & & NOT IMPLEMENTED\\ 
+
+\verb+LoadMovie+ &\verb+<movie_filename>+  \verb+<window>+, \verb+<width>+,\verb+<height>+ &Load a movie file\\
+\verb+LoadAudioFile+ &\verb+<audio_filename>+ &Load an audio file\\
+\verb+PlayMovie+&\verb+<movie>+ &Plays a movie until its end\\
+\verb+StartPlayback+&\verb+<movie>+&Initiates playback in background, updated with Wait()\\
+\verb+PausePlayback+&\verb+<movie>+&Pauses playback of movie\\
+
+
+
+\addlinespace[0.2cm] 
+
+\cmidrule(l{.5cm}r{.5cm}){1-3} 
+\multicolumn{3}{c}{\textbf{Graphical User Interface Functions}}\\ 
+\cmidrule(l{.5cm}r{.5cm}){1-3} 
+
+\verb+GetTime+ &\verb+<>+ &Gets a number, in milliseconds, representing the time since the PEBL program began running.\\ 
+
+\verb+MakeButton+&\verb+<label>+\verb+<x>+,\verb+<y>+\newline
+\verb+<win>+,\verb+<width>+&Makes a button for clicking on.\\
+\verb+PushButton+&\verb+<button>+\verb+<[x,y]>+&Pushes a button and releases.\\
+
+\verb+MakeCheckBox+&\verb+<label>+\verb+<x>+,\verb+<y>+,\newline\verb+<win>+,\verb+<width>+&Makes a two-state checkbox on a button background.\\
+\verb+ClickCheckBox+&\verb+<checkbox>+\verb+<[x,y]>+&Handles checkbox click and updates state.\\
+\verb+SetCheckBox+&\verb+<checkbox>+\verb+<state>+&Sets checkbox state.\\
+
+\verb+MakeScrollingTextBox+ &\verb+<text>+, \verb+<x>+, \verb+<y>+, \verb+<win>+, \verb+<fontsize>+, \verb+<width>+, \verb+<height>+, \verb+<linewrap>+ &Make a box for text that can be scrolled if too long.\\
+\verb+SetScrollingText+&\verb+<obj>+\verb+<text>+, \verb+<linewrap>+ & Changes text of a scrolling textbox.\\
+
+\verb+MakeScrollBox+&\verb+<opts>+, \verb+<header>+, \verb+<x>+, \verb+<y>+, \verb+<win>+,\verb+<fontsize>+, \verb+<width>+, \verb+<height>+, \verb+<selected>+ &Make a scrolling selection box.\\
+\verb+UpdateScrollBox+&\verb+<obj>+&Recalculates scrollbox layout.\\
+\verb+DrawScrollBox+&\verb+<obj>+&Draws a scrollbox.\\
+\verb+ClickOnScrollBox+&\verb+<obj>+, \verb+<click>+&Handles click on scrollbox.\\
+
+
+
+\verb+PopuUpMessageBox+&\verb+<label>+\verb+<win>+&Makes a small message box at the mouse location.\\
+\verb+PopuUpEntryBox+&\verb+<label>+\verb+<win>+\verb+<[x,y]>+&Makes a small entry box at [xy] location.\\
+
+
+\verb+MakePullDown+&\verb+<optionlist>+, \verb+<x>+,\verb+<y>+, \verb+<win>+, \verb+<fontsize>+, \verb+<width>+, \verb+<selected>+, &Make a pulldown selection box for a list.\\
+\verb+PullDown+&\verb+<obj>+\verb+<[x,y]>+ &Handle click on a pulldown.\\
+\verb+UpdatePullDown+&\verb+<obj>+, \verb+<newlist>+ &Updates the list of a pulldown.\\
+\verb+DrawPullDown+&\verb+<obj>+ &Redraws a pulldonw if state changes.\\
+
+
+\verb+MakeTextlist+&\verb+<list>+, \verb+<listoffset>+,
+  \verb+<prebuffer>+&Creates a text body from a list.\\ 
+\verb+InsideTB+&\verb+<[xy]>+\verb+<obj>+&Determine inside for a textbox-style object (location is upper left)\\
+
+
+\verb+MakeMenu+&\verb+<header>+, \verb+<x>+, \verb+<y>+, \verb+<win>+, \verb+<fontsize>+, \verb+<width>+, \verb+<subitems>+, \verb+<functions>+
+&Creates menu with suboptions.\\ 
+
+\verb+MakeMenuItem+&\verb+<text>+, \verb+<x>+, \verb+<y>+, \verb+<win>+, \verb+<fontsize>+, \verb+<width>+, \verb+<function>+
+&Creates menu sub-item.\\ 
+\verb+ClickOnMenu+&\verb+<obj>+, \verb+<[x,y]>+ & Handles menu click, calling the .clickon function of menu.\\
+
+\verb+OpenSubMenus+&\verb+<obj>+, \verb+<[x,y]>+&Opens the sub-menus of a menu.\\
+
+\addlinespace[0.2cm] 
+\cmidrule(l{.5cm}r{.5cm}){1-3} 
+\multicolumn{3}{c}{\textbf{Custom and Built-in Object Functions}}\\ 
+\cmidrule(l{.5cm}r{.5cm}){1-3} 
+\verb|VariableExists| & \verb|<variable-name>|&Tests whether a variable exists.\\
+\verb+PrintProperties+ &\verb+<object>+ &Prints a list of all available properties of an object (for debugging)\\
+\verb+GetPropertyList+ &\verb+<object>+ &Gets a list of all the property names of an object\\
+\verb+PropertyExists+ &\verb+<object>+ \verb+<prop>+&Determines whether a particular property exists\\
+\verb+SetProperty+ &\verb+<object>+ \verb+<prop>+ \verb+<value>+&Sets property of an object\\
+\verb+GetProperty+ &\verb+<object>+ \verb+<prop>+&Returns value of property\\
+\verb+MakeCustomObject+ &\verb+<name>+ &Creates custom object.\\
+\verb+IsCustomObject+ &\verb+<object>+ &Tests whether object is a custom object.\\
+\verb+DrawObject+&\verb+obj+& Calls the .draw property of an object\\
+\verb+MoveObject+&\verb+obj+, \verb+x+, \verb+y+&Calls the .move property of an object\\
+\verb+Clickon+&\verb+obj+, \verb+[x,y]+&Calls the .clickon property of an object\\
+\addlinespace[0.2cm] 
+\cmidrule(l{.5cm}r{.5cm}){1-3} 
+\multicolumn{3}{c}{\textbf{Misc Event Functions}}\\ 
+\cmidrule(l{.5cm}r{.5cm}){1-3} 
+
+
+\verb+GetTime+ &\verb+<>+ &Gets a number, in milliseconds, representing the time since the PEBL program began running.\\ 
+\verb+Wait+ &\verb+<time>+ &Pauses execution for \verb+<time>+ ms \\ 
+\verb+IsKeyDown+ &\verb+<keyval>+ &Determines whether the key associated with \verb+<keyval>+ is down \\ 
+\verb+IsKeyUp+ &\verb+<keyval>+ &Determines whether the key associated with \verb+<keyval>+ is up\\ 
+\verb+IsAnyKeyDown+ &\verb+<>+ &Determines whether any key is down.\\ 
+\verb+WaitForKeyDown+ & \verb+<keyval>+ &Waits until \verb+<keyval>+ is detected to be in the down state\\ 
+\verb+WaitForAnyKeyDown+ &\verb+<>+ &Waits until any key is detected in down state\\ 
+\verb+WaitForKeyUp+ &\verb+<keyval>+ &Waits until \verb+<keyval>+ is in up state.\\ 
+\verb+WaitForAllKeysUp+ & &Waits until all keys are in up state\\ 
+\verb+WaitForAnyKeyDown+ \verb+   WithTimeout+ & \verb+<time>+ & Waits for a key to be pressed, but only for\verb+<time>+ ms\\ 
+\verb+WaitForKeyListDown+ & \verb+<list-of-keyvals>+ & Waits until one of the keys is in down state\\ 
+\verb+WaitForKeyPress+ &\verb+<key>+ &Waits until \verb+<key>+ is pressed\\ 
+\verb+WaitForAnyKeyPress+ &\verb+<>+ &Waits until any key is pressed\\ 
+\verb+WaitForKeyRelease+ &\verb+<key>+ & Waits until \verb+<key>+ is released\\ 
+\verb+WaitForListKeyPress+ &\verb+<list-of-keys>+ &Waits until one of \verb+<list-of-keys>+ is pressed \\ 
+\verb+WaitForListKeyPress+ \verb+WithTimeout+&\verb+<list-of-keyvals>+ \verb+<timeout>+ & Waits for either a key to be pressed or a time to pass.\\
+\verb+WaitForMouseButton+ & &Waits until any of the mouse buttons is pressed or released, and returns message indicating what happened \\ 
+\verb+WaitForMouseClick+ \verb+   WithTimeout+ &\verb+<timeout>+ &Waits until any of the mouse buttons is pressed, or a prespecified timout has elapsed. \\ 
+\verb+WaitForClickOnTarget+ &\verb+<target>+ &Waits until any of a set of target objects are clicked.\\ 
+\verb+WaitForClickOnTarget+ \verb+   WithTimeout+  &\verb+<target>+, \verb+<timeout>+ &Waits with a max time for a set of targets to be clicked.\\ 
+\verb+WaitForDownClick+ & &Waits for mouse button to be clicked \\ 
+
+\verb+RegisterEvent+ &\verb+<>+ &Registers events to trigger based on particular conditions\\ 
+\verb+StartEventLoop+ &\verb+<>+ &Starts the event loop\\ 
+\verb+ClearEventLoop+ &\verb+<>+ &Clears all trigger events from event loop\\ 
+\verb+SignalFatalError+ &\verb+<message>+ & Halts execution, printing out message \\ 
+\verb|ExitQuietly|&\verb|<message>|&Halts execution, printing a message to terminal but not a pop-up\\
+\verb+TranslateKeyCode+ &\verb+<>+ &Converts a keycode to a key name\\ 
+\verb+TimeStamp+ & &Returns a string containing the current date and time\\ 
+\verb+GetPEBLVersion+ &\verb+<>+ &Returns a string indicating which version of PEBL you are using\\ 
+\verb+GetSystemType+ &\verb+<>+ &Identifies the type of operating system being used.\\ 
+\verb+CopyToClipboard+ & \verb+<text>+ & Puts argument in system clipboard.\\
+\verb+CopyFromClipboard+ & \verb+<>+ &  Copies text from system clipboard.\\
+\verb+GetVideoModes+&opt:\verb+<screen>+& Gets list of available screen resolutions\\
+\verb+GetDrivers+&&Gets a list of possible video drivers\\
+\verb+GetCurrent+ \verb+   ScreenResolution+&\verb+<>+& Gets the current widthxheight of the screen\\
+\verb+SystemCall+ &\verb+<command>+ \verb+<optional-args>+ &Executes command in operating system\\ 
+\verb+LaunchFile+ & \verb+<file>+&Launches a file using platform-specific handlers\\
+\verb+GetNIMHDemographics+ & \hspace{0.7cm}\verb+<code>+ \verb+<window>+ \verb+<file>+ & Asks NIMH-related questions\\ 
+\verb+GetSubNum+ & \verb+<window>+ & Asks user to enter subject number\\
+\verb+MessageBox+ &\verb+<text>+ \verb+<win>+&Pops up a message, overtop the entire screen, and waits for a click to continue.\\
+\verb+GetEasyInput+&\verb+<text>+ \verb+<win>+&Gets typed input based on a prompt.\\
+\verb+GetEasyChoice+&\verb+<text>+, \verb+<choices>+, &Simple multiple choice \\
+                   &\verb+<output>+, \verb+<window>+ &\\
+\verb+GetEasyMultiChoice+&\verb+<text>+, \verb+<choices>+, &Simple select-multiple choice \\
+                   &\verb+<output>+, \verb+<window>+, &\\
+                   &\verb|<min>|(opt), \verb|<max>|(opt)&\\
+
+\verb+CountDown+&\verb+<window>+, \verb+<bg>+(opt)&Displays a 3 2 1 countdown on screen\\
+
+\verb+IsAudioOut+ & \verb+<variant>+ & Tests whether \verb+<variant>+ is a AudioOut stream\\ 
+\verb+IsCanvas+ & \verb+<variant>+ & Tests whether \verb+<variant>+ is a Canvas\\ 
+\verb+IsColor+ & \verb+<variant>+ & Tests whether \verb+<variant>+ is a Color\\ 
+\verb+IsFileStream+ & \verb+<variant>+ & Tests whether \verb+<variant>+ is a FileStream\\ 
+\verb+IsFloat+ & \verb+<variant>+ & Tests whether \verb+<variant>+ is a floating-point number\\ 
+\verb+IsFont+ & \verb+<variant>+ & Tests whether \verb+<variant>+ is a Font\\ 
+\verb+IsImage+ & \verb+<variant>+ & Tests whether \verb+<variant>+ is an Image\\ 
+\verb+IsInteger+ & \verb+<variant>+ & Tests whether \verb+<variant>+ is an integer-type number\\ 
+\verb+IsLabel+ & \verb+<variant>+ & Tests whether \verb+<variant>+ is a Text Label\\ 
+\verb+IsList+ & \verb+<variant>+ & Tests whether \verb+<variant>+ is a List\\ 
+\verb+IsNumber+ & \verb+<variant>+ & Tests whether \verb+<variant>+ is a number \\ 
+\verb+IsTextBox+ & \verb+<variant>+ & Tests whether \verb+<variant>+is a TextBox\\ 
+\verb+IsText+ & \verb+<variant>+ & Tests whether \verb+<variant>+ is a text string\\ 
+\verb+IsShape+ & \verb+<variant>+ & Tests whether \verb+<variant>+ is any drawing shape, such as a circle, square or polygon\\ 
+\verb+IsString+ & \verb+<variant>+ & Tests whether \verb+<variant>+ is a string\\ 
+\verb+IsWidget+ & \verb+<variant>+ & Tests whether \verb+<variant>+ is any Widget\\ 
+\verb+IsWindow+ & \verb+<variant>+ & Tests whether \verb+<variant>+ is any Window\\ 
+
+
+\addlinespace[0.2cm] 
+
+\cmidrule(l{.5cm}r{.5cm}){1-3} 
+\multicolumn{3}{c}{\textbf{List Manipulation Functions}}\\ 
+\cmidrule(l{.5cm}r{.5cm}){1-3} 
+
+\verb+Shuffle+ & \verb+<list>+ & Returns a new list with the items in list shuffled randomly. \\ 
+
+\verb+ShuffleRepeat+&\verb+<list>+ \verb+<times>+&Generates a list of {{{n}}} shuffled versions of \verb+<list>+\\
+\verb+ShuffleWithout+ \verb+   Adjacents+ &\verb+<nested-list>+ & Shuffle specifying items that should not appear adjacently\\
+\verb+Repeat+ & \verb+<item> <n>+& Repeats an item \verb+n+ times in a list\\ 
+\verb+RepeatList+ & \verb+<list> <n>+ & Makes a new list containing 
+the elements of \verb+<list>+ repeated \verb+<n>+ times\\ 
+\verb+Sequence+ & \verb+<start>+ \verb+<end>+ \verb+<step>+ & Makes a sequence of numbers 
+from \verb+<start>+ to \verb+<end>+, with \verb+<step>+-sized increments\\ 
+
+\verb+ChooseN+ & \verb+<list>+ \verb+<n>+ & Returns a sublist of \verb+<n>+ items from a 
+list, in the order they appear in the original list\\ 
+\verb+Sample+ & \verb+<list>+ & Picks a single item randomly from \verb+<list>+.\\
+\verb+SampleN+ & \verb+<list>+ \verb+<n>+ & Returns a randomly-ordered sublist of \verb+<n>+ items from a list\\ 
+\verb+SampleN+ \verb+WithReplacement+ &\verb+<list>+ \verb+<n>+& Returns a sublist of \verb+<n>+ items from a list \\ 
+\verb+DesignLatinSquare+   &\verb+<list1>+ \verb+<list2>+ & Simple latin square\\ 
+\verb+LatinSquare+ &\verb+<list>+& A simple latin square constructor\\ 
+\verb+DesignGreco+ \verb+   LatinSquare+ &\verb+<list1>+ \verb+<list2>+ \verb+<list3>+ &Create design\\ 
+\verb+DesignBalanced+ \verb+   Sampling+ &\verb+<list>+ \verb+<number>+ &Sample equally from list\\ 
+\verb+DesignFull+ \verb+   Counterbalance+ &\verb+<list1>+ \verb+<list2>+ &Create all combinations\\ 
+\verb+CrossFactorWith+ \verb+   outDuplicates+ &\hspace{1.8cm}\verb+<list>+ & Returns a list of all pairs of items in the list, excluding pairs that where an element appears twice. \\ 
+& & \\ 
+\verb+Rotate+ &\verb+<list>+ \verb+<n>+ & Rotates a list by \verb+<n>+ items.\\ 
+\verb+FoldList+ &\verb+<list>+ \verb+<n>+ & Folds list into length-n sublists.\\ 
+\verb+Flatten+ &\verb+<list>+ & Flattens a nested list completely\\ 
+\verb+FlattenN+ &\verb+<list>+ \verb+<n>+ & Flattens n levels of a nested list\\ 
+\verb+Length+ &\verb+<list>+ & Returns the number of elements in a list.\\ 
+\verb+First+ &\verb+<list>+ & Returns the first item in a list. \\ 
+\verb+Last+ &\verb+<list>+ & Returns the last item in a list.\\ 
+\verb+Merge+ &\verb+<list1>+ \verb+<list2>+& Combines two lists.\\ 
+\verb+Append+ &\verb+<list>+ \verb+<item>+ & Returns new list combining  \verb+<list>+ and \verb+<item>+ \\ 
+\verb+PushOnEnd+ &\verb+<list>+ \verb+<item>+ & Adds \verb+<item>+ to \verb+<list>+ efficiently \\ 
+\verb+List+ &\verb+<item1>+ \verb+<item2>...+ &Makes a list out of items\\ 
+\verb+Sort+ &\verb+<list>+ &Sorts a list by its values. \\ 
+\verb+SortBy+ &\verb+<list>+ \verb+<key>+ & Sorts list by the values in \verb+<key>+ \\ 
+\verb+Nth+ &\verb+<list>+ \verb+<n>+ &Returns the nth item in a list.\\ 
+\verb+Subset+ &\verb+<list>+ \verb+<list-of-indices>+ & returns a subset of items from a list\\ 
+\verb+SetElement+&\verb+<list>+, \verb+<index>+, \verb+<value>+&Sets an element of list to value\\
+\verb+Match+&\verb+[list]+,\verb+<item>+&Returns a list of 0/1s, indicating which elements of list match item.\\
+
+\verb+Filter+&\verb+[list]+, \verb+<indicators>+& Filters a list based on a 0/1 list produced by Match.\\
+
+\verb+Levels+&\verb+[list]+&Returns a sorted list of unique elements in list.\\
+
+\verb+Rest+ & \verb+<list>+& Returns a list minus its first element\\
+\verb+ExtractListItems+ &\verb+<list>+ \verb+<list-of-indices>+ & Gets a subset of items from a list\\ 
+\verb+IsMember+ &\verb+<item>+ \verb+<list>+ & Checks whether \verb+<item>+ is a member of \verb+<list>+ \\ 
+\verb+Replace+ &\verb+<template>+ \verb+<replacementList>+ & Replaces items in a data structure\\ 
+\verb+Lookup+& \verb+<key>+ \verb+<keylist>+ \verb+<database>+&returns
+element in \verb+<database>+ corresponding to element of
+\verb+<keylist>+ that matches \verb+<key>+.\\
+%\verb+RemoveDuplicates+ & & NOT IMPLEMENTED\\ 
+%\verb+MakeMap+ & & NOT IMPLEMENTED\\ 
+\verb+Transpose+ &\verb+<list-of-lists>+ &Transposes a list of equal-length lists.\\ 
+\verb+SubList+ &\verb+<list>+ \verb+<start>+ \verb+<finish>+ & Returns a sublist of a list.\\ 
+\verb+RemoveSubset+ &\verb+<list>+ \verb+<list-of-pos>+ & Removes items at positions \verb+<list-of-pos>+ from a list.\\ 
+\verb+ConcatenateList+&\verb+<list>+, \verb|<sep>|(opt)& Combines list\\
+\verb+ListToString+   &\verb+<list>+, \\
+& \verb+<sep>+ (opt),\\
+& \verb+<prebuffer>+(opt)& Concatenates all elements of a list into a single string\\
+\verb+ModList+ & \verb|<list>|, \verb|<pre>|, \verb|<post>| & Adds pre- and post- elements to each list member\\
+\verb+Insert+ & \verb+<list>,<item>,<pos>+ & Inserts \verb+<item>+ into \verb+<list>+ at \verb+<pos>+\\
+\verb+ListBy+ & \verb+<list>,<conds>+ &Segments a list into sublist by the values of a second list\\
+\\
+\\
+\addlinespace[0.2cm] 
+\cmidrule(l{.5cm}r{.5cm}){1-3} 
+\multicolumn{3}{c}{\textbf{String Management Functions}}\\ 
+\cmidrule(l{.5cm}r{.5cm}){1-3} 
+
+\verb+CR+ &\verb+<num>+ & Returns string with  \verb+<num>+ linefeeds.\\
+\verb+Tab+ &\verb+<num>+ & Returns string with  \verb+<num>+ tabs.\\
+\verb+Format+ &\verb+<value>+ \verb+<num>+ & Makes string from value
+exactly \verb+<num>+ characters by truncating or padding.\\
+\verb+Enquote+ &\verb+<text>+ & Returns string surrounded by quote marks.\\
+\verb+Uppercase+ &\verb+<string>+ & Returns uppercased string\\ 
+\verb+Lowercase+ &\verb+<string>+ & Returns lowercased string\\ 
+\verb+ReplaceChar+&\verb+<string>+ \verb+<char>+ \verb+<char2>+ & Substitutes  \verb+<char2>+ for \verb+<char>+ in \verb+<string>+.\\
+\verb+SubstituteStrings+&\verb+<text>+,\verb+<replist>+& Makes multiple substitutions in text\\
+\verb+SplitString+ &\verb+<string>+ \verb+<split>+ & Splits \verb+<string>+ into a list of \verb+<split>+-delimited substrings \\ 
+\verb+SplitStringSlow+ &\verb+<string>+ \verb+<split>+ & Splits \verb+<string>+ into a list of \verb+<split>+-delimited substrings \\ 
+\verb+StringLength+ &\verb+<string>+ & Returns the length of a string\\ 
+\verb+SubString+ &\verb+<string>+ \verb+<position>+ \verb+<length>+& Returns a substring\\ 
+\verb+FindInString+ &\verb+<string>+ \verb+<key>+ \verb+<pos>+ & Returns position
+of \verb+<key>+ in \verb+<string>+,\\&& starting at position \verb+<pos>+\\ 
+\verb+StripSpace+ &\verb+<string>+  & Strips whitespace from the start and end of \verb+<string>+.\\ 
+\verb+StripQuotes+ &\verb+<string>+  & Strips quotation marks from the start and end of \verb+<string>+.\\ 
+
+
+\end{longtable} 
+
+
+%%% Local Variables: 
+%%% mode: latex 
+%%% TeX-master: "main" 
+%%% End: 

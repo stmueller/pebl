@@ -1,0 +1,260 @@
+---
+title: "microscope_task.Rmd"
+author: "SHane Mueller"
+date: "2025-10-02"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+dat1 <- read.csv("pilot/lineguess-pilot.csv")
+dat2 <- read.csv("pilot2/lineguess-pilot2.csv")
+dat3 <- read.csv("pilot3/lineguess-pilot3.csv")
+dat4 <- read.csv("pilot4/lineguess-pilot4.csv")
+
+dat.hard <- read.csv("dprime1-1/lineguess-dprime1-1.csv")
+
+dat <- rbind(dat1,dat2,dat3,dat4,dat.hard)
+dat <- dat[dat$block=="test",]
+dat$hilo <- c("lo","hi")[1+(dat$numLines>dat$criteria)]
+
+
+
+
+##compute area under curve 
+auc <- function(base,change)
+{
+  dat <- cbind(c(1,base,0,1),c(1,change,0,0))
+  surveyors(dat)
+  
+}
+##compute area of polygon:
+##from Mueller's pathmapping package
+surveyors <-
+  function(poly)
+  {
+    poly2 <- poly[c(2:nrow(poly),1),]
+    polyall <- cbind(poly,poly2)
+    
+    deter <- apply(polyall,1,function(x){det(matrix(x,2))})
+    abs(sum(deter/2))
+  }
+
+
+
+
+```
+
+Make a standard C-ROC curve
+
+
+```{r,fig.width=5,fig.height=5.5}
+
+##find cumulative accuracy for hi and lo as a function of linelength
+
+dat$response <- factor(dat$response,levels=c(1,2,3,4,5,6,7,8,9,0))
+ROCtable <- tapply(dat$trial,list(dat$response,dat$hilo),length)
+ROCtable[is.na(ROCtable)] <- 0
+ROC.cumsum <- apply(ROCtable,2,cumsum)
+ROC.cumsum[,1] <- ROC.cumsum[,1] / max(ROC.cumsum[,1])
+ROC.cumsum[,2] <- ROC.cumsum[,2] / max(ROC.cumsum[,2])
+
+
+plot(1-ROC.cumsum[,2],1-ROC.cumsum[,1],type="l",main="Confidence ROC function",xlab="False alarm rate",ylab="Hit rate")
+points(1-ROC.cumsum[,2],1-ROC.cumsum[,1],type="p",pch=16,cex=2.5,col=c(rep("grey20",4),"orange",rep("navy",5),each=5))
+points(1-ROC.cumsum[,2],1-ROC.cumsum[,1],type="p",pch=1,cex=2.5,col="black")
+
+abline(0,1)
+texts <- paste(c("",rownames(ROC.cumsum)),c(rownames(ROC.cumsum),""),sep="-")
+               
+text(1-ROC.cumsum[,2],1-ROC.cumsum[,1],texts,col="white",cex=.7)
+text(.5,.1,paste("AUC =",round(auc(1-ROC.cumsum[,2],1-ROC.cumsum[,1]),3)))
+
+```
+
+```{r,fig.width=5,fig.height=5.5}
+
+##find cumulative accuracy for hi and lo as a function of linelength
+
+datL <- dat[dat$lineLength=="long",]
+datS <- dat[dat$lineLength=="short",]
+
+ROCtableL <- tapply(datL$trial,list(datL$response,datL$hilo),length)
+ROCtableL[is.na(ROCtableL)] <- 0
+ROCL.cumsum <- apply(ROCtableL,2,cumsum)
+ROCL.cumsum[,1] <- ROCL.cumsum[,1] / max(ROCL.cumsum[,1])
+ROCL.cumsum[,2] <- ROCL.cumsum[,2] / max(ROCL.cumsum[,2])
+
+ROCtableS <- tapply(datS$trial,list(datS$response,datS$hilo),length)
+ROCtableS[is.na(ROCtableS)] <- 0
+ROCS.cumsum <- apply(ROCtableS,2,cumsum)
+ROCS.cumsum[,1] <- ROCS.cumsum[,1] / max(ROCS.cumsum[,1])
+ROCS.cumsum[,2] <- ROCS.cumsum[,2] / max(ROCS.cumsum[,2])
+
+
+
+plot(1-ROCS.cumsum[,2],1-ROCS.cumsum[,1],type="o",main="Confidence ROC functions\nBy long and short lines",xlab="False alarm rate",ylab="Hit rate",pch=16)
+points(1-ROCL.cumsum[,2],1-ROCL.cumsum[,1],type="o",col='orange',pch=16)
+aucs <- round(auc(1-ROCS.cumsum[,2],1-ROCS.cumsum[,1]),3)
+aucl <- round(auc(1-ROCL.cumsum[,2],1-ROCL.cumsum[,1]),3)
+legend(.3,.2,c(paste("Short | AUC = ",aucs),
+               paste("Long | AUC = ",aucl)),lty=1,col=c("black","orange"),bty="n",pch=16)
+
+
+
+```
+
+#DS-ROC: make an ROC based on the #count and a high-low
+
+```{r,fig.width=5,fig.height=5.5}
+
+##find cumulative accuracy for hi and lo as a function of linelength
+
+dat$response <- factor(dat$response,levels=c(1,2,3,4,5,6,7,8,9,0))
+dat$binaryResponse <- c("HI","LO")[1+(as.numeric(dat$response)<6)]
+table(dat$hilo,dat$binaryResponse)
+
+DSROCtable <- tapply(dat$trial,list(dat$numLines, dat$binaryResponse),length)
+DSROCtable[is.na(DSROCtable)] <- 0
+DSROC.cumsum <- apply(DSROCtable,2,cumsum)
+DSROC.cumsum[,1] <- DSROC.cumsum[,1] / max(DSROC.cumsum[,1])
+DSROC.cumsum[,2] <- DSROC.cumsum[,2] / max(DSROC.cumsum[,2])
+
+
+plot(1-DSROC.cumsum[,2],1-DSROC.cumsum[,1],type="l",main="True-Number ROC function",xlab="p(High|Low response)",ylab="p(High|High response")
+points(1-DSROC.cumsum[,2],1-DSROC.cumsum[,1],type="p",pch=16,cex=.5,col="black")
+abline(0,1)
+text(.5,.1,paste("AUC =",round(auc(1-DSROC.cumsum[,2],1-DSROC.cumsum[,1]),3)))
+```
+
+
+
+
+#Size-ROC: make an ROC based on the size of the stimulus, which shouldn't matter.
+
+```{r,fig.width=5,fig.height=5.5}
+
+##find cumulative accuracy for hi and lo as a function of linelength
+dat$meanLength <- round(dat$totalLength/dat$numLines)
+
+hist(dat$meanLength,breaks=20)
+
+LSROCtable <- tapply(dat$trial,list(dat$meanLength, dat$binaryResponse),length)
+LSROCtable[is.na(LSROCtable)] <- 0
+LSROC.cumsum <- apply(LSROCtable,2,cumsum)
+LSROC.cumsum[,1] <- LSROC.cumsum[,1] / max(LSROC.cumsum[,1])
+LSROC.cumsum[,2] <- LSROC.cumsum[,2] / max(LSROC.cumsum[,2])
+
+
+plot(1-LSROC.cumsum[,2],1-LSROC.cumsum[,1],type="l",main="Line-Length ROC function",xlab="p(Long|Low response)",ylab="p(Long|High response")
+points(1-LSROC.cumsum[,2],1-LSROC.cumsum[,1],type="p",pch=16,cex=.5,col="black")
+abline(0,1)
+
+vals <- as.numeric(rownames(LSROC.cumsum))
+keep <- (vals == round(vals,-1))
+display <- LSROC.cumsum[keep,]
+text(1-display[,2]+.05,1-display[,2]-.05,rownames(display),col="grey20",cex=.75)
+text(.5,.1,paste("AUC =",round(auc(1-LSROC.cumsum[,2],1-LSROC.cumsum[,1]),3)))
+```
+
+##Contingent responses
+
+```{r,fig.width=10,fig.height=5}
+
+library(tidyverse)
+stimPrev <- dat |> dplyr::filter(trial>1&block=="test")
+stimNext <- dat |> dplyr::filter(trial<100&block=="test")
+pairings <- data.frame(prevR=stimPrev$response,
+                    nextR=stimNext$response,
+                    rt=stimNext$rt, corr1=stimPrev$correct,
+                    corr2=stimNext$correct)
+
+pairings |> group_by(prevR,nextR,corr1) |> summarize(number=n(),meanRT=mean(rt),meanAcc=mean(corr2)) |>
+  ggplot(aes(y=nextR,x=prevR)) + geom_point(aes(size=number),shape=21,color="black",fill="gold") +
+  scale_size_area(max_size=20) + facet_wrap(corr1~.)+theme_minimal()
+
+```
+
+```{r}
+pairingsC <- pairings|>dplyr::filter(corr1==1)
+pairingsI <- pairings|>dplyr::filter(corr1==0)
+chisq.test(pairingsC$prevR,pairingsC$nextR)
+chisq.test(pairingsI$prevR,pairingsI$nextR)
+
+table(pairings$corr1,pairings$corr2)
+chisq.test(pairings$corr1,pairings$corr2)
+
+```
+
+## A Learning measure
+
+Because Line-related ROC can measure association between a stimulus property and response, let's calculate AUC for each session.
+
+```{r}
+makeROC <- function(aggregator,response,main="",
+                    xlab="p(High|Low response)",
+                    ylab="p(High|High response)")
+{
+
+ ROCtable <- tapply(rep(1,length(aggregator)),list(agg=aggregator,response),length)
+ ROCtable[is.na(ROCtable)] <- 0
+ ROC.cumsum <- as.data.frame(apply(ROCtable,2,cumsum))
+ ROC.cumsum[,1] <- ROC.cumsum[,1] / max(ROC.cumsum[,1])
+ ROC.cumsum[,2] <- ROC.cumsum[,2] / max(ROC.cumsum[,2])
+ ROC.cumsum <- 1-ROC.cumsum
+ ROC.cumsum$value <- as.numeric(rownames(ROC.cumsum))
+ 
+ 
+  area <- auc(ROC.cumsum[,2],ROC.cumsum[,1])
+
+  plot(ROC.cumsum[,2],ROC.cumsum[,1],type="l",main=main, xlab=xlab,ylab=ylab)
+  points(ROC.cumsum[,2],ROC.cumsum[,1],type="p",pch=16,cex=.5,col="black")
+  abline(0,1)
+ text(.5,.1,paste("AUC =",round(area,3)))
+ area
+}
+
+
+```
+
+```{r fig.width=5,fig.height=5}
+makeROC(aggregator=dat$numLines,response=dat$binaryResponse)
+
+```
+
+```{r fig.width=11,fig.height=3.5}
+
+par(mfrow=c(1,4))
+tmp <- dat[dat$subNum=="pilot",]
+makeROC(aggregator=tmp$numLines,response=tmp$binaryResponse, main="Session 1\n# of lines")
+tmp <- dat[dat$subNum=="pilot2",]
+makeROC(aggregator=tmp$numLines,response=tmp$binaryResponse, main="Session 2\n# of lines")
+tmp <- dat[dat$subNum=="pilot3",]
+makeROC(aggregator=tmp$numLines,response=tmp$binaryResponse, main="Session 3\n# of lines")
+tmp <- dat[dat$subNum=="pilot4",]
+makeROC(aggregator=tmp$numLines,response=tmp$binaryResponse, main="Session 4\n# of lines")
+```
+```{r fig.width=4,fig.height=4}
+tmp <- dat[dat$subNum=="dprime1-1",]
+makeROC(aggregator=tmp$numLines,response=tmp$binaryResponse, main="Harder detection")
+
+```
+
+
+##now, look at length of lines.
+
+```{r fig.width=11,fig.height=3.5}
+
+par(mfrow=c(1,5))
+tmp <- dat[dat$subNum=="pilot",]
+makeROC(aggregator=tmp$meanLength,response=tmp$binaryResponse, main="Session 1\nMean line length")
+tmp <- dat[dat$subNum=="pilot2",]
+makeROC(aggregator=tmp$meanLength,response=tmp$binaryResponse, main="Session 2\nMean line length")
+tmp <- dat[dat$subNum=="pilot3",]
+makeROC(aggregator=tmp$meanLength,response=tmp$binaryResponse, main="Session 3\nMean line length")
+tmp <- dat[dat$subNum=="pilot4",]
+makeROC(aggregator=tmp$meanLength,response=tmp$binaryResponse, main="Session 4\nMean line length")
+tmp <- dat[dat$subNum=="dprime1-1",]
+makeROC(aggregator=tmp$meanLength,response=tmp$binaryResponse, main="Session 5 (harder)\nMean line length")
+
+```

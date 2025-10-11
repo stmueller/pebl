@@ -1,0 +1,697 @@
+##  This is a test loosely patterned after the 
+## 'California Card Sort'; which is a modification of
+## Wisconsin Card Sort test that has more forms/categories.
+
+
+## see: Delis DC, Squire LR, Bihrle A, Massman P. (1992)
+##  Componential  analysis of problem-solving ability: performance of patients
+##  with frontal lobe damage and amnesic patients on a new sorting
+##  test. Neuropsychologia. 1992 Aug;30(8):683-97
+
+
+
+define Start(p)
+{
+
+
+  parpairs <- [["trials",300],  ##number of trials
+               ["practice",0],
+               ["timeout",-1], ##timeout; use negative number for no time limit
+	       ["shift",9], ##number of correct trials needed for shift
+               ["numrulesets",1], ##how many times through the rule sets?
+	       ["leftresp","<lshift>"],
+	       ["rightresp","<rshift>"],
+	       ["leftlabel","left shift"],
+	       ["rightlabel","right shift"]
+	       ]
+
+  gParams <- CreateParameters(parpairs,gParamFile)
+
+  gTimeout <- gParams.timeout
+
+     ## how many corrects are needed before the shift.
+     ## 2^7 is 128, so fewer than 1% of sets will be
+     ## matched 'by chance' at shift=7
+     ## But, if we go a bit larger, the subject will be
+     ##likely to 'know' the rule and thus see the shift.
+  gShift   <- gParams.shift
+
+
+ maxtrials <- gParams.trials
+ practice <- gParams.practice
+
+ ## How many times do you go the the 10-rule sets?
+ numrulesets <- gParams.numrulesets
+
+ gcount<-1         ## used for recording video
+
+
+ ## The features, in order are:
+ ## fontface (normal/underlined)
+ ## fontcase (lower/upper)
+ ## font color (blue/red)
+
+ ## card color (orange/green)
+ ## card size  (small/large)
+ ## card shape (tall vs. wide)
+
+
+ ## This reads in a list of all the cards:
+
+   Init()
+
+
+   if(gSubNum+"" == "0")
+   {
+     gSubNum <- GetSubNum(gWin)
+   }
+   header <- "subnum,practice,set,trial,card,word,rule,desc,parity,correctResp,lastrule,lastparity,lastcorresp,resp,late,corr,lastcorr,allcorr,time,run,cardnum,errs"
+   gFileOut <- GetNewDataFile(gSubNum,gWin,"pcards","csv",header)
+   gLogFile <- FileOpenAppend("data/pcards-log.txt")
+   FilePrint(gLogFile,"pcards start " +GetTime() + " " + TimeStamp() +  " " + gSubNum + " " + practice)
+
+  inst <- "In this task, you will see a series of cards at the center of the screen.  Your goal is to sort them into either the left pile (using the "+gParams.rightlabel+" key) or the right pile (using the "+gParams.rightlabel+" key).  The correct pile is determined by a rule that we will not tell you.  At any given time, one of ten rules will be valid:
+   shape,                        
+   card size, 
+   card color,                   
+   font color,
+   font thickness, 
+   letter case,
+   size of object described,     
+   whether the thing described is living,
+   whether the thing described belongs on land or sea, 
+   whether the word describes one or multiple things.
+
+Once you figure out a rule and categorize a number of cards correctly, the rule will change without warning.  When this happens, you should try to determine as quickly as possible what the rule is by sorting the cards determining the rule based on the feedback you get.
+
+Press any key to begin."
+
+  labl <- EasyLabel(gParams.leftlabel,gHomeX-250,400,gWin,22)
+  labr <- EasyLabel(gParams.rightlabel,gHomeX+250,400,gWin,22)
+
+  tb <- EasyTextBox(inst,240,100,gWin,15,gVideoWidth-240*2,600)
+  DrawMe()
+
+
+
+  WaitForAnyKeyPress()
+
+  Hide(tb)
+  
+ features <- ["shape", "cardsize",	"cardcolor",	"fontcolor",	"underlined", "case", "size","animacy","landsea","singular"]
+
+ ruleexp <- ["tall versus wide cards",
+ 		 	 "small versus large cards",
+			 "blue versus orange cards",
+			 "blue versus red text",
+			 "underlined versus plain text",
+			 "uppercase versus lowercase letters",
+ 			 "small versus large things",
+			 "living versus non-living things",
+			 "land versus sea things",
+			 "singular versus plural words" ]
+ ##This takes a while--consider auto-generating it
+  stim <- FileReadTable("stim.csv",",")
+
+ ##Note that the last four features are embedded in the actual word stimulus.
+
+   
+   hints <- "                                      HINTS:
+   The current rule is one of the following:
+
+   Tall or Wide card     |    Large or Small Card   |      Orange or Green Card 
+Font Color (red or blue) |    Underlined or Plain   | Uppercase or Lowercase Letters
+ Small or large thing    | Animal or Man-made thing |        Land or Sea Thing
+                         |    Singular or Plural    |"
+ hintfont <- MakeFont("VeraMono.ttf",0,12,MakeColor("black"),MakeColor("grey"),1)
+ gHintbox <- MakeTextBox(hints,hintfont, 600,140)
+ AddObject(gHintbox,gWin)
+ Move(gHintBox,(gVideoWidth-gHintBox.width)/2,100)
+
+
+
+   
+   lstack <- [] ##two stacks exist.
+   rstack <- []
+
+
+
+   ##Go through each of the rules once--up to ten sets.
+   rules <- Flatten(ShuffleRepeat(Sequence(1,10,1),numrulesets))
+
+   rule <- First(rules)
+   rules <- Rest(rules)
+
+   parity <- RandomDiscrete(2)  #which direction the 0/1 should go in
+   lastparity <- parity
+
+   run <- 0
+   errs <- 0
+   set <- 1
+   ##Here is the deck of cards to use:
+   deck <- Shuffle(stim)
+
+   balance <- 0    ##Keep track of a left-right sorting balance within
+                   ## each run
+ 
+   lastrule <- rule
+   rulechange <- 0
+   cont <- 1
+   trial <- 1
+   cardnum <- 0  #within-set counter
+
+   if(practice)
+    {
+       gHintBox.text <- "This round is just for practice. Right now, the rule is " + Nth(ruleexp,rule)+".  
+
+
+Try to figure how to sort the deck according to that rule."
+    }
+
+   while(trial <= maxTrials and cont==1) 
+    {
+   
+     ##Get the next rule
+     if(rulechange)
+     {
+       deck <- GetNewCard(deck,rule,lastrule,parity,lastparity)
+       rulechange <- 0
+       cardnum <- 0
+       set <- set + 1
+
+       if(practice and  set <= 4)
+        {
+          gHintBox.text <- "The rule just changed.  Right now, the rule is: " + Nth(ruleexp,rule)+".  
+
+Try to figure how to sort the deck according to that rule."
+        }else{
+          gHintBox.text <- hints
+        }
+
+
+     } else{
+       deck <- Rotate(deck,1)
+     }
+
+     ##get card.
+     card <- First(deck)     
+     corresp <- Correct(card,rule,parity)       #see what the correct response is,
+
+     ##Make sure that the 'parity' between left and right
+     ##responses doesn't get off by too much
+	 while(Abs(balance + (corresp*2)-1) > 2)
+     {
+        deck <- Rotate(deck,1)
+        card <- First(deck)     
+        corresp <- Correct(card,rule,parity)  #see what the correct response is,
+     }
+
+     balance <- balance + (corresp*2-1)
+
+
+
+     FilePrint_(gFileOut,gSubNum + "," + practice + ","  + set + "," + trial + "," +  Enquote(ConcatenateList(SubList(card,1,10) ,","))+ "," + Nth(card,11) +  "," )
+
+     x <- MakeStim(card,gHomeX,gHomeY)
+     AddObjects(x,gWin)
+     DrawMe()
+    
+
+
+     lastcorresp <- Correct(card,lastrule,lastparity)
+
+      time1 <- GetTime()
+
+	  ##We could do this with a time limit.
+
+   if(gTimeOut>0)
+   {
+     resp <- WaitForListKeyPressWithTimeout([gParams.leftresp,gParams.rightresp],gtimeout,1)
+   }else{
+  
+     resp <- WaitForListKeyPress([gParams.leftresp,gParams.rightresp])
+  }
+
+      time2 <- GetTime()
+
+     if(resp=="<timeout>")
+      { 
+         late <- 1
+	 resp <- "<TIMEOUT>"
+      } else {
+         late <- 0
+      }
+
+     ##Determine whether response was correct    
+     corr <- Score(resp,corresp)
+     lastcorr <- Score(resp,lastcorresp)    
+
+     ##Grab onto the correct feedback
+     if(corr)
+       { 
+         fb <- gCorr
+       }else{
+         fb <- gIncorr
+	 balance <- 0  ##reset balance when an error is made.x
+       }            
+     Show(fb)
+ 
+     if(corresp)  ##correct is left
+         {
+            side <- 1
+            lstack <- Merge([x],lstack)
+            lstack <- Redeal(lstack,1)
+
+         } else {    ##correct is right
+
+      	    side <- 2
+            rstack <- Merge([x],rstack)
+            rstack <- Redeal(rstack,2)
+         }
+
+     allcorr <- ScoreByRules(card, resp)
+
+     FilePrint_(gFileOut,  rule + "," + Nth(features,rule)+ ","  +
+                        parity + "," + corresp + "," +lastrule + "," +
+                        lastparity + "," +  lastcorresp + "," + resp +
+                        "," + late + "," + corr + "," + lastcorr + "," + 
+                             Enquote(ConcatenateList(allcorr,",")) + "," +
+                        (time2-time1)+ ",")
+
+
+
+     ##Update the run monitor
+     if(corr) 
+       {
+        run <- run + 1
+
+       } else { 
+        run <- 0       #Reset runs to 0
+        errs <- errs + 1
+       }
+
+     run <- Max([run,0])
+
+     FilePrint(gFileOut, run + "," + cardnum + "," + errs )
+
+     ##Check to see if we have a big enough run to move to a new rule.
+     
+     if(run > gShift ) 
+       {
+	##Check to see if we are out of rules.
+        if(Length(rules) == 0)
+     	  { 
+             cont <- 0
+          } else {
+
+
+         lastrule <- rule
+         rule <- First(rules)
+         rules <- Rest(rules)
+         lastparity <- parity
+ 	     parity <- RandomDiscrete(2)  #which direction the 0/1 should go in
+         rulechange <- 1
+		 errs <- 0
+         run <- 0
+		 cardnum <- 0
+
+          }
+        }
+
+       if(cont)
+       {     
+       ##After too many mistakes, redo the rule
+       if(errs > 20 and run ==0)
+       {
+         lastrule <- rule
+         rule <- First(rules)
+         rules <- Rest(rules)
+         lastparity <- parity
+ 	     parity <- RandomDiscrete(2)  #which direction the 0/1 should go in
+         run <- 0
+		 errs <- 0
+         cardnum <- 0
+         rulechange <- 1
+        }
+
+
+       DrawMe()
+       Wait(100)
+       Hide(fb)
+
+        trial <- trial + 1
+ 
+
+     ##Don't count things that are correct according to previous rule.
+     ##(but only if the last rule differs from the current rule)
+       if(cardnum == 0 and lastcorr == 1 and corr == 1 and lastrule <> rule)
+        {
+         cardnum <- -1
+         run <- 0
+        } 
+       cardnum <- cardnum + 1
+      }
+     }
+    
+   FilePrint(gLogFile,"pcards end " +GetTime() + " " + TimeStamp() + " " + gSubNum)
+
+
+   tb.text <- "Thank you for completing the test.  Please alert the
+     experimenter that you are finished.  
+
+Press the 'X' key to exit."
+   Hide(gHintBox)
+   Show(tb)
+   Draw()
+
+   WaitForKeyPress("X")
+}
+
+
+##This rotates the objects to their proper positions, animating the
+## cards as you go.
+define ReDeal(objects,side)
+{
+   ##The new side.
+   newX <- Nth(gDeckX,side)
+   steps <- 5
+
+
+   numObjs <- Length(objects)
+   if(numObjs > 5)
+    {
+      SignalFatalError("too many objects in ReDeal")
+    }
+
+   ##There could be up to 5 objects in objects.
+   ## gDeckY has the y locations of the new things.
+
+   newY <- SubList(gDeckY,1,numObjs)
+
+   ##Endpos should be the end-points of the movement.
+   endpos <- DesignFullCounterbalance([newX],newY)
+
+
+   ##calculate the deltas
+   deltas <- []
+   tmp <- Transpose([endpos, objects ])
+   loop(i, tmp)
+    {
+      pos <- First(i)
+      obj <- First(Second(i))
+      deltas <- Append(deltas,[(First(pos)-obj.x)/steps, (Second(pos)-obj.y)/steps])
+    }
+
+
+    ##Now, move the objects in ten easy steps
+    tmp <- Transpose([objects,deltas])
+    loop(i,Sequence(1,steps,1))
+     {
+       
+      loop(each,tmp)  #Move each object
+         {
+            obj <- First(each)
+            pic <- First(obj)
+            delt <- Second(each)
+
+            MoveObjects(obj,pic.x+First(delt),pic.y+Second(delt))
+
+         }
+        DrawMe()
+     }
+
+   ##If we are at length 5, remove the last item
+   if(numObjs == 5)
+     {
+       last <- Last(objects)
+       RemoveObjects(last,gWin)
+       rem <- SubList(objects,1,4)
+     } else {
+       rem <- objects
+     }
+
+   return rem
+}
+
+##This determines whether the response is correct by any of the rules
+##This assumes a the 0-1 left-right parity.
+define ScoreByRules(line,resp)
+ {
+
+   #left is 1, right is 2
+   coded <- (resp == gParams.leftresp) + 2 * (resp==gParams.rightresp)
+   cor <- []
+   feats <- SubList(line,1,10)
+   loop(i,feats)
+   {
+       cor <- Append(cor, coded == (ToNumber(i)+1))
+   }
+   return cor
+ }
+
+
+define Rest(list)
+{
+  if(Length(list)==1)
+  {
+   ret <- []
+  } else {
+   ret <- SubList(list,2,Length(list))
+  }
+ return ret
+}
+
+
+define MoveEm(objects,newX,newY)
+{
+
+   steps <- 10
+   ## Move objects from the center of the current first piec to the
+   ## newx,newy
+  
+   obj <- First(objects)
+
+   x <- obj.x
+   y <- obj.y
+
+   stepx <- (newX - x)/steps
+   stepy <- (newY - y)/steps
+
+   loop(i,Sequence(0,10,1)) 
+    {
+
+     MoveObjects(objects,x+stepx*i,y+stepy*i)
+     DrawMe()
+    }
+
+} 
+
+define Init()
+{
+
+   gSleepEasy <- 1
+#   gVideoWidth <- 1152
+#   gVideoHeight <- 864
+
+   gHomeX <- gVideoWidth/2
+   gHomeY <- gVideoHeight/2
+
+
+   gWin <- MakeWindow("grey35")
+   
+   ShowCursor(0)
+
+   base1 <- 100
+   base2 <- 130
+   rat <-1.5
+
+ 
+   gShapeBase <- [[base1,base1*rat],[base1*rat,base1],
+	                [base2,base2*rat],[base2*rat,base2]]
+
+
+   gFontCol <- [MakeColor("red"),MakeColor("blue")]
+   gCardCol <- [MakeColor("goldenrod"),MakeColor("mediumaquamarine")]
+
+  #   gFontCol <- [MakeColorRGB(255,35,0),MakeColorRGB(0,189,57)]
+  #   gCardCol <- [MakeColorRGB(67,18,174),MakeColorRGB(255,219,0)]
+
+     gBlack <- MakeColor("black")
+     gGrey <- MakeColor("grey25")
+
+    margin <- 120
+    skip <- (gVideoHeight-margin*2)/3
+	gDeckX <- [margin,gVideoWidth-margin]
+    gDeckY <- [margin+skip*3, margin+skip*2, margin+skip,margin,margin-skip]
+
+
+  ##Add margin decor
+  gutter1 <- Rectangle(margin,gHomeY,margin*2,gVideoHeight,MakeColor("grey80"),1)
+  gutter2 <- Rectangle(gVideoWidth-margin,gHomeY,margin*2,gVideoHeight,MakeColor("grey80"),1)
+  AddObject(gutter1,gwin)
+  AddObject(gutter2,gwin)
+
+  gCorr <- MakeImage("plus-sm.png")
+  gIncorr <- MakeImage("x-sm.png")
+  AddObject(gCorr,gWin); Hide(gCorr); Move(gCorr,gHomeX,gHomeY)
+  AddObject(gIncorr,gWin);Hide(gIncorr); Move(gInCorr,gHomeX,gHomeY)
+
+}
+
+
+define MakeStim(line, posx, posy)
+{
+     shapeID <- ToNumber(Nth(line,2))*2+ ToNumber(Nth(line,1))+1
+     cardShape <- Nth(gShapebase,shapeID)
+     cardcol <- Nth(gCardCol,ToNumber(Nth(line,3))+1)
+     fcol <-    Nth(gFontCol,ToNumber(Nth(line,4))+1)
+     font <- MakeFont("Vera.ttf", 4*ToNumber(Nth(line,5)),12,fcol,cardcol,1)
+     
+     shadow <- Rectangle(posx+8, posy+8,First(cardShape)+6,Second(cardshape)+4,MakeColor("grey20"),1)
+     bg   <- Rectangle(posx, posy,First(cardShape)+6,Second(cardshape)+4,gGrey,1)
+     card <- Rectangle(posx, posy,First(cardShape),Second(cardshape),cardcol,1)
+     lab <- MakeLabel(StripQuotes(Nth(line,11)),font)
+     Move(lab,posx,posy)
+     return [shadow,bg,card,lab]
+}
+
+
+define AddObjects(list,win)
+{
+   loop(i,list)
+   {
+     AddObject(i,win) 
+   }
+}
+
+
+define MoveObjects(list,newx,newy)
+{
+   loop(i,list)
+   {
+     Move(i,newx,newy)
+   }
+}
+
+##remove quotes from outside of text (but not the inside)
+define StripQuotes(text)
+{
+   start <- 1
+   end <- StringLength(text)
+  
+   if(end > 0)
+   {
+
+   if(SubString(text,end,1)==gQuote)
+    {
+      end <- end - 1
+    }
+   if(SubString(text,1,1)== gQuote)
+    {
+      start <- 2
+      end <- end -1
+    }
+
+   ret <- SubString(text,start,end)
+
+   } else {
+    ret <- text
+   }
+   return ret
+}
+
+
+define DrawMe()
+{
+   Draw()
+ # Uncomment to make a screenshot record
+ #  Record()
+}
+
+define Record()
+{ 
+    WritePNG(gWin,"movie/mov"+ZeroPad(gCount,4)+".png")
+    gCount <- gCount + 1
+}
+
+
+define ZeroPad(num, size)
+{
+  base <- Round(10^(size))
+  if(num>base)
+   {
+     ret <- num+""
+   }else{
+      
+     x <- (base + num)+""
+     ret <- SubString(x,2,size)
+     
+   }
+  return ret
+}
+
+define Correct(card,rule,parity)
+{
+   return ToNumber(Nth(card,rule)) == (parity-1) #1 for left, 0 for right
+
+}
+
+define Score(resp,corresp)
+{
+    if(corresp == 1)
+     {
+        corr <- (resp == gParams.leftresp)
+     } else {
+        corr <- (resp == gParams.rightresp)
+     }
+
+  return corr
+}
+
+
+
+## This takes a deck, moves the top to the bottom, and 
+## keeps going until you get to a card where the current and the
+## previous rules don't result in the same answer.
+define GetNewCard(deck,rule,lastrule,parity,lastparity)
+{
+   newdeck <- Rotate(deck,1) #Put top card on bottom
+
+## the following is ill-advised.  It makes it so that two rules are valid.
+##
+    ##Only go through this if they can mismatch   
+    if(rule <> lastrule)
+      {
+          cont <- 1
+          card  <- First(newdeck)
+        while(cont)
+          {
+
+          ##  Responses could match between two rules if:
+
+         corresp <- ToNumber(Nth(card,rule)) == (parity-1) #1 for left, 0 for right
+         lastcorrresp <- ToNumber(Nth(card,lastrule)) == (lastparity-1) #1 for left, 0 for right
+
+           if(  (corresp == lastcorrresp))
+             {
+                cont <-1
+ 			   ##Keep going
+                newdeck <- Rotate(newdeck,1)
+                card <- First(newdeck)
+             } else {
+                cont <- 0  #we found a good card.
+             }
+          }
+
+      }
+
+  return newdeck
+}
+
+
+define Enquote (txt)
+{
+  return gQuote + txt + gQuote
+}
+
+

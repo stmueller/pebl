@@ -1,0 +1,379 @@
+#################################################################
+##  PEBL Mental Rotation Task
+##
+##  Version 0.3 (Nov 2014). Allows setting keys, feedback, practice trials.
+##  Version 0.2 (enables translations, fixes response error)
+##
+##  For use with PEBL 0.11 or later
+##  http://pebl.sf.net
+##  Part of  The PEBL Psychological Test Battery
+##  2008 Released into Public Domain
+##  by Shane T. Mueller, Ph.D. (smueller at obereed dot net)
+##
+##  This is the a demo of Shepard's mental rotation' task.
+##
+##  Thanks to Fatih ÖZDİNÇ for Turkish translation.
+##
+#################################################################
+
+define Start(par)
+{
+  gScriptName <- "Mental Rotation Task"
+  parpairs <- [["numrepeats",4],
+               ["bgcolor","black"],
+	       ["fgcolor","red4"],
+	       ["xoffset",300],
+               ["timeout",3000],
+	       ["samekey","<lshift>"],  ##alternate, try "<lshift>"
+	       ["diffkey","<rshift>"],   ##alternate, try "<rshift>"
+	       ["givefeedback",1]   ##Give correct/incorrect feedback
+              ]
+
+
+  gParams <- CreateParameters(parpairs,gParamFile)
+
+    ##Create a couple polygon stimuli. Specify others here:
+
+      stim1 <- [[-20,  0,  0, 20,20, 0, 0,-20],
+  		 [-80,-80,10,10,80,80,30, 30]]
+
+      stim2 <- [[-80, 80, 80,-50,-50,-80],
+		 [-40,-40,-20,-20,40,40]]
+
+     stims <- [stim1,stim2]
+     stimnames <- ["bigl","zbolt"] ##for output purposes
+
+    gkeys <- [gParams.samekey,gParams.diffkey]
+
+   ## Number of times through the design.
+   numRepeats <- gParams.numrepeats
+
+  ##gLanguage defaults to 'en', but can be set at command line.
+  ##using the --language flag, or via the launcher
+   GetStrings(gLanguage)
+
+  ##Set default video resolution.
+#  gVideoWidth <- 800
+#  gVideoHeight <- 600
+
+
+  gSleepEasy <- 1
+
+  win <- MakeWindow(gParams.bgcolor)
+
+
+  if(gSubNum==0)
+   {
+     gSubNum <- GetSubNum(win)
+   }
+  fileOut <- GetNewDataFile(gSubNum,win,"rotate","csv",
+                "subNum,type,trialnum,cond,stimid,rot,resp,cor,rt")
+
+  reportfile <- GetNewDataFile(gSubNum,win,"rotate-report","txt", "")
+
+
+   inst <- gInstructions
+   tb <-  EasyTextBox(inst,100,20,win,22, gVideoWidth-200,300)
+
+  Draw()
+  WaitForAnyKeyPress()
+  Hide(tb)
+  head <- EasyLabel(gHeader,gVideoWidth/2,gVideoHeight/2+200,win,22)
+  center <- EasyLabel("",gVideoWidth/2,gVideoHeight/2-200,win,50)
+  Draw()
+
+
+
+  data <- []
+
+   gPI <- 3.14159
+
+     ##Set up basic design:
+     stim <- [1,2]
+     angles <-[-3,-2,-1,0,1,2,3,4]
+     condition <- [1,0]
+
+
+     t1 <- DesignFullCounterbalance(stim,angles)
+     t2 <- FoldList(FlattenN(DesignFullCounterbalance(t1,condition),2),3)
+
+     trials <- Shuffle(RepeatList(t2,numRepeats))
+     trialnum <- 1
+
+    ##prepend four practice trials
+    practrials <- [[2, 0, 1], [1, -1, 1], [1, 4, 0], [2, -2, 0]]
+    trialnum <- 1-Length(practrials)
+    trials <- Merge(practrials, trials)
+    type <- "PRACTICE"
+
+
+    loop(i, trials)
+     {
+
+     stimid <-First(i)
+     pts  <- Nth(stims,stimid)  ##actual points
+     rot  <- Nth(i,2)           ##rotation angle
+     cond <- Nth(i,3)           ##same v. diff
+
+    fgcolor <- MakeColor(gParams.fgcolor)
+     ##Pick a random base rotation.
+     anglebase <- Random() * 2 *gPI
+
+     stm<- RotatePoints(pts, anglebase)
+     poly1 <- Polygon(gVideoWidth/2-gParams.xoffset/2,gVideoHeight/2,First(stm),Nth(stm,2),fgcolor,1)
+     AddObject(poly1, win)
+
+    ##Condition  1 is the reversed, where correct is "D".
+    if(cond == 1)
+     {
+      pts <- ReflectPoints(pts)
+     }
+
+
+    ##No time limit for practice trials:
+    if(trialnum<1)
+       {
+          timeout <- -1
+       } else {
+          timeout <- gParams.timeout
+       }
+
+
+    stm<- RotatePoints(pts,angleBase + gPI*rot/4)
+    poly2 <- Polygon(gVideoWidth/2+gParams.xoffset/2,gVideoHeight/2,First(stm),Nth(stm,2),fgcolor,1)
+    AddObject(poly2, win)
+    Draw()
+    t1 <- GetTime()
+      ##use timeout here if necessary:
+     if(timeout >0)
+      {
+         resp <- WaitForListKeyPressWithTimeout(gKeys,gParams.timeout,1)
+  #      resp <- Sample(gKeys)  #this is a dummy-response
+         resp <- Uppercase(resp)
+       }else{
+        resp <-  UpperCase(WaitForListKeyPress(gKeys))
+  #      resp <- Sample(gKeys)  #this is a dummy-response
+
+      }
+
+    t2 <- GetTime()
+
+    cor <- ScoreTrial(resp,cond,gKeys)
+  ##don't record the practice trials.
+  if(trialnum>0)
+    {
+      type <- "TEST"
+    }
+
+    out <- gSubNum + ","+type+"," + trialnum + "," + cond + "," + stimid +
+             "," +  rot + "," + resp + "," + cor + "," + (t2-t1)
+
+
+      FilePrint(fileout,out)
+      data <- Append(data,[type,cond,rot,(t2-t1),stimid])
+
+    if(gParams.givefeedback)
+    {
+      if(cor)
+      {
+         center.text <- gCorrect
+      } else {
+         center.text <- gIncorrect
+      }
+      Show(center)
+      Draw()
+      Wait(500)
+      Hide(center)
+    }
+
+    RemoveObject(poly1,win)
+    RemoveObject(poly2,win)
+    Draw()
+
+    trialnum <- trialnum +1
+
+    }
+
+   ##pull out just the test trials for statistics
+   test <- Nth(Transpose(data),1)
+   data2 <- Filter(data,Match(test,"TEST"))
+   dd <- Transpose(data2)
+
+   out <- ""
+   loop(i,stim)
+   {
+     out <- out + "Stimulus object: " + Nth(stimnames,i) + CR(1)
+
+     filter <- Match(Nth(dd,5),i)
+     sub <- Filter(data2,filter)
+     tsub <- Transpose(sub)
+
+     out <- out + CR(1)+   AggBy2(Nth(tsub,4),Nth(tsub,3),Nth(tsub,2))
+     out <- out + CR(1)
+   }
+
+
+   FilePrint(reportfile,"-----------------------------------")
+   FilePrint(reportfile,"PEBL Mental Rotation Task")
+   FilePrint(reportfile,"PEBL Version: " +GetPEBLVersion())
+   FilePrint(reportfile, "Participant code: " +gSubNum)
+   FilePrint(reportfile, TimeStamp())
+   FilePrint(reportfile,"-----------------------------------")
+   FilePrint(reportfile,out)
+   FilePrint(reportfile,"-----------------------------------")
+   FileClose(reportfile)
+
+  MessageBox("Thank you for taking participating.  Click OK to continue",win)
+}
+
+
+define AggBy2(val,c1,c2)
+{
+   valsort <- ListBy(val,c2)
+   c1sort  <- ListBy(c1,c2)
+
+   out <- ""
+
+   loop(i,Transpose([Nth(c1sort,1),
+ 	            Nth(c1sort,2),
+                    Nth(valsort,2)]))
+   {
+
+    out <- out + CR(1)+     Print("Condition: " + Nth(i,1))
+
+    out <- out + CR(1)+     Print("-----------------------------------")
+    out <- out + CR(1)+     Print("Angle  N    Median   Mean    SD")
+    out <- out + CR(1)+     Print("-----------------------------------")
+    out <- out + CR(1)+     PrintTable(Aggregate(Nth(i,3),Nth(i,2)))
+    out <- out + CR(1)+     Print("-----------------------------------")
+
+   }
+
+ return out
+}
+
+define PrintTable(table)
+{
+   out <- ""
+   loop(i,table)
+   {
+       loop(j,i)
+         {
+          out <-  out + PrintMe_(Rnd(j,1) + Tab(1))
+         }
+        out <-  out + CR(1)+   PrintMe("")
+   }
+ return out
+}
+
+define PrintMe(val)
+{
+  return Print(val)
+}
+
+define PrintMe_(val)
+{
+  return Print_(val)
+}
+
+## This finds mean and SD RT for
+## each of the conditions specified in delays
+##
+define Aggregate(data, cond)
+{
+
+  agglom <- ListBy(data,cond)
+  ## start by sorting both rts and delays by delays;
+  ## then move through them and analyze subparts.
+
+
+   stats <- []
+
+   loop(i, Transpose(agglom))
+   {
+      icond <- Nth(i,1)
+      ival <- Nth(i,2)
+
+     stats <- Append(stats,
+                [icond, Length(ival),
+                 Med(ival), Mean(ival), StdDev(ival)])
+   }
+
+ return stats
+}
+
+
+
+## this should work for most keys, but may fail if you
+## use space (" "), enter, keypad stuff, etc.
+define ScoreTrial(resp, cond,keys)
+{
+  ret <- 0
+
+  if (cond ==1)
+   {
+
+    if(Uppercase(resp)==Uppercase(Second(keys)))
+
+       {
+         ret <- 1
+       }
+
+   } else {
+
+
+     if(Uppercase(resp)==Uppercase(First(keys)))
+       {
+         ret <- 1
+       }
+   }
+
+   return ret
+}
+
+#Compute median
+define Med(list)
+{
+   if(Length(list) == 0 )
+   {
+     ret <- "NA"
+   } else {
+     ret <- Median(list)
+   }
+  return ret
+}
+
+define Rnd(num,sig)
+{
+   x <-    Round( num *(10 ^ sig))/(10^sig)
+   return x
+}
+
+
+
+
+define GetStrings(lang)
+{
+
+  lang <- Uppercase(lang)
+  fname <- "translations/Rotation.pbl-"+LowerCase(lang)+".json"
+
+  if(FileExists(fname))
+  {
+    gStrings <- ReadTranslationjson(fname,lang)
+  } else
+  {
+    gStrings <- ReadTranslationjson("translations/Rotation.pbl-en.json",lang)
+  }
+
+
+   gInstructions <-ReplaceChar(gStrings.instructions,"<DIFFKEY>",gParams.diffkey)
+   gInstructions <- ReplaceChar(gInstructions,"<SAMEKEY>",gParams.samekey)
+   gHeader <- ReplaceChar(gStrings.header,"<SAMEKEY>", gParams.samekey)
+   gHeader <- ReplaceChar(gHeader,"<DIFFKEY>",gParams.diffkey)
+
+   gCorrect <-    gStrings.correct
+   gIncorrect <-  gStrings.incorrect
+
+
+}

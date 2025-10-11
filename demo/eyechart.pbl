@@ -1,0 +1,182 @@
+##
+## The 'standard' 20:20 should line should be the one 
+## in which, at 20 feet, letters subtend 5 minutes of arc
+## or 8.73 mm tall
+
+define Start(p)
+{
+
+  gWin <- MakeWindow("white")
+
+  gfontname <- "Optician-Sans.otf"
+  
+
+  ##These are the schemes from Grafco 1240 snellen 20'
+  snellen <- ["E",
+              "F P", 
+              "T O Z",
+			  "L P E D",
+              "P E C F D",
+			  "E D F C Z P",
+			  "F E L O P Z D",
+			  "D E F P O T E C",
+			  "L E F O D P C T",
+			  "F D P L T C E O",
+			  "P E Z O L C F T D" ]
+			  
+letters <- ["C","D", "E", "F", "L", "O", "P" , "T","Z"]
+##letters from  BS 4274-1:2003 
+ letters <- ["C", "D", "E", "F", "H", "K", "N", "P", "R", "U", "V", "Z"] 
+
+ calibration <-   Calibrate()
+ trials <- 30
+ size <- 20
+ fsizes <- []
+ fheights <- []
+ trial<-  0
+ realtrial <- 1
+
+ started <- 0
+ errors <- 0
+ corrects <- 0
+
+  delta <- 3
+  correctrun <- 0
+  
+ while(trial <= trials)
+    {
+
+       stim <- Sample(letters)
+       out <-   DoLetters(stim,letters,size)
+       corr <- First(out)
+       resp <- Third(out)
+       pixelheight <- Second(out)
+       height <- First(calibration)/400 * pixelheight * 10  ##height in mm
+       
+       corrects <- corrects + corr
+       errors <- errors + (1-corr)
+       
+       if(corr)
+        {
+	 correctrun <- correctrun + 1
+	} else {
+	 correctrun <- 0
+	 size <- size + delta
+	}
+	
+       if(correctrun>6 or ((started==0) and corr))
+       {
+          size <- size - delta
+	  correctrun <- 0
+	  
+       }
+       
+       
+      if(started)
+        {
+         PushOnEnd(fsizes,size)
+         PushOnEnd(fHeights,height)
+        }
+
+       Print(gSubNum+","+trial+","+realtrial+","+stim+","+size+","+resp+","+corr+"," + Second(out) + First(calibration)+","+height+","+Second(calibration))
+       realtrial <- realtrial + 1
+
+      if(realtrial>5 and
+         corrects > 0 and
+	 errors > 0)
+	 {
+	     started <- 1
+	     delta <- 1
+	 }
+
+       if(started)
+       {
+         trial <- trial + 1
+       }
+       
+    }
+
+
+
+  Print(calibration)
+  Print(fsizes)
+  Print(fheights)
+
+  Print(Mean(fsizes))
+  Print(Mean(fheights))
+
+  thresh <- Mean(fsizes)  ##height in mm
+  hthresh <- Mean(fheights)
+
+  
+
+  #w = 2 d tan(theta/2)
+  #w/(2d) = tan(theta/2)
+  # 2 * atan(w/(2d)) = theta
+  angle <- 2*ATan(hthresh/(2*Second(fsizes)*10))
+  
+  Print("LD50 angle(degrees): "  + angle)
+  Print("LD50 minutes: "  + (angle*60))
+  Print("20:20 should resolve 5 minutes of arc")
+
+}
+
+
+define Calibrate()
+{
+
+   bg <- Square(gVideoWidth/2,gVideoHeight/2,600,MakeColor("grey"),1)
+   AddObject(bg,gWin)
+   square <- Square(gVideoWidth/2,gVideoHeight/2,400,MakeColor("black"),0)
+   AddObject(square,gWin)
+   lab <- EasyLabel("Square edge length: 6.5 cm @ 60 cm",gVideoWidth/2,gVideoHeight/2-220,gWin,30)
+   Draw()
+
+   lab2 <- EasyLabel("Enter square edge in cm",gVideoWidth/2,gVideoHeight/2-280,gWin,30)
+   entry <- EasyTextBox("6.5",gVideoWidth/2-100,gVideoheight/2-260,gWin,15,200,20)
+   Draw()
+   edgesize <- GetInput(entry,"<return>")
+   lab2.text <- "Enter distance from screen in cm"
+   entry.text <- "60"
+   Draw()
+   distance <- GetInput(entry,"<return>")   
+
+
+ return [ToNumber(edgesize),ToNumber(distance)]
+}
+
+
+
+
+define DoLetters(target, distractors,fontsize,scale:1)
+{
+
+   left <-  ConcatenateList(Shuffle(distractors)," ")
+   right <-  ConcatenateList(Shuffle(distractors)," ")
+
+   font <- MakeFont(gFontname,0,fontsize,MakeColor("black"),MakeColor("white"),1)
+   lab <- MakeLabel(left+" "+target+" "+right,font)
+   AddObject(lab,gWin)
+   Move(lab,gVideoWidth/2,gVideoHeight/2)
+
+   tmp <- MakeLabel(target,font)
+   
+
+   height <- lab.height
+   width <- tmp.width*1.5
+
+   ltop    <- Line(gVideoWidth/2-width/2,gVideoHeight/2-height,width,0,MakeColor("black"))
+   lbottom <- Line(gVideoWidth/2-width/2,gVideoHeight/2+height,width,0,MakeColor("black"))
+   AddObject(ltop,gWin)
+   AddObject(lbottom,gWin)
+   Draw()
+   resp <-  WaitForAnyKeyPress()
+   if(Uppercase(resp) == target)
+    {
+     corr <- 1
+    }else{
+     corr <- 0
+    }
+
+  return [corr,height,resp]
+}

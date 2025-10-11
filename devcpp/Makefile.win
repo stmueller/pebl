@@ -1,0 +1,225 @@
+# Project: PEBL
+# Makefile created by Dev-C++ 4.9.9.2
+
+CPP  = g++.exe
+CC   = gcc.exe
+WINDRES = windres.exe
+RES  = obj/pebl_private.res
+OBJ  = obj/Variant.o obj/PComplexData.o obj/PList.o obj/PlatformEnvironment.o obj/PlatformFont.o obj/PlatformImageBox.o obj/PlatformKeyboard.o obj/PlatformTimer.o obj/PlatformWidget.o obj/PlatformWindow.o obj/SDLUtility.o obj/PColor.o obj/PEnvironment.o obj/PFont.o obj/PImageBox.o obj/PWidget.o obj/PWindow.o obj/PEBLUtility.o obj/PDevice.o obj/PKeyboard.o obj/PTimer.o obj/DeviceState.o obj/PEventLoop.o obj/PEBL.o obj/Evaluator.o obj/FunctionMap.o obj/grammar.tab.o obj/lex.yy.o obj/Loader.o obj/PNode.o obj/VariableMap.o obj/PEBLEnvironment.o obj/PEBLList.o obj/PEBLMath.o obj/PEBLObjects.o obj/PEBLStream.o obj/PStream.o obj/PEBLPath.o obj/PError.o obj/PAudioOut.o obj/PlatformAudioOut.o obj/PlatformLabel.o obj/PLabel.o obj/PTextObject.o obj/PlatformTextBox.o obj/PTextBox.o obj/PEventQueue.o obj/PEvent.o obj/PlatformEventQueue.o obj/PEBLString.o obj/PEBLObject.o obj/PDrawObject.o obj/PlatformDrawObject.o obj/PNetwork.o obj/PlatformNetwork.o obj/SDL_win32_main.o obj/BinReloc.o obj/PlatformCanvas.o obj/PCanvas.o obj/PParallelPort.o obj/PJoystick.o obj/PlatformJoystick.o obj/PlatformAudioIn.o obj/PComPort.o obj/rs232.o $(RES)
+LINKOBJ  = obj/Variant.o obj/PComplexData.o obj/PList.o obj/PlatformEnvironment.o obj/PlatformFont.o obj/PlatformImageBox.o obj/PlatformKeyboard.o obj/PlatformTimer.o obj/PlatformWidget.o obj/PlatformWindow.o obj/SDLUtility.o obj/PColor.o obj/PEnvironment.o obj/PFont.o obj/PImageBox.o obj/PWidget.o obj/PWindow.o obj/PEBLUtility.o obj/PDevice.o obj/PKeyboard.o obj/PTimer.o obj/DeviceState.o obj/PEventLoop.o obj/PEBL.o obj/Evaluator.o obj/FunctionMap.o obj/grammar.tab.o obj/lex.yy.o obj/Loader.o obj/PNode.o obj/VariableMap.o obj/PEBLEnvironment.o obj/PEBLList.o obj/PEBLMath.o obj/PEBLObjects.o obj/PEBLStream.o obj/PStream.o obj/PEBLPath.o obj/PError.o obj/PAudioOut.o obj/PlatformAudioOut.o obj/PlatformLabel.o obj/PLabel.o obj/PTextObject.o obj/PlatformTextBox.o obj/PTextBox.o obj/PEventQueue.o obj/PEvent.o obj/PlatformEventQueue.o obj/PEBLString.o obj/PEBLObject.o obj/PDrawObject.o obj/PlatformDrawObject.o obj/PNetwork.o obj/PlatformNetwork.o obj/SDL_win32_main.o obj/BinReloc.o obj/PlatformCanvas.o obj/PCanvas.o obj/PParallelPort.o obj/PJoystick.o obj/PlatformJoystick.o obj/PlatformAudioIn.o obj/PComPort.o obj/rs232.o $(RES)
+LIBS =  -L"C:/Dev-Cpp/lib" -lmingw32 -lSDLmain -lSDL -mwindows -lSDL_image -lSDL_ttf -lSDL_net -lSDL_gfx -lSDL_audioin -lpng  -mwindows -s 
+INCS =  -I"C:/Dev-Cpp/include" 
+CXXINCS =  -I"C:/Dev-Cpp/lib/gcc/mingw32/3.4.2/include"  -I"C:/Dev-Cpp/include/c++/3.4.2/backward"  -I"C:/Dev-Cpp/include/c++/3.4.2/mingw32"  -I"C:/Dev-Cpp/include/c++/3.4.2"  -I"C:/Dev-Cpp/include" 
+BIN  = ../bin/pebl.exe
+CXXFLAGS = $(CXXINCS) -Wno-deprecated -DPEBL_WIN32 -Dmain=SDL_main   -fexpensive-optimizations -O3 -mwindows
+CFLAGS = $(INCS) -Dmain=SDL_main -DHAVE_OPENGL   -fexpensive-optimizations -O3 -mwindows
+RM = rm -f
+
+.PHONY: all all-before all-after clean clean-custom
+
+all: all-before ../bin/pebl.exe all-after
+
+
+clean: clean-custom
+	${RM} $(OBJ) $(BIN)
+
+$(BIN): $(OBJ)
+	$(CPP) $(LINKOBJ) -o "..\bin\pebl.exe" $(LIBS)
+
+obj/Variant.o: ../src/base/Variant.cpp
+	$(CPP) -c ../src/base/Variant.cpp -o obj/Variant.o $(CXXFLAGS)
+
+obj/PComplexData.o: ../src/base/PComplexData.cpp
+	$(CPP) -c ../src/base/PComplexData.cpp -o obj/PComplexData.o $(CXXFLAGS)
+
+obj/PList.o: ../src/base/PList.cpp
+	$(CPP) -c ../src/base/PList.cpp -o obj/PList.o $(CXXFLAGS)
+
+obj/PlatformEnvironment.o: ../src/platforms/sdl/PlatformEnvironment.cpp
+	$(CPP) -c ../src/platforms/sdl/PlatformEnvironment.cpp -o obj/PlatformEnvironment.o $(CXXFLAGS)
+
+obj/PlatformFont.o: ../src/platforms/sdl/PlatformFont.cpp
+	$(CPP) -c ../src/platforms/sdl/PlatformFont.cpp -o obj/PlatformFont.o $(CXXFLAGS)
+
+obj/PlatformImageBox.o: ../src/platforms/sdl/PlatformImageBox.cpp
+	$(CPP) -c ../src/platforms/sdl/PlatformImageBox.cpp -o obj/PlatformImageBox.o $(CXXFLAGS)
+
+obj/PlatformKeyboard.o: ../src/platforms/sdl/PlatformKeyboard.cpp
+	$(CPP) -c ../src/platforms/sdl/PlatformKeyboard.cpp -o obj/PlatformKeyboard.o $(CXXFLAGS)
+
+obj/PlatformTimer.o: ../src/platforms/sdl/PlatformTimer.cpp
+	$(CPP) -c ../src/platforms/sdl/PlatformTimer.cpp -o obj/PlatformTimer.o $(CXXFLAGS)
+
+obj/PlatformWidget.o: ../src/platforms/sdl/PlatformWidget.cpp
+	$(CPP) -c ../src/platforms/sdl/PlatformWidget.cpp -o obj/PlatformWidget.o $(CXXFLAGS)
+
+obj/PlatformWindow.o: ../src/platforms/sdl/PlatformWindow.cpp
+	$(CPP) -c ../src/platforms/sdl/PlatformWindow.cpp -o obj/PlatformWindow.o $(CXXFLAGS)
+
+obj/SDLUtility.o: ../src/platforms/sdl/SDLUtility.cpp
+	$(CPP) -c ../src/platforms/sdl/SDLUtility.cpp -o obj/SDLUtility.o $(CXXFLAGS)
+
+obj/PColor.o: ../src/objects/PColor.cpp
+	$(CPP) -c ../src/objects/PColor.cpp -o obj/PColor.o $(CXXFLAGS)
+
+obj/PEnvironment.o: ../src/objects/PEnvironment.cpp
+	$(CPP) -c ../src/objects/PEnvironment.cpp -o obj/PEnvironment.o $(CXXFLAGS)
+
+obj/PFont.o: ../src/objects/PFont.cpp
+	$(CPP) -c ../src/objects/PFont.cpp -o obj/PFont.o $(CXXFLAGS)
+
+obj/PImageBox.o: ../src/objects/PImageBox.cpp
+	$(CPP) -c ../src/objects/PImageBox.cpp -o obj/PImageBox.o $(CXXFLAGS)
+
+obj/PWidget.o: ../src/objects/PWidget.cpp
+	$(CPP) -c ../src/objects/PWidget.cpp -o obj/PWidget.o $(CXXFLAGS)
+
+obj/PWindow.o: ../src/objects/PWindow.cpp
+	$(CPP) -c ../src/objects/PWindow.cpp -o obj/PWindow.o $(CXXFLAGS)
+
+obj/PEBLUtility.o: ../src/utility/PEBLUtility.cpp
+	$(CPP) -c ../src/utility/PEBLUtility.cpp -o obj/PEBLUtility.o $(CXXFLAGS)
+
+obj/PDevice.o: ../src/devices/PDevice.cpp
+	$(CPP) -c ../src/devices/PDevice.cpp -o obj/PDevice.o $(CXXFLAGS)
+
+obj/PKeyboard.o: ../src/devices/PKeyboard.cpp
+	$(CPP) -c ../src/devices/PKeyboard.cpp -o obj/PKeyboard.o $(CXXFLAGS)
+
+obj/PTimer.o: ../src/devices/PTimer.cpp
+	$(CPP) -c ../src/devices/PTimer.cpp -o obj/PTimer.o $(CXXFLAGS)
+
+obj/DeviceState.o: ../src/devices/DeviceState.cpp
+	$(CPP) -c ../src/devices/DeviceState.cpp -o obj/DeviceState.o $(CXXFLAGS)
+
+obj/PEventLoop.o: ../src/devices/PEventLoop.cpp
+	$(CPP) -c ../src/devices/PEventLoop.cpp -o obj/PEventLoop.o $(CXXFLAGS)
+
+obj/PEBL.o: ../src/apps/PEBL.cpp
+	$(CPP) -c ../src/apps/PEBL.cpp -o obj/PEBL.o $(CXXFLAGS)
+
+obj/Evaluator.o: ../src/base/Evaluator.cpp
+	$(CPP) -c ../src/base/Evaluator.cpp -o obj/Evaluator.o $(CXXFLAGS)
+
+obj/FunctionMap.o: ../src/base/FunctionMap.cpp
+	$(CPP) -c ../src/base/FunctionMap.cpp -o obj/FunctionMap.o $(CXXFLAGS)
+
+obj/grammar.tab.o: ../src/base/grammar.tab.cpp
+	$(CPP) -c ../src/base/grammar.tab.cpp -o obj/grammar.tab.o $(CXXFLAGS)
+
+obj/lex.yy.o: ../src/base/lex.yy.c
+	$(CPP) -c ../src/base/lex.yy.c -o obj/lex.yy.o $(CXXFLAGS)
+
+obj/Loader.o: ../src/base/Loader.cpp
+	$(CPP) -c ../src/base/Loader.cpp -o obj/Loader.o $(CXXFLAGS)
+
+obj/PNode.o: ../src/base/PNode.cpp
+	$(CPP) -c ../src/base/PNode.cpp -o obj/PNode.o $(CXXFLAGS)
+
+obj/VariableMap.o: ../src/base/VariableMap.cpp
+	$(CPP) -c ../src/base/VariableMap.cpp -o obj/VariableMap.o $(CXXFLAGS)
+
+obj/PEBLEnvironment.o: ../src/libs/PEBLEnvironment.cpp
+	$(CPP) -c ../src/libs/PEBLEnvironment.cpp -o obj/PEBLEnvironment.o $(CXXFLAGS)
+
+obj/PEBLList.o: ../src/libs/PEBLList.cpp
+	$(CPP) -c ../src/libs/PEBLList.cpp -o obj/PEBLList.o $(CXXFLAGS)
+
+obj/PEBLMath.o: ../src/libs/PEBLMath.cpp
+	$(CPP) -c ../src/libs/PEBLMath.cpp -o obj/PEBLMath.o $(CXXFLAGS)
+
+obj/PEBLObjects.o: ../src/libs/PEBLObjects.cpp
+	$(CPP) -c ../src/libs/PEBLObjects.cpp -o obj/PEBLObjects.o $(CXXFLAGS)
+
+obj/PEBLStream.o: ../src/libs/PEBLStream.cpp
+	$(CPP) -c ../src/libs/PEBLStream.cpp -o obj/PEBLStream.o $(CXXFLAGS)
+
+obj/PStream.o: ../src/devices/PStream.cpp
+	$(CPP) -c ../src/devices/PStream.cpp -o obj/PStream.o $(CXXFLAGS)
+
+obj/PEBLPath.o: ../src/utility/PEBLPath.cpp
+	$(CPP) -c ../src/utility/PEBLPath.cpp -o obj/PEBLPath.o $(CXXFLAGS)
+
+obj/PError.o: ../src/utility/PError.cpp
+	$(CPP) -c ../src/utility/PError.cpp -o obj/PError.o $(CXXFLAGS)
+
+obj/PAudioOut.o: ../src/devices/PAudioOut.cpp
+	$(CPP) -c ../src/devices/PAudioOut.cpp -o obj/PAudioOut.o $(CXXFLAGS)
+
+obj/PlatformAudioOut.o: ../src/platforms/sdl/PlatformAudioOut.cpp
+	$(CPP) -c ../src/platforms/sdl/PlatformAudioOut.cpp -o obj/PlatformAudioOut.o $(CXXFLAGS)
+
+obj/PlatformLabel.o: ../src/platforms/sdl/PlatformLabel.cpp
+	$(CPP) -c ../src/platforms/sdl/PlatformLabel.cpp -o obj/PlatformLabel.o $(CXXFLAGS)
+
+obj/PLabel.o: ../src/objects/PLabel.cpp
+	$(CPP) -c ../src/objects/PLabel.cpp -o obj/PLabel.o $(CXXFLAGS)
+
+obj/PTextObject.o: ../src/objects/PTextObject.cpp
+	$(CPP) -c ../src/objects/PTextObject.cpp -o obj/PTextObject.o $(CXXFLAGS)
+
+obj/PlatformTextBox.o: ../src/platforms/sdl/PlatformTextBox.cpp
+	$(CPP) -c ../src/platforms/sdl/PlatformTextBox.cpp -o obj/PlatformTextBox.o $(CXXFLAGS)
+
+obj/PTextBox.o: ../src/objects/PTextBox.cpp
+	$(CPP) -c ../src/objects/PTextBox.cpp -o obj/PTextBox.o $(CXXFLAGS)
+
+obj/PEventQueue.o: ../src/devices/PEventQueue.cpp
+	$(CPP) -c ../src/devices/PEventQueue.cpp -o obj/PEventQueue.o $(CXXFLAGS)
+
+obj/PEvent.o: ../src/devices/PEvent.cpp
+	$(CPP) -c ../src/devices/PEvent.cpp -o obj/PEvent.o $(CXXFLAGS)
+
+obj/PlatformEventQueue.o: ../src/platforms/sdl/PlatformEventQueue.cpp
+	$(CPP) -c ../src/platforms/sdl/PlatformEventQueue.cpp -o obj/PlatformEventQueue.o $(CXXFLAGS)
+
+obj/PEBLString.o: ../src/libs/PEBLString.cpp
+	$(CPP) -c ../src/libs/PEBLString.cpp -o obj/PEBLString.o $(CXXFLAGS)
+
+obj/PEBLObject.o: ../src/base/PEBLObject.cpp
+	$(CPP) -c ../src/base/PEBLObject.cpp -o obj/PEBLObject.o $(CXXFLAGS)
+
+obj/PDrawObject.o: ../src/objects/PDrawObject.cpp
+	$(CPP) -c ../src/objects/PDrawObject.cpp -o obj/PDrawObject.o $(CXXFLAGS)
+
+obj/PlatformDrawObject.o: ../src/platforms/sdl/PlatformDrawObject.cpp
+	$(CPP) -c ../src/platforms/sdl/PlatformDrawObject.cpp -o obj/PlatformDrawObject.o $(CXXFLAGS)
+
+obj/PNetwork.o: ../src/devices/PNetwork.cpp
+	$(CPP) -c ../src/devices/PNetwork.cpp -o obj/PNetwork.o $(CXXFLAGS)
+
+obj/PlatformNetwork.o: ../src/platforms/sdl/PlatformNetwork.cpp
+	$(CPP) -c ../src/platforms/sdl/PlatformNetwork.cpp -o obj/PlatformNetwork.o $(CXXFLAGS)
+
+obj/SDL_win32_main.o: ../src/apps/SDL_win32_main.c
+	$(CPP) -c ../src/apps/SDL_win32_main.c -o obj/SDL_win32_main.o $(CXXFLAGS)
+
+obj/BinReloc.o: ../src/utility/BinReloc.cpp
+	$(CPP) -c ../src/utility/BinReloc.cpp -o obj/BinReloc.o $(CXXFLAGS)
+
+obj/PlatformCanvas.o: ../src/platforms/sdl/PlatformCanvas.cpp
+	$(CPP) -c ../src/platforms/sdl/PlatformCanvas.cpp -o obj/PlatformCanvas.o $(CXXFLAGS)
+
+obj/PCanvas.o: ../src/objects/PCanvas.cpp
+	$(CPP) -c ../src/objects/PCanvas.cpp -o obj/PCanvas.o $(CXXFLAGS)
+
+obj/PParallelPort.o: ../src/devices/PParallelPort.cpp
+	$(CPP) -c ../src/devices/PParallelPort.cpp -o obj/PParallelPort.o $(CXXFLAGS)
+
+obj/PJoystick.o: ../src/devices/PJoystick.cpp
+	$(CPP) -c ../src/devices/PJoystick.cpp -o obj/PJoystick.o $(CXXFLAGS)
+
+obj/PlatformJoystick.o: ../src/platforms/sdl/PlatformJoystick.cpp
+	$(CPP) -c ../src/platforms/sdl/PlatformJoystick.cpp -o obj/PlatformJoystick.o $(CXXFLAGS)
+
+obj/PlatformAudioIn.o: ../src/platforms/sdl/PlatformAudioIn.cpp
+	$(CPP) -c ../src/platforms/sdl/PlatformAudioIn.cpp -o obj/PlatformAudioIn.o $(CXXFLAGS)
+
+obj/PComPort.o: ../src/devices/PComPort.cpp
+	$(CPP) -c ../src/devices/PComPort.cpp -o obj/PComPort.o $(CXXFLAGS)
+
+obj/rs232.o: ../src/utility/rs232.c
+	$(CPP) -c ../src/utility/rs232.c -o obj/rs232.o $(CXXFLAGS)
+
+obj/pebl_private.res: pebl_private.rc 
+	$(WINDRES) -i pebl_private.rc --input-format=rc -o obj/pebl_private.res -O coff 

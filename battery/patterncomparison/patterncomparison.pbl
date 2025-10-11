@@ -1,0 +1,386 @@
+
+#################################################################
+##  PEBL Pattern Comparison Task Version 0.1
+##
+##  For use with PEBL 0.09 or later
+##  http://pebl.sf.net
+##  Part of  The PEBL Psychological Test Battery
+##  2008 Released into Public Domain
+##  by Shane T. Mueller, Ph.D. (smueller at obereed dot net)
+##
+##  This is a simple version of the Pattern Comparison' task
+##  described in the UTC Test Battery test # 13
+##
+##  See: Perez, W. A. Masline, P. J., Ramsey, E. g., and Urban, K. E.,
+##       (1987). Unified tri-services cognitive performance assessment
+## 		 battery: Review and methodology.  DTIC AAMRL-TR-87-007.
+##
+##
+##
+#################################################################
+
+ define Start(p)
+{
+
+  gScriptName <- "PEBL Pattern Comparison Task"
+
+  parpairs <- [["similarfoil",1], ##should foil be similar to target
+               ["foildiff",3], #Number of changes between target and foil
+               ["size",4],
+ 	       ["givefeedback",1],
+ 	       ["condsize",30]
+              ]
+
+  gParams <- CreateParameters(parpairs,gParamFile)
+
+  gSimilarFoil <- gParams.similarfoil
+  gfoildiff    <- gParams.foildiff
+
+  gSize <- gParams.size  #Number of rows/columns in the matrix
+  giveFeedback <- gParams.givefeedback
+  condsize <-gParams.condsize
+
+  gSleepEasy <- 1
+  ShowCursor(0)
+
+  gWin <- MakeWindow()
+  if(gSubNum+""=="0")
+   {
+     gSubNum <- GetSubNum(gWin)
+   }
+
+
+  GetStrings(gLanguage)
+
+  gbackground  <-  MakeColor("darkblue")
+  gDotColor    <-  MakeColor("white")
+
+
+  gFileOut <- GetNewDataFile(gSubNum,gWin,"patcomp","csv",
+            "subnum,trial,samediff,mat1,mat2,abstime,rt,resp,corr")
+
+
+
+  instruc <- gStrings.inst1
+
+  inst2 <- gStrings.footer
+  gFooter <- EasyLabel(inst2,gVideoWidth/2,gVideoHeight-120,gWin,24)
+
+  gFontcorr <- MakeFont(gPEBLBaseFont,0,40,MakeColor("green"),MakeColor("black"),0)
+  gFontinc <-MakeFont(gPEBLBaseFont,0,40,MakeColor("red"),MakeColor("black"),0)
+  gFeedback <- MakeLabel("",gFontcorr)
+  AddObject(gFeedback,gWin)
+  Move(gFeedback,gVideoWidth/2,gVideoHeight/2)
+  Hide(gFeedback)
+
+  ##Provide initial instructions
+  inst <- EasyTextBox(instruc,50,50,gWin,16,gVideoWidth-100,gVideoHeight-200)
+  Draw()
+
+  conds <- Shuffle(Merge(Repeat("same",condsize),
+                          Repeat("diff",condsize)))
+  WaitForAnyKeyPress()
+  Hide(inst)
+  Draw()
+
+
+
+  trial <- 1
+  loop(cond,conds)
+   {
+
+   startTime <- GetTime()
+   ##Create test matrix
+
+   if(gSimilarFoil)
+     {
+        mats <- MakeMatrices(gFoilDiff)
+        matrix <- First(mats)
+        foil <- Nth(mats,2)
+     } else {
+        matrix <- MakeMatrix()
+        foil <- MakeFoil(matrtix)
+     }
+
+
+   if(cond == "same")
+   {
+      alt <- matrix
+   } else {
+      alt <- foil
+   }
+
+
+   FilePrint_(gFileOut,gsubnum + "," + trial + "," + cond + ","  )
+   FilePrint_(gFileOut,ListToString(Flatten(matrix))+ ",")
+   FilePrint_(gFileOut,ListToString(Flatten(alt))+ ",")
+
+ ##Present the study matrix
+    gFooter.text <- inst2
+    x <- DisplayMatrices(matrix,alt)
+    Draw()
+    t1 <- GetTime()
+    resp <- WaitForListKeyPress(["<lshift>","<rshift>"])
+#    resp <- WaitForListKeyPress(["<kp_1>","<kp_2>"])
+    t2 <- GetTime()
+
+    corr <- (resp == Lookup(cond,["same","diff"],["<lshift>","<rshift>"]))
+#    corr <- (resp ==  Lookup(cond,["same","diff"],["1","2"]))
+    FilePrint(gFileOut, starttime + "," + (t2-t1) + "," + resp + "," + corr)
+
+    if(giveFeedback)
+    {
+        if(corr)
+        {
+          gFeedback.font <- gFontCorr
+          gFeedback.text <- gStrings.correct
+          delay <- 300
+        } else {
+          gFeedback.font <- gFontInc
+          gFeedback.text <- gStrings.incorrect
+#          delay <- 800
+          delay <- 300
+        }
+
+     Show(gFeedback)
+     Draw()
+     Wait(delay)
+     RemoveComplex(x,gWin)
+     Hide(gFeedback)
+     Draw()
+     Wait(100)
+    }
+    trial <- trial +1
+   }
+
+
+  inst.text <- gStrings.debrief
+  Show(inst)
+  Draw()
+  Wait(1000)
+  WaitForAnyKeyPress()
+
+}
+
+
+define DisplayMatrices(mat,mat2)
+{
+
+   xcells <- Length(mat)
+   ycells <- Length(First(mat))
+
+   x1center <- gVideoWidth/4
+   x2center <- gVideoWidth-x1center
+   ycenter <- gVideoHeight/2
+
+   xsize <- 200
+   ysize <- 200
+
+   upper <- ycenter-ysize/2
+   lower <- ycenter+ysize/2
+
+   left1 <- x1center-xsize/2
+   right1 <- x1center+xsize/2
+
+   left2 <- x2center-xsize/2
+   right2 <- x2center+xsize/2
+
+   xjump <- xsize/xcells
+   yjump <- ysize/ycells
+   circlesize <- Min([xsize,ysize])/(gSize*2)-5
+
+  complex <- []
+
+  #First, make the lines
+
+  ##draw the background square
+  back1 <- Rectangle(x1center,ycenter,xsize,ysize,gbackground,1)
+  AddObject(back1,gWin)
+  complex <- Append(complex,back1)
+  ##draw the background square
+  back2 <- Rectangle(x2center,ycenter,xsize,ysize,gbackground,1)
+  AddObject(back2,gWin)
+  complex <- Append(complex,back2)
+
+  ##Draw the dots for the standard
+   row <- 1
+   loop(line, mat)
+     {
+        col <- 1
+        loop(cell,line)
+         {
+           if(cell==1)
+           {
+             x <- Circle(left1+(col-.5)*xjump,upper+(row-.5)*yjump,circlesize,gDotColor,1)
+	     x.aa <- 1
+             AddObject(x,gWin)
+             complex <- Append(complex,x)
+           }
+           col <- col +1
+         }
+      row <- row + 1
+     }
+
+   ##draw dots for comparison.
+   row <- 1
+   loop(line, mat2)
+     {
+        col <- 1
+        loop(cell,line)
+         {
+           if(cell==1)
+           {
+             x <- Circle(left2+(col-.5)*xjump,upper+(row-.5)*yjump,circlesize,gDotColor,1)
+	     x.aa <- 1
+             AddObject(x,gWin)
+             complex <- Append(complex,x)
+           }
+           col <- col +1
+         }
+      row <- row + 1
+     }
+
+ return complex
+}
+
+define MakeMatrix()
+{
+  ##fill half the cells.
+
+  numDots <- Floor(gsize * gsize /2)
+  numempty <- gsize * gsize - numDots
+
+  dots <- FoldList(Shuffle( Merge(Repeat(1,numDots),
+  	                              Repeat(0,numEmpty))), gSize)
+
+  return dots
+}
+
+
+##This creates a matrix and a foil
+define MakeMatrices(diff)
+{
+
+  #How many dots should be perturbed?
+
+  ##fill half the cells.
+
+  numDots <- Floor(gsize * gsize /2)
+  numempty <- gsize * gsize - numDots
+  standard <- Merge(Repeat(1,numDots), Repeat(0,numEmpty))
+  foil <- Rotate(standard,diff)
+  tmp <- Transpose(Shuffle(Transpose([standard,foil])))
+
+  targ <- FoldList(First(tmp),gSize)
+  foil <- FoldList(Nth(tmp,2),gSize)
+
+  return [targ,foil]
+}
+
+
+define RemoveComplex(comp,win)
+{
+  loop(i,comp)
+  {
+    RemoveObject(i,win)
+  }
+}
+
+define RotateMatrix(mat,dir)
+{
+  if(dir == "<left>")
+  {
+   newmat <- Reverse(Transpose(mat))
+  } elseif(dir == "<right>") {
+   newmat <- Transpose(Reverse(mat))
+  } else {
+   newmat <- CopyMatrix(mat)
+  }
+
+  return newmat
+}
+
+
+define PrintMatrix(m)
+{
+  loop(i,m)
+  {
+    PrintList(i)
+  }
+}
+
+
+define CopyMatrix(m)
+{
+   newmat <- []
+   loop(i,m)
+   {
+    tmp <- []
+     loop(j,i)
+     {
+
+      tmp <- Append(tmp,j)
+     }
+     newmat <- Append(newmat,tmp)
+   }
+   return newmat
+}
+
+define MakeFoil(mat)
+{
+  bad <- 1
+  while(bad)
+  {
+     bad <- 0
+     newMat <- MakeMatrix()
+    if(MatrixEqual(mat,newmat) or
+  	   MatrixEqual(mat,Reverse(Transpose(newmat))) or
+       MatrixEqual(mat,Transpose(Reverse(newmat))) or
+       MatrixEqual(mat,Reverse(newmat)))
+     {
+        bad <- 1
+     }
+  }
+
+ return newmat
+}
+
+
+define MatrixEqual(m1,m2)
+{
+
+  equal <- 1
+  test <- Transpose([m1,m2])
+  loop(i,test)
+  {
+    ii <- Transpose(i)
+    loop(j, ii)
+    {
+      if(not (First(j) ==Nth(j,2)))
+       {
+            equal <- 0
+       }
+    }
+
+  }
+
+  return equal
+}
+
+
+
+define GetStrings(lang)
+{
+
+  lang <- Uppercase(lang)
+  fname <- "translations/patterncomparison.pbl-"+LowerCase(lang)+".json"
+
+  if(FileExists(fname))
+  {
+    gStrings <- ReadTranslationJSON(fname,lang)
+  } else
+  {
+    gStrings <- ReadTranslationJSON("translations/patterncomparison.pbl-en.json",lang)
+  }
+
+ }

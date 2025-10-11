@@ -1,0 +1,374 @@
+## This is a modification/translation of the CANUML task described in:
+##
+## The CANUM is a stroop-type interference task using numbers and numerosity.
+##
+##  CANUM: Cantidad-Numero (Quantity-Number) interference task
+##
+## Gutiérrez-Martínez, F., Ramos-Ortega, M., & Vila-Chaves, J. (2017). Executive
+##   effectiveness on Stroop type interference tasks. A validation study of a
+##   numerical and manual version (CANUM). Anales De PsicologíA / Annals Of
+##   Psychology, 34(1), 184-196. doi:http://dx.doi.org/10.6018/analesps.34.1.263431
+##
+##  http://revistas.um.es/analesps/article/view/analesps.34.1.263431
+##
+## Originally developed by Melchor Ramos-Ortega, J. Vila-Chaves.,
+###  and Francisco Gutiérrez-Martínez
+## Adapted for the PEBL Test Battery by Shane T. Mueller
+##
+##
+
+define Start(par)
+{
+  ## Execute pebl with the -v command-line to specify subject number
+  ## If no -v option produced, the code below sets subnum arbitrarily to 0
+
+   gScriptName <- "CANUM"
+
+    parpairs <- [["shuffle",0] ##should the trials be shuffled?
+                 ]
+    gParams <- CreateParameters(parpairs,gParamFile)
+
+
+    GetStrings(gLanguage)
+
+    gBlanco <- MakeColor("white")
+    red <- MakeColor("red")
+    bg <- MakeColor("grey")
+
+    gWin <- MakeWindow("black")
+    Initialize()
+
+
+
+   ##Get subject code if we need to:
+   if(gSubNum+""=="0")
+    {
+	  gSubNum <- GetSubNum(gWin)
+    }
+
+
+
+   gFileOut <- GetNewDataFile(gSubNum,gWin,"CANUM","csv",
+        "subnum,phase,trial,length,stim,code,size,correctresp,side,AB,resp,eval,corr,rt")
+
+
+   font <- MakeFont(gPEBLBaseFont,0,26,gBlanco, bg,0)
+   #define gLabel and gWin global so that Trial can use them.
+
+
+
+
+   ## Begin experiment
+   ShowCursor(0)
+  ##Initialize Font and colors
+   gSleepEasy <- 1
+
+   bg <- MakeColor("black")
+   fg <- MakeColor("white")
+
+
+   ## Make and place the instruction box, then hide it
+   gInstructions <- MakeTextBox("", gInstructionsFont, 700, 500)
+   AddObject(gInstructions, gWin)
+   Move(gInstructions, gVideoWidth/2-300, gVideoHeight/2-200)
+   Hide(gInstructions)
+
+   ## Make and hide a header label
+   gHeader <- MakeLabel(gStrings.header1, gHeaderFont)
+   AddObject(gHeader, gWin)
+   Move(gHeader, gVideoWidth/2, 100)
+   Hide(gHeader)
+
+     instructiones1 <- gStrings.inst1
+     instructiones2 <- gStrings.inst2
+     instructiones3 <- gStrings.inst3
+     instructiones4 <- gStrings.inst4
+
+	gInstructions.text <- instructiones1
+	Show(gInstructions)
+    Draw()
+    WaitForAnyKeyPress()
+    Hide(gInstructions)
+    Draw()
+
+	gInstructions.text <- instructiones2
+	Show(gInstructions)
+    Draw()
+    WaitForAnyKeyPress()
+    Hide(gInstructions)
+    Draw()
+    font <- MakeFont(gPEBLBaseFont,0,26, gBlanco, bg,0)
+    indicador <- MakeLabel(gStrings.practice, font)
+    AddObject(indicador, gWin)
+    Move(indicador,gVideoWidth/2, 50)
+
+    gLabel <- MakeLabel(gStrings.continue, gHeaderFont)
+    AddObject(gLabel, gWin)
+    Move(gLabel,gVideoWidth/2,500)
+    Show (gLabel)
+    Draw()
+    WaitForAnyKeyPress()
+    Hide(indicador)
+    Hide(gLabel)
+    Draw()
+
+    StartPractice()
+
+    gInstructions.text <- instructiones4
+
+    Show(gInstructions)
+    SetText(gLabel,gStrings.keylegend)
+    Draw()
+    WaitForAnyKeyPress()
+    Hide(gInstructions)
+    Hide(gLabel)
+    Draw()
+
+    font <- MakeFont(gPEBLBaseFont,0,26, gBlanco, bg,0)
+    indicador <- MakeLabel(gStrings.test, font)
+    AddObject(indicador, gWin)
+    Move(indicador,gVideoWidth/2, 50)
+    SetText(gLabel,gStrings.continue)
+    AddObject(gLabel, gWin)
+    Move(gLabel,gVideoWidth/2,500)
+    Show (gLabel)
+    Draw()
+    WaitForAnyKeyPress()
+    Hide(indicador)
+    Hide(gLabel)
+    Draw()
+
+    datos <- FileReadTable("CANUM.TXT",";")
+
+    if(gParams.shuffle)
+    {
+      datos <- Shuffle(datos)
+    }
+    Show(gLabel)
+
+
+
+
+    loop(s,datos)
+    {
+        FilePrint_(gFileOut, gSubNum+",TEST,"+gtrial + ",")
+	SetText(gLabel, gStrings.keylegend2)
+	Move(gLabel,gVideoWidth/2,500)
+	Show (gLabel)
+	Draw()
+	tecla <- WaitForListKeyPress([" ", "<esc>"])
+
+	if (tecla <> " "){
+		break
+	}
+	Hide (gLabel)
+	Draw()
+
+	Trial (s)
+        gtrial <- gtrial + 1
+     }
+
+   FileClose(gFileOut)
+   Wait(1000)
+   SetText(gLabel,gStrings.debrief)
+   Show(gLabel)
+   Draw()
+   WaitForAnyKeyPress()
+   ShowCursor(1)
+}
+
+##################################################################################################
+##################################################################################################
+
+##define Trial(stimulus, condition)
+define Trial (stimulus)
+{
+ 	red <- MakeColor("red")
+        bg <- MakeColor("black")
+
+
+	#Draw()
+        Show(gHeader)
+
+	cadena <- ListToString(stimulus)
+	longi <- SubString(cadena, 1, 1)
+	numero <- ToNumber(longi)
+	items <- SubString(cadena, 3, numero)
+	tcor <- SubString(cadena, 10+numero, 1)
+
+
+	opciones <- MakeLabel(items,gHeaderFont)
+	AddObject(opciones,gWin)
+	Move(opciones, gVideoWidth/2, gVideoHeight/2)
+	Show(opciones)
+
+  	Draw()
+
+	start <- GetTime()
+	resp <- WaitForListKeyPress(["<lshift>","<rshift>"])
+	##these were initially coded with keys p/q.
+	if(resp=="<lshift>")
+	{
+	  response <- "q"
+        } else{
+	  response <- "p"
+        }
+
+	end <- GetTime()
+
+    corr <- (response == tcor)
+  if (not corr)
+  {
+
+	incorrect <- MakeLabel(gStrings.incorrect, gRedFont)
+        AddObject(incorrect, gWin)
+        Move(incorrect,gVideoWidth/2,300)
+	Draw()
+	Wait(1000)
+        RemoveObject(incorrect,gWin)
+
+	response <- response + ","+ gStrings.error
+	gLabel <- MakeLabel(response, gWhiteFont)
+
+	AddObject(gLabel, gWin)
+        Move(gLabel,gVideoWidth/2,375)
+	Draw()
+  }  elseif (response== tcor){
+        response <- response +","+ gStrings.success
+  }
+  rt <- end - start
+  FilePrint(gFileOut, ConcatenateList(stimulus,",") + ","  + response + "," + corr + ","+ rt )
+
+}
+
+##################################################################################################
+##################################################################################################
+##################################################################################################
+
+ define Initialize()
+{
+
+
+   bg <- MakeColor("black")
+   fg <- MakeColor("white")
+
+    gInstructionsFont <- MakeFont(gPEBLBaseFont, 0, 18, fg, bg, 1)
+    gHeaderFont       <- MakeFont(gPEBLBaseFont, 1, 36, fg, bg, 1)
+
+    gRedfont <- MakeFont(gPEBLBaseFont,1,26,MakeColor("red"),bg,0)
+    gWhiteFont <- MakeFont(gPEBLBaseFont,1,26,gBlanco, bg,0)
+    gStimFont <- MakeFont(gPEBLBaseFont,0,26, gBlanco, bg,0)
+   ## Make and place the instruction box, then hide it
+   gInstructions <- MakeTextBox("", gInstructionsFont, 600, 400)
+   AddObject(gInstructions, gWin)
+   Move(gInstructions, gVideoWidth/2-300, gVideoHeight/2-200)
+   Hide(gInstructions)
+
+
+ }
+
+ ##################################################################################################
+ ##################################################################################################
+
+## *******************************************************************************************************
+## *******************************************************************************************************
+  define StartPractice()
+ {
+    red <- MakeColor("red")
+    bg <- MakeColor("black")
+    datos <- FileReadTable("CANUMPR.TXT",";")
+
+    font <- MakeFont(gPEBLBaseFont,0,26, gBlanco, bg,0)
+
+    gTrial <- 1
+
+    RepeatPractice(12)
+
+
+	gLabel <- MakeLabel(gStrings.morepractice,font)
+	AddObject(gLabel, gWin)
+	Move(gLabel,gVideoWidth/2,500)
+	Show (gLabel)
+	Draw()
+
+        ##this needs to be fixed with a mouse click or something.
+        continue <- ""
+	if (Uppercase(continue) <> Uppercase(gStrings.no))
+	 {
+	    RepeatPractice(12)
+	    gLabel.text <- gStrings.morepractice
+	    Show(gLabel)
+	    Draw()
+  	    continue <- WaitForListKeyPress([gStrings.yes,gStrings.no])
+
+	 }
+
+
+
+     SetText(gLabel, gStrings.begin)
+     Show(gLabel)
+     Draw()
+     WaitForAnyKeyPress()
+ }
+
+################################################################################################
+################################################################################################
+## *********************************************************************************************
+## *********************************************************************************************
+
+define RepeatPractice(trials)
+ {
+    red <- MakeColor("red")
+    bg <- MakeColor("black")
+
+    ##there are 24 practice trials, select a random 12
+
+    datos <- SampleN(FileReadTable("CANUMPR.TXT",";"),trials)
+
+
+
+    loop(s,datos)
+    {
+
+        FilePrint_(gFileOut, gSubNum+",PRACTICE,"+gtrial + ",")
+	gLabel <- MakeLabel(gStrings.continue2, gStimFont)
+	AddObject(gLabel, gWin)
+	Move(gLabel,gVideoWidth/2,500)
+	Show (gLabel)
+	Draw()
+	tecla <- WaitForListKeyPress([" ", "<esc>"])
+	if (tecla <> " "){
+  	   break
+	}
+	Hide (gLabel)
+	Draw()
+	Trial (s)
+	gtrial <- gtrial + 1
+    }
+
+
+ }
+
+
+
+define GetStrings(lang)
+{
+
+
+
+ ##Known trasnlations: EN, ES
+  lang <- Uppercase(lang)
+  fname <- "translations/CANUM.pbl-"+LowerCase(lang)+".json"
+
+  if(FileExists(fname))
+  {
+    Print(fname)
+    gStrings <- ReadTranslationjson(fname,lang)
+  } else
+  {
+    gStrings <- ReadTranslationjson("translations/CANUM.pbl-en.json",lang)
+  }
+
+  PrintProperties(gStrings)
+
+}

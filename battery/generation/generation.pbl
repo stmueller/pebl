@@ -1,0 +1,222 @@
+## Example study demonstrating the generation effect.
+## (See Slamecka & Graf, 1978)
+## Words and basic paradigm taken from:
+##  Hirshman & Bjork (1986). The Generation Effect: Support for a
+##  two-factor theory. JEP:LMC, 14, 484-494
+
+define Start(p)
+{
+
+
+  parpairs <- [["bgcolor","black"]]
+
+  gParams <- CreateParameters(parpairs,gParamFile)
+
+
+  gWin <- MakeWindow(gParams.bgcolor)
+
+  gSleepEasy <- 1
+  if(gSubNum+""=="0")
+    {
+     gSubNum <- GetSubNum(gWin)
+    }
+
+  GetStrings(gLanguage)
+
+  gFileOut <- GetNewDataFile(gSubNum,gWin,"generation","csv",
+  "subnum,stage,trial,type,easyhard,trial2,hint,stim,pair2,resp,correct,abstime,rt")
+
+
+  ## These are arrange as cue-firstassociate-third associate (easier and harder)
+  words <- Shuffle([["Sickness","Health","Illness"],
+     	   ["Rough","Smooth","Hard"],
+	   ["Eating","Food","Hungry"],
+   	   ["Always","Never","Sometimes"],
+   	   ["Hammer","Nail","Tool"],
+   	   ["High","Low","Ladder"],
+   	   ["House","Home","Roof"],
+   	   ["King","Queen","Ruler"],
+   	   ["Speak","Talk","Softly"],
+   	   ["Scissors","Cut","Paper"],
+   	   ["Bed","Sleep","Pillow"],
+   	   ["Dark","Light","Room"],
+   	   ["Quickly","Fast","Run"],
+   	   ["Chair","Table","Soft"]])
+
+
+
+  types <- Merge(Repeat("gen",7),
+                 Repeat("read",7))
+
+  ##2 is easy 3 is hard.
+  easyhard <- Flatten(Repeat([2,3],7))
+
+  conds <-  Shuffle(Transpose([types,easyhard]))
+  stimlist <- Transpose([words,conds])
+  Messagebox(gStrings.inst1,gwin)
+  testlist <- []
+  hints <- []
+
+  ShowCursor(0)
+  header <- EasyLabel(gStrings.header,gVideoWidth/2,100,gWin,25)
+  stimulus <- EasyLabel("+",gVideoWidth/2,gVideoHeight/2,gWin,50)
+  response <- EasyTextbox("",gVideoWidth/2-100,gVideoheight/2+100,gWin,25,200,50)
+  Draw()
+  Wait(500)
+  trial <- 1
+  loop(i,stimlist)
+   {
+
+      words <- First(i)
+      cond <- Second(i)
+      type <- First(cond)
+      easyhard <-Second(cond)
+      stim <- First(words)
+
+
+      id <- easyhard
+      otherid <- 5-id
+
+
+      pair2 <- Nth(words,id)
+      PushOnEnd(testlist,pair2)  ##record the studied word
+
+      if(type=="gen")
+        {
+            pair2b <- SubString(pair2,1,1)+ ListToString(Repeat("-",
+                                                StringLength(pair2)-1))
+	} else {
+	   pair2b <- pair2
+        }
+
+
+	stimulus.text <-  stim + "        " + pair2b
+	Draw()
+	studytimestart <- GetTime()
+	out <- ""
+
+       hint <- 1
+        pair2b <- SubString(pair2,1,1)+ ListToString(Repeat("-",
+                                              StringLength(pair2)-1))
+	time1 <- GetTime()
+        while(not Uppercase(out) == Uppercase(pair2))
+         {
+ 	   response.text <- ""
+   	   out <- GetInput(response,"<return>")
+	   hint <- Min([hint + 1,StringLength(pair2)])
+           if(type=="gen")
+            {
+               pair2b <- SubString(pair2,1,hint)+ ListToString(Repeat("-",
+                                                   StringLength(pair2)-hint))
+               stimulus.text <-  stim + "        " + pair2b
+            }
+           time2 <- GetTime()
+	   Draw()
+           FilePrint(gFileOut,gSubNum+",LEARN,"+trial +","+type+","+ easyhard+","+ trial+","+
+            hint+","+ stim+","+pair2+ ","+out+",NA," +time1+","+ (time2-time1))
+
+	    trial <- trial + 1
+         }
+
+	 PushOnEnd(hints,hint)
+	 studytimeend <- GetTime()
+         stimulus.text <-  stim + "        " + pair2
+	 response.text <- Uppercase(pair2)
+	 Draw()
+	 Wait(1000)
+
+    #END OF LEARNING LOOP
+   }
+
+
+   MessageBox(gStrings.test,gWin)
+
+  ShowCursor(0)
+
+   ##Now, recall each as a  paired associate.
+   newOrder <- Shuffle(Sequence(1,Length(stimlist),1))
+
+   stimlist2 <- SortBy(stimlist,newOrder)
+   oldOrder <- SortBy(Sequence(1,Length(stimlist),1),newOrder)
+
+   header.text <- gSTrings.header2
+   corrects <- []
+   trial <- 1
+   loop(i, stimlist2)
+     {
+      words <- First(i)
+      cond <- Second(i)
+      type <- First(cond)
+      easyhard <-Second(cond)
+      stim <- First(words)
+
+
+       stimulus.text <- stim
+       response.text <- ""
+       Draw()
+       time1 <- GetTime()
+       r2 <- GetInput(response,"<return>")
+       time2 <- GetTime()
+
+      ##get the learned word.
+      learned <- Nth(words,easyhard)
+      ##score whether it is correct:
+      corr <- (Uppercase(learned)==Uppercase(r2))
+      PushOnEnd(corrects,corr)
+      if(corr)
+      {
+        stimulus.text <- gStrings.correct
+      }else{
+        stimulus.text <- gStrings.incorrect+ learned
+      }
+      Draw()
+      oldi <- Nth(oldorder,trial)
+      FilePrint(gFileOut,gSubNum+",TEST,"+trial +","+type+","+ easyhard+","+ oldi+","+
+            Nth(hints,oldi)+","+ stim+","+learned+ ","+r2+","+corr+"," + time1+","+(time2-time1))
+      Wait(1000)
+      trial <- trial + 1
+    }
+
+  ##Now, do some stats.
+  tconds <- Transpose(SortBy(conds,neworder))
+
+  typegen  <- Filter(corrects,Match(First(tconds),"gen"))
+  typeread <- Filter(corrects,Match(First(tconds),"read"))
+
+  typeEasy <- Filter(corrects,Match(Second(tconds),2))
+  typeHard <- Filter(corrects,Match(Second(tconds),3))
+
+  out <- "Results:    "+CR(1)+
+  "Generated:   " + Sum(typeGen) +"/"+Length(typeGen)+ CR(1)+
+  "Read:        " + Sum(typeRead) +"/"+Length(typeRead)+ CR(2)+
+  "Easy:        " + Sum(typeEasy) +"/"+Length(typeEasy)+CR(1)+
+  "Hard:        " + Sum(typeHard) +"/"+Length(typeHard)+ CR(1)
+
+  Print(out)
+  file2 <- FileOpenWrite("data/generation-report-"+gSubNum+".txt")
+  FilePrint(file2,out)
+
+  MessageBox(out+CR(2)+gStrings.debrief,gWin)
+
+
+ }
+
+
+define GetStrings(lang)
+{
+
+   ##Known translations: EN
+
+  lang <- Uppercase(lang)
+  fname <- "translations/generation.pbl-"+LowerCase(lang)+".json"
+
+  if(FileExists(fname))
+  {
+    gStrings <- ReadTranslationJSON(fname,lang)
+  } else
+  {
+    gStrings <- ReadTranslationJSON("translations/generation.pbl-en.json",lang)
+  }
+
+
+}

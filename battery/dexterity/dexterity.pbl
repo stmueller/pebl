@@ -1,0 +1,254 @@
+
+define Start(par)
+ {
+##  A little 'dexterity' test.
+##  Move cursor to target, with noise
+
+
+#    gVideoWidth <- 600
+#    gVideoHeight <- 600
+
+
+parpairs <- [["tolerance",5],
+             ["cursorsize",5],
+             ["drift",.3],
+            ["mindist",100],
+            ["maxdist",280],
+	    ["timeout",10000],
+	    ["minnoise",1],
+	    ["maxnoise",20],
+	    ["noisestep",3],
+	    ["trialspercond",10]
+           ]
+
+
+
+
+   gParams <- CreateParameters(parpairs,gParamFile)
+
+    gTolerance <- gParams.tolerance
+    gCursorSize <- gParams.cursorSize
+    gDrift <- gParams.drift
+    gMinDist <- gParams.mindist
+    gMaxDist <- gParams.maxdist
+    gTimeOut <- gParams.timeout
+
+
+    noiseCond <- Sequence(gParams.minnoise,gParams.maxnoise,gParams.noisestep)
+    condsize <- gParams.trialspercond         ##trials per condition
+
+
+
+    gSleepEasy <- 1
+
+
+
+
+
+
+   gWin <- MakeWindow()
+    GetStrings(gLanguage)
+    ##Get subject code if we need to:
+    if(gSubNum+""=="0")
+    {
+	  gSubNum <- GetSubNum(gWin)
+    }
+
+    gHomeX <- Round(gVideoWidth/2)   # center position
+    gHomeY <- Round(gVideoHeight/2)  #
+
+
+    fileOut <- GetNewDataFile(gSubNum,gWin,"dext","csv",
+      "subnum,trial,startx,starty,noise,targx,targy,distance,complete,time,moves")
+    conds <- Shuffle(RepeatList(noiseCond,condsize))
+
+
+    tb  <- EasyTextBox(gStrings.inst1,50,20,gWin,22,gVideoWidth-100,200)
+    Draw()
+    WaitForMouseButton()
+
+    lab <- EasyLabel(gStrings.lab,gHomeX,gHomeY,gWin,30)
+    Hide(lab)
+
+
+    Hide(tb)
+    ShowCursor(0)
+
+
+    circ1 <- Circle(gHomeX,gHomeY,gMinDist,MakeColor("black"),0)
+    circ2 <- Circle(gHomeX,gHomeY,gMaxDist,MakeColor("black"),0)
+    AddObject(circ1,gWin)
+    AddObject(circ2,gWin)
+    Draw()
+
+    trial <- 1
+    alldat <- []
+    loop(noise, conds)
+     {
+
+       Show(lab)
+       Draw()
+       WaitForMouseButton()
+       Hide(lab)
+       Draw()
+
+       results <-  Trial(noise)
+       dat <- Merge([gSubNum,trial, gHomeX, gHomeY, noise],results)
+
+       FilePrint(fileout,ConcatenateList(Flatten(dat),","))
+
+       alldat <- Append(alldat,dat)
+       trial <- trial + 1
+
+    }
+    Print(alldat)
+
+   tb.text <- gStrings.debrief
+   Show(tb)
+   Draw()
+   WaitForMouseButton()
+
+}
+
+
+
+define Trial(noise)
+{
+    Draw()
+    target <- RandomPolar(gMinDist, gMaxDist)
+
+    max <- gMaxDist
+    targ <-  DrawTarget(Nth(target,1),Nth(target,2),gWin)
+	SetMouseCursorPosition(gHomeX,gHomeY)
+
+
+    origdist <- Distance([gHomeX,gHomeY],target)
+
+    ##Set distance to something bigger than tolerance to ensure
+	## we have a trial.
+    dist <- gTolerance+10
+
+
+   x <- Circle(0,0,gCursorSize,MakeColor("black"),1)
+   AddObject(x,gWin)
+   count <- 0
+   startTime <- GetTime()
+   continue <- 1
+
+   while (continue)
+    {
+
+	  Wait(10)
+	  pos <- GetMouseCursorPosition()
+      curX <- Nth(pos,1)
+      curY <- Nth(pos,2)
+
+      dist <- Distance(target, pos)
+
+
+
+	  ##  Increment count if mouse has moved
+      if((curX != x.x) or curY != x.y)
+      {
+	     count <- count + 1
+      }
+
+      ##Change the position of marker
+      pertx <- (Random()-.5)*noise + Sign(gHomeX-curX)*gDrift
+      perty <- (Random()-.5)*noise + Sign(gHomeY-curY)*gDrift
+
+      x.x <-Nth(pos,1) + pertx
+      x.y <- Nth(pos,2) + perty
+      SetMouseCursorPosition(x.x,x.y)
+
+	  color <- MakeHeat(dist,max)
+      x.color <- color
+      Draw()
+
+
+     if(dist <= gTolerance)
+      {
+        continue <- 0
+        success <- 1
+      }
+
+     if((GetTime()-starttime) > gTimeOut)
+      {
+        continue <- 0
+        success <- 0
+      }
+    }
+
+
+    endtime <- GetTime()
+
+     RemoveObject(x,gWin)
+     RemoveObjects(targ,gWin)
+
+	 return [target,origdist,success,(endtime-starttime),count]
+
+ }
+
+
+define RandomPolar(minR,maxR)
+{
+   r <- minR + Random()*(maxR-minR)
+   theta <- 2 * 3.14159 * Random()
+
+  return [gHomeX+Floor(r * Cos(theta)), gHomeY+Floor(r*Sin(theta))]
+}
+
+
+define DrawTarget(x,y,win)
+{
+  c1 <- Circle(x,y,25,MakeColor("white"),1)
+  c2 <- Circle(x,y,20,MakeColor("black"),1)
+  c3 <- Circle(x,y,15,MakeColor("blue"),1)
+  c4 <- Circle(x,y,10,MakeColor("red"),1)
+  c5 <- Circle(x,y,5,MakeColor("yellow"),1)
+
+  AddObject(c1,win)
+  AddObject(c2,win)
+  AddObject(c3,win)
+  AddObject(c4,win)
+  AddObject(c5,win)
+  return [c1,c2,c3,c4,c5]
+}
+
+##
+##
+
+define Distance(a,b)
+{
+	return ( Sqrt((First(a) - First(b))^2 + (Nth(a,2) - Nth(b,2))^2))
+}
+
+
+##
+##
+define MakeHeat(dist,max)
+{
+	return(MakeColorRGB(256-Ceiling(256*dist/max),Ceiling(256*dist/max),1))
+}
+
+
+
+
+
+define GetStrings(lang)
+{
+
+   ##Known translations: EN
+
+  lang <- Uppercase(lang)
+  fname <- "translations/dexterity.pbl-"+LowerCase(lang)+".json"
+
+  if(FileExists(fname))
+  {
+    gStrings <- ReadTranslationjson(fname,lang)
+  } else
+  {
+    gStrings <- ReadTranslationjson("translations/dexterity.pbl-en.json",lang)
+  }
+
+}

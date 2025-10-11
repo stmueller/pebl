@@ -1,0 +1,345 @@
+###########################################################
+##  Symbol Counting Task,  Version 0.2
+##  For use with PEBL 0.07 or later
+##  http://pebl.sf.net
+##  Part of  The PEBL Psychological Testing Battery
+##  2006-02 Released into Public Domain
+##  by Shane T. Mueller, Ph.D. (smueller at obereed dot net)
+##
+##
+##  Modeled after task in:
+## WILLIAM J. GEHRING, RICHARD L. BRYCK, JOHN JONIDES,
+## ROGER L. ALBIN, and DAVID BADRE
+##  The mind's eye, looking inward? In search of executive
+## control in internal attention shifting. Psychophysiology,
+##  40 (2003), 572 - 585.
+##
+##
+##  Garavan, H. (1998). Serial attention within working
+##      memory. Memory & Cognition, 26, 263-276.
+##
+##
+###########################################################
+
+define Start(lPar)
+{
+  gScriptName <-"PEBL Symbol-counter task"
+
+  parpairs <- [["numblocks",3],
+               ["numtrials",20],
+	       ["runthresh",10],
+	       ["givefeedback",1],
+	       ["symA1","#"],
+	       ["symA2","@"],
+	       ["symB1","&"],
+	       ["symB2","%"],
+	       ["toofastthresh",150 ],
+	       ["tooslowthresh",3000]]
+
+  gParams <- Createparameters(parpairs,gParamFile)
+
+  ##
+   numblocks <- gParams.numblocks      ## blocks after practice round.
+   numtrials <- gParams.numtrials     ## Trials per block
+   runthresh <- gParams.runthresh     ## Number of correct trial run needed to get
+ 	 			      ## through practice.
+
+  gGiveFeedback <-  gParams.givefeedback    ##Whether you should give feedback in
+  ##  non-practice blocks
+  ##Symbols for A and B
+  symA <- [gParams.symA1,gParams.symA2]
+  symB <- [gParams.symB1,gParams.symB2]
+
+  ## These are threshold for rts considered too fast and too slow,
+  ## and are not used in the RT stats computations
+  toofastThresh <- gParams.toofastthresh
+  tooslowThresh <- gParams.tooslowthresh
+
+  ##Counters that keep track of the number of these responses
+  toofast <- 0
+  tooslow <- 0
+
+  ## Lists storing the actual RT values, along with the presentation time.
+
+
+  ####################################
+  ##
+  ## Begin Initialization Procedures.
+  ##
+
+  Initialize()
+
+  gFileOut <- GetNewDataFile(gSubNum,gWin,"symbolcounter","csv",
+            "subNum,block,trial,stim,resp,corr,corrun,abstime,rt")
+
+  gReportFile <- GetNewDataFile(gSubNum,gWin,"symbolcounter-report","txt","")
+
+  gInstructions.text <- SubstituteStrings(gStrings.inst1,
+                [["<SYMA2>",gParams.symA2],
+		 ["<SYMA1>",gParams.symA1],
+ 		 ["<SYMB1>",gParams.symB1],
+  		 ["<SYMB2>",gParams.symB2]])
+
+
+  #####################################
+  ## Begin Experiment with Instructions
+
+  Show(gInstructions)
+  Draw()
+  WaitForAnyKeyPress()
+  Hide(gInstructions)
+  Draw()
+  gInstructions.text <-gStrings.break
+
+  #####################################
+  ## Practice task 1: stimuli with label
+
+
+   footText <- SubstituteStrings(gStrings.footer,
+                [["<SYMA2>",gParams.symA2],
+		 ["<SYMA1>",gParams.symA1],
+ 		 ["<SYMB1>",gParams.symB1],
+  		 ["<SYMB2>",gParams.symB2]])
+
+   Show(gFooter)
+
+    mapping <- [[gParams.symA1,"<lshift>"],[gParams.symA2,"<lshift>"],
+                [gParams.symB1,"<rshift>"],[gParams.symB2,"<rshift>"]]
+
+    stimuli <- Merge(RepeatList(symA,4), RepeatList(symB,4))
+    thresh <- 0
+    corrun <- 0
+    block <- "P"
+    trial <- 1
+
+   ##Repeat until we get a run of thresh trials correct.
+   while(thresh == 0)
+   {
+     stim <- First(SampleN(stimuli,1))
+	 gStim.text <- stim
+     SetFont(gFooter,gSmallFont)
+     gFooter.text <- foottext
+     Show(gFooter)
+     Show(gStim)
+     Draw()
+     time0 <- GetTime()
+     resp <- WaitForListKeyPress(["<lshift>","<rshift>"])
+     time1 <- GetTime()
+
+     corr <- ScoreResponse(stim,resp,mapping)
+     corrun <- corrun + corr
+     while(not corr)
+     {
+	    Hide(gFooter)
+        Draw()
+        Wait(300)
+
+        gFooter.text <- gStrings.incorrect
+        SetFont(gFooter,gIncFont)
+
+        Show(gFooter)
+        Draw()
+        resp <- WaitForListKeyPress(["<lshift>","<rshift>"])
+        corr <- ScoreResponse(stim,resp,mapping)
+        corrun <- 0
+     }
+
+      rt <- time1-time0
+
+      ##If they go too slow, start the counter over.
+      if(rt > tooslowThresh or rt < toofastThresh)
+      {
+         corrun <- 0
+      }
+
+      Hide(gFooter)
+      Hide(gStim)
+      Draw()
+
+      Wait(200)
+
+     FilePrint(gFileOut,gSubNum + "," + block + "," + trial + "," + stim + "," +
+          resp + "," + corr +  "," +  corrun + ","+  time1 + "," + rt)
+
+     if(corrun >= runthresh)
+     {
+        thresh <- 1
+     }
+    trial <- trial + 1
+   }
+
+  ######################################
+  ##Now, do the blocks.
+
+  loop(block, Sequence(1,numblocks,1))
+  {
+  Show(gInstructions)
+  Draw()
+  WaitForAnyKeyPress()
+  Hide(gInstructions)
+  Draw()
+
+  ##Repeat until we get a run of 20 trials correct.
+   trial <- 1
+   while(trial <= numtrials)
+   {
+     stim <- First(SampleN(stimuli,1))
+	 gStim.text <- stim
+     SetFont(gFooter,gSmallFont)
+     gFooter.text <- foottext
+     Show(gFooter)
+     Show(gStim)
+     Draw()
+     time0 <- GetTime()
+     resp <- WaitForListKeyPress(["<lshift>","<rshift>"])
+     time1 <- GetTime()
+
+     corr <- ScoreResponse(stim,resp,mapping)
+     corrun <- corrun + corr
+
+     if(not corr)
+     {
+	 if(gGiveFeedback)
+	      {
+  	          Hide(gFooter)
+        	 Draw()
+
+		 gFooter.text <- gStrings.incorrect2
+		 SetFont(gFooter,gIncFont)
+                 Show(gFooter)
+                 Draw()
+         	 Wait(500)
+
+          }
+     }
+      rt <- (time1-time0)
+      ##If they go too slow, start the counter over.
+
+      Hide(gFooter)
+      Hide(gStim)
+      Draw()
+
+      Wait(200)
+
+
+     FilePrint(gFileOut,gSubNum + "," + block + "," + trial + ","  + stim + "," +
+          resp + "," + corr +  "," +  corrun + ","+  time1 + "," + rt)
+
+    trial <- trial + 1
+    }
+
+  }
+
+
+  ####################
+  ##Experiment is finished; print out summary stats
+
+
+   FilePrint(gReportFile,"------------------------------------------------------")
+   FilePrint(gReportFile," Report for PEBL Symbol-counter task Task Version 0.1")
+   FilePrint(gReportFile, " "+GetPEBLVersion())
+   FilePrint(gReportFile, " "+TimeStamp())
+   FilePrint(gReportFile," http://pebl.sf.net")
+   FilePrint(gReportFile, " Participant Code: " + gSubNum)
+   FilePrint(gReportFile,"------------------------------------------------------")
+   FilePrint(gReportFile,"------------------------------------------------------")
+   FilePrint(gReportFile,"No data computed at this time.")
+   FilePrint(gReportFile,"------------------------------------------------------")
+
+
+   FileClose(gReportFile)
+   FileClose(gFileOut)
+
+  ##Now, show debriefing info.
+   SetText(gInstructions, gStrings.debrief)
+   Show(gInstructions)
+   Draw()
+   WaitForKeyPress("X")
+
+
+}
+
+
+##  This is a standard initializer function that sets up typical
+##  objects used in experiments.
+define Initialize()
+{
+  ##Initialize Window, etc.
+  gSleepEasy <- 1
+  gWin <- MakeWindow("grey")
+   ShowCursor(0)
+
+   if(gSubNum==0)
+   {
+     gSubNum <- GetSubNum(gWin)
+   }
+
+  ##Initialize Font and colors
+   fg <- MakeColor("black")
+   bg <- MakeColor("grey")
+   bg2 <- MakeColor("white")
+
+
+   gInstructionsFont <- MakeFont(gPEBLBaseFont,0,18, fg,bg2,1)
+   gStimFont         <- MakeFont(gPEBLBaseFontMono, 0,48,fg,bg,1)
+   gSmallFont        <- MakeFont(gPEBLBaseFont,0,24,fg,bg,1)
+   gIncFont          <- MakeFont(gPEBLBaseFont,0,24,MakeColor("red"),bg,1)
+   ## Make and place the instruction box, then hide it
+   gInstructions <- MakeTextBox("", gInstructionsFont, 600,300)
+   AddObject(gInstructions, gWin)
+   Move(gInstructions, gVideoWidth/2-300, gVideoHeight/2-150)
+   Hide(gInstructions)
+
+   ## Make and hide stimulus
+   gStim <- MakeLabel("",gStimFont)
+   AddObject(gStim,gWin)
+   Move(gStim, gVideoWidth/2, gVideoHeight/2)
+   Hide(gStim)
+
+   ## Make and hide instruction line.
+   gFooter <- MakeLabel("+",gSmallFont)
+   AddObject(gFooter,gWin)
+   Move(gFooter, gVideoWidth/2, gVideoHeight/2+ 100)
+   Hide(gFooter)
+
+   GetStrings(gLanguage)
+
+ }
+
+
+
+
+define ScoreResponse(stim, resp, mapping)
+{
+   corr <- 0
+   loop(i, mapping)
+   {
+      if( stim == First(i) and resp == Nth(i, 2))
+      {
+        corr <- 1
+        break
+      }
+  }
+  return corr
+}
+
+
+
+
+define GetStrings(language)
+{
+
+##Known trasnlations:  EN
+  lang <- Uppercase(language)
+  fname <- "translations/SymbolCounter.pbl-"+LowerCase(lang)+".json"
+
+  if(FileExists(fname))
+  {
+    gStrings <- ReadTranslationjson(fname,lang)
+  } else
+  {
+    gStrings <- ReadTranslationjson("translations/SymbolCounter.pbl-en.json",lang)
+  }
+
+
+}

@@ -1,0 +1,327 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6" />
+	<Project>
+		<Option title="PEBL" />
+		<Option platforms="Windows;" />
+		<Option pch_mode="2" />
+		<Option compiler="gcc" />
+		<Build>
+			<Script file="lib_finder.script" />
+			<Target title="Debug">
+				<Option output="../../bin/pebl2" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Debug/" />
+				<Option type="0" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-g" />
+					<Add option="-DPEBL_WIN32" />
+					<Add option="-DPEBL_WINDOWS" />
+					<Add option="-DPEBL_NETWORK" />
+					<Add option="-DPEBL_HTTP" />
+					<Add option="-DPEBL_USEPORTS" />
+					<Add option="-DWIN32=1" />
+					<Add option="-D_WIN32" />
+				</Compiler>
+				<Linker>
+					<Add library="ws2_32" />
+				</Linker>
+			</Target>
+			<Target title="Release">
+				<Option output="../../bin/pebl2" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Release/" />
+				<Option type="0" />
+				<Option compiler="gcc" />
+				<Option parameters="launcher.pbl" />
+				<Compiler>
+					<Add option="-fexpensive-optimizations" />
+					<Add option="-O3" />
+					<Add option="-DPEBL_WIN32" />
+					<Add option="-DPEBL_WINDOWS" />
+					<Add option="-DPEBL_NETWORK" />
+					<Add option="-DPEBL_HTTP" />
+					<Add option="-DPEBL_USEPORTS" />
+					<Add option="-DWIN32=1" />
+					<Add option="-D_WIN32" />
+				</Compiler>
+				<ResourceCompiler>
+					<Add directory="C:/Users/LocalAdmin/Documents/pebl/codeblocks/PEBL/" />
+				</ResourceCompiler>
+				<Linker>
+					<Add option="-s" />
+					<Add library="ws2_32" />
+				</Linker>
+			</Target>
+			<Target title="i686-w64">
+				<Option output="../../bin/pebl2" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Release/" />
+				<Option type="0" />
+				<Option compiler="gcc" />
+				<Option parameters="launcher.pbl" />
+				<Compiler>
+					<Add option="-fomit-frame-pointer" />
+					<Add option="-fexpensive-optimizations" />
+					<Add option="-O3" />
+					<Add option="-Weffc++" />
+					<Add option="-Wextra" />
+					<Add option="-Wall" />
+					<Add option="-std=c99" />
+					<Add option="-m32" />
+					<Add option="-Wno-unused-variable" />
+					<Add option="-Wno-effc++" />
+					<Add option="-Wno-unused-parameter" />
+					<Add option="-DPEBL_WIN32" />
+					<Add option="-DPEBL_WINDOWS" />
+					<Add option="-DPEBL_NETWORK" />
+					<Add option="-DPEBL_USEPORTS" />
+					<Add option="-DWIN32=1" />
+					<Add option="-D_WIN32" />
+				</Compiler>
+				<ResourceCompiler>
+					<Add directory="C:/Users/LocalAdmin/Documents/pebl/codeblocks/PEBL/" />
+				</ResourceCompiler>
+				<Linker>
+					<Add option="-O3" />
+					<Add option="-s" />
+					<Add option="-m32" />
+					<Add library="ws2_32" />
+					<Add directory="../../../sdl-libs/libs/i686-w64-mingw32" />
+				</Linker>
+			</Target>
+			<Target title="x86_64">
+				<Option output="../../bin/pebl2" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Release/" />
+				<Option type="0" />
+				<Option compiler="gcc" />
+				<Option parameters="launcher.pbl" />
+				<Compiler>
+					<Add option="-fexpensive-optimizations" />
+					<Add option="-O3" />
+					<Add option="-m64" />
+					<Add option="-DPEBL_WIN32" />
+					<Add option="-DPEBL_WINDOWS" />
+					<Add option="-DPEBL_NETWORK" />
+					<Add option="-DPEBL_HTTP" />
+					<Add option="-DPEBL_USEPORTS" />
+					<Add option="-DWIN32=1" />
+					<Add option="-D_WIN32" />
+				</Compiler>
+				<ResourceCompiler>
+					<Add directory="C:/Users/LocalAdmin/Documents/pebl/codeblocks/PEBL/" />
+				</ResourceCompiler>
+				<Linker>
+					<Add option="-s" />
+					<Add option="-m64" />
+					<Add library="ws2_32" />
+					<Add directory="../../../sdl-libs/libs/x86_64-w64-mingw32" />
+				</Linker>
+			</Target>
+		</Build>
+		<Compiler>
+			<Add option="-Wall" />
+			<Add option="-m32" />
+			<Add option="-std=gnu++0x" />
+			<Add option="-DPEBL_WIN32=1" />
+			<Add option="-DPEBL_WINDOWS" />
+			<Add option="-DPEBL_NETWORK" />
+			<Add option="-DPEBL_HTTP=1" />
+			<Add option="-DPEBL_USEPORTS" />
+			<Add option="-DPEBL_HAPPY=1" />
+			<Add option="-DHTTPLIB=PEBL_CURL" />
+			<Add option="-DWIN32=1" />
+			<Add option="-D_WIN32" />
+			<Add option="-DNO_STDIO_REDIRECT" />
+			<Add option="-DPEBL_MIXER=1" />
+			<Add option="-D_GLIBCXX_USE_C99_DYNAMIC" />
+			<Add directory="../../../sdl-libs/include/sdl2" />
+			<Add directory="../../../sdl-libs/curl-7.59.0-win32-mingw/curl-7.59.0-win32-mingw/include" />
+		</Compiler>
+		<Linker>
+			<Add option="-m32" />
+			<Add option="-mwindows" />
+			<Add library="mingw32" />
+			<Add library="SDL2main" />
+			<Add library="SDL2" />
+			<Add library="SDL2_gfx" />
+			<Add library="SDL2_ttf" />
+			<Add library="SDL2_net" />
+			<Add library="SDL2_image" />
+			<Add library="SDL2_mixer" />
+			<Add library="ws2_32" />
+			<Add library="curl" />
+			<Add directory="../../../sdl-libs/curl-7.59.0-win32-mingw/curl-7.59.0-win32-mingw/lib" />
+		</Linker>
+		<Unit filename="../../src/apps/Globals.h" />
+		<Unit filename="../../src/apps/PEBL.cpp" />
+		<Unit filename="../../src/base/Evaluator.cpp" />
+		<Unit filename="../../src/base/Evaluator.h" />
+		<Unit filename="../../src/base/FunctionMap.cpp" />
+		<Unit filename="../../src/base/FunctionMap.h" />
+		<Unit filename="../../src/base/Loader.cpp" />
+		<Unit filename="../../src/base/Loader.h" />
+		<Unit filename="../../src/base/PComplexData.cpp" />
+		<Unit filename="../../src/base/PComplexData.h" />
+		<Unit filename="../../src/base/PEBLObject.cpp" />
+		<Unit filename="../../src/base/PEBLObject.h" />
+		<Unit filename="../../src/base/PList.cpp" />
+		<Unit filename="../../src/base/PList.h" />
+		<Unit filename="../../src/base/PNode.cpp" />
+		<Unit filename="../../src/base/PNode.h" />
+		<Unit filename="../../src/base/VCG.h" />
+		<Unit filename="../../src/base/VariableMap.cpp" />
+		<Unit filename="../../src/base/VariableMap.h" />
+		<Unit filename="../../src/base/Variant.cpp" />
+		<Unit filename="../../src/base/Variant.h" />
+		<Unit filename="../../src/base/grammar.tab.cpp" />
+		<Unit filename="../../src/base/grammar.tab.hpp" />
+		<Unit filename="../../src/base/lex.yy.cpp" />
+		<Unit filename="../../src/devices/DeviceState.cpp" />
+		<Unit filename="../../src/devices/DeviceState.h" />
+		<Unit filename="../../src/devices/PAudioOut.cpp" />
+		<Unit filename="../../src/devices/PAudioOut.h" />
+		<Unit filename="../../src/devices/PComPort.cpp" />
+		<Unit filename="../../src/devices/PComPort.h" />
+		<Unit filename="../../src/devices/PDevice.cpp" />
+		<Unit filename="../../src/devices/PDevice.h" />
+		<Unit filename="../../src/devices/PEvent.cpp" />
+		<Unit filename="../../src/devices/PEvent.h" />
+		<Unit filename="../../src/devices/PEventLoop.cpp" />
+		<Unit filename="../../src/devices/PEventLoop.h" />
+		<Unit filename="../../src/devices/PEventQueue.cpp" />
+		<Unit filename="../../src/devices/PEventQueue.h" />
+		<Unit filename="../../src/devices/PJoystick.cpp" />
+		<Unit filename="../../src/devices/PJoystick.h" />
+		<Unit filename="../../src/devices/PKeyboard.cpp" />
+		<Unit filename="../../src/devices/PKeyboard.h" />
+		<Unit filename="../../src/devices/PNetwork.cpp" />
+		<Unit filename="../../src/devices/PNetwork.h" />
+		<Unit filename="../../src/devices/PParallelPort.cpp" />
+		<Unit filename="../../src/devices/PParallelPort.h" />
+		<Unit filename="../../src/devices/PStream.cpp" />
+		<Unit filename="../../src/devices/PStream.h" />
+		<Unit filename="../../src/devices/PTimer.cpp" />
+		<Unit filename="../../src/devices/PTimer.h" />
+		<Unit filename="../../src/libs/Functions.h" />
+		<Unit filename="../../src/libs/PEBLEnvironment.cpp" />
+		<Unit filename="../../src/libs/PEBLEnvironment.h" />
+		<Unit filename="../../src/libs/PEBLList.cpp" />
+		<Unit filename="../../src/libs/PEBLList.h" />
+		<Unit filename="../../src/libs/PEBLMath.cpp" />
+		<Unit filename="../../src/libs/PEBLMath.h" />
+		<Unit filename="../../src/libs/PEBLObjects.cpp" />
+		<Unit filename="../../src/libs/PEBLObjects.h" />
+		<Unit filename="../../src/libs/PEBLStream.cpp" />
+		<Unit filename="../../src/libs/PEBLStream.h" />
+		<Unit filename="../../src/libs/PEBLString.cpp" />
+		<Unit filename="../../src/libs/PEBLString.h" />
+		<Unit filename="../../src/objects/PCanvas.cpp" />
+		<Unit filename="../../src/objects/PCanvas.h" />
+		<Unit filename="../../src/objects/PColor.cpp" />
+		<Unit filename="../../src/objects/PColor.h" />
+		<Unit filename="../../src/objects/PCustomObject.cpp" />
+		<Unit filename="../../src/objects/PCustomObject.h" />
+		<Unit filename="../../src/objects/PDrawObject.cpp" />
+		<Unit filename="../../src/objects/PDrawObject.h" />
+		<Unit filename="../../src/objects/PEnvironment.cpp" />
+		<Unit filename="../../src/objects/PEnvironment.h" />
+		<Unit filename="../../src/objects/PFont.cpp" />
+		<Unit filename="../../src/objects/PFont.h" />
+		<Unit filename="../../src/objects/PImageBox.cpp" />
+		<Unit filename="../../src/objects/PImageBox.h" />
+		<Unit filename="../../src/objects/PLabel.cpp" />
+		<Unit filename="../../src/objects/PLabel.h" />
+		<Unit filename="../../src/objects/PMovie.cpp" />
+		<Unit filename="../../src/objects/PMovie.h" />
+		<Unit filename="../../src/objects/PObject.cpp" />
+		<Unit filename="../../src/objects/PObject.h" />
+		<Unit filename="../../src/objects/PTextBox.cpp" />
+		<Unit filename="../../src/objects/PTextBox.h" />
+		<Unit filename="../../src/objects/PTextObject.cpp" />
+		<Unit filename="../../src/objects/PTextObject.h" />
+		<Unit filename="../../src/objects/PWidget.cpp" />
+		<Unit filename="../../src/objects/PWidget.h" />
+		<Unit filename="../../src/objects/PWindow.cpp" />
+		<Unit filename="../../src/objects/PWindow.h" />
+		<Unit filename="../../src/objects/RGBColorNames.h" />
+		<Unit filename="../../src/platforms/sdl/PlatformAudioIn.cpp" />
+		<Unit filename="../../src/platforms/sdl/PlatformAudioIn.h" />
+		<Unit filename="../../src/platforms/sdl/PlatformAudioOut.cpp" />
+		<Unit filename="../../src/platforms/sdl/PlatformAudioOut.h" />
+		<Unit filename="../../src/platforms/sdl/PlatformCanvas.cpp" />
+		<Unit filename="../../src/platforms/sdl/PlatformCanvas.h" />
+		<Unit filename="../../src/platforms/sdl/PlatformDrawObject.cpp" />
+		<Unit filename="../../src/platforms/sdl/PlatformDrawObject.h" />
+		<Unit filename="../../src/platforms/sdl/PlatformEnvironment.cpp" />
+		<Unit filename="../../src/platforms/sdl/PlatformEnvironment.h" />
+		<Unit filename="../../src/platforms/sdl/PlatformEventQueue.cpp" />
+		<Unit filename="../../src/platforms/sdl/PlatformEventQueue.h" />
+		<Unit filename="../../src/platforms/sdl/PlatformFont.cpp" />
+		<Unit filename="../../src/platforms/sdl/PlatformFont.h" />
+		<Unit filename="../../src/platforms/sdl/PlatformImageBox.cpp" />
+		<Unit filename="../../src/platforms/sdl/PlatformImageBox.h" />
+		<Unit filename="../../src/platforms/sdl/PlatformJoystick.cpp" />
+		<Unit filename="../../src/platforms/sdl/PlatformJoystick.h" />
+		<Unit filename="../../src/platforms/sdl/PlatformKeyboard.cpp" />
+		<Unit filename="../../src/platforms/sdl/PlatformKeyboard.h" />
+		<Unit filename="../../src/platforms/sdl/PlatformLabel.cpp" />
+		<Unit filename="../../src/platforms/sdl/PlatformLabel.h" />
+		<Unit filename="../../src/platforms/sdl/PlatformMovie.cpp" />
+		<Unit filename="../../src/platforms/sdl/PlatformMovie.h" />
+		<Unit filename="../../src/platforms/sdl/PlatformNetwork.cpp" />
+		<Unit filename="../../src/platforms/sdl/PlatformNetwork.h" />
+		<Unit filename="../../src/platforms/sdl/PlatformTextBox.cpp" />
+		<Unit filename="../../src/platforms/sdl/PlatformTextBox.h" />
+		<Unit filename="../../src/platforms/sdl/PlatformTimer.cpp" />
+		<Unit filename="../../src/platforms/sdl/PlatformTimer.h" />
+		<Unit filename="../../src/platforms/sdl/PlatformWidget.cpp" />
+		<Unit filename="../../src/platforms/sdl/PlatformWidget.h" />
+		<Unit filename="../../src/platforms/sdl/PlatformWindow.cpp" />
+		<Unit filename="../../src/platforms/sdl/PlatformWindow.h" />
+		<Unit filename="../../src/platforms/sdl/SDLUtility.cpp" />
+		<Unit filename="../../src/platforms/sdl/SDLUtility.h" />
+		<Unit filename="../../src/utility/BinReloc.cpp" />
+		<Unit filename="../../src/utility/BinReloc.h" />
+		<Unit filename="../../src/utility/PEBLHTTP.cpp" />
+		<Unit filename="../../src/utility/PEBLHTTP.h" />
+		<Unit filename="../../src/utility/PEBLPath.cpp" />
+		<Unit filename="../../src/utility/PEBLPath.h" />
+		<Unit filename="../../src/utility/PEBLUtility.cpp" />
+		<Unit filename="../../src/utility/PEBLUtility.h" />
+		<Unit filename="../../src/utility/PError.cpp" />
+		<Unit filename="../../src/utility/PError.h" />
+		<Unit filename="../../src/utility/happyhttp.cpp" />
+		<Unit filename="../../src/utility/happyhttp.h" />
+		<Unit filename="../../src/utility/jsmn.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../src/utility/jsmn.h" />
+		<Unit filename="../../src/utility/md5.cpp" />
+		<Unit filename="../../src/utility/md5.h" />
+		<Unit filename="../../src/utility/mman.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../src/utility/mman.h" />
+		<Unit filename="../../src/utility/rc_ptrs.h" />
+		<Unit filename="../../src/utility/rs232.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="../../src/utility/rs232.h" />
+		<Unit filename="cb.bmp" />
+		<Unit filename="resource.rc">
+			<Option compilerVar="WINDRES" />
+		</Unit>
+		<Unit filename="version.h" />
+		<Extensions>
+			<code_completion />
+			<debugger />
+			<envvars />
+			<lib_finder disable_auto="1" />
+			<AutoVersioning>
+				<Scheme minor_max="10" build_max="0" rev_max="0" rev_rand_max="10" build_times_to_increment_minor="100" />
+				<Settings autoincrement="1" date_declarations="1" use_define="0" update_manifest="1" do_auto_increment="0" ask_to_increment="0" language="C++" svn="0" svn_directory="" header_path="version.h" />
+				<Changes_Log show_changes_editor="0" app_title="released version %M.%m.%b of %p" changeslog_path="ChangesLog.txt" />
+				<Code header_guard="VERSION_H" namespace="AutoVersion" prefix="" />
+			</AutoVersioning>
+		</Extensions>
+	</Project>
+</CodeBlocks_project_file>

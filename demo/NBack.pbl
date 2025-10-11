@@ -1,0 +1,101 @@
+##This defines a simple 2-back task.
+
+define Start(lParameter)
+{
+
+  #Initialize the environment
+  gWindow <- MakeWindow("grey") 
+  black <- MakeColor("black")
+  grey <-  MakeColor("grey")
+  gFont <- MakeFont("VeraMono.ttf",0,22,black,grey,1)	
+  
+  ## Load sounds to play as feedback.
+  gCorrect <- LoadSound("cheer.wav")
+  gIncorrect <- LoadSound("boo.wav")
+
+  header <- EasyLabel("Simple N-Back demo.  See complete dual-nback in test battery",gVideoWidth/2,30,gWindow,16)
+  footer <- EasyLabel("Press 'Y' if target matches 2-back; 'N' if it mismatches",gVideoWidth/2,gVideoHeight-150,gWindow,35)
+
+  gStimuli <- ["dare","long","cult","hint","wish"]
+
+  ##We want about 10% 1-back (type 1)
+  ##30% 2-back, (type 2)  and
+  ##50% sampled randomly from list (type 3).
+  
+  types <- Shuffle([1,2,2,2,3,3,3,3,3,3])
+ 
+  ##Add two ramp-up trials
+  types <- Merge([3,3], types)
+
+
+  twoback <- RandomDiscrete(5)
+  oneback <- RandomDiscrete(5)
+ 
+  loop(type, types)
+   {
+ 
+  #Choose next stimuli based on type
+
+   if( type == 1)
+   {
+    stimulus <- oneback
+   }
+
+   if(type == 2)
+   {
+    stimulus <- twoback
+   }
+   
+   if(type == 3)
+    {
+      stimulus <- RandomDiscrete(5)
+      while((stimulus == oneback) or (stimulus == twoback) )
+       {
+        stimulus <- RandomDiscrete(5)
+       }
+    }
+  
+
+  DoTrial(stimulus, type)
+
+  ##Now, stimulus and type are set.
+  twoback <- oneback
+  oneback <- stimulus
+
+ }
+
+}
+
+define DoTrial(stim1, mytype)
+{
+
+	Print_(stim1 + "  " + mytype)
+	lText <- MakeLabel(Nth(gStimuli, stim1), gFont)
+ 	Print_("  " + Nth(gStimuli, stim1))
+        AddObject(lText, gWindow)
+	Move(lText, gVideoWidth/2,gVideoHeight/2)
+	Show(lText)
+	Draw()
+
+
+	start <- GetTime()
+	response <- Uppercase(WaitForListKeyPress(["Y","N"]))
+ 	end <- GetTime()
+
+   
+	Print(" RESPONSE: " + response + "  " + (end - start))
+	RemoveObject(lText, gWindow)
+	Draw()
+
+
+  	#Give auditory feedback.
+	if(((response == "Y") and (mytype == 2)) or
+            ((response == "N") and (mytype != 2)))
+	    {
+	    PlayForeground(gCorrect)
+	    } else {
+	    PlayForeground(gIncorrect)
+	    }
+
+	Wait(500)
+}

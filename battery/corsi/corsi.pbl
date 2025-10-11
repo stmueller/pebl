@@ -1,0 +1,933 @@
+## PEBL's implementation of the Corsi Block Test
+##
+## A standard spatial working memory task.
+##
+## See:
+## Corsi, P. M. (1972). Human memory and the medial temporal region of
+##   the brain. Dissertation Abstracts International, 34, 819B.
+##
+## Kessels, R. P. C., van Zandvoort, M. J. E., Postma, A., Kappelle,
+## L. J., & de Haan, E. H. F. (2000). The Corsi Block-Tapping Task:
+## Standardization and Normative Data. Applied Neuropsychology, 7(4),
+## 252-258.
+##
+##
+##  Kessels, R. P. C., van den Berg, E., Ruis, C., & Brands,
+## A. M. A. (2008). The Backward Span of the Corsi Block-Tapping Task
+## and Its Association With the WAIS-III Digit Span. Assessment,
+## 15(4), 426 -434. doi:10.1177/1073191108315611
+##
+##  Version history
+##  Version 0.1   Released into the public domain 2010 by Shane T Mueller
+##  smueller@obereed.net
+##
+##  Version 0.2, Released 12/2011 with improvements inspired by Reid Olsen
+##  Portuguese translation by Marco Moniz
+##  Croation (HR) transaltions by Silvija Rucevic
+##
+
+
+define Start(p)
+{
+
+
+
+    ##See params/corsi.pbl.schema file for parameter definitions:
+    ##these are fallback parameters in case .schema file is lost.
+    parpairs <- [["dopractice",1],
+                   ["direction",1],
+         	     ["usecorsipoints",1],
+		     ["useKessels",1],
+		     ["startlength",2],
+		     ["timesperlength",2],
+		     ["isi",1000],
+		     ["iti",1000],
+		     ["usebeep",1]
+                     ]
+
+   gParams <- CreateParameters(parpairs,gParamFile)
+
+##parameters:
+#  doPractice <- 1           ##Turn on/off practice trials (useful for multi-session
+#  gDirection <- 1            ##Change 1 to -1 to set forward to backward.
+
+  if(gParams.direction == -1)
+   {
+     dirlabel <- "backward"
+   } else {
+     dirlabel <- "forward"
+   }
+
+  #gUseCorsiPoints <- 1        ## Use standard locations or regenerate
+                              ## on each trial?
+
+
+  ##By default, this uses Kessel's recommendations.
+  ##Basically, start at length 2, use 2 trials per length, and
+  ##continue to the next length whenever at least one was recalled
+  ##correctly.
+
+  #gUseKessels      <- 1        ## Use Kessel trials? (Should be used
+  #                            ## with corsi points)
+
+
+  ##alternately, you can generate the trials at random.
+
+#  gStartLength    <- 2        ## If gUseKessels <- 0, it creates a
+                              ## random stimulus sequence with these parameters
+#  gEndLength      <- 9
+#  gTimesPerLength <- 2        ##
+
+
+#  gISI <- 1000                ## Inter-stimulus interval in ms
+#  gITI <- 1000                ## inter-trial interval.
+#  gUseBeep <- 1               ##should a beep play?
+
+  gStimColor <- MakeColor("navy")
+  gHighlightColor <- MakeColor("khaki")
+
+
+  gScale <- 3                 ##scale between mm and pixels.
+  gTargetSize <- 30 * gScale
+  gSleepEasy <- 1
+  gWin <- MakeWindow("black")
+
+  gHomeX <- gVideoWidth/2
+  gHomeY <- gVideoHeight/2
+
+
+  if(gSubNum+""=="0")
+   {
+     gSubNum <- GetSubNum(gWin)
+   }
+
+
+
+  if(gParams.UseBeep)
+   {
+##    gBeep <- LoadSound("beep.wav")
+      gBeep <- MakeSineWave(400,200,.8)
+   }
+
+  head1 <- "subnum,direction,type,trialnum,order,trialstart,itemstart,itemend,abstime,rt,posx,posy"
+  head2 <- "subnum,direction,type,trialnum,trialstart,length,stim,resp,numcorr,nummiss,allcorr,time"
+
+
+   gFileOutClick <- GetNewDataFile(gSubNum,gWin,"corsi-detail","csv",head1)
+   gFileOutTrial <- GetNewDataFile(gSubNum,gWin,"corsi-trial","csv",head2)
+   gSumFile <-  GetNewDataFile(gSubNum,gWin,"corsi-summary","csv","")
+
+  MakeDirectory("data/summary")
+  gLogFile <- FileOpenAppend("data/corsi-log.txt")             ##Basic start/end log
+  gPooled <- FileOpenAppend("data/summary/corsi-"+dirlabel+"-pooled.csv")              ##all data, pooled across subjects (one line per trial)
+  gPooledSummary <- FileOpenAppend("data/summary/corsi-"+dirlabel+"-pooled-sum.csv")   ##pooled summary, one line per subject run.
+
+
+
+   ##Add header to pooled file if we are blank
+  if(Length(FileReadList("data/summary/corsi-"+dirlabel+"-pooled-sum.csv"))==0)
+   {
+     FilePrint(gPooled,head2)
+     FilePrint(gPooledSummary,"subcode,timedate,direction,numtrials,bsp,score,correct,msp")
+   }
+
+   FilePrint(gLogFile, gSubNum + "," + gLanguage + "," + TimeStamp()+",CORSI,"+dirlabel+",INITIATED")
+  Draw()
+
+  inst <- EasyTextBox("",gHomeX-350,50,gWin,20,700,500)
+
+
+
+
+##Set instructions, by language
+   GetStrings(gLanguage)
+
+
+  if(gParams.direction == 1)
+   {
+     inst.text <- gInstfor
+   } else {
+     inst.text <- gInstback
+   }
+
+  Draw()
+  WaitForDownClick()
+
+  gFont <- MakeFont(gPEBLBaseFont,1,25,MakeColor("black"),MakeColor("white"),1)
+  gFont2 <- MakeFont(gPEBLBaseFont,0,20,MakeColor("black"),MakeColor("white"),1)
+
+
+  ## Should we use the original corsi locations, or choose a random set?
+  ## It is probably best to use the original points unless you have a particular
+  ## reason to do otherwise.
+  if(gParams.UseCorsiPoints)
+   {
+
+      ##The actual points range from 15 to 195,
+      ##and we want them centered at gHomeX.
+      ##Lets compute the x offset to make it work.
+      ##
+       width <- (195-15)*gScale
+       targxy <- CorsiPoints(gHomeX-width/2,30,gScale)
+
+   } else {
+
+
+      targxy <- MakePoints(gHomeX-300,gHomeX+300,30,gVideoHeight-100, gTargetSize*Sqrt(2),9)
+   }
+
+
+
+
+   gTrialnum <- 1
+   Hide(inst)
+   Draw()
+
+   ## create the trial sequence, either from Kessels or
+   ## randomly.
+   if(gParams.UseKessels)
+    {
+       trials <- KesselsTrials(gParams.direction)
+    } else {
+
+       trials <- RandomTrials(gParams.StartLength, gParams.EndLength, gParams.TimesPerLength)
+    }
+
+
+   gType <- "P" ##practice trials
+  #Do practice trials, if necessary
+
+ if(gParams.DoPractice)
+    {
+    Show(inst)
+
+    inst.text <- gPrompt1
+    Draw()
+     FilePrint(gLogFile, gSubNum + "," + gLanguage + "," + TimeStamp()+",CORSI,"+dirlabel+",PRACTICETRIALS STARTED")
+     ## Do three practice trials
+
+    WaitForDownClick()
+
+    Hide(inst)
+    Draw()
+     gTrialNum <- -1
+     Trial(targxy,[1,3,5],gParams.Direction)
+     gTrialNum <- -2
+     Trial(targxy,[2,4,8],gParams.Direction)
+     gTrialNum <- -3
+     Trial(targxy,[6,7,9],gParams.Direction)
+    ##
+    inst.text <- gPrompt2
+    Show(inst)
+    Draw()
+    WaitForDownClick()
+    Hide(inst)
+    Draw()
+   }
+   gTrialNum <- 1
+
+    gType <- "T"  ##Test trials
+   ##Go through the trial sequence
+   dat <- []
+   lastlength <- 0
+   curcorrect <- 1
+   totalcorrect <- 0
+   totalrecalled <- 0
+
+
+   FilePrint(gLogFile, gSubNum + "," + gLanguage + "," + TimeStamp()+",CORSI,"+dirlabel+",TRIALS STARTED")
+   loop(stim,trials)
+   {
+
+
+      if(gParams.UseCorsiPoints)
+      {
+
+      ##The actual points range from 15 to 195,
+      ##and we want them centered at gHomeX.
+      ##Lets compute the x offset to make it work.
+      ##
+       width <- (195-15)*gScale
+       targxy <- CorsiPoints(gHomeX-width/2,30,gScale)
+
+     } else {
+
+
+      targxy <- MakePoints(gHomeX-300,gHomeX+300,30,gVideoHeight-100, gTargetSize*Sqrt(2),9)
+     }
+
+
+     curlength <- Length(stim)
+
+
+     ## If you have switched lengths, make sure curcorrect>0; otherwise
+     ## stop the test
+     if(curlength > lastlength)
+      {
+        ##Abort if you finished a length and got none correct
+        if(curcorrect ==0)
+        {
+          break
+        }
+
+        curcorrect <- 0
+      }
+
+
+     out  <-  Trial(targxy,stim,gParams.Direction)
+
+     corr <- First(out)
+     scoreCI <- Second(out)
+     inp <- Third(out)
+     output <- Fourth(out)
+     rts <- Fifth(out)
+
+     dat <- Append(dat,[curlength,corr])
+     curcorrect <- curcorrect + corr
+     if(corr)
+      {
+        totalcorrect <- totalcorrect+1
+        totalrecalled <- totalrecalled + curlength
+      }
+     lastlength <-curlength
+     gTrialNum <- gTrialNum +1
+   }
+
+   FilePrint(gLogFile, gSubNum + "," + gLanguage + "," + TimeStamp()+",CORSI,"+dirlabel+",TRIALS ENDED")
+
+
+  if(curlength==9)
+    {
+     msp <- 9 - (curcorrect<1)
+    } else {
+     msp <-  curlength -2
+    }
+
+   dat2 <- Transpose(dat)
+
+#   totcor <- Sum(Second(Transpose(dat)))
+   totalscore <- msp * totalcorrect
+
+
+
+  Show(inst)
+  inst.text <- gPromptFinal1  +   CR(1)+
+               gPromptFinal2 + msp +CR(1) +
+               gPromptFinal3 + totalscore+ CR(1) +
+               gPromptFinal4 + totalcorrect +CR(1)+
+               gPromptFinal5 +Round((gParams.startlength+totalcorrect)/gParams.timesperlength,2)+CR(3)
+
+   Draw()
+
+
+  FilePrint(gSumFile,"The PEBL Corsi Blocks Test, Version 0.2
+http://pebl.sourceforge.net/battery.html.
+============================================")
+  FilePrint(gSumFile,inst.text)
+
+
+FilePrint(gPooledSummary,gSubNum+","+TimeStamp()+","+dirlabel+","+
+      gTrialNum+","+msp+","+totalscore+","+totalcorrect+","+
+     Round((gParams.startlength+totalcorrect)/gParams.timesperlength,2))
+
+
+
+
+
+  WaitForAnyKeyPress()
+
+}
+
+
+define Trial(xy,stimseq, direction)
+{
+
+
+  len <- Length(stimseq)
+
+  ##Make a ready signal.
+  warn <- EasyLabel(gReady,gHomeX,gHomeY,gWin,30)
+  Draw()
+  Wait(gParams.ITI)
+  Hide(warn)
+  ShowCursor(0)
+  Draw()
+
+
+   squares <- []
+  ####################################
+  ##First, display the stimuli blocks
+   loop(i, xy)
+   {
+
+      tmp <- Square(First(i),Second(i),gTargetSize,gStimColor,1)
+	  AddObject(tmp,gWin)
+      squares <- Append(squares,tmp)
+   }
+
+
+   Draw()
+   Wait(gParams.ISI)
+
+  ## Get the coordinates to present in order.
+  seqxy <- ExtractListItems(xy,stimseq)
+
+  xy1 <- First(seqxy)
+  targ <- Square(First(xy1),Second(xy1),gTargetSize+3,gHighlightColor,1)
+  Addobject(targ,gWin)
+  loop(i,seqxy)
+     {
+       Move(targ,First(i),Second(i))
+       Draw()
+       Wait(gParams.ISI)
+     }
+
+  Hide(targ)
+  Draw()
+
+
+  ####################################
+  ##Now, collect responses.
+   done <- EasyLabel(gDone,gVideoWidth/2,gVideoHeight/2+gScale*80,gWin,33)
+   doneback <-   Rectangle(gVideoWidth/2,gVideoHeight/2+gScale*80 ,120,30,MakeColor("white"),0)
+   AddObject(doneback,gWin)
+   SetMouseCursorPosition(Round(gVideoWidth/2),Round(gVideoHeight/2))
+   ShowCursor(1)
+   Draw()
+   time0 <- GetTime()
+   resps <- []
+   rts <- []
+
+   clickon <-  Merge([doneback],squares)
+   ids <- Sequence(0,9,1)
+   i <- 1
+   resp <- -1
+   while(resp != 0)
+   {
+      time1 <- GetTime()
+      resp <-  WaitForClickOnTarget(clickon,ids)
+      time2 <- GetTime()
+      if(resp > 0)
+      {
+        pos <- Nth(clickon,resp+1)
+        Move(targ,pos.x,pos.y)
+        Show(targ)
+        Draw()
+
+       if(gParams.UseBeep)
+       {
+  	    PlayBackground(gBeep)
+       }
+        Wait(250)
+        Hide(targ)
+        Draw()
+        resps <- Append(resps,resp)
+        rts <- Append(rts,(time2-time1))
+
+       FilePrint(gFileOutClick,gSubNum+","+gParams.Direction+","+gType+","+gTrialNum+","+i +","+time0+","+time2+","+(time2-time0)+","+(time2-time1)+","+resp+","+pos.x+","+pos.y)
+       i <- i +1
+      }
+   }
+
+
+  if(direction == -1)
+   {
+     standard <- Reverse(stimseq)
+   } else {
+     standard <- stimseq
+   }
+
+  score <- ScoreResponse(standard,resps)
+  ##Compute and give feedback
+  corr <- ListEqual(standard,resps)
+
+  if(corr)
+   {
+      warn.text <- gCorrect
+   }else{
+      warn.text <- gInCorrect
+   }
+
+  outline <-  gSubNum+","+gParams.Direction+","+gType+","+gTrialNum+","+time0+","+
+     len +","+ListToString(stimseq)+","+ListToString(resps)+","+First(score)+","+Second(score)+","+ corr+","+(GetTime()-time0)
+ FilePrint(gFileOutTrial, outline)
+ FilePrint(gPooled,outline)
+
+
+  RemoveObjects(squares,gWin)
+  RemoveObject(done,gWin)
+  RemoveObject(doneback,gWin)
+  RemoveObject(targ,gWin)
+
+  Show(warn)
+  Draw()
+  Wait(500)
+
+  RemoveObject(warn,gWin)
+  Draw()
+  return [corr,score,stimseq,resps,rts]
+}
+
+
+define ListEqual(l1,l2)
+{
+  if(Length(l1)==Length(l2))
+  {
+   same <- 1
+
+
+   loop(i,Transpose([l1,l2]))
+    {
+     if(not (First(i) == Nth(i,2)))
+      {
+        same <- 0
+      }
+
+    }
+   } else {
+     same <- 0
+   }
+  return same
+}
+
+##Gives a two-part score: # matches and # mismatches,
+##position-wise, from the beginning
+
+define ScoreResponse(l1,l2)
+{
+   ll1 <- Length(l1)
+   ll2 <- Length(l2)
+
+   min <- Min([ll1,ll2])
+   max <- Max([ll1,ll2])
+
+  ## If they are not the same length, we need to pad the shorter one.
+  if(min < max)
+  {
+     if(ll1 < ll2)
+      {
+        l1 <- Merge(l1, Repeat(-1,(max-min)))
+      }else{
+        l2 <- Merge(l2, Repeat(-1,(max-min)))
+      }
+  }
+
+  ##Now, l1 and l2 are the same length.
+
+  same <- 0
+  diff <- 0
+  loop(i,Transpose([l1,l2]))
+    {
+     if(First(i) == Second(i))
+      {
+        same <- same + 1
+      }else{
+        diff <- diff +1
+      }
+
+    }
+  return [same,diff]
+}
+
+
+
+
+##This adapts WaitForClickOnTarget, making sure
+##you click on a 'visible' target.
+
+define WaitForResponse(targetlist,keylist)
+{
+
+  ret <- ""
+  testlist <- Transpose([targetlist,keylist])
+
+   wait1 <- 1
+   while(wait1)
+     {
+      wait2 <- 1
+      while(wait2)
+       {
+         pos <- WaitForMouseButton()
+         if(Nth(pos,4)=="<pressed>")
+          {
+            wait2 <- 0
+          }
+       }
+
+      newtargs <- []
+
+      loop(i,testlist)
+          {
+   		  ## Only allow clicks on visible targets
+             obj <- First(i)
+
+             if( obj.Visible and  Inside(pos,obj))
+             {
+			    wait1 <- 0
+                ret <- Nth(i,2)
+                break
+             }
+
+          }
+     }
+  return ret
+}
+
+
+
+
+define MakePoints(xmin, xmax, ymin, ymax, tol, num)
+{
+
+   ##should you watch the points evolve?
+   watch <- 0
+
+
+   ##Note that it is possible to arrange the situation
+   ## so that the distribution will never be satisfied.  So, lets
+   ## set up a 'limit' at which point we give up and return the best
+   ## we have so far.
+
+   limit <- 100
+
+
+  ## First, just initialize num points.
+  pts <- []
+  i <- 1
+  while(i <= num)
+   {
+
+     x <- xmin + Random()*(xmax-xmin)
+     y <- ymin + Random()*(ymax-ymin)
+     pts <- Append(pts, [x,y])
+     i <- i + 1
+   }
+
+  #Now, check for the minimum distance between two points.
+   tries <- 1
+   minpair <-  GetMinDist(pts)
+
+
+   ##Move one point at a time
+   while(First(minpair) < tol and tries < limit)
+   {
+
+     pt1id <- Nth(minpair,2)
+     pt2id <- Nth(minpair,3)
+
+
+     pt1 <- Nth(pts,pt1id)
+     pt2 <- Nth(pts,pt2id)
+
+    #resample the 'bad' points
+
+     ##Half the time, try to move a little bit away from
+     ##the closest. Otherwise, do it randomly.
+
+     if(0)
+     {
+
+       ##This doesn't seem to work.
+       lastpt <- pt1
+       pt1 <- [-1,-1]
+       while((First(lastpt) > xmin) and (First(lastpt)<xmax) and
+              (Second(lastpt) > ymin) and (Second(lastpt)<ymax))
+         {
+           #Resampling
+           dist <- Random() * tol
+           diff <- [First(pt2) - First(pt1),Second(pt2)-Second(pt1)]
+           pt1 <- VecSum(pt2,VecTimes(diff,[dist,dist]))
+         }
+
+
+
+
+     } else{
+
+     pt1 <-   [ xmin + Random()*(xmax-xmin),
+                  ymin + Random()*(ymax-ymin) ]
+
+    }
+   #   pt2 <-   [ xmin + Random()*(xmax-xmin),
+   #                ymin + Random()*(ymax-ymin) ]
+
+
+     ##Reassemble pts
+     tmp <- RemoveSubset(pts,[pt1id])
+
+     ##See if this configuration is an improvement
+     testpts <- Merge(tmp,[pt1])
+     minpairtest <-  GetMinDist(testpts)
+
+     ##If we've made an improvement, use it, otherwise abandon it.
+     if(First(minpairtest) >= First(minpair))
+     {
+        minpair <- minpairtest
+        pts <- testpts
+     }
+     tries <- tries + 1
+
+
+   }
+
+
+
+  return Shuffle(pts)
+}
+
+
+
+
+# Points reported in: Kessels, R. P. C., van Zandvoort, M. J. E.,
+# Postma, A., Kappelle, L. J., & de Haan, E. H. F. (2000). The Corsi
+# Block-Tapping Task: Standardization and Normative Data. Applied
+# Neuropsychology, 7(4), 252-258.
+##scale: 30-mm blocks
+
+define CorsiPoints(offx,offy,scale)
+{
+
+
+   x <- [[130,155],
+         [30,145],
+         [180,120],
+         [70,110],
+  	 [140,90],
+         [195,60],
+         [15,50],
+         [75,20],
+         [135,30] ]
+
+   xx <- []
+   loop(i,x)
+   {
+      xx <- Append(xx, [offx+First(i)*scale,offy+Second(i)*scale])
+   }
+
+  return xx
+}
+
+
+
+
+define GetMinDist(pts)
+{
+   len <- Length(pts)
+   index1 <- 1
+   mindist <- Dist(First(pts),Nth(pts,2))
+   id1 <- 1
+   id2 <- 2
+
+   loop(i,pts)
+   {
+     pt1 <- i
+     index2 <- index1 + 1
+
+
+     if(index2 <= len)
+      {
+      rest <- SubList(pts,index2, Length(pts))
+      loop(j, rest)
+       {
+        d <- Dist(i,j)
+
+        if(d < mindist)
+        {
+          mindist <- d
+          id1 <- index1
+          id2 <- index2
+        }
+
+        index2 <- index2 + 1
+      }
+      }
+     index1  <- index1 + 1
+   }
+
+   return [mindist,id1,id2]
+}
+
+
+
+##  This function takes a list of anything, and a list of indexes
+##  specifying the items to extract from the list.  The indexes can
+##  be in any order, but the extracted list will be in the order
+##  of the original list.  Items that are not numbers less than or
+##  equal to the length of the list will be ignored.
+define RemoveSubset(list, items)
+{
+   #Check the arguments to insure they are the proper type
+    if(not IsList(list))
+	{
+	    SignalFatalError("First argument of function [RemoveSubset(<list>,<list>)] is not a list")
+	}
+    if(not IsList(items))
+	{
+	    SignalFatalError("First argument of function [RemoveSubset(<list>,<list>)] is not a list")
+	}
+
+
+    returnList <- []      #Make an initial blank list to return
+    index <- 1            #keep track of the index
+    loop(i, list)
+    {
+	#If the index is in the items list, add it to the return list
+	if(not IsMember(index, items))
+	{
+	    returnList <- Append(returnList, i)
+	}
+	index <- index + 1
+    }
+
+    return returnList
+}
+
+define VecSum(a,b)
+{
+   tmp <- Transpose([a,b])
+   out <- []
+   loop(i,tmp)
+   {
+     out <- Append(out, First(i) + Nth(i,2))
+   }
+  return out
+}
+
+define VecTimes(a,b)
+{
+   tmp <- Transpose([a,b])
+   out <- []
+   loop(i,tmp)
+   {
+     out <- Append(out, First(i) * Nth(i,2))
+   }
+  return out
+}
+
+# Trials reported in: Kessels, R. P. C., van Zandvoort, M. J. E.,
+# Postma, A., Kappelle, L. J., & de Haan, E. H. F. (2000). The Corsi
+# Block-Tapping Task: Standardization and Normative Data. Applied
+# Neuropsychology, 7(4), 252-258.
+##scale: 30-mm blocks
+
+define KesselsTrials(direction)
+{
+
+##  These trials are likely the ones used by Piper:
+##
+##   x <- [[1,9],
+##    [6,9],
+##    [2,9,6],
+##    [6,2,8],
+##    [6,2,4,5],
+##    [2,9,8,6],
+##    [2,4,5,1,6],
+##    [1,5,9,4,5],     ##Is this right?  5 is repeated!!!
+##    [1,5,6,9,4,3],
+##    [4,3,6,5,9,8],
+##    [4,8,3,7,5,2,6],
+##    [7,2,5,6,3,4,1],
+##    [9,8,7,6,5,2,1,4],
+##    [2,1,9,8,6,3,5,7,4],
+##    [6,4,5,8,9,1,3,7,2]]
+
+if(direction == 1)
+ {
+ x <- [[8,5],
+   [6,4],
+   [4,7,2],
+   [8,1,5],
+   [3,4,1,7],
+   [6,1,5,8],
+   [5,2,1,8,6],
+   [4,2,7,3,1],
+   [3,9,2,4,8,7],
+   [3,7,8,2,9,4],
+   [5,9,1,7,4,2,8],
+   [5,7,9,2,8,4,6],
+   [5,8,1,9,2,6,4,7],
+   [5,9,3,6,7,2,4,3],
+   [5,3,8,7,1,2,4,6,9],
+   [4,2,6,8,1,7,9,3,5]]
+  } else{
+
+   ## Backward sequences:
+   ## From Kessels et al, 2008, in Assessment.
+ x <- [[4,7],
+    [2,9],
+    [9,3,4],
+    [6,3,7],
+    [1,5,2,8],
+    [7,4,3,9],
+    [3,1,8,6,5],
+    [9,3,1,4,7],
+    [2,8,3,5,6,4],
+    [5,3,1,2,8,9],
+    [7,3,2,9,1,8,6],
+    [4,3,7,6,2,5,9],
+    [1,9,6,3,5,4,2,8],
+    [2,9,4,6,1,7,3,5],
+    [8,6,5,7,1,2,3,4,9],  ## Length-9 was not provided by Kessels
+    [8,1,4,7,9,2,3,6,5]]  ##
+
+}
+  return x
+}
+
+
+
+
+
+##This creates an increasing random sequence akin to Kessel
+define RandomTrials(least, most, times)
+  {
+      trials <- []
+      lens <- Sequence(least,most,1)
+      loop(i,lens)
+      {
+        try <- 0
+        while(try <times)
+         {
+            trials <- Append(trials,SampleN(Sequence(1,9,1),i))
+            try <- try + 1
+         }
+      }
+    return trials
+  }
+
+
+
+define GetSTrings(language)
+{
+
+##Known trasnlations: HR, EN, PT
+  lang <- Uppercase(language)
+  fname <- "translations/corsi.pbl-"+LowerCase(lang)+".json"
+
+  if(FileExists(fname))
+  {
+    gStrings <- ReadTranslationjson(fname,lang)
+  } else
+  {
+    gStrings <- ReadTranslationjson("translations/corsi.pbl-en.json",lang)
+  }
+
+
+#   PrintProperties(gStrings)
+
+   ##recode to the variables we are using in the script.
+    gInstfor  <- gStrings.instfor
+    gInstback <- gStrings.instback
+    gPrompt1 <- gStrings.prompt1
+    gPrompt2 <- gStrings.prompt2
+    gPromptFinal1 <- gStrings.promptfinal1
+    gPromptFinal2 <- gStrings.promptfinal2
+    gPromptFinal3   <- gStrings.PromptFinal3
+    gPromptFinal4 <-  gStrings.PromptFinal4
+    gPromptFinal5 <-  gStrings.PromptFinal5
+    gReady <- gStrings.ready
+    gCorrect <- gStrings.correct
+    gIncorrect <- gStrings.incorrect
+    gDone  <- gStrings.done
+
+}

@@ -1,0 +1,91 @@
+define Start(lPar)
+{
+
+  #Create the window, fonts, etc. 
+  window <- MakeWindow("grey")
+  fg <- MakeColor("black")
+  fg2 <- MakeColor("red")
+  bg <- MakeColor("grey")
+  font  <- MakeFont("Vera.ttf",0,50,fg,bg,1)
+  font2 <- MakeFont("Vera.ttf",0,50,fg2,bg,1)
+  #Get a list of uppercase letters
+  letters <- FileReadList("Uppercase.txt")
+
+  #Based on these letters, create a list of text labels
+  sequence <- []
+  #Create a list of labels.
+  loop(i,letters)
+  {
+    tmp <- MakeLabel(i,font)           #Create label
+    sequence <- Append(sequence, tmp)  #Add it to the 'sequence'
+    AddObject(tmp,window)              #Add it to the window
+    Move(tmp,gVideoWidth/2,gVideoHeight/2)     #Move it to the center
+    Hide(tmp)                          #Hide it
+   }
+  
+  #Make a blank label to add to the end to workaround a bug in display
+#  blank <- MakeLabel(" ",font)
+#  AddObject(blank,window)
+#  Move(blank,gVideoWidth/2,gVideoHeight/2)
+#  Hide(blank)
+
+  #Initial Draw
+  Draw()
+
+  #To test, repeat the trial sequence numerous times
+  trial <- 0
+  while(trial < 20)
+  {
+    trial <- trial + 1
+
+    #Sample 10 items randomly, and append the blank label at the end to ensure
+    #the final item gets overwritten.  
+#    seq2 <- Append(SampleN(sequence,10), blank)
+	 seq2 <- SampleN(sequence,10)
+    #Change the font (color) of the 5th item
+    tmp <- Nth(seq2,5)
+    SetFont(tmp,font2)
+    Draw()
+    i <- 0
+
+    #keep track of time in a list, which is a bit faster than writing to a file
+    time <- []
+
+    #Wait a little while before beginning
+    Wait(220)
+
+    #Draw sequence of items 
+    Draw()
+
+    t1 <- GetTime()
+    #Loop through each of the sampled elements one at a time, using 'Draw()' as a 
+    #delay to remain synced with vertical refresh
+    loop(i,seq2)
+    {
+     Show(i)
+     Draw()	
+     time <- Append(time, GetTime())
+     Draw()
+     Draw()
+     Draw()
+     Draw()
+     Draw()
+     Draw()
+     Draw()
+     Draw()
+     Draw()
+     Draw()
+     Hide(i)    
+     x <- i
+    }
+    t2 <- GetTime()
+    Draw()
+
+    #Set the font back
+    SetFont(tmp,font)  
+    Print_(time)
+    Print( " " + t2 + "  " + t1 + " " + (t2- t1))
+  }
+
+
+}

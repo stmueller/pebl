@@ -1,0 +1,868 @@
+## PEBL Survey generator.  Reads in file questions.csv,
+## which controls the questions and question types.
+## 
+## Requires PEBL version 0.10 or later
+##
+
+
+define Start(p)
+{
+
+  parpairs <- [["surveylabel","Survey"],
+               ["logofilename","images/logo.png"],  #change to your own logo file. (400x80)
+               ["questionfile","questions.csv"]]
+
+  gParams <- CreateParameters(parpairs,gParamFile)
+
+
+  gSurveyLabel <- gParams.surveylabel
+  gLogoFileName <- gParams.logofilename
+
+
+  Init()
+  if(gSubNum+""=="0")
+  {
+    subnum <- ShortAnswer("Please enter participant code")
+    gSubNum <- StripQuotes(Fourth(subnum))
+  }
+
+
+  ##Change questions.csv to your survey data file:
+  dat <- ReadCSV(gParams.questionfile)
+
+  MakeDirectory("output")
+  fileout <- FileOpenAppend("output/results-"+gSubNum+".csv")
+  gClickLog <- FileOpenAppend("output/clicklog-"+gSubNum+".csv")
+  gPooledFile <- FileOpenAppend("output/results-pooled.csv")
+
+  ##Now, iterate through the questions.
+  done <- []
+  rts <- Repeat("NA",Length(dat))
+  resps <- Repeat("NA",Length(dat))
+  remn <- dat
+
+  question <- 1
+  finished <- 0
+  while(not finished)
+  {
+ 
+    ##Run a question here:
+    out  <- DoQuestion(First(remn))
+    
+    ##This may have been a 'backup' repsonse
+   if(Fourth(out)== "-1" or Fourth(out)==-1)
+    {
+       ##go back to previous question.
+       if(Length(done)>0)
+       {
+        remn <-  Merge([First(done)],remn)
+        done <- Rest(done)
+	question <- question -1
+       }
+      
+    } else { 
+
+      done <- Merge([First(remn)],done)
+      remn <- Rest(remn)
+
+      SetElement(resps,question,Nth(out,7))
+      SetElement(rts,question,Nth(out,6))
+
+      question <- question + 1
+
+       if(Length(remn)==0)
+       {
+         finished <- 1
+       }
+       ##Print response as one line.
+       FilePrint(fileout,ConcatenateList(out,","))
+    }
+
+
+
+ }
+  FileClose(fileout)
+
+  FilePrint_(gPooledFile,gSubNum+",")
+  FilePrint_(gPooledFile,MakeTextCSVLine(resps)+",")
+  FilePrint(gPooledFile, ConcatenateList(rts,","))
+
+  RemoveObject(gLogo,gWin)
+  RemoveObject(gLab,gWin)
+  RemoveObject(gLine,gWin)
+
+}
+
+
+#this processes a data line, marshalling it to the correct function to 
+##handle to question.
+## Each question should return the following:
+## [<1/-1>, type, time, response ]
+## where: 
+##  the first is a 'continue flag'; if -1, that indicates the
+##  'backup' button was pressed, and you should return to the previous
+##  question.
+##  type indicates the question type.
+##  Time is the time taken to respond in ms
+##  response is a whatever the response is.
+##  The question number is padded onto this when returned to the main function.
+
+define DoQuestion(data)
+{
+
+  qnum <- First(data)
+  prompt <- Nth(data,2)
+  type <- (Nth(data,3))
+
+
+  if(type == "image")
+   {
+      picture <- Nth(data,4)
+      resp <- Image(prompt,picture,0)
+      
+   }elseif(type == "imageresponse")
+   {
+      picture <- Nth(data,4)
+      resp <- Image(prompt,picture,1)
+
+   }elseif(type == "long")
+  { 
+    resp <- LongAnswer(prompt)
+
+  }elseif(type == "short")
+  {
+    resp <- ShortAnswer(prompt)
+
+  }elseif(type == "multi")
+  {
+
+    num <- ToNumber(Nth(data,4))
+    opts <- SubList(data,5,5+num-1)
+    newopts <- []
+    loop(i,opts)
+    {
+      newopts <- Append(newopts,StripQuotes(i))
+    }
+    resp <-  Multichoice(prompt,newopts)
+
+  }elseif(type == "multicheck"){
+    num <- ToNumber(Nth(data,4))
+    opts <- SubList(data,5,5+num-1)
+    newopts <- []
+    loop(i,opts)
+    {
+      newopts <- Append(newopts,StripQuotes(i))
+    }
+    resp <-  MultiCheck(prompt,newopts)
+
+
+   } elseif(type == "likert"){
+
+    
+    num <- ToNumber(Nth(data,4))
+    if(Length(data)>=5)
+    {
+      anchors <- Nth(data,5)
+    }else{
+      anchors <- "0"  ##no anchors specified
+    }
+#    Print("["+anchors+"]")
+    if(anchors=="1" and Length(data)>=7)
+    {
+        low <- Nth(data,6)
+        high <- Nth(data,7) 
+    }else{
+        low <- "Strongly Disagree"
+        high <- "Strongly Agree"
+    }
+      resp <- Likert(prompt,num,low,high)
+ 
+  }elseif(type == "inst")
+  {
+    resp <- Instructions(prompt)
+
+  } else{ 
+
+   Print("Unknown test type ["+ type+ "]")
+    resp <- [0,0]
+  }
+
+  return Merge([gSubNum,qnum, Enquote(TimeStamp())],resp)
+}
+
+##remove quotes from outside of text (but not the inside)
+define StripQuotes(text)
+{
+   start <- 1
+   end <- StringLength(text)
+  
+   if(end > 0)
+   {
+
+   if(SubString(text,end,1)==gQuote)
+    {
+      end <- end - 1
+    }
+   if(SubString(text,1,1)== gQuote)
+    {
+      start <- 2
+      end <- end -1
+    }
+
+   ret <- SubString(text,start,end)
+
+   } else {
+    ret <- text
+   }
+   return ret
+}
+
+
+define Init()
+{
+  gSleepEasy <- 1
+  gHomeX <- gVideoWidth/2
+  gHomeY <- gVideoHeight/2
+  gWin <- MakeWindow("grey")
+
+
+  ##Set some global font values (could be auto-set for different screen sizes)
+  gInstSize <- 30
+  gQSize    <- 20
+  gDoneSize <- 25
+  gEntrySize <- 40
+
+  headfont <-  MakeFont(gPEBLBaseFont,0,gQSize,MakeColor("NavyBlue"),MakeColor("white"),0)
+  gQfont <- MakeFont(gPEBLBaseFont,0,25,MakeColor("NavyBlue"),MakeColor("grey80"),0)
+  gOptfont <-	MakeFont(gPEBLBaseFont,0,40,MakeColor("Navyblue"),MakeColor("grey"),0)
+  gOptfontsm <-MakeFont(gPEBLBaseFont,0,22,MakeColor("Navyblue"),MakeColor("grey"),0)
+  gDonefont <- MakeFont(gPEBLBaseFontMono,0,gDoneSize,MakeColor("black"),MakeColor("grey"),0)
+
+
+  ##The topmost pixel; where the header stops.
+  gTop <- 80
+  gBottom <- gVideoHeight-150  ##Save 150 px at bottom for horizontal responses, etc.
+
+  ##Create header, with logos, etc.
+  ##To reduce size, make it 80 px.
+  head <- Rectangle(gHomeX,gTop/2,gVideoWidth,gTop,MakeColor("white"),1)
+  AddObject(head,gWin)
+
+  glab <- MakeLabel(gSurveylabel, headfont)
+  AddObject(glab,gWin)
+  Move(glab,gVideoWidth-10-glab.width/2,gTop/2)
+
+  gLogo <- MakeImage(gLogoFileName)
+  AddObject(gLogo,gWin)
+  Move(gLogo,200,gTop/2)
+
+  gLine <- Line(0,gTop,gVideoWidth,0,MakeColor("black"))
+  AddObject(gLine,gWin)
+  Draw()
+
+  gHigh <- MakeColor("red")
+  gMed <- MakeColor("orange")
+  gLow <- MakeColor("yellow")
+  
+
+
+}
+
+
+define Instructions(text)
+{
+
+  header <- EasyLabel("Read Instructions and click NEXT when complete.",gHomeX,gTop+20,gWin,gInstSize)
+
+  height <- gBottom - gTop - 50
+  ques <- EasyTextBox(text,100,gTop+50,gWin,gInstSize,gVideoWidth-200,height)
+  ques.text <- text
+  ques.font <- gQfont
+
+
+
+  backprev <- Rectangle(gHomeX-80,gBottom+40,150,40,MakeColor("grey60"),0)
+  AddObject(backprev,gWin)
+  prev <- MakeLabel("PREVIOUS",gdonefont)
+  AddObject(prev,gWin)
+  Move(prev,gHomeX-80,gBottom+40)
+ 
+  back <- Rectangle(gHomeX+80,gBottom+40,150,40,MakeColor("grey60"),0)
+  AddObject(back,gWin)
+  done <- MakeLabel("NEXT",gdonefont)
+  AddObject(done,gWin)
+  Move(done,gHomeX+80,gBottom+40)
+
+
+  Draw()
+  time1 <- GetTime()
+  resp <- WaitForClickOntarget([back,backprev],[1,-1])
+  time2 <- GetTime()
+  RemoveObjects([back,backprev,prev,done,ques,header],gWin)
+
+  return [resp,"inst", (time2-time1),Enquote("")]
+
+}
+
+
+define Image(text,image,collectresponses:0)
+{
+
+  if(gVideoWidth>1000 and gVideoHeight>680)
+   {
+     imgwidth <-  800
+     imgheight <- 600
+   } else {
+     imgwidth <-  640
+     imgheight <- 480
+   }
+
+
+  img <- MakeImage(image)
+
+  ##Determine how much it needs to be scaled.
+  xscale <- img.width/imgwidth
+  yscale <- img.height/imgheight
+
+  ## Determine if we are too big in any direction.
+  if(xscale > 1 or yscale > 1)
+  {
+    if(xscale > yscale) 
+    {
+      scale <- xscale
+    } else {
+      scale <- yscale
+    }
+
+   img.zoomx <- 1/scale
+   img.zoomy <- 1/scale
+  }
+
+
+
+  AddObject(img,gWin)
+  Move(img,imgwidth/2+5,gTop+imgheight/2+5)
+
+  col2center <- ((imgwidth+10)+gVideoWidth)/2
+  header <- EasyLabel("Click NEXT to move on.",col2center,gTop+20,gWin,gInstSize)
+  ques <- EasyTextBox(text,imgWidth+10,gTop+40,gWin,20,(gVideoWidth-imgwidth-15),300)
+
+if(collectresponses)
+{
+   lab2 <- EasyLabel("Type response and hit enter:",ques.x+ques.width/2,ques.y+335,gWin,30)
+   tb <- EasyTextBox("",ques.x,ques.y+350,gWin,20,ques.width,200)
+}
+
+
+  back1 <- Rectangle(col2center+80,gBottom+80,120,40,MakeColor("grey60"),0)
+  AddObject(back1,gWin)
+  done <- MakeLabel("NEXT",gdonefont)
+  AddObject(done,gWin)
+  Move(done,col2center+80,gBottom+80)
+
+  backprev <- Rectangle(col2center-80,gBottom+80,140,40,MakeColor("grey60"),0)
+  AddObject(backprev,gWin)
+  prev <- MakeLabel("PREVIOUS",gdonefont)
+  AddObject(prev,gWin)
+  Move(prev,col2center-80,gBottom+80)
+  
+
+if(collectresponses)
+{
+
+  edit <-   MakeLabel("EDIT",gdonefont)
+  AddObject(edit,gWin)
+  Move(edit,col2center,gBottom+20)
+  back2 <- Rectangle(col2center,gBottom+20,140,40,MakeColor("grey60"),0)
+  AddObject(back2,gWin)
+
+
+  alldone <- 0
+  time1 <- GetTime()
+  while(not alldone)
+   {
+
+     header.text <- "Type response below, and hit enter when finished."
+     Hide(prev); Hide(backprev)
+     Hide(done); Hide(back1)
+     Hide(edit); Hide(back2)
+     Draw()
+
+     resp <- GetInput(tb,"<return>")
+     time2 <- GetTime()
+     header.text  <- "Click NEXT to confirm answer, or EDIT to revise"
+
+     Show(prev); Show(backprev)
+     Show(done); Show(back1)
+     Show(edit); Show(back2)
+     Draw()
+     response <- WaitForClickOnTarget([backprev,back1,back2], [-1,1,2])
+     
+     alldone <- (response<2)
+   }
+   time2 <- GetTime()
+   RemoveObjects([edit, back2,back1,backprev,prev,done,img,ques,header],gWin)
+   type <- "image-resp"
+} else {
+  resp <- "NA"
+
+  Draw()
+  time1 <- GetTime()
+  response <- WaitForClickOntarget([back1,backprev],[1,-1])
+  time2 <- GetTime()
+  RemoveObjects([back1,backprev,prev,done,img,ques,header],gWin)
+
+  type <- "image"
+}
+
+
+
+  return [response,type, (time2-time1),Enquote(resp)]
+
+}
+
+
+define ShortAnswer(text)
+{
+  ##Note: no backup is allowed for this type of response.
+  ##
+
+  header <- EasyLabel("Respond below. Hit enter when finished.",gHomeX,gTop+20,gWin,gInstSize)
+  height <- gBottom - gTop - 50
+  ques <- EasyTextBox(text,100,gTop+50,gWin,gInstSize,gVideoWidth-200,height)
+  ques.text <- text
+  ques.font <- gQfont
+
+
+  tb <- EasyTextBox("",gHomeX-200,gBottom+40,gWin,gEntrysize,400,80)
+  Draw()
+
+  time1 <- GetTime()
+  resp <- GetInput(tb,"<return>")
+  time2 <- GetTime()
+
+  RemoveObjects([header,ques,tb],gWin)
+
+
+  return [1,"short", (time2-time1), Enquote(resp)]
+}
+
+
+
+define LongAnswer(text)
+{
+
+  header <- EasyLabel("",gHomeX,gTop+20,gWin,gInstSize)
+
+  ques <- EasyTextBox(text,100,gTop+50,gWin,gInstSize,gVideoWidth-200,190)
+  ques.text <- text
+  ques.font <- gQfont
+
+  height <- gVideoHeight - gTop-310
+  tb <- EasyTextBox("",gHomeX-400,gTop+290,gWin,gInstSize,800,height)
+  Draw()
+
+
+  backprev <- Rectangle(gHomeX-150,gTop+265,124,40,MakeColor("grey60"),0)
+  AddObject(backprev,gWin)
+  prev <- MakeLabel("PREVIOUS",gdonefont)
+  AddObject(prev,gWin)
+  Move(prev,gHomeX-150,gTop+265)
+
+  back1 <- Rectangle(gHomeX,gTop+265,140,40,MakeColor("grey60"),0)
+  AddObject(back1,gWin)
+  done <- MakeLabel("NEXT",gdonefont)
+  AddObject(done,gWin)
+  Move(done,gHomeX,gTop+265)
+
+  back2 <- Rectangle(gHomeX+150,gTop+265,140,40,MakeColor("grey60"),0)
+  AddObject(back2,gWin)
+
+
+  edit <-   MakeLabel("EDIT",gdonefont)
+  AddObject(edit,gWin)
+  Move(edit,gHomeX+150,gTop+265)
+
+  alldone <- 0
+
+  time1 <- GetTime()
+  while(not alldone)
+   {
+
+     header.text <- "Type response below, and hit enter when finished."
+     Hide(prev); Hide(backprev)
+     Hide(done); Hide(back1)
+     Hide(edit); Hide(back2)
+     Draw()
+
+     resp <- GetInput(tb,"<return>")
+     time2 <- GetTime()
+     header.text  <- "Click NEXT to confirm answer, or EDIT to change answer"
+
+     Show(prev); Show(backprev)
+     Show(done); Show(back1)
+     Show(edit); Show(back2)
+     Draw()
+     response <- WaitForClickOnTarget([backprev,back1,back2], [-1,1,2])
+     
+     alldone <- (response<2)
+   }
+
+  Draw()
+
+
+  RemoveObjects([header,ques,tb,done,edit,prev,backprev,back1,back2],gWin)
+  return [response,"long", (time2-time1), Enquote(resp)]
+}
+
+
+## Here, opts is a list that describes what the options are.
+##
+define Multichoice(text,opts)
+{
+
+  header <- EasyLabel("Click on the best answer to the question:",gHomeX,gTop+20,gWin,gInstSize)
+  ques <- EasyTextBox(text,100,gTop+50,gWin,gInstSize,gVideoWidth-200,200)
+  ques.text <- text
+  ques.font <- gQfont
+
+
+  numopts <- Length(opts)
+  optnums <- Sequence(1,numopts,1)
+  opts <- Transpose([optnums,opts])
+
+  tmp <- []
+  rlist <- []
+  keylist <- []
+
+
+  skip <- 40
+  left <- 250
+  top <- gTop+250 +skip/2+5
+
+  loop(i,opts)
+   {
+
+     optnum <- First(i)
+     opttext <- Nth(i,2)
+     if(StringLength(opttext)==0)
+        {
+          opttext <- " " 
+        }
+
+     #Make the click-on number
+     opt <- MakeLabel(optnum+".",gOptFontsm)
+     AddObject(opt,gWin)
+     Move(opt,left, top + (optnum-1)*skip)
+     tmp <- Append(tmp, opt)
+
+     back <-  Square(left, top + (optnum-1)*skip,38,MakeColor("Grey60"),0)
+     AddObject(back,gWin)
+     tmp <- Append(tmp,back)
+     rlist <- Append(rlist,back)
+
+
+     #Make the text
+
+     text <- MakeLabel(opttext,gOptFontsm)
+     AddObject(text,gWin)
+     Move(text, left+40, top + (optnum-1)*skip)
+     text.x <- text.x + text.width/2
+     tmp <- Append(tmp, text)
+     	 
+     keylist <- Append(keylist,optnum)
+   }
+
+
+   backprev <- Rectangle(gHomeX,top+optnum*skip,150,40,MakeColor("grey60"),0)
+   AddObject(backprev,gWin)
+   prev <- MakeLabel("PREVIOUS",gdonefont)
+   AddObject(prev,gWin)
+   Move(prev, gHomeX, top + (optnum)*skip)
+   rlist<- Append(rlist,backprev)
+   keylist <- Append(keylist,-1)
+
+   Draw()
+   time1 <- GetTime()
+   response <- WaitForClickOnTarget(rlist,keylist)
+   time2 <- GetTime()
+
+   RemoveObjects(tmp,gWin)
+   RemoveObjects([prev,backprev],gWin)
+   RemoveObject(header,gWin)
+   RemoveObject(ques,gWin)
+
+   return [response,"multi", (time2-time1),response]
+}
+
+
+## Here, opts is a list that describes what the options are.
+## User is given the option to select any of the options.
+define Multicheck(text,opts)
+{
+
+  header <- EasyLabel("Click on the best answer to the question:",gHomeX,gTop+20,gWin,gInstSize)
+  ques <- EasyTextBox(text,100,gTop+50,gWin,gInstSize,gVideoWidth-200,250)
+  ques.text <- text
+  ques.font <- gQfont
+
+
+  numopts <- Length(opts)
+  optnums <- Sequence(1,numopts,1)
+  
+  opts <- Transpose([optnums,opts])
+
+
+  tmp <- []
+  rlist <- []
+  keylist <- []
+  top <- gTop+325
+  skip <- 40
+  left <- 200
+
+  loop(i,opts)
+   {
+
+     optnum <- First(i)
+     opttext <- Nth(i,2)
+     if(StringLength(opttext)==0)
+        {
+          opttext <- " " 
+        }
+
+
+#     opt <- MakeLabel(optnum+".",gOptFontsm)
+#	 AddObject(opt,gWin)
+#     Move(opt,250, top + (optnum-1)*skip)
+#     tmp <- Append(tmp, opt)
+
+     back <-  Square(left, top + (optnum-1)*skip,34,MakeColor("Grey40"),0)
+     AddObject(back,gWin)
+     tmp <- Append(tmp,back)
+     rlist <- Append(rlist,back)
+
+     text <- MakeLabel(opttext,gOptFontsm)
+     AddObject(text,gWin)
+     Move(text, left+40, top + (optnum-1)*skip)
+     text.x <- text.x + text.width/2  #adjust to left flush
+     tmp <- Append(tmp, text)
+
+     keylist <- Append(keylist,optnum)
+   }
+
+
+  checks <- rlist ##Keep a sublist of just the checks
+  checked <- Repeat(0, numopts)
+ 
+
+  ##make a done button.
+  back1 <- Rectangle(gHomeX+100,top+optnum*skip,150,40,MakeColor("grey60"),0)
+  AddObject(back1,gWin)
+
+  done <- MakeLabel("NEXT",gdonefont)
+  AddObject(done,gWin)
+  Move(done,gHomeX+100,top+optnum*skip)
+
+  tmp <- Append(tmp,done)
+  tmp <- Append(tmp,back1)
+  rlist <- Append(rlist, back1)
+  keylist <- Append(keylist,"X")
+
+  backprev <- Rectangle(gHomeX-100,top+optnum*skip,120,40,MakeColor("grey60"),0)
+  AddObject(backprev,gWin)
+  prev <- MakeLabel("PREVIOUS",gdonefont)
+  AddObject(prev,gWin)
+  Move(prev,gHomeX-100,top+optnum*skip)
+  tmp <- Merge(tmp,[backprev,prev])
+
+  rlist<- Append(rlist,backprev)
+  keylist <- Append(keylist,-1)
+
+
+  Draw()
+  time1 <- GetTime()
+  response <- ""
+  while(response <> "X" and response <> -1)
+   {
+
+     response <- WaitForClickOnTarget(rlist,keylist)
+     checked <- UpdateChecks(checked, response)
+     DrawChecks(checks,checked)
+     Draw()
+   }
+
+  coded <- Enquote(ListtoString(checked))
+  time2 <- GetTime()
+
+  RemoveObjects(tmp,gWin)
+  RemoveObject(header,gWin)
+  RemoveObject(ques,gWin)
+
+  return [response,"multicheck", (time2-time1),coded]
+}
+
+define DrawChecks(boxes, states)
+{
+
+   loop(i, Transpose([boxes,states]) )
+   { 
+     box <- First(i)
+     box.filled <- Second(i)
+       
+   }
+}
+
+
+define UpdateChecks(current,index)
+{
+  id <- 1
+  new <- []
+  loop(i,current)
+  {
+   if(id == index)
+    {
+     new <- Append(new, 1-i)
+    } else { 
+     new <- Append(new, i)
+    }   
+
+   id <- id + 1
+  }
+
+  return new
+}
+
+define Likert(text,numopts,low,high)
+{
+
+#  header <- EasyLabel("xxx",gHomeX,150,gWin,gInstSize)
+  height <- gBottom-gTop-70
+  ques <- EasyTextBox(text,100,gTop+20,gWin,gInstSize,gVideoWidth-200,height)
+  ques.text <- text
+  ques.font <- gQfont
+
+  opttext <- Sequence(1,numopts,1)
+
+  tmp <- []
+  rlist <- []
+  keylist <- []
+  left <- 300
+  skip <- (gVideoWidth-left*2) /(numopts-1)
+
+  loop(i,opttext)
+   {
+
+     opt <- MakeLabel(i+"",gOptFont)
+     AddObject(opt,gWin)
+     Move(opt,left + (i-1)*skip,gBottom)
+
+     back <-  Square(left+(i-1)*skip,gBottom,65,MakeColor("Grey60"),0)
+     AddObject(back,gWin)
+     tmp <- Append(tmp,back)
+
+     rlist <- Append(rlist,back)
+
+     tmp <- Append(tmp, opt)
+     keylist <- Append(keylist,i)
+   }
+
+  footer2 <- EasyLabel(low + "                            "+high,gHomeX,gBottom+60,gWin,gInstSize)
+
+
+  backprev <- Rectangle(gHomeX,gBottom+80,140,40,MakeColor("grey60"),0)
+  AddObject(backprev,gWin)
+  prev <- MakeLabel("PREVIOUS",gdonefont)
+  AddObject(prev,gWin)
+  Move(prev,gHomex,gBottom+80)
+  tmp <- Merge(tmp,[backprev,prev])
+  rlist <- Append(rlist,backprev)
+  keylist <- Append(keylist,-1)
+
+  Draw()
+
+  time1 <- GetTime()
+  response <- WaitForClickOnTarget(rlist,keylist)
+  time2 <- GetTime()
+
+  RemoveObjects(tmp,gWin)
+#  RemoveObject(header,gWin)
+  RemoveObject(ques,gWin)
+  RemoveObject(footer2,gWin)
+
+  return [response,"likert", (time2-time1),response]
+}
+
+
+
+##targetlist is a set of graphical objects,
+##keylist is a set of keys whose corresponding 
+##value should be returned when a graphical object is clicked upon.
+
+define WaitForClickOnTarget(targetlist,keylist)
+{
+
+  ret <- ""
+  testlist <- Transpose([targetlist,keylist])
+   
+   wait1 <- 1
+   while(wait1)
+     {
+      wait2 <- 1
+      while(wait2)
+       {
+         pos <- WaitForMouseButton()
+         if(Nth(pos,4)=="<pressed>")
+          {
+            wait2 <- 0
+            gClick <- pos
+          }
+       }
+
+      newtargs <- []
+	  
+      loop(i,testlist)
+          {
+
+             if(Inside(pos,First(i)))
+             {
+			    wait1 <- 0
+                ret <- Nth(i,2)
+                break
+             }
+
+          }
+     }
+  return ret
+}
+
+
+
+
+## 'this puts each element in quotes, and replaces " characters.
+##
+define MakeTextCSVLine(list)
+{
+  txt <- ""
+  sep <- ""
+  loop(i,list) 
+   {
+     newi<-ReplaceChar(i+"", gQuote, "")
+     txt <- txt +sep + gQuote+newi+gQuote
+     sep <- ","
+   }
+ return txt
+}
+
+
+
+define Rest(list)
+{
+
+  if(Length(list)==1)
+   { 
+    ret <- []
+   } else {
+   ret <-  SubList(list,2,Length(list))
+   }
+  return  ret
+}

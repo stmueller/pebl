@@ -1,0 +1,1453 @@
+##
+##  The PEBL Situation Awareness Test (SATEST)
+##
+## Released into public domain by Shane T Mueller
+## July 2010
+##
+## Version 0.2:  add language translations, and reporting
+##
+
+define Start(p)
+{
+
+
+   gScriptName - "Situation Awareness Test"
+
+   parpairs <- [["UseTracking",0],  #Should a predator follow a  prey around?
+   ["numPred", 2],
+   ["numPrey", 3],
+   ["numtojump", 10],  ##Number of updates after a bug gets eaten before
+                      ##  an interruption can happen
+   ["Drift",25],   #Number of degrees off you might get on each update.
+
+   ["Rate", .1],   ## How many pixels you can travel per time step (ms.) this
+                   ## should be adjusted so it does not depend on refresh rate
+   ["minwait",1500],
+   ["maxwait",4000],
+   ["sa2cue",1]     ##should we cue the locations in SA2?
+   ]
+
+   gParams <- CreateParameters(parpairs,gParamFile)
+
+   Init()
+   GetStrings(gLanguage)
+
+
+
+
+  if(gSubNum+""=="0")
+   {
+     gSubNum <- GetSubNum(gWin)
+   }
+
+   MakeDirectory("data")
+   gFileOut <- GetNewDataFile(gSubNum,gWin,"satest","csv","")
+
+   gLogFile <- FileOpenAppend("data/satest-log.txt")
+
+   FilePrint(gLogFile,"SATEST start " +GetTime() + " " + TimeStamp() + "  " + gSubNum )
+
+   gUseTracking <- gParams.usetracking  #Should a predator follow a  prey around?
+   numPred <- gParams.numpred
+   numPrey <- gParams.numprey
+
+   numtojump <- gParams.numtojump  ##Number of updates after a bug gets eaten before
+                   ##  an interruption can happen
+
+   gDrift <- gParams.drift   #Number of degrees off you might get on each update.
+   gRate <- gParams.rate   ## How many pixels you can travel per time step (ms.) this
+                ## should be adjusted so it does not depend on refresh rate.
+
+
+   basePrey <- ["ant.png","fly_01.png","spider.png"]#,"ladybug.png"]
+   basePred <- ["lizard1.png","lizard2.png"]
+
+   minwait <-  gParams.minwait
+   maxwait <- gparams.maxwait
+
+   gLastTime <- GetTime()  ##Keeps track of the current ticker, so that
+   gTime <- gLastTime+1    ## movement is not tied to the refresh rate.
+
+   ##This holds the data
+   dat <- []
+
+##Make the predators/prey
+
+   gPrey  <- []
+   gCurPrey <- []
+   endPrey <- []
+   gdirPrey <- Repeat(0,numPrey)
+   gPredTargets <- [1,2]  ##Which prey is the predator following?
+
+   loop(i,SubList(basePrey,1,numPrey))
+    {
+       gPrey <- Append(gPrey,MakeImage("images/"+i))
+       gCurPrey <- Append(gCurPrey,MakeDest())
+       endPrey <- Append(endPrey,MakeDest())
+    }
+
+   gPred  <- []
+   gCurPred <- []
+   endPred <- []
+   loop(i,basePred)
+    {
+       gPred <- Append(gPred,MakeImage("images/"+i))
+       gCurPred <- Append(gCurPred,MakeDest())
+       endPred <- Append(endPred,MakeDest())
+    }
+   gdirPred <- Repeat(0,numPred)
+
+
+
+  ShowCursor(0)
+
+  AddComplex(gPred,gWin)
+  AddComplex(gPrey,gWin)
+
+
+  PlaceObjects(gPred,gCurPred,gdirPred)
+  Print(gPrey)
+  Print(gCurPrey)
+  Print(gDirPrey)
+  PlaceObjects(gPrey,gCurPrey,gdirPrey)
+  Draw()
+
+
+  qtime <- GetTime() + minwait + Random()*maxwait
+  i <- 1
+  cont <- 1
+  eatencount <- 0
+
+
+  ##Conditions:
+  ## 1: l1: click on the positions of everything (GetResponsesL1)
+  ## 2: l2a: identify all the targets            (GetResponsesL2)
+  ## 3: l2b: identify a single target            (GetResponsesIDPos)
+  ## 4: l3:  identify the prey a predator is tracking.
+  ## 5: l3: identify direction critter is oving in (GetResponsesL3)
+
+
+  ##the different conditions, with trials per condition.
+  basecond <- [1,3,5,1,3,5]
+  trials   <- [3,3,3,15,15,15]
+
+  probenum <- 1
+
+
+  ##First, do blocked single-task; then do pooled.
+
+   ##trials A is the baseline trials (not blocked)
+   trialsA <- []
+   loop(i,Transpose([basecond,trials]))
+    {
+        c <- First(i)
+        times <- Second(i)
+        trialsA <- Append(trialsA,Repeat(c,times))
+    }
+
+
+  ##trialsB is a mixed block, containing all the trialsA
+  trialsB <- [Shuffle(Flatten(SubList(trialsA,4,6)))]
+  blocks <- Merge(trialsA,trialsB)
+
+
+  inst <- EasyTextBox("",25,5,gWin,16,gVideoWidth-50,150)
+
+  #Main Loop
+
+  block <- 1
+  i <- 1
+  loop(trials, blocks)
+  {
+
+     if(block == 1)
+      {
+         inst.text <- gInst1
+         Show(inst)
+         Draw()
+         WaitForDownClick()
+         Hide(inst)
+         Draw()
+      }elseif(block == 2)
+      {
+         inst.text <- gInst2
+         Show(inst)
+         Draw()
+         WaitForDownClick()
+         Hide(inst)
+         Draw()
+      }elseif(block == 3)
+      {
+
+         inst.text <- gInst3
+         ShowComplex(gPrey,0)
+         ShowComplex(gPred,0)
+
+         Show(inst)
+         Draw()
+         WaitForDownClick()
+         Hide(inst)
+         Draw()
+         ShowComplex(gPrey,1)
+         ShowComplex(gPred,1)
+
+      }elseif(block == 4)
+      {
+         inst.text <-gInst4
+         Show(inst)
+         Draw()
+         WaitForDownClick()
+         Hide(inst)
+         Draw()
+
+      }elseif(block == 5)
+      {
+         inst.text <- gInst5
+         Show(inst)
+         Draw()
+         WaitForDownClick()
+         Hide(inst)
+         Draw()
+
+      }elseif(block == 6)
+      {
+         inst.text <- gInst6
+         Show(inst)
+         Draw()
+         WaitForDownClick()
+         Hide(inst)
+         Draw()
+
+     }elseif(block == 7)
+      {
+         ShowComplex(gPrey,0)
+         ShowComplex(gPred,0)
+
+         inst.text <- gInst7
+         Show(inst)
+         Draw()
+         WaitForDownClick()
+         Hide(inst)
+         ShowComplex(gPrey,1)
+         ShowComplex(gPred,1)
+
+         Draw()
+
+     }
+
+
+     #Compute next interruption time
+     gTime <- GetTime()
+
+     qtime <- GetTime() + minwait + (maxwait-minwait)*Random()
+
+
+
+   loop(trial,trials)
+   {
+
+    starttime <- GetTime()
+    cont <- 1
+
+   while(cont)
+   {
+   ##Update the timestep globals
+   gLastTime <- gTime
+   gTime <- GetTime()
+
+   ##Update predators
+   x <- UpdatePos(gCurPred,endPred,gdirPred)
+   gCurPred <- First(x)
+   gdirPred <- Second(x)
+   endPred <- ResetPredGoals(gCurPred,endPred,gPredTargets,gCurPrey)
+   PlaceObjects(gPred,gCurPred,gdirPred)
+
+  ##Update prey
+   x <- UpdatePos(gCurPrey,endPrey,gdirPrey)
+   gCurPrey <- First(x)
+   gdirPrey <- Second(x)
+   #Determine if any have reached their goal
+   endPrey <- ResetGoals(gCurPrey,endPrey)
+   eaten <- Eaten(gCurPred,gCurPrey)
+
+   ##something was eaten; so reset position
+   if(First(eaten))
+    {
+       eatencount <- 0
+       newx <- []
+       tmp <- Transpose([Second(eaten),gCurPrey,endPrey,gdirPrey])
+       loop(x,tmp)
+       {
+         if(First(x))  #this one was eaten.
+         {
+           newx <- Append(newx, [MakeDest(),MakeDest(),0])
+         } else {
+           newx <- Append(newx, SubList(x,2,4))
+         }
+       }
+      tx <- Transpose(newx)
+      gCurPrey <- First(tx)
+      endPrey <- Second(tx)
+      gdirPrey <- Third(tx)
+
+    }
+
+   PlaceObjects(gPrey,gCurPrey,gdirPrey)
+
+
+   Draw()
+   Wait(10)
+
+   ##Only interupt if the delay has been long enough
+   ##and if it has been long enough since somebody was eaten
+
+   if(GetTime() > qtime and eatencount > numtojump)
+   {
+   ####
+   #### Stop action and do SA query
+         ShowCursor(1)
+         ShowComplex(gPrey,0)
+         ShowComplex(gPred,0)
+         Draw()
+
+
+         outputhead <- gsubnum + "," + block + "," + trial + ","+
+         probenum+ ","  + i + "," + starttime + "," + GetTime() + "," + Logpos()
+
+         ##Here, trial means trial type, not trial 'number'.
+         if(trial == 1)
+         {
+	   x <- GetResponsesL1(outputhead)
+           Print(x)
+         } elseif (trial==2){
+           x <- GetResponsesIDPos(outputhead)
+         } elseif(trial==3) {
+           x <- GetResponsesIDPos(outputhead)
+         } else {
+            x <- GetResponsesL3(outputhead)
+         }
+
+         dat <- Append(dat,Merge([block],x))
+
+         #Compute next interruption time
+         qtime <- GetTime() + minwait + (maxwait-minwait)*Random()
+
+         ShowCursor(0)
+         cont <- 0 ##move on to next trial
+         probenum <- probenum + 1
+   }
+    i <- i + 1
+    eatencount <- eatencount + 1
+
+  }
+
+ }
+  block <- block + 1
+ }
+
+  ##Dat should contain summarized data now.
+
+
+  fileOut <- GetNewDataFile(gSubNum,gWin,"SAsummary","txt","")
+  PrintSAStats(dat,fileout)
+  FileClose(fileout)
+
+  FilePrint(gLogFile,"SATEST end " +GetTime() + " " + TimeStamp() + "  " + gSubNum )
+
+  inst.text <- gInstEnd
+  Show(inst)
+  Draw()
+  WaitForDownClick()
+
+
+}
+
+
+
+
+##Extracts the xy positions from a list of objects
+define GetPositions(objs)
+{
+  pos <- []
+  loop(i,objs)
+  {
+    pos <- Append(pos,[i.x,i.y])
+  }
+
+ return pos
+}
+
+define RemoveComplex(objs)
+{
+   loop(i,objs)
+   {
+      RemoveObject(i,gWin)
+    }
+}
+
+
+
+##  This gets level 1 SA: the position of targets.
+##
+define GetResponsesL1(outputhead)
+{
+
+  nresponses <- Length(gPred) + Length(gPrey)
+
+  tmp <- []
+  ShowCursor(1)
+  Draw()
+  cont <- 1
+
+#  back <- Rectangle(gHomeX,700,150,40,MakeColor("grey60"),0)
+#  AddObject(back,gWin)
+#  donefont <- MakeFont(gPEBLBaseFontMono,0,30,MakeColor("grey"),MakeColor("black"),1)
+#  done <- MakeLabel("DONE",donefont)
+#  AddObject(done,gWin)
+#  Move(done,gHomeX,700)
+
+
+
+  gHeader.text <- gHead1
+  Show(gHeader)
+  Draw()
+  time0 <- GetTime()
+  clicks <- 0
+
+  while(cont)
+   {
+     Draw()
+     resp <- DropClick()
+     if(resp == -1)
+     {
+        cont <-0
+
+     }else{
+
+        tmp <- Append(tmp,resp)
+
+        FilePrint(gFileOut,outputhead + ",Click1," + clicks + "," + resp.x + "," + resp.y + "," + GetTime() + ",NA")
+        clicks <- clicks + 1
+
+     }
+
+   if (clicks == nresponses)
+    {
+      cont <- 0
+    }
+
+  }
+
+#  RemoveObject(back,gWin)
+#  RemoveObject(done,gWin)
+
+  timeEnd <- GetTime()
+  ShowComplex(gPrey,1)
+  ShowComplex(gPred,1)
+  Draw()
+
+    ##Compute the score
+
+   clickpoints <- GetPositions(tmp)
+
+
+   score <-  Round(Score(clickpoints, Merge(gCurPrey,gCurPred)))/100
+
+   FilePrint(gFileOut,outputhead + ",Summary,NA,NA,NA," + GetTime() + "," + score)
+   gHeader.text <-ReplaceChar(ghead2,"<MISS>",score)
+   Show(gHeader)
+   Draw()
+
+   WaitForDownClick()
+
+  Hide(gHeader)
+  RemoveComplex(tmp)
+
+
+  ShowCursor(0)
+  Draw()
+#  Wait(500)
+
+  gTime <- GetTime()
+
+  return ["SA1",score,(timeEnd-time0)]
+}
+
+
+
+
+##  This gets level 2 SA: the identities of targets.
+##  It probes with a single location, and requires the identity of
+##  the target to be determined.
+define GetResponsesIDPos(outputhead)
+{
+
+  ##How many probes to do?
+  numprobes <- 2
+
+
+  nresponses <- Length(gPred) + Length(gPrey)
+  tmp <- []
+  ShowCursor(1)
+  Draw()
+  cont <- 1
+
+
+  ##Make replacement points for each of the targets
+  plotpoints <- GetPositions(Merge(gPred,gPrey))
+
+  targCol <- MakeColor("grey")
+  bgCol <-  MakeColor("grey60")
+
+
+
+   ##Make images buttons to click on.
+   imgs <- Merge(gPred,gPrey)
+   buttons <- []
+   ##Add target 'buttons' in the right positions.
+   xs <- Sublist([gHomex-250,gHomeX-150, gHomeX-50,gHomeX+50,gHomeX+150, gHomeX+250],1,Length(imgs))
+   stim <- Transpose([xs, imgs])
+   circs <- []
+
+   loop(i,stim)
+    {
+
+
+       xpos <- First(i)
+       bg <- Rectangle(xpos,660,90,50,bgCol,1)
+       AddObject(bg,gWin)
+       buttons <- Append(buttons,bg)
+
+
+       img <-Second(i)
+       if(gParams.sa2cue)
+        {
+          tmpcirc <- Circle(img.x,img.y, 10,MakeColor("navy"),0)
+	  AddObject(tmpcirc,gWin)
+          PushonEnd(circs,tmpcirc)
+        }
+
+       Show(img)
+       img.rotation <- 90
+       Move(img,xpos,660)
+    }
+
+   ##We want the pictures on top of the buttons.
+   RemoveComplex(imgs)
+   AddComplex(imgs,gWin)
+
+   ##Now, identify a target
+   gHeader.text <- gHead4
+   Show(gHeader)
+   Draw()
+
+  corrs <- 0
+  time0 <- GetTime()
+
+  circ <-  Circle(0,0,50,targcol,0)
+  targs <- SampleN(Sequence(1,nresponses,1),numprobes)
+  i <- 1
+  loop(targid,targs)
+   {
+    target <- Nth(plotpoints,targid)
+    Move(circ,First(target),Second(target))
+    AddObject(circ,gWin)
+    Draw()
+
+
+
+     targx <-WaitForClickOnTarget(buttons,Sequence(1,Length(stim),1))
+     Move(Nth(Nth(stim,targx),2),circ.x,circ.y)
+     ##I should score targx for being correct
+     corr <- targx == targid
+     corrs <- corrs+corr
+     FilePrint(gFileOut,outputhead + ",Click2," + i + "," +  targid + "," + targx  + "," +  GetTime() + "," + corr)
+
+     i <- i + 1
+   }
+
+  RemoveObject(circ,gWin)
+  RemoveComplex(tmp)
+  RemoveComplex(buttons)
+
+  ShowComplex(gPrey,1)
+  ShowComplex(gPred,1)
+  Hide(gHeader)
+
+
+
+
+  ##Compute the score
+  ##Update master time counter for smooth animation.
+  gTime <- GetTime()
+
+
+  return ["SA2",(corrs/numprobes),(gTime-time0)]
+}
+
+
+
+##  This gets level 3 SA: anticipation of target position.
+##
+##
+
+define GetResponsesAnticipate1(outputhead,endpred, endprey)
+{
+  ##Choose a single target, then give the real heading, plus a foil.
+  ##and have the subject choose between them.
+
+
+
+  tmp <- []
+  ShowCursor(1)
+  Draw()
+  cont <- 1
+
+
+  tmp <- []
+
+  #show the prey
+  ShowComplex(gPrey,1)
+
+
+  ##Make replacement points for the predators
+  plotpoints <- GetPositions(gPred)
+  targcircs <- GetPositions(gPrey)  #Make prey target circles
+
+  targCol <- MakeColor("grey")
+  selCol <- MakeColor("red")
+  bgCol <-  MakeColor("grey60")
+
+
+  ##Create circles on the predators
+  targpoints <- []
+  loop(i,plotpoints)
+  {
+    targ <-  Circle(First(i),Second(i),10,targcol,1)
+    targpoints <- Append(targpoints,targ)
+    tmp <- Append(tmp,  targ)
+  }
+
+  ##create click-on targets on the prey.
+  clickon <- []
+  loop(i,targcircs)
+  {
+    targ <-  Circle(First(i),Second(i),25,targcol,0)
+    clickon <- Append(clickon, targ)
+    tmp <- Append(tmp,  targ)
+  }
+  AddComplex(tmp,gWin)
+
+
+  ##Now, identify each target in turn
+  gHeader.text <- gHead5
+  Show(gHeader)
+
+  Draw()
+
+  ##Now, loop through the predators and identify the target of each.
+
+
+  ##Go through each predator
+  preyIDs <- Sequence(1,Length(gPrey),1)
+  corrs <- 0         ##How many correct in this round?
+  time0 <- GetTime() ##get start time.
+  id <-1
+  loop(i,targpoints)
+  {
+
+     i.color <- selCol
+     Draw()
+     x <- WaitForClickOnTarget(clickon,preyIDs)
+     i.color <- targCol
+     Draw()
+
+     predtarg <- Nth(gPredTargets,id)
+     corr <- predtarg == x ##how to know if this is correct?
+     corrs <- corrs + corr
+     FilePrint(gFileOut,outputhead + ",Click," + id  + "," + (predtarg+2)+ "," + (x+2)  +"," +  GetTime() + "," + corr)
+
+    id <- id + 1
+  }
+   timeEnd <- GetTime()
+  RemoveComplex(tmp)
+  ShowComplex(gPrey,1)
+  ShowComplex(gPred,1)
+  Hide(gHeader)
+  Draw()
+  Wait(500)
+  gTime <- GetTime()
+
+  return ["L3a", (corrs/(id-1)), (timeEnd - time0)]
+}
+
+
+
+##  This gets level 3 SA: anticipation of target position.
+##  This picks a target, then has one identify the direction it is
+##  heading in by clicking.
+##
+
+
+define GetResponsesL3(outputhead)
+{
+
+  tmp <- []
+  ShowCursor(1)
+  Draw()
+  cont <- 1
+
+
+  ##Make replacement points for one of the targets
+  targID <- RandomDiscrete(Length(gPred)+Length(gPrey))
+
+
+  target1 <- Nth(Merge(gPred,gPrey),targID)
+  plotpoints <- First(GetPositions([target1]))
+  targCol <- MakeColor("grey")
+  selCol <- MakeColor("lightcoral")
+  bgCol <-  MakeColor("grey60")
+
+
+  circle <-   Circle(First(plotpoints),Second(plotpoints),10,selCol,1)
+
+  AddObject(circle,gWin)
+  Draw()
+
+
+  back <- Rectangle(gHomeX,700,150,40,MakeColor("grey60"),0)
+  AddObject(back,gWin)
+  donefont <- MakeFont(gPEBLBaseFontMono,0,30,MakeColor("grey"),MakeColor("black"),1)
+  done <- MakeLabel(gDone,donefont)
+  AddObject(done,gWin)
+  Move(done,gHomeX,700)
+  Move(target1,gHomeX+100,700)
+  r <- target1.rotation
+  target1.rotation <- 0
+  Show(target1)
+
+  buttons <- [back,done]
+
+  ##Now, identify each target in turn
+   gHeader.text <- gHead6
+   Show(gHeader)
+
+
+  ##Wait for a cilck, then confirm.
+   repeat <- 1
+   targ <- plotpoints
+   time0 <- GetTime()
+   clickedongrid <- 0
+   while(repeat)
+    {
+
+      Draw()
+      resp <- WaitForDownClick()
+      gHeader.text <- gHead7
+
+      if(Inside(resp,gField))
+      {
+
+       clickedongrid <- 1
+       ##First compute angle betwee target and click
+
+       Hide(circle)
+
+       Move(target1,circle.x,circle.y)
+       dx <- First(resp)- First(targ)
+       dy <- Second(resp) - Second(targ)
+       angle <- 360- GetAngle(dx,dy)-90
+       target1.rotation <- angle
+       Show(target1)
+
+
+      } else {
+        #If you click on done AND you have clicked on the grid, move on.
+        if(Inside(resp,back) and clickedongrid )
+        {
+         repeat <- 0
+        }
+
+     ###
+     ### DATA ARE NOT RECORDED IN THIS CONDITION.
+
+      }
+    }
+
+     rada <- DegToRad(angle)
+     radr <- DegToRad(r)
+    deltangle <- RadToDeg(ACos(Cos(rada) * Cos(radr) + Sin(rada)*Sin(radr)))
+    FilePrint(gFileOut,outputhead + ",ANGLE," + targID  + "," + target1.x+ "," + target1.y + ","+ r +"," + angle + "," +  GetTime() + "," + deltangle)
+
+
+  timeEnd <- GetTime()
+  gHeader.text <- ""
+  RemoveComplex(tmp)
+  RemoveObject(circle,gWin)
+  RemoveComplex(buttons)
+
+  ShowComplex(gPrey,1)
+  ShowComplex(gPred,1)
+  Draw()
+
+
+
+  ##Update master time counter for smooth animation.
+  gTime <- GetTime()
+  return ["SA3b",deltangle,(timeEnd-time0)]
+}
+
+
+
+
+
+
+##
+define DropClick()
+{
+
+  cont <- 1
+  while (cont)
+   {
+
+   x <- WaitForDownClick()
+   if(Inside(x,gField))
+     {
+       ret <- Circle(First(x), Second(x), 10,MakeColor("red"),0)
+       AddObject(ret,gWin)
+       cont <- 0
+     }
+   }
+
+  return ret
+}
+
+
+
+##Here, exit is the 'exit' button
+define DropClick2(exit)
+{
+
+   cont <- 1
+  while (cont)
+   {
+
+   x <- WaitForDownClick()
+   if(Inside(x,exit))
+   {
+      ret <- -1
+      cont <- 0
+   } else {
+     if(Inside(x,gField))
+       {
+        ret <- Circle(First(x), Second(x), 10,MakeColor("red"),0)
+        AddObject(ret,gWin)
+        cont <- 0
+       }
+   }
+
+  }
+  return ret
+}
+
+## This should handle 'Inside' calls for almost anything
+##
+define Inside(click,object)
+{
+
+	x <- First(click)
+    y <- Second(click)
+
+
+   if(IsImage(object) or IsLabel(object) or
+      object.name == "<RECTANGLE>" or object.name == "<SQUARE>")
+   {
+	##First, determine object limits
+	xlow <- object.x - object.width/2
+	xhigh <- object.x + object.width/2
+
+	ylow <- object.y - object.height/2
+	yhigh <- object.y + object.height/2
+
+    inside <- (x >= xlow) and (x  <= xhigh) and (y >= ylow) and (y <= yhigh)
+
+   } elseif (IsTextBox(object))
+   {
+     xlow <- object.x
+     xhigh <- object.x+object.width
+     ylow <- object.y
+     yhigh <- object.y+object.height
+     inside <- (x >= xlow) and (x  <= xhigh) and (y >= ylow) and (y <= yhigh)
+
+   } elseif(object.name == "<CIRCLE>")
+       {
+          d <- Dist([x,y],[object.x,object.y])
+          inside  <- (d <= object.r)
+
+   } else {
+     inside <- 0
+   }
+
+	return inside
+}
+
+
+define ResetGoals(start,end)
+{
+
+   thresh <- 5
+   tmp <- Transpose([start,end])
+   goals <- []
+   loop(i,tmp)
+   {
+      if(Dist(First(i),Second(i)) < thresh)
+       {
+         goals <- Append(goals,MakeDest())
+       }else{
+         goals <- Append(goals,Second(i))
+       }
+
+   }
+
+  return goals
+}
+
+
+define ResetPredGoals(start,end,predtargets,preyloc)
+{
+
+   if(gUseTracking)
+   {
+
+      ##goals should be the current location of the prey.
+
+      goals <- ExtractListItems(preyloc,predtargets)
+   } else {
+
+
+   thresh <- 5
+   tmp <- Transpose([start,end])
+   goals <- []
+   loop(i,tmp)
+   {
+      if(Dist(First(i),Second(i)) < thresh)
+       {
+         goals <- Append(goals,MakeDest())
+       }else{
+         goals <- Append(goals,Second(i))
+       }
+
+    }
+  }
+
+  return goals
+}
+
+
+##This determines if any prey are getting eaten.
+define Eaten(predator, prey)
+{
+   thresh <- 40
+   anyeaten <- 0
+
+   preyEaten <- Repeat(0,Length(prey))
+
+   preds <- Transpose([predator, gPredTargets])
+   predID <- 1
+
+  ##For each predator, check each prey
+   loop(x,preds)
+   {
+       i <- First(x)
+       hittarget <- 0
+       newEaten <- []
+       preyID <- 1
+       loop(j, Transpose([prey,preyEaten]))
+       {
+          if (Dist(i,First(j))<thresh)
+           {
+             newEaten <- Append(newEaten,1)
+             anyeaten <- 1
+
+             if(Second(x) == preyID)
+              {
+               ##If we ate the target, we need a new target.
+                UpdatePredTargets(predID, preyID)
+              }
+
+
+           } else {
+
+             newEaten <- Append(newEaten, Second(j))
+           }
+         preyID <- preyID+1
+       }
+
+      preyEaten <- newEaten
+      predID <- predID + 1
+   }
+
+  return [anyeaten,preyEaten]
+}
+
+
+
+##PredID has just eaten preyID.  Choose a new target
+ define UpdatePredTargets(predID, preyID)
+ {
+
+
+   preyIDS <- Sequence(1,Length(gPrey),1)
+
+#   ##choose a new preyID, but not one that another predator is tracking.
+
+   availprey <- []
+   loop(i,preyIDS)
+    {
+      if(i == preyID)
+       {
+          availPrey <- Append(availPrey, i)
+       } else {
+         if(not IsMember(i,gPredTargets))
+           {
+               availPrey <- Append(availPrey,i)
+           }
+       }
+
+    }
+
+    newtarg <- Sample(availPrey)
+
+    gPredTargets <- ReplaceListItem(gPredTargets, predID, newtarg)
+#   ##Now, just replace the target
+#    Print(gPredTargets)
+}
+
+define ReplaceListItem(list, id, new)
+{
+
+  index <- 1
+  newlist <- []
+  loop(i, list)
+   {
+    if (id == index)
+    {
+      newlist <- Append(newlist, new)
+    } else {
+      newlist <- Append(newlist, i)
+    }
+     index <- index + 1
+   }
+  return newlist
+}
+
+
+define Dist(a,b)
+{
+  return   Sqrt((First(a)-First(b))^2 + (Second(a) -Second(b))^2)
+}
+
+
+define UpdatePos(starts,ends,dir)
+{
+   newDat <- []
+
+   tmp <- Transpose([starts,ends,dir])
+   loop(i,tmp)
+   {
+     newDat <- Append(newDat,Walk(First(i),Second(i),Third(i),gRate))
+   }
+
+
+  return Transpose(newDat)
+}
+
+##This takes a position and a destination and the current direction,
+##moves in the current direction
+##dir should be in degrees
+define Walk(pos, dest, dir, rate)
+{
+
+
+   tdelta <- gTime - gLastTime
+
+   ## rate is delta per time step, so compute the time-scaled rate
+   ##    here: rate/sec * sec
+    srate <- rate * tdelta
+
+   #Change based on current direction.
+    raddir  <- DegToRad(dir)  #transform to radians
+    dx <- Cos(raddir) * srate
+	dy <- Sin(raddir) * srate
+
+    mix <- .8  ##This doesn't seem to make much of a difference
+    #Compute the location of target
+    destdx <- First(dest)-First(pos)
+    destdy <- Second(dest)-Second(pos)
+
+    ##normalize the vector toward target.
+    norm <- Sqrt(destdx ^2 + destdy ^2 )
+    destdx <- destdx/norm * srate
+    destdy <- destdy/norm * srate
+
+    ##The vector of the destination
+	destangle <-  GetAngle(destdx,destdy)
+
+    newangle <-  destangle + gDrift * (Random()-.5)
+
+    #compute new location
+    newx <- First(pos)  + mix*dx + (1-mix)*destdx
+    newy <- Second(pos) + mix*dy + (1-mix)*destdy
+
+    return [[newx,newy],newangle]
+}
+
+
+define Init()
+{
+   gSleepEasy <- 1
+#   gVideoWidth <- 1000
+#   gVideoHeight <- 800
+
+   gHomeX <- gVideoWidth/2
+   gHomeY <- gVideoHeight/2
+   gWin <- MakeWindow("black")
+
+   ##set up the basic bounds of the simulation
+   fieldwidth <-600
+   fieldheight <-400
+
+
+   gMinX <- gHomeX-fieldwidth/2
+   gMaxX <- gHomeX+fieldwidth/2
+   gMinY <- gHomeY-fieldheight/2
+   gMaxY <- gHomeY+fieldheight/2
+
+   gField <- Rectangle(gHomeX, gHomeY,
+   	     		fieldwidth+50,
+   	     		fieldheight+50,MakeColor("grey90"),1)
+   AddObject(gField,gWin)
+
+
+   width <-(gMaxX - gMinX)
+   height <-  (gMaxY - gMinY)
+
+   ##Add the gridlines
+   linecol <- MakeColor("black")
+   xnum <- 6
+   ynum <- 4
+   skip <- width/xnum
+   gLines <- []
+   loop(i,Sequence(0,xnum,1))
+    {
+      x <- Line(gMinX+i*skip,gMiny,0,height,linecol)
+      AddObject(x,gWin)
+	  gLines <- Append(gLines,x)
+    }
+
+    skip <- height/ynum
+    loop(i,Sequence(0,ynum,1))
+     {
+      x <- Line(gMinX,gMinY+i*skip,width,0,linecol)
+      AddObject(x,gWin)
+	  gLines <- Append(gLines,x)
+
+     }
+
+   ##Make an easy feedback label
+   gHeader <- EasyLabel("",gHomeX, 100,gWin,24)
+
+}
+
+
+
+define ShowComplex(list,state)
+{
+
+   loop(i,list)
+    {
+       i.visible <- state
+    }
+}
+
+define AddComplex(list,win)
+ {
+   loop(i,list)
+    {
+      AddObject(i,win)
+    }
+
+ }
+
+
+define PlaceObjects(objects,locations, dir)
+{
+    tmp <- Transpose([objects,locations,dir])
+
+ 	loop(i,tmp)
+    {
+       img <- First(i)
+	   pos <- Second(i)
+       Move(img, First(pos),Second(pos))
+	   img.rotation <- 360-Third(i)-90  #image rotation is opposite of
+                                        # screen coordinates,
+                                        # and 0 is up instead of left
+    }
+}
+
+
+
+## This just chooses an in-bounds location.
+##
+define MakeDest()
+{
+      return [gMinX+(gMaxX-gMinX)*Random(),
+	          gMinY+(gMaxY-gMinY)*Random()]
+}
+
+
+define WaitForDownClick()
+{
+   continue <- 1
+   while(continue)
+    {
+		x <- WaitForMouseButton()
+        if(Nth(x,4) == "<pressed>")
+        {
+         continue <- 0
+        }
+    }
+     return x
+}
+
+
+
+define Score(pts1,pts2)
+{
+  ##pts1 and pts2 are possibly of different sizes.
+   dist <- MakeDistMatrix(pts1,pts2)
+
+   mins1 <- GetMins(dist)
+   mins2 <- GetMins(Transpose(dist))
+
+  return Mean(Merge(mins1,mins2))
+}
+
+
+define GetMins(matrix)
+{
+    mins<-[]
+    loop(i,matrix)
+    {
+       mins <- Append(mins,Min(i))
+
+    }
+
+  return mins
+}
+
+define MakeDistMatrix(pts1,pts2)
+{
+
+
+   dist<- []
+   loop(i,pts1)
+    {
+      tmp <- []
+      loop(j,pts2)
+       {
+
+          tmp<- Append(tmp,Dist(i,j))
+       }
+     dist <- Append(dist,tmp)
+    }
+ return dist
+}
+
+
+define WaitForClickOnTarget(targetlist,keylist)
+{
+
+
+  ret <- ""
+  testlist <- Transpose([targetlist,keylist])
+
+   wait1 <- 1
+   while(wait1)
+     {
+      wait2 <- 1
+      while(wait2)
+       {
+         pos <- WaitForMouseButton()
+         if(Nth(pos,4)=="<pressed>")
+          {
+            wait2 <- 0
+          }
+       }
+
+      newtargs <- []
+
+      loop(i,testlist)
+          {
+             if(Inside(pos,First(i)))
+             {
+			    wait1 <- 0
+                ret <- Nth(i,2)
+                break
+             }
+          }
+     }
+  return ret
+}
+
+
+
+##This should log the current position of all the targets.
+define LogPos()
+{
+
+  predpos <- GetPositions(gPred)
+  preypos <- GetPositions(gPrey)  #Make prey target circles
+  text <- ""
+  loop(i,Transpose([gdirpred,predpos]))
+  {
+    pos <- Second(i)
+     text <- text +  First(i) + " " + First(pos) + " " + Second(pos)+" "
+
+  }
+  loop(i,Transpose([gdirprey,preypos]))
+  {
+    pos <- Second(i)
+    text <- text + First(i) + " " + First(pos) + " " + Second(pos) + " "
+
+  }
+
+  return text
+}
+
+
+define GetStrings(lang)
+{
+
+  lang <- Uppercase(lang)
+  fname <- "translations/satest.pbl-"+LowerCase(lang)+".json"
+
+  if(FileExists(fname))
+  {
+    gStrings <- ReadTranslationjson(fname,lang)
+  } else
+  {
+    gStrings <- ReadTranslationjson("translations/satest.pbl-en.json",lang)
+  }
+
+
+   gInst1<- gStrings.inst1
+   gInst2<- gStrings.inst2
+   gInst3<- gStrings.inst3
+   gInst4<- gStrings.inst4
+   gInst5<- gStrings.inst5
+   gInst6<- gStrings.inst6
+   gInst7<- gStrings.inst7
+   gInstEnd<- gStrings.instend
+
+     gHead1 <-  gStrings.head1
+     gHead2 <- gStrings.head2
+
+     gHead3 <-  gStrings.head3
+     gHead4 <-  gStrings.head4
+     gHead5 <-  gStrings.head5
+     gHead6 <-  gStrings.head6
+     gHead7 <- gStrings.head7
+
+     gDone <-  gStrings.done
+
+
+}
+
+
+
+define PrintSAStats(dat,file)
+{
+  dat <- Transpose(dat)
+  by1 <- ListBy(Transpose(SubList(dat,2,4)),First(dat))
+  by <- First(by1)
+  dat2 <- Second(by1)
+  timeall <- []
+  accall <- []
+
+  ##There are seven rounds. Compute mean/sd of each probe type during each block
+  loop(block,dat2)
+   {
+       Print(block)
+       x <- Transpose(block)
+       type <- First(x)
+       acc <- Second(x)
+       time <- Third(x)
+
+       accagg <- SummaryStats(acc,type)
+       timeagg <- SummaryStats(time,type)
+       timeall <- Append(timeall,timeagg)
+       accall <- Append(accall, accagg)
+
+   }
+  Print("timeall")
+  Print(timeall)
+  Print("accall")
+  Print(accall)
+
+  FilePrint(file,"===============================================")
+  FilePrint(file,"      Summary results from PEBL SA Test")
+  FilePrint(file,"===============================================")
+  FilePrint(file,GetPEBLVersion())
+  FilePrint(file,TimeStamp())
+  FilePrint(file,"System type: "+GetSystemTYpe())
+  FilePrint(file, CR(2))
+  FilePrint(file,"--------------------------------------------")
+  FilePrint(file,"              Practice:")
+  FilePrint(file,"SA     N    Acc   Time")
+  FilePrint(file,"--------------------------------------------")
+  tmpt <- First(First(timeall))
+  tmpa <- First(First(accall))
+  FilePrint(file,"1    "+Second(tmpt) + "   " + (Fourth(tmpa))+ "  " + Round(Fourth(tmpt)))
+
+  tmpt <- First(Second(timeall))
+  tmpa <- First(Second(accall))
+  FilePrint(file,"2    "+Second(tmpt) + "   " + (Fourth(tmpa))+ "  " + Round(Fourth(tmpt)))
+
+  tmpt <- First(Third(timeall))
+  tmpa <- First(Third(accall))
+  FilePrint(file,"3    "+Second(tmpt) + "   " + Round(Fourth(tmpa))+ "  " + Round(Fourth(tmpt)))
+   FilePrint(file,"--------------------------------------------")
+
+
+  tmpt4 <- First(Nth(timeall,4))
+  tmpa4 <- First(Nth(accall,4))
+  tmpt5 <- First(Nth(timeall,5))
+  tmpa5 <- First(Nth(accall,5))
+  tmpt6 <- First(Nth(timeall,6))
+  tmpa6 <- First(Nth(accall,6))
+  tmpt7a <- First(Nth(timeall,7))
+  tmpa7a <- First(Nth(accall,7))
+  tmpt7b <- Second(Nth(timeall,7))
+  tmpa7b <- Second(Nth(accall,7))
+  tmpt7c <- Third(Nth(timeall,7))
+  tmpa7c <- Third(Nth(accall,7))
+
+  FilePrint(file,"--------------------------------------------")
+  FilePrint(file,"               TEST:")
+  FilePrint(file,"        N         Accuracy          Time")
+  FilePrint(file,"SA  Sing Dual    Single Dual    Single Dual ")
+  FilePrint(file,"--------------------------------------------")
+
+  FilePrint(file,"1    "+Second(tmpt4)+" " + Second(tmpt7a) + "      " + Format(Roundoff(Fourth(tmpa4),3),5)+      " " + Format( Roundoff(Fourth(tmpa7a),3),5) +      "      " + Round(Fourth(tmpt4)) + " "+Round(Fourth(tmpt7a)))
+  FilePrint(file,"2    "+Second(tmpt5) + " " + Second(tmpt7b)+ "      " + Format(Roundoff(Fourth(tmpa5),3),5)+      " " + Format(Roundoff(Fourth(tmpa7b),3),5) +       "      " + Round(Fourth(tmpt5)) + " "+Round( Fourth(tmpt7b)))
+  FilePrint(file,"3    "+Second(tmpt6) +" " + Second(tmpt7b)+ "      " + Format(Round(Fourth(tmpa6)),5)+           " " +Format( Round(Fourth(tmpa7c)),5) +            "      " + Round(Fourth(tmpt6)) + " "+Round( Fourth(tmpt7c)))
+  FilePrint(file,"--------------------------------------------")
+}
+
+
+define Roundoff(num,digits)
+{
+
+  return   Round(num*10^digits)/(10^digits)
+}

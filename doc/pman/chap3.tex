@@ -1,0 +1,440 @@
+
+\chapter{How to Write a PEBL Program}
+
+\vfill
+\sect{Basic PEBL Scripts}
+
+PEBL has a fairly straightforward and forgiving syntax, and implements
+most of its interesting functionality in a large object system and
+function library of over 125 functions.  The library includes many
+functions specific to creating and presenting stimuli and collecting
+responses.  Efforts, however successful, have been made to enable
+timing accuracy at a millisecond-scale, and to make machine limitations
+easy to deal with.
+
+
+Each PEBL program is stored in a text file. Currently, no
+special authoring environment is available. A program
+consists of one or more functions, and \emph{must} have a function
+called \texttt{Start()}. Functions are defined with the following
+syntax:
+\begin{verbatim}
+  define <function_name>(parameters)
+  {
+    statement 1
+    statement 2
+    ....
+    return value3
+  }
+\end{verbatim}
+The parameter list and the return value are optional.  For the
+\verb+Start(par){}+ function, \texttt{par} is normally bound to 0.
+However, if PEBL is invoked with \texttt{-v} command-line parameters,
+each value that follows a \texttt{-v} is added to a list contained in
+`\texttt{par}', which can then be accessed within the program:
+\begin{verbatim}
+  define Start(par)
+  {
+     Print(First(par))
+  }
+\end{verbatim}
+A simple PEBL program that actually runs follows:
+\begin{verbatim}
+  define Start(par)
+  {
+   Print("Hello")
+  }
+\end{verbatim}
+\texttt{Print()} is a standard library function. If you run PEBL from a
+command-line, the text inside the \texttt{Print} function will be sent to the
+console. On Windows, it will appear in the file `\texttt{stdout.txt'} in the
+PEBL directory.  Although other functions do not need a parameter
+argument, the \texttt{Start()} function does (case values are passed in
+from the command-line).
+
+A number of sample PEBL programs can be found in the \texttt{/demo}
+ subdirectory.
+
+
+
+\vfill
+\sect{Case Sensitivity}
+
+PEBL uses case to specify an item's token type. This serves as an extra contextual cue to the programmer, so that the program reads more easily and communicates more clearly.
+
+Function names must start with an uppercase letter, but are otherwise
+case-insensitive.  Thus, if you name a function \texttt{"DoTrial"}, you can
+call it later as \texttt{"DOTRIAL"} or \texttt{"Dotrial"} or even \texttt{"DotRail"}.  We recommend consistency, as it helps manage larger programs more easily.
+
+Unlike function names, variable names must start with an lowercase letter; if this letter is a `g', the variable is global. This enforces a consistent and readable style. After the first character, variable names are caseinsensitive. Thus, the variable `\texttt{mytrial}' is the same as `\texttt{myTrial}'.
+
+Currently, syntax keywords (like loop, if, define, etc.) must be
+lowercase, for technical reasons. We hope to eliminate this limitation in the future.
+
+\vfill
+\sect{ Syntax}
+
+PEBL has a simple and forgiving syntax, reminiscent of \texttt{S+} (or\texttt{ R})
+and \texttt{c}. However, differences do exist.
+
+Table~\ref{tab:symbols} shows a number of keywords and symbols used in PEBL. These need not appear in lowercase in your program.
+
+
+\begin{table}[htbp]
+\flushleft
+\caption{PEBL Symbols and Keywords}
+\begin{tabular}{ll}
+\toprule
+\textbf{Symbol/Keyword}& \textbf{Usage}\\
+\midrule
+\verb-+-  &                  Adds two expressions together\\
+\verb+-+  &                  Subtracts one expression from another\\
+\verb+/+  &                  Divides one expression by another\\
+\verb+*+  &                  Multiplies two expressions together\\
+\verb+^+  &                  Raises one expression  to the power of another\\
+\verb+;+  &                  Finishes a statement, or starts a new statement\\              &                  
+on the same line (is not needed at end of line)\\
+\verb+.+ &                   The property accessor.  Allows properties
+to be accessed by name\\
+\verb+:+&                    Used to specify a default value in a function definition, and to access global function definition.\\
+\verb+<-+  &                 The assignment operator\\
+\verb+( )+ &                 Groups mathematical operations\\
+\verb+{ }+ &                 Groups a series of statements\\
+\verb+[ ]+ &                 Creates a list\\
+\verb+#+   &                 Comment---ignore everything on the line that follows\\
+\verb+<+   &                 Less than\\
+\verb+>+   &                 Greater than\\
+\verb+<=+  &                 Less than or equal to\\
+\verb+>=+  &                 Greater than or equal to\\
+\verb+==+  &                 Equal to\\
+\verb+<> != ~=+&             Not equal to\\
+\texttt{and}   &               Logical and\\
+\texttt{break} &               Breaks out of a loop prematurely\\
+\texttt{not}   &               Logical not\\
+\texttt{or}    &               Logical or\\
+\texttt{while} &               Traditional while loop\\
+\texttt{loop}  &               Loops over elements in a list\\
+\texttt{if}    &               Simple conditional test\\
+\texttt{if...else}&            Complex conditional test\\
+\texttt{if...elseif...else}&   Extended conditional chain\\
+\texttt{define}   &            Defines a function\\
+\texttt{return}&               Allows a function to return a value\\
+\bottomrule
+\end{tabular}
+\label{tab:symbols}
+\end{table}
+
+
+Note that the `\verb+=+' symbol does not exist in PEBL. Unlike other languages, PEBL does not use it as an assignment operator. Instead, it uses `\verb+<-+'. Because it is confusing for users to keep track of the various uses of the \verb+=+ and \verb+==+ symbols, we've eliminated the `\verb+=+' symbol entirely. Programmers familiar with \texttt{c} will notice a resemblance between PEBL and \texttt{c}. Unlike \texttt{c}, in PEBL a semicolon is not necessary to finish a statement. A carriage return indicates a statement is complete, if the current line forms a complete expression. You may terminate every command with a `\texttt{;}' if you choose, but it may slow down parsing and execution.
+
+Another difference between \texttt{c} and PEBL is that in PEBL, \verb+{}+ brackets are
+not optional: they are required to define code blocks, such as those
+found in \texttt{if} and \texttt{while} statements and loops.
+
+\vfill
+\sect{Expressions}
+
+An expression is a set of operations that produces a
+result.  In PEBL, every function is an expression, as is any
+single number. Expressions include:
+\begin{verbatim}
+  3 + 32
+  (324 / 324) - Log(32)
+  not lVariable
+  Print(32323)
+  "String " + 33
+  nsuho  #this is legal if nsuho has been defined already.
+\end{verbatim}
+
+Notice that \verb+"String " + 33+ is a legal expresison. It will
+produce another string: \verb+"String 33"+.
+
+These are not expressions:
+\begin{verbatim}
+NSUHO         #Not an expression
+( 33 + 33     #Not an expression
+444 / 3342 +  #Not an expression
+\end{verbatim}
+\texttt{NSUHO} is not a variable because it starts with a capital
+letter. The other lines are incomplete expressions.  If the PEBL parser comes
+to the end of a line with an incomplete expression, it
+will automatically go to the next line:
+\begin{verbatim}
+  Print("hello " +
+         " world."
+       )
+\end{verbatim}
+This can result in bugs that are hard to diagnose:
+\begin{verbatim}
+  a <- 33 + 323 +
+  Print(1331)
+\end{verbatim}
+sets \texttt{a} to the string \texttt{"3561331"}.
+
+But if a carriage return occurs at a point where the
+line does make a valid expression, it will treat that line as a complete statement:
+\begin{verbatim}
+  a <- 33 + 323
+   * 34245
+\end{verbatim}
+sets \texttt{a} equal to 356, but creates a syntax error on the next line.
+
+Any expression can be used as the argument of a function, but a
+function may not successfully operate when given bogus arguments.
+
+
+If a string is defined across line breaks, the string definition will
+contain a linebreak character, which will get printed in output text
+files and textboxes.
+
+\begin{verbatim}
+  text <- "this is a line
+  and so is this"
+\end{verbatim}
+If you desire a long body of text without linebreaks, you must define it piecemeal:
+\begin{verbatim}
+  text <- "This is a line " +
+          "There is no line break before this line."
+\end{verbatim}
+
+
+\sect{loop(){} syntax.}
+
+The main way of iterating in PEBL is via the loop syntax.  ASome examples include:
+
+\begin{verbatim}
+loop(i, [1,2,3])
+{
+  Print(i)
+}
+
+loop(i, ["a","b","c"])
+{
+   Print(i)
+}
+loop(i,10)
+{
+  Print(i)
+}
+\end{verbatim}
+
+The loop function will execute the code in the brackets multiple times; once for each element of the list specified as the second argument.  On each iteration, the variable named in the first argument will be bound to a different value.  As of 2.0, the if the second argument is an integer, loop will automatically create a list and iterate over the values 1...N up to the specified number.  So, the following two are identical:
+
+\begin{verbatim}
+loop(i, Sequence(1,1000,1))
+{
+  Print(i)
+}
+
+loop(i, 1000)
+{
+Print(i)
+}
+
+\end{verbatim}
+In the future, the second version may be altered to be faster or use less memory.
+
+\vfill
+\sect{Variables}
+
+PEBL can store the results of expressions in
+named variables.  Unlike many programming languages, PEBL
+only has one type of variable: a ``Variant''. This variable
+type can hold strings, integers, floating-point numbers, lists,
+graphical objects, and everything else PEBL uses to create an
+experiment.  Unlike other languages, a variable need not be
+declared before it can be used.  If you try to access a variable that
+has not yet been declared, PEBL will return a fatal error that stipulates as such.
+
+
+\subsection{Coercion/casting}
+
+Variants  just hide the representational structure
+from the user. An actual string resides within the variant that holds a string. A long integer resides within the variant that holds an integer.
+
+PEBL Variants are automatically coerced or cast to the
+most appropriate inner format.  For example, \texttt{3232.2 + 33}
+starts out as a floating point and an integer.  The sum is
+cast to a floating point number. Similarly, \texttt{"banana" + 33}
+starts as a string and an integer, but the combination is a string.
+
+
+\subsection{Variable Naming}
+
+All variables must begin with a lowercase letter. Any sequence of numbers or letters may follow that letter. If the variable begins with a lowercase `g', it has global scope; otherwise it has local scope.
+
+\subsection{Variable Scope}
+
+As described above, variables can have either local or  
+global scope.  Any variable with global scope is accessible
+from within any function in your program.  A variable with local
+scope is accessible only from within its own function.  Different functions can have local variables with
+the same name. Generally, it is a good idea  to use local
+variables whenever possible, but using global variables for graphical
+objects and other complex data types can be intuitive.
+
+\subsection{Copies and Assignment}
+\label{sec:copies_and_ass}
+
+Variables may contain various types of data, such as simple types like integers, floating-point ratio numbers, strings; and complex types like lists, windows, sounds, fonts, etc. A variable can be set to a new value, but by design, there are very few ways in which a complex object can be changed once it has been set. For example:
+\begin{verbatim}
+  woof   <- LoadSound("dog.wav")
+  meow   <- LoadSound("cat.wav")
+  dog    <- woof
+\end{verbatim}
+Notice that woof and dog refer to the same sound object. Now you may:
+\begin{verbatim}
+  PlayBackground(woof)
+  Wait(50)
+  Stop(dog)
+\end{verbatim}
+which will stop the sound from playing. If instead you:
+\begin{verbatim}
+  PlayBackground(woof)
+  Wait(50)
+  Stop(meow)
+\end{verbatim}
+woof will play until it is complete or the program ends.
+
+Images provide another example. Suppose you create and add an image to a window:
+\begin{verbatim}
+  mWindow <- MakeWindow()
+  mImage  <- MakeImage("test.bmp")
+  AddObject(mImage, mWindow)
+  Draw()
+\end{verbatim}
+Now, suppose you create another variable and assign its
+value to \texttt{mImage}:
+\begin{verbatim}
+   mImage2 <- mImage
+   Move(mImage2, 200, 300)
+   Draw()
+\end{verbatim}
+Even though \texttt{mImage2} was never added to \texttt{mWindow}, \texttt{mImage}
+has moved: different variables now point to the same object. Note that this does not happen for simple (non-object) data types:
+\begin{verbatim}
+  a <- 33
+  b <- a
+  a <- 55
+  Print(a + "  " + b)
+\end{verbatim}
+This produces the output:
+\begin{verbatim}
+  55  33
+\end{verbatim} 
+This may seem confusing at first, but the consistency pays off in
+time.  The `\verb+<-+' assignment operator never changes the value of
+the data attached to a variable, it just changes what the variable
+points to.  PEBL is functional in its handling of simple data types,
+so you can't, for example, directly modify the contents of a string.
+\begin{verbatim}
+  a  <- "my string"    #assigns a string literal to a
+  b  <- a              #makes b refer to a's string literal
+  a  <- "your string"  #re-assigns a to a new string literal
+  b  <- a              #makes b refer to a's new string literal
+\end{verbatim}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Passing by Reference and by Value}
+
+The discussion in \ref{sec:copies_and_ass} on copying has implications for passing
+variables into functions.  When a variable is passed into a function, PEBL makes a copy of that variable on which to operate. But, as discussed in \ref{sec:copies_and_ass}, if the variable holds a complex data
+type (object or a list), the primary data structure allows for direct modification.  This is practical: if you pass a
+window into a function, you do not want to make a copy of
+that window on which to operate.  If the value is a string or a
+number, a copy of that value is made and passed into the function.
+  
+\vfill
+\sect{Functions}
+
+The true power of PEBL lies in its extensive library of
+functions that allow specific experiment-related tasks to be
+accomplished easily. For the sake of convenience, the library is divided into a number of subordinate libraries.  This library structure
+is transparent to the user, who does not need to know where
+a function resides in order to use it. Chapter \ref{sec:five} includes a quick reference to functions; Chapter \ref{sec:colors} includes a complete alphabetical reference.
+
+To create your own function, you use the define keyword, followed by the (Uppercase) function name, the arguments, and the code delineated by brackets.  Within a function, the passed-in arguments and any new parameters will have a scope local to that function.  Any variables starting with a 'g' value will have global scope, and be available outside the function.
+
+Version 2.0 introduces two important new features to functions: optional/default arguments and global-namespace functions.  
+
+\subsubsection{Optional/Default arguments}  When you define a function, you can specify a default value by following the variable name with a colon and the default value.
+
+\begin{verbatim}
+define FunctionName(arg1, arg2:0, arg3:10)
+{
+  Print(arg1+arg2+arg3)
+}
+\end{verbatim}
+When calling a function, it must be called with all its non-optional arguments, but if an optional argument is not given, it will take on the default value. Currently, if you cannot specify non-default values for arguments that occur after the first default value you use, so in the above situation, you can call FunctionName(1), Function(1,1,1), or FunctionName(1,1,1), but you can't skip the second argument.
+
+\subsubsection{Calling functions in the global namespace}
+PEBL has two types of functions: built-in functions written in C++, and a library of functiosn written in PEBL (located in the pebl-lib directory of the PEBL directory).  For all functions, if you define a function with a name identical to an already-defined function, it will use your newly-defined function instead of the original.  However, if the original was a compiled function, you can still access that function by pre-pending the name with a colon. 
+
+This is useful if you want to rename a function for debugging or other purposes, but still want to access the original.  For example, supposed I wanted to log the time of each Draw() function, I could redefine Draw:
+
+\begin{verbatim}
+define Draw(x)
+{
+   Print("Draw command issued:" + GetTime())
+   :Draw(x)
+}
+
+\end{verbatim}
+We use this in the Debug.pbl directory, which opens up a debugging window and prints to the window.
+
+\newpage
+\sect{ A Simple Program}
+
+The previous sections provide everything you need to know to
+write a simple program.  Here is an annotated program:
+
+\begin{verbatim}
+# Any line starting with a # is a comment.  It gets ignored.
+
+#Every program needs to define a function called Start() 
+#Start always needs a parameter
+define Start(par)
+{
+
+ number <- 10   ##Assign a number to a variable
+
+ hello  <- "Hello World"  ##Assign a string to a variable
+ ##Create a global variable (starts with little g)
+ gGlobalText <- "Global Text"
+
+ ##Call a user-defined function (defined below).
+ value <-  PrintIt(hello, number)
+ ##It returned a value
+ #Call a built-in function
+ Print("Goodbye. " + value)
+}
+
+##Define a function with two variables.
+define PrintIt(text, number)
+{
+  #Seed RNG with the current time.
+  RandomizeTimer()
+  #Generate a random number between 1 and number
+  i <- RandomDiscrete(number)  #this is a built-in function
+  ##Create a counter variable
+  j <- 0
+  ##Keep sampling until we get the number we chose.
+  while(i != number)
+  {
+       Print(text + "  " + i + gGlobalText)
+       i <- RandomDiscrete(number)
+       j <- j + 1
+  }
+
+  return(j)  #return the counter variable.
+}
+\end{verbatim}
+More sample programs can be found in the \texttt{demo/} and \texttt{experiments/} directories of the PEBL source tree.
+
+
+%%% Local Variables: 
+%%% mode: latex
+%%% TeX-master: "main"
+%%% End: 

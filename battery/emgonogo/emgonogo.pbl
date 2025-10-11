@@ -1,0 +1,79 @@
+define Start(p)
+{
+
+ gWin <- MakeWindow("black")
+
+  #These should include the filenames to use.  We can't
+  #expect these to be the exact design,
+  ##esp because they are high/low frequency, so
+  ##these will be sampled 'smartly'
+  happyfilenames <- FileReadList("happy.txt")
+  sadfilenames <- FileReadList("sad.txt")
+
+
+  numGo <- 75
+  numNoGo <- 25
+  isiMin <- 1200
+  isiMax <- 1600
+
+
+   happyids <- Shuffle(Sequence(1,Length(happyfilenames),1))
+   sadids   <- Shuffle(Sequence(1,Length(sadfilenames),1))
+   happyid <- 1
+   sadid <- 1
+    ##Do block 1
+
+    hssequence <- Shuffle(Merge(Repeat("G",numgo),
+                                Repeat("N",numnogo)))
+
+   block <- 1
+   trial <- 1
+   
+   loop(i,hssequence)
+   {
+
+    if(i == "G")
+    {
+       id <- Nth(happyids,happyid)
+       imagename <- Nth(happyfilenames,happyid)
+       happyid <- happyid + 1
+       if(happyid > Length(happyfilenames))
+       {
+         happyid <- 1
+	 happyfilenames <- Shuffle(happyfilenames)
+       }
+    }else{
+       ##ng
+       id <- Nth(sadids,sadid)
+       imagename <- Nth(sadfilenames,sadid)
+       sadid <- sadid + 1
+       if(sadid > Length(sadfilenames))
+       {
+         sadid <- 1
+	 sadfilenames <- Shuffle(sadfilenames)
+       }
+       
+    }
+
+      img <- AddStimulus(imagename)
+      Wait(isiMin + Random()*(isiMax-isiMin))
+       Draw()
+       resp <- WaitForlistKeyPressWithTimeout([" "],500)
+       RemoveObject(img,gWin)
+       Draw()
+     trial <- trial + 1
+   }
+}
+
+
+define AddStimulus(filename,height:480)
+{
+    img <- MakeImage(filename)
+    AddObject(img,gWin)
+    Move(img,gVideoWidth/2,gVideoHeight/2)
+    scale <- height/img.height
+    img.zoomX <- scale
+    img.zoomY <- scale
+    PrintProperties(img)
+    return img
+}

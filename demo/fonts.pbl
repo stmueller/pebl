@@ -1,0 +1,49 @@
+define Start(par)
+{
+    gSleepEasy <- 1
+
+	fontnames <- ["Caliban.ttf", 	"CharisSILBI.ttf",	"DoulosSILR.ttf",
+	"FreeMonoBoldOblique.ttf", "FreeMonoOblique.ttf", "FreeSansBoldOblique.ttf",
+	"FreeSansOblique.ttf", "FreeSerifBoldItalic.ttf", "FreeSerifItalic.ttf",
+	"FreeMonoBold.ttf","FreeMono.ttf", "FreeSansBold.ttf", "FreeSans.ttf",
+	"FreeSerifBold.ttf", "FreeSerif.ttf",
+	"CaslonBold.ttf","CaslonItalic.ttf","CaslonRoman.ttf",	"Caslon-Black.ttf",
+	"Humanistic.ttf","GenI102.ttf",	"GenR102.ttf",
+	"CharisSILR.ttf","CharisSILI.ttf",	"CharisSILB.ttf",
+	"Vera.ttf",	"VeraMoBI.ttf", "VeraSeBd.ttf",	"VeraBd.ttf","VeraBI.ttf",
+	"VeraMoBd.ttf",	"VeraIt.ttf",	"VeraMoIt.ttf",  "VeraSe.ttf",
+	"VeraMono.ttf",	"Stimulasia.ttf"]
+
+	 window <- MakeWindow("grey")
+     bg <- MakeColor("grey")
+     fg <- MakeColor("Black")
+     bg2 <- MakeColor("white")
+	 baseFont <- MakeFont("Vera.ttf",0,40,fg,bg,1)
+     testFont <- MakeFont("Vera.ttf",0,18,fg,bg2,1)
+     label <- MakeLabel("Test Font:", baseFont)
+     AddObject(label,window)
+     Move(label, 320,20)
+    
+     box <- MakeTextBox("A B C D E F G H I J K L M N O P Q R S T U V W X Y Z
+a b c d e f g h i j k l m n o p q r s t u v w x y z
+1 2 3 4 5 6 7 8 9 0
+! @ # $ % ^ & * ( ) 
+{ }[ ] / = ? + ` ~ - _ ; :",testfont,540,350)
+     AddObject(box, window)
+     Move(box, 50,100)
+     Draw()    
+     WaitForAnyKeyPress()    
+
+     loop(f, fontnames)
+     {
+          label.text <- f
+          testFont <- MakeFont(f,0,22,fg,bg2,0)
+	      SetFont(box, testFont)
+#          x <- box.text
+#          SetText(box,x)
+	      Draw()
+	      WaitForAnyKeyPress()    	
+     }
+
+  
+}

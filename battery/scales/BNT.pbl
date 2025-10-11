@@ -1,0 +1,211 @@
+## Based on:
+##
+##Cokely, E. T., Galesic, M., Ghazal, S., Schulz, E., &
+##Garcia-Retamero, R. (2012). Measuring risk literacy:
+##The Berlin Numeracy Test. Judgment and Decision
+##Making, 7, 25–47.
+
+
+define Start(p)
+{
+
+   parpairs <- [["doadaptive",1],
+                ["domultiplechoice",1]] 
+
+
+    gParams <- CreateParameters(parpairs,gParamFile)
+
+    GetQuestions(gLanguage)
+
+    gWin <- MakeWindow("black")
+    gSleepEasy <- 1 
+    if(gSubNum+""=="0")
+    {
+     gSubNum <- GetSubNum(gWin)
+    }
+    MakeDirectory("data")
+    if(not FileExists("data/bnt.csv"))
+     {
+       outfile <- FileOpenWrite("data/bnt.csv")
+       FilePrint(outfile,  "subnum,timestamp,adaptive,mc,totaltime,q1Resp,q1Time,q1Correct,"+
+                           "q2Resp,q2Time,q2Correct,"+
+                           "q3Resp,q3Time,q3Correct,q4Resp,q4Time,q4Correct,quantile")
+
+     }else {
+
+      outfile <- FileOpenAppend("data/bnt.csv")
+     }
+
+    ##Make dummy values here:
+    out2a <- ["NA","NA","NA"]
+    out2b <- ["NA","NA","NA"]
+    out3  <- ["NA","NA","NA"]
+
+
+    ## Do instructions here.
+    ##
+
+   if(gparams.doadaptive)
+    {
+      out1 <- AskQuestion(1,gParams.domultiplechoice)
+      
+      if(Third(out1)== 0)
+       {
+          out2a <- AskQuestion(2,gParams.domultiplechoice)
+  
+          if(Third(out2a)==1)
+           {
+             quantile <- 2
+           }     else {
+             quantile <- 1
+           }
+
+       }  else {
+          out2b <- AskQuestion(3,gParams.domultiplechoice)
+          if(Third(out2b)==1)
+          {
+             quantile <- 4
+          } else { 
+             out3 <- AskQuestion(4,gParams.domultiplechoice)
+             if(Third(out3)==1)
+             {
+                quantile <- 4
+             }else {
+                quantile <- 3
+             }
+          }
+       }
+  
+
+    } else{
+
+         out1  <- AskQuestion(1,gParams.domultiplechoice)
+         out2a <- AskQuestion(2,gParams.domultiplechoice)
+         out2b <- AskQuestion(3,gParams.domultiplechoice)
+         out3  <- AskQuestion(4,gParams.domultiplechoice)
+
+      quantile <- Third(out1)+Third(out2a)+Third(out2b)+Third(out3)   
+    }
+ 
+    data <- ConcatenateList(Flatten([out1,out2a,out2b,out3]),",")   
+    FilePrint(outfile,gSubNum+","+TimeStamp()+ ","+ gParams.doadaptive+","+gParams.domultiplechoice+","+(GetTime()/1000)+ ","+data+","+quantile)
+
+
+    MessageBox(gDebriefing +"  ["+ quantile+"]. Click OK to continue.",gWin)
+}
+
+
+
+
+define AskQuestion(qnum, doMC)
+{
+
+   if(doMC)
+    {
+      time1 <- GetTime()
+      response <- GetEasyChoice(Nth(gQuestions,qNum),Nth(gChoices,qNum),[1,2,3,4],gWin)
+      correct <-  response==Nth(gMCCorrect,qNum)
+      time2 <- GetTime()
+
+   }else {
+     question <- EasyTextBox(Nth(gQuestions,qnum),gVideoWidth/2-600/2,50,gWin,25,600,300)
+     back <- Rectangle(gVideoWidth/2,gVideoHeight/2+100,300,50,MakeColor("white"),0)
+     anslab <- EasyLabel("",gVideoWidth/2,gVideoHeight/2+100,gWin,30)
+     AddObject(back,gWin)
+
+     Draw()   
+     time1 <- GetTime()
+
+     response <- GetNumberInput(anslab) 
+     correct <- ToNumber(response) == Nth(gAnswers,qnum)
+    } 
+  time2 <- GetTime()
+   
+  return [response,(time2-time1),correct]
+}
+
+
+define GetQuestions(lang)
+{
+   ##override answers if necessery for a language
+  gAnswers <- [25,30,20,50]
+
+  if(lang == "EN")
+   {
+ 
+      gInstructions <- "Please answer the questions that follow. Do not use a calculator but feel free to use the scratch
+paper for notes."
+
+     gQuestions <- [
+##q1:
+"Out of 1,000 people in a small town 500 are members of a choir. Out of these 500 members in the choir 100 are men. Out of the 500 inhabitants that are not in the choir 300 are men. What is the probability that a randomly drawn man is a member of the choir?
+
+Please indicate the probability in percent.",
+ #2a
+         "Imagine we are throwing a Five-sided die 50 times. On average, out of these 50 throws how many times would this Five-sided die show an odd number (1, 3 or 5)?",
+ #2b     
+    "Imagine we are throwing a loaded die (6 sides). The probability that the die shows a 6 is twice as high as the probability of each of the other numbers. On average, out of these 70 throws how many times would the die show the number 6?",
+  #3
+       "In a forest 20% of mushrooms are red, 50% brown and 30% white. A red mushroom is poisonous with a probability of 20%. A mushroom that is not red is poisonous with a probability of 5%. What is the probability that a poisonous mushroom in the forest is red?
+
+Please indicate the probability in percent."]
+
+   gChoices <-  [["a) 10%","b) 25%","c) 40%","d) None of the above"],
+                 ["a) 5 out of 50 throws","b) 25 out of 50 throws","c) 30 out of 50 throws","d) None of the above"],
+                 ["a) 20 out of 70 throws","b) 23 out of 70 throws","c) 35 out of 70 throws","d) None of the above"],
+                 ["a) 4%","b) 20%","c) 50%","d) None of the above"]]
+   gMCCorrect <- [2,3,1,3]
+   gDebriefing <- "Thank you for participating. Your score is:"
+
+
+   }
+ 
+ }
+
+
+
+
+define GetNumberInput(label)
+{
+  opts <- ["1","2","3","4","5","6","7","8","9","0",
+           "<kp_1>","<kp_2>","<kp_3>","<kp_4>","<kp_5>","<kp_6>",
+           "<kp_7>","<kp_8>","<kp_9>","<kp_0>",
+            "<backspace>","<return>" ,"<kp_enter>"]
+
+  done <- 0
+  
+  out <- ""
+  while (not done)
+  { 
+
+     resp <- WaitForListKeyPress(opts)
+     if(resp == "<return>" or resp == "<kp_enter>")
+     {
+       done <- 1
+     } else {
+
+     if(resp == "<backspace>")
+     {
+      if(StringLength(out)<=1)
+      {
+        out <- ""
+      } else {
+        start <- 1
+        max <- Max([1,StringLength(out)-1])
+        out <- SubString(out,1,max)
+      }
+     } else {
+   
+      out <- out + resp
+     }
+      
+      label.text <- out
+      Draw()
+
+     }
+
+  }
+
+ return out
+
+}

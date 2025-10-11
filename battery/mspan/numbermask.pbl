@@ -1,0 +1,322 @@
+######################################################################
+##
+##  This task is for demonstration purposes only.
+##
+##
+## This is based on the task shown in the 'chimps make monkeys out of humans
+## video.
+## Possibly see Inoue & Matsuzawa, 2007
+## Inoue, S. & Matsuzawa, T. (20070. Working memory of numerals in chimpanzees. Current
+Biology, 17, R1004-R1005.
+
+
+define Start(p)
+{
+  gHomeX <- gVideoWidth/2
+  gHomeY <- gVideoHeight/2
+
+  gLayoutWidth <- 6         ##how many cells wide is the layout
+  gLayoutHeight <- 4        ##how many cells high is the layout
+
+  upperbound <- 9             ## The longest list length
+  lowerbound <- 3             ## The shortest list length
+  staircasestart  <- 4        ## starting point for staircasestart.
+  numtrials <- 10             ## Number of staircase trials.
+  gISI <- 500                 ## Inter-stimulus interval in ms
+  gITI <- 1500                ## inter-trial interval.
+  gWait <- 500                ## How long to 'go to each room'
+  gDoWait <- 0                ## Whether there should be a 'blow-up' of the screen
+
+  gSleepEasy <- 1
+  gWin <- MakeWindow("white")
+
+  if(gSubNum+""=="0")
+   {
+    gSubNum <- GetSubNum(gWin)
+   }
+
+   MakeDirectory("data")
+  gFileOut <- FileOpenWrite("data/numberspan-" + gSubNum + ".csv")
+  gLogFile <- FileOpenAppend("data/numberspan-log.txt")
+  FilePrint(gLogFile,"NUMBERSPAN start " +GetTime() + " " + TimeStamp() +  " " + gSubNum )
+
+  Draw()
+  
+  inst <- EasyTextBox("",212,100,gWin,20,600,400) 
+  inst.text <- "You are about to take part in a test that measures your ability to remember a sequence of words. You will be shown a sequence of named images to remember.  Immediately afterward, you will see a screen with nine named images arrayed in a grid.  Click on all the images you were shown, IN THE SAME ORDER THEY WERE GIVEN.  If you cannot remember the order of the words but can remember the words, click them in as close the the original order as you can.  When you have clicked on all the words you were shown, click done.
+   
+If you are correct, your next list will have all the same words as the previous list, but will be one word longer; otherwise it will start over with a list of two words.
+
+  Click the mouse button when you are ready to begin."
+
+  Draw()
+   WaitForDownClick()
+
+  stimFont <- MakeFont(gPeblBaseFont,0,55,MakeColor("black"),MakeColor("black"),0)
+  
+  gFont <- MakeFont("Vera.ttf",1,25,MakeColor("black"),MakeColor("white"),1)
+  gFont2 <- MakeFont("Vera.ttf",0,20,MakeColor("black"),MakeColor("white"),1)
+
+
+  names <- Sequence(0,9,1)
+  labs <- []
+  loop(i, names)
+   {
+     labs <- Append(labs,MakeLabel(i+"",stimFont))
+   }
+
+  stim <- Transpose([names,labs])
+
+
+  Hide(inst)
+  Draw()
+
+  lengths <- []
+  gTrialnum <- 1
+
+  while(gTrialnum <= numtrials)
+   {
+    ##Measures the length that the trial got to.
+    Trial(stim,8)
+    gTrialnum <- gTrialnum + 1
+  } 
+
+
+  Show(inst)
+  inst.text <- "Thank you for participating.  Alert the Experimenter that you are done.  
+
+ Memory Span: "+Mean(lengths)
+  Draw()
+  FilePrint(gLogFile,"NUMBERSPAN END " +GetTime() + " " + TimeStamp() + " " + gSubNum )
+  WaitForKeyPress("X")
+
+}
+
+
+##randomly pick length elements from stim, and 
+##display them onscreen and then collect response.
+
+define Trial(stimuli,length)
+{
+
+  ##Make a ready signal.
+  warn <- EasyLabel("READY",gHomeX,gHomeY,gWin,30)
+  Draw()
+  Wait(gITI)
+  Hide(warn)
+  Draw()
+  
+
+  stim <- SubList(stimuli,1,length)
+
+
+
+  ##Now, do the layout on the screen.
+  xwidth <- Min([gVideowidth-100,800])
+  xheight <- Min([gVideoHeight-100,600])
+  
+  positions <- gLayoutWidth * gLayoutHeight  
+  layoutpos <- SubList(Shuffle(Sequence(1,positions,1)),1,length)
+  
+  Print(stim)
+  Print(layoutPos)
+
+  tmpList <- Transpose([stim,layoutpos])
+
+  squares <- []
+  stims   <- []  
+  loop(i,tmpList)
+  {
+    pos <- Second(i)
+
+    row <- Floor(pos/gLayoutWidth)+1
+    col <- pos-(row-1)*gLayoutWidth+1
+
+    xpos <- gVideoWidth/2 - xwidth/2 + (col-1) * xwidth/(gLayoutWidth-1)
+    ypos <- gVideoHeight/2 - xheight/2 + (row-1) * xheight/(gLayoutHeight-1)
+
+    Print(pos+" " +First(First(i))+"--"+ row+","+col+":::"+xpos+","+ypos)
+    lab <- Second(First(i))
+    Print(lab)
+    Move(lab,xpos,ypos)
+    AddObject(lab,gWin)
+    Show(lab)
+    square <- Square(xpos, ypos, 50,MakeColor("blue"),1)
+    AddObject(square,gWin)
+    Hide(square)
+    stims <- Append(stims,lab)
+    squares <- Append(squares,square)
+  }
+
+  Draw()
+  resp <-   WaitForClickOnTarget(squares,Sequence(1,length,1))
+  if(resp == 1)
+  {
+     loop(i,squares)
+     {
+       Show(i)
+     }
+     Draw()
+     WaitForAnyKeyPress()
+
+  } else {
+    corr <- 0
+  }
+
+}
+
+
+##This adapts WaitForClickOnTarget, making sure
+##you click on a 'visible' target.
+
+define WaitForResponse(targetlist,keylist)
+{
+
+  ret <- ""
+  testlist <- Transpose([targetlist,keylist])
+   
+   wait1 <- 1
+   while(wait1)
+     {
+      wait2 <- 1
+      while(wait2)
+       {
+         pos <- WaitForMouseButton()
+         if(Nth(pos,4)=="<pressed>")
+          {
+            wait2 <- 0
+          }
+       }
+
+      newtargs <- []
+	  
+      loop(i,testlist)
+          {
+   		  ## Only allow clicks on visible targets
+             obj <- First(i)
+
+             if( obj.Visible and  Inside(pos,obj))
+             {
+			    wait1 <- 0
+                ret <- Nth(i,2)
+                break
+             }
+
+          }
+     }
+  return ret
+}
+
+
+
+##This assumes 9 stimuli
+define MakeTargets(stim)
+{
+
+  left <-  0
+  top <-   -40
+  xskip <- 250
+  yskip <- 200
+
+  xpos <- [1,2,3,1,2,3,1,2,3]
+  ypos <- [1,1,1,2,2,2,3,3,3]
+  tmp <- []
+  clickon <- []
+
+  newstim <-Transpose(Merge(Transpose(stim), [xpos,ypos]))
+
+  loop(i,newstim)
+  {
+    p <- MakeImage(Second(i))
+	AddObject(p,gWin)
+	Move(p,left + xskip*Third(i),top+yskip*Fourth(i))
+	Resize(p,100)
+    tmp <- Append(tmp,p)
+    clickon <- Append(clickon,p)
+
+    lab <- MakeLabel(First(i),gFont2)
+	AddObject(lab,gWin)
+	Move(lab,left + xskip*Third(i),top+yskip*Fourth(i)+90)
+    tmp <- Append(tmp,lab)
+  }
+  
+
+  done <- MakeLabel("DONE",gFont)
+  AddObject(done,gWin)
+  Move(done,gHomeX,gVideoHeight-25)
+  box <- Rectangle(gHomeX,gVideoHeight-25,140,40,MakeColor("grey60"),0)
+  AddObject(box,gWin)
+
+  clickon <- Append(clickon, box)
+  tmp <- Merge(tmp,[box,done])
+  return([clickon,tmp])
+}
+
+define Resize(pic, width)
+{
+    scale <- Max([width/pic.width , width/pic.height])
+
+    pic.zoomx <- scale
+    pic.zoomy <- scale
+}
+
+
+##targetlist is a set of graphical objects,
+##keylist is a set of keys whose corresponding 
+##value should be returned when a graphical object is clicked upon.
+
+define WaitForClickOnTarget(targetlist,keylist)
+{
+
+  ret <- ""
+  testlist <- Transpose([targetlist,keylist])
+   
+   wait1 <- 1
+   while(wait1)
+     {
+      wait2 <- 1
+      while(wait2)
+       {
+         pos <- WaitForMouseButton()
+         if(Nth(pos,4)=="<pressed>")
+          {
+            wait2 <- 0
+          }
+       }
+
+      newtargs <- []
+	  
+      loop(i,testlist)
+          {
+             if(Inside(pos,First(i)))
+             {
+                wait1 <- 0
+                ret <- Nth(i,2)
+                break
+             }
+
+          }
+     }
+  return ret
+}
+
+
+define Inside(pos, object)
+{
+   x<-First(pos)
+   y<-Nth(pos,2)
+
+   ##This is crude, and probably doesn't work for textboxes
+   ##or pictures if they have been scaled.
+   xmin <- object.x - object.width/2
+   xmax <- object.x + object.width/2
+
+
+   ymin <- object.y - object.height/2
+   ymax <- object.y + object.height/2
+
+
+  return ((x >= xmin) and (x <= xmax) and
+         ( y >= ymin) and (y<=ymax))
+}
+

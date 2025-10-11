@@ -1,0 +1,241 @@
+## Move-to-target (whackamole), with x/y reversal options.
+##
+
+define Start(p)
+{
+  gScriptName <- "PEBL Move-to-target Task"
+  gPi <- 3.14159
+
+  parpairs <- [["numstim",30],  ##number of stim per trial
+               ["numtrials",10],
+	       ["ytrans",-1],
+	       ["xtrans",1],
+	       ["mintime",2000],
+	       ["spreadtime",0],
+       	       ["disttonextmin",300],
+               ["disttonextmax",300]
+	      ]
+
+
+  gParams <- CreateParameters(parpairs,gParamFile)
+  gWin <- MakeWindow("black")
+  numTrials <- gParams.numtrials
+
+
+  min <- gParams.mintime        #minimum time to hit target
+  spread <- gParams.spreadtime  ##spread of uniform distribution added to min as time limit
+
+   ##are the testing a non-translation version?
+   gNoTrans <- (gParams.xtrans == 1 ) and (gparams.ytrans == 1)
+
+  if(gSubNum+""=="0")
+   {
+      gSubNum <- GetSubNum(gWin)
+   }
+
+   GetStrings(gLanguage)
+
+   gFileOutRaw <- GetNewDataFile(gSubNum,gWin,"movetotarget-pts","csv",
+                    "subnum,trial,step,xtrans,ytrans,label,startx,starty,time,xpos,ypos,step,targx,targy,dist,timeout,hit")
+
+   gFileOut <- GetNewDataFile(gSubNum,gWin,"movetotarget-summary","csv",
+                    "subnum,trial,step,startx,starty,xtrans,ytrans,label,targx,targy,dist,timeout,hit,rt")
+
+
+  MessageBox(gStrings.inst1,gWin)
+  MessageBox(gStrings.inst2,gWin)
+
+
+  header <- EasyLabel("",gVideoWidth/2,20,gWin,16)
+  trial <- 0
+  gtrial <- trial
+
+  header.text <- SubstituteSTrings(gStrings.header,[["<I>","0"],["<N>",gParams.numtrials]])
+  DoMoveTrial(gparams.numstim,min,spread,1,1,"normal")
+
+  trial <- 1
+  loop(i,gParams.numtrials)
+  {
+    gTrial <- trial
+    header.text <- SubstituteStrings(gStrings.header,[["<I>",i],["<N>",gParams.numtrials]])
+
+    ##this warns about the flip, so only do so when we have a flip!
+    if(trial==1 and gNoTrans==0)
+    {
+      MessageBox(gStrings.inst3,gWin)
+
+    }else{
+
+      MessageBox(gStrings.inst4,gWin)
+    }
+
+    DoMoveTrial(gParams.numstim,min,spread,gParams.xtrans,gParams.ytrans,"MODIFIED"+trial)
+    trial <- trial + 1
+  }
+
+  MessageBox(gSTrings.debrief,gWin)
+
+}
+
+
+
+
+define DoMoveTrial(targets,min,spread,xtrans:1,ytrans:1,label:"NORMAL")
+{
+
+  targsize <- 20
+  fieldx <- 800
+  fieldy <- 600
+  field <- Rectangle(gVideoWidth/2,gVideoheight/2,
+                        fieldx+targsize*2,fieldy+targsize*2,MakeColor("grey20"),0)
+  AddObject(field,gWin)
+
+  hits <- 0
+  misses <- 0
+  i <- 1
+
+  meter <- EasyLabel("",gVideoWidth-300,50,gWin,20)
+  target <- Circle(gVideoWidth/2,gVideoHeight/2,targsize,MakeColor("blue"),1)
+  AddObject(target,gWin)
+  gCursor <- Plus(0,0,10,2,MakeColor("red"))
+  AddObject(gCursor,gWin)
+  Move(gCursor,gVideoWidth/2,gVideoHeight/2)
+  ShowCursor(0)
+  xy <- [gVideoWidth/2,gVideoHeight/2]
+
+  while(i <= targets)
+   {
+
+       xy <- GetNextTarget(First(xy),Second(xy),
+                           fieldx,fieldy,
+			   gparams.disttonextmin,gparams.disttonextmax)
+
+
+       timeout <- min + RandomUniform(spread)
+       Move(target,First(xy),Second(xy))
+       Draw()
+       time0 <- GetTime()
+       startpos <- GetMouseCursorPosition()
+       timeEnd <- time0 + timeout
+       cont <- 1
+       step <- 1
+       while(cont)
+       {
+
+          time <- GetTime()
+          mousepos <- GetMouseCursorPosition()
+         if(xtrans<0)
+	  {
+	   xpos <- gVideoWidth-First(mousepos)
+	  } else {
+	   xpos <- First(mousepos)
+	  }
+	  if(ytrans<0)
+	  {
+	   ypos <- gVideoHeight-Second(mousepos)
+	  }else{
+	  ypos <- Second(mousepos)
+	  }
+          cursorpos <- [xpos,ypos]
+
+
+          MoveCursor(cursorpos)
+     	  dist <- Sqrt((target.x - First(startpos))^2+ (target.y- Second(startpos))^2)
+	  hit <- Inside(cursorpos,target)
+
+
+          FilePrint(gFileOutRaw,gSubNum+","+gTrial +","+i + "," +xtrans +","+ytrans+","+label+","+
+	   First(startpos) + "," + Second(startpos) + "," + time +","+
+	   xpos +","+ypos+","+ step+ ","+  target.x + "," + target.y + "," +
+	   dist + ","+  timeout + "," + hit )
+
+	  Wait(10)
+          cont <-  (GetTime()<timeEnd) and (not hit)
+          step <- step + 1
+
+       }
+
+	 hits <- hits + hit
+	 misses <- misses + (1-hit)
+
+	time2 <- GetTime()
+
+
+        FilePrint(gFileOut,gSubNum+ ","+ gTrial + "," +i + "," + First(startpos) + "," +
+           Second(startpos) + "," +xtrans +","+ytrans+","+label+","+
+	   target.x + "," + target.y + "," +
+	   dist + ","+  timeout + "," + hit + "," +  (time2-time0))
+
+
+          meter.text <- SubstituteStrings(gStrings.meter,
+	                      [["<HITS>",hits],
+			       ["<MISSES>",misses],
+			       ["<TIMEOUT>",Round(timeout)]])
+
+
+
+         i <- i + 1
+       }
+
+}
+
+
+
+define MoveCursor(pos)
+
+{
+  gCursor.x <- First(pos)
+  gCursor.y <- Nth(pos,2)
+  Draw()
+}
+
+
+define GetStrings(lang)
+{
+
+  lang <- Uppercase(lang)
+  fname <- "translations/movetotarget.pbl-"+LowerCase(lang)+".json"
+
+  if(FileExists(fname))
+  {
+    gStrings <- ReadTranslationJSON(fname,lang)
+  } else
+  {
+    gStrings <- ReadTranslationJSON("translations/movetotarget.pbl-en.json",lang)
+  }
+
+ }
+
+##this will randomly choose the next target, it must fit within fieldheight/fieldwidth, assuming centered on gVideoWidth/2,gVideoHeight/2
+
+define GetNextTarget(curx,cury,fieldwidth,fieldheight,mindist,maxdist)
+{
+
+  cont <- 1
+
+  minX <- (gVideoWidth-fieldwidth)/2
+  maxX <- (gVideoWidth+fieldwidth)/2
+  minY <- (gVideoHeight-fieldheight)/2
+  maxY <- (gVideoHeight+fieldheight)/2
+
+
+
+  while(cont)
+    {
+     angle <- Random() * 2 * gPi
+     radius <- mindist + Random()*(maxdist-mindist)
+     newX <- curX + radius * Cos(angle)
+     newY <- curY + radius * Sin(angle)
+
+   if(newX >= minX and newX <= maxX and
+       newY >= minY and newY <= maxY)
+       {
+           cont <- 0
+       }
+
+
+
+  }
+
+  return [newx,newy]
+}

@@ -1,0 +1,361 @@
+ define Start(par)
+{
+
+  ##Test another new feature: change video dimensions within script.
+  gVideoWidth <- 800
+  gVideoHeight <- 600
+
+  gSleepEasy <- 1
+
+  win <- MakeWindow("grey")
+  red <- MakeColor("red4")
+  col <- MakeColor("grey") 
+  col2 <- MakeColor("darkgreen")
+  black <- MakeColor("black")
+
+  header <- EasyLabel("Hit any key repeatedly to see shapes",gVideoWidth/2,20,win,40)
+
+  font <- MakeFont("Vera.ttf",0,22,black,col,1)
+  lab <- MakeLabel("FILLED CIRCLE",font)
+  AddObject(lab,win)
+  Move(lab, 600,200)
+
+  ##################################
+  ##  A Circle
+  ##################################
+
+  shape <- Circle(200, 200, 30, red,1)
+  Print(shape)
+  PrintProperties(shape)
+  AddObject(shape,win)
+  Draw()
+  WaitForAnyKeyPress()
+
+
+  shape.aa <- 1  
+  lab.text <- "Antialiased circle"
+  Draw()
+  WaitForAnyKeyPress()
+
+  Draw()
+  WaitForAnyKeyPress()
+
+  Draw()
+  WaitForAnyKeyPress()
+  
+  lab.TEXT <- "OPEN CIRCLE"
+  shape.FILLED <- 0
+  Draw()
+  WaitForAnyKeyPress()
+
+  ##Change the size of the circle
+  lab.text <- "Larger Circle"
+  shape.R <- 35
+  Draw()
+  WaitForAnyKeyPress()
+
+  RemoveObject(shape,win)
+
+
+  ##################################
+  ##  An ellipse
+  ##################################
+
+  shape <- Ellipse(200,200, 30,50, col2,1)
+  Print(shape)
+  PrintProperties(shape)
+  AddObject(shape,win)
+  lab.text <- "FILLED ELLIPSE"
+  Draw()
+  WaitForAnyKeyPress()
+
+  shape.aa <- 1
+  lab.text <- "Antialiased ELLIPSE"
+  Draw()
+  WaitForAnyKeyPress()
+
+  lab.text <- "OPEN ELLIPSE"
+  shape.filled <- 0
+  Draw() 
+  WaitForAnyKeyPress()
+
+  shape.rx <- 60
+  lab.text <- "Wider Ellipse"
+  Draw()
+  WaitForAnyKeyPress()
+   
+
+  shape.ry <- 10
+  lab.text <- "Shorter Ellipse"
+  Draw()
+  WaitForAnyKeyPress()
+   
+  RemoveObject(shape,win)
+
+  ##################################
+  ##  A Square
+  ##################################
+
+  shape <- Square(200,200, 50, col2,1)
+
+  AddObject(shape,win)
+  lab.text <- "FILLED SQUARE"
+  Draw()
+  Print(shape)
+  PrintProperties(shape)
+  WaitForAnyKeyPress()
+
+  lab.text <- "OPEN SQUARE"
+  shape.filled <- 0
+  Draw() 
+  Print(shape)
+  PrintProperties(shape)
+  WaitForAnyKeyPress()
+
+  lab.TEXT <- "Setting height"
+  shape.height <- 55
+  Draw()
+  Wait(100)
+
+
+  shape.width <- 56
+  Draw()
+  Wait(100)
+
+
+  shape.size <- 58
+  Draw()
+  Wait(100)
+
+  Print(shape)
+  PrintProperties(shape)
+  WaitForAnyKeyPress()	 
+
+
+  ##dy doesn't work for a square
+  lab.TEXT <- "Setting width"
+  shape.width <- 60
+  Draw()
+  Print(shape)
+  PrintProperties(shape)
+  WaitForAnyKeyPress()	 
+ 
+  lab.TEXT <- "Setting Size"
+  shape.size <- 65
+  Print(shape) 
+  PrintProperties(shape)
+  Draw()
+  WaitForAnyKeyPress()	 
+  RemoveObject(shape,win)
+ 
+  ##################################
+  ##  A Rectangle
+  ##################################
+
+  shape <- Rectangle(200,200, 50,20, col2,1)
+  Print(shape)
+  AddObject(shape,win)
+  lab.text <- "FILLED RECTANGLE"
+
+
+  Draw()
+  WaitForAnyKeyPress()
+
+  lab.text <- "OPEN RECTANGLE"
+  shape.filled <- 0 
+  Print(shape)
+  Draw() 
+  WaitForAnyKeyPress()
+
+  lab.text <- "Taller RECTANGLE"
+  shape.height <- 100
+  Print(shape) 
+ Draw() 
+  WaitForAnyKeyPress()
+
+  lab.text <- "square RECTANGLE"
+  shape.width <- 100
+  Print(shape)
+  Draw() 
+  WaitForAnyKeyPress()
+
+  
+
+  RemoveObject(shape,win)
+
+  ##################################
+  ##  A Line
+  ##################################
+
+  shape <- Line(200,200, 50,20, col2)
+  Print(shape)
+  AddObject(shape,win)
+  lab.text <- "LINE"
+  Draw()
+  WaitForAnyKeyPress()
+
+  PrintProperties(shape)
+  shape.aa <- 1
+  Print(shape)
+  AddObject(shape,win)
+  lab.text <- "Antialiased LINE"
+  Draw()
+  WaitForAnyKeyPress()
+
+  ##################################
+  #Add a circle and rotate line like a clock
+
+  circ <- Circle(200, 200, 50, red,0)
+  AddObject(circ,win)
+  circ.aa <- 1
+  lab.text <- "Rotating Line"
+  
+  r <- 50
+  i <- 0
+
+  while(i <= 360)
+  {
+
+    rad <- i /360*2*3.14159
+    shape.width <- r * Cos(rad)
+    shape.height <- r * Sin(rad)
+    lab.text <- "Rotating Line " + (i) + " degrees."
+    Print(shape)
+    PrintProperties(shape)    
+    Wait(10)
+    Draw()
+
+
+    i <- i + 10
+  }
+
+
+  WaitForAnyKeyPress()
+  RemoveObject(shape,win)
+  RemoveObject(circ,win)
+ 
+######
+### Do the E
+
+  e1 <- BlockE(200,200,80,40,10,1, red )
+  e2 <- BlockE(250,200,80,40,10,2, red )
+  e3 <- BlockE(300,200,80,40,10,3, red )
+  e4 <- BlockE(350,200,80,40,10,4, red )
+
+  Print(e2)
+  AddObject(e1,win)
+  AddObject(e2,win)
+  AddObject(e3,win)
+  AddObject(e4,win)
+
+  lab.text <- "Four Es"
+  Draw()	
+  
+  WaitForAnyKeyPress()
+
+  RemoveObject(e1,win)
+  RemoveObject(e2,win)
+  RemoveObject(e3,win)
+  RemoveObject(e4,win)
+
+######
+### Do the plus
+
+  plus  <- Plus(200,200,90,5, red )
+  AddObject(plus,win)
+  lab.text <- "A Plus"
+  Draw()	
+  
+  WaitForAnyKeyPress()
+  RemoveObject(plus,win)
+
+##Star and NGon
+
+   sp1 <- MakeStarPoints(50,20,8)
+   sp2 <- ZoomPoints(sp1,.3,1.5)
+   sp3 <- RotatePoints(sp1,.2)
+
+   s1 <- Polygon(200,400,First(sp1),Nth(sp1,2),red,1)
+   s2 <- Polygon(300,400,First(sp2),Nth(sp2,2),red,1)
+   s3 <- Polygon(400,400,First(sp3),Nth(sp3,2),red,1)
+
+
+   AddObject(s1,win)
+   AddObject(s2,win)
+   AddObject(s3,win)
+  
+
+   lab.text <- "Some stars, stretched and rotated." 
+   Draw()
+   WaitForAnyKeyPress()
+
+   RemoveObject(s1,win)
+   RemoveObject(s2,win)
+   RemoveObject(s3,win)
+
+
+   s1 <- Bezier(200,400,First(sp1),Nth(sp1,2),100,red)
+   s2 <- Bezier(300,400,First(sp2),Nth(sp2,2),100,red)
+   s3 <- Bezier(400,400,First(sp3),Nth(sp3,2),100,red)
+
+
+   AddObject(s1,win)
+   AddObject(s2,win)
+   AddObject(s3,win)
+  
+  lab.text <- "Some curvy stars (this may not work)"
+  Draw()	
+  
+  WaitForAnyKeyPress()
+
+   RemoveObject(s1,win)
+   RemoveObject(s2,win)
+   RemoveObject(s3,win)
+   
+
+   s <- MakeImage("pebl.bmp")
+   ##RotoZoom is deprecated.  use .rotation and
+   ##.xzoom/.yzoom instead.
+   AddObject(s,win)
+   Move(s,200,400)
+
+   s2 <- MakeImage("pebl.bmp")
+   AddObject(s2,win)
+   Move(s2,400,400)
+   s2.rotation <- 20
+
+  Draw()	
+  lab.text <- "Rotated & stretched pebbles"  
+  WaitForAnyKeyPress()
+
+ 
+   i <- 0
+  while(i <= 360)
+  {
+
+    s2.rotation <- i
+    lab.text <- "Rotating Pebble " + (i) + " degrees."
+#    Draw(s2)
+    Draw()
+    i <- i + 2
+  }
+
+
+
+
+
+  WaitForAnyKeyPress()
+
+
+  loop(size,Sequence(8,50,1))
+  {
+  font <- MakeFont("Vera.ttf",0,size,black,col,1)  
+#  font.size  <- size  ##we cannot just do this.
+  lab.font <- font
+  lab.text <- "Point size "+size
+  Wait(50)
+  Draw()
+  }
+ 
+ WaitForAnyKeyPress()
+}

@@ -1,0 +1,57 @@
+SUCCESS at getting display mode?:0
+1920,1080,59
+
+--**boundary**
+Content-Disposition: form-data; name="upfile"; filename="testaudio.pbl"
+Content-Type: application/octet-stream
+define Start(lPar)
+{
+
+   Print("Testing Sound Playback.")
+		
+   ##You need to make a window in order to play a sound in Windows.
+   gVideoWidth <- 800
+   gVideoHeight <- 600
+  gWin <- MakeWindow()
+
+
+
+  correct <- LoadSound("correct.wav")
+  incorrect <- LoadSound("incorrect.wav")
+  
+  Print(GetTime())
+  PlayForeground(correct)
+  Print(GetTime())
+  Wait(500)
+  Print(GetTime())
+  PlayForeground(incorrect)
+  Print(GetTime())
+  Wait(500)
+  Print(GetTime())  
+
+   sound <- LoadSound("buzz500ms.wav")
+   PlayForeGround(sound)
+   Wait(1000)
+
+
+   #SOS
+   sos <- [100,100,100,300,300,300,100,100,100]
+   loop(i,sos)
+    {
+     PlayBackground(sound)
+     Wait(i)
+     Stop(sound)
+	 Wait(400)
+    }
+
+
+}
+
+--**boundary**--
+HTTP OBJECT CREATED:
+outer-outstanding1+
+PUMP:
+inner outstanding-empty:0
+Deque size: 1
+PUMPA
+PUMPB1

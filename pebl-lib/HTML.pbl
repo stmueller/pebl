@@ -1,0 +1,84 @@
+define OT(tag)
+{
+  return "<"+tag+">"
+}
+
+define CT(tag)
+{
+ return "</"+tag+">"
+}
+
+define H(text,level)
+{
+  tag <- "h"+level
+  return OT(tag) + text + CT(tag)
+}
+
+define P(text)
+{
+  return OT("p") + text + CT("p")
+}
+
+define HL()
+{
+  return "<hl>"
+}
+
+
+
+define Page(text)
+{
+  return  "<html><head>
+  <link rel='stylesheet' href='sample1.css'</head>
+           </head>
+           <body> " + text +"</body></html>"
+           
+}
+
+define Entag(tag,body)
+{
+  return OT(tag)+body+CT(tag)
+}
+
+define Table(tab,header:"")
+{
+ 
+ out <-   OT("table")
+ if(IsList(header))
+ {
+   out <- out + "<thead><tr>"
+   loop(item,header)
+   {
+     out <- out + "<th>"+item+"</th>"
+   } 
+   out <- out + "</tr></thead>"+CR(1)
+ }
+ loop(rowlist,tab)
+ {
+    row <- ""
+    loop(item,rowlist)
+    {
+      row <- row +  Entag("td",item)
+    }
+    out <- out + Entag("tr",row)
+ }
+ out <- out +   CT("table")
+
+ return out
+}
+
+
+define Start(p)
+{
+
+ table <- [["Type","other","Name"],
+           [1,2,3],
+           [44,122,3],
+	   ["one","two","another"]]
+	   
+out <-   H("Main text",1) +
+  P("The rain in Spain stays mainly on the shane") + HL() + HL()+
+  Table(Rest(table),First(table))   + H("secondary title",2)
+  
+ Print(Page(out))  
+}

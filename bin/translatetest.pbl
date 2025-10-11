@@ -1,0 +1,320 @@
+## This allows you to read in the current english
+## translation and create a localized translation.
+##
+
+## This has been imported into launcher directly, but it shuold still work if used in the script directory.
+##
+define Start(p)
+{
+
+  scriptname <- First(p)
+  language <- gLanguage
+  win <- MakeWindow("grey")
+  gSleepEasy <- 1
+  Draw()
+  LoadTranslations(scriptname,gLanguage,win)
+}
+
+
+define LoadTranslations(scriptname,lang,win)
+{
+
+  ##Create background over current window.
+  rect <- Rectangle(gVideoWidth/2,gVideoHeight/2,gVideoWidth,gVideoheight,MakeColor("grey"),1)
+  AddObject(rect,win)
+
+  MakeDirectory("translations")
+  path <- "translations/"
+
+  englishfile <- path+scriptname+"-en.csv"
+  paramsfile <- path+scriptname+"-"+lang+".csv"
+
+
+  header <- EasyLabel("Editing parameters for "+scriptname,gVideoWidth/2,40,win,20)
+  if(not FileExists(englishfile))
+  {
+    SignalFatalError("Translation file does not exist")
+  }
+
+  english <- ReadTranslation(englishfile,"EN")
+
+  if(FileExists(paramsfile))
+   {
+     newlang <- ReadTranslation(paramsfile,lang)
+   }else{
+     newlang <- ReadTranslation(englishfile,lang)
+   }
+
+  changed <- 0
+  ui <- []
+  save <- MakeButton("Save file",200,70,win,150)  
+  reset <- MakeButton("Reset to defaults",200,92,win,150)
+  quit  <- MakeButton("Quit without saving",200,114,win,150)
+
+
+
+  ##Now, make a grid showing values, etc., in the schema file
+  c1Base <- 200
+  c1 <- 150
+  c2 <- 400
+  c3 <- 400
+  rowBase <- 140
+  rowHeight <- 200
+
+  head1 <- EasyLabel("String name",c1Base+c1/2,rowBase,win,18)
+  head2 <- EasyLabel("English",    c1Base+c1+c2/2,rowBase,win,18)
+  head3 <- EasyLabel("Translation",c1Base+c1+c2+c3/2,rowBase,win,18)
+  row <- 0
+
+
+   r1 <- EasyTextbox("", c1Base,rowBase+20,win,12,c1-2,rowHeight-2)
+   r2 <- EasyTextbox("", c1Base+c1,rowBase + 20,win,12,c2-2,rowHeight-2)
+   r3 <- EasyTextbox("", c1Base+c1+c2,rowBase + 20,win,12,c3-2,rowHeight-2)
+
+  Draw()
+
+
+
+  parnames <- GetPropertyList(english)
+
+  scroller <- MakeScrollBox(parnames, "Parameter names",
+                       80,140,win,10,110,300,1)
+
+  
+
+ selectedpar <- First(parnames)
+ r1.text <-   selectedpar
+ r2.text <- GetProperty(english,selectedpar)
+
+   ##This needs to be checked to make sure it exists:
+   if(PropertyExists(newlang,selectedpar))
+      {
+           r3.text <- GetProperty(newlang,selectedpar)
+      }else{
+          r3.text <- ""
+      }
+
+  vals <- [scroller,save,reset,quit,r3]
+  returns <- ["scroller","save","reset","quit","edit"]
+  
+  cont <- 1
+   while(cont)
+   {
+
+    Draw()
+
+
+    resp <-   WaitForClickOnTarget(vals,returns)
+
+    ##See if we need to edit something.
+    if(resp == "quit")	
+    {
+      PushButton(quit,[0,0])
+      Print("quitting")
+      cont <- 0
+    }elseif(resp=="save")
+    {
+      Print("saving file: ["+paramsfile+"]")
+      pfile <- FileOpenOverwrite(paramsfile)
+      Print("point1")
+      
+      PushButton(save,[0,0])
+      Print("point2")
+
+     loop(i,parnames)
+      {
+       Print("i:" + i)
+      if(PropertyExists(newlang,i))
+      {
+          text <- GetProperty(newlang,i)
+      }else{
+          text <- GetProperty(english,i)
+      }
+
+       FilePrint(pfile,i+","+gQuote+text+gQuote)
+      }
+
+      Print("twritten")
+      PopUpMessageBox("File "+ paramsfile + " saved.",win)
+      Print("twritten2")
+      
+     } elseif(resp=="reset")
+    {
+     PushButton(reset,[0,0])  
+ 
+      pnames <- First(ts)
+      defaults <- Second(ts)
+      boxes <- SubList(vals,1,Length(parnames))
+      loop(i,Transpose([pnames,defaults,boxes]))
+      {
+       SetProperty(parameters,First(i),Second(i))
+       box <- Third(i)
+       box.text <- Second(i)
+      }
+      Draw()
+    }elseif(resp == "scroller")
+    {
+
+
+        CallFunction(scroller.clickon,[scroller,gClick])
+
+	 selectedpar <- Nth(parnames,scroller.selected)
+         r1.text <-   selectedpar
+	 r2.text <- GetProperty(english,selectedpar)
+
+         ##This needs to be checked to make sure it exists:
+         if(PropertyExists(newlang,selectedpar))
+	 {
+           r3.text <- GetProperty(newlang,selectedpar)
+         }else{
+           r3.text <- ""
+        }
+
+      }	 elseif(resp=="edit"){
+       ##click on the r3 edit box
+
+        box <- r3
+        relx <- First(gClick) - (box.x )
+        rely <- Second(gClick) - (box.y )
+        cursorpos <- GetTextBoxCursorFromClick(box,relx,rely)
+	box.cursorpos<-cursorpos
+	newval  <- GetInput(box,"<return>",1)
+        SetProperty(newlang,Nth(parnames,scroller.selected),newval)
+        Draw()
+    }
+   }
+
+}
+
+
+
+define ReadSchemaFile(filename)
+{
+   schemalist <- FileReadList(filename)
+   list <- []
+   loop(i,schemalist)
+    {
+       line <- SplitString(i,"|")
+       PushOnEnd(list,line)
+    }
+  return list
+}
+
+
+
+define CreateParameters(defaults,file)
+{
+  parameters <- MakeCustomObject("parameters")
+
+
+ if(IsList(defaults))
+ {
+  ##Set the defaults. 
+  loop(i,defaults)
+    {
+      if(Length(i)>=2)
+       {
+         SetProperty(parameters,First(i),Second(i))
+       }
+    }
+  }
+
+  ##############################
+  ##Now, read in values from file
+  if(FileExists(file))
+   {
+    paramfile <- ReadCSV(file)
+    loop(i, paramfile)
+    {
+      SetProperty(parameters,First(i),Second(i))
+    }
+   }
+  return parameters
+}
+
+
+##create a button 
+define MakeButtonX(x,y,width,win,label)
+{
+   col <- MakeColor("grey70")
+   button <-MakeCanvas(width,20,col)
+
+   font<- MakeFont(gPEBLBaseFont,0,15,MakeColor("black"),MakeColor("white"),0)
+   label <- MakeLabel(label,font)
+
+   ##If the label is bigger than the button, shrink it.
+   if(label.width > (button.width-6))
+    {
+	   label.zoomx <- (button.width-6)/(label.width)
+    }
+
+   AddObject(label,button)
+   Move(label,width/2,9)
+   Draw(button)
+   
+   rect <-Rectangle(Floor(button.width/2),Floor(button.height/2),button.width,button.height,MakeColor("grey25"),0)
+   AddObject(rect,button)
+   Draw(rect)
+   Move(rect,rect.x-1,rect.y-1)
+   Draw(rect)
+   Move(rect,rect.x-1,rect.y-1)
+   Draw(rect)
+#   Move(rect,rect.x-1,rect.y-1)
+#   Draw(rect)
+   RemoveObject(rect,button)
+
+   AddObject(button,win)
+   
+   Move(button,x,y)
+   
+   return button
+}
+
+define PushButtonX(tmp)
+{
+	     Move(tmp,tmp.x+2,tmp.y+2)
+		 Draw()
+		 Wait(100)
+		 Move(tmp,tmp.x-2,tmp.y-2)
+		 Draw()
+}
+
+
+
+
+
+define ReadTranslation(filename,lang)
+{
+  obj <- MakeCustomObject("translations")
+  obj.language <- lang
+  stringlist <- ReadCSV(filename)
+ cr <- CR(1)
+loop(i,stringlist)
+  {
+   Print("text:"+i)
+    ##Add CR to the
+     text <- Second(i)
+     text2 <- FormatText(text)
+     Print(text2)
+     SetProperty(obj,First(i),text2)
+  }
+  return obj
+}
+
+
+##this works at replacing carriage returns (\n) etc. from text
+define FormatText(text)
+{
+  list <- SplitStringSlow(text,"\n")
+  Print("splitting text["+ text+"]")
+  Print(Length(list))
+  Print(list)
+  out <- ""
+  sep <- ""
+  loop(i,list)
+  {
+   out <-out + sep +i
+   sep <- CR(1)
+  }
+ return out
+}

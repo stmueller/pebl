@@ -1,0 +1,28 @@
+## This adds response collection to the basic
+## experiment template.
+##
+
+define Start(p)
+{
+  gWin <- MakeWindow()
+  Print(Trial(1))
+  Print(Trial(2))
+
+}
+
+define Trial(cond)
+{
+   time <- GetTime()
+#
+   stim <- MakeImage("stim/"+cond+".png")
+   Move(stim,gVideoWidth/2,gVideoHeight/2)
+   AddObject(stim,gWin)
+#
+   Draw()
+   time1 <- GetTime()
+   resp <- WaitForListKeyPress(["<lshift>","<rshift>"])
+   time2 <- GetTime()
+
+   RemoveObject(stim,gWin)
+   return [cond, resp, time, (time2-time1)]
+}

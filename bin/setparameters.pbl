@@ -1,0 +1,230 @@
+## This allows you to read in current parameters, and adjust them to suit
+## needs.
+##
+
+## This has been imported into launcher directly, but it shuold still work if used in the script directory.
+##
+define Start(p)
+{
+
+  scriptname <- First(p)
+  win <- MakeWindow()
+  SetParameters(scriptname,"./",win)
+
+}
+
+define SetParameters(dirChain,scriptname,win)
+{
+ 
+
+
+  ##Create background over current window.
+  rect <- Rectangle(gVideoWidth/2,gVideoHeight/2,gVideoWidth,gVideoheight,MakeColor("grey"),1)
+  AddObject(rect,win)
+
+
+  path <- DirListToText(dirchain) +"/params/"
+
+  schema <- path+scriptname+".schema"
+  paramsfile <- path+scriptname+".par"
+
+  header <- EasyLabel("Editing parameters for "+path+scriptname,gVideoWidth/2,40,win,20)
+  schemas <- ReadSchemaFile(schema)
+  ts <- Transpose(schemas)
+  defaults <- Transpose([First(ts),Second(ts)])
+  parameters <- CreateParameters(defaults,paramsfile)  
+ 
+  changed <- 0
+
+  ui <- []
+  save <- MakeButton(200,70,150,win,"Save file")  
+  reset <- MakeButton(200,92,150,win,"Reset to defaults")  
+  quit  <- MakeButton(200,114,150,win,"Quit without saving")  
+
+  ##Now, make a grid showing values, etc., in the schema file
+  c1Base <- 100
+  c1 <- 150
+  c2 <- 100
+  c3 <- 600
+  rowBase <- 150
+  rowHeight <- 50
+
+  head1 <- EasyLabel("Parameter name",c1Base+c1/2,rowBase+rowHeight/2,win,18)
+  head2 <- EasyLabel("Value",c1Base+c1+c2/2,rowBase+rowHeight/2,win,18)
+  head3 <- EasyLabel("Description",c1Base+c1+c2+c3/2,rowBase+rowHeight/2,win,18)
+  row <- 1
+  vals <- []
+
+
+  loop(i,schemas)
+  {
+     parname <- First(i)
+     curVal <- GetProperty(parameters,parname)
+
+
+     r1 <- EasyTextbox(First(i), c1Base,rowBase + rowHeight*row,win,12,c1-2,rowHeight-2)
+     r2 <- EasyTextbox(curVal, c1Base+c1,rowBase + rowHeight*row,win,12,c2-2,rowHeight-2)
+     r3 <- EasyTextbox(Third(i)+"(default:["+Second(i)+"])", c1Base+c1+c2,rowBase + rowHeight*row,win,12,c3-2,rowHeight-2)
+
+
+     PushOnEnd(ui,r1)
+     PushOnEnd(ui,r2)
+     PushOnEnd(ui,r3)
+     PushOnEnd(vals,r2)
+   row <- row+ 1
+  }
+  Draw()
+
+  PushOnEnd(vals,save)
+  PushOnEnd(vals,reset)
+  PushOnEnd(vals,quit)
+
+  returns <- Sequence(1,Length(schemas),1)
+  PushOnEnd(returns,"save")
+  PushOnEnd(returns,"reset")
+  PushOnEnd(returns,"quit")
+  
+  cont <- 1
+   while(cont)
+   {
+    resp <-   WaitForClickOnTarget(vals,returns)
+
+    ##See if we need to edit something.
+    if(resp == "quit")	
+    {
+      PushButton(quit)
+      Print("quitting")
+      cont <- 0
+    }elseif(resp=="save")
+    {
+      Print("saving file: ["+paramsfile+"]")
+      pfile <- FileOpenOverwrite(paramsfile)
+
+      PushButton(save)
+      loop(i,schemas)
+      {
+       FilePrint(pfile,First(i)+","+GetProperty(parameters,First(i)))
+      }
+
+    } elseif(resp=="reset")
+    {
+     PushButton(reset)  
+ 
+      pnames <- First(ts)
+      defaults <- Second(ts)
+      boxes <- SubList(vals,1,Length(schemas))
+      loop(i,Transpose([pnames,defaults,boxes]))
+      {
+       SetProperty(parameters,First(i),Second(i))
+       box <- Third(i)
+       box.text <- Second(i)
+      }
+      Draw()
+    }elseif(resp <= Length(schemas))
+    {
+        box <- Nth(vals,resp)
+        relx <- First(gClick) - (box.x )
+        rely <- Second(gClick) - (box.y )
+        cursorpos <- GetTextBoxCursorFromClick(box,relx,rely)
+	box.cursorpos<-cursorpos
+	Draw()
+	newval  <- GetInput(box,"<return>",1)
+        SetProperty(parameters,First(Nth(schemas,resp)),newval)
+        Draw()
+    }
+   }
+
+}
+
+
+
+define ReadSchemaFile(filename)
+{
+   schemalist <- FileReadList(filename)
+   list <- []
+   loop(i,schemalist)
+    {
+       line <- SplitString(i,"|")
+       PushOnEnd(list,line)
+    }
+  return list
+}
+
+
+
+define CreateParameters(defaults,file)
+{
+  parameters <- MakeCustomObject("parameters")
+
+
+ if(IsList(defaults))
+ {
+  ##Set the defaults. 
+  loop(i,defaults)
+    {
+      if(Length(i)>=2)
+       {
+         SetProperty(parameters,First(i),Second(i))
+       }
+    }
+  }
+
+  ##############################
+  ##Now, read in values from file
+  if(FileExists(file))
+   {
+    paramfile <- ReadCSV(file)
+    loop(i, paramfile)
+    {
+      SetProperty(parameters,First(i),Second(i))
+    }
+   }
+  return parameters
+}
+
+
+##create a button 
+define MakeButton(x,y,width,win,label)
+{
+   col <- MakeColor("grey70")
+   button <-MakeCanvas(width,20,col)
+
+   font<- MakeFont(gPEBLBaseFont,0,15,MakeColor("black"),MakeColor("white"),0)
+   label <- MakeLabel(label,font)
+
+   ##If the label is bigger than the button, shrink it.
+   if(label.width > (button.width-6))
+    {
+	   label.zoomx <- (button.width-6)/(label.width)
+    }
+
+   AddObject(label,button)
+   Move(label,width/2,9)
+   Draw(button)
+   
+   rect <-Rectangle(Floor(button.width/2),Floor(button.height/2),button.width,button.height,MakeColor("grey25"),0)
+   AddObject(rect,button)
+   Draw(rect)
+   Move(rect,rect.x-1,rect.y-1)
+   Draw(rect)
+   Move(rect,rect.x-1,rect.y-1)
+   Draw(rect)
+#   Move(rect,rect.x-1,rect.y-1)
+#   Draw(rect)
+   RemoveObject(rect,button)
+
+   AddObject(button,win)
+   
+   Move(button,x,y)
+   
+   return button
+}
+
+define PushButton(tmp)
+{
+	     Move(tmp,tmp.x+2,tmp.y+2)
+		 Draw()
+		 Wait(100)
+		 Move(tmp,tmp.x-2,tmp.y-2)
+		 Draw()
+}

@@ -1,0 +1,221 @@
+###########################################################
+## Short-term Memory Scanning Experiment, Version 0.1
+## For use with PEBL 0.06 or later
+## http://pebl.sf.net
+## Part of  The PEBL Psychological Testing Battery
+## 2006-02 Released into Public Domain
+## by Shane T. Mueller, Ph.D. (smueller at obereed dot net)
+##
+##
+##
+## 
+## In this experiment, a memory set is present (1,3, or 5 digits).  Then, 
+## twelve single-digit probes are presented, and the participant must
+## reply as quickly and accurately as possible whether the probe was 
+## present in the set.
+##
+##  Sternberg, S. (1966). High speed scanning in human memory. Science,
+##     153, 652-654.
+##
+
+define Start(lPar)
+{
+
+  ## results are stored in tmpresults.dat
+  gFileOut <-FileOpenAppend("mscan-" + gSubNum +".txt")
+ 
+  ## Initialize global objects for use later. Defined at end of file
+  Initialize()
+
+  ## Version can be hard-coded here, or entered with the -v command-line
+  ## argument. 1 indicates traditional low-to-high; 2 indicates high-to-low;
+  ## 3 indicates a staircase.
+
+  ##Number of times through the memory set sizes.    
+  runs <- 2
+  posSize <- 10
+  negSize <- 10
+  
+
+  ####################################################
+  ##  Now, generate stimuli/conditions
+  ####################################################
+
+
+  gStim <- FileReadList("Digits.txt")
+
+  ####################################################
+  ## Begin presenting and collecting data
+  ####################################################
+
+
+   ## Good researchers collect demographic data anonymously.
+   ##  GetNIMHDemographics(gSubNum, gWin, "dspan-demographics.txt")
+
+    inst <- "You are about to take part in an experiment."
+
+   SetText(gInstructions,inst)
+   Show(gInstructions)
+   Draw()  
+   WaitForAnyKeyPress()
+   Hide(gInstructions)
+   Draw()
+
+
+  ##############################################
+  ##############################################
+  ##
+  ## Set up the basic graphical environment 
+  ##
+
+ 
+####################################################
+####################################################
+##  Start the experimental trials.
+##  
+
+   blocks <- Shuffle([1,3,5])
+   block <- 1
+   loop(setsize, blocks)
+	{
+     stim <- Shuffle(gStim)
+	 set <- SubList(stim,1,setsize)
+     rest <- SubList(stim,setsize+1,10)
+
+     stimPos <- SampleNWithReplacement(set,posSize)
+     stimNeg <- SampleNWithReplacement(rest,negSize)
+
+     posneg <- Flatten([stimPos,stimNeg])
+	 type <-	Flatten([Repeat(1,posSize), Repeat(-1,negSize)])
+     
+     stimuli <- Shuffle(Transpose([posneg,type]))
+     ##First, present the memory set.
+
+	 gHeader.text <- "Remember these numbers:"
+     Show(gHeader)
+	 Draw()
+
+
+	 loop(i,set) 
+     {
+       gStimLabel.text <- i
+	   Show(gStimLabel)
+       Draw()
+       Wait(1000)
+     }
+
+     Hide(gStimLabel)
+     Hide(gHeader)
+     Draw()
+     Wait(2000)
+
+     trialnum <- 1
+     loop(i, stimuli)
+      {
+ 
+      ret <-  Trial(i)
+      Print(ret)
+      trialnum <- trialnum + 1
+      Wait(1500)
+     }
+   Hide(gHeader)
+   Draw()
+
+   }
+   block <- block + 1 
+
+
+   FileClose(gFileOut)
+
+
+   ##Now, show debriefing info.
+   feedback <-  "Thank you for participating in the experiment."
+   SetText(gInstructions, feedback)
+   Show(gInstructions)
+   Draw()
+   WaitForKeyPress("X")
+}
+
+define Trial (stim)
+{
+
+  stimulus <- First(stim)
+  id <- Nth(stim,2)
+
+  gStimLabel.text <- stimulus
+  time0 <- GetTime()
+  Show(gStimLabel)
+  Draw()
+  resp <- WaitForListKeyPress(["1","2"])
+  time1 <- GetTime()
+  Hide(gStimLabel)
+  Draw()
+
+  corr <- 0  
+  if((id == 1 and resp == "1") or
+     (id == -1  and resp == "2"))
+     {
+       corr <- 1
+     }
+
+  
+  return [corr, (time1-time0)]
+}
+
+##  This is a standard initializer function that sets up typical
+##  objects used in experiments.
+define Initialize()
+{
+  ##Initialize Window, etc.
+  gWin <- MakeWindow("grey")   
+            
+  ##Initialize Font and colors
+
+   bg <- MakeColor("grey")
+   bg1 <- MakeColor("lightgrey")
+   fg <- MakeColor("black")
+   bg2 <- MakeColor("white")
+   
+   colGreen <- MakeColor("darkgreen")
+   colRed   <- MakeColor("red")
+ 
+   gStimFont         <- MakeFont("VeraMono.ttf", 0, 56, fg,bg,1)       
+
+   gInstructionsFont <- MakeFont("Vera.ttf",0,18, fg,bg2,1)  
+   gHeaderFont       <- MakeFont("Vera.ttf", 0,24,fg,bg,1)       
+ 
+   ## Make and place the instruction box, then hide it  
+   gInstructions <- MakeTextBox("", gInstructionsFont, 600,300)
+   AddObject(gInstructions, gWin)
+   Move(gInstructions, gVideoWidth/2-300, gVideoHeight/2-150)
+   Hide(gInstructions)
+
+   ## Make and hide a header label
+   gHeader <- MakeTextBox("",gHeaderFont, 500,200)
+   AddObject(gHeader,gWin)
+   Move(gHeader, gVideoWidth/2-250, 50)
+   Hide(gHeader)
+
+
+   gStimLabel <- MakeLabel("",gStimFont)
+   AddObject(gStimLabel,gWin)
+   Move(gStimLabel, gVideoWidth/2, gVideoHeight/2)
+   Hide(gStimLabel)
+ 
+   gFeedback <- MakeLabel("",gStimFont)
+   AddObject(gFeedback,gWin)
+   Move(gFeedback, gVideoWidth/2, gVideoHeight/2+70)
+   Hide(gFeedback)
+  
+
+ }
+
+define ListToString(list)
+{
+  tmp <- ""
+  loop(i,list)
+  {
+    tmp <- tmp + i
+  }
+ return tmp
+}

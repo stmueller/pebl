@@ -1,0 +1,164 @@
+define Start(p)
+{
+
+  nreps <- 10
+  
+  gVideoWidth<- 800
+  gVideoHeight <- 600
+  gWin <- MakeWindow()
+  lab <- Easylabel("Tester for string operations",gVideoWidth/2,20,gWin,30)
+  status <- Easylabel("",gVideoWidth/2,40,gWin,15)
+  tb <- EasyTextBox("",20,70,gWin,15,gVideoWidth-40,gVideoHeight-100)
+
+   Draw()
+
+   shorttext <- "SAUTHAESN"
+   medText <- "ASTHUSNEOHUASNTHANTUHSNTAHUSNTAOHUSNTOAHUSNTOAHUSNTOAHUSNOATHUASNO"
+
+ longText <-   "ASTHUSNEOHUASNTHANTUHSNTAHUSNTAOHUSNTOAHUSNTOAHUSNTOAHUSNOATHUASNO  ASTHUSNEOHUASNTHANTUHSNTAHUSNTAOHUSNTOAHUSNTOAHUSNTOAHUSNOATHUASNO
+ ASTHUSNEOHUASNTHANTUHSNTAHUSNTAOHUSNTOAHUSNTOAHUSNTOAHUSNOATHUASNO  ASTHUSNEOHUASNTHANTUHSNTAHUSNTAOHUSNTOAHUSNTOAHUSNTOAHUSNOATHUASNO
+ ASTHUSNEOHUASNTHANTUHSNTAHUSNTAOHUSNTOAHUSNTOAHUSNTOAHUSNOATHUASNO  ASTHUSNEOHUASNTHANTUHSNTAHUSNTAOHUSNTOAHUSNTOAHUSNTOAHUSNOATHUASNOASTHUSNEOHUASNTHANTUHSNTAHUSNTAOHUSNTOAHUSNTOAHUSNTOAHUSNOATHUASNO  ASTHUSNEOHUASNTHANTUHSNTAHUSNTAOHUSNTOAHUSNTOAHUSNTOAHUSNOATHUASNO
+ ASTHUSNEOHUASNTHANTUHSNTAHUSNTAOHUSNTOAHUSNTOAHUSNTOAHUSNOATHUASNO  ASTHUSNEOHUASNTHANTUHSNTAHUSNTAOHUSNTOAHUSNTOAHUSNTOAHUSNOATHUASNO
+ ASTHUSNEOHUASNTHANTUHSNTAHUSNTAOHUSNTOAHUSNTOAHUSNTOAHUSNOATHUASNO  ASTHUSNEOHUASNTHANTUHSNTAHUSNTAOHUSNTOAHUSNTOAHUSNTOAHUSNOATHUASNO"
+
+
+  
+splittext <- "You are about to take part in a test that measures your ability to remember a sequence of locations on the screen. You will see nine blue squares on the screen. On each trial, the squares will be lit up one at a time in sequence.  Remember the sequence.  When the sequence is finished, you need to click on each square IN THE SAME ORDER THEY WERE GIVEN.  When you are done, click the button labeled DONE.  If you cannot remember the order of squares, click them in as close the the original order as you can.  \nYou will start with a sequence of two squares, and you will get two tries for each sequence length.  The sequence will increase by one whenever you get at least one of the two sequences correct.\nIf you are correct, your next list will be one longer;   Click the mouse button when you are ready to begin"
+
+
+  reps <- Sequence(1,nreps,1)
+  
+ status.text <- "Testing short"
+ Draw()
+ time1 <- GetTime()
+ loop(i,reps)
+  {
+    a <- TestString(shorttext)
+  }
+  time2 <- GetTime()
+
+  timeshort <- time2-time1
+ tb.text <- tb.text + "Short text test: "+CR(1)+ nreps + "reps"+CR(1)+ "Time: " + (timeshort) +"   " + timeshort/nreps +CR(1)
+
+
+ status.text <- "Testing Medium"
+ Draw()
+
+
+ time1 <- GetTime()
+ loop(i,reps)
+  {
+    a <- TestString(medtext)
+  }
+  time2 <- GetTime()
+
+  timeMed <- time2-time1
+ tb.text <- tb.text + "medium text test: "+CR(1)+ nreps + "reps"+CR(1)+ "Time: " + (timeMed) +"   " + timeMed/nreps +CR(1)
+
+status.text <- "Testing Long"
+
+ Draw()
+
+
+ time1 <- GetTime()
+ loop(i,reps)
+  {
+    a <- TestString(longtext)
+  }
+  time2 <- GetTime()
+
+  timeLong <- time2-time1
+ tb.text <- tb.text + "Long text test: "+CR(1)+ nreps + "reps"+CR(1)+ "Time: " + (timelong) +"   " + timeLong/nreps +CR(1)
+ Draw()
+
+
+  text <- medtext
+  loop(i,Sequence(1,10,1))
+  {
+    text <- text +medtext + "\n"
+  }
+   text <- text +"\n\na\n"
+  time1 <- GetTime()
+  loop(i,reps)
+  {
+    a1 <- SplitString(text,"n")
+  }
+  time2 <- GetTime()
+  ss <- time2-time1
+
+  time1 <- GetTime()
+  loop(i,reps)
+  {
+    a2 <- SplitStringSlow(text,"n")
+  }
+  time2 <- GetTime()
+  sss <- time2-time1
+
+
+
+
+  time1 <- GetTime()
+  loop(i,reps)
+  {
+    a4 <- SplitStringSlow(text,"\n")
+  }
+  time2 <- GetTime()
+  sss2a <- time2-time1
+
+
+
+
+  tb.text <- tb.text + "Splitstring 'n':       " + ss +CR(1)+
+             "Splitstring slow 'n'   "+ sss + CR(1)+
+             "Splitstring slow '\n'   "+ sss2a + CR(1)+
+
+
+  Print(a1)
+  Print(a2)
+  Print(a4)
+
+
+  Print(SplitString(text,""))  ##this does work.
+  Print(SplitStringSlow(text,""))  ##this should work but doesn't
+  Draw()
+
+
+  ##test substring operaions that shouldn't work.
+  tb.text <- tb.text  + Print(SubString(longtext,StringLength(longtext)-1,1)+CR(1))  #should work
+  Draw()
+  tb.text <- tb.text  +  Print(SubString(longtext,StringLength(longtext)-5,20)+CR(1))  #might work
+  Draw()
+  tb.text <- tb.text  +  Print(SubString(longtext,StringLength(longtext),1)+CR(1))  #might work
+  Draw()
+
+  tb.text <- tb.text  +  Print(SubString(longtext,1,5)+CR(1))  #should work
+  Draw()
+
+#  tb.text <- tb.text  +  Print(SubString(longtext,0,5)+CR(1))  #shouldn't work
+#  Draw()
+
+#  tb.text <- tb.text  +  Print(SubString(longtext,StringLength(longtext)+1,1)+CR(1))  shouldn't work
+#  Draw()
+#  tb.text <- tb.text  +  Print(SubString(longtext,-1,3)+CR(1))  ##shouldn't work
+#  Draw()
+  WaitForAnyKeyPress()
+
+}
+
+
+define TestSplit(string,split)
+{
+
+     
+}
+
+define TestString(string)
+{
+ l <- StringLength(string)
+ pick2 <- Sort([RandomDiscrete(l),RandomDiscrete(l)])
+
+ return SubString(string,First(pick2),Second(pick2))
+}
+
+
+

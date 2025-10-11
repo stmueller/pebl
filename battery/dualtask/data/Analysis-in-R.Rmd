@@ -1,0 +1,80 @@
+---
+title: "Title Here"
+author: "Shane T. Mueller shanem@mtu.edu"
+date: "today"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+
+```{r}
+library(prepdat)
+```
+
+
+This analysis looks at whether there is specific interference based on value of the other dimension.
+
+This reads in the data:
+```{r}
+dat.all <- file_merge(folder_path="./",
+                      has_header=TRUE,
+                      raw_file_name="dualtask-data",
+                      raw_file_extension="csv")
+dat <- dat.all[dat.all$trialtype=="TEST",]
+```
+
+This finds RT1 and RT2 by single/dual and interference condition.
+
+```{r}
+
+rt1s <- tapply(dat$rt1,list(dat$dim1,dat$dim2,dat$condition),mean)
+rt2s <- tapply(dat$rt2,list(dat$dim1,dat$dim2,dat$condition),mean)
+range <- range(rt1s,rt2s)
+par(mfrow=c(1,2))
+matplot(rt1s[,,1],type="o",pch=16,ylim=range,lty=2,main="Upper arrow",xaxt="n",ylab="Response time (ms)",cex=2)
+matplot(rt1s[,,1],pch=c("<",">"),col="white",add=T)
+
+matplot(rt1s[,,3],type="o",pch=16,ylim=range,add=T,lty=1,cex=2)
+matplot(rt1s[,,3],pch=c("<",">"),col="white",add=T)
+axis(1,1:2,c("<",">"))
+
+matplot(rt2s[,,2],type="o",pch=16,ylim=range,lty=2,main="Lower arrow",xaxt="n",ylab="Response time (ms)",cex=2)
+matplot(rt2s[,,2],pch=c("<",">"),col="white",add=T)
+
+matplot(rt2s[,,3],type="o",pch=16,ylim=range,lty=1,add=T,cex=2)
+matplot(rt2s[,,3],pch=c("<",">"),col="white",add=T)
+
+axis(1,1:2,c("<",">"))
+
+
+```
+
+*Single task: dashed lines
+*Dual task: solid lines
+*</>: direction of arrow.
+*horizontal axis: response dimension
+* color: non-response dimension
+
+
+
+```{r}
+library(tidyverse)
+
+dat.rt <- dat %>% mutate(DualTask= !(is.na(resp1)) + (is.na(resp2)))%>% select(subnum,block,trial,condition,DualTask,rt1,rt2) %>% pivot_longer(cols=c(rt1,rt2),values_to="RT",names_to="handRT") 
+
+dat.acc <- dat %>% mutate(DualTask= !(is.na(resp1)) + (is.na(resp2)))%>% select(subnum,block,trial,condition,DualTask,corr1,corr2) %>%
+  pivot_longer(cols=c(corr1,corr2),values_to="ACC",names_to="handAcc") 
+
+dat.all <- dat.rt
+dat.all$ACC <- dat.acc$ACC
+dat.all%>% filter(RT>0) -> dat.all
+
+#dat.acc <- dat %>% select(subnum,block,trial,corr1,corr2,rt1,rt2`) %>% #pivot_longer(cols=c(corr1,corr2),values_to="corr",names_to="hand") %>% filter(RT>0)
+
+dat.all %>% ggplot(aes(x=trial,y=RT,color=as.factor(ACC),group=condition,shape=as.factor(condition))) + geom_point() + facet_wrap(DualTask~block)  + theme_bw()
+```

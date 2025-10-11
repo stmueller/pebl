@@ -1,0 +1,356 @@
+\chapter{PEBL User Interface Functions}
+
+As PEBL matured, there was a need to create a number of cross-platform tools, including the launcher, the data combiner, a customized launcher, and the like.  Because PEBL is already a cross-platform toolkit, we decided to implement a set of UI primitives to make this possible, within PEBL itself.  These functions are primarily defined in pebl-lib\\UI.pbl.  An example application using most of these graphical primitives is provided in demo\\ui-demo.pbl.
+
+This chapter is a basic overview and tutorial for these functions.  Many of these functions are sort of secondary to the main functions related to experiment design, and so in some cases they are not documented in the main reference section.
+
+\sect{Overview}
+The UI objects described here share a number of things in common.  They are 'custom' objects with methods defined within the object, so that the Draw, Move, Add, Remove, Clickon, and inside, functions will work directly on them, overriding the base function names.
+
+Thus, if you create an object, although it really is a data structure usually containing various pieces of information and graphical output, you can use common functions to interact with it:
+
+\begin{verbatim}
+  button <- MakeButton("Buttonname",100,100,gWin,150)
+  AddObject(button,gWin)
+  Move(button,300,300)
+\end{verbatim}
+
+Each object has an associated function  called with the 'ClickOn' method that handles a click on the object. It takes two arguments; the object itself, and the xy mouseclick event.  Thus, you can create a bunch of UI elements of different types, then use a single loop to handle any event there. For example, if items holds a list of graphical elements defined earlier:
+
+
+\begin{verbatim}
+  cont <- 1
+  items <- [done,sb,check,pulldown,pulldown2,
+            testmessage,testentry,textscroll,
+             menu1,menu2,menu3,menu4]
+
+  while(cont)
+  {
+
+    resp <-  WaitForClickOnTarget(items,
+                       Sequence(1,Length(items),1))
+    obj <- Nth(items,resp)
+    CallFunction(obj.clickon,[obj,gClick])
+    Draw()
+ 
+    #Exit condition:
+    cont <- (resp>1)
+  }
+
+\end{verbatim}
+
+
+Here, gClick holds the keypress event at the end of WaitForClickOntarget.
+
+\sect{TextEntry}
+A textentry is a single-row text box that allows the user to enter text when they click on it. It has a label that is above the text entry box (with unimplemented layout parameter that in the future will let you change the layout). and its property .value will contain the text entered.  When one clicks on it, it will do a standard text entry.  One must hit enter to input the value, and nothing else can happen until enter is clicked.  If you want to set the value, you can use SettextEntry().
+
+
+\subsection{Usage}
+
+\begin{verbatim}
+  te <- MakeTextEntry(label,x,y,win,width,defaultval)
+ \end{verbatim}
+ 
+ 
+\includegraphics{images/textentry.png} 
+  
+
+\subsection{Methods and related functions}
+
+Below is a list of functions related to TextEntry\\
+\begin{tabular}{lp{2in}p{2in}}
+  \hline
+         &MakeTextEntry(label,x,y,win,width,default,<opt>layout&Creates entry box\\
+Clickon  & GetTextEntryInput(obj,event)&Gets text-based input.\\
+Inside  &InsideTB(obj,evt)&Tests whether click is inside menu\\ 
+        &SetTextEntry(obj,text) &Sets the value manually\\
+\hline
+\end{tabular}
+
+
+\sect{Menu}
+
+A Menu appears as a labeled box, and when clicked on a set of options will pull down to be clicked on.  When one of this is clicked, a specified function will be executed. Often, you put these on the top of the screen in a menu bar, which needs to be generated manually. See ui-demo.pbl in demo\ directory for examples.
+
+
+
+\includegraphics{images/menu.png} 
+  
+
+\subsection{Usage}
+
+ A menu is created as a set of MenuItems (which is hidden from the user.) Along with specifying the location and text for the items, you need to specify  function names to be called when a target is clicked.  When clicked, the function gets called with (obj, click), so you can handle the drawing.
+ 
+\begin{verbatim}
+   menu <- "FILE", 10,10,gWin,12,100,["Load","Save","Edit"],
+                                     "Loadfile","Savefile","Editfile"])
+
+ \end{verbatim}
+ 
+ 
+In the example above, a 'FILE' menu will be displayed.  When clicked on, subitems 'Load', 'Save', and 'Edit' will appear, which will execute the functions 'Loadfile', 'Savefile', and 'Editfile'.
+
+
+
+\subsection{Methods and related functions}
+
+Below is a list of functions related to menu creation.  The main menu uses a sub-object called menuitem that has its own hide/show methods.  You may wish to use a menuitem directly in some cases, but its usage is not documented here.\\
+
+\begin{tabular}{lp{2in}p{2in}}
+  \hline
+         &MakeMenu(header,x,y,win,fontsize,&Creates menu\\
+         &width,subitems,functions)&\\
+Clickon  & OpenSubMenus(obj,event)&Opens the menu and accepts clicks on menuitems\\
+Show     &ShowMenu(obj,evt)&Shows menu\\
+Hide     &HideMenu(obj,evt)&Hides menu\\
+Inside  &InsideMenu(obj,evt)&Tests whether click is inside menu\\ 
+        &MakeMenuItem & Helper function\\
+        &RemoveMenuItem&Helper function\\
+
+\hline
+\end{tabular}
+
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % %
+\sect{PullDown}
+A Pulldown is a list of items that folds up to the chosen item.  It is thus simliar to a scrollbox when open, and uses some of the same mechanics.
+
+The important properties of a pulldown are the .selected and .list.  The .selected property tells you the index of the currently selected list element.  The .list property gives you the list of elements, so that Nth(obj.list,obj.selected) will give you the text of the selected list item.
+
+Closed pulldown:
+\includegraphics{images/pulldown-closed.png} 
+
+Open pulldown:
+\includegraphics{images/pulldown-open.png} 
+
+\subsection{Usage}
+
+Once created, you can let the clickon method handle selection, and then identify .list and .selected properties when needed. If you need immediate results when selecting something, you will need to reset the .clickon property to name your special handler, which should call PullDown().
+
+
+The .maxitems property of a pulldown specifies how many items are shown when the pulldown is open. If there are more than this, it will allow you
+to scroll through the options.  This can be set after the pulldown is created.
+
+
+\begin{verbatim}
+pulldown <- MakePulldown(["small","medium","large"],
+                         gWin,12,120,1)
+                         
+ 
+  Pulldown(pulldown,[0,0])) ##Simulate click on pulldown
+ ##Suppose you want to update the list:
+ 
+ UpdatePulldown(pulldown,["small","medium","large","extra-large"])
+\end{verbatim}
+
+
+
+\subsection{Methods and related functions}
+
+The following methods and related functions operate a pulldown:\\
+
+\begin{tabular}{lp{2in}p{2in}}
+  \hline
+  
+    & MakePullDown(opts, x,y,win,fontsize,  width,selected)&Creates pulldown\\
+  
+Clickon  & Pulldown(obj,event)&Opens the menu and accepts clicks on menuitems\\
+Draw     &DrawPulldown(obj)&Redraws the pulldown object\\
+Inside  &InsidePulldown(obj,evt)&Tests whether click is inside pulldown\\
+
+ 
+        &UpdatePulldown & Helper function\\
+        &SelectPulldownByText(obj,text)&Tries to select the first item in pulldown that matches text\\
+
+\hline
+\end{tabular}
+
+
+
+
+
+
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % %
+\sect{Button}
+A Button is created with the MakeButton function, which takes the arguments:
+
+\begin{verbatim}
+MakeButton(label,x,y,win,width)
+\end{verbatim}
+\includegraphics{images/buttons.png} 
+
+The button is centered on x,y, and the width (in pixels) must be specified.  If the label is too wide for the width, it will be scaled (shrunk) horizontally, which could make it look strange, but less strange that truncating or cutting off the edges.
+
+\subsection{Methods}
+Button has several methods bound to the following functions:\\
+
+\begin{tabular}{lp{2in}p{2in}}
+  \hline
+Clickon  & PushButton(obj,event)&Animates a 'click' and returns to normal\\
+Draw     & DrawButton(obj)& Draws the graphical elements\\
+Move     &MoveButton(obj,x,y)& Moves button to new center location\\
+\hline
+\end{tabular}
+
+\subsection{Usage}
+Note that by default, the clickon method will just simulate a click and do nothing else.  To link it to another function, you need to reset the clickon property of the button to name your own function. This function should probably call PushButton, as shown below.  In the main Start() function, you might define the button as such:
+
+\begin{verbatim}
+  button <- MakeButton("quit",100,100,gWin,150)
+  button.clickon <- "HandleQuit" 
+\end{verbatim}
+
+then, later, define the function HandleQuit:
+\begin{verbatim}
+define HandleQuit(button,xy)
+{
+   PushButton(button,xy)
+   ExitQuietly("Exiting the program")
+}
+\end{verbatim}
+
+An example of this is found in ui-demo.pbl
+
+
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % %
+\sect{Checkbox}
+A Checkbox is basically a button that has two states, 0 (unchecked) and 1 (checked)  In fact, it reuses the mothods for a Button.  You can interrogate the state of a checkbox with the .state property.
+
+\includegraphics{images/checkbox.png} 
+
+\subsection{Usage}
+Like a button, a checkbox is created with a label, x,y, center position, the window, and a width:
+\begin{verbatim}
+  box <- MakeCheckBox(label,x,y,win,width)
+\end{verbatim}
+
+Its .state property starts at 0 and will appear unchecked, and if the ClickOn() method is called, will change to 1 and appear checked (if it is 1, it will change to 0/unchecked). By default, the clickon function just changes the state. You may override this with your own custom callback function that has another effect, which may want to call ClickCheckBox().  There is also a SetCheckBox(obj,state) function you can use to force the state to a specific value.
+
+Typically, this would be used for parameter settings, and when you are ready to 'execute', you would look at the .state of the button to decide what to do.
+
+
+\subsection{Methods and associated functions}
+The following methods and functions operate a checkbox:\\
+
+\begin{tabular}{llp{2in}}
+  \hline
+Creation & MakeCheckBox(label,x,y,win,width)&Creation\\
+Clickon  & ClickCheckBox(obj,event)&Changes the state of a checkbox\\
+         &SetCheckBox(obj,state)&Sets value to specific 0/1 state\\
+Draw     & DrawButton(obj)& Draws the graphical elements\\
+Move     & MoveButton(obj,x,y)& Moves button to new center location\\
+\hline
+\end{tabular}
+
+
+
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % %
+
+\sect{Scrollbox}
+ This is a workhorse object that lists a bunch of elements, allows selecting, and potentially editing them.  
+
+\includegraphics[scale=.3]{images/scrollbox.png} 
+
+It has several properties of interest: .list, which is the list of items in the scrollbox; .editable, which determines whether a second-click on an element should permit editing (by calling  EditScrollboxValue), .selected, which specifies the element of the list that is selected.
+
+\subsection{Usage}
+
+\begin{verbatim}
+ sb <-   MakeScrollBox(opts, header,x,y,win,fontsize,
+                    width,height,selected)
+  
+  \end{verbatim}
+ 
+
+\subsection{Methods and related functions}
+
+Below is a list of functions related to ScrollingTextBox\\
+\begin{tabular}{lp{2in}p{2in}}
+  \hline
+         &MakeScrollBox(opts,header,x,y,win,fontsize,width,height,selected)&Create scrollbox\\
+Clickon  & ClickonScrollBox(obj,event)&Handles click\\
+Draw     &DrawScrollBox(obj,evt)&Manages drawing\\
+Inside  &InsideTB(obj,evt)&Tests whether click is inside scrollbox\\ 
+        &UpdateScrollbox(obj)&Handles updating when .list is changed.\\
+        &EditScrollboxValue(win,click, default,selected)&Allows editing of a value, called by clickonscrollbox.\\
+        &UpdateCapturedScrollBoxThumb( obj, p) &Allows moving thumb\\
+        &ClearScrollboxThumbCapture( obj, p) &Helper; clears capture\\
+
+\hline
+\end{tabular}
+
+
+
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % %
+\sect{ScrollingTextBox}
+A scrolling text box is useful for displaying long text that permits scrolling through. The scrolling UI only appears of the length of the text is longer than the size of the box.  It is useful for loading a text file.  The linewrap argument specifies whether a long line should wrap around or just be truncated at its end. It is based on a scrollbox, which allows selection/action for clicking on specific lines.
+
+
+
+\includegraphics{images/scrollingtext.png} 
+
+\subsection{Usage}
+
+\begin{verbatim}
+  stb <-  MakeScrollingTextBox(text,x,y,win,fontsize,width,height,linewrap)
+ \end{verbatim}
+ 
+ 
+
+\subsection{Methods and related functions}
+
+Below is a list of functions related to ScrollingTextBox\\
+\begin{tabular}{lp{2in}p{2in}}
+  \hline
+         &MakeScrollingTextBox(text,x,y,win,fontsize,width,height,linewrap)&Create scrolling text\\
+Clickon  & ClickonScrollingTextBox(obj,event)&Handles click\\
+Draw     &DrawScrollingtextBox(obj,evt)&Manages drawing\\
+Inside  &InsideTB(obj,evt)&Tests whether click is inside scrolling textbox\\ 
+        &UpdateScrollingTextBox(obj)&Updates box after elements are changed\\
+
+\hline
+\end{tabular}
+
+
+\sect{PopupMessageBox}
+This create a small pop-up box at the point of the cursor to give a short message.  It is dismissed when the user clicks 'OK'.
+
+
+
+\includegraphics{images/popupmessage.png} 
+
+\subsection{Usage}
+By default, the message box is 300x200.  You can specify width and height arguments to change the size.  It will query the location of the mouse and place the box at that location (attempting to stay on the screen).
+ 
+\begin{verbatim}
+
+  PopupMessageBox("Click OK to continue.",gWin)
+ 
+  PopUpMessageBox("Thank you", gWin,350,250) 
+ \end{verbatim}
+ 
+
+
+\sect{PopUpEntryBox}
+This is like a PopUpMessagBox, but collects a text entry, exiting when the user hits the enter key. By default it is 300x100 pixels. It will appear at a location specified in an [x,y] coordinate list.
+
+
+\includegraphics{images/popupentry.png} 
+
+\subsection{Usage}
+
+\begin{verbatim}
+  entry1 <-   PopUpEntryBox("Please enter your birthplace",gWin,[100,100])
+  entry2 <-   PopUpEntryBox("Please enter your name",gWin,[100,100],
+                             "defaultname",300,200)
+ 
+ \end{verbatim}
+ 
+
+
+
+
+%%% Local Variables: 
+%%% mode: latex
+%%% TeX-master: "main"
+%%% End: 

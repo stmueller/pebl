@@ -1,0 +1,27 @@
+define Start(lPar)
+{
+
+   Print("Testing Sound Playback.")
+		
+   ##You need to make a window in order to play a sound in Windows.
+   gWin <- MakeWindow()
+   sound <- LoadSound("buzz500ms.wav")
+
+
+   PlayForeGround(sound)
+   Wait(1000)
+
+
+   #SOS
+   sos <- [100,100,100,300,300,300,100,100,100]
+   loop(i,sos)
+    {
+     PlayBackground(sound)
+     Wait(i)
+     Stop(sound)
+	 Wait(400)
+    }
+
+
+}
+

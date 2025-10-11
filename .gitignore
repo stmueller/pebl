@@ -1,0 +1,220 @@
+# ============================================================================
+# PEBL .gitignore
+# ============================================================================
+
+# ============================================================================
+# Build Artifacts
+# ============================================================================
+# Compiled binaries
+bin/pebl2
+bin/pebl2.wasm
+bin/pebl2.wasm.map
+bin/pebl2.js
+bin/pebl2.html
+bin/pebl2.data
+bin/pebl2-files.js
+bin/CON
+
+# Object files
+obj/
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+
+# Generated parser files (from bison/flex)
+src/base/lex.yy.c
+src/base/grammar.tab.cpp
+src/base/grammar.tab.hpp
+
+# ============================================================================
+# Build Systems
+# ============================================================================
+# Flatpak build artifacts
+.flatpak-builder/
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile.in
+install_manifest.txt
+
+# Autotools
+.deps/
+.libs/
+*.la
+*.lo
+autom4te.cache/
+config.log
+config.status
+configure
+
+# ============================================================================
+# External Dependencies
+# ============================================================================
+# Exclude all libs by default (should be installed separately or documented)
+libs/*
+
+# Exception: Keep utfcpp (small UTF-8 library used directly in source)
+!libs/utfcpp/
+!libs/utfcpp/**
+
+# Libraries to document as external dependencies:
+# - libs/emsdk/ (1.7GB - see EMSDK_SETUP.md)
+# - libs/SDL2_gfx-1.0.4/ (13MB - download and build separately)
+# - libs/labstreaminglayer/ (118MB - optional, not actively used)
+# - libs/jsmn/ (duplicate of src/utility/jsmn.h)
+# - libs/simplehttp/ (Python utility, not C++ library)
+# - libs/kiss_sdl-master/ (not used)
+# - libs/OpticianSans/ (not used)
+# - libs/xid_device_library-master/ (19MB - not used)
+
+# ============================================================================
+# Editor and IDE Files
+# ============================================================================
+# Emacs
+*~
+\#*\#
+.\#*
+
+# Vim
+*.swp
+*.swo
+*.swn
+[._]*.s[a-v][a-z]
+[._]*.sw[a-p]
+[._]s[a-rt-v][a-z]
+[._]ss[a-gi-z]
+[._]sw[a-p]
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+
+# Code::Blocks
+*.layout
+*.depend
+
+# Claude Code settings (user-specific)
+.claude/settings.local.json
+
+# ============================================================================
+# Operating System Files
+# ============================================================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+.directory
+.Trash-*
+
+# ============================================================================
+# Temporary and Backup Files
+# ============================================================================
+*.tmp
+*.temp
+*.bak
+*.backup
+*.old
+*~
+*.log
+CON
+svn-commit.*
+
+# ============================================================================
+# Runtime and Output Files
+# ============================================================================
+# Log files
+logs/*.txt
+*.log
+
+# Data output (participant data should not be committed)
+battery/*/data/*/*
+!battery/*/data/.gitkeep
+!battery/*/data/README*
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+
+# ============================================================================
+# Documentation Build Artifacts
+# ============================================================================
+doc/pman/*.aux
+doc/pman/*.log
+doc/pman/*.out
+doc/pman/*.toc
+doc/pman/*.pdf
+
+# ============================================================================
+# Package Artifacts and Archives
+# ============================================================================
+*.deb
+*.rpm
+*.pkg
+*.dmg
+*.exe
+*.msi
+*.zip
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.tgz
+
+# ============================================================================
+# Test and Debug
+# ============================================================================
+# Core dumps
+core
+core.*
+vgcore.*
+
+# Valgrind
+*.memcheck
+*.callgrind
+
+# gdb
+.gdb_history
+
+# ============================================================================
+# Keep These Files
+# ============================================================================
+# Keep empty data directories
+!**/data/.gitkeep
+
+# Keep stimulus files (CSV in specific locations)
+!battery/scales/*.csv
+!battery/RAT/*.csv
+!battery/globallocal/stim/*.csv
+!battery/mathtest/*.csv
+!battery/pathmemory/paths/*.csv
+
+# Keep media assets
+!media/
+!emscripten/media/

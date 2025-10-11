@@ -1,0 +1,313 @@
+define Start(p)
+{
+
+	gSleepEasy <- 1
+
+	win <- MakeWindow()
+	
+
+	num <- GetNumJoysticks()
+	if(num == 0)
+     {
+	    Print("No joysticks found")
+		SignalFatalError("giving up")
+     }
+
+	##open the first joystick on the system
+	i <- 0
+    joystick <- OpenJoystick(i)
+
+	   
+	   numaxes <- GetNumJoystickAxes(joystick)
+	   numballs <- GetNumJoystickBalls(joystick)
+	   numbuttons <- GetNumJoystickButtons(joystick)
+	   numhats <- GetNumJoystickHats(joystick)
+
+	   Print("Joystick:  "+joystick)
+	   Print("Axes:      "+numaxes)
+	   Print("Balls:     "+numballs)
+	   Print("Buttons:   "+numbuttons)
+	   Print("Hats:      "+numhats)
+
+
+
+
+
+	axes <- []
+	x <- 100
+
+	xy1  <- MakeXYMeter("Joy Axis 1/2",120,120,win,100/32768)
+   	axis3 <- MakeMeter("axis 3" ,250,120,win,100/32768)	
+
+	xy2  <- MakeXYMeter("Joy Axis 4/5",420,120,win,100/32768)
+   	axis6 <- MakeMeter("axis 6" ,550,120,win,100/32768)	
+
+
+	##Create meters for hat(s)
+	hats <- []
+	x <- 100
+	loop(i,Sequence(1,numhats,1))
+     {
+        hat <- MakeHatDisplay("hat "+ i,x,300,win)
+		x <- x + 100
+		hats <- Append(hats,hat)
+     }
+
+
+	 ##Create button bank for buttons.
+
+	 ##put buttons in two rows	 
+	 buttonWidth <- Ceiling(numButtons/2)
+
+	 layout <- LayoutGrid(400,740,290,410,buttonWidth,2,1)
+
+	 layout <- SubList(layout,1,numButtons)
+	 back <- Rectangle(570,350,300,100,MakeColor("grey25"),1)
+	 AddObject(back,win)
+	 buttons <- []
+
+	 index <- 1
+	 loop(i,layout)
+      {
+		 button <- MakeButton(index, First(i),Second(i),win)
+		 buttons <- Append(buttons,button)
+		 index <- index + 1
+      }
+
+ 	Draw()		
+ 	cont <- 1
+ 	while(cont )
+ 	{
+         val1x <- GetJoystickAxisState(joystick,1)
+         val1y <- GetJoystickAxisState(joystick,2)
+   		UpdateXYMeter(xy1,val1x,val1y)	
+ 		val3 <- GetJoystickAxisState(joystick,3)
+ 		UpdateMeter(axis3,val3)
+         val2x <- GetJoystickAxisState(joystick,4)
+         val2y <- GetJoystickAxisState(joystick,5)
+   		UpdateXYMeter(xy2,val2x,val2y)	
+ 		val6 <- GetJoystickAxisState(joystick,6)
+ 		UpdateMeter(axis6,val6)
+ 		Draw()
+ 	    hat <- 1
+ 		loop(i,hats)
+ 		{
+             val <- GetJoystickHatState(joystick,hat)
+ 			#			Print_(val+ " ")
+      		UpdateHat(i,val)	
+ 			hat <- hat + 1
+         }
+	    button <- 1
+		loop(i,buttons)
+		{
+            val <- GetJoystickButtonState(joystick,button)
+     		UpdateButton(i,val)	
+			button <- button + 1
+        }
+
+		Draw()
+  
+
+
+		resp <- WaitForListKeyPressWithTimeout([" "],10,1)
+
+        if(resp==" ")
+         {
+		    cont <- 0
+         }      
+    }
+  }	
+
+
+
+define MakeButton(name,x,y,win)
+{
+
+	circle <- Circle(x,y,20,MakeColor("black"),1)
+	AddObject(circle,win)
+	font <- MakeFont(gPEBLBaseFont,2,22,MakeColor("white"),MakeColor("black"),0)
+	lab <- MakeLabel(name+"",font)
+	AddObject(lab,win)
+	Move(lab,x,y)
+
+	return [circle,lab]
+}
+
+define UpdateButton(button,state)
+
+{
+
+   circ <- First(button)
+	if(state==0)
+    {
+		circ.color <- MakeColor("black")	 
+    }else{
+		circ.color <- MakeColor("red")	 
+    }
+}
+
+
+define MakeMeter(name,x,y, win,scale)
+{
+    lab <-  EasyLabel(name,x,y-110,win,14)
+	rect <- Rectangle(x,y,40,200,MakeColor("grey25"),1)
+	pip  <- Rectangle(x,y,40,4,MakeColor("red"),1)
+	AddObject(rect,win)
+	AddObject(pip,win)
+
+	return [scale,pip,x,y,rect,lab]
+}
+
+
+define  UpdateMeter(meter,value)
+{
+	pip <- Second(meter)
+	pip.y <- Fourth(meter) + value * First(meter)
+}
+
+
+
+define MakeXYMeter(name,x,y, win,scale)
+{
+    lab <-  EasyLabel(name,x,y-110,win,14)
+	bg <- Square(x,y,200,MakeColor("grey25"),1)
+	pip  <-Circle(x,y,5,MakeColor("red"),1)
+	lh <- Line(x-100,y,200,0,MakeColor("white"))
+	lv <- Line(x,y-100,0,200,MakeColor("white"))
+	AddObject(bg,win)
+	AddObject(lh,win)
+	AddObject(lv,win)
+	AddObject(pip,win)
+
+	return [scale,pip,x,y,bg,lab,lh,lv]
+}
+
+
+define  UpdateXYMeter(meter,valuex,valuey)
+{
+	pip <- Second(meter)
+	pip.x <- Third(meter) + valuex * First(meter)
+	pip.y <- Fourth(meter) + valuey * First(meter)
+
+}
+
+
+
+define MakeHatDisplay(name,x,y,win)
+{
+    lab <- EasyLabel(name+"["+0+"]",x,y-60,win,22)
+	plus  <- Plus(x,y,48,34, MakeColor("grey25"))
+    AddObject(plus,win)
+    square1 <- Square(x,y-30,22,MakeColor("grey33"),1)
+    square2 <- Square(x+30,y,22,MakeColor("grey33"),1)
+    square3 <- Square(x,y+30,22,MakeColor("grey33"),1)
+    square4 <- Square(x-30,y,22,MakeColor("grey33"),1)
+
+	AddObject(square1,win)
+	AddObject(square2,win)
+	AddObject(square3,win)
+	AddObject(square4,win)
+
+   return [name,lab,square1,square2,square3,square4,plus]
+}
+
+
+define UpdateHat(hat,value)
+{
+   lab <- Second(hat)     
+   lab.text <- First(hat)+"["+value+"]"
+   on <- MakeColor("red")
+   off <- MakeColor("grey")
+   ##value
+   ##1 2 4 8  
+   leftOn <- value > 7
+
+   tmp <- Nth(hat,6)
+   if(leftOn)
+    {
+	   value <- value - 8
+	   tmp.color <- on
+    } else{
+       tmp.color <- off
+    }
+	
+	bottomOn <- value >3
+    tmp <- Fifth(hat)
+
+    if(bottomOn)
+    {
+	  value <- value - 4
+	   tmp.color <- on
+    } else{
+       tmp.color <- off
+    }
+
+
+	rightOn <- value >1
+    tmp <- Fourth(hat)
+	if(rightOn)
+    {
+	   value <- value - 2
+	   tmp.color <- on
+    } else{
+       tmp.color <- off
+    }
+
+
+	upOn <- value
+    tmp <- Third(hat)
+    if(upOn)
+    {
+	   tmp.color <- on
+    } else{
+       tmp.color <- off
+    }
+
+
+
+}
+
+
+
+
+
+define LayoutGrid(xmin,xmax,ymin,ymax, wide,tall, horvert)
+ {
+
+     xskip <- (xmax-xmin)/(wide+1)
+     yskip <- (ymax-ymin)/(tall+1)
+
+     pts <- []
+     if(horvert == 1)
+      {
+     x <- xmin+xskip
+       loop(i,Sequence(1,wide,1))
+        {   
+          y <- ymin+yskip
+         loop(j,Sequence(1,tall,1))
+          {
+             pts <- Append(pts, [x,y])
+             y <- y + yskip
+          }
+          x <- x + xskip
+        }
+     } else {
+       y <- ymin+yskip
+       loop(i,Sequence(1,tall,1))
+        {   
+          x <- xmin+xskip
+         loop(j,Sequence(1,wide,1))
+          {
+
+             pts <- Append(pts, [x,y])
+             x <- x + xskip
+          }
+         y <- y + yskip
+        }
+
+
+     }
+
+   return pts
+  
+ }

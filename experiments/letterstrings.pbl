@@ -1,0 +1,449 @@
+define Start(lPar)
+{
+ ## (c) 2005 Shane T. Mueller
+ ## stmuelle@indiana.edu
+ ## x0502
+
+  #Get (assign) subject number
+  if(IsList(lPar))
+     {
+	    gSubNum   <- First(lPar)
+	  } else  {
+       gSubNum <- 0
+    }
+
+  #Set the stimulus presentation time here:
+  gStimTime <- 30
+
+  #
+  gNumCorrect <- 0
+
+  #results are stored in tmpresults.dat
+  gResultsFile <-FileOpenAppend("results-" + gSubNum +".txt")
+
+
+    RandomizeTimer()
+  ##Initialize Window, etc.
+  gWindow <- MakeWindow("black")   
+	    
+  ##Initialize Font and colors
+
+   bg <- MakeColor("black")
+   fg <- MakeColor("white")
+ 
+   gInstructionsFont <-MakeFont("Vera.ttf",0,16,fg,bg,1)  
+   gFontStim  <- MakeFont("Vera.ttf", 0,16,fg,bg,1)	 
+   gFontReverse<- MakeFont("Vera.ttf", 0,16,bg,fg,1)	 
+   gFontMask  <- MakeFont("Vera.ttf", 0,16,fg,bg,1)	 
+   gFixation  <- MakeLabel("+",gInstructionsFont)				 
+
+
+  ## The stimuli should be 1, 2, or 3-letter sequences.
+
+   baseStim <- ["G","R","N","F","Z","V"]
+
+	##The 1-letter trials are just every combination are just 
+	stim1 <- RepeatList(CrossFactorWithoutDuplicates(baseStim),2)
+	stim1<- Transpose(Append(Transpose(stim1),Repeat(1,Length(stim1))))
+	Print(stim1)
+
+	##The 2-letter trials are combinations of different templates that
+	##have their stimuli sampled randomly to fill in.
+
+	template2 <- FlattenN([
+					Repeat([["a","b"],["a","x"],2],5),
+					Repeat([["a","b"],["x","b"],2],5),
+					Repeat([["a","b"],["b","a"],3],20),
+					Repeat([["a","b"],["x","a"],4],5),
+					Repeat([["a","b"],["b","x"],4],5),
+					Repeat([["a","b"],["x","y"],5],10) ],1)
+
+	stim2 <- []
+	loop(i, template2)
+    {
+	  stim2 <- Append(stim2, MakeTargetFoil(i))
+    }
+
+
+    template3 <- FlattenN([
+#1-error         
+				  Repeat([["a","b","c"], ["a","b","x"],6], 10),
+		          Repeat([["a","b","c"], ["a","x","c"],6], 10),
+		          Repeat([["a","b","c"], ["x","b","c"],6], 10),
+#2-error
+		          Repeat([["a","b","c"], ["a","x","y"],7], 10),
+		          Repeat([["a","b","c"], ["x","b","y"],7], 10),    
+		          Repeat([["a","b","c"], ["x","y","c"],7], 10),    
+#3-error 
+		          Repeat([["a","b","c"], ["x","y","z"],8], 20),   
+#1-swaps
+                  Repeat([["a","b","c"], ["b","a","c"],9], 20),   
+                  Repeat([["a","b","c"], ["a","c","b"],9], 20),   
+#2-swaps
+                  Repeat([["a","b","c"], ["b","c","a"],10], 5),
+                  Repeat([["a","b","c"], ["c","a","b"],10], 5),
+#1-swap + 1-error
+                  Repeat([["a","b","c"], ["a","c","x"],11], 2),   
+                  Repeat([["a","b","c"], ["a","x","b"],11], 2),      
+                  Repeat([["a","b","c"], ["x","c","b"],11], 2),      
+
+                  Repeat([["a","b","c"], ["b","a","x"],11], 2),
+                  Repeat([["a","b","c"], ["b","x","c"],11], 2),      
+			      Repeat([["a","b","c"], ["x","a","c"],11], 2),      
+
+#1-swap + 2-error
+                  Repeat([["a","b","c"], ["b","x","y"],12], 2),      
+                  Repeat([["a","b","c"], ["x","a","y"],12], 2),      
+                  Repeat([["a","b","c"], ["x","y","c"],12], 2),      
+
+                  Repeat([["a","b","c"], ["a","x","y"],12], 2),      
+                  Repeat([["a","b","c"], ["x","c","y"],12], 2),      
+                  Repeat([["a","b","c"], ["x","y","b"],12], 2),      
+
+
+#2-swap + 1-error
+                  Repeat([["a","b","c"], ["b","c","x"],13], 2),      
+                  Repeat([["a","b","c"], ["b","x","a"],13], 2),      
+                  Repeat([["a","b","c"], ["x","c","a"],13], 2),      
+
+                  Repeat([["a","b","c"], ["c","a","x"],13], 2),      
+                  Repeat([["a","b","c"], ["c","x","b"],13], 2),      
+                  Repeat([["a","b","c"], ["x","a","b"],13], 2),      
+
+#2-swap + 2-error 
+                  Repeat([["a","b","c"], ["b","x","y"],14], 2),      
+                  Repeat([["a","b","c"], ["x","y","a"],14], 2),     
+                  Repeat([["a","b","c"], ["x","c","y"],14], 2),      
+
+                  Repeat([["a","b","c"], ["c","x","y"],14], 2),      
+                  Repeat([["a","b","c"], ["x","y","b"],14], 2),      
+                  Repeat([["a","b","c"], ["x","a","y"],14], 2) ],1)
+
+
+	stim3 <- []
+	loop(i, template3)
+    {
+	  stim3 <- Append(stim3, MakeTargetFoil(i))
+    }
+
+	stimAll <-Shuffle( FlattenN([stim1,stim2,stim3],1))
+	numTrials <- Length(stimAll)
+    ## This creates 288 stimuli.  Make them into 12 blocks of 24
+
+   gInstructions <- MakeLabel("Use 'z' for left and '/' for right. Press any key to begin",gInstructionsFont)
+   AddObject(gInstructions, gWindow)
+   Move(gInstructions, 320, 200)
+   Show(gInstructions)
+   Draw()  
+   WaitForAnyKeyPress()
+   Hide(gInstructions)
+   Draw()
+   Wait(2000)
+
+   trial <- 1
+    loop(stim, stimAll)
+    {
+
+         FilePrint_(gResultsFile,gSubNum + " " + trial + " ")
+         Trial(stim)
+         if(Mod(trial, 24)==0)
+         {
+          SetText(gInstructions,"Trial [" + trial + "] of [" + numTrials + "]. Acc: ["+ Round(gNumCorrect/trial*100) + "%]")
+          Show(gInstructions)
+			 Draw()
+			 WaitForAnyKeyPress()
+			 Hide(gInstructions)
+         }
+          trial <- trial + 1
+    }
+     FileClose(gResultsFile)
+ }
+
+
+define Trial(stimulus)
+{
+
+ ##stimulus is a list of three things. The first is
+ ##the target/foil combo, the second is the mask.
+ ##Third determines if the mask should be long or short
+
+
+  target  <-  First(stimulus)
+  foil    <-  Nth(stimulus,2)
+  type    <-  Nth(stimulus,3)
+  mask <- "####"
+
+  maskdelay <- 80
+  blankdelay <- 220
+ 
+ 
+
+  postMask <- MakeLabel(mask,gFontStim)
+
+  stimLabel <- MakeLabel(target, gFontStim)  ##Make stimulus label
+  choiceOrder<-RandomDiscrete(2)
+
+  ##Print out some info about the composition of the trial
+   FilePrint_(gResultsFile, target + " " + foil  + " " + type + " ")
+   FilePrint_(gResultsFile,  choiceOrder + " ")
+   
+  targetLabel <- MakeLabel(target, gFontStim)
+  foilLabel   <- MakeLabel(foil, gFontStim)
+
+
+  ##Add labels to window
+  AddObject(stimLabel,gWindow)	
+  AddObject(gFixation, gWindow)
+  AddObject(postMask, gWindow)
+  AddObject(targetLabel,gWindow)
+  AddObject(foilLabel,gWindow)
+
+  if(choiceOrder == 1)
+  {
+     Move(targetLabel,290,200)
+     Move(foilLabel,350,200)
+      
+
+  } else {
+ 
+     Move(targetLabel,350,200)
+     Move(foilLabel,290,200)
+   }
+
+
+  ##Move text to center
+  Move(stimLabel, 320,200)
+  Move(gFixation, 320,200)
+  Move(postMask, 320,200)
+
+  
+
+  ##Hide the text; show the fixation
+  Hide(stimLabel)
+  Hide(targetLabel)
+  Hide(foilLabel)
+  Hide(postMask)
+  Show(gFixation)
+  Draw(gWindow)
+
+
+  #Wait some time and hide the fixation
+  Hide(gFixation) #pre-hide
+  Wait(400) #Draw the fixation cross
+  Draw()
+
+
+  #Show(postMask)   #pre-draw  #Wait the delay.
+  DrawUntil(blankdelay)
+  Draw()
+ 
+
+   #Hide(postMask)   #pre-undraw the mask
+	DrawUntil(maskdelay)  
+   Show(stimLabel) #draw the stimulus
+   t1<- GetTime()
+
+   DrawUntil(gStimTime)   #Wait the stimulus duration time
+   t2<- GetTime()
+   Hide(stimLabel) #pre-hide the stimulus
+   Show(postMask)  #pre-draw the postmask
+
+   Draw()
+
+   FilePrint_(gResultsFile,( t2 - t1)+ " ")
+
+   #Show the post-mask and wait the proper time.
+   Hide(postMask)	#pre-hide the mask
+   Wait(maskdelay)
+   Draw()
+
+   #wait a little before showing the choices
+   Wait(300+blankdelay)
+
+   Show(targetLabel)
+   Show(foilLabel)
+   Draw()
+   start <- GetTime()
+
+
+  #Wait for response,
+  response <-WaitForListKeyPress(["Z","/"])
+  
+  #Get the response time.
+  end <- GetTime()
+
+  if(choiceOrder == 1) 
+   {
+      if(Uppercase(response) == "Z")
+      { 
+         correct <- 1
+      } else {
+         correct <- 0
+      }
+
+   } else {
+      if(Uppercase(response) == "Z")
+      { 
+         correct <- 0
+      } else {
+         correct <- 1
+      }
+
+    }
+
+  gNumCorrect <- gNumCorrect+correct
+
+  Hide(targetLabel)
+  Hide(foilLabel)
+  if(correct)
+   {
+     SetText(gInstructions,"Correct")
+   }  else {
+     SetText(gInstructions,"Incorrect")
+   }
+  Show(gInstructions)  
+  Draw()
+  Wait(200)
+  Hide(gInstructions)
+  Draw()
+ # print the actual display time and the response.
+  FilePrint(gResultsFile, (end-start) + " " + response + " "+ correct)
+  Wait(300)
+  RemoveObject(stimLabel,gWindow)
+  RemoveObject(targetLabel, gWindow)
+  RemoveObject(foilLabel, gWindow)
+  RemoveObject(gFixation, gWindow)
+  RemoveObject(postMask, gWindow)
+ 
+  return (end - start)
+} 
+
+
+define DrawUntil(timeout)
+{
+
+  end <- GetTime() + timeout
+  while(GetTime() < end)
+  {
+    Draw()
+  }
+}
+
+
+define ListToString(list)
+{
+	string <- ""
+	loop(i,list)
+	{
+		string <- string + i
+	}
+  return string
+}
+
+
+
+
+define MakeTargetFoil(template)
+{
+	keys <- ["a","b", "c", "x", "y", "z"]
+	letters <-  Shuffle(["G","R","N","F","Z","V"])
+
+	repList <- Transpose([keys,letters])
+
+	stim <- Replace(template,repList)
+    return [ListToString(First(stim)),ListToString(Nth(stim,2)), Nth(stim,3)]
+}
+
+
+## This will create a copy of template (a possibly nested list),
+## replacing every element in template that matches a first member 
+## of a pair listed in replacementList with the second member.
+define Replace(template, replacementList)
+{
+	if((not IsList(replacementList)))
+	{
+	   SignalFatalError("Second argument of function[Replace(<list>,<list-of-lists>)] is not a string")
+	}
+
+
+	if( IsList(template))
+	{
+	      returnVal <- []
+
+	  loop(i, template) 
+       {
+		returnVal <- Append(returnVal, Replace(i,replacementList))
+	   }
+
+	}else{
+     returnVal <- template
+
+	 loop(j, replacementList)
+		{
+
+		  if(First(j) == template)
+			{
+			   returnVal <- Nth(j,2)
+			}
+	    }
+	}
+
+	return returnVal
+}
+
+
+##This flattens a nested list into a single list.
+define Flatten(list)
+{
+	if(not IsList(list))
+	{
+	  SignalFatalError("First Argument of Flatten(<list>) must be a list.")
+	}
+
+	newlist <- []
+
+	loop(i,list)
+	{
+	  if(IsList(i))
+      {
+		  newlist <- Merge(newlist, Flatten(i))
+	
+      } else {
+	     newlist <- Append(newlist,i)
+      }
+
+	}
+
+  return newlist
+}
+
+define FlattenN(list, n)
+{
+
+	if(not IsList(list))
+	{
+	  SignalFatalError("First Argument of FlattenN(<list>) must be a list.")
+	}
+
+	if(not IsInteger(n))
+	{
+	  SignalFatalError("Second Argument of FlattenN(<list>) must be an integer.")
+	}
+
+
+	newlist <- []
+	loop(i,list)
+	{
+	  if(IsList(i) and n > 0)
+      {
+		  newlist <- Merge(newlist, FlattenN(i, n-1))
+	
+      } else {
+	     newlist <- Append(newlist,i)
+      }
+
+	}
+
+  return newlist
+}
+

@@ -1,0 +1,302 @@
+##  This gives the NASA six TLX ratings scales and weight comparisons.
+##  pass the task name into the task with the -v TASKNAME command-line option
+##
+##
+##  data are saved to the file tlx-data.csv, with columns:
+##  TLX, timestamp, subcode, taskname,W1,W2,W3,W4,W5,W6,R1,R2,R3,R4,R5,R6,RT
+##  For dimensions: (mental, physical, temporal, performance,effort,frustration)
+##   where:
+##      W1..W6 are the assessed weights; which range between 0 and 5 and sum to 15
+##      R1..R6 are the ratings, which range between 1 and 21, with 11 being the middle
+##    and RT being the number of MS since the task was started.
+##
+##
+define Start(p)
+{
+
+
+  parpairs <- [["doweightings",0],
+               ["taskname",""],
+	       ["scaleheight",300]
+               ]
+
+   gParams <- CreateParameters(parpairs,gParamFile)
+
+
+   ##Should you collect the pairwise weights?
+   gDoWeightings <- gParams.doweightings
+   gScaleHeight <- gParams.scaleheight
+
+   gWin <- MakeWindow("black")
+   gSleepEasy <- 1
+   if(gSubNum+"" == "0")
+   {
+     gSubNum <- GetSubNum(gWin)
+   }
+
+
+   taskname <- gParams.taskname
+
+   labelmain <- EasyLabel("Weights for Task: "+taskname,gVideoWidth/2,20,gWin,24)
+
+  scales <- [["   Mental"+CR(1)+"  Demand", "Very Low","Very High","How mentally demanding was the task?"],
+   	 ["   Physical"+CR(1)+"   Demand", "Very Low","Very High","How physically demanding was the task?"],
+	 ["  Temporal"+CR(1)+"   Demand","Very Low","Very High","How hurried or rushed was the pace of the task?"],
+	 ["Performance","Perfect","Failure","How successful were you in accomplishing what you were asked to do?"],
+	 ["     Effort","Very Low","Very High","How hard did you have to work to accomplish your level of performance?"],
+	 ["Frustration","Very Low","Very High","How insecure, discouraged, irritated, stressed, and annoyed were you?"]]
+
+
+   weights <- [0,0,0,0,0,0]
+   ##Only do the weight/comparison task if gDoWeightings is 1
+   if(gDoWeightings)
+    {
+   dims <- First(Transpose(scales))
+   expl <- Nth(Transpose(scales),4)
+   pairs <- Shuffle(Pairs(Sequence(1,6,1)))
+
+   inst <- EasyLabel("Which was more important in the task?",gVideoWidth/2,gVideoheight/2-100,gWin,22)
+   left <- EasyLabel("",gVideoWidth/2-200,gVideoheight/2,gWin,22)
+   right <- EasyLabel("",gVideoWidth/2+200,gVideoheight/2,gWin,22)
+
+   ltext <- EasyTextBox("",gVideoWidth/2-300,gVideoHeight/2+50,gWin,18,200,100)
+   rtext <- EasyTextBox("",gVideoWidth/2+100,gVideoHeight/2+50,gWin,18,200,100)
+
+   rectL <- Rectangle(gVideoWidth/2-200,gVideoHeight/2+75,300,200,MakeColor("white"),0)
+   rectR <- Rectangle(gVideoWidth/2+200,gVideoHeight/2+75,300,200,MakeColor("white"),0)
+   AddObject(rectL,gWin)
+   AddObject(rectR,gWin)
+
+
+   loop(pair,pairs)
+    {
+         use <- Shuffle(pair)
+		 left.text <- Nth(dims,First(use))
+         right.text <- Nth(dims,Second(use))
+		 ltext.text <- Nth(expl,First(use))
+		 rtext.text <- Nth(expl,Second(use))
+		 Draw()
+		 resp <- WaitForClickOnTarget([rectL,rectR],use)
+
+         ##Update chosen
+		 weights <- SpliceList(weights,Nth(weights,resp)+1,resp)
+
+    }	
+    RemoveObject(inst,gWin)
+    RemoveObject(left,gWin)
+    RemoveObject(right,gWin)
+	RemoveObject(ltext,gWin)		 
+	RemoveObject(rtext,gWin)		 
+    RemoveObject(rectL,gWin)
+    RemoveObject(rectR,gWin)
+
+   }
+
+  labelmain.text  <- "Ratings for Task: "+taskname
+
+  xs <- [-300,-180,-60,60,180,300]
+
+  doit<- Transpose(Append(Transpose(scales),xs))
+
+
+  tmp <- []
+  rects <- []
+  thumbs <- []
+  loop(i,doit)
+  {
+     out <-  PlotScale(Nth(i,5)+gVideoWidth/2,400,(i) )  
+
+     tmp <- Append(tmp,out)
+	 rect <- First(out)
+	 rects <- Append(rects,rect)
+     line <- Rectangle(Nth(i,5)+gVideoWidth/2,0,31,3,MakeColor("red"),1)
+	 thumbs <- Append(thumbs,line)
+  }
+
+   Draw()
+
+   rated <- [0,0,0,0,0,0]
+   ratings <- [0,0,0,0,0,0]
+
+
+
+   while (Sum(rated)<6)
+    { 
+	   click <- WaitForClickOnTarget(rects,Sequence(1,6,1))
+
+	   y <- Second(gClick)
+	   
+	   rating <- 21- Round(((y-400+gScaleHeight/2)/gScaleHeight)*20) 
+	   ylev <- (400 + gScaleHeight/2) - (rating-1) * gScaleHeight/20
+       tmpthumb <- Nth(thumbs,click)
+       tmpthumb.y <- ylev
+       AddObject(tmpthumb,gWin)
+
+	   rated <- SpliceList(rated,1,click)
+	   ratings <- SpliceList(ratings,rating,click) 
+       Draw()
+    }
+    labelmain.text <- "Complete. Click DONE or continue to adjust"
+    doneback <- Rectangle(gVideoWidth/2,50,100,30,MakeColor("white"),0)
+
+	AddObject(doneback,gWin)
+    done <- EasyLabel("DONE",gVideoWidth/2,50,gWin,18)
+    Draw()
+
+   while (click < 7)
+    { 
+	
+	   click <- WaitForClickOnTarget(Append(rects,doneback),Sequence(1,7,1))
+
+	   if(click<7)
+       {
+ 	   y <- Second(gClick)
+	   
+	   rating <- 21- Round(((y-400+gScaleHeight/2)/gScaleHeight)*20) 
+	   ylev <- (400 + gScaleHeight/2) - (rating-1) * gScaleHeight/20
+       tmpthumb <- Nth(thumbs,click)
+       tmpthumb.y <- ylev
+       AddObject(tmpthumb,gWin)
+
+	   rated <- SpliceList(rated,1,click)
+	   ratings <- SpliceList(ratings,rating,click) 
+
+      } 
+       Draw()
+    }
+
+   Draw()
+   outline <- "PEBL-TLX,"+TimeStamp()+","+gSubNum+ ","+taskname
+   loop(i,weights)
+    {
+	  outline <- outline +","+i 
+    }
+
+   loop(i,ratings)
+    {
+	  outline <- outline +","+i 
+    }
+   outline <- outline + ","+GetTime()
+
+
+   MakeDirectory("data")
+   out <- FileOpenAppend("data/tlx-data.csv")
+   FilePrint(out,outline)
+}
+
+
+##puts item into position on list
+define SpliceList(list,item,pos)
+{
+  i <- 1
+  tmp <- []
+  loop(itm,list)
+  {
+     if(i==pos)
+	  {
+	    itm <- item
+      }
+    tmp <- Append(tmp,itm)
+   i <- i + 1
+  }
+  return tmp
+}
+
+
+define PlotScale(x,y,info)
+{
+
+
+   black <- MakeColor("black")
+   font1 <-   MakeFont(gPEBLBaseFont,1,15,MakeColor("white"),black,0)
+   font <-   MakeFont(gPEBLBaseFont,0,12,MakeColor("white"),black,0)
+   title <- MakeTextBox(First(info),font1, 110,50)
+   AddObject(title,gWin)
+   Move(title,x-40,y-gscaleheight/2-170)
+
+   tb <- MakeTextBox(Fourth(info),font, 110,90)
+   AddObject(tb,gWin)
+   Move(tb,x-40,y-gscaleheight/2-120)
+   
+   labels <- [Second(info),Third(info)]
+   labheights <- [0,21]
+
+
+
+   nums <- Sequence(1,21,1)
+   lnums <- Length(nums)   
+
+   top <- y-gscaleheight/2
+   bottom <- y+gscaleheight/2
+   skip <- (bottom-top)/(lnums-1)
+
+   i <- bottom
+   ##add click-in box
+   box <- Rectangle(x,y,41,gscaleheight+2,MakeColor("grey60"),1)
+   AddObject(box,gwin)
+   tmp <- [box,title,tb] ##holder of graphical objects       
+   loop(n,nums)
+   {
+
+     #add tick
+	 if(n==11 or n==1 or n==21)
+     {
+     line <-  Line(x-18,i,37,0,black)
+     } else {
+
+     line <-  Line(x-12,i,25,0,black)
+     }
+     AddObject(line,gwin)
+     tmp <- Append(tmp,line)
+     i <- i- skip
+   }
+   
+
+
+   lab <- MakeLabel(First(labels),font)   
+   AddObject(lab,gWin)
+   Move(lab,x,bottom+15)
+   tmp <- Append(tmp,lab)
+
+   lab <- MakeLabel(Second(labels),font)   
+   AddObject(lab,gWin)
+   Move(lab,x,top-15)
+   tmp <- Append(tmp,lab)
+
+
+   #add vertical line
+   line <-    Line(x,top,0,(bottom-top),black)
+   AddObject(line,gwin) 
+   Draw()
+   tmp <- Append(tmp,line)
+
+
+  return tmp
+}
+
+define Pairs(list)
+{
+  tmp <- []
+  idi <- 1
+
+   loop(i,list)
+    {
+
+     idj <- 1
+	   loop(j,list)
+        {
+		
+
+		  if(idi<idj)
+           {
+
+		     tmp <- Append(tmp,[i,j])
+           }
+
+		  idj <- idj+1
+        }
+     idi <- idi + 1
+    }
+
+  return tmp
+}

@@ -1,0 +1,142 @@
+define Start(lPar)
+{
+
+   Print("Testing Sound Playback.")
+		
+   ##You need to make a window in order to play a sound in Windows.
+   gVideoWidth <- 800
+   gVideoHeight <- 600
+   gWin <- MakeWindow()
+
+
+  status <- EasyLabel("Loading sound files",gVideoWidth/2,gVideoHeight/2,
+              gWin,22)
+	      
+  Draw()
+  Wait(500)
+
+ ##  midi <- LoadSound("BirdLand.mid")
+ ##  PlayForeground(midi)
+## SDL_mixer not built with mp3 support
+
+   chapmp3 <- LoadSound("chaplain.mp3") 
+   chapogg <- LoadSound("chaplain.ogg")
+   sound <- LoadSound("buzz500ms.wav")
+   one <- LoadSound("1.wav")
+   correct <- LoadSound("correct.wav")
+   incorrect <- LoadSound("incorrect.wav")
+
+   status.text <- "Press any key to begin"
+   Draw()
+   WaitForAnyKeyPress()
+   status.text <- "Playing 'correct', softly, on the left, until keypress"
+   Draw()
+   SetPanning(one,.2,0)
+   SetPlayRepeats(one,-1)
+   PlayBackground(one)
+   WaitForAnyKeyPress()
+   Stop(one)
+   SetPanning(one,1,1)
+   SetPlayRepeats(one,0)
+   
+   status.text <- "Playing .mp3 encoded file"
+   Draw()
+   PlayBackground(chapmp3)
+
+   Wait(1000)
+
+   status.text <- "interrupting playback with background sounds"
+   Draw()
+
+
+   PlayBackground(correct)
+   PlayBackground(incorrect)
+   PlayBackground(sound)
+   Wait(400)
+   PlayBackground(correct)
+
+   Wait(400)
+   PlayBackground(correct)
+
+   Wait(7000)
+   status.text <- "self-interrupting background playback"
+
+   PlayBackground(correct)
+   Wait(200)
+   PlayBackground(correct)
+   Wait(200)
+   PlayBackground(correct)
+   Wait(200)
+   PlayBackground(correct)
+   Wait(200)
+   PlayBackground(correct)
+   Wait(200)
+   PlayBackground(correct)
+   Wait(2000)
+
+
+
+   PlayBackground(chapOgg)
+   SetPanning(chapogg,0.01,.999)
+
+   status.text <- "Playing while panning"
+  loop(i,14)
+   {
+    status.text <- status.text + "+"
+    Draw()
+    Wait(500)
+    SetPanning(chapogg,i/14,(14-i)/14 )
+    }
+
+  status.text <- "Press any key to continue"
+  Draw()
+  WaitForAnyKeyPress()
+
+
+  Print(GetTime())
+  Wait(500)
+  status.text  <- "incorrect"; Draw()
+  Print(GetTime())
+  PlayForeground(incorrect)
+  Print(GetTime())
+  Wait(500)
+  Print(GetTime())  
+  status.text  <- "Buzz"; Draw()
+
+  PlayForeGround(sound)
+
+
+
+   status.text <- "Playing audio in background with correct in foreground"
+   Draw()
+   SetPanning(chapogg,0.0,1.0)
+   SetPanning(chapmp3,.5,0)
+   
+   PlayBackground(chapogg)
+   Wait(1000)
+   
+   PlayForeground(correct)
+   Wait(400)
+   PlayForeground(correct)
+   Wait(400)
+   PlayForeground(chapmp3)
+   Wait(2000)
+
+if(1)
+  {
+   Wait(1000) 
+   status.text <- "Playing SOS signal"
+   Draw()
+   #SOS
+   sos <- [100,100,100,300,300,300,100,100,100]
+   loop(i,sos)
+    {
+     PlayBackground(sound)
+     Wait(i)
+     Stop(sound)
+     Wait(300)
+    }
+   }
+}
+   
+   

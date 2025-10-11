@@ -1,0 +1,367 @@
+define Start(p)
+{
+
+  gScriptName <- "PEBL Probability Monitor Task"
+
+  parpairs <- [["delay",50],
+               ["signals",10],
+	       ["triallength",300],
+	       ["mintime",4000],
+	       ["maxtime",9000],
+	       ["minMonitors",3],
+	       ["maxMonitors",3]]
+
+  gParams <- CreateParameters(parpairs,gParamFile)
+
+  gDelay <- gParams.delay                   ## ms for each update
+  gSignals <-gParams.signals                 ## number of updates per trial
+  gTriallength <- gParams.triallength * 1000     ## max length of trial (longer than in UTC)
+
+  gWin <- MakeWindow()
+  if(gSubNum+""=="0")
+   {
+     gSubNum <- GetSubNum(gWin)
+   }
+
+  GetStrings(gLanguage)
+
+  gSleepEasy <- 0
+  ShowCursor(0)
+  gFileOut <- GetNewDataFile(gSubNum,gWin,"probmonitor","csv",
+          "subnum,dials,signum,abstime,signal,resp,corr,type,time,rt")
+
+
+  tb <- EasyTextbox(gStrings.inst1,10,10,gWin,25,gVideoWidth-100,500)
+  Draw()
+  WaitForAnyKeyPress()
+
+  tb.text <- gStrings.inst2
+  Draw()
+  WaitForAnyKeyPress()
+  Hide(tb)
+
+  cuetext <-  gStrings.cue
+  cue <- EasyLabel(cuetext,gVideoWidth/2,100,gWin,25)
+  Draw()
+
+  trialsequence <- Sequence(gParams.minMonitors,gParams.MaxMonitors,1)
+  loop(i,trialsequence)
+   {
+    cue.text <-gStrings.next
+    Draw()
+    WaitForAnyKeyPress()
+    cue.text <- cuetext
+
+    Trial(i)
+
+   }
+
+
+  Hide(cue)
+  tb.text <- gStrings.debrief
+  Show(tb)
+  Draw()
+  WaitForAnyKeyPress()
+
+}
+
+
+
+define Trial(numdials)
+{
+
+  feedback <- EasyLabel("",gVideoWidth/2,500,gWin,22)
+
+  tmp <- [feedback]
+  if(numdials == 1)
+   {
+
+    dial1 <-  MakeDial(gVideoWidth/2,400,"1")
+
+    dials <- [dial1]
+
+    tmp <- Append(tmp, Nth(dial1,5))
+
+    cond <- ["u"]
+    keylist <- ["1"]
+
+   } elseif(numdials == 2)
+   {
+
+    dial1  <- MakeDial(gVideoWidth/2-100,400,"1")
+    dial2  <- MakeDial(gVideoWidth/2+100,400,"2")
+    tmp <- Append(tmp, Nth(dial1,5))
+    tmp <- Append(tmp, Nth(dial2,5))
+    dials <- [dial1,dial2]
+    cond <- ["u","u"]
+    keylist <- ["1","2"]
+   } else {
+
+    dial1  <- MakeDial(gVideoWidth/2-200,400,"1")
+    dial2  <- MakeDial(gVideoWidth/2,400,"2")
+    dial3  <- MakeDial(gVideoWidth/2+200,400,"3")
+    tmp <- Append(tmp, Nth(dial1,5))
+    tmp <- Append(tmp, Nth(dial2,5))
+    tmp <- Append(tmp, Nth(dial3,5))
+    dials <- [dial1,dial2,dial3]
+    cond <- ["u","u","u"]
+    keylist <- ["1","2","3"]
+
+   }
+
+
+   Draw()
+
+
+   endtime <- GetTime() + gTriallength
+   dialid <- 0
+   side <- 0
+   signal <- "u"
+   nexttime <- Round(gParams.mintime + (gParams.maxtime-gParams.mintime)*Random() + GetTime())
+   sigtime <- nexttime
+
+   ## Repeat until either the end of the trial, or until
+   ## gSignals signals have been presented.
+
+   numsigs <- 0
+   live <- 0
+
+   t <- GetTime()
+   starttime <- t
+   cont <- 1
+   while(cont)
+
+   {
+
+    ##At particular times, start up a signal
+    if(t > nexttime)
+     {
+         dialid <- RandomDiscrete(numdials)
+         side <-RandomDiscrete(2)-1
+         signal <- "m"
+         nexttime <- endtime
+         numsigs <- numsigs + 1
+         live <- 1
+     }
+
+
+    ##Go through all the dials and update the marker position.
+     id <- 1
+     newdials <- []
+     markers <- []
+	 loop(d,dials)
+     {
+
+      if(dialid ==id)
+       {
+         pos <- Signal(signal,side)
+       } else {
+         pos <- Signal("u",side)
+       }
+
+      dd <-   UpdateDial(d,pos)
+      newdials <- Append(newdials,dd)
+      marker <- First(dd)
+      Hide(marker)                         ## Hide the markers briefly
+      markers <- Append(markers,marker)
+      id <- id + 1
+     }
+
+      #We hide then show the markers, so that they will 'blip' if the
+	  # appear in the same position on two consecutive times.
+      Draw()
+      loop(i,markers)
+      {
+        Show(i)
+      }
+      Draw()
+
+      dials <- newdials
+
+
+      resp <- WaitForListKeyPressWithTimeOut(keylist,gDelay,1)
+
+
+      if(resp=="<timeout>")
+      {
+         #we timed out
+
+      } else {
+
+
+          ## live==1 indicates a signal is present.
+          if(live == 1)
+           {
+                 corr <- resp == Nth(["1","2","3"],dialid)
+                 if(corr)
+                  {
+                    feedback.text <- gStrings.hit
+                  } else {
+                    feedback.text <- gStrings.miss+ "(" + dialid +")"
+                  }
+                 live <- 0
+     FilePrint(gFileOut,gSubNum + "," + numdials +"," + numsigs + "," + t + "," + dialid + "," + resp + "," + corr + "," +
+          feedback.text + "," + (t - starttime) + "," +(t - sigtime))
+
+                 nexttime <- Round(gParams.mintime + (gParams.maxtime-gParams.mintime)*Random() + GetTime())
+                 sigtime <- nexttime
+                 starttime <- t
+                 dialid <- 0
+                 signal <- "u"
+
+           } else {
+
+                 ##This is a false alarm.
+
+            feedback.text <- gStrings.falsealarm
+          FilePrint(gFileOut,gSubNum + "," + numdials + "," + numsigs+
+           "," + t + "," + dialid + "," + resp + ",0,FA," + (t -  starttime) + ","  +(t - sigtime))
+          }
+
+
+
+          Draw()
+          Wait(500)
+          feedback.text <- ""
+          Draw()
+      }
+
+      t <- GetTime()
+
+
+    ##Test exit conditions for trial
+    if( t > endtime)
+     {
+       cont <- 0
+     }
+
+     if(numsigs >= gSignals and  live == 0)
+     {
+       cont <- 0
+     }
+
+   }
+
+
+
+  RemoveObjects(tmp,gWin)
+}
+
+
+
+
+## condition is one of "l" "m" "h" or "u"
+## side is 0 or 1 (l or r)
+
+define Signal(cond, side)
+{
+
+  if(cond == "h")
+  {
+#    Print("h")
+    p <- .95
+  } elseif (cond == "m"){
+#    Print("m")
+    p <- .85
+  } elseif (cond == "l") {
+#    Print("l")
+    p <- .75
+  } else {
+#    Print("u")
+    p <- .5  #unbiased; no signal
+  }
+
+ if(Random() < p)
+  {
+    mside <- side
+  } else {
+    mside <- 1-side
+  }
+   pos <- RandomDiscrete(3) + 3*mside
+
+  return pos
+}
+
+define MakeDial(x,y,label)
+{
+   r <-  Rectangle(x,y,120,80,MakeColor("grey40"),1)
+   AddObject(r,gWin)
+   tmp <- [r]
+
+   r2 <-  Rectangle(x,y,120,80,MakeColor("black"),0)
+   AddObject(r2,gWin)
+   tmp <- Append(tmp,r2)
+
+   xs <- [-50,-30,-10,10,30,50]
+   loop(i,xs)
+   {
+     l <- Line(x+i,y-20,0,30,MakeColor("black"))
+     AddObject(l,gWin)
+     tmp <- Append(tmp,l)
+   }
+
+   l <-  Line(x,y-40,0,20,MakeColor("black"))
+   AddObject(l,gWin)
+   tmp <- Append(tmp,l)
+
+
+   r3 <-  Rectangle(x,y+25,110,20,MakeColor("white"),1)
+   AddObject(r3,gWin)
+   tmp <- Append(tmp,r3)
+
+
+  lab <- EasyLabel(label,x,y-60,gWin,25)
+  tmp <- Append(tmp,lab)
+  pos <- 0
+
+  marker <- Rectangle(x + MakeMarkerPos(0),y+25,3,20,MakeColor("red"),1)
+  AddObject(marker,gWin)
+  tmp <- Append(tmp,marker)
+
+  return  [marker,pos,x,y,tmp]
+}
+
+define UpdateDial(dial,pos)
+{
+   marker <- First(dial)
+   baseX <- Nth(dial,3)
+   baseY <- Nth(dial,4)
+   tmp <- Nth(dial,5)
+
+   newx <- MakeMarkerPos(pos)
+   marker.x <- baseX + newx
+
+   return [marker,pos,baseX,baseY,tmp]
+}
+
+define MakeMarkerPos(pos)
+{
+   ##for pos 1..6
+   if(pos ==0)
+   {
+     x <- 0
+   } else{
+     x <- (pos - 3.5)*20
+   }
+  return x
+}
+
+
+
+
+
+define GetStrings(lang)
+{
+
+  lang <- Uppercase(lang)
+  fname <- "translations/probmonitor.pbl-"+LowerCase(lang)+".json"
+
+  if(FileExists(fname))
+  {
+    gStrings <- ReadTranslationjson(fname,lang)
+  } else
+  {
+    gStrings <- ReadTranslationJSON("translations/probmonitor.pbl-en.json",lang)
+  }
+
+}

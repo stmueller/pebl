@@ -1,0 +1,202 @@
+
+define Start(par)
+ {
+
+    condsize <- 3              #How many of each condition (metric) 
+    gTolerance <- 30           #How close you have to get
+
+
+
+    gSleepEasy <- 1 
+    gWin <- MakeWindow()
+
+   if(gSubNum == 0)
+    {
+      gSubNum <- GetSubNum(gWin)
+    }
+
+
+    fileout <- FileOpenWrite("hunt-"+gSubNum+".dat")
+    reportfile <-FileOpenWrite("hunt-report-"+gSubNum+".dat")
+    inst <- "In this demo, your goal is to find the target.  When you move the mouse around, you will get a 'scent' of the target, indicated by a color between bright red and bright green. The target is at the reddest point on the screen. By moving your mouse around, your goal is to find the target as quickly and efficiently as possible.
+    Press any mouse button to begin."
+    tb  <- EasyTextBox(inst,20,20,gWin,20,gVideoWidth-40,200)
+    Draw()
+    WaitForMouseButton()
+    Hide(tb)
+
+    gLab <-  EasyLabel("Search for the target. Cursor gets redder as you get closer.",gVideoWidth/2,20,gWin,20)
+
+   
+
+    ShowCursor(0)
+	FilePrint(fileout,"subnum trial startx starty gradient x y time moves")
+
+
+    types <- Shuffle(Merge(Repeat("E",condsize),
+	                       Repeat("M",condsize)))
+
+    trial <- 1
+    alldat <- []
+
+	loop(type,types)
+    {
+  	
+       gLab.text <- "Search for the target. Cursor gets redder as you get closer."
+       Draw()
+       results <-  Trial(type)   
+       dat <- Merge([gSubNum,trial, gVideoWidth/2,gVideoHeight/2],results)
+
+       FilePrintList(fileout,Flatten(dat))
+       
+       alldat <- Append(alldat,dat)
+       trial <- trial + 1
+
+    }
+
+	tAllDat <- Transpose(alldat)
+
+    Print(tAllDat)
+
+    time <- SummaryStats(Nth(tAllDat,7), Nth(tAllDat,5))
+    steps <- SummaryStats(Nth(tAllDat,8), Nth(tAllDat,5))
+
+
+    FilePrint(reportfile,"-----------------------")
+    FilePrint(reportfile, "Statistic: Time")
+    FilePrint(reportfile,"cond num median mean sd")
+    FilePrint(reportfile,"-----------------------")
+	loop(i,time)
+     {
+       FilePrintList(reportfile,i)
+     }
+
+    FilePrint(reportfile,"-----------------------")
+    FilePrint(reportfile,"Statistic: Steps")
+    FilePrint(reportfile,"cond num median mean sd")
+    FilePrint(reportfile,"-----------------------")
+	loop(i,steps)
+     {
+       FilePrintList(reportfile,i)
+     }
+
+    FileClose(reportfile)
+}
+
+
+## gradtype should be either "m" for manhattan or "e" for euclidean
+##
+
+define Trial(type)
+{
+    Draw()
+    target <- [Floor(10+Random()*(gVideoWidth-20) ),
+	           Floor(30+Random()*(gVideoHeight-40))]
+
+    max <- Distance([0,0],[gVideoWidth,gVideoHeight],type)
+
+	SetMouseCursorPosition(Round(gVideoWidth/2),Round(gVideoHeight/2))
+
+	count <- 0
+
+   dist <- gTolerance+10
+   eudist <- gTolerance+10
+
+   x <- Circle(0,0,20,MakeColor("black"),1)
+   AddObject(x,gWin)
+
+   startTime <- GetTime()
+   while (eudist > gTolerance)
+    {
+
+      Wait(40)
+	  pos <- GetMouseCursorPosition()
+      dist <- Distance(target, pos,type)
+      ##
+      eudist <- DistanceEuclidean(target, pos)
+
+
+
+	  ##  Increment count if mouse has moved
+      if((Nth(pos,1) != x.x) or Nth(pos,2) != x.y)
+      {
+	     count <- count + 1      
+      }
+
+      ##Change the position of marker
+      x.x<-Nth(pos,1)
+      x.y <- Nth(pos,2)
+	  color <- MakeHeat(dist,max)
+      x.color <- color
+      Draw()
+
+    }
+	
+
+    endtime <- GetTime()
+
+     RemoveObject(x,gWin)
+     ShowTarget(Nth(target,1),Nth(target,2),gWin)
+     
+	 return [type,target,(endtime-starttime),count]
+
+ }
+
+
+
+define ShowTarget(x,y,win)
+{
+  c1 <- Circle(x,y,25,MakeColor("white"),1)
+  c2 <- Circle(x,y,20,MakeColor("black"),1)
+  c3 <- Circle(x,y,15,MakeColor("blue"),1)
+  c4 <- Circle(x,y,10,MakeColor("red"),1)
+  c5 <- Circle(x,y,5,MakeColor("yellow"),1)
+
+  AddObject(c1,win)
+  AddObject(c2,win)
+  AddObject(c3,win)
+  AddObject(c4,win)
+  AddObject(c5,win)
+
+  gLab.text <-  "You Found It!  Press any mouse button to continue."
+  Draw()
+  WaitForMouseButton()
+
+  RemoveObject(c1,win)  
+  RemoveObject(c2,win)  
+  RemoveObject(c3,win)  
+  RemoveObject(c4,win)  
+  RemoveObject(c5,win)  
+  Draw()
+
+}
+
+
+define Distance(a,b, type)
+{
+
+  if(type=="M" or type=="m")
+   {
+     d <-  DistanceManhattan(a,b)
+   } else {
+     d <- DistanceEuclidean(a,b)
+   }
+  return d
+}
+
+define DistanceEuclidean(a,b)
+{
+	return ( Sqrt((First(a) - First(b))^2 + (Nth(a,2) - Nth(b,2))^2))
+}
+
+
+define DistanceManhattan(a,b)
+{
+	return(  Abs(First(a) - First(b)) + Abs(Nth(a,2) - Nth(b,2)))
+}
+
+
+define MakeHeat(dist,max)
+{
+	return(MakeColorRGB(256-Ceiling(256*dist/max),Ceiling(256*dist/max),1))
+}

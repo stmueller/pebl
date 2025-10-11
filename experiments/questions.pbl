@@ -1,0 +1,98 @@
+##This is an experiment for running likert-type or yes-no type questionnaires
+ 
+define Start(par) {
+
+  if(IsList(par))
+   {
+      subnum <- First(par)
+   } else {
+
+    subnum <- 0
+   }
+
+  gWin <- MakeWindow()
+  gFont <- MakeFont("Vera.ttf",0,16, MakeColor("black"), MakeColor("white"),1)
+  gHeaderFont <- MakeFont("Vera.ttf",0,22, MakeColor("black"), MakeColor("grey"),1)
+
+  gTextBox <- MakeTextBox("",gFont, 400,200)
+  gHeader  <- MakeLabel("How much you agree with the following statement:",gHeaderFont)
+  gFooter  <- MakeLabel("   1     2     3     4     5     6",gHeaderFont)
+  gFooter2  <- MakeLabel("Not at all                       Strongly",gHeaderFont)
+
+
+
+    ##Add and position everything.
+    AddObject(gTextBox,gWin)
+    AddObject(gHeader,gWin)
+    AddObject(gFooter,gWin)
+    AddObject(gFooter2,gWin)
+    Move(gTextBox,100,100)
+    Move(gHeader,300,70)
+    Move(gFooter,300,330)
+    Move(gFooter2,300,360)
+	Draw()
+
+
+
+## Do likert-style questions.
+    fileOut <-FileOpenAppend("likert-"+subnum + ".txt")
+
+
+    questions <- FileReadList("questions-likert.txt")
+    id <- 1	
+	loop(q,questions)
+	{
+
+      out <- LikertTrial(q)
+      FilePrint(fileOut,TimeStamp() + " " + subnum + " " + id + " " + out)
+      id <- id + 1
+	}
+
+
+##Do yes-no questions
+    questions <- FileReadList("questions-yn.txt")
+    id <- 1	
+	loop(q,questions)
+	{
+
+      out <- YesNoTrial(q)
+      FilePrint(fileOut,TimeStamp() + " " + subnum + " " + id + " " + out)
+      id <- id + 1
+	}
+
+    FileClose(fileOut)
+}
+
+
+define LikertTrial(text)
+{
+
+  SetText(gTextBox,text)
+  SetText(gHeader,"How much you agree with the following statement:")
+  SetText(gFooter,"   1     2     3     4     5     6")
+  SetText(gFooter2,"Not at all                       Strongly")
+  Draw()
+ 
+  t1 <- GetTime()
+  response <-WaitForListKeyPress(["1","2","3","4","5","6"])
+  t2 <- GetTime()
+
+  return "LK " + response + " " + (t2 - t1)
+}
+
+define YesNoTrial(text)
+{
+
+  SetText(gTextBox,text)
+  SetText(gHeader,"Do you agree or disagree with the following statement::")
+  SetText(gFooter," 'Z'                   '/'")
+  SetText(gFooter2,"YES                      NO")
+
+  Draw()
+  t1 <- GetTime()
+  response <-WaitForListKeyPress(["Z","/"])
+  t2 <- GetTime()
+  return "YN " +response + " " + (t2 - t1)
+
+}
+

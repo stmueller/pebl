@@ -1,0 +1,95 @@
+## This is the default base launcher for OSX, which gets launched
+## when you double-click.
+##
+define Start(p)
+{
+   if(Length(p)>0)
+     {
+	   Print(p)
+           resources <- First(p)
+	   Print("Resources:" + resources)
+	 } else {
+      	   Print("using default resourses")
+	   resources <- "/Applications/pebl.app/Contents/Resources"
+
+	 }
+	
+    ##The above seems ill-conceived.  For now, hard-code this.
+    resources <- "/Applications/pebl.app/Contents/Resources"
+
+
+    SystemCall("echo $HOME> /tmp/PEBL.tmp99919","")
+    home <- FileReadList("/tmp/PEBL.tmp99919")
+    SystemCall("rm /tmp/PEBL.tmp99919","")
+    Print(home)	
+   targetDir <- "pebl-exp.0.13"
+   gVideoWidth <- 800
+   gVideoHeight <- 500
+   gwin <- MakeWindow("white")
+   gSleepEasy <- 1
+   head1 <- EasyLabel(GetPEBLVersion() + " for OSX",gVideoWidth/2,50,gwin,22)
+
+
+   pebl <- MakeImage("pebl.bmp")
+   AddObject(pebl,gWin)
+   Move(pebl,gVideoWidth/2,125)
+   message0 <- "Resources at: ["+resources+"]" +CR(1)+"HOME at: " + home + CR(1)
+   message1 <- message0+"By default, PEBL tries to look for files in [Documents/"+ targetDir+ "]" + CR(2) +
+   "Would you like to create the directory and install some basic experiment scripts?"
+
+ #  exists <- FileExists(home+"/Documents/pebl-exp.0.13")
+ #  if(not exists)
+ #    {
+#	   message1 <- message1 + CR(2)+"This folder does not currently exist."
+#	 } else {
+##	}
+	 
+	 
+   inst <- EasyTextBox(message1,
+                        25,200,gwin,15,gVideoWidth-50,130)
+
+
+if(1)
+ {
+   yes <- EasyLabel("YES", gVideoWidth/2-50,350,gWin,40)
+   no <-  EasyLabel("NO",  gVideoWidth/2+50,350,gWin,40)
+   Draw()
+   copy <- WaitForClickOnTarget([yes,no],[1,0])
+   Hide(yes)
+   Hide(no)
+ 
+    Draw()
+ 
+	if(copy)
+     {
+	 
+      inst.text <- "<"; Draw()
+	  SystemCall("mkdir $HOME/Documents/pebl-exp.0.13 > ~/tmp.txt","")
+#      inst.text <- inst.text + "-"; Draw();WaitForDownClick()
+#	  SystemCall("cp -R "+resources+"/demo/ $HOME/Documents/pebl-exp.0.13/demo >> ~/tmp.txt","")
+#      inst.text <- inst.text + "-"; Draw();WaitForDownClick()
+	  SystemCall("cp "+resources+"/fileselect.pbl $HOME/Documents/pebl-exp.0.13/ >> ~/tmp.txt","")
+#      inst.text <- inst.text + "-"; Draw();WaitForDownClick()
+	  SystemCall("cp -R "+resources+"/battery/ $HOME/Documents/pebl-exp.0.13/battery >> ~/tmp.txt","")
+#      inst.text <- inst.text + "-"; Draw();WaitForDownClick()
+#	  Systemcall("cp -R "+resources+"/PEBLdrop.app $HOME/Documents/pebl-exp.0.13 >> ~/tmp.txt","")
+#      inst.text <- inst.text + "-"; Draw();WaitForDownClick()
+#	  Systemcall("cp -R "+resources+"/PEBLdrop\ fullscreen.app $HOME/Documents/pebl-exp.0.13 >> ~/tmp.txt","")
+#      inst.text <- inst.text + "-"; Draw();WaitForDownClick()
+#	  Systemcall("cp -R "+resources+"/runlauncher.command $HOME/Documents/pebl-exp.0.13 >> ~/tmp.txt","")
+#     inst.text <- inst.text + "->"; Draw();WaitForDownClick()
+
+		
+	   inst.text <- "Files copied. Next time you run PEBL, it will automatically run the launcher and show you the scripts in Documents/pebl-exp.0.13. If you wish to use the PEBL Test battery, download it from http://pebl.sf.net and unzip it into the pebl-exp.0.13 folder." + CR(1) +
+	    "Click the window to exit."
+	  
+	 } else {
+
+       inst.text <- "Click window to exit."
+	}
+ }
+	 Draw()
+   WaitForDownClick()
+   
+   
+}

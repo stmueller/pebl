@@ -1,0 +1,862 @@
+define Start(p)
+{
+
+
+
+# sub is the subject code entered at startup
+# block is the block number (different response types)
+# trial is the trial number 
+# type is block type (1= response by name, 2= response by shade)
+##
+#colorresp is whether the response targets are labeled in color:
+#		    0 is black text, 
+#           1 is in-color text
+#           3 is just shade (no text)
+#
+#cond is the stimulus condition 1-4:
+#     1. color name and color match.
+#     2. color name does not match color.
+#     3. color name normal; color is black
+#     4. color name is 'xxxxx'; color is normal
+#
+# cond2 is a 3-level translation of cond.  No block contains
+#    both conditions 3 and 4, so these are mapped into the same 
+#    single-feature condition called 3.  (1->1, 2->2, 3->3, 4->3)
+#
+#shade is the name of the stimulus's color 
+#wordname is the stimulus word 
+#resp is the actual response (1-4) made
+#corr is whether it is correct 
+#respnum is a counter regarding how many times they responded to the stimulus (they may
+# have taken multiple errors before getting it right). 
+# start is the absolute time (in ms) of the start of trial rt is the time (in ms) of the response
+#Note that every trial must be finished "correctly", which means if you make an error, the data line can get logged every time until you get it right.
+
+   parpairs <- [["blocklength",50] ]
+
+   gParams <- CreateParameters(parpairs,gParamFile)
+
+   ##The number of trials per block (and condition)
+   blocklength <- gParams.blocklength
+   Initialize()
+
+   ## Uncomment to eliminate busy-wait (mostly for older machines or
+   ## laptops that might overheat.)
+   gSleepEasy <- 1
+
+  if(gSubNum==0)
+   {
+     gSubNum <- GetSubNum(gWin)
+   }
+
+  ##############
+  ## Create the basic stimuli
+  #############
+          
+   gColors  <- ["red","green","blue","yellow"]
+
+   gBlack  <- MakeColor("black")
+   gRed    <- MakeColor("red")
+   gGreen  <- MakeColor("darkgreen")
+   gBlue   <- MakeColor("navy")
+   gYellow <- MakeColor("yellow1")
+
+   colors <- [gRed, gGreen, gBlue, gYellow]
+
+
+  gFontBlack        <- MakeFont(gPEBLBaseFontMono, 0, 30, gBlack,gBg,1)       
+  gFontRed          <- MakeFont(gPEBLBaseFontMono, 0, 30, gRed,gbg,1)       
+  gFontGreen        <- MakeFont(gPEBLBaseFontMono, 0, 30, gGreen,gbg,1)       
+  gFontBlue         <- MakeFont(gPEBLBaseFontMono, 0, 30, gBlue,gbg,1)       
+  gFontYellow       <- MakeFont(gPEBLBaseFontMono, 0, 30, gYellow,gbg,1)
+
+
+
+
+  ##  There are 4 blocks; color & name with colored targets;
+  ##  color & name with black targets.
+
+
+
+  gFileOut <- GetNewDataFile(gSubNum,gWin,"stroop","csv",
+"sub,block,trial,type,colorresp,cond,cond2,shade,word,resp,corr,respnum,start,rt")
+
+  gTrial <- 0
+  gBlock <- 0
+  
+
+  ##This works by presenting a specific stimulus, and giving the option of four responses.
+  ##The stimulus must be categorized either by color or by name.
+  ##There are two control conditions for comparison purposes.
+
+
+  ########################################
+  ## Some trials whose color-names match 
+
+  stim1 <-  Transpose(Append(Repeat(SampleNWithReplacement(gColors,blocklength),2), Repeat(1,blocklength)))
+
+  #########################################
+  ## some trials whose color-names do not match 
+
+
+    ##This creates color pairs, but none that match
+   pool <-  CrossFactorWithoutDuplicates(gColors)
+
+
+     ##Sample from the color pairs.
+   stim2 <-  Transpose(Append(Transpose(SampleNWithReplacement(pool,blocklength)),
+            Repeat(2,blocklength)))
+
+
+  #########################################
+  ## some trials where all colors are black
+
+   stim3 <- Transpose([SampleNWithReplacement(gColors,blocklength),
+						   Repeat("black",blocklength),
+                           Repeat(3,blocklength)])
+
+
+
+  #########################################
+  ## some trials where the colornames are all 'xxxxx'
+
+  stim4 <-  Transpose([Repeat("xxxxx",blocklength),
+					   SampleNWithReplacement(gColors,blocklength),
+                      Repeat(4,blocklength)])
+
+
+
+
+
+
+   ########################################################
+   ## Begin experiment
+   gInstructions.text <- "You are about to be tested regarding how well you can read words and the colors they appear in.  You will see a series of words written in different colors.  At the bottom of the screen is a key that shows  which color goes with which keys on the keyboard.  Press the key associated with the color of the word.  Sometimes, the word might be a color itself.  Be sure to ignor the word, and respond only to the color (even if the color is a color itself).
+
+We will start with a practice round.
+
+   Press any key to begin." 
+
+
+   
+   Show(gInstructions)
+   Draw()
+   WaitForAnyKeyPress()
+   Hide(gInstructions)
+   Draw()
+
+   
+   #Initialize data collectors
+   gErr  <- []; gRT   <- []; gCond <- []
+
+   ########################################################
+   ##First, do a a practice round (block 0)
+   Block(Shuffle(stim1),1,1)
+
+
+   ########################################################    
+   ########################################################    
+   ## Test with colored wordnames as response cues.
+   ########################################################    
+   ########################################################    
+
+   gHeader.text <- "Identify Word Name"
+   Show(gHeader)
+
+   gInstructions.text <- "Great.  Now you will be tested on how well you read words.  Press the correct key [1-4] based on the  name of the word in the center of the screen.  Ignore the color that the word is printed in.
+
+   Press any key to continue." 
+   
+   Show(gInstructions)
+   Draw()
+   WaitForAnyKeyPress()
+   Hide(gInstructions)
+   Draw()
+ 
+   ##Reset some data collectors
+   gErr  <- []; gRT   <- []; gCond <- []
+
+   ########################################################
+   ##Now, do the word naming round (block 1)
+   Block(Shuffle(Merge(Merge(stim1,stim2),stim3)),1,1)
+
+   ername1 <- Aggregate(gErr,gCond)
+   rtname1 <- Aggregate(gRT,gCond)
+   gErr  <- []; gRT   <- []; gCond <- []
+
+   gHeader.text <- "Identify Color"
+   Show(gHeader)
+
+   gInstructions.text <- "Great.  Now you will be tested on how well you can identify the color of words.  Press the correct key [1-4] based on the color of the word in the center of the screen.  Ignore the actual text of the word.
+
+   Press any key to continue." 
+
+   gInstructions.text <- "Great.  Now you will be tested on how well
+   you can identify the color words are printed in.  Press the correct
+   key [1-4] based on the color of the word in the center of the screen.
+   Press any key to continue." 
+   
+   Show(gInstructions)
+   Draw()
+   WaitForAnyKeyPress()
+   Hide(gInstructions)
+   Draw()
+
+
+
+
+   ########################################################
+   ##Now, do the color round (block 2)
+   Block(Shuffle(Merge(Merge(stim1,stim2),stim4)),2,1)
+
+   ercol1 <- Aggregate(gErr,gCond)
+   rtcol1 <- Aggregate(gRT,gCond)
+   gErr  <- []; gRT   <- []; gCond <- []
+
+
+
+   ########################################################    
+   ########################################################    
+   ## Test with black wordnames as response cues.
+   ########################################################    
+   ########################################################    
+   
+
+   gHeader.text <- "Identify Word Name"
+   Show(gHeader)
+   gInstructions.text <- "Great.  Now you will be tested on how well you read words.  Press the correct key [1-4] based on the  name of the word in the center of the screen.  Ignore the color that the word is printed in.
+
+   Press any key to continue." 
+   
+   Show(gInstructions)
+   Draw()
+   WaitForAnyKeyPress()
+   Hide(gInstructions)
+   Draw()
+
+
+   ######################################################## 
+   ##Now, do the word naming round, but without colored targets
+   ##block 3
+   Block(Shuffle(Merge(Merge(stim1,stim2),stim3)),1,0)
+
+   ername2 <- Aggregate(gErr,gCond)
+   rtname2 <- Aggregate(gRT,gCond)
+   gErr  <- []; gRT   <- []; gCond <- []
+
+   gHeader.text <- "Identify Color"
+   Show(gHeader)
+   gInstructions.text <- "Great.  Now you will be tested on how well you can identify the color of words.  Press the correct key [1-4] based on the color of the word in the center of the screen.  Ignore the actual text of the word.
+
+   Press any key to continue." 
+   
+   Show(gInstructions)
+   Draw()
+   WaitForAnyKeyPress()
+   Hide(gInstructions)
+   Draw()
+
+   ########################################################
+   ##do the color round
+   ## block 4
+   Block(Shuffle(Merge(Merge(stim1,stim2),stim4)),2,0)
+
+   ercol2 <- Aggregate(gErr,gCond)
+   rtcol2 <- Aggregate(gRT,gCond)
+   gErr  <- []; gRT   <- []; gCond <- []
+
+
+   ########################################################    
+   ########################################################    
+   ## Test with color patches as response cues.
+   ########################################################    
+   ########################################################    
+   gHeader.text <- "Identify Word Name"
+   Show(gHeader)
+   gInstructions.text <- "Great.  Now you will be tested on how well you read words.  Press the correct key [1-4] based on the  name of the word in the center of the screen.  Ignore the color that the word is printed in.
+
+   Press any key to continue." 
+   
+   Show(gInstructions)
+   Draw()
+   WaitForAnyKeyPress()
+   Hide(gInstructions)
+   Draw()
+
+
+   ######################################################## 
+   ##Now, do the word naming round, but without colored targets
+   ##block 5
+   Block(Shuffle(Merge(Merge(stim1,stim2),stim3)),1,3)
+
+   ername3 <- Aggregate(gErr,gCond)
+   rtname3 <- Aggregate(gRT,gCond)
+   gErr  <- []; gRT   <- []; gCond <- []
+
+   gHeader.text <- "Identify Color"
+   Show(gHeader)
+   gInstructions.text <- "Great.  Now you will be tested on how well you can identify the color of words.  Press the correct key [1-4] based on the color of the word in the center of the screen.  Ignore the actual text of the word.
+
+   Press any key to continue." 
+   
+   Show(gInstructions)
+   Draw()
+   WaitForAnyKeyPress()
+   Hide(gInstructions)
+   Draw()
+
+   ########################################################
+   ##do the color round (block 6)
+   Block(Shuffle(Merge(Merge(stim1,stim2),stim4)),2,3)
+
+   ercol3 <- Aggregate(gErr,gCond)
+   rtcol3 <- Aggregate(gRT,gCond)
+   gErr  <- []; gRT   <- []; gCond <- []
+
+    
+   reportfile <- GetNewDataFile(gSubNum,gWin,"stroop-report","txt","")
+
+   ##Print out report
+   PrintMe(reportfile,"--------------------------------------------------------")
+   PrintMe(reportfile," Report for PEBL Stroop Test, Version 0.2")
+   PrintMe(reportfile, " http://pebl.sf.net")
+   PrintMe(reportfile, " (c) 2009 Shane T. Mueller, Ph.D.")
+   PrintMe(reportfile, " "+GetPEBLVersion())
+   PrintMe(reportfile, " "+TimeStamp())
+   PrintMe(reportfile, " Participant Code: " + gSubNum)
+   PrintMe(reportfile,"--------------------------------------------------------")
+
+
+   PrintMe(reportfile," This experiment tested interference effects
+   between different types of information: color and word.  
+
+   Stimuli were colored words.  Stimulus color could be in red, green,
+   blue, yellow, or black (non-target color).  Stimulus words could be
+   'red', 'green', 'blue', 'yellow', or 'xxxx'.  Response labels could
+   be 'red', 'green', 'blue', 'yellow' in consistent colors or in
+   black, or could be color patches with no text.
+
+
+   In these  blocks, 'mixed' stimuli refer to blocks where the stimuli varied in
+   both color and identity, but these mapping were not consistent with
+   one another.  The blocks included, in order:
+
+   Blocks 0-2 each had stimuli labels that were consistent (color and
+   label name coincided)
+
+   0. A color-word consistent block, with color-word consistent
+   response labels. This was practice.
+
+   1. A word-naming block, with color-inconsistent stimuli and
+   color-consistent response labels.
+   2. A color- ID block, with inconsistent stimuli and consistent
+   response labels.
+
+   Blocks 3-4 had response labels that were all in black.
+   3. A word-naming block, with inconsistent stimuli and response
+   labels in black.
+   4. A color identification task of inconsistentt stimul, response
+   labels in black.
+   
+   Block 5-6 had response labels that were just colored rectangles
+
+   5. A word-naming block with inconsisntent stimuli and response
+   labels as color patches.
+   6. A color - ID block with inconsisntent stimuli and response
+   labels as color patches.")
+
+
+   PrintMe(reportfile,"Description of stimulus conditions: 
+     1. color name and color match. (consistent)
+     2. color name does not match color. (conflict)
+     3. color name normal; color is black (single-feature)
+     4. color name is 'xxxxx'; color is normal (single-feature)")
+
+   rowNames <- ["    Consistent ", 
+                "      Conflict ",
+                "Single Feature "]
+
+## 1 is the colored name responses
+    n1 <-	 Nth(Transpose(rtname1),4)
+    c1 <-    Nth(Transpose(rtcol1),4)
+
+     PrintMe(reportfile,"Responses: Colored Names (Block 1-2)")
+     PrintMe(reportfile,"-----------------------------------")
+     PrintMe(reportfile,"     Condition   Name   Color  (N-C)")
+     PrintMe(reportfile,"-----------------------------------")
+
+     matrix <- Transpose([rowNames,n1,c1])
+     tmp <- []
+     loop(i,matrix)
+     {
+       h <- First(i)
+       n <- Exp(Nth(i,2))
+       c <- Exp(Nth(i,3))
+       tmp <- Append(tmp, [n,c, n-c])
+       PrintMe(reportfile ,h + " " + Round(n) + "     " + Round(c) + "    " + Round(n-c))
+     }
+
+    fac <- ListDiff(Third(tmp),First(tmp))
+    cost <- ListDiff(Third(tmp),Second(tmp))
+    PrintMe(reportfile ,"  Facilitation  "  + Round(First(fac))  + "    " +   Round(Second(fac)) + "     " + Round(Third(fac)))
+    PrintMe(reportfile ,"          Cost  "  + Round(First(cost)) + "    " +   Round(Second(cost))+ "     " + Round(Third(cost)))
+    PrintMe(reportfile,"-----------------------------------")
+
+
+## Block 3:is the black name responses
+    n2 <-	 Nth(Transpose(rtname2),4)
+    c2 <-    Nth(Transpose(rtcol2),4)
+
+	 PrintMe(reportfile,CR(2)+"Responses: Black Names (Block 3-4)")
+     PrintMe(reportfile,"-----------------------------------")
+     PrintMe(reportfile,"     Condition   Name   Color  (N-C)")
+     PrintMe(reportfile,"-----------------------------------")
+
+     matrix <- Transpose([rowNames,n2,c2])
+     tmp <- []
+     loop(i,matrix)
+     {
+       h <- First(i)
+       n <- Exp(Nth(i,2))
+       c <- Exp(Nth(i,3))
+       tmp <- Append(tmp, [n,c, n-c])
+       PrintMe(reportfile ,h + " " + Round(n) + "     " + Round(c) + "    " + Round(n-c))
+     }
+
+    fac <- ListDiff(Third(tmp),First(tmp))
+    cost <- ListDiff(Third(tmp),Second(tmp))
+    PrintMe(reportfile ,"  Facilitation  "  + Round(First(fac))  + "    " +   Round(Second(fac)) + "     " + Round(Third(fac)))
+    PrintMe(reportfile ,"          Cost  "  + Round(First(cost)) + "    " +   Round(Second(cost))+ "     " + Round(Third(cost)))
+     PrintMe(reportfile,"-----------------------------------")
+
+ 
+
+## Block 5: is the colored patch name responses
+    n3 <-	 Nth(Transpose(rtname3),4)
+    c3 <-    Nth(Transpose(rtcol3),4)
+
+	 PrintMe(reportfile,CR(2)+"Responses: Colored Patches (Block 5-6)")
+     PrintMe(reportfile,"-----------------------------------")
+     PrintMe(reportfile,"     Condition   Name   Color  (N-C)")
+     PrintMe(reportfile,"-----------------------------------")
+    matrix <- Transpose([rowNames,n3,c3])
+     tmp <- []
+     loop(i,matrix)
+     {
+       h <- First(i)
+       n <- Exp(Nth(i,2))
+       c <- Exp(Nth(i,3))
+       tmp <- Append(tmp, [n,c, n-c])
+       PrintMe(reportfile ,h + " " + Round(n) + "     " + Round(c) + "    " + Round(n-c))
+     }
+
+    fac <- ListDiff(Third(tmp),First(tmp))
+    cost <- ListDiff(Third(tmp),Second(tmp))
+    PrintMe(reportfile ,"  Facilitation  "  + Round(First(fac))  + "    " +   Round(Second(fac)) + "     " + Round(Third(fac)))
+    PrintMe(reportfile ,"          Cost  "  + Round(First(cost)) + "    " +   Round(Second(cost))+ "     " + Round(Third(cost)))
+    PrintMe(reportfile,"-----------------------------------")
+
+ 
+
+
+##For each target type, compute the effect sizes
+##Don't bother with error rates--that will be repo,r
+
+
+   PrintMe(reportfile,"========================================================")
+   PrintMe(reportfile,"       Detailed Mean Information (RT is in log-units)")
+   PrintMe(reportfile,"========================================================")
+
+   PrintMe(reportfile,"---------------------------------")
+   PrintMe(reportfile,"  Block 1: Word naming, color-word responses ")
+   PrintMe(reportfile,"---------------------------------")
+   PrintMe(reportfile,"Error Rate:")
+   PrintMe(reportfile,"Cond   num    med    mean    sd")
+   PrintTable(reportfile, ername1)
+   PrintMe(reportfile,"Response Times:")
+   PrintMe(reportfile,"Cond   num    med    mean    sd")
+   PrintTable(reportfile, rtname1)
+
+
+   PrintMe(reportfile,"---------------------------------")
+   PrintMe(reportfile,"  Block 2: Color naming, color-word responses")
+   PrintMe(reportfile,"---------------------------------")
+   PrintMe(reportfile,"Error Rate:")
+   PrintMe(reportfile,"Cond   num    med    mean    sd")
+   PrintTable(reportfile, ercol1)
+   PrintMe(reportfile,"Response Times:")
+   PrintMe(reportfile,"Cond   num    med    mean    sd")
+   PrintTable(reportfile, rtcol1)
+
+
+
+   PrintMe(reportfile,"---------------------------------")
+   PrintMe(reportfile,"  Block 3: Word naming, black word targets")
+   PrintMe(reportfile,"---------------------------------")
+   PrintMe(reportfile,"Error Rate:")
+   PrintMe(reportfile,"Cond   num    med    mean    sd")
+   PrintTable(reportfile, ername2)
+   PrintMe(reportfile,"Response Times:")
+   PrintMe(reportfile,"Cond   num    med    mean    sd")
+   PrintTable(reportfile, rtname2)
+
+
+
+   PrintMe(reportfile,"---------------------------------")
+   PrintMe(reportfile,"  Block 4: Color naming, black word targets")
+   PrintMe(reportfile,"---------------------------------")
+   PrintMe(reportfile,"Error Rate:")
+   PrintMe(reportfile,"Cond   num    med    mean    sd")
+   PrintTable(reportfile, ercol2)
+   PrintMe(reportfile,"Response Times:")
+   PrintMe(reportfile,"Cond   num    med    mean    sd")
+   PrintTable(reportfile, rtcol2)
+
+
+   PrintMe(reportfile,"---------------------------------")
+   PrintMe(reportfile,"   Block 5: Word naming, colored patch targets")
+   PrintMe(reportfile,"---------------------------------")
+   PrintMe(reportfile,"Error Rate:")
+   PrintMe(reportfile,"Cond   num    med    mean    sd")
+   PrintTable(reportfile, ername3)
+   PrintMe(reportfile,"Response Times:")
+   PrintMe(reportfile,"Cond   num    med    mean    sd")
+   PrintTable(reportfile, rtname3)
+
+
+   PrintMe(reportfile,"---------------------------------")
+   PrintMe(reportfile,"   Block 6: Color naming, colored patch   targets")
+   PrintMe(reportfile,"---------------------------------")
+   PrintMe(reportfile,"Error Rate:")
+   PrintMe(reportfile,"Cond   num    med    mean    sd")
+   PrintTable(reportfile, ercol3)
+   PrintMe(reportfile,"Response Times:")
+   PrintMe(reportfile,"Cond   num    med    mean    sd")
+   PrintTable(reportfile, rtcol3)
+
+
+
+
+}
+
+
+##
+## 
+define PrintMe(file,text)
+{
+  FilePrint(file,text)
+  Print(text)
+}
+
+define PrintMe_(file,text)
+{
+  FilePrint_(file,text)
+  Print_(text)
+
+}
+
+define PrintTable(file,table)
+{
+   PrintMe(file,"------------------------------------")
+   loop(i,table)
+   { 
+       loop(j,i)
+         {
+            PrintMe_(file,RoundOff(j,3) + Tab(1))
+
+         }
+      PrintMe(file,"")
+  
+   }
+   PrintMe(file,"------------------------------------")
+
+}
+
+
+##The btype variable controls whether the block is a color or a word block.
+##  It should only affect scoring; it assumes stim is made correctly.
+##  btype == 1: by name
+##  btype == 2: by shade
+##  If colorresp!=0, then the respnonses are labeled with their
+## corresponding colors.
+
+define Block(stim, btype, colorresp)
+{
+
+  if(colorresp == 0)
+   {
+       red    <- gFontBlack
+       green  <- gFontBlack
+       blue   <- gFontBlack
+       yellow <- gFontBlack
+   } else {
+
+       red    <- gFontRed
+       green  <- gFontGreen
+       blue   <- gFontBlue
+       yellow <- gFontYellow
+   } 
+
+         
+  ##First, set up the response labels.  Make 4 footers, add them and
+  ##   adjust their locations
+   if((colorresp ==0) or ( colorresp==1) ){
+
+     foot1 <- MakeLabel("[1] red ",red)
+     foot2 <- MakeLabel("[2] green ",green)
+     foot3 <- MakeLabel("[3] blue  ",blue)
+     foot4 <- MakeLabel("[4] yellow",yellow)
+    } else {
+
+     foot1 <- Rectangle(0,0,100,30,gRed,1)
+     foot2 <- Rectangle(0,0,100,30,gGreen,1)
+     foot3 <- Rectangle(0,0,100,30,gBlue,1)
+     foot4 <- Rectangle(0,0,100,30,gYellow,1)
+    }
+  
+
+   feet <- [foot1,foot2,foot3,foot4]
+   AddObject(foot1,gWin);   AddObject(foot2,gWin);   
+   AddObject(foot3,gWin);   AddObject(foot4,gWin);
+   Move(foot1, gVideoWidth/2-300, gVideoHeight-150)
+   Move(foot2, gVideoWidth/2-100, gVideoHeight-150)
+   Move(foot3, gVideoWidth/2+100, gVideoHeight-150)
+   Move(foot4, gVideoWidth/2+300, gVideoHeight-150)
+   Draw()
+
+
+
+   
+   Show(gHeader)
+   Draw()
+   Wait(500)
+
+  ##Display each trial
+  loop(i,stim)
+  {
+    gTrial <- gTrial + 1
+    wordname  <- First(i)
+    colorname <- Nth(i,2)
+    cond      <- Nth(i,3)
+
+    ##cond is 1-4.  Really, 3&4 are '1-dim'conditions, so make a new
+    ## condition that recodes this way
+    cond2 <- Nth([1,2,3,3],cond)
+   
+
+    ##i is a pair of [wordname,colorname]
+    gStimLabel.text <- wordname
+    gStimLabel.font <-  ChooseFont(colorname)
+
+
+    Wait(150)
+    Show(gStimLabel)
+    Draw()
+    starttime <- GetTime()
+
+    corr <- 0      ##was it correct
+    respnum <- 1   ##how many times did they respond to this stimulus?
+
+    while(corr == 0)
+     {
+
+       resp <-  WaitForListKeyPress([1,2,3,4])
+       rtime <- GetTime()
+       corr <- ScoreTrial(resp,wordname,colorname,btype)
+
+       FilePrint(gFileOut,gSubNum + " " + gBlock + " " + gTrial + " "+
+	     btype + " "+ colorresp + " " +	     cond + " " + cond2+ " " +
+         colorname + " " + wordname + " " + resp + " " + 
+         corr + " " + respnum + " " + starttime + " " + (rtime-starttime))
+
+
+       if(corr==0)
+        {
+
+            Show(gFeedback)
+            Draw()
+            Wait(50)
+            Hide(gFeedback)
+            Draw()
+            respnum <- respnum +1
+        }
+      
+     }
+ 
+     gErr  <- Append(gErr,respnum-1)
+     gRT   <- Append(gRT, Ln(rtime-starttime))
+     gCond <- Append(gCond,cond)
+
+    Hide(gStimLabel)
+    Draw()
+  }
+
+  RemoveObject(foot1,gWin)
+  RemoveObject(foot2,gWin)
+  RemoveObject(foot3,gWin)
+  RemoveObject(foot4,gWin)
+  Hide(gHeader)
+  Draw() 
+
+  gBlock <- gBlock + 1
+
+}
+
+define ChooseFont(name)
+{
+   if(name == "black") {font <- gFontBlack}
+   if(name == "blue")  {font <- gFontBlue}
+   if(name == "red")   {font <- gFontRed}
+   if(name == "green") {font <- gFontGreen}
+   if(name == "yellow"){font <- gFontYellow}
+
+  return font
+}
+
+
+
+
+##depending upon condition, 
+define ScoreTrial(resp,wordname,colorname,btype)
+{
+ ##  responses are: 1.red 2.green 3.blue 4.yellew
+
+   
+
+  corr <- 0
+
+
+  ##There are really just two ways of scoring:
+  ## by color and by name.
+  if(btype==1) 
+  {
+    if( Nth(gColors, ToNumber(resp)) ==wordname)
+      {
+ 	  corr <- 1
+      }
+  } else {
+    if( Nth(gColors, ToNumber(resp)) ==colorname)
+     {
+       corr <- 1
+     }
+  }
+    return corr
+  }
+
+
+
+
+
+##  This is a standard initializer function that sets up typical
+##  objects used in experiments.
+define Initialize()
+{
+
+#  gVideoWidth  <-800
+#  gVideoHeight <- 600
+
+  ##Initialize Window, etc.
+  gWin <- MakeWindow("grey40")   
+  ShowCursor(0)
+  ##Initialize Font and colors
+
+   gBG <- MakeColor("grey40")
+   fg  <- MakeColor("black")
+
+   
+
+
+   gInstructionsFont <- MakeFont(gPEBLBaseFont,0,18, fg,MakeColor("white"),1)  
+   gHeaderFont       <- MakeFont(gPEBLBaseFont, 0,36,fg,gBG,1)       
+ 
+   ## Make and place the instruction box, then hide it  
+   gInstructions <- MakeTextBox("", gInstructionsFont, 600,300)
+   AddObject(gInstructions, gWin)
+   Move(gInstructions, gVideoWidth/2-300, gVideoHeight/2-150)
+
+   Show(gInstructions)
+
+   ## Make and hide a header label
+   gHeader <- MakeLabel("",gHeaderFont)
+   AddObject(gHeader,gWin)
+   Move(gHeader, gVideoWidth/2, 50)
+   Hide(gHeader)
+
+   gStimLabel <- MakeLabel("",gHeaderFont)
+   AddObject(gStimLabel,gWin)
+   Move(gStimLabel, gVideoWidth/2, gVideoHeight/2)
+   Hide(gStimLabel)
+ 
+   gFeedback <- MakeLabel("INCORRECT",gHeaderFont)
+   AddObject(gFeedback,gWin)
+   Move(gFeedback, gVideoWidth/2, gVideoHeight/2+70)
+   Hide(gFeedback)
+  
+ }
+
+
+
+
+## This finds mean and SD RT for 
+## each of the conditions specified in delays
+##
+define Aggregate(vals, cond)
+{
+
+  ## start by sorting values by condition,
+  ## then move through them and analyze subparts.
+
+  valX <- SortBy(vals,cond)
+  condX <- Sort(cond)
+  trials <- Transpose([condX,valX])
+  
+  stats <- []
+  lastVal <- First(condX)
+
+  tmpVals <- []  
+
+  loop(i, trials)
+  {
+
+     ## if the current delay differs from the previous delay,
+	 ## we should analyze what is in tmp right now.
+     if(First(i) != lastVal)
+     {
+
+       stats <- Append(stats,
+                      [lastVal, Length(tmpVals), Median(tmpVals),
+	                  Mean(tmpVals), StdDev(tmpVals)])
+       tmpVals <- []
+     }
+
+    lastVal <- First(i) 
+    tmpVals <- Append(tmpVals, Nth(i, 2))
+ }
+
+  stats <- Append(stats,
+                [lastVal, Length(tmpVals),
+                 Median(tmpVals), Mean(tmpVals), StdDev(tmpVals)])
+
+
+ return stats
+}
+ 
+define RoundOff(val,sig)
+ {
+   s <- 10 ^ sig
+  
+  return   Round( val *s)/s
+ 
+ } 
+
+##Finds difference between two lists.
+define ListDiff(l1,l2)
+{
+  tmp <- Transpose([l1,l2])
+  new <- []
+  loop(i,tmp)
+   {
+      new <- Append(new,First(i)-Second(i))
+   }
+ return new
+}

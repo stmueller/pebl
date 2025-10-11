@@ -1,0 +1,367 @@
+define Start(p)
+{
+
+## Consists of 3 conditions:
+## testtype == 1: use OS mouse, stop when you click; don't track stream.
+## testtype == 2: move graphical cursor, stop when you click; record xy stream
+## testtype == 3: trial ends when you stop moving; logs xy stream
+
+
+  parpairs <- [["testtype",2],
+
+              ["reps",10],
+	      ["allowYMovement",1],
+              ["targheight",50],
+	      ["startx",50],
+              ["ShowPreview", 0],    ##Can you see the target before you move?
+
+
+              ["dist1",50],
+              ["dist2",75],
+              ["dist3",100],
+              ["dist4",200],
+              ["dist5",350],
+              ["dist6",500],
+              ["dist7",700],
+
+              ["size1",10],
+              ["size2",20],
+              ["size3",40]
+	      ]
+
+  gParams<-CreateParameters(parpairs,gParamFile)
+
+  testtype <- gParams.testtype
+
+  targdist <- [gParams.dist1,gParams.dist2,gParams.dist3,
+               gParams.dist4,gParams.dist5,gParams.dist6,
+	       gParams.dist7]
+
+  targsize <- [gParams.size1,gParams.size2,gParams.size3]
+  reps     <- gParams.reps       ##Number of times through list
+
+
+  bgcol <- MakeColor("black")
+  fgcol <- MakeColor("grey80")
+
+  gWin <- MakeWindow(bgcol)
+
+  ##Get subject code if we need to:
+    if(gSubNum+""=="0")
+    {
+	  gSubNum <- GetSubNum(gWin)
+    }
+
+
+
+  GetStrings(gLanguage)
+
+
+  gFileOut <- GetNewDataFile(gSubNum,gWin,"fitts","csv",
+       "subnum,trial,type,pos,size,ShowPreview,mousex,mousey,clicks,time")
+
+  gPointFile <-  GetNewDataFile(gSubNum,gWin,"fittspoints","csv",
+                                 "trial,size,pos,time,mouseX,mouseY")
+
+  ShowCursor(0)
+  gTargCol  <- MakeColor("red")
+
+  gStartx <- gParams.startx
+  gHomeX <- Round(gVideoWidth/2)
+  gHomeY <- Round(gVideoHeight/2)
+  gTargHeight <- gParams.targheight
+  gShowPreview <- gParams.showpreview    ##Can you see the target before you move?
+  gSleepEasy <- 1
+
+  inst <- gStrings.inst
+
+  if(not gShowPreview)
+  {
+     inst <- inst +CR(1) + gStrings.instnopreview
+  }
+
+  if(gParams.testtype==2)
+  {
+    inst <- inst + CR(1) + gStrings.insttype2
+
+  }elseif(gParams.testtype==3)
+  {
+     inst <- inst + CR(1) + gStrings.insttype3
+  }
+
+  MessageBox(inst,gWin)
+
+  gMessage <- EasyLabel("",gHomeX,gHomeY-100,gWin,22)
+  gCounter <- EasyLabel("",gHomeX,gHomeY-150,gWin,22)
+
+  l1 <-   Line(gstartx-10,gHomeY,20,0,fgcol)
+  l2 <-   Line(gstartx,gHomeY-10,0,20,fgcol)
+  AddObject(l1,gWin)
+  AddObject(l2,gWin)
+
+  gCursor <- Plus(0,0,10,2,fgcol)
+  gCursor.aa <- 0
+  AddObject(gCursor,gWin)
+
+  cond <- DesignFullCounterbalance(targdist,targsize)
+  trials <- Shuffle(RepeatList(cond,reps))
+  l <- Length(trials)
+  i <- 1
+  loop(trial,trials)
+  {
+    gCounter.text <- gStrings.trial+" [" + i + "] "+gStrings.of+" "+l
+    FilePrint_(gFileOut,gSubNum + "," + i + ",")
+    Trial(i, First(trial),Nth(trial,2),testtype)
+    i <- i + 1
+  }
+  ShowCursor(1)
+  FileClose(gFileOut)
+  FileClose(gPointFile)
+}
+
+define ListEqual(l1,l2)
+{
+  same <- 1
+  loop(i,Transpose([l1,l2]))
+   {
+     if(not (First(i) == Nth(i,2)))
+      {
+        same <- 0
+      }
+
+   }
+
+  return same
+}
+
+
+define Trial(trial, pos, size,type)
+{
+
+   ##Type == 1: OS mouse; don't log cursor; trial end wih click
+   ##Type == 2: crosshairs mouse; requires clicking.
+   ##Type == 3;  doesn't require clicking; only dwelling.
+
+
+   targ <- Rectangle(gStartx+pos,gHomeY,size,gTargHeight,gTargCol,1)
+   AddObject(targ,gWin)
+   Hide(targ)
+   targ0 <- Rectangle(gStartx+pos,gHomeY,size,gTargHeight,MakeColor("white"),0)
+   AddObject(targ0,gWin)
+   Hide(targ0)
+   if(gShowPreview)
+    {
+      Show(targ0)
+    }
+
+   #Put cursor on top:
+   RemoveObject(gCursor,gWin)
+   AddObject(gCursor,gWin)
+
+   ##Hide the cursor and wait for a click to start trial
+   SetMouseCursorPosition(gStartX,gHomeY)
+   MoveCursor([gStartx, gHomeY])
+
+   gMessage.text <- gStrings.clickmouse
+   Show(gMessage)
+   Draw()
+
+   WaitForDownClick()
+   Show(gCursor)
+   SetMouseCursorPosition(gStartX,gHomeY)
+   MoveCursor([gStartx, gHomeY])
+   gMessage.text <- gStrings.moveready
+   Draw()
+   Wait(50)
+   Draw()
+   WaitForMouseMovement()
+
+   Show(targ)
+   Show(targ0)
+   Hide(gMessage)
+   Draw()
+
+   start <- GetTime()
+   clicks <- 0
+
+   if(type == 3)
+   {
+     Draw()
+     lastpos <- GetMouseCursorPosition()
+     continue <- 1
+     while(continue)
+       {
+        time <- GetTime()
+        mousepos <- GetMouseCursorPosition()
+        MoveCursor(mousepos)
+
+        FilePrintList(gPointfile,Merge([trial,size,pos, time],mousepos))
+        #If you stop moving, check to see if you are inside the target
+        if(ListEqual(mousepos,lastpos) )
+          {
+            continue <- (1 - Inside(mousePos, targ0))
+
+          }
+         lastpos <- mousepos
+         Draw()
+         Wait(10)
+       }
+       endtime <- GetTime()
+        Wait(200)
+
+   }elseif(type == 2)
+   {
+     Draw()
+     continue <- 1
+     while(continue)
+       {
+        time <- GetTime()
+        mousepos <- WaitForMouseButtonWithTimeout(10)
+        if(mousepos=="<timeout>")
+	{
+           continue <- 1
+	} else {
+
+
+         x <-  Inside(mousePos, targ0)
+      ## ClickOn(mousepos,[gStartx+pos,gHomeY],size, gTargHeight)
+
+       if(x)
+        {
+            endtime <- GetTime()
+            clicks <- clicks + 1
+            continue <- 0
+          }
+	}
+
+
+	mousepos <- GetMouseCursorPosition()
+        MoveCursor(mousepos)
+
+
+        FilePrintList(gPointfile,Merge([trial,size,pos,time],mousepos),",")
+
+         Draw()
+       }
+       endtime <- GetTime()
+       Wait(200)
+
+   } else {
+    ##type == 1:
+    ShowCursor(1)
+    Draw()
+    x <- 0
+
+     while(not x)
+      {
+       mousepos<-WaitForDownClick()
+       x <-  Inside(mousePos, targ0)
+       #ClickOn(mousepos,[gStartx+pos,gHomeY],size, gTargHeight)
+       endtime <- GetTime()
+       clicks <- clicks + 1
+      }
+     }
+
+
+
+     FilePrint_(gFileOut,type+ "," +pos + "," + size + "," + gShowPreview  + "," +First(mousepos) + "," + Nth(mousepos,2) + "," + clicks + ",")
+     FilePrint(gFileOut,(endtime - start))
+
+   RemoveObject(targ,gWin)
+   RemoveObject(targ0,gWin)
+
+
+   Draw()
+
+
+
+}
+
+##Use rectangles for targets.
+##Determines whether you clicked in the circle.
+##define ClickOn(mousepos, pos,width, height)
+## {
+
+##   mouseX <- First(mousepos)
+##   mouseY <- Nth(mousepos,2)
+
+##   xcenter <- First(pos)
+##   ycenter <- Nth(pos,2)
+
+##   minX <-  xcenter-width/2
+##   maxX <-  xcenter + width/2
+##   minY <-  ycenter - height/2
+##   maxY <-  ycenter + height/2
+
+##   x <- First(mousepos)
+##   y <- Nth(mousepos,2)
+
+##   if( x <= maxX and x >= minX and y <= maxY and y >= minY)
+##    {
+##      ret <- 1
+##    } else {
+##      ret <- 0
+##    }
+
+##  return ret
+## }
+
+
+
+
+define WaitForMouseMovement()
+{
+   lastpos <-GetMouseCursorPosition()
+   pos <-GetMouseCursorPosition()
+
+   continue <- 1
+   while(ListEqual(lastpos,pos))
+    {
+
+    	Draw()
+	lastpos <- pos
+        pos <- GetMouseCursorPosition()
+    }
+}
+
+
+define MoveCursor(pos)
+
+{
+  gCursor.x <- First(pos)
+
+
+
+ if(gParams.allowyMovement and gParams.testtype>1)
+   {
+    ## Use this to allow any y position.
+    gCursor.y <- Nth(pos,2)
+   }else{
+     ##Use this to lock the y position
+     gCursor.y <- gHomeY
+  }
+  Draw()
+}
+
+
+
+
+
+define GetStrings(lang)
+{
+
+   ##Known translations: EN
+
+  lang <- Uppercase(lang)
+  fname <- "translations/fitts.pbl-"+LowerCase(lang)+".json"
+
+  if(FileExists(fname))
+  {
+    gStrings <- ReadTranslationJSON(fname,lang)
+  } else
+  {
+    gStrings <- ReadTranslationJSON("translations/fitts.pbl-en.json",lang)
+  }
+
+
+}

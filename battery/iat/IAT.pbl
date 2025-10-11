@@ -1,0 +1,599 @@
+#################################################################
+##  PEBL Implicit Association Task (IAT)
+## 
+##  For use with PEBL 0.07 or later
+##  http://pebl.sf.net
+##  Part of  The PEBL Psychological Test Battery
+##  
+##  Shane T. Mueller & Elizabeth S. Veinott
+##  2006-04 Released into Public Domain
+##  Contact: (smueller at obereed dot net)
+##
+##
+##
+##
+##  Version 0.1 Initial release, using dummy good and bad words/pictures
+##  Version 0.2 April 2006.  Use natural kinds/artifacts; and
+##             verbs/adjectives as stimuli.
+##  Version 0.3 Sept 2008.  Minor fixes for display
+##
+##
+##
+#################################################################
+
+
+define Start(lPar)
+{
+##############################################
+##  To customize, edit the text files words-bad.txt and words-good.txt
+##  so that they include the 'good' and 'bad' word categories.  Place
+##  all relevant pictures in the /stim subdirectory.  Edit the files
+##  picnames-good.txt and picnames-bad.txt so that they contain a list
+##  of the words you care about.  Be sure to NOT leave blank lines at the 
+##  end of these files, as they will be read in as blank words/filenames.
+##
+##  The basic category names can be changed below.
+##  To specify a subject number, run with the windows launcher
+##  and an appropriately specified argument -v subnum.  
+##  If no subject number is specified, it uses 0, overwriting previous
+##  versions.
+##
+##  This program is designed to run at 1024x768 resolution 
+##  
+ gVideoWidth <- 1024
+ gVideoHeight <- 768
+ gWin <- MakeWindow()
+
+           
+   ##Get subject code if we need to:    
+    if(gSubNum+""=="0")
+    {
+	  gSubNum <- GetSubNum(gWin)
+    }
+
+
+  parpairs <- [["PosWordtitle","Verbs"],
+               ["NegWordtitle","Adjectives"],
+	       ["pospictitle","Living things"],
+	       ["negpictitle","Man-made things"],
+	       ["pospicsfile","picnames-good.txt"],
+	       ["negpicsfile","picnames-bad.txt"],
+	       ["poswordsfile","words-good.txt"],
+	       ["negwordsfile","words-bad.txt"],
+	       ["numstim",40]]
+
+   gParams <- CreateParameters(parpairs,gParamFile)
+
+##############################################
+## To change the stimuli, change the following
+## labels.  The changes will be propogated in
+## the instructions and the response labels.
+##############################################
+  goodWordTitle <- gParams.poswordtitle
+  badWordTitle  <- gParams.negwordtitle
+  goodPicTitle  <- gParams.pospictitle
+  badPicTitle   <- gParams.negpictitle
+
+  goodWordText <- Lowercase(goodWordTitle)
+  badWordText  <- Lowercase(badWordTitle)
+  goodPicText  <- Lowercase(goodPicTitle)
+  badPicText   <- Lowercase(badPicTitle)
+
+  ## These keep track of rts for feedback
+  rt1 <- []
+  rt2 <- []
+  rt3p <- []
+  rt3w <- []
+  rt4 <- []
+  rt5 <- []
+  rt6p <- []
+  rt6w <- []
+
+  err1 <-0
+  err2 <-0
+  err3p <-0
+  err3w <-0
+  err4 <-0
+  err5 <-0
+  err6p <-0
+  err6w <-0
+
+  gCorr <- 0
+
+  numStim <- gParams.numstim
+  
+
+  gFileOut <- GetNewDataFile(gSubNum,gWin,"iat","csv",
+    "sub,trial,round,stim,type,goodnesscond,rt,corr")
+  reportfile <- GetNewDataFile(gSubNum,gWin,"iat-report","txt","")
+
+  grey <- MakeColor("GREY")
+  red <- MakeColor("RED")
+  black <- MakeColor("BLACK")
+  white <- MakeColor("white")
+ 
+  gFont <- MakeFont(gPEBLBaseFont,0,44,black, grey,1)
+  fontInst  <- MakeFont(gPEBLBaseFont,0,26,black,grey,1)
+  gRedFont  <- MakeFont(gPEBLBaseFont,0,80,red, grey,1)
+  fontInst1 <- MakeFont(gPEBLBaseFont,0,20,black,white,1)
+  gCorrection <- MakeLabel("X",gRedFont)
+ 
+
+  ShowCursor(0)
+
+  picNamesGood <- FileReadList(gParams.posPicsfile)
+  picNamesBad  <- FileReadList(gParams.negPicsfile)
+
+ #read in the pictures
+  goodpix <-[]
+  loop(i,picNamesGood)
+  {
+    x <-  MakeImage(i)
+    goodpix <- Append(goodpix, [x,i])
+  }
+  #Add type/valence tags.
+  goodPicStim <- Transpose(Merge(Transpose(goodpix),
+                       [Repeat(1,Length(goodpix)), 
+                        Repeat(1,Length(goodpix))]))
+
+
+ #read in the pictures
+  badpix <-[]
+  loop(i,picNamesBad)
+  {
+    x <-  MakeImage(i)
+    badpix <- Append(badpix, [x,i])
+  }
+  #Add type/valence tags.
+  badPicStim <- Transpose(Merge(Transpose(badpix), 
+                        [Repeat(1,Length(badpix)), 
+                         Repeat(2,Length(badpix))]))
+
+
+
+ #Create Word Labels
+  goodWords <- FileReadList(gParams.poswordsfile)
+  badWords  <- FileReadList(gParams.negwordsfile)
+
+  goodLabels <-[]
+  loop(i,goodWords)
+  {
+    x <-  MakeLabel(i,gFont)
+    goodLabels <- Append(goodLabels,[x,i])
+  }
+  #Add type/valence tags.
+  goodWordStim <- Transpose(Merge(Transpose(goodLabels),[ Repeat(2,Length(goodLabels)), Repeat(1,Length(goodLabels))]))
+
+
+  badLabels <-[]
+  loop(i,badWords)
+  {
+    x <-  MakeLabel(i,gFont)
+    badLabels <- Append(badLabels, [x,i])
+  }
+  #Add type/valence tags.
+  badWordStim <- Transpose(Merge(Transpose(badLabels), [Repeat(2,Length(badLabels)), Repeat(2,Length(badLabels))]))
+
+   gLeftInst <- MakeTextBox("", fontInst,150,250)
+   gRightInst <- MakeTextBox("", fontInst,150,250)
+
+
+   AddObject(gLeftInst, gWin)
+   AddObject(gRightInst, gWin)
+   Move(gLeftInst,40,100)
+   Move(gRightInst,840,100)
+   Show(gLeftInst)
+   Show(gRightInst)
+
+   trial <- 1
+   round <- 1
+
+
+  ################################################
+  ##   BLOCK 1:  positive vs negative PICTURES
+  ################################################
+
+   instructions <- "First, you will be asked to categorize two sets of pictures.  Some will be " + goodPicText +
+                   ",  whereas others will depict " + badPicText +
+                   "  Your goal is to determine which category each picture  " +
+                   "belongs in, as quickly and accurately as possible.  If you categorize the picture  " +
+                   "incorrectly, a red X will appear on the screen until you make the correct response. " +
+                   "    Press the 'X' key to begin."
+
+   
+   instructBox <- MakeTextBox(instructions, fontInst1,400,400)
+
+   SetText(gLeftInst, "1:   " + badPicTitle)
+   SetText(gRightInst,"2:   " + goodPicTitle)
+
+   AddObject(instructBox,gWin)
+   Move(instructBox,300,200)
+   Show(instructBox)
+   Draw()
+   WaitForKeyPress("X")
+   Hide(instructBox)
+   Draw()
+
+
+ 
+
+    #In round 1, stimuli should be just the pictures (20 of each)
+   stimAll <- Shuffle(Merge(SampleBalanced(goodPicStim,numStim), SampleBalanced(badPicStim,numStim)))
+
+   Wait(2500) 
+   loop(i,stimAll)
+   { 
+
+     FilePrint_(gFileOut, gSubNum + "," + trial + "," +  round + ",")
+     rt <-   MatchTrial(First(i), Nth(i,2),Nth(i,3),Nth(i,4))   
+     rt1 <- Append(rt1,rt)
+     err1 <- err1 + (1-gCorr)
+     trial <- trial + 1
+
+   }
+
+  ################################################
+  ##   BLOCK 2:  Positive vs negative Words
+  ################################################
+
+    SetText(instructBox, "Next, you will do a different categorization task.  This time, you will be asked to categorize two sets of words. " +
+                   " Some of the words will describe " + goodWordText + ", while others will describe " + badWordText +". Your goal is to categorize each word as "+
+                   " as quickly and accurately as possible.  Like before, if you categorize a word incorrectly, an red X " +
+                   " will appear on the screen until you make the correct response. " +
+                   " Press the 'X' key to continue.")
+    Show(instructBox)
+    SetText(gLeftInst, "1:  " + badWordTitle)
+    SetText(gRightInst,"2:  " +  goodWordTitle)
+
+    Draw()
+    WaitForKeyPress("X")
+    Hide(instructBox)
+    Draw()
+
+   round <- round + 1
+
+
+   #In round 1, stimuli should be just the pictures (20 of each)
+   stimAll <- Shuffle(Merge(SampleBalanced(goodWordStim,numStim), SampleBalanced(badWordStim,numStim)))
+   Wait(2500) 
+   loop(i,stimAll)
+   { 
+     FilePrint_(gFileOut, gSubNum + "," + trial + "," +  round + ",")
+     rt<-MatchTrial(First(i), Nth(i,2),Nth(i,3),Nth(i,4))   
+     rt2 <- Append(rt2,rt)
+     err2 <- err2 + (1-gCorr)
+     trial <- trial + 1
+   }
+
+
+
+  ################################################
+  ##   BLOCK 3:  Words and Pictures: Consistent
+  ################################################
+
+    SetText(instructBox, "Next, you will categorize both words and pictures in the same block. The responses will be the same" +
+                   " as each of the individual trials before, but this time words and pictures will be mixed together." +
+                   " Press the 'X' key to continue.")
+    Show(instructBox)
+    SetText(gLeftInst, "1:   " + badWordTitle + " or " + badPicTitle)
+    SetText(gRightInst,"2:   " + goodWordTitle + " or " + goodPicTitle)
+
+ 
+    Draw()
+    WaitForKeyPress("X")
+    Hide(instructBox)
+    Draw()
+
+   round <- round + 1
+ 
+   #In round 1, stimuli should be just the pictures (20 of each)
+   stimAll <- Shuffle(FlattenN([SampleBalanced(goodWordStim,Round(numStim/2)), 
+								SampleBalanced(badWordStim,Round(numStim/2)), 
+	                            SampleBalanced(goodPicStim,Round(numStim/2)),
+								SampleBalanced(badPicStim,Round(numStim/2))],1))
+   Wait(2500) 
+   loop(i,stimAll)
+   { 
+
+     FilePrint_(gFileOut, gSubNum + "," + trial + "," + round + ",")
+     rt <- MatchTrial(First(i), Nth(i,2),Nth(i,3),Nth(i,4))   
+
+     if(Nth(i,3	) == 1)
+     {
+       rt3p <- Append(rt3p,rt)
+       err3p <- err3p + (1-gCorr)
+     }else{
+       rt3w <- Append(rt3w,rt)
+       err3w <- err3w + (1-gCorr)
+     }
+      trial <- trial + 1
+   }
+
+  ################################################
+  ##   BLOCK 4:  Pictures II (same as before)
+  ################################################
+
+    SetText(instructBox, "Now, you will perform three more rounds.  In the first round, you will categorize just the pictures again, with " +
+                         " the same response mappings as before.  Then, you will categorize words alone, but this time the correct response for " +
+                         goodwordtext + " will be on the left, while " + 
+ badwordtext + " will be on the right.  Finally, you will do a mixed categorization " +
+                         " block with these two groups together.  " +
+                   " Press the 'X' key to continue.")
+    Show(instructBox)
+    SetText(gLeftInst, "1:  " +  badPicTitle)
+    SetText(gRightInst,"2:  " +  goodPicTitle)
+
+    Draw()
+    WaitForKeyPress("X")
+    Hide(instructBox)
+    Draw()
+
+   round <- round + 1
+ 
+   #In round 1, stimuli should be just the pictures (20 of each)
+   stimAll <- Shuffle(FlattenN([SampleBalanced(goodPicStim,numStim),  SampleBalanced(badPicStim,numStim)],1))
+   Wait(2500) 
+   loop(i,stimAll)
+   { 
+     FilePrint_(gFileOut, gSubNum + "," + trial + "," + round + ",")
+     rt <- MisMatchTrial(First(i), Nth(i,2),Nth(i,3),Nth(i,4))   
+     rt4 <- Append(rt4,rt)
+     err4 <- err4 + (1-gCorr)
+     trial <- trial + 1
+   }
+
+
+  ################################################
+  ##   BLOCK 5:  Words II: Inconsistent
+  ################################################
+
+    SetText(instructBox, "For this block's categorization, you will categorize words. " +
+                         "This time, unlike previous blocks, you should respond '1' (left) for " + goodwordtext + " and '2' (right) for " + badwordtext  +
+                         " Press the 'X' key to continue.")
+    Show(instructBox)
+    SetText(gLeftInst, "1:  " + goodWordTitle)
+    SetText(gRightInst,"2:  " + badWordTitle)
+
+    Draw()
+    WaitForKeyPress("X")
+    Hide(instructBox)
+    Draw()
+
+   round <- round + 1
+
+   #In round 1, stimuli should be just the pictures (20 of each)
+   stimAll <- Shuffle(FlattenN([SampleBalanced(goodWordStim,numStim),
+                                SampleBalanced(badWordStim,numStim)],1))
+
+   Wait(2500) 
+   loop(i,stimAll)
+   { 
+     FilePrint_(gFileOut, gSubNum + "," + trial + "," + round + ",")
+     rt <-  MisMatchTrial(First(i), Nth(i,2),Nth(i,3),Nth(i,4))   
+     rt5 <- Append(rt5,rt)
+     err5 <- err5 + (1-gCorr)
+     trial <- trial + 1
+   }
+
+
+
+
+
+  ################################################
+  ##   BLOCK 6:  Words and Pictures: Inconsistent
+  ################################################
+
+    SetText(instructBox, "Finally, this block's categorization will combine the previous two blocks.   You will categorize both words and pictures in the same block. " +
+                   " you should respond '1' (left) to " + goodwordtext+ 
+   " or pictures of " + badpictext + ", and '2' (right) to "+ 
+	badwordtext +" or pictures of " + goodpictext + ". " +
+                   " Press the 'X' key to continue.")
+    Show(instructBox)
+
+    SetText(gLeftInst, "1:   " + goodWordTitle + " or " + badPicTitle)
+    SetText(gRightInst,"2:   " + badWordTitle + " or " + goodPicTitle)
+
+    Draw()
+    WaitForKeyPress("X")
+    Hide(instructBox)
+    Draw()
+
+   round <- round + 1
+
+   #In round 1, stimuli should be just the pictures (20 of each)
+   stimAll <- Shuffle(FlattenN([SampleBalanced(goodWordStim,Round(numStim/2)), 
+								SampleBalanced(badWordStim,Round(numStim/2)), 
+	                            SampleBalanced(goodPicStim,Round(numStim/2)),  
+								SampleBalanced(badPicStim,Round(numStim/2))],1))
+   Wait(2500) 
+   loop(i,stimAll)
+   { 
+     FilePrint_(gFileOut, gSubNum + "," + trial + "," + round + ",")
+     rt <- MisMatchTrial(First(i), Nth(i,2),Nth(i,3),Nth(i,4))   
+
+     if(Nth(i,3) == 1)
+     {
+       rt6p <- Append(rt6p,rt)
+       err6p <- err6p + (1-gCorr)
+     }else{
+       rt6w <- Append(rt6w,rt)
+       err6w <- err6w + (1-gCorr)
+     }
+
+     trial <- trial + 1
+   }
+
+  ################################################
+  ##   Debriefing
+  ################################################
+
+   # Print out the summary data.
+report <-  PrintMe(reportfile,"---------------------------------------------------")
+report <- report +   PrintMe(reportfile," Report for PEBL Implicit Association Test (IAT)")
+report <- report +      PrintMe(reportfile," http://pebl.sourceforge.net")
+report <- report +      PrintMe(reportfile," Shane T. Mueller & Elizabeth S. Veinott")
+report <- report +      PrintMe(reportfile, " Version 0.2")
+report <- report +      PrintMe(reportfile, " "+GetPEBLVersion())
+report <- report +      PrintMe(reportfile, " "+TimeStamp())
+report <- report +      PrintMe(reportfile, " Participant Code: " + gSubNum)
+report <- report +      PrintMe(reportfile,"-----------------------------------------------------------------")
+report <- report +      PrintMe(reportfile,"Block    Description " +"Man-made/Living" + Tab(1) + "Adj/Verb")
+report <- report +      PrintMe(reportfile,"                     Errors Median RT"+Tab(1) + "Errors Median RT")
+
+report <- report +      PrintMe(reportfile,"-----------------------------------------------------------------") 
+report <- report +      PrintMe(reportfile,"Block 1: Pictures M-L" + Tab(1) + err1 + Tab(1) + Median(rt1))
+report <- report +      PrintMe(reportfile,"Block 2: Words A-V   " + Tab(3) + err2 + Tab(1) + Median(rt2))
+report <- report +      PrintMe(reportfile,"Block 3: M/A -- L/V  " + Tab(1) + err3p + Tab(1) + Median(rt3p) + Tab(1) + err3w + Tab(1) + Median(rt3w))
+report <- report +      PrintMe(reportfile,"Block 4: Pictures M-L" + Tab(1) + err4 + Tab(1) + Median(rt4))
+report <- report +      PrintMe(reportfile,"Block 5: words    V-A" + Tab(3) + err5 + Tab(1) + Median(rt5))
+report <- report +      PrintMe(reportfile,"Block 6: M/V -- L/A  " + Tab(1) + err6p + Tab(1) + Median(rt6p)+Tab(1)+err6w + Tab(1) + Median(rt6w))
+report <- report +      PrintMe(reportfile,"-----------------------------------------------------------------")
+   FileClose(reportfile)
+
+
+    SetText(instructBox, "Report details can be found in file [iat-report-" + gSubNum + ".dat] Press the 'X' key to finish")
+    Show(instructBox)
+    Draw()
+    WaitForKeyPress("X")
+    Hide(instructBox)
+    Draw()
+    FileClose(gFileOut)
+
+   ShowCursor(1)
+}
+
+
+define MatchTrial(stim, text, type, lgoodness)
+{
+	AddObject(stim,gWin)
+    Move(stim, 500,400)
+    Show(stim)
+    Draw(gWin)
+    t1 <- GetTime()
+
+	response <-  WaitForListKeyPress(["1","2"])
+    t2 <- GetTime()
+ 
+   # Now, the response needs to match the appropriate type/goodness
+   # For this condition, since they match, the goodness 
+   # determines the response.
+
+   #corrResp <- 3-ToNumber(lgoodness)
+   if(ToNumber(lgoodness)==1)
+    {
+      corrResp <- 2
+    } else {
+      corrResp <- 1
+    }
+  
+
+   if(ToNumber(response) == corrResp)
+   {
+      corr <- 1
+   } else {
+      corr <- 0
+      AddObject(gCorrection, gWin)
+      Move(gCorrection, 500,100)
+      Show(gCorrection)
+      Draw()
+
+
+      WaitForKeyPress(corrResp + "")
+      Hide(gCorrection)
+      RemoveObject(gCorrection,gWin)
+   }
+   gCorr <- corr
+   FilePrint(gFileOut, FixString(text) + "," + type + "," + lgoodness + "," + (t2-t1) + "," + corr )
+
+   Hide(stim)
+   Draw(gWin)
+   RemoveObject(stim,gWin)
+   Wait(150)
+   return (t2 - t1)
+}
+
+
+
+define MisMatchTrial(stim, text, type, lgoodness)
+{
+	AddObject(stim,gWin)
+    Move(stim, 500,400)
+    Show(stim)
+    Draw(gWin)
+    t1 <- GetTime()
+
+	response <-  WaitForListKeyPress(["1","2"])
+    t2 <- GetTime()
+
+   #Since there is a mismatch, the correct response depends on both the type and the 'goodness'
+   if(type != lgoodness)
+   {
+       corrResp <- 1
+   } else {
+       corrResp <- 2
+   }
+  
+
+   if(ToNumber(response) == corrResp)
+   {
+      corr <- 1
+   } else {
+      corr <- 0
+      AddObject(gCorrection, gWin)
+      Move(gCorrection, 500,100)
+      Show(gCorrection)
+      Draw()
+
+
+      WaitForKeyPress(corrResp + "")
+      Hide(gCorrection)
+      RemoveObject(gCorrection,gWin)
+   }
+   FilePrint(gFileOut,FixString(text) + "," + type + "," + lgoodness + "," + (t2-t1) + "," + corr)
+
+   gCorr <- corr
+   Hide(stim)
+   Draw(gWin)
+   RemoveObject(stim,gWin)
+   Wait(150)
+  return (t2 - t1)
+}
+
+
+## This changes a string with spaces to a string without spaces, but with underscores.
+##
+define FixString(words)
+{
+   out <- ReplaceChar(words," ","_")
+   return out
+}
+
+
+
+
+## This is like SampleWithReplacement, but it makes sure that each item 
+## is sampled roughly equally. First, the list is shuffled, then repeated
+## so that it is longer than the number you need.  Then, it is truncated
+## to be the right number.  Finally, it is shuffled again.  This ensures 
+## that each item will be sampled a roughly equal number of times. (+/-1)
+define SampleBalanced(list, number)
+{
+  ## Randomize
+  randlist <- Shuffle(list)
+
+  ## Get repeated list (too long)
+  listlength <- Length(randlist)
+  multiply <- Ceiling(number / listlength)
+  fullStim <- RepeatList(randlist, multiply)
+  
+  newStim <- SubList(fullStim,1,number)
+  
+  return Shuffle(newStim)
+}
+
+define PrintMe(file,text)
+{
+   Print(text)
+   FilePrint(file,text)
+   return text
+}

@@ -1,0 +1,640 @@
+ ## (c) 2006-2011 Shane T. Mueller
+ ## smueller at obereed dot net
+ ## PEBL Bechara's Gambling Task, Version 0.6
+ ##  (a version of the so-called Iowa Gambling Task (tm))
+ ##  This task is not officially endorsed by A. Bechara, A. Damasio, 
+ ##  or any other researchers or organizations affiliated with the 
+ ##  "Iowa" gambling task.
+ ##
+ ## Bechara A, Damasio AR, Damasio H, Anderson SW (1994). 
+ ## Insensitivity to future consequences following damage 
+ ## to human prefrontal cortex. Cognition.
+ ##
+ ## In this procedure, subjects are given $2000 to begin.
+ ## On each trial, they are given the choice of four decks,
+ ## (by hitting 1-4 on the keyboard) and after each card, they are 
+ ## given a reward of some amount; after some cards, they are given
+ ## a reward and pay a penalty.
+ ## The penalty/reward structure is identical to that in Bechara et al.
+ ## with 40 cards per deck, and the identical reward structure.
+ ## When 100 cards have been selected, the task is complete. 
+ ## Notes:
+ ##
+ ## Unlike the real-world version, the deck is just rotated on each 
+ ## draw, so that  the top card moves to the bottom of the 40-card deck,
+ ## and so the sequence will repeat after 40 cards in the original order, 
+ ## rather than becoming exhausted after 40 draws.
+ ##
+ ## * The variable shuffleDecks will shuffle the penalty decks 
+ ## before the experiment. Shuffling is performed in 10-card epochs,
+ ## so that the penalty in 1-10 stay in 1-10, etc.
+ ## For use with PEBL 0.10 or later
+ ## http://pebl.sf.net
+ ## Part of  The PEBL Psychological Testing Battery
+ ##
+ ##
+ ## Polish translation contributed by  Artur Pilacinski and Jacek Gierus
+ ## Chinese translation contributed by Ron Ye 
+ ## French translation contributed by Vladimir Bogdanov
+ ## German translation by Corinne Vonlaufen
+ ## Dutch translation by Alien van der Sluis
+ ## Spanish translation by  Jorge Castañeda
+ ## Portuguese translation by Marco Moniz
+
+define Start(lPar)
+{
+
+
+    ##Set initial values to use if .par file does not exist.
+     parpairs <- [["numtrials",100],
+                  ["DelayBetweenTrials",500],
+		  ["DelayWithBeep",0],  ##audio feedback
+		  ["UseMouse",1],  ##Should we use the mouse or the keyboard?
+		  ["shuffledecks",0], ##whether decks should be shuffled default is off
+		  ["startvalue",2000]
+                 ]
+
+
+    gParams <- CreateParameters(parpairs,gParamFile)
+
+
+#   gParams.startvalue <- ToNumber(gParams.startvalue)
+  ##How many trials?
+#  numtrials <- 100
+
+#  gDelayBetweenTrials <- 800  ##set to 0 for no delay.
+#  gDelayWithBeep <- 1
+
+
+  if(gParams.DelayWithBeep)
+  {
+     gSuccess <- LoadSound("kaching.wav")
+     gFail <- LoadSound("buzz500ms.wav")
+  }
+
+
+
+  if(gParams.UseMouse)
+   {
+    tag <-"-mouse"
+   }else{
+    tag <-"-keyboard"
+   }
+
+
+
+
+
+   ##program will crash if you specify something which doesn't have a
+   ##   translation file
+   gLanguage <- Lowercase(gLanguage)
+
+   textlist <- FileReadList(Lowercase("translations/labels-"+gLanguage+tag+".txt"))
+
+
+   gFontNameMono <- gPEBLBaseFont     #defaults to "VeraMono.ttf"
+   gFontNameBase <- gPEBLBaseFont      #defaults to "Vera.ttf" 
+
+   
+   gSleepEasy <- 1
+   Initialize()
+
+#   gImnames <- ["pebl.png","frowney-big.png","smiley-big.png"]
+
+
+  
+   if(gSubNum+""=="0")
+    {
+      gSubNum <- GetSubNum(gWin)	
+    }
+  ## results are stored in tmpresults.dat
+ 
+ 
+  ##Controls whether the decks are shuffled. Default is as in Bechera et al.
+#  shuffleDecks <-  0
+
+
+  ## results are stored in tmpresults.dat
+  gFileOut <- GetNewDataFile(gSubNum,gWin,"igt","csv",
+     "subNum,trialnum,resp,reward,penalty,net,total,abstime,rt")
+
+
+  ####################################################
+  ##  Now, generate stimuli/conditions
+  ####################################################
+
+  deck1Pen <- [0,0,150,0,300,0,200,0,250,350,
+               0,350,0,250,200,0,300,150,0,0,
+               0,300,0,350,0,200,250,150,0,0,
+               350,200,250,0,0,0,150,300,0,0]
+               
+  deck2Pen <-[0,0,0,0,0,0,0,0,1250,0,
+              0,0,0,1250,0,0,0,0,0,0,
+              1250,0,0,0,0,0,0,0,0,0,
+              0,1250,0,0,0,0,0,0,0,0]
+
+  deck3Pen <-[0,0,50,0,50,0,50,0,50,50, 
+              0,25,75,0,0,0,25,75,50,0,
+              0,0,0,50,25,50,0,0,75,50,
+              0,0,0,25,25,75,0,50,75,0]
+
+  deck4Pen <-[0,0,0,0,0,0,0,0,0,250,
+              0,0,0,0,0,0,0,0,0,250,
+              0,0,0,0,0,0,0,0,250,0,
+              0,0,0,0,250,0,0,0,0,0] 
+
+  deck1Rew <- 100
+  deck2Rew <- 100
+  deck3Rew <- 50
+  deck4Rew <- 50
+
+  if(gParams.shuffleDecks)
+   {
+      deck1Pen <- EpochShuffle(deck1Pen)
+      deck2Pen <- EpochShuffle(deck2Pen)
+      deck3Pen <- EpochShuffle(deck3Pen)
+      deck4Pen <- EpochShuffle(deck4Pen)
+   }
+
+
+  ####################################################
+  ## Begin presenting and collecting data
+  ####################################################
+
+
+   ## Good researchers collect demographic data anonymously.
+   ##  GetNIMHDemographics(gSubNum, gWin, "igt-demographics.txt")
+
+   ## Give instructions; wait for them to hit a key, 
+   inst1 <- Nth(textlist, 1)
+   inst2 <- Nth(textlist, 2)
+   inst3 <- Nth(textlist, 3)
+
+
+   if(gLanguage == "he")
+   {
+   
+     gInstructions.direction <- (-1)
+     gFooter.direction <- (-1) 
+  }
+
+   SetText(gInstructions,inst1)
+
+   Hide(gFooter)
+   Show(gInstructions)
+   Draw()  
+
+   WaitForIt()
+   gInstructions.text <- inst2
+   Draw()
+   WaitForIt()
+  
+
+   gInstructions.text <- inst3
+   Draw()
+   WaitForIt()
+
+   Hide(gInstructions)
+   Draw()
+
+
+  ##############################################
+  ##############################################
+  ##
+  ## Set up the basic graphical environment (decks, score, etc).
+  ##
+   
+   colCard <- MakeColor("blue")
+   colGain <- gColGreen
+   colLoss <- gColRed
+
+   d1x <- gVideoWidth/2 -225
+   d2x <- gVideoWidth/2 -75
+   d3x <- gVideoWidth/2 +75
+   d4x <- gVideoWidth/2 +225
+
+   deck1 <- Rectangle(d1x,200,100,150,colCard,0)
+   deck2 <- Rectangle(d2x,200,100,150,colCard,0)
+   deck3 <- Rectangle(d3x,200,100,150,colCard,0)
+   deck4 <- Rectangle(d4x,200,100,150,colCard,0)
+
+   deck1g<- Rectangle(d1x,200,100,150,colGain,1)
+   deck2g<- Rectangle(d2x,200,100,150,colGain,1)
+   deck3g<- Rectangle(d3x,200,100,150,colGain,1)
+   deck4g<- Rectangle(d4x,200,100,150,colGain,1)
+
+   deck1l<- Rectangle(d1x,200,100,150,colLoss,1)
+   deck2l<- Rectangle(d2x,200,100,150,colLoss,1)
+   deck3l<- Rectangle(d3x,200,100,150,colLoss,1)
+   deck4l<- Rectangle(d4x,200,100,150,colLoss,1)
+
+
+   deck1text <- MakeLabel(Nth(textlist,4),gHeaderFont)
+   deck2text <- MakeLabel(Nth(textlist,5),gHeaderFont)
+   deck3text <- MakeLabel(Nth(textlist,6),gHeaderFont)
+   deck4text <- MakeLabel(Nth(textlist,7),gHeaderFont)
+
+
+
+   #Create lists of the elements for easier management
+   textUI <-[deck1text, deck2text, deck3text, deck4text ]
+   deckUI <- [deck1, deck2, deck3, deck4]
+   gui <- [deck1g, deck2g, deck3g, deck4g, 
+           deck1l, deck2l, deck3l, deck4l]
+           
+   loop(i,deckUI)
+    {
+       AddObject(i,gWin)
+    }
+
+   loop(i, gui)
+    {
+        AddObject(i,gWin)
+        Hide(i)
+    }
+
+   x <- d1x
+   loop(i, textUI) 
+   {
+      AddObject(i,gWin)
+      Move(i,x,200)
+      x <- x + 150
+   }
+
+   
+
+   ##Turn the header on during the task.
+   gHeader.text <- Nth(textlist,8)
+   Show(gHeader)
+
+   gTotal <- gParams.startvalue
+   totstring <-Nth(textlist,9)
+   gTotalLabel <- MakeLabel(totstring+gTotal,gHeaderFont)
+   AddObject(gTotalLabel,gWin)
+   Move(gTotalLabel,gVideoWidth/2+50,380)
+
+   textchoice <-  Nth(textlist,10)
+   textreward <-  Nth(textlist,11)
+   textpenalty <-  Nth(textlist,12)
+   textnetgain <-  Nth(textlist,13)
+
+   gFooter.text <- textchoice+ CR(1) + textreward  + CR(1) + 
+                   textpenalty+  CR(1) + textnetgain
+
+
+
+   gui <- Flatten([gui,textUI,deckUI, gHeader, gFooter,gTotalLabel])
+   earnings <- MakeEarningsGraph(gTotal)
+   Draw()
+ 
+####################################################
+####################################################
+##  Start the experimental trials.
+## 
+ 
+
+  trialnum <- 1
+   while(trialnum <= gParams.numtrials)
+    {
+
+      time0 <- GetTime()
+
+     if(gParams.UseMouse)
+      { 
+
+        resp <- WaitForClickOnTarget([deck1,deck2,deck3,deck4],["1","2","3","4"])
+
+      } else {
+        Draw()
+
+        resp <- WaitForListKeyPress(["1","2","3","4"])
+      }
+
+      time1 <- GetTime()
+      rt <- time1 - time0
+       Draw()
+
+
+      if(resp == "1")
+      {
+         reward <- deck1rew
+         penalty <- First(deck1pen)
+         net <- reward - penalty
+
+         if(net < 0)
+         {
+            deckX <- deck1l
+         }else{
+           deckX <- deck1g
+         }
+
+             ##Update the remainder of the deck.
+         deck1pen <- Rotate(deck1pen,1)
+ 
+
+  
+      }else{
+      if(resp == "2")
+      {
+
+         reward <- deck2rew
+         penalty <- First(deck2pen)
+         net <- reward - penalty
+
+         if(net < 0)
+         {
+               deckX <- deck2l
+         }else{
+           deckX <- deck2g
+         }
+
+             ##Update the remainder of the deck.
+         deck2pen <- Rotate(deck2pen,1)
+
+
+      }else{
+      if(resp == "3")
+      {
+
+         reward <- deck3rew
+         penalty <- First(deck3pen)
+         net <- reward - penalty
+
+         if(net < 0)
+         {
+               deckX <- deck3l
+         }else{
+               deckX <- deck3g
+         }
+
+             ##Update the remainder of the deck.
+         deck3pen <- Rotate(deck3pen,1)
+
+
+      }else{
+
+         reward <- deck4rew
+         penalty <- First(deck4pen)
+         net <- reward - penalty
+
+         if(net < 0)
+         {
+               deckX <- deck4l
+         }else{
+           deckX <- deck4g
+         }
+
+             ##Update the remainder of the deck.
+         deck4pen <- Rotate(deck4pen,1)
+
+
+      }
+      }
+      }
+
+
+       if(gParams.DelayWithBeep)
+       {
+         if(net<0)
+	 {
+           PlayBackground(gFail)
+	 } else{
+           PlayBackground(gSuccess)
+         }
+       }
+
+
+
+       Show(deckX)
+       Hide(gFooter)
+
+
+      ##Figure out the +/- sign
+
+
+      gTotal <- gTotal + net
+      gTotalLabel.text <- totstring  +gTotal
+
+      gFooter.text <- textchoice + resp + CR(1) +
+     textreward +  reward + CR(1) +
+     textpenalty + "-" + penalty + CR(1) +
+     textnetgain +  (reward - penalty)
+
+      Show(gFooter)
+      if(net < 0)
+      {
+         SetFont(gFooter, gIncorrFont)
+      } else {
+          if(net > 0)
+        {
+        SetFont(gFooter,  gCorrFont)
+        } else {
+        SetFont(gFooter,  gStimFont)
+        }
+      }
+      RemoveComplex(earnings)
+      earnings <- MakeEarningsGraph(gTotal)
+      Draw()
+       
+       if(gParams.DelayBetweenTrials>0)
+       {
+           Wait(gParams.DelayBetweenTrials)
+       }
+
+       Hide(deckX)
+       Draw()
+
+#imname <- First(SampleN(gImNames,1))
+#backing <- Rectangle(gVideoWidth/2,gVideoHeight/2,   gVideoWidth,gVideoHeight,MakeColor("white"),1)
+#img <- MakeImage(imname)
+
+#AddObject(backing,gWin)
+#AddObject(img,gWin)
+#Move(img,gVideoWidth/2,gVideoHeight/2)
+#Draw()
+#Wait(1000)
+#RemoveObject(img,gWin)
+#RemoveObject(backing,gWin)
+#Draw()
+
+
+      ## Print out data to the file
+      FilePrint_(gFileOut, gSubNum + "," + trialnum + "," + resp + "," + reward + "," + penalty)
+      FilePrint(gFileOut, "," + net + "," + gTotal + "," + time1 + "," +  rt )
+
+      Draw()
+      trialnum <- trialnum + 1
+    }
+
+   #Remove all the graphical elements: 
+   loop(i, gui)
+   {
+     Hide(i)
+   }
+
+   FileClose(gFileOut)
+
+   ##Now, show debriefing info.
+
+
+   feed1 <- Nth(textlist, 14)
+   feed2 <- Nth(textlist,15)
+   feed3 <- Nth(textlist,16)
+   feedback <-  feed1 + gTotal+".  "
+
+   if(gTotal > 3000) 
+   {
+     feedback <- feedback + " "+ feed2
+   }
+
+   feedback <-  feedback + " " +feed3
+
+
+   SetText(gInstructions, feedback)
+   Show(gInstructions)
+   Draw()
+   WaitForKeyPress("X")
+  
+ }
+
+
+##  This is a standard initializer function that sets up typical
+##  objects used in experiments.
+define Initialize()
+{
+#  gVideoWidth <- 640
+#  gVideoheight <- 480
+#  gVideoWidth <- 800
+#  gVideoheight <- 600
+
+  ##Initialize Window, etc.
+  gWin <- MakeWindow("white")   
+            
+  ##Initialize Font and colors
+
+   bg <- MakeColor("white")
+   bg1 <- MakeColor("white")
+   gFG <- MakeColor("black")
+   
+   
+   gColGreen <- MakeColor("darkgreen")
+   gColRed   <- MakeColor("red")
+ 
+
+   gStimFont         <- MakeFont(gFontNameMono, 0, 24,gfg,bg1,1)       
+   gCorrFont         <- MakeFont(gFontNameMono, 0, 24,gcolGreen, bg1,1)
+   gIncorrFont       <- MakeFont(gFontNameMono, 0, 24,gcolRed,   bg1,1)
+
+   gInstructionsFont <- MakeFont(gFontNameBase,0,18, gfg,bg,1)  
+   gHeaderFont       <- MakeFont(gFontNameBase, 0,36,gfg,bg,1)       
+
+   gGraphFont <- MakeFont(gFontNameBase,0,15, gfg,bg,1)  
+ 
+   ## Make and place the instruction box, then hide it  
+   gInstructions <- MakeTextBox("", gInstructionsFont, 600,300)
+
+
+   if(gLanguage=="he")
+   {
+     gInstructions.direction <- (-1)
+   }
+
+   AddObject(gInstructions, gWin)
+   Move(gInstructions, gVideoWidth/2-300, gVideoHeight/2-150)
+   Hide(gInstructions)
+
+   ## Make and hide a header label
+   gHeader <- MakeLabel("",gHeaderFont)
+   AddObject(gHeader,gWin)
+
+   Move(gHeader, gVideoWidth/2, 80)
+   Hide(gHeader)
+
+
+   gFooter <- MakeTextBox("",gStimFont,260,120)
+   AddObject(gFooter,gWin)
+   Move(gFooter, gVideoWidth/2-350,300)
+   
+ }
+
+
+## Shuffles in epochs of 10
+## requires a 40-item list.
+define EpochShuffle(list)
+{
+     order <- Flatten([Shuffle(Sequence(1,10,1)),
+               Shuffle(Sequence(11,20,1)),
+                       Shuffle(Sequence(21,30,1)),
+                       Shuffle(Sequence(31,40,1))])
+  return SortBy(list,order)
+
+}
+
+
+
+define MakeEarningsGraph( earnings)
+{
+    ##Sets up some basic parameters for plotting the graph at the bottom of the screen
+    scale <- 11
+    height <- 20
+    width  <- earnings / scale
+    ycenter <- gVideoHeight/2 + 220
+    xcenter <- gVideoWidth/2 -195
+
+   #Determine which color to make it.
+   if(earnings < 0) 
+    {
+       col <- gColRed
+    } else {
+       col <- gColGreen
+    }
+
+    ##Define the locations of the labels
+    yvals <- [-1000,0,1000,2000,3000,4000,5000]
+
+    x <- Rectangle(xcenter+width/2, ycenter, width, height, col, 1)
+    outline <- Rectangle(gVideoWidth/2, ycenter-4,
+                         8000/scale,55,MakeColor("grey90"), 0)
+    AddObject(x,gWin)
+    AddObject(outline,gWin)
+
+    ##Create all the labels, based on yvals. Add each label to the 
+    ##appropriate location, and combine them all into a single
+    ##composite to make removal easier.
+    ##These labels are all re-created each trial--they could be
+    ##static, which would be a little more efficient, but it is really 
+    ##fast as is.
+    composite <-[outline,x]
+   
+     loop(i,yvals)
+      { 
+        yy <- MakeLabel(i+"", ggraphFont)
+        AddObject(yy,gWin)
+        Move(yy, xcenter+(i/scale), ycenter-20)
+        Show(yy)
+        composite <- Append(composite,yy)
+      }
+
+    return composite
+}
+
+define RemoveComplex(x)
+{ 
+    loop(i,x)
+    {
+       RemoveObject(i,gWin)
+    }
+}
+
+
+define WaitForIt()
+{
+  if(gParams.UseMouse)
+  {
+     Draw()
+     WaitForDownClick()
+
+  } else {
+     WaitForAnyKeyPress()
+  }
+}

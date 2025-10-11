@@ -1,0 +1,1414 @@
+
+
+## Rotozoom doesn't work right now for objects, but this rotates
+## a polygon's points.  pts should be a list of [[x1,x2,x3],[y1,y2,y3]]
+define RotatePoints(pts,theta)
+{
+   newX <- []
+   newY <- []
+
+
+  loop(i,Transpose(pts))
+    {
+      ix <- First(i)
+      iy <- Nth(i,2)
+
+	  nx <-  ix* Cos(theta) - iy * Sin(theta)
+      ny <- ix * Sin(theta) + iy * Cos(theta)
+
+      newX <- Append(newX, nx)
+	  newY <- Append(newY, ny)
+	  
+    }
+
+ return [newX,newY]
+}
+
+
+define ReflectPoints(pts)
+{
+   newX <- []
+   newY <- []
+
+
+  loop(i,Transpose(pts))
+    {
+      newX <- Append(newX, -First(i))
+	  newY <- Append(newY, Nth(i,2))
+    }
+
+ return [newX,newY]
+		
+}
+
+
+
+##
+define ZoomPoints(pts,xZoom,yZoom)
+{
+   newX <- []
+   newY <- []
+
+
+  loop(i,Transpose(pts))
+    {
+      ix <- First(i)
+      iy <- Nth(i,2)
+
+	  nx <-  ix* xZoom
+      ny <- iy * yZoom
+
+      newX <- Append(newX, nx)
+	  newY <- Append(newY, ny)
+	  
+    }
+
+ return [newX,newY]
+}
+
+
+
+
+
+
+
+define Plus(x,y,size, width, color)
+{
+   x1 <- -size
+   x2 <- -width/2
+   x3 <- width/2
+   x4 <- size
+
+   y1 <- -size
+   y2 <- -width/2
+   y3 <- width/2
+   y4 <- size
+
+   xs <- [x1,x1,x2,x2,x3,x3,x4,x4,x3,x3,x2,x2]
+   ys <- [y3,y2,y2,y1,y1,y2,y2,y3,y3,y4,y4,y3]
+   x <- Polygon(x,y,xs,ys,color,1)
+   return x
+}
+
+
+## Makes a block E object in a particular direction (1-4).
+## 1 is pointing right;
+## 2 is pointing down;
+## 3 is pointing left;
+## p is pointing up
+
+define BlockE(x,y,h,w,thick,dir,color)
+{
+
+  if(dir == 1 or dir==2)
+{
+  xo <- 1
+} else{
+  xo <- -1
+}
+ 
+  if(dir == 1 or dir == 3)
+  {
+     abase <- x
+     bbase <- y
+  } else {
+
+     abase <- y
+     bbase <- x
+  }
+
+
+	a1 <- abase + xo*(-1)*w/2
+        a2 <- abase+  xo*w/2
+	a3 <- a1+ xo*thick
+	a4 <- a2
+	
+
+	b1 <- bbase-h/2
+    b2 <- bbase+h/2
+    b3 <- b1+thick
+    b4 <- b2-thick
+    b5 <- bbase-thick/2
+    b6 <- bbase+thick/2
+ 
+   as <- [a1,a1,a2,a2,a3,a3,a4,a4,a3,a3,a2,a2]
+   bs <- [b1,b2,b2,b4,b4,b6,b6,b5,b5,b3,b3,b1]
+   if(dir ==1 or dir==3)
+     { 
+       p <- Polygon(x,y,as,bs,color,1)
+     }else{
+	   p <- Polygon(x,y,bs,as,color,1)
+     }
+   return p
+}
+
+
+
+
+
+define MakeStarPoints (radiusOuter, radiusInner, num)
+{
+   pointsX <- []              
+   pointsY <- []              
+   s <-   Sequence(1,num,1)
+   arc <- 2 * 3.14159 / num
+
+   loop(i,s)
+   {
+     pointsX <- Append(pointsX,Cos(i*arc)*radiusOuter)
+     pointsY <- Append(pointsY,Sin(i*arc)*radiusOuter)
+              
+     pointsX <- Append(pointsX,Cos((i+.5)*arc )*radiusInner)
+     pointsY <- Append(pointsY,Sin((i+.5)*arc )*radiusInner)
+
+   }
+
+
+    pointsX <- Append(pointsX,Cos(arc)*radiusOuter)
+    pointsY <- Append(pointsY,Sin(arc)*radiusOuter)
+
+   return  [pointsX,pointsY]
+}
+
+
+
+
+define MakeNGonPoints (radius, num)
+{
+   pointsX <- []              
+   pointsY <- []              
+   s <-   Sequence(1,num,1)
+   arc <- 2 * 3.14159 / num
+
+   loop(i,s)
+   {
+     pointsX <- Append(pointsX,Cos(i*arc)*radius)
+     pointsY <- Append(pointsY,Sin(i*arc)*radius)
+
+   }
+
+
+    pointsX <- Append(pointsX,Cos(arc)*radius)
+    pointsY <- Append(pointsY,Sin(arc)*radius)
+
+   return  [pointsX,pointsY]
+}
+
+
+
+
+define RGBtoHSV(a)
+{
+  if(not IsColor(a))
+   {
+    SignalFatalError("RGBtoHSV(<color>) must take a color object as an argument.") 
+   }
+   min <- Min([a.red,a.green,a.blue])
+   max <- Max([a.red,a.green,a.blue])
+
+   if(min==max)
+   {
+      h <- 0
+      s <- 0
+   }elseif(max==a.red)
+   {
+      h <- Mod(60 * (a.green-a.blue)/(max-min),360)
+   }elseif(max == a.green)
+   {
+      h <-  60 * (a.blue-a.red)/(max-min) + 120
+   } else {
+      h <- 60 * (a.red-a.green)/(max-min)+240
+   }
+
+   if(max==0)
+    {
+       s <- 0
+    }else{
+       s <- (max-min)/max
+    }
+
+   v<-max
+  return [h,s,v]
+}
+
+
+
+define ThickLine2(x1,y1,x2,y2,size,color)
+{
+
+  ##Makes a 'thick' line
+
+  midx <- (x1+x2)/2
+  midy <- (y1+y2)/2
+
+  dx1 <- x1 - midx
+  dx2 <- x2 - midx
+  dy1 <- y1 - midy
+  dy2 <- y2 - midy 
+
+  ##Compute line slope.
+  angle <- GetAngle((x2-x1),(y2-y1))
+  
+  tan1 <- DegToRad(Mod(360+angle+90,360))
+  tan2 <- DegToRad(Mod(360+ angle-90,360))
+
+  
+  #get new '1' points.
+  x1a <- dx1 + size/2 * Cos(tan1)
+  x1b <- dx1 + size/2 * Cos(tan2)
+  y1a <- dy1 + size/2 * Sin(tan1)
+  y1b <- dy1 + size/2 * Sin(tan2)
+
+  x2a <- dx2 + size/2 * Cos(tan1)
+  x2b <- dx2 + size/2 * Cos(tan2)
+  y2a <- dy2 + size/2 * Sin(tan1)
+  y2b <- dy2 + size/2 * Sin(tan2)
+
+  xs <- [x1a,x1b,x2b,x2a]
+  ys <- [y1a,y1b,y2b,y2a]
+
+  
+  return Polygon(midx,midy, xs,ys,color,1)
+}
+
+
+
+##Gets an angle, in degrees, of an X,Y vector
+define GetAngle(dx, dy)
+{
+
+  baseangle <- RadToDeg(ATan(dy/dx))
+  
+  ##Ultimate angle depends on the quadrant, if you use ATN
+  if(dx >=0 and dy >= 0)  ##1st quadrant
+   {
+       ret <- baseangle
+   } elseif(dx<0 and dy>= 0) {         ##2nd quadrant
+       ret <- 180+baseangle 
+   } elseif(dx<0 and dy<0) {          ##3rd quadrant
+       ret <- 180+baseangle
+   } else {                           ##4th quadrant
+       ret <- 360+baseangle
+   }
+
+   return Mod(ret,360)
+}
+
+
+
+
+## This is a simple hack to 'reset' the canvas; blanking
+## anything that had been blitted to it.
+
+define ResetCanvas(canvas)
+{
+ if(not IsCanvas(canvas))
+    {
+	  SignalFatalError("argument <canvas> in ResetCanvas(<canvas>) was not a canvas but " + canvas)
+    }
+  canvas.bgcolor <- canvas.bgcolor
+}
+
+
+## This makes an attneave figure akin to the method described by:
+##
+## Collin, C. A., & Mcmullen, P. A. (2002). Using Matlab to generate
+## families of similar Attneave shapes. Behavior Research Methods
+## Instruments and Computers, 34(1), 55-68.
+##
+
+define MakeAttneave(size,numpoints,minangle, maxangle)
+{
+
+  ##First, sample numpoints xy points
+  pts <- []
+  num <- 0
+  
+
+ while( num < numpoints)
+   {
+    num <- num + 1
+    #Use sampling-and-reject to get points within a circle
+    tryX <- Round((Random()-.5)*size)
+    tryY <- Round((Random()-.5)*size)
+
+    while(Sqrt(tryX^2 + tryY^2) > size/2)
+    {
+      tryX <- Round((Random()-.5)*size)
+      tryY <- Round((Random()-.5)*size)
+    }
+
+   ##Add the point
+   pts <- Append(pts,[tryX,tryY,num])
+
+  }
+
+
+   ##make the hull
+   hull <- Rest(ConvexHull(pts))
+ 
+
+   hullIDs <- Third(Transpose(hull))
+
+ 
+   rem <- Shuffle(Removesubset(pts,hullIDs))
+   
+ 
+   #Now, iteratively add each point in rem to the point which
+   #add the least to the polygon.
+   bad <- []   
+   remlen <- Length(rem)+1
+
+   ##If the remander is not empty and shrinking, keep going.
+   while(Length(rem)>0 and Length(rem) <remlen)
+    {
+
+     loop(i,rem)
+      {
+	    length <- Length(hull)
+        hull <- InsertAttneavePointRandom(hull,i,minangle, maxangle)
+     	##Keep any points not added to the hull for later.
+        if(Length(hull)==length)
+         {
+           bad <- Append(bad,i)
+         }
+      }
+     rem <- bad
+     remlen <- Length(rem)
+    }
+
+   ##If it is bad, recurse
+
+   test <- ValidateAttneaveShape(hull,minangle,maxangle)
+
+   if(Length(rem)>0 or test==0)
+   {
+      hull <-  MakeAttneave(size,numpoints,minangle, maxangle)
+   }
+
+  return hull
+}
+
+
+## compute convex hull through Jarvis 'gift-wrapping' algorithm
+##
+define ConvexHull(pts)
+{
+  ##add a set of indexes to the points.
+
+#  pts <- (Transpose(Append(Transpose(pts), Sequence(1,Length(pts),1))))
+
+
+
+  #reorder based on X coordinate.  The first & last point will
+  #be on the hull.  The last one is easier to use.
+
+
+  pts <- SortBy(pts,First(Transpose(pts)))
+
+  n <- Length(pts)
+  cur <- Nth(pts,n)
+  hull <- [cur]
+  hullIDS <- [n]
+  nextID <- -1
+
+  
+  ##Keep going until you get #1 again.
+  while(nextID != Length(pts))
+  {
+
+    pts <- RemoveSubset(pts,[nextID])
+
+    next <- First(pts)
+    nextID <- 1
+
+   j <- 1
+   loop(i,pts)
+   {
+   ##check to see if any point is better
+
+   x <- ToRight(cur,next,i)
+
+   if(ToRight(cur,next,i) < 0)
+     {
+
+      next <- i
+      nextID <- j
+     }
+
+     j <- j + 1
+   }
+
+   ##Now, next is the rightmost point is determined.
+   ##we can probably trim out the selected point from pts here
+    ##update the basic current/next
+    hull <- Append(hull,next) 
+    hullIDs <- Append(hullIDs,nextID)#not correct
+    cur <- next  #Update to the current 
+
+  }
+
+ return hull
+}
+
+## This inserts the point at a random location, as long as it does not
+## cross any other edges.
+## This is a 'helper' function, and so is not documented externally.
+define InsertAttneavePointRandom(path, point,minangle,maxangle)
+{
+
+   ##Try to insert point into path at each of these 
+   ##locations.  Use the first one that works.
+   rotations <- Shuffle(Sequence(1,Length(path),1))
+
+   loop(try, rotations)
+   {
+
+     path2 <- Rotate(path,try)
+
+     #try inserting at the beginning of the path
+	 prev <- Second(path2)
+         a <-First(path2)
+	 b <- Nth(path2,Length(path2))
+	 next <- Nth(path2,Length(path2)-1)
+
+	 ## first check if it will create any vertices whose angles are
+     ##  out of bounds
+
+
+	 anglea <- RadToDeg(GetAngle3(prev,a,point))
+	 angleb <- RadToDeg(GetAngle3(a,point,b))
+	 anglec <- RadToDeg(GetAngle3(point,b,next))
+	
+
+
+	 if(anglea > minangle and angleb > minangle and anglec > minangle and
+ 	    anglea < maxangle and angleb < maxangle and anglec < maxangle)
+       {
+
+          intersects <- 0
+       } else {
+
+          intersects <- 1
+       }
+   
+
+     #If its inserted between a and b, there are two
+     #segments pa and pb.  Check if pa or pb intersect any
+     #of the line segments in the path. 
+
+     paired <- Transpose([path2, Rotate(path2,1)])
+
+
+     pairs1 <- SubList(paired,2,Length(paired)-1)
+     pairs2 <- SubList(paired,1,Length(paired)-2)
+
+
+
+
+     loop(pair, pairs1)
+      {
+
+	   ps1  <- First(pair)	 
+       ps2  <- Second(pair)
+
+      intA <-  SegmentsIntersect(First(point),Second(point),First(a),Second(a),
+                         First(ps1),Second(ps1),First(ps2),Second(ps2))
+
+
+
+       intersects <- intersects or intA 
+      }
+     loop(pair, pairs2)
+      {
+
+	   ps1  <- First(pair)	 
+       ps2  <- Second(pair)
+       intB <-  SegmentsIntersect(First(point),Second(point),First(b),Second(b),
+                         First(ps1),Second(ps1),First(ps2),Second(ps2))
+						 
+
+ 
+       intersects <- intersects or intB
+      }
+
+
+
+    
+   ##we went through all the segments
+
+   if(not intersects)
+    {
+      break
+    }
+    
+  }
+
+   path <- Insert(path, point,try)
+   return   path
+}
+
+
+
+##gets angle abc by law of cosines
+define GetAngle3(a,b,c)
+{
+   ax <- First(a); ay <- Second(a)
+   bx <- First(b); by <- Second(b)
+   cx <- First(c); cy <- Second(c)
+	
+   sidea <- Sqrt((bx - cx)^2 + (by - cy)^2)
+   sideb <- Sqrt((ax - cx)^2 + (ay - cy)^2)
+   sidec <- Sqrt((ax - bx)^2 + (ay - by)^2)
+
+  angle <-  ACos((sideb^2 - sidea^2 - sidec^2) / (-2*sidea * sidec))
+
+  return angle
+}
+
+## Determines whether c is 'to the right' of a,b, essentially by 
+## computing the determinant.
+define ToRight(p1,p2,p3)
+{
+  a <- First(p1)
+  d <- Second(p1)
+  b <-First(p2)
+  e <-Second(p2)
+  c <- First(p3)
+  f <- Second(p3)
+
+ tmp <- (a*e -a*f + b*f-b*d+c*d-c*e)
+
+
+  if(tmp >     0.0000000001)
+  {
+   ret <- 1
+  } elseif(tmp< - 0.0000000001)
+  {
+   ret <- -1
+  } else {
+   ret <- 0
+  }
+
+ return ret
+}
+
+
+define SegmentsIntersect(x1,y1,x2,y2, a1,b1,a2,b2)
+{
+    dx <- x2 - x1
+    dy <- y2 - y1
+    da <- a2 - a1
+    db <- b2 - b1
+
+    #Lines are parallel
+    if((da * dy - db * dx) == 0 )
+        {
+            intersect <- 0         
+
+        } else {
+
+        #parameterize the two vectors.   
+        s <- (dx * (b1 - y1) + dy * (x1 - a1)) / (da * dy - db *  dx)
+        t <- (da * (y1 - b1) + db * (a1 - x1)) / (db * dx - da *  dy)
+        #Don't count intersections at just one edge: 
+        intersect <- (s>0.0001) and (s < .9999) and (t > 0.0001) and (t < .9999)
+        }
+
+   #    point of intersection is: (x1 + t * dx, y1 + t * dy)
+  
+return intersect
+}
+
+## This is a helper function, and won't be documented 
+## externally.
+define ValidateAttneaveShape(shape,minAngle,maxAngle)
+{
+
+
+
+  angles <- Transpose([Rotate(shape,-1), shape, Rotate(shape,1)])
+  good <- 1
+  loop(i, angles)
+  {
+   angle <- RadToDeg(GetAngle3(First(i),Second(i),Third(i)))
+
+   if(not(angle > minAngle and angle < maxangle))
+    {
+     good <- 0
+    }
+  }
+
+  if(good)
+  {
+   edges <- angles
+   loop(i,Sequence(1,Length(shape)-1,1))
+   {
+
+
+	  testedge <- First(edges)
+      t1 <- First(testedge)
+      t2 <- Second(testedge)
+	  a1 <-First(t1)
+      b1 <- Second(t1)
+      a2 <- First(t2)
+      b2 <- Second(t2)
+
+      edges <- SubList(edges,2,Length(edges))
+      loop(edge , edges)
+      {
+	      p1 <- First(edge)
+	      p2 <- Second(edge)
+          x1 <- First(p1)
+          y1 <- Second(p1)
+          x2 <- First(p2)
+          y2 <- Second(p2)
+         
+	     if(SegmentsIntersect(x1,y1,x2,y2, a1,b1,a2,b2))
+          {
+              good <- 0
+          }
+
+       if(good == 0)
+       {
+        break 
+       }
+
+      }
+
+    if(good == 0)
+     {
+      break 
+     }
+
+   }
+  }
+  return good
+}
+
+
+
+
+## This function  creates a 'gabor patch'.  Because it is in pebl code, it is
+## fairly slow, and will take 1-5 seconds to create a reasonable-sized patch.
+##  size is the size, in pixels, of the image
+##  freq is the number of cycle in the image (not necessarily visible)
+##  sd is the standard deviation of the gaussian envelope.  Too big will clip to size square
+##  angle of the angle of rotation of the grating, in radians
+##  phase is the phase shift of the grating, in radians
+##  bglev is the grey level (between 0 and 255) that the grating gets faded into.  darker (smaller) values
+##      seem to avoid some noticeable clipping artifacts.
+
+define MakeGabor(size,win,freq,sd, angle,phase,bglev)
+{
+
+  if((not IsInteger(size))) 
+    {
+       SignalFatalError("In MakeGabor(<size>,<freq>,<sd>,<angle>,<phase>,<bglev>); <size>  must be an integer")
+    }
+
+  if((not IsNumber(freq))) 
+    {
+       SignalFatalError("In MakeGabor(<size>,<freq>,<sd>,<angle>,<phase>,<bglev>); <freq>  must be an number")
+    }
+  if((not IsNumber(sd)) )
+    {
+       SignalFatalError("In MakeGabor(<size>,<freq>,<sd>,<angle>,<phase>,<bglev>); <sd>  must be an number")
+    }
+  if((not IsNumber(angle)) )
+    {
+       SignalFatalError("In MakeGabor(<size>,<freq>,<sd>,<angle>,<phase>,<bglev>); <angle>  must be an number")
+    }
+  if((not IsNumber(phase))) 
+    {
+       SignalFatalError("In MakeGabor(<size>,<freq>,<sd>,<angle>,<phase>,<bglev>); <phase>  must be an number")
+    }
+  if((not IsInteger(bglev) or bglev>255 or bglev<0) )
+    {
+       SignalFatalError("In MakeGabor(<size>,<freq>,<sd>,<angle>,<phase>,<bglev>); <bglev>  must be an integer between 0 and 255.")
+    }
+
+ 
+  ##Create the backing canvas, and find its middle
+  col <- MakeColor("grey50")  #This color doesn't really matter.	
+  canvas <- MakeCanvas(size,size,col)
+  center <- size/2
+  AddObject(canvas,win)
+  Move(canvas, size/2,size/2)
+  Draw()
+  ##Find max of 2D normal density  
+  normmax <- NormalDensity(0)^2
+
+  ##Precompute sinetheta and cosine -that, for use in rotation matrix
+  ctheta <-  Cos(-angle)
+  stheta <-  Sin(-angle)
+
+
+   ##loop through the pixels of the canvas
+   i <- 0
+   while(i<size)
+   {
+     j <- 0
+
+     #x is the x to sample in a sine wave
+     x <-  i/size*freq-center
+
+	 while(j < size)
+      {
+ 	  #y is the y to sample in a sine wave
+        y <-  j/size*freq-center     
+
+        ## Apply rotation matrix to x and y.  We won't actually need newx
+		## newx <- x*ctheta + y*stheta
+        newy <- -x * stheta + y*ctheta
+
+        ##Compute cosine of value
+        leva <-(Cos(newy*6.283185 +phase)+1)/2  ##scale cosine to 0..1
+
+        ##The gaussian window
+        levb <- (NormalDensity((i-center)/sd) *  NormalDensity((j-center)/sd))/normmax
+		levb <- levb * (levb>.01)
+
+        ##Mix the two:
+        lev <- Round((leva*levb*255 +(1-levb)*bglev))
+
+        #Set a color to the proper level
+        col.red <-lev
+		col.green <- lev
+		col.blue <- lev
+          
+        #Paint that pixel
+        SetPoint(canvas,i,j,col)
+
+
+        j <- j + 1
+      }
+     i <- i + 1
+   }
+
+
+  return canvas
+}
+
+
+
+
+# ##  Make num points within region xmin.xmax,ymin.ymax having
+# ##  centers no closer than tol.  Do as good as you can in limit steps
+# ##
+ define NonOverlapLayout(xmin, xmax, ymin, ymax, tol, num)
+ {
+
+
+    ##Note that it is possible to arrange the situation 
+    ## so that the distribution will never be satisfied.  So, lets
+    ## set up a 'limit' at which point we give up and return the best
+    ## we have so far.
+    limit <- 100
+
+   ## First, just initialize num points.
+   pts <- []
+   i <- 1
+   while(i <= num)
+    {
+
+      x <- xmin + Random()*(xmax-xmin)
+      y <- ymin + Random()*(ymax-ymin)
+      PushOnEnd(pts,[x,y])
+      i <- i + 1
+    }
+
+   #Now, check for the minimum distance between two points.
+    tries <- 1
+    minpair <-  GetMinDist(pts)
+
+
+    ##Move one point at a time
+    while(First(minpair) < tol and tries < limit)
+    {
+
+      pt1id <- Nth(minpair,2)
+      pt2id <- Nth(minpair,3)
+
+	
+      pt1 <- Nth(pts,pt1id)
+      pt2 <- Nth(pts,pt2id)
+
+
+      #resample one 'bad' points
+      pt1 <-   [ xmin + Random()*(xmax-xmin),
+                   ymin + Random()*(ymax-ymin) ]
+
+  
+      ##Reassemble pts
+      tmp <- RemoveSubset(pts,[pt1id])
+
+      ##See if this configuration is an improvement
+      testpts <- Merge(tmp,[pt1])
+      minpairtest <-  GetMinDist(testpts)
+
+      ##If we've made an improvement, use it, otherwise abandon it.
+      if(First(minpairtest) >= First(minpair))
+      {
+         minpair <- minpairtest
+         pts <- testpts
+      }
+      tries <- tries + 1
+
+  
+    }
+
+
+  
+   return Shuffle(pts)
+ }
+
+
+
+# define LayoutGrid(xmin,xmax,ymin,ymax, wide,tall, horvert)
+# {
+
+#     xskip <- (xmax-xmin)/(wide+1)
+#     yskip <- (ymax-ymin)/(tall+1)
+
+#     pts <- []
+
+
+
+#     if(horvert == 1)
+#      {
+#     x <- xmin+xskip
+#       loop(i,Sequence(1,wide,1))
+#        {   
+#          y <- ymin+yskip
+#         loop(j,Sequence(1,tall,1))
+#          {
+
+#             pts <- Append(pts, [x,y])
+#             y <- y + yskip
+#          }
+#          x <- x + xskip
+#        }
+#     } else {
+
+#       y <- ymin+yskip
+#       loop(i,Sequence(1,tall,1))
+#        {   
+#          x <- xmin+xskip
+#         loop(j,Sequence(1,wide,1))
+#          {
+
+#             pts <- Append(pts, [x,y])
+#             x <- x + xskip
+#          }
+#         y <- y + yskip
+#        }
+
+
+#     }
+
+#   return pts
+  
+# }
+
+define GetMinDist(pts)
+{
+   len <- Length(pts)
+   index1 <- 1
+   mindist <- Dist(First(pts),Nth(pts,2))
+   id1 <- 1
+   id2 <- 2
+ 
+   loop(i,pts)
+   {
+     pt1 <- i
+     index2 <- index1 + 1
+ 
+
+     if(index2 <= len)
+      {
+      rest <- SubList(pts,index2, Length(pts))
+      loop(j, rest)
+       { 
+        d <- Dist(i,j)
+
+        if(d < mindist)
+        {
+          mindist <- d
+          id1 <- index1
+          id2 <- index2
+        }
+
+        index2 <- index2 + 1
+      }
+      }
+     index1  <- index1 + 1
+   }
+
+   return [mindist,id1,id2]
+}
+
+
+ define LayoutGrid(xmin,xmax,ymin,ymax, tall, wide, vertical)
+ {
+     xskip <- (xmax-xmin)/(wide+1)
+     yskip <- (ymax-ymin)/(tall+1)
+
+
+
+     ##Make the layout grid as a matrix first, 
+     ## each sublist specifying a row.
+     pts <- []
+      x <- xmin+xskip
+      loop(i,Sequence(1,wide,1))
+        { 
+         line <- []    
+          y <- ymin+yskip
+         loop(j,Sequence(1,tall,1))
+          {
+             line <- Append(line, [x,y])
+             y <- y + yskip
+          }
+          x <- x + xskip
+	  pts <- Append(pts,line)
+        }
+
+      ##Transpose if  horizontal:
+     if(vertical == 0)
+      {
+         pts <- Transpose(pts)
+      }
+
+   #Return the layout.
+   return FlattenN(pts,1)
+  }
+
+
+
+# define LayoutGrid2(high,across,centerx,centery,width,height)
+# {
+
+#      points <- []
+#      i <- 1
+
+#      dx <- width/(across-1)
+# 	 dy <- height/(high-1)
+#      x <- centerx - width/2
+#      y <- centery - height/2
+#      while(i <= high)
+#       {
+
+#  	    j <- 1 
+#         x <- centerx-width/2
+#         while(j <= across)
+#         { 
+#           j <- j + 1
+#  		  points <- Append(points,[x,y])
+# 		  x <- x + dx
+#         }
+# 	   y <- y + dy
+#        i <- i + 1
+#       }
+   
+
+#   return points
+# }
+
+
+define LandoltRing(outer,inner, angle, lgap, color, bgcolor)
+{ 
+
+    degree <- DegtoRad(angle)
+
+ 
+    centerX <- Ceiling(outer/2+1)
+    centerY <- Ceiling(outer/2+1)
+
+     back <- MakeCanvas(outer+2,outer+2,bgcolor)
+
+
+     
+     circ <-    Circle(centerX, centerY,Floor(outer/2),color,1)
+     AddObject(circ,back)
+     Draw(back)
+
+     circ.r <- inner/2
+     circ.color <- bgcolor
+
+
+     x <- outer * Cos(degree)
+     y <- outer * Sin(degree)
+     line <- ThickLine(centerX,centerY, centerx+x,centery+y,lgap,bgcolor)
+     AddObject(line,back)
+     Draw(back)
+     RemoveObject(circ,back)
+     RemoveObject(line,back)
+     return back
+}
+
+
+define KaniszaSquare(squaresize, circleradius,fg,bg)
+{
+
+     #The proper size of the whole thing is depends on both the square and the circles
+    
+    size <- squaresize + 2*circleradius
+    centerX <- Ceiling(size/2)+1
+    centerY <- Ceiling(size/2)+1
+
+    back <- MakeCanvas(size+2,size+2,bg)
+
+
+    circX <- [centerX+squaresize/2,centerX+squaresize/2,centerX-squaresize/2,centerX-squaresize/2]     
+    circY <- [centerY+squaresize/2,centerY-squaresize/2,centerY+squaresize/2,centerY-squaresize/2]     
+
+    circ <-    Circle(centerX, centerY,circleRadius,fg,1)
+    AddObject(circ,back)
+    loop(i,Transpose([circX,circY]))
+     {
+         Move(circ,First(i),Second(i))
+         Draw(back)
+     }
+
+     square <- Square(centerX,centerY,squareSize,bg,1)
+     AddObject(square,back)
+     Draw(back)
+
+     RemoveObject(circ,back)
+     RemoveObject(square,back)
+     return back
+}
+
+
+
+
+
+
+
+define KaniszaPolygon(points, circTF, circleradius,fg,bg,show)
+{
+
+     #The proper size of the whole thing is depends on both the square and the circles
+     tp <- Transpose(points)
+     xs <-  First(tp)
+     ys <- Second(tp)
+
+    minX <- Min(xs)
+    maxX <- Max(xs)
+    minY <- Min(ys)
+    maxY<-  Max(ys)
+
+    sizeX <- maxX-minX + 2*circleradius
+    sizeY <- maxY-minY + 2*circleradius
+
+    centerX <- Ceiling(sizeX/2)+1
+    centerY <- Ceiling(sizeY/2)+1
+
+    back <- MakeCanvas(sizeX+2,sizeY+2,bg)
+
+    tmp <- Transpose([xs,ys,circTF])
+    circ <-    Circle(0,0,circleRadius,fg,1)
+    AddObject(circ,back)
+
+    loop(i,tmp)
+     {
+         if(Third(i))
+          {
+             Move(circ,First(i)-minX+circleRadius,Second(i)-minY+circleRadius)
+             Draw(back)
+          }
+     }
+      RemoveObject(circ,back)
+
+     poly <- Polygon(circleRadius-minX,circleRadius-minY,xs,ys,bg,1)
+     AddObject(poly,back)
+     Draw(back)
+     if(show)
+      {
+       poly <- Polygon(circleRadius-minX,circleRadius-minY,xs,ys,fg,0)
+       AddObject(poly,back)
+       Draw(back)
+      }
+
+     RemoveObject(circ,back)
+     RemoveObject(poly,back)
+     return back
+}
+
+
+
+define MakeGraph(data,xsize,ysize,x,y)
+{
+  Print("MakeGraph: data=" + data)
+  dataymax <- Max(data)
+  dataymin <- Min(data)
+  Print("MakeGraph: dataymax=" + dataymax + " dataymin=" + dataymin)
+  gutter <- 10
+
+
+  canv <- MakeCanvas(xsize,ysize,MakeColor("white"))
+  Move(canv,x,y)
+  col <- MakeColor("black")
+  xdelta <- (xsize-2*gutter)/(Length(data)-1)
+  xmin <- gutter
+  ##ymin is reversed
+  ymin <- ysize - gutter ##lower part, which is a bigger y value
+  ymax <- gutter         ##upper part, which is a smaller y value.
+
+  Print("MakeGraph: xdelta=" + xdelta + " xmin=" + xmin + " ymin=" + ymin + " ymax=" + ymax)
+
+  stuff <- []
+  ##draw base line
+  horiz <- Line(xmin,ymin,xsize-2*gutter,0,MakeColor("black"))
+  vert <- Line(xmin,ymin,0, -ysize+gutter,MakeColor("black"))
+  PushOnEnd(stuff,horiz)
+  PushOnEnd(stuff,vert)
+
+
+  yrange <- -ymax+ymin
+  Print("MakeGraph: yrange=" + yrange + " Sequence(0,dataymax,1)=" + Sequence(0,dataymax,1))
+  loop(i,Sequence(0,dataymax,1))
+  {
+   Print("MakeGraph tick loop: i=" + i)
+   tick <- Line(xmin,ymin-(i-dataymin)/dataymax * yrange,
+                    -5,0,MakeColor("black"))
+   AddObject(tick,canv)
+   PushOnEnd(stuff,tick)
+  }
+
+ AddObject(horiz,canv)
+ AddObject(vert,canv)
+
+  Print("MakeGraph: Starting data loop, Length(data)=" + Length(data))
+  lines <- []
+  index <- 0
+  loop(i, data)
+  {
+   Print("MakeGraph data loop: index=" + index + " i=" + i + " xmin+xdelta*index=" + (xmin+xdelta*index))
+    line <- Line(xmin+xdelta*index,ymin,0, - (i-dataymin)/dataymax * yrange,
+                             col)
+    Print("MakeGraph: Line created, about to AddObject")
+    AddObject(line,canv)
+
+    PushOnEnd(lines,line)
+    Draw(line)
+    index <- index  +1
+  }
+
+  obj <- MakeCustomObject("customgraph")
+  obj.stuff <- stuff
+  obj.lines <- lines
+  
+  obj.canv <- canv
+  obj.Draw <- "DRAWObject"
+  obj.AddObject <- "ADDOBJECTX"
+  obj.removeobject <- "RemoveObjectX"
+  obj.Move <- "MOVEOBJECTX"
+ 
+
+   obj.hide <- "HideObject"
+   obj.show <- "ShowObject"
+ 
+ return obj
+}
+
+
+
+
+
+
+define MakeTable(data,header,width,height,fontsize,fgcol,bgcol,layout:1)
+{
+
+    tab <- MakeCustomObject("table")
+    canv <- MakeCanvas(width,height,bgcol)
+    font <- MakeFont(gPEBLBaseFont,0,fontsize,fgcol,bgcol,0)
+    fonth <- MakeFont(gPEBLBaseFont,1,fontsize+2,fgcol,bgcol,0)
+
+    nrows <- Length(data)
+    ncols <- Length(First(data))
+    
+    ui <- []
+
+    rowsize <- Floor((height-10)/(nrows+1))
+    colsize <- Floor((width-10)/(ncols))
+
+
+    toprule <- Line(4,2,width-8,0,fgcol); AddObject(toprule,canv)
+    midrule <- Line(4,2+rowsize,width-8,0,fgcol); AddObject(midrule,canv)
+    bottomrule <- Line(4,height-2,width-8,0,fgcol); AddObject(bottomrule,canv)
+    
+    PushOnEnd(ui,toprule)
+    PushOnEnd(ui,midrule)
+    PushOnEnd(ui,bottomrule)
+
+
+     widths <- Repeat(0,Length(header))
+
+
+
+    table <- []
+    tabrow <- []    
+    ##Add the headers.
+    col <- 1
+    loop(i,header)
+    {
+
+       if(not IsList(i))
+       {
+         i <- [i]
+       }
+
+        ##do multi-row headers
+        numrowsinheader <- Length(i)
+	headerrowheight <- rowsize/(numrowsinheader+1)
+        tmp2 <- []
+	  y <- 2 
+         loop(ii,i)
+	 {
+   	    y <- y +  headerrowheight
+           tmp <- MakeLabel(ii+"",fonth)
+           AddObject(tmp,canv)
+           Move(tmp,colsize/2+ (col-1)*colsize,y)
+	   PushOnEnd(tmp2,tmp)
+           SetElement(widths,col,Max([Nth(widths,col), tmp.width]))
+         }
+	 
+       PushOnEnd(tabrow,tmp2)
+       col <- col + 1
+    }
+
+   PushOnEnd(table,tabrow)
+   
+    ##add the rest
+    rowid <- 1
+    loop(row,data)
+    {
+
+
+     tabRow <- []
+     colid <- 1
+     loop(i,row)
+      {
+        tmp <- MakeLabel(i+"",font)
+        AddObject(tmp,canv)
+        x <- colsize/2+(colid-1)*colsize
+	y <- 2+rowid*rowsize+rowsize/2
+        Move(tmp,x,y)
+	
+        PushOnEnd(tabRow,tmp)
+        SetElement(widths,colid,Max([Nth(widths,colid), tmp.width]))
+        colid <- colid + 1
+      
+       }
+     rowid <- rowid + 1
+     PushOnEnd(table,tabRow)
+     }
+
+    PushOnEnd(ui,table)
+   
+
+
+
+    ################################################################### 
+     ##Now, we might re-layout the columns based on their relative widths
+if(layout)
+   {
+    totalwidth <- Sum(widths)
+
+   if(layout==1)##totalwidth>width)
+   {
+      colwidths <- VecTimes(widths, Repeat(1/totalwidth*width,Length(widths)))
+
+   } else{
+     ###  totalwidth is too small. Pad each column equally.
+
+     margin <- Repeat((width-totalwidth)/Length(widths),Length(widths))
+     colwidths <- VecSum(widths,margin)
+ 
+   }
+
+    colhalf <- VecTimes(colwidths,Repeat(-.5,Length(widths)))
+    rightsides <- CumSum(colwidths)
+    centers <- VecSum(rightsides,colhalf)
+
+    loop(row,table)
+    {
+      colID <- 1
+      loop(cell,row)
+      {
+          if(not IsList(cell))
+	  {
+             cell <- [cell]
+	  }
+
+        loop(i,cell)
+         {
+	     Move(i,Nth(centers,colID),i.y)
+         }
+
+
+       colID <- colID + 1
+   
+      }
+    }
+  }
+
+
+
+    tab.Draw <- "DrawObject"
+    tab.move <- "MoveObjectX"
+    tab.addobject <- "AddObjectX"
+    tab.removeobject <- "RemoveObjectX"
+    tab.hide <- "HideObject"
+    tab.show <- "ShowObject"
+ 
+    tab.width <- width
+    tab.height <- height
+    tab.data <- data
+    tab.canv <- canv
+
+    tab.ui <- ui
+    return tab
+}
+
+
+
+
+##These are all useful for graphical custom objects where they need to draw everything on a canvas.
+
+define DrawObject(obj)
+{
+
+  Draw(obj.canv)
+   
+}
+
+define MoveObjectX(obj,x,y)
+{
+  Move(obj.canv,x,y)
+  obj.x <- x
+  obj.y <- y
+}
+
+define HideObject(obj)
+{
+   Hide(obj.canv)
+}
+
+define ShowObject(obj)
+{  Show(obj.canv)
+}
+
+
+define AddObjectX(obj,win)
+{
+
+   :AddObject(obj.canv,win)
+}
+
+
+define RemoveObjectX(obj,win)
+{
+   :RemoveObject(obj.canv,win)
+}

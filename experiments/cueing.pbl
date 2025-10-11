@@ -1,0 +1,169 @@
+define Start(par)
+{
+## (c) 2005 Gulab Parab (gparab at wesleyan dot edu) 
+##          and Shane T. Mueller (stmuelle at indiana dot edu)
+## Part of the PEBL Project 
+## http://pebl.sourceforge.net
+## This task implements a classic Spatial Cueing paradigm
+## (AKA Posner's Cueing Task), in which a spatial location (left
+## or right) is cued, and then a simple reaction must be made
+## when the stimulus appears.  The cue is either left, right, or both, 
+## and the left/right cues can be valid or invalid.
+
+#####################################################################
+## Execute pebl with the -v command-line to specify subject number
+## If no -v option is produced, the code sets subject number to 0.
+#####################################################################
+
+  gFileOut <-FileOpenAppend("cueing-" +gSubNum+ ".txt")
+
+
+######################################################################
+## Specify the number of times each type of stimulus is presented.
+######################################################################
+
+ ##The left stimuli:
+    leftC <- 8    #Correct Cue
+    leftI <- 2    #Invalid Cue
+    leftN <- 5    #Neutral Cue
+
+ ##The right stimuli:
+    rightC <- 8   #Correct Cue
+    rightI <- 2   #Invalid Cue
+    rightN <- 5   #Neutral Cue
+
+#############################################
+## Randomize the stimuli for presentation.
+#############################################
+
+   ##Generate the stimuli: 0 means left, 2 means right
+   stim <- Merge(Repeat(0, leftC + leftI + leftN) , Repeat(2, rightC + rightI + rightN))
+ 
+   ##Generate the cues: 0 means left, 2 means right, 1 means center.
+   cues <- Flatten([Repeat(0,leftC), Repeat(2,leftI), Repeat(1,leftN),
+                    Repeat(2,rightC), Repeat(0, rightI), Repeat(1,rightN)])
+   stimSequence <- Shuffle(Transpose([stim,cues]))
+
+######################################
+## Set up the basic  display stuff.
+######################################
+
+  
+    font <- MakeFont("VeraMono.ttf",0,22,MakeColor("black"), MakeColor("white"),0)
+
+
+#################################################################
+## Define gLabel and gWin globally so that Trial can use them.
+#################################################################
+
+
+    gLabel <- MakeLabel("", font)
+    gStimLabel <-MakeLabel("X",font)
+    gWin <- MakeWindow("grey")
+
+    AddObject(gLabel, gWin)
+    Move(gLabel,300,200)
+    AddObject(gStimLabel, gWin) 
+    Hide(gStimLabel)
+
+
+###########################################
+## Create the text box for instructions.
+###########################################
+
+
+        font2 <-MakeFont("Vera.ttf", 0, 16, MakeColor("black"), MakeColor("grey"), 1)
+
+    inst <-  "The following task will involve " + ( leftC + leftI + rightC + rightI + leftN + rightN ) + " trials.  At the beginning of each trial, a fixation cross will appear, accompanied by a left arrow ([<+ ]), a right arrow ([ +>]), or both ([<+>]).  The stimulus 'X' will appear a short time later either to the left or to the right of the fixation area.  The arrow will usually tell you where the stimulus will appear (" + Round(100*((rightC +leftC )/(leftC+leftI + rightC + rightI))) + "% of the time the stimulus 'X' will appear in the direction of the arrow.  If the arrows point both ways, there is an equal chance the stimulus will appear to the left or right.  Your goal is to fixate on the +, without moving your eyes from it, and respond by pressing the 'A' key as soon as you see the stimulus X.  Press any key to begin."
+
+    tb <- MakeTextBox( inst, font2, 500, 350)
+    AddObject(tb, gwin)
+    Move(tb,70,75)
+    Draw()
+    WaitForAnyKeyPress()
+
+    Hide(tb)
+    Draw()
+    Wait(2000 + RandomDiscrete(1000))
+
+
+########################################
+## Present the trial sequence.
+########################################
+   
+
+    trialnum <- 1
+    loop(i, stimSequence)
+    {
+    FilePrint_(gFileOut,gSubNum + " " + trialnum + " ")
+    Trial(First(i), Nth(i,2))
+    trialnum <- trialnum + 1
+    }
+
+
+####################################
+## Create the debriefing message.
+####################################
+
+    SetText(tb, " 
+
+
+
+            Thanks for participating in this experiment! You may now leave.")
+
+    Show(tb)
+    Draw()
+    FileClose(gfileout)
+
+    WaitForAnyKeyPress()
+}
+
+
+define Trial(stim, cue)
+{   
+
+   ## Determine what the fixation/cue should look like
+    if(cue == 0)
+        {
+     text <- "[<+ ]"
+    }else{
+         if(cue == 1)
+     { 
+       text  <- "[<+>]"
+     }else{
+       text  <- "[ +>]"
+     }
+    }
+        
+     ##Figure out the xposition of the stimulus; whether to the 
+     ##left or right of the fixation.
+    xpos <- 200 + 100*stim
+    Move(gStimLabel,xpos,200)
+        Draw()
+
+        ##Draw the fixation/cue
+        SetText(gLabel,text)
+        Wait(300)
+        Draw()
+
+        ##Calculate a random delay, and then display the stimulus.
+    delay <- RandomDiscrete(750)
+        Wait(750 + delay)
+    Show(gStimLabel)
+        Draw()
+        start <- GetTime()
+
+    ##Get the response
+        response <- WaitForKeyPress("A")
+        end <- GetTime()
+        SetText(gLabel,"")
+        Hide(gStimLabel)
+        Draw()
+
+        #Record the data
+    FilePrint(gFileOut, cue + " " + stim + " " + delay + " " + (end - start))
+        Wait(100)
+ }
+
+
+

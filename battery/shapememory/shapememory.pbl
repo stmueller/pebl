@@ -1,0 +1,262 @@
+## Shape Memory Test
+##
+## A test where participants see a series of shapes and must click them
+## in the order they were presented.
+##
+
+define Start(p)
+{
+  ## Set script name
+  gScriptname <- "Shape Memory Test"
+
+  ## Initialize window
+  gSleepEasy <- 1
+  gWin <- MakeWindow("grey40")
+
+  ## Define parameters
+  parpairs <- [["presentationTime", 2500],
+               ["shapeSize", 100],
+               ["minLength", 2],
+               ["maxLength", 5],
+               ["repetitions", 2]]
+
+  gParams <- CreateParameters(parpairs, gParamFile)
+
+  ## Show cursor for clicking
+  ShowCursor(1)
+
+  ## Get subject number
+  if(gSubNum + "" == "0")
+  {
+    gSubNum <- GetSubNum(gWin)
+  }
+
+  ## Create data file
+  gFileOut <- GetNewDataFile(gSubNum, gWin, "shapememory", "csv",
+    "subnum,trial,block,length,correct_order,response_order,is_correct,num_correct_from_start,total_time_ms")
+
+  ## Instructions
+  inst <- "Shape Memory Test" + CR(2) + "You will see a series of shapes appear one at a time." + CR(1) + "Then all shapes will appear on the screen." + CR(1) + "Click on them in the order you saw them." + CR(2) + "We will start with some practice trials." + CR(2) + "Click OK to begin."
+  MessageBox(inst, gWin)
+
+  ## PRACTICE TRIALS - one trial at minLength-1, minLength, and minLength+1
+  practiceLengths <- []
+  if(gParams.minLength > 2)
+  {
+    practiceLengths <- Append(practiceLengths, gParams.minLength - 1)
+  }
+  practiceLengths <- Append(practiceLengths, gParams.minLength)
+  practiceLengths <- Append(practiceLengths, gParams.minLength + 1)
+
+  trialNum <- 1
+
+  loop(length, practiceLengths)
+  {
+    result <- Trial(trialNum, length, gParams.presentationTime, gParams.shapeSize, gWin)
+
+    ## Extract results
+    clickOrder <- First(result)
+    isCorrect <- Second(result)
+    numCorrectFromStart <- Third(result)
+    totalTime <- Fourth(result)
+
+    ## Save data
+    correctOrder <- Sequence(1, length, 1)
+    FilePrint(gFileOut, gSubNum + "," + trialNum + ",practice," + length + "," +
+              ListToString(correctOrder) + "," + ListToString(clickOrder) + "," +
+              isCorrect + "," + numCorrectFromStart + "," + totalTime)
+
+    ## Provide feedback
+    if(isCorrect)
+    {
+      feedback <- "Correct: " + numCorrectFromStart + "/" + length
+    } else {
+      feedback <- "Incorrect: " + numCorrectFromStart + "/" + length
+    }
+    MessageBox(feedback, gWin)
+    Draw()
+
+    trialNum <- trialNum + 1
+    Wait(500)
+  }
+
+  ## Instructions for main test
+  inst <- "Practice complete!" + CR(2) + "The main test will now begin." + CR(1) + "You will complete trials of varying difficulty." + CR(2) + "Click OK to continue."
+  MessageBox(inst, gWin)
+
+  ## MAIN TEST BLOCK - repetitions trials each from minLength to maxLength in ascending order
+  testLengths <- []
+  loop(len, Sequence(gParams.minLength, gParams.maxLength, 1))
+  {
+    testLengths <- Merge(testLengths, Repeat(len, gParams.repetitions))
+  }
+
+  loop(length, testLengths)
+  {
+    result <- Trial(trialNum, length, gParams.presentationTime, gParams.shapeSize, gWin)
+
+    ## Extract results
+    clickOrder <- First(result)
+    isCorrect <- Second(result)
+    numCorrectFromStart <- Third(result)
+    totalTime <- Fourth(result)
+
+    ## Save data
+    correctOrder <- Sequence(1, length, 1)
+    FilePrint(gFileOut, gSubNum + "," + trialNum + ",test," + length + "," +
+              ListToString(correctOrder) + "," + ListToString(clickOrder) + "," +
+              isCorrect + "," + numCorrectFromStart + "," + totalTime)
+
+    ## Provide feedback
+    if(isCorrect)
+    {
+      feedback <- "Correct: " + numCorrectFromStart + "/" + length
+    } else {
+      feedback <- "Incorrect: " + numCorrectFromStart + "/" + length
+    }
+    MessageBox(feedback, gWin)
+    Draw()
+
+    trialNum <- trialNum + 1
+    Wait(500)
+  }
+
+  ## Debrief
+  MessageBox("Test complete!" + CR(2) + "Thank you for participating.", gWin)
+}
+
+## Trial function - runs a single trial
+define Trial(trialNum, numShapes, presTime, shapeSize, win)
+{
+  ## Record start time
+  startTime <- GetTime()
+
+  ## Create the shapes (stored in presentation order)
+  shapes <- []
+  circles <- []
+  circleRadius <- shapeSize * 0.6
+
+  loop(i, Sequence(1, numShapes, 1))
+  {
+    ## Create Attneave shape with 8-12 corners
+    numCorners <- 8 + RandomDiscrete(5)
+    shapePoints <- Transpose(MakeAttneave(shapeSize, numCorners, 25, 150))
+       
+    ## MakeAttneave returns [xcoords, ycoords]
+    xcoords <- First(shapePoints)
+    ycoords <- Second(shapePoints)
+
+    ## Create grey circle background
+    circ <- Circle(gVideoWidth/2, gVideoHeight/2, circleRadius, MakeColor("grey30"), 1)
+
+    ## Create dark red polygon from points
+    poly <- Polygon(gVideoWidth/2, gVideoHeight/2, xcoords, ycoords, MakeColor("darkred"), 1)
+
+    circles <- Append(circles, circ)
+    shapes <- Append(shapes, poly)
+  }
+
+  ## PHASE 1: Present shapes sequentially
+  loop(i, Sequence(1, numShapes, 1))
+  {
+    circ <- Nth(circles, i)
+    shape <- Nth(shapes, i)
+    AddObject(circ, win)
+    AddObject(shape, win)
+    Draw()
+    Wait(presTime)
+    RemoveObject(shape, win)
+    RemoveObject(circ, win)
+    Draw()
+    Wait(200)  ## Brief ISI
+  }
+
+  ## PHASE 2: Show all shapes in a single row
+  ## Calculate positions for horizontal layout
+  spacing <- (gVideoWidth - 100) / (numShapes + 1)
+  yPos <- gVideoHeight / 2
+
+  ## Shuffle the display order
+  displayOrder <- Shuffle(Sequence(1, numShapes, 1))
+
+  ## Place shapes in a row from left to right in shuffled order
+  loop(i, Sequence(1, numShapes, 1))
+  {
+    shapeIdx <- Nth(displayOrder, i)
+    circ <- Nth(circles, shapeIdx)
+    shape <- Nth(shapes, shapeIdx)
+
+    xPos <- spacing * i
+
+    circ.x <- xPos
+    circ.y <- yPos
+    shape.x <- xPos
+    shape.y <- yPos
+
+    AddObject(circ, win)
+    AddObject(shape, win)
+  }
+
+  Draw()
+
+  ## PHASE 3: Collect clicks in order
+  clickedOrder <- []
+  clickedIndices <- []
+  shapeIDs <- Sequence(1, numShapes, 1)
+
+  loop(click, Sequence(1, numShapes, 1))
+  {
+    ## Wait for mouse click - use circles for click detection
+    clickedIdx <- WaitForClickOnTarget(circles, shapeIDs)
+
+    ## Check if already clicked
+    if(not IsMember(clickedIdx, clickedIndices))
+    {
+      ## Record the click
+      clickedOrder <- Append(clickedOrder, clickedIdx)
+      clickedIndices <- Append(clickedIndices, clickedIdx)
+
+      ## Get the shape and change color to show it was clicked
+      clickedShape <- Nth(shapes, clickedIdx)
+      clickedShape.color <- MakeColor("grey50")
+      Draw()
+    }
+  }
+
+  ## Clean up
+  loop(i, Sequence(1, numShapes, 1))
+  {
+    RemoveObject(Nth(shapes, i), win)
+    RemoveObject(Nth(circles, i), win)
+  }
+  Draw()
+
+  ## Score the trial
+  correctOrder <- Sequence(1, numShapes, 1)
+
+  ## Check if completely correct
+  isCorrect <- 1
+  loop(i, Sequence(1, numShapes, 1))
+  {
+    if(Nth(clickedOrder, i) != Nth(correctOrder, i))
+    {
+      isCorrect <- 0
+    }
+  }
+
+  ## Count how many items are in the correct position
+  numCorrectFromStart <- 0
+  loop(i, Sequence(1, numShapes, 1))
+  {
+    if(Nth(clickedOrder, i) == Nth(correctOrder, i))
+    {
+      numCorrectFromStart <- numCorrectFromStart + 1
+    }
+  }
+
+  ## Calculate total time
+  endTime <- GetTime()
+  totalTime <- endTime - startTime
+
+  return [clickedOrder, isCorrect, numCorrectFromStart, totalTime]
+}

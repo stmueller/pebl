@@ -1,0 +1,1028 @@
+##
+##
+## Traveling Salesman Problem requiring clicking points.
+##
+##
+
+define Start (p)
+{
+  gScriptName <- "Travelling Salesman Problem Task"
+   parpairs <- [ ["usefile","subset.csv"], #use exactly these problems, instead of randomly-chosen.  set to 0 for random trials.
+	       ["targsize",20],
+               ["dointro",1],
+               ["xoffset",70],  ## Field area upper left
+               ["yoffset",70],  ##
+               ["width",500],
+               ["height",500],
+	       ["trialspersize",5], ##choose up to 15
+	       ["chooserandomtrials",0],
+	       ["inputlabel","click"], ##i.e., click or touch
+	       ["doflash",0],          ##should the circle flash when you click it?  Good for touchscreen, which covers the circle.
+	       ["dobeep",1],
+	       ["allowbackup",1],
+	       ["randomstart",0]  ##should each trial start on a different random node
+               ]
+
+
+
+  gParams <- CreateParameters(parpairs,gParamFile)
+  gTargSize <- gParams.targsize
+  dointro <- gParams.dointro
+   ##backup does not work!!
+   gParams.allowbackup <- 1
+
+   Init()
+
+   gData <- []  ##Log some data for immediate feedback
+
+   problemsLoaded <- 0
+   if(gParams.usefile != 0)
+   {
+    problems <- ReadCSV(gParams.usefile)
+   if(Length(problems)>0)
+        {
+  	problems <- Shuffle(problems)
+	trials <- Nth(Transpose(problems),2)
+	problemsLoaded <- 1
+	}
+   }
+
+
+  if(not problemsLoaded){
+
+   sizes <- ["10","20","30"]
+
+   #select subproblems:
+   subs <- ["01","02","03","04","05",
+            "06","07","08","09","10",
+            "11","12","13","14","15"]
+
+   trialspersize <- Max([Min([gParams.trialspersize,15]),1])
+
+
+
+   if(gParams.chooserandomtrials)
+   {
+
+      trials <- []
+      loop(i,sizes)
+      {
+        PushOnEnd(trials,Transpose([Repeat(i,gParams.trialspersize) ,
+                                    SampleN(subs,gParams.trialspersize)]))
+      }
+      trialsbase <- Shuffle(FlattenN(trials,1))
+
+    } else {
+     subs <- SubList(subs,1,trialspersize)
+     trialsbase <- Shuffle(DesignFullCounterBalance(sizes,subs))
+   }
+   trials <- []
+   loop(i,trialsbase)
+   {
+     PushOnEnd(trials,First(i)+"-"+Second(i))
+   }
+
+  }
+
+
+
+  if(gParams.dobeep)
+  {
+    gCorrect <- LoadSound("tick.wav")
+  }
+
+    trial <- 1
+   ## This is the stuff on the screen.
+   gLines <- []
+
+
+
+
+   gFileOut <- GetNewDataFile(gSubNum,gWin,"tsp","csv",
+   "subnum,trial,test,type,point,targx,targy,clickX,clickY,pointid,fileid,fileorder,time,rt")
+
+   gSumFile <- GetNewDataFile(gSubNum,gWin,"tsp-sum","csv",
+                "subnum,trial,test,type,starttime,firstclick,endtime,elapsedtime,numpos,opt,obs,eff")
+
+   gReportFile <- GetNewDataFile(gSubNum,gWin,"tsp-report","txt",   "")
+
+
+
+   gLogFile <- FileOpenAppend("data/tsp-log.txt")
+   FilePrint(gLogFile,"TSP START "  +GetTime() + " " + TimeStamp() + "  " + gSubCode)
+
+
+   if(gParams.dointro)
+    {
+     inst <- ReplaceChar(gStrings.instIntro,"<INPUT>",gParams.inputlabel)
+
+   } else {
+
+     inst <- ReplaceChar(gStrings.instNoIntro,"<INPUT>",gParams.inputlabel)
+   }
+
+   tb <- EasyTextBox(inst,810,50,gWin,18,450,300)
+   Show(gMessage)
+   Draw()
+   WaitForClickOnButton(gButtonX, gButtonY, gWin, gStrings.continue)
+   trial <- trial + 1
+   Hide(gMessage)
+   if(dointro)
+   {
+
+    Show(gMessage)
+
+   tb.text <- tb.text + " "+gParams.inputlabel + gStrings.inst2
+    tsp <- FileReadTable("tours/example06-01.txt")
+    Trial(tsp, gSubNum + ",1,tours/example06-01.txt,PRACTICE,")
+
+    tb.text <-ReplaceChar(gStrings.inst3,"<INPUT>",gParams.inputlabel)
+    Draw()
+    WaitForClickOnButton(gButtonX, gButtonY, gWin, gStrings.continue)
+    tb.text <- gStrings.inst4
+
+
+    tests <- SubList(["tours/example06-02.txt","tours/example06-03.txt","tours/example06-04.txt","tours/example06-05.txt"],1,4)
+
+    trial <- 1
+    loop(test, tests)
+     {
+       trial <- trial + 1
+       tsp <- FileReadTable(test)
+       Trial(tsp, gSubNum +"," + trial + "," + test + ",PRACTICE,")
+       Draw()
+     }
+
+   Draw()
+   Hide(gMessage)
+   tb.text <- ReplaceChar(gStrings.inst5,"<INPUT>",gParams.inputlabel)
+   Draw()
+   WaitForClickOnButton(gButtonX, gButtonY, gWin, gStrings.continue)
+   Hide(tb)
+   }
+   Draw()
+
+   loop(i,trials)
+    {
+          trial <- trial  + 1
+          tour <- "tours/tour-"+ i + ".txt"
+          tsp <- FileReadTable(tour)
+          Trial(tsp, gSubNum + "," + trial + ","  + tour + ",TEST,")
+    }
+
+
+   FilePrint(gLogFile, "TSP END " +GetTime() + " " + TimeStamp() +  " " + gSubCode)
+
+   tDat <- Transpose(gData)
+
+
+
+
+   lengths <- First(tdat)
+   eff  <- Second(tdat)
+   time <- Third(tdat)
+   best <- Fourth(tdat)
+   num <- Fifth(tdat)
+
+
+   tmp <- Transpose(Aggregate(eff,lengths))
+   aggeff <- Third(tmp)
+   aggcond <- First(tmp)
+   aggtrials <- Second(tmp)
+   aggtime <- Third(Transpose(Aggregate(time,lengths)))
+   aggBest <- Fourth(Transpose(Aggregate(best,lengths)))
+
+
+   outtab <- Transpose([aggcond, aggtrials,aggtime, aggeff, aggbest])
+   dataline <- ""
+   out <- "                 Your Perfomance
+Condition Trials   Time (s)  Effic.   # Perfect
+-----------------------------------------------" + CR(1)
+
+   loop(line, outtab)
+     {
+       loop(datum, line)
+       {
+
+         out <- out + Format(datum,9) + " "
+	 dataline <- dataline+","+datum
+
+       }
+         out <- out + CR(1)
+     }
+   out <- out + "-----------------------------------------------"
+
+
+   FilePrint(gReportFile,"-----------------------------------")
+   FilePrint(gReportFile,"PEBL TSP Task")
+   FilePrint(gReportFile,"http://pebl.sf.net")
+   FilePrint(gReportFile,"Using PEBL Version: " + GetPEBLVersion())
+   FilePrint(gReportFile,TimeStamp())
+   FilePrint(gReportFile,"Participant code: "+gSubCode)
+   FilePrint(gReportFile,"-----------------------------------")
+   FilePrint(gReportFile,out)
+   FileClose(gReportFile)
+
+
+
+   gPooled <- FileOpenAppend("data/tsp-pooled.csv")
+   FilePrint(gPooled,gSubNum+","+TimeSTamp()+","+GetTime()+dataline)
+
+   gMessage.text <- out
+   Show(gMessage)
+
+   tb.text <- gStrings.debrief
+   Show(tb)
+   Draw()
+
+   ##prevent bounce-click:
+   Wait(500)
+   WaitForClickOnButton(gButtonX, gButtonY, gWin, gStrings.exit)
+}
+
+
+define Trial(tsp,header)
+{
+
+
+   #extract the target positions.  Rotate the position list
+   # a random number so that the sequence is maintained but the
+   # initial placement changes.
+
+   Hide(gMessage)
+
+   if(gParams.allowbackup)
+   {
+     Show(gBackupbg)
+     Show(gBackuptext)
+   } else {
+     Hide(gBackupbg)
+     Hide(gBackuptext)
+   }
+
+  ##Should we use a random starting point each time?
+  positions <- Transpose(SubList(Transpose(tsp),3,4))
+
+  ##the positions in the file are essentially meaningless.
+  ##let's renumber them in the order they actually are in the file.
+  indexes <- Sequence(1,Length(positions),1)
+
+
+   if(gParams.randomstart)
+   {
+       rotation <-  RandomDiscrete(Length(tsp))
+
+   }else{
+       rotation <- 0
+   }
+
+   ##'Positions' is the set of xy coordinates, starting with the start location.
+   ##indexes simply indexes these  based on their order in the file,
+   ##in case they get rotated.
+
+   positions <- Rotate(positions,rotation)
+   indexes <- Rotate(indexes,rotation)
+
+   ##these are the IDs from the file.
+   gFileIDs <- Rotate(Nth(Transpose(tsp),2),rotation)
+
+
+   ## Initialize basic data structures.
+   gTrace <- []        #Keeps track of complete path trace
+   gPositions <- []    #All the target positions
+
+   gUnvisitedLocs <- []    #Positions yet to be visited
+   gUnvisitedIDs <- []
+   gUnvisitedFileIDs <-  Rotate(gFileIDs,0)##rotate 0 to make a deep copy.
+
+
+   gVisitedFileIDs <- []
+   gVisitedIDs <-[]
+
+   firstclick <- -1  ##record when the first click happened.
+
+   ## Loop through positions, creating a structure keeping track of them,
+   ## as well as
+   ## those yet to be visited.  They are in text, so they need to be
+   ## converted to numbers
+   j <- 1
+   loop(i, positions)
+   {
+
+      ab <- Scale(ToNumber(First(i)),ToNumber(Second(i)))
+      a <- First(ab)
+      b <- Second(ab)
+
+      gPositions <- Append(gPositions, [a,b])
+      #Do not add the starting position to unvisited
+
+      gUnvisitedLocs <- Append(gUnvisitedLocs, [a,b])
+      gUnvisitedIDs <- Append(gUnvisitedIDs,j)
+
+
+      j <- j + 1
+   }
+
+
+
+
+   #if the starting position is already visited, so remove it
+
+
+   gUnvisitedLocs <- SubList(gUnvisitedLocs,2,Length(gUnvisitedLocs))
+   gUnvisitedIDs <-Sublist(gUnvisitedIDS,2,Length(gUnvisitedIDs))
+   gUnvisitedFileIDs <- SubList(gUnvisitedFileIDs,2,Length(gUnvisitedFileIDs))
+
+
+   firstFileID <- First(gUnvisitedFileIDs)
+   first <-  First(gPositions)
+
+   gVisitedIDs <- [1]                ##this will always be 1
+   gVisitedLocs <- [first]
+   gVisitedFileIDs <- [firstFileID]
+
+   ##Initialize graphic stuff
+
+
+   #Set initial position
+   pNot <- first
+   ##Start out at randomly chosen initial position
+
+
+   #Make initial target/hits
+   tmp1 <-  MakeTargets(gPositions,gCircColor,gTargSize)
+   gTargets <-First(tmp1)
+   gShapes <- Second(tmp1)
+
+
+   #Make visited targets
+   tmp2 <-  MakeTargets(gVisitedLocs,gVisitedColor,gTargSize)
+   gHits <-First(tmp2)
+   gShapes <- Merge(gShapes, Second(tmp2))
+
+   gOriginalPositions <- positions
+   gIndices <- indexes
+
+   Draw()
+   gTrialStartTime <- GetTime()
+
+   ##output first target (not clicked on).
+   clickloc <- [0,0]
+   clickid <- 1
+
+  origID <- Nth(gIndices,clickid)
+  fileID <- Nth(gFileIDs,clickid)
+  orig <- Nth(gOriginalPositions,clickid)
+  FilePrint_(gFileOut, header + "0," )
+  FilePrint(gFileOut,  First(orig)+","+Second(orig)+","+
+                        First(clickloc)+","+Second(clickloc) + "," +
+                        clickID + "," +origID+"," +fileID+","+ gTrialStartTime + ",0")
+
+   #Loop until UpdateState determines we are done.
+   ret <- 0
+   pt <- 1
+
+  while( ret == 0)
+    {
+      FilePrint_(gFileOut, header + pt + "," )
+      ret <- UpdateState()
+      Draw()
+      if(firstclick < 0)
+       {
+         firstclick <- GetTime()
+       }
+      pt <- pt + 1
+    }
+
+   ##Add the first to the end.
+
+   RemoveComplex(gLines,gWin)
+   t1<- DrawPath(Append(gVisitedLocs,first),MakeColor("red"),10)
+   ##draw the optimal path.
+   t2 <- DrawPath(Append(gPositions,First(gPositions)),MakeColor("green"),7)
+   ##Make sure the targets are on top.
+
+   RemoveComplex(gShapes,gWin)
+   AddComplex(gShapes)
+
+
+   gLines <- Flatten([t1,t2])
+   DisplayStats(header,firstclick)
+   Draw()
+
+
+   WaitForClickOnButton(gButtonX, gButtonY, gWin, gStrings.continue)
+
+   RemoveComplex(glines,gWin)
+#   RemoveComplex(gTargets,gWin)
+#   RemoveComplex(gHits,gWin)
+   RemoveComplex(gShapes,gWin)
+   Draw()
+}
+
+
+define WaitForClickOnButton(x,y,win,text)
+{
+
+   back <- Rectangle(x,y, 200, 60,MakeColor("grey60"),1)
+   AddObject(back,win)
+   donefont <- MakeFont("VeraMono.ttf",0,30,MakeColor("black"),MakeColor("grey60"),1)
+   done <- MakeLabel(text,donefont)
+   AddObject(done,gWin)
+   Move(done,x,y)
+   Draw()
+   WaitForClickOnTarget([back],[1])
+   RemoveObject(back,win)
+   RemoveObject(done,win)
+
+}
+
+define Init()
+{
+
+   gXoffset <- gParams.xoffset  ## Field area upper left
+   gYoffset <- gParams.yoffset  ##
+
+   width  <- gParams.width
+   height <- gParams.height
+
+   gSleepEasy <- 1
+   gPI <- 3.14159
+
+   ## Squeeze this into width/height area.
+   xnum <- 550
+   ynum <- 550
+   gXScale <- width/xnum
+   gYScale <- height/ynum
+
+
+   ##set up the basic bounds of the simulation
+   gMinX <- gXOffset
+   gMaxX <- gXOffset + width
+   gMinY <- gYOffset
+   gMaxY <- gYOffset + height
+
+   gWin <- MakeWindow()
+
+  if(gSubNum+""=="0")
+  {
+    gSubNum <- GetSubNum(gWin)
+  }
+   gSubCode <- gSubNum
+
+   GetStrings(gLanguage)
+
+
+   gCircColor <- MakeColor("red")
+   gVisitedColor <- MakeColor("Grey50")
+   gFont <- MakeFont("VeraMono.ttf",0, 15,MakeColor("black"),MakeColor("lightgrey"),1)
+
+    ##Make a background the size of the w/x.  Add a bit of size to the
+    ## field to make it cover all the points.
+    gBG <- Rectangle(gXoffset + width/2,
+                     gYoffset+height/2, height+100,width+100,MakeColor("white"),1)
+   AddObject(gBG,gWin)
+
+   gMessage <- MakeTextBox("",gFont, 450,300)
+   AddObject(gMessage,gWin)
+   Move(gMessage,810,420)
+   Hide(gMessage)
+   Draw()
+
+   ##add these and hide them; if we don't use them, we just won't show them.
+    gBackupbg <- Rectangle(910,385,200,60,MakeColor("grey60"),1)
+    AddObject(gbackupbg,gWin)
+    gbackuptext <- EasyLabel(gStrings.backup,gbackupbg.x,gbackupbg.y,gWin,30)
+    Hide(gBackupBG)
+    Hide(gBackupText)
+
+
+   gButtonX <- 1150
+   gButtonY <- 385
+
+
+
+}
+
+##This makes the targets and adds them to the window.
+define MakeTargets(positions, color, size)
+{
+   white <- MakeColor("white")
+   targets <- []
+   shapes <- []
+
+   if(Length(positions)>0)
+   {
+    loop(i, positions)
+    {
+     targbg <- Circle(First(i), Nth(i,2), size+1, white,1)
+     target <- Circle(First(i), Nth(i,2), size, color,1)
+     AddObject(targbg, gWin)
+     AddObject(target, gWin)
+     targets <- Append(targets, target)
+     shapes <- Merge(shapes,[targbg,target])
+   }
+  }
+ return [targets,shapes]
+}
+
+
+define AddComplex(targs)
+{
+
+   loop(i, targs)
+   {
+     AddObject(i,gWin)
+   }
+}
+
+define RemoveComplex(targs,parent:gWin)
+{
+
+   loop(i, targs)
+   {
+        RemoveObject(i,parent)
+   }
+}
+
+
+
+define UpdateState()
+{
+
+
+  ret <- 1
+
+  if(gParams.allowbackup)
+   {
+      clicktargs <- Append(gUnvisitedLocs,gBackupBg)
+      output <-  Append(Sequence(1,Length(clicktargs)-1,1),"<backup>")
+
+   }else{
+      clicktargs <- gUnvisitedLocs
+      output <-  Sequence(1,Length(clicktargs),1)
+   }
+
+
+
+  x <- WaitForClickOnTarget(clicktargs,output)
+
+
+  ## x is the index of the current gUnvisited, but we'd
+  ## really like to know
+
+  if(gParams.dobeep)
+  {
+   PlayBackground(gCorrect)
+  }
+  #x tells you the the element of gUnvisited that was clicked upon.
+
+  if( gParams.allowbackup and x=="<backup>")
+   {
+
+   if(Length(gVisitedLocs)>1 )
+    {
+     ##############################
+     ##backup code path. Remove the end item and replace
+     ##it on the to-be-visited lists.
+
+
+     ##On backup, we need to
+     ## 1. identify location to be removed.
+     ## 3. remove it from the visited list.
+     ## 2. add it back to the to-be-visited list
+
+    ##These lists include:
+     ## gUnvisitedLocs     ## locations of unvisited targets
+     ## gUnvisitedIDs  ## id/order of dots in file
+     ## gVisitedLocs       ## locations of visited targets
+
+
+
+     ##Remove the last element from the three visited structures:
+     removeFileID <- Nth(gVisitedFileIDs,Length(gVisitedFileIds))
+     removeID <- Nth(gVisitedIDs,Length(gVisitedIds))
+     removePos <- Nth(gVisitedLocs,Length(gVisitedLocs))
+
+     gVisitedLocs <- SubList(gVisitedLocs,1,Length(gVisitedLocs)-1)
+     gVisitedIDs <- SubList(gVisitedIDs,1,Length(gVisitedIDs)-1)
+     gVisitedFileIDs <- SubList(gVisitedIDs,1,Length(gVisitedFileIDs)-1)
+
+     ##add them back to the unvisited structures.
+     gUnvisitedLocs <- Append(gUnvisitedLocs,removePos)
+     gUnvisitedIDs <- Append(gUnvisitedIDs,removeId)
+     gUnvisitedFileIDs <- Append(gUnvisitedFileIDs,removeFileID)
+
+    time <- GetTime()
+    ##tmp is used below to change the color to visited.
+
+
+
+    tmp <- Nth(gTargets,removeID)
+    tmp.color <- gCircColor
+    tmp.outlinecolor <- gCircColor
+
+
+
+
+    FilePrint(gFileOut,   "REMOVED,REMOVED,"+
+                         First(removePos)+","+Second(removePos) + "," +
+                         removeID+ "," + removeFileID+","+removeFileID +","+ time + "," + (time-gTrialStartTime))
+
+
+    }
+
+   } else{
+
+    ###############################
+    ##Normal click code path.
+
+
+
+  clickloc <- Nth(gUnvisitedLocs,x)      #Get the location and ID of the
+  clickID  <- Nth(gUnvisitedIDs,x)   #clicked-on position
+  fileID <- Nth(gUnvisitedFileIDs,x)
+
+
+
+  orig <- Nth(gOriginalPositions,clickID)
+  origID <- Nth(gIndices,clickid)
+  time <- GetTime()
+
+  FilePrint(gFileOut,   First(orig)+","+Second(orig)+","+
+                         First(clickloc)+","+Second(clickloc) + "," +
+                         clickID + "," + origID+","+ fileID+","+time + "," + (time-gTrialStartTime))
+
+   #grab the thing.
+   tmp <- Nth(gTargets, clickID)
+
+  ##flash it bigger if you got grabbed it.
+
+  if(gParams.doflash)
+  {
+
+   tmp.r <- tmp.r+20
+   Draw()
+   Wait(50)
+   tmp.r <- gTargSize
+   Draw()
+
+  }
+  #update the  list of where we've been and where we need to go
+
+    gUnvisitedLocs <- RemoveSubset(gUnvisitedLocs,[x])
+    gUnvisitedIDs <- RemoveSubset(gUnvisitedIDs,[x])
+    gUnvisitedFileIds <- RemoveSubset(gUNvisitedFileIDs,[x])
+
+
+    gVisitedLocs <- Append(gVisitedLocs, clickloc)
+    gVisitedIDs <- Append(gVisitedIDs,clickID)
+    gVisitedFileIDs <- Append(gVisitedFileIDs,fileID)
+
+
+    ##End normal click code path.
+
+
+   ##Change the color of the last element so we can reset it.
+   tmp.color <- gVisitedColor
+   tmp.outlinecolor <- MakeColor("green")
+
+}
+
+
+   ##redraw
+
+  ## RemoveComplex(gLines)  ##this should already be removed.
+   ##Draw the path where we have been so far.
+   gLines <- DrawPath(gVisitedLocs,MakeColor("red"),10)
+   RemoveComplex(gShapes)
+   AddComplex(gShapes)
+
+  Draw()
+
+   if(Length(gUnVisitedLocs) == 0)
+     {
+    	 success <- 1
+
+     } else {
+         success <- 0
+     }
+
+  return success
+}
+
+
+define DisplayStats(header,firstclick)
+{
+     Hide(gBackupbg)
+     Hide(gBackuptext)
+    #compute some statistics.
+    dOpt <-  ComputePathDistance(gPositions)
+    dObs <-  ComputePathDistance(gVisitedLocs)
+    eff <- dObs/dOpt
+
+     Show(gMessage)
+      time <- GetTime()
+      etime <- time - gTrialStartTime
+    gMessage.text <-      "Route Complete:
+Optimal Path Distance:   [" + dOpt+"]
+Observed Path Distance:  ["+ dObs+"]
+Overall Inefficiency:    ["+ eff+"]
+Time:                    ["+ Round(etime/100)/10+" sec]"  + CR(4) +
+gParams.inputlabel+" button above to continue."
+
+   ##See if you got the best:
+   best <- eff < 1.0000001
+
+#  Draw()
+
+
+  FilePrint(gSumFile, header +  gTrialStartTime + "," + firstclick  + "," + time + "," + etime +  "," +  Length(gPositions) + "," + dOpt + "," + dObs + "," + eff + "," )
+
+  gData <- Append(gData, [Length(gPositions), eff, etime/1000, best, 1])
+
+  tmp <- SubstituteStrings(gSTrings.popup,[["<EFF>",eff],["<PCT>",Round((eff-1)*10000)/100]])
+  PopupMessage(tmp ,gWin,300,600,400,150)
+
+}
+
+
+
+define DrawPath(path, color, width)
+{
+
+
+   newpath <- []
+   if(Length(path)>0)
+   {
+     p0 <- First(path)
+     loop(i, path)
+     {
+      x0 <- First(p0)
+      y0 <- Second(p0)
+      #a <- Line(x0,y0, First(i)-x0,Last(i)-y0,color)
+       a <- ThickLine(x0, y0, First(i), Second(i),width,color)
+      AddObject(a, gWin)
+      newpath <- Append(newpath,a)
+      p0 <- i
+     }
+   }
+
+  return newpath
+}
+
+define Distance(p1, p2)
+{
+  d1 <- First(p1) - First(p2)
+  d2 <- Nth(p1,2) - Nth(p2,2)
+  return (Sqrt((d1)^2 + d2^2))
+}
+
+##This computes the path distance of a set of positions
+##(for a circuit; assuming the first and the last connect.
+define ComputePathDistance(positions)
+{
+  distance  <- 0
+  if(Length(positions)>0)
+  {
+   p0 <- Last(positions)  #make the initial position the last one.
+   loop(i, positions)
+  {
+    distance <- distance + Distance(p0, i)
+    p0 <- i
+
+   }
+  }
+  return distance
+}
+
+
+
+## This should handle 'Inside' calls for almost anything
+## But this overrides the built-in one, because
+## the tsp will give just xy coordinates and expect the inside to handle this.
+define Inside(click,object)
+{
+    x <- First(click)
+    y <- Second(click)
+
+   if(IsList(object))
+   {
+    ##If it is just a list of two numbers, use a tolerance number
+    ##to assess clickiness.  This is special-purpose for this script.
+     d <- Dist([x,y],object)
+     inside  <- (d <= gTargSize)
+
+
+   }elseif(IsImage(object) or IsLabel(object) or
+      object.name == "<RECTANGLE>" or object.name == "<SQUARE>")
+   {
+
+
+	##First, determine object limits
+	xlow <- object.x - object.width/2
+	xhigh <- object.x + object.width/2
+
+	ylow <- object.y - object.height/2
+	yhigh <- object.y + object.height/2
+
+    inside <- (x >= xlow) and (x  <= xhigh) and (y >= ylow) and (y <= yhigh)
+
+   } elseif (IsTextBox(object))
+   {
+     xlow <- object.x
+     xhigh <- object.x+object.width
+     ylow <- object.y
+     yhigh <- object.y+object.height
+     inside <- (x >= xlow) and (x  <= xhigh) and (y >= ylow) and (y <= yhigh)
+
+   } elseif(object.name == "<CIRCLE>")
+       {
+          d <- Dist([x,y],[object.x,object.y])
+          inside  <- (d <= object.r)
+
+   } else {
+     inside <- 0
+   }
+
+	return inside
+}
+
+define Dist(a,b)
+{
+  return Sqrt((First(a)- First(b))^2 + (Nth(a,2) - Nth(b,2))^2)
+}
+
+
+##  This function takes a list of anything, and a list of indexes
+##  specifying the items to extract from the list.  The indexes can
+##  be in any order, but the extracted list will be in the order
+##  of the original list.  Items that are not numbers less than or
+##  equal to the length of the list will be ignored.
+define RemoveSubset(list, items)
+{
+   #Check the arguments to insure they are the proper type
+    if(not IsList(list))
+	{
+	    SignalFatalError("First argument of function [RemoveSubset(<list>,<list>)] is not a list")
+	}
+    if(not IsList(items))
+	{
+	    SignalFatalError("First argument of function [RemoveSubset(<list>,<list>)] is not a list")
+	}
+
+
+    returnList <- []      #Make an initial blank list to return
+    index <- 1            #keep track of the index
+    loop(i, list)
+    {
+	#If the index is in the items list, add it to the return list
+	if(not IsMember(index, items))
+	{
+	    returnList <- Append(returnList, i)
+	}
+	index <- index + 1
+    }
+
+    return returnList
+}
+
+##Gets an angle, in degrees, of an X,Y vector
+define GetAngle(dx, dy)
+{
+
+  baseangle <- RadToDeg(ATan(dy/dx))
+
+  ##Ultimate angle depends on the quadrant, if you use ATN
+  if(dx >0 and dy > 0)  ##1st quadrant
+   {
+       ret <- baseangle
+   } elseif(dx<0 and dy> 0) {         ##2nd quadrant
+       ret <- 180+baseangle
+   } elseif(dx<0 and dy<0) {          ##3rd quadrant
+       ret <- 180+baseangle
+   } else {                           ##4th quadrant
+       ret <- 360+baseangle
+   }
+
+   return Mod(ret,360)
+}
+
+
+
+define ThickLineX(x1,y1,x2,y2,size,color)
+{
+
+  ##Makes a 'thick' line
+
+  midx <- (x1+x2)/2
+  midy <- (y1+y2)/2
+
+  dx1 <- x1 - midx
+  dx2 <- x2 - midx
+  dy1 <- y1 - midy
+  dy2 <- y2 - midy
+
+  ##Compute line slope.
+  angle <- GetAngle((x2-x1),(y2-y1))
+
+  tan1 <- DegToRad(Mod(360+angle+90,360))
+  tan2 <- DegToRad(Mod(360+ angle-90,360))
+
+
+  #get new '1' points.
+  x1a <- dx1 + size/2 * Cos(tan1)
+  x1b <- dx1 + size/2 * Cos(tan2)
+  y1a <- dy1 + size/2 * Sin(tan1)
+  y1b <- dy1 + size/2 * Sin(tan2)
+
+  x2a <- dx2 + size/2 * Cos(tan1)
+  x2b <- dx2 + size/2 * Cos(tan2)
+  y2a <- dy2 + size/2 * Sin(tan1)
+  y2b <- dy2 + size/2 * Sin(tan2)
+
+  xs <- [x1a,x1b,x2b,x2a]
+  ys <- [y1a,y1b,y2b,y2a]
+
+  return Polygon(midx,midy, xs,ys,color,1)
+}
+
+
+define Scale(x,y)
+{
+   return [gXOffset + x*gXscale, gYOffset + y * gYScale]
+}
+
+
+define Aggregate(vals, cond)
+{
+
+  ## start by sorting values by condition,
+  ## then move through them and analyze subparts.
+
+  valX <- SortBy(vals,cond)
+  condX <- Sort(cond)
+  trials <- Transpose([condX,valX])
+
+  stats <- []
+  lastVal <- First(condX)
+
+  tmpVals <- []
+
+  loop(i, trials)
+  {
+
+     ## if the current delay differs from the previous delay,
+	 ## we should analyze what is in tmp right now.
+     if(First(i) != lastVal)
+     {
+
+       stats <- Append(stats,
+                      [lastVal, Length(tmpVals), Mean(tmpVals),
+	                  Sum(tmpVals)])
+       tmpVals <- []
+     }
+
+    lastVal <- First(i)
+    tmpVals <- Append(tmpVals, Nth(i, 2))
+ }
+
+  stats <- Append(stats,
+                [lastVal, Length(tmpVals),
+		Mean(tmpVals),Sum(tmpVals)])
+
+
+ return stats
+}
+
+
+define GetStrings(lang)
+{
+
+  lang <- Uppercase(lang)
+  fname <- "translations/tsp.pbl-"+LowerCase(lang)+".json"
+
+  if(FileExists(fname))
+  {
+    gStrings <- ReadTranslationjson(fname,lang)
+  } else
+  {
+    gStrings <- ReadTranslationjson("translations/tsp.pbl-en.json",lang)
+  }
+
+
+}
+
+
+define PopupMessage(message,win,posx,posy,
+                   width:300,height:200,fontsize:20)
+{
+    bg <- Rectangle(posx,posy,
+                    width+20,height+20,MakeColor("grey"),1)
+    AddObject(bg,win)
+    tb <- EasyTextBox(message,posx-width/2,posy-height/2, win,fontsize,width,height)
+    AddObject(tb,win)
+    Draw()
+    WaitForClickOnTarget([bg],[1])
+
+}

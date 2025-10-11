@@ -1,0 +1,141 @@
+define Start(par)
+{
+
+  Init()
+  Draw()
+  ##Choose S for server and C for client
+  resp <- WaitForListKeyPress(["S","C"])
+
+  Print("response: " + resp)
+  gStones <- 10
+  quit <- 0
+
+  if(resp == "s" or resp=="S")
+   { 
+      StartServer()
+      turn <- 1
+   } else {
+   
+      StartClient()
+      turn <- 2
+   }
+
+  Update(turn)
+  while(quit == 0)
+  {
+   if(turn == 1)
+    {
+     quit <- Take(turn)
+    }else{
+     quit <- WaitForResponse(turn)
+    }
+
+    ##update turn counter.
+    turn <- 3-turn 
+  }
+
+  gHeader.text <- "Press Any Key to quit"
+  WaitForAnyKeyPress()
+  CloseNetworkConnection(gNetwork)
+}
+
+
+define Init()
+{
+
+	gWindow <- MakeWindow("grey")
+    gFont   <- MakeFont("FreeSerif.ttf",0,22,MakeColor("black"),MakeColor("grey"),1)
+    font1   <- MakeFont("FreeSerif.ttf",0,18,MakeColor("black"),MakeColor("white"),1)
+
+    gHeader <- MakeLabel("Press S for server, C for client",gFont)
+    AddObject(gHeader,gWindow)
+    Move(gHeader,300,100)
+
+    gEntry <- MakeTextBox("",font1,400,40)
+	AddObject(gEntry,gWindow)
+    Move(gEntry,200,200)
+    Hide(gEntry)
+
+    font2 <- MakeFont("FreeSans.ttf",0,40,MakeColor("black"),MakeColor("grey"),1)
+    gStonesStatus <- MakeLabel("",font2)
+    AddObject(gStonesStatus,gWindow)
+    Move(gStonesStatus,300,300)
+    Show(gStonesStatus)
+}
+
+define StartServer()
+{
+   gHeader.text <- "Listening on port 4444 for partner."
+   Draw()
+   gNetwork <- WaitForNetworkConnection(4444)
+   gHeader.text <- "Partner connected."
+
+}
+
+define StartClient()
+{
+  gHeader.text <- "Enter Host Name (e.g., localhost)"
+  gEntry.text <- "localhost"
+  Show(gEntry)
+  Draw()
+
+  
+  address <- GetInput(gEntry,"<return>")
+  gNetwork <- ConnectToHost(address,4444)
+   Hide(gEntry)
+  Draw()   
+}
+
+define Take(turn)
+{
+
+   upper <- Min([4,gStones])
+   gHeader.text <- "Take 1-"+upper+" stones."
+   Draw()
+   take <- 100
+
+   while(take > gStones)
+   {
+     resp <-  WaitForListKeyPress(["1","2","3","4"])
+     take <- ToNumber(resp)
+   }
+
+
+   gStones <- gStones - take
+   Draw()
+   quit <- Update(turn)
+   SendData(gNetwork,resp)
+
+   return quit
+}
+
+define WaitForResponse(turn)
+{
+   gHeader.text <- "Waiting for opponent to take stones."
+   Draw() 
+   take <- GetData(gNetwork,1)
+   gStones <- gStones - ToNumber(take)
+   quit <- Update(turn)
+   return quit
+}
+
+define Update(turn)
+{
+
+  if(gStones == 0)
+  {
+     ret <- 1
+     if(turn == 1)
+     {  
+         gStonesStatus.text <- "Remaining Stones [0]. You Win!" 
+     }else{
+         gStonesStatus.text <- "Remaining Stones [0]. You Lose." 
+     }
+  }else{
+     ret <- 0
+     gStonesStatus.text <- "Remaining Stones ["+ gStones+ "]"
+
+  }
+   Draw()
+   return ret
+}

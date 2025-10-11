@@ -1,0 +1,327 @@
+
+define Start(p)
+{
+   SeedRNG(100) ##no random sequences; all the same
+
+   gScriptName <- "PEBL PASAT"
+
+   gWin <- MakeWindow("black")
+
+   parpairs <- [["isi", 3000],
+                ["trialsperround",20],  ##20 3-sec rounds = 1 minute
+
+                ["dopractice",1],
+                ["practiceISI",5000],
+		["practiceTrials",10],
+
+	        ["doAUdio",1],
+                ["dovisual",1],
+
+	        ["rounds",2],  ##number of blocks/rounds
+		["maxval",18],  ##maximum addend to use
+	        ["maxsum",20]  ##largest sum number to use
+                ]
+
+
+        gParams <- CreateParameters(parpairs,gParamFile)
+
+  if(gSubNum+""=="0")
+  {
+     gSubNum <- GetSubNum(gWin)
+  }
+
+
+  GetStrings(gLanguage)
+
+
+  soundstem <- ["01","02","03","04","05","06","07","08","09","10",
+                  "11","12","13","14","15","16","17","18","19","20"]
+
+   sounds <- []
+   loop(i, soundstem)
+   {
+     tmp <- LoadSound("audio/"+i+".wav")
+     PushOnEnd(sounds,tmp)
+    }
+
+
+   MessageBox(gStrings.inst1,gWin)
+	## Make data files
+
+   header <-"subnum,block,trial,blocktrial,isi,prev,number,answer,resp,correct,lastcorrect,doubletcorrect,feedbackcount,feedbacksum,time0,rt"
+
+
+
+   gFileOut <- GetNewDataFile(gSubNum,gWin,"PASAT","csv",header)
+   gReport <- GetNewDataFile(gSubNum,gWin,"PASAT-report","txt","")
+
+   blocks <- Sequence(1,gParams.rounds,1)
+   if(gParams.dopractice)
+   {
+     blocks <- Merge(["P"],blocks)
+   }
+
+    stim <- EasyLabel("",gVideoWidth/2,gVideoHeight/2-100,gWin,80)
+    footer <- Easylabel("",gVideoWidth/2,gVideoHeight-150,gWin,20)
+    footer.text <- gStrings.footer
+
+
+    feedback <- EasyLabel(gStrings.correcthead + "0/0",gVideoWidth/2+300,gVideoheight/2-100,gWin,20)
+
+    width <- Max([3,Ceiling(gparams.maxsum/2)])
+    height <- Ceiling(gParams.maxsum/width)
+    layout <-  LayoutGrid(100,gVideoWidth-100,gVideoHeight/2,gVideoheight/2+200, height,width,0)
+
+    layout <- SubList(layout,1,gParams.maxsum)
+
+    responses <- []
+    backs <- []
+    loop(i,Sequence(1,gParams.maxsum,1))
+     {
+
+        xy <-Nth(layout,i)
+        out <-  Easylabel(i+"",First(xy),Second(xy),gWin,22)
+	back <- Rectangle(First(xy),Second(xy),50,40,MakeColor("white"),0)
+	AddObject(back,gWin)
+	PushOnEnd(backs,back)
+	PushOnEnd(responses,out)
+     }
+
+    blockdata <- []
+
+    trial <- 1
+
+   loop(block,blocks)
+   {
+
+     feedbacksum <- 0
+     feedbackcount <- 0
+     doubles <- 0
+
+     feedback.text <- gStrings.correcthead + "0/0"
+     ##make the stimulus sequence.
+     ##sum must be less than max..reducing this can change the difficulty.
+       if(block=="P")
+       {
+        isi <- gParams.practiceISI
+	trials <- gParams.practiceTrials
+       }else{
+        isi <- gParams.ISI
+	trials <- gParams.trialsperround
+       }
+
+
+     stimuli <- MakeStim(gParams.maxval,gParams.maxsum,trials)
+
+     stim.text <- "0"  ##start with a 0, so first number is correct.
+     Draw()
+     Wait(2000)
+
+     blocktrial <- 1
+     lastcorrect <- 0
+     prev <- 0
+     loop(i,stimuli)
+     {
+
+
+       trialend <- GetTime()+isi
+
+       if(gParams.doaudio)
+       {
+          PlayBackground(Nth(sounds,First(i)))
+       }
+
+       if(gParams.doVisual)
+       {
+         stim.text <- First(i)
+       }else{
+         stim.text <- "+"
+       }
+
+       Draw()
+       time0 <- GetTime()
+
+
+
+       resp <- WaitForClickOntargetWithTimeout(backs,Sequence(1,Length(backs),1),isi)
+       time1 <- GetTime()
+
+       if(resp=="<timeout>")
+       {
+
+        correct <- 0
+	resp <- "X"
+       }else{
+
+          correct <- (resp+"")==(Second(i)+"")
+       }
+
+       if(correct)
+       {
+        stim.text <- gStrings.correct
+
+       }else{
+        stim.text <- gStrings.incorrect
+       }
+
+
+       if(blocktrial > 0)
+       {
+        feedbackcount <- feedbackcount + 1
+        feedbacksum <- feedbacksum+ correct
+        feedback.text <- gStrings.correcthead + feedbacksum+"/"+feedbackcount
+       }
+
+       double <- lastcorrect and correct
+
+       FilePrint(gFileOut,gSubNum+","+ block + ","+ trial + "," +blocktrial +
+                        ","+isi +","+ prev+","+First(i) + ","+
+                         Second(i) + "," + resp + "," + correct + "," +
+			 lastcorrect + ","+ double + ","+
+                          feedbackcount + "," + feedbacksum + ","+
+                          time0 + "," + (time1-time0))
+
+        lastcorrect <- correct
+       trial <- trial + 1
+       blocktrial <- blocktrial + 1
+       doubles <- doubles + double
+       Draw()
+       Wait(Max([0,trialend-GetTime()]))
+       prev <- First(i)
+    }
+
+     PushOnEnd(blockdata, [block,feedbackcount, feedbacksum,doubles])
+     if(block=="P")
+     {
+      MessageBox(gStrings.practicecomplete,gWin)
+     }else{
+      MessageBox(gStrings.break,gWin)
+     }
+
+   }
+
+  report <-  FilePrint(gReport,"PEBL PASAT TEST")
+  report <- report+CR(1)+  FilePrint(gReport,GetPEBLVersion())
+  report <- report+CR(1)+FilePrint(gReport,Timestamp())
+  report <- report+CR(1)+  FilePrint(gReport,"Participant code: " +gSubNum)
+  report <- report+CR(1)+  FilePrint(gReport, "Runtime parameters:" )
+  tmp <- GetPropertyList(gParams)
+  loop(i,tmp)
+  {
+     report <- report+CR(1)+FilePrint(gReport,Format(i ,25)  +":      "+  GetProperty(gParams,i))
+  }
+  report <- report+CR(1)+  FilePrint(gReport,"Results:" )
+  report <- report+CR(1)+  FilePrint(gReport,"---------------------------------------")
+  report <- report+CR(1)+  FilePrint(gReport,"Round    Number    Correct   Doublets")
+  report <- report+CR(1)+  FilePrint(gReport,"----------------------------------------")
+  loop(line,blockdata)
+  {
+      report <- report+CR(1)+FilePrint(gReport, First(line)+"         " +Second(line)+ "          "  + Third(line) + "          " + Fourth(line) )
+  }
+
+    report <- report+CR(1)+FilePrint(gReport,"----------------------------------------")
+  MessageBox(gStrings.debrief,gWin)
+   ##could be recorded into a report here:
+   MessageBox(report.gWin)
+    FileClose(gReport)
+
+}
+
+define MakeStim(maxval,maxsum,length)
+{
+
+  ##maximum start should be less than max, so there is some ambiguity.
+  prev2 <- 0
+  prev <- 0
+  current <- RandomDiscrete(maxval-1)
+
+  seq <-[current]       ##
+  answers <- [current]  ##  make first answer = first number, so it is +0
+
+  while(Length(seq)<length)
+   {
+     prev2 <- prev
+     prev <- current
+     try <- 1
+     while(try<5)
+      {
+
+         #sample a new value. It should be smaller than the maximum value, and also smaller than the maximum
+	 ## difference between the curren tnumber and max sum.
+         current <- RandomDiscrete(Min([maxval,maxsum-prev]))
+	 if(current!=prev and current!=prev2)
+	  {
+	   try <- 5  ##exit loop;
+	  } else{
+	   ##try again if we have a match.  This prevents things like
+	   ##  5 - 12 - 5; where twice in a row the answer is 17.
+	   ##
+	   ##. There may be some edge cases where we need a repeat,
+	   ##but this should avoid most accidental ones.
+	   try <- try + 1
+	  }
+      }
+     PushOnEnd(seq,current)
+     PushOnEnd(answers,prev+current)
+   }
+ return Transpose([seq,answers])
+}
+
+
+define LayoutGrid(xmin,xmax,ymin,ymax, tall, wide, horvert)
+ {
+     xskip <- (xmax-xmin)/(wide+1)
+     yskip <- (ymax-ymin)/(tall+1)
+
+     pts <- []
+
+     if(horvert == 1)
+      {
+        x <- xmin+xskip
+       loop(i,Sequence(1,wide,1))
+        {
+          y <- ymin+yskip
+         loop(j,Sequence(1,tall,1))
+          {
+             pts <- Append(pts, [x,y])
+             y <- y + yskip
+          }
+          x <- x + xskip
+        }
+      }else {
+
+       y <- ymin+yskip
+       loop(i,Sequence(1,tall,1))
+        {
+          x <- xmin+xskip
+         loop(j,Sequence(1,wide,1))
+          {
+
+             pts <- Append(pts, [x,y])
+             x <- x + xskip
+
+          }
+        y <- y + yskip
+     }}
+
+   return pts
+  }
+
+
+
+
+define GetStrings(lang)
+{
+
+  lang <- Uppercase(lang)
+  fname <- "translations/PASAT.pbl-"+LowerCase(lang)+".json"
+
+  if(FileExists(fname))
+  {
+    gStrings <- ReadTranslationJSON(fname,lang)
+  } else
+  {
+    gStrings <- ReadTranslationJSON("translations/PASAT.pbl-en.json",lang)
+  }
+
+ }

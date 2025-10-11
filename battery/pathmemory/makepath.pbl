@@ -1,0 +1,96 @@
+define Start(p)
+{
+  gVideoWidth<-800
+  gVideoHeight <- 600
+
+
+  gSleepEasy <- 1
+  gWin <- MakeWindow("white")
+
+
+  canv <- MakeCanvas(gVideoWidth,gVideoheight,MakeColor("black"))
+  AddObject(canv,gWin)
+  Move(canv,gVideoWidth/2,gVideoHeight/2)
+
+  label <- EasyLabel("click to start drawing",gVideoWidth/2,20,gWin,15)
+  Draw()
+
+  WaitForDownClick()
+
+  path <- CollectPath(canv)
+  pathname <-   GetEasyInput("Path name?.csv",gWin)
+  WriteCSV(pathname,path)
+}
+
+
+define CollectPath(canvas)
+{
+
+  color <- MakeColor("green")
+
+  cont <- 1
+  lastpos <- GetMouseCursorPosition()
+  points <- [lastpos]
+
+  while(cont)
+   {
+      mousepos <- WaitForMouseButtonWithTimeout(10)
+      if(mousepos=="<timeout>")
+       {
+	mousepos <- GetMouseCursorPosition()
+        cont <- 1  ##keep looping
+         if(not ListEqual(mousepos,lastpos))
+          {
+            SetPoint(canvas,First(mousepos),Second(mousepos),color)
+	    PushOnEnd(points,mousepos)
+	  }
+	  
+	  lastpos <- mousepos
+       } else {
+        ##a mouse click
+        cont <- 0
+       }
+ 
+ 
+      Draw()
+   }
+
+  return points
+}
+
+
+define ListEqual(l1,l2)
+{
+  if(Length(l1) == Length(l2))
+  {
+     equal <- 1
+     loop(i,Transpose([l1,l2]))
+      {
+         if(not First(i)==Second(i))
+         {
+            equal <- 0
+         }
+	 if(not equal)
+	 {
+          break
+	 }
+      }
+
+  }else{
+   equal <- 0
+  }
+
+ return equal
+}
+
+
+define WriteCSV(file,table)
+{
+   file <- FileOpenWrite(file)
+   loop(i,table)
+   {
+       FilePrint(file, ConcatenateList(i,","))
+   }
+   FileClose(file)
+}
+

@@ -1,0 +1,500 @@
+###########################################################
+##  The PEBL Hungry Donkey Task, Version 0.1
+##  For use with PEBL 0.07 or later
+##  http://pebl.sf.net
+##  Part of  The PEBL Psychological Testing Battery
+##  2006-02 Released into Public Domain
+##  by Shane T. Mueller, Ph.D. (smueller at obereed dot net)
+##
+##
+##
+##  This is an isomorph to the Bechara's "Iowa Gambling Task" (tm).
+##  It has been used to evaluate risk-seeking and gambling in children.
+##
+##  As described by:
+##  Crone, E. A., & van der Molen, M. W. (2004).  Developmental
+##   changes in real life decision making: Perforhance on a gambling task
+##   previously shown to depond on the ventomedial prefrontal cortex.
+##   Developmental neuropsychology, 25(3), 250-279.
+##
+##
+##  In this test, a keypress (cvbn) opens the door, and it remains
+##  open until the key is un-pressed.  The software waits for all keys
+##  to be unpressed, which includes the numlock, capslock, etc.  So,
+##  if the experiment 'freezes' with a door open, make sure capslock and
+##  numlock are off.
+##
+## Spanish translation by  Gabriela Guadalupe De Gyves Montes
+## Croation translations (HR) by Silvija Rucevic
+##########################################################
+
+define Start(lPar)
+{
+
+  parpairs <- [["inputdevice","mouse"],  ##mouse or keyboard are valid.
+               ["numtrials", 150]]
+
+
+
+  gParams<-CreateParameters(parpairs,gParamFile)
+
+  GetStrings(gLanguage)
+  gInputDevice <- gParams.inputdevice
+
+  ## results are stored in tmpresults.dat
+
+  ##File header:
+  gSleepEasy <- 1
+
+  ## Initialize global objects for use later. Defined at end of file
+  Initialize()
+  gFileOut <- GetNewDataFile(gSubNum,gWin,"donkey","csv",
+              "sub,trial,resp,reward,penalty,net,total,abstime,rt")
+
+
+
+  if(gINputDevice == "keyboard")
+  {
+  ShowCursor(0)
+   if(IsAnyKeyDown())
+   {
+      gInstructions.text <- "Please make sure no keys are pressed.
+   Make sure that the numlock and scroll lock keys are untoggled."
+      Show(gInstructions)
+      Draw()
+      WaitForAllKeysUp()
+   }
+ }
+
+  ####################################################
+  ##  Now, generate stimuli/conditions
+  ####################################################
+
+  deck1Pen <- Flatten(ShuffleRepeat([0,0,0,0,0,8,10,10,10,12],4))
+  deck2Pen <- Flatten(ShuffleRepeat([0,0,0,0,0,0, 0, 0, 0,50],4))
+  deck3Pen <- Flatten(ShuffleRepeat([0,0,0,0,0,1, 2, 2, 2, 3],4))
+  deck4Pen <- Flatten(ShuffleRepeat([0,0,0,0,0,0, 0, 0, 0,10],4))
+
+  deck1Rew <- 4
+  deck2Rew <- 4
+  deck3Rew <- 2
+  deck4Rew <- 2
+
+
+  ####################################################
+  ## Begin presenting and collecting data
+  ####################################################
+
+  if(gINputDevice == "keyboard")
+  {
+   method <-  gStrings.inst1key
+ }elseif(gINputDevice =="mouse")
+  {
+   method <-  gStrings.inst1mouse
+  } else {
+    method <- ""
+  }
+
+
+   ## Give instructions; wait for them to hit a key,
+   SetText(gInstructions,  gStrings.inst2 + method)
+
+   Show(gInstructions)
+   Draw()
+
+   WaitForContinue()
+   Hide(gInstructions)
+   Draw()
+
+
+  ##############################################
+  ##############################################
+  ##
+  ## Set up the basic graphical environment (decks, score, etc).
+  ##
+
+
+   ##Turn the header on during the task.
+   if(gInputDevice == "keyboard")
+   {
+      gHeader.text <- gStrings.headerkey
+   }else{
+      gHeader.text <- gStrings.headermouse
+   }
+   Show(gHeader)
+
+   gTotal <- 0
+   earnings <- MakeEarningsGraph(gTotal)
+   gTotalLabel <- MakeLabel(gSTrings.total+gTotal + gStrings.apples,gHeaderFont)
+   AddObject(gTotalLabel,gWin)
+   Move(gTotalLabel,gVideoWidth/2,gVideoHeight/2+100)
+   Draw()
+
+####################################################
+####################################################
+##  Start the experimental trials.
+##
+   deck <- 0
+   trialnum <- 1
+   while(trialnum <= gparams.numtrials)
+    {
+      time0 <- GetTime()
+      if(gInputDevice=="keyboard")
+      {
+        resp <- WaitForListKeyPress(["c","v","b","n"])
+      }else{
+        resp <- WaitForClickOnTarget(gDoors,["c","v","b","n"])
+      }
+
+      time1 <- GetTime()
+      rt <- time1 - time0
+
+      if(resp == "c")
+      {
+         reward <- deck1rew
+         penalty <- First(deck1pen)
+         net <- reward - penalty
+	 door <- 1
+         ##Update the remainder of the deck.
+         deck1pen <- Rotate(deck1pen,1)
+
+
+      }elseif(resp == "v"){
+
+         reward <- deck2rew
+         penalty <- First(deck2pen)
+         net <- reward - penalty
+         door <- 2
+ 	     ##Update the remainder of the deck.
+         deck2pen <- Rotate(deck2pen,1)
+
+
+      }elseif(resp == "b")
+      {
+
+         reward <- deck3rew
+         penalty <- First(deck3pen)
+         net <- reward - penalty
+         door <- 3
+ 	     ##Update the remainder of the deck.
+         deck3pen <- Rotate(deck3pen,1)
+
+
+      }else{
+
+         reward <- deck4rew
+         penalty <- First(deck4pen)
+         net <- reward - penalty
+         door <- 4
+
+ 	     ##Update the remainder of the deck.
+         deck4pen <- Rotate(deck4pen,1)
+      }
+
+       Hide(Nth(gDoors,door))
+       ShowPayoff(reward,penalty,Nth(gDoors,door))
+       Draw()
+       Wait(250)
+      ##Figure out the +/- sign
+
+      gTotal <- gTotal + net
+      gTotalLabel.text <- gStrings.total +gTotal + gStrings.apples
+
+      RemoveComplex(earnings)
+	  earnings <- MakeEarningsGraph(gTotal)
+
+      ## Print out data to the file
+      FilePrint_(gFileOut, gSubNum + "," + trialnum + "," + resp + "," + reward + "," + penalty)
+      FilePrint(gFileOut, "," + net + "," + gTotal + "," + time1 + "," +  rt )
+
+      Wait(200)
+      if(gInputdevice=="keyboard")
+      {
+        WaitForAllKeysUp()
+      }
+      Show(Nth(gDoors,door))
+      HidePayoff(reward,penalty)
+      Draw()
+
+      trialnum <- trialnum + 1
+    }
+
+   Hide(gHeader)
+   Hide(gTotalLabel)
+   RemoveComplex(earnings)
+
+   FileClose(gFileOut)
+
+
+   ##Now, show debriefing info.
+   feedback <-  gStrings.feedback1+ gTotal + gStrings.apples
+   if(gTotal > 0)
+   {
+     feedback <- feedback + gStrings.congrats
+   }
+
+   feedback <-  feedback + CR(3) + gStrings.feedback3
+
+
+   SetText(gInstructions, feedback)
+   Show(gInstructions)
+   Print(feedback)
+   Draw()
+   WaitForKeyPress("X")
+   ShowCursor(1)
+ }
+
+
+##  This is a standard initializer function that sets up typical
+##  objects used in experiments.
+define Initialize()
+{
+
+#  gVideoWidth <- 640
+#  gVideoHeight <- 480
+
+  ##Initialize Window, etc.
+  gWin <- MakeWindow("black")
+
+   ##Get subject code if we need to:
+    if(gSubNum+""=="0")
+    {
+	  gSubNum <- GetSubNum(gWin)
+    }
+
+   ##Initialize Font and colors
+
+
+   bg <- MakeColor("black")
+   fg <- MakeColor("white")
+   bg2 <- MakeColor("grey20")
+
+   gColGreen <- MakeColor("darkgreen")
+   gColRed   <- MakeColor("red")
+
+   gStimFont         <- MakeFont(gPEBLBaseFontMono, 0, 16,fg,bg,1)
+   gGraphFont       <- gStimFont
+   gCorrFont         <- MakeFont(gPEBLBaseFontMono, 0, 24,gColGreen, bg,0)
+   gIncorrFont       <- MakeFont(gPEBLBaseFontMono, 0, 24,gColRed,   bg,0)
+
+   gInstructionsFont <- MakeFont(gPEBLBaseFont,0,33, fg,bg2,1)
+   gHeaderFont       <- MakeFont(gPEBLBaseFont, 0,40,fg,bg,0)
+
+
+   ## Make and hide a header label
+   gHeader <- MakeLabel("",gHeaderFont)
+   AddObject(gHeader,gWin)
+   Move(gHeader, gVideoWidth/2, 35)
+   Hide(gHeader)
+
+
+  ##Load the donkey
+  gDonkey <- MakeImage("png/donkey.png")
+  AddObject(gDonkey,gWin)
+  Move(gDonkey, gVideoWidth/2-250,gVideoHeight/2 + 200)
+
+
+  gDoorways   <- MakeImage("png/doorways.png")
+  AddObject(gDoorways,gWin)
+  Move(gDoorways,gVideoWidth/2,gVideoHeight/2-80)
+
+  gDoors   <- [ MakeImage("png/door.png"),
+		MakeImage("png/door.png"),
+		MakeImage("png/door.png"),
+		MakeImage("png/door.png")]
+
+   x <- gVideoWidth/2-160*1.5
+  loop(i,gDoors)
+  {
+    AddObject(i,gWin)
+    Move(i,x,gVideoHeight/2-80)
+    x <- x + 160
+  }
+
+  #Make a 'pool' of apples
+  gP2 <- MakeImage("png/apple+2.png")
+  gP4 <- MakeImage("png/apple+4.png")
+  gM1 <- MakeImage("png/apple-1.png")
+  gM2 <- MakeImage("png/apple-2.png")
+  gM3 <- MakeImage("png/apple-3.png")
+  gM8 <- MakeImage("png/apple-8.png")
+  gM10 <- MakeImage("png/apple-10.png")
+  gM12 <- MakeImage("png/apple-12.png")
+  gM50 <- MakeImage("png/apple-50.png")
+
+   gPlus  <- [gP2,gP4]
+   gMinus <- [gM1, gM2, gM3, gM8, gM10,gM12,gM50]
+
+   loop(i,Merge(gMinus,gPlus))
+    {
+     AddObject(i,gWin)
+     Hide(i)
+     MoveLower(i,100,140)
+    }
+
+   ## Make and place the instruction box, then hide it
+   gInstructions <- MakeTextBox("", gInstructionsFont, gVideoWidth-100,gVideoHeight-100)
+   AddObject(gInstructions, gWin)
+   Move(gInstructions, 50,50)
+   Hide(gInstructions)
+
+ }
+
+
+## This will display the apples in the correct door,
+## depending on the plus/minus payoff.
+define ShowPayoff(plus, minus, door)
+{
+
+   ## These numbers just automatically compute the best
+   ## positions to display the feedback at
+   x <- door.x-door.width/2+5
+   y <- door.y + door.height/2-25
+
+
+    if(plus != 0)
+     {
+      plusImage <- Nth(gPlus,ToInteger(plus/2))
+      MoveLower(plusImage,x,y)
+      Show(plusImage)
+     }
+
+    if(minus != 0)
+    {
+      orderMinus <- [1,2,3,8,10,12,50]
+      loop(i, Transpose([orderMinus,gMinus]))
+      {
+
+        if(minus == First(i))
+        {
+          minusImage <- Nth(i,2)
+          break
+        }
+      }
+
+      MoveLower(minusImage,x+40,y)
+      Show(minusImage)
+    }
+
+}
+
+
+define HidePayoff(plus,minus)
+{
+
+   if(plus != 0)
+   {
+     plusImage <- Nth(gPlus,ToInteger(plus/2))
+     Hide(plusImage)
+   }
+
+   if(minus != 0)
+   {
+   orderMinus <- [1,2,3,8,10,12,50]
+   loop(i, Transpose([orderMinus,gMinus]))
+    {
+      if(minus == First(i))
+      {
+         minusImage <- Nth(i,2)
+         break
+      }
+    }
+      Hide(minusImage)
+   }
+}
+
+
+define MoveLower(object, x,y)
+{
+   s <- GetSize(object)
+   Move(object, x+Nth(s,2)/2, (y-Nth(s,1)/2))
+}
+
+
+
+define MakeEarningsGraph(earnings)
+{
+    ##Sets up some basic parameters for plotting the graph at the
+    ##bottom of the screen
+    scale <- .8
+    height <- 20
+    width  <- earnings / scale
+    ycenter <- gVideoHeight/2 + 220
+    xcenter <- gVideoWidth/2 + 30
+
+   #Determine which color to make it.
+   if(earnings < 0)
+    {
+       col <- gColRed
+    } else {
+       col <- gColGreen
+    }
+
+    ##Define the locations of the labels
+    yvals <- [-150,-100,-50,0,50,100,150]
+
+    ##Create the bargraph and the outline of the graph region.
+
+    x <- Rectangle(xcenter+width/2, ycenter, width, height, col, 1)
+    outline <- Rectangle(xcenter,ycenter-5, 450,50,col, 0)
+    AddObject(x,gWin)
+    AddObject(outline,gWin)
+
+    ##Create all the labels, based on yvals. Add each label to the
+    ##appropriate location, and combine them all into a single
+    ##composite to make removal easier.
+    ##These labels are all re-created each trial--they could be
+    ##static, which would be a little more efficient, but it is really
+    ##fast as is.
+    composite <-[outline,x]
+    loop(i,yvals)
+      {
+        yy <- MakeLabel(i+"", ggraphFont)
+        AddObject(yy,gWin)
+        Move(yy, xcenter+(i/scale), ycenter-20)
+        Show(yy)
+        composite <- Append(composite,yy)
+      }
+
+    return composite
+}
+
+define RemoveComplex(x)
+{
+    loop(i,x)
+    {
+       RemoveObject(i,gWin)
+    }
+}
+
+
+define WaitForContinue()
+{
+  if(gInputDevice=="keyboard")
+  {
+     WaitForAnyKeyPress()
+  } else {
+     WaitForDownClick()
+  }
+}
+
+
+define GetStrings(lang)
+{
+
+
+
+
+  lang <- Uppercase(lang)
+  fname <- "translations/donkey.pbl-"+LowerCase(lang)+".json"
+
+  if(FileExists(fname))
+  {
+    gStrings <- ReadTranslationjson(fname,lang)
+  } else
+  {
+    gStrings <- ReadTranslationjson("translations/donkey.pbl-en.json",lang)
+  }
+
+
+}

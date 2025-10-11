@@ -1,0 +1,1538 @@
+##
+## A basic version of Navon's global-local task. It only uses Navon-like
+## stimuli to do a simple interference experiment akin to stroop.  Navon's
+## original experiment used auditory priming at different times.
+
+## This uses a special-purpose function to create the stimuli,
+## which uses the rendered characters in a specified font to create the
+## global/local font image.
+
+
+define Start(p)
+{
+
+  parpairs <- [["testtype","mckone"],  ##dense, sparse, or mckone.
+  	       ["fontsize",25],
+	       ["globalheight",350],
+	       ["reps",	10],
+	       ["stim1","H"],
+	       ["stim2","S"],
+	       ["stimdummy","█"],#▓█▄
+	       ["giveErrorfeedback",1],
+	       ["doscatterconditions",1],
+	       ["scatterwidth",600],
+	       ["scatterheight",0]
+               ]
+
+  gParams <- CreateParameters(parpairs,gParamFile)
+
+  ##these were parameters to the global image creating function,
+  ##but don't matter anymore because the image is hardcoded.
+
+  gParams.showcache <- 0  ##for debugging; show the images when built.
+  gParams.scalestamp <- 0  ##no longer used
+  gParams.stampongrid <- 0 ##no longer used
+
+  gDebugDraw <- 0
+  gSleepEasy <- 1
+
+   ##these are the stimli used by McKone et al., which
+   ## are very sparse.
+
+  mcH <- ReadPoints("stim/mckoneH.csv")
+  mcS <- ReadPoints("stim/mkconeS.csv")
+  mcDummy <-ReadPoints("stim/mkconeblock.csv")
+
+
+##these are dense versions of the stimuli, as used
+##in the original PEBL global/local tasks:
+
+  blockHDense <- ReadPoints("stim/blockHdense.csv")
+  blockSdense <- ReadPoints("stim/blockSdense.csv")
+
+  blockHsparse <- ReadPoints("stim/blockHsparse.csv")
+  blockSsparse <- ReadPoints("stim/blockSsparse.csv")
+
+  filledblockS <- ReadPoints("stim/filledSparse.csv")
+  filledblockD <- ReadPoints("stim/filledDense.csv")
+
+if(gParams.testtype== "dense")
+ {
+  stimPoints <- [blockHDense,blockSDense,filledblockD]
+
+ }elseif(gparams.testtype== "sparse")
+ {
+  stimPoints <- [blockHsparse,blockSSparse,filledblockS]
+ }elseif(gParams.testtype=="mckone")
+ {
+   stimPoints <- [mcH,mcS,mcDummy]
+
+ }else{
+  stimPoints <-[blockHDense,blackSDense,filledblock]
+  }
+
+
+##we need to look at the global stimuli now, to compute the
+##scale parameter. The largest y coordinate of all
+## the stimuli is the thing that gets scaled.
+
+  maxY <- Max(Second(Transpose(FlattenN(stimPoints,1))))
+  scale <- gParams.globalHeight/maxY
+
+  stim <- [gParams.stim1,gParams.stim2]
+  dummy <- gParams.stimdummy
+
+
+   ##Here are the global stimuli:
+   globalpairs <- [[gParams.stim1,gParams.stim1],
+                   [gParams.stim1,gParams.stim2],
+		   [gParams.stim1,gParams.stimdummy],
+                   [gParams.stim2,gParams.stim1],
+                   [gParams.stim2,gParams.stim2],
+		   [gParams.stim2,gParams.stimdummy]]
+
+   stimset <- [gParams.stim1,gParams.stim2,gParams.stimdummy]
+   ##for the global stimuli, the global correct dimensions are
+   ## 111222
+   ##and the local correct stimuli are
+   ## 120120
+
+   keyglobalglobal <- [1,1,1,2,2,2]
+   keygloballocal <- [1,2,3,1,2,3]
+
+   localpairs <- [[gParams.stim1,gParams.stim1],
+                   [gParams.stim1,gParams.stim2],
+		   [gParams.stim2,gParams.stim1],
+                   [gParams.stim2,gParams.stim2],
+                   [gParams.stimdummy,gParams.stim1],
+		   [gParams.stimdummy,gParams.stim2]]
+
+
+   ##for the local stimuli, the global correct dimensions are
+   ## 112200
+   ##and the local correct stimuli are
+   ## 121212
+
+   keylocalglobal <- [1,1,2,2,3,3]
+   keylocallocal <- [1,2,1,2,1,2]
+
+   ##Let's pre-cache each of the stimuli.
+   gWin <- MakeWindow("black")
+
+
+   if(gSubNum+""=="0")
+   {
+     gSubNum <- GetSubNum(gWin)
+   }
+
+
+   GetStrings(gLanguage)
+
+   MakeDirectory("data")
+   gFileOut <- GetNewDataFile(gSubNum,gWin,"globallocal","csv",
+   "subnum,block,trial,correctresp,localstim,globalstim,consistency,correctLocal,correctGlobal,positionX,positionY,response,correct,time1,rt")
+
+    gReportfile <- GetNewdataFile(gSubNum,gWin,"globallocal-report","txt","")
+
+   lab <- EasyLabel("Pre-Creating stimuli",gVideoWidth/2,100,gWin,22)
+
+   Draw()
+   stimcacheG <- []
+   stimcacheL <- []
+
+##
+##Now, Navon stimuli (globals)
+
+   loop(i,globalpairs)
+   {
+
+
+     points <- Nth(stimPoints,Lookup(First(i),[gParams.stim1, gParams.stim2,gparams.stimdummy],[1,2,3]))
+
+
+
+     stimulus <-  MakeNavonFromPoints(points,
+                Second(i), "DejaVuSansMono.ttf",gParams.fontsize,scale)
+
+
+
+     PushOnEnd(stimcacheG,stimulus)
+     lab.text <- lab.text + "."
+
+
+    if(gParams.showcache)
+     {
+      Print("showing")
+      AddObject(stimulus,gWin)
+      Move(stimulus,gVideoWidth/2,gVideoHeight/2)
+      Draw()
+      WaitForAnyKeyPress()
+     }
+     Draw()
+
+   if(gParams.showcache)
+    {
+      RemoveObject(stimulus,gWin)
+    }
+   }
+
+
+
+##Add the local stimlui
+loop(i,localpairs)
+   {
+
+    points <- Nth(stimPoints,Lookup(First(i),[gParams.stim1,gParams.stim2,gparams.stimdummy],[1,2,3]))
+
+    stimulus <-  MakeNavonFromPoints(points,
+                Second(i), "DejaVuSansMono.ttf",gParams.fontsize, scale)
+
+
+     PushOnEnd(stimcacheL,stimulus)
+     lab.text <- lab.text + "."
+
+    if(gParams.showcache)
+     {
+      AddObject(stimulus,gWin)
+      Move(stimulus,gVideoWidth/2,gVideoHeight/2)
+      Draw()
+      WaitForAnyKeyPress()
+     }
+     Draw()
+   if(gParams.showcache)
+    {
+      RemoveObject(stimulus,gWin)
+    }
+   }
+
+   ##now, stimuli have been created and cached.
+
+   ##now, stimuli have been created and cached.
+
+
+   ##keep track of RT and accuracy and some IVs
+   gDataBlock <- []
+   gDataConsistency <- []
+   gDataRT <- []
+   gDataAcc <- []
+
+
+   lab.text <- ""
+
+    block <- 1
+    ##Block 1: single letters.
+
+
+    message <- EasyTextBox(gInst1,100,25,gWin,15,gVideoWidth-200,120)
+    footer1 <- EasyLabel(gParams.stim1 + "                               "+gParams.stim2,gVideoWidth/2,gVideoHeight-150,gWin,20)
+    footer2 <- EasyLabel(gStrings.respfooter,gVideoWidth/2,gVideoHeight-130,gWin,20)
+    footer3 <- EasyLabel(gStrings.footer1,gVideoWidth/2,gVideoHeight-110,gWin,25)
+    Draw()
+    WaitForKeyPress(" ")
+
+
+    stimlabel <- EasyLabel("",gVideoWidth/2,gVideoHeight/2,gWin,gParams.fontsize)
+
+    trials <- Shuffle(RepeatList([gParams.stim1,gParams.stim2],gParams.reps))
+
+
+    Hide(message)
+    ShowCursor(0)
+    Draw()
+
+
+   trial <- 1
+   loop(i,trials)
+    {
+
+      stimlabel.text <- i
+      Show(stimlabel)
+      Draw()
+      time1 <- GetTime()
+
+      resp <- WaitForListKeyPress(["<lshift>","<rshift>"])
+      time2 <- GetTime()
+
+      if(Uppercase(resp)=="<LSHIFT>")
+         {
+
+           corr <- i==gParams.stim1
+         }else {
+           corr <- i==gParams.stim2
+         }
+
+
+      globalStim <- "O"
+      localstim <- i
+
+      correctLocal <- corr
+      correctGlobal <- "NA"
+      correctresp <- localStim
+
+      consistency <- GetConsistency(globalstim, localstim)
+
+      FilePrint(gFileOut,gSubNum+","+block+","+trial+","+correctresp+","+
+                localStim+","+globalStim+"," + consistency+","+correctLocal+","+
+                correctGlobal+","  +stimlabel.x+","+stimlabel.y+","+resp+","+corr+","+time1+
+                 ","+(time2-time1))
+
+
+
+      PushOnEnd(gDataBlock,block)
+      PushOnEnd(gDataConsistency,consistency)
+      PushOnEnd(gDataRT,(time2-time1))
+      PushOnEnd(gDataAcc,corr)
+
+
+      if(gParams.giveErrorFeedback)
+       {
+            if(not corr)
+            {
+             stimlabel.text <- gStrings.incorrect
+	     } else {
+             stimlabel.text <- gStrings.correct
+             }
+
+	     Show(stimlabel)
+	     Draw()
+	     Wait(250)
+	     Hide(stimlabel)
+
+       }
+
+      Draw()
+      Wait(500)
+     trial <- trial + 1
+    }
+
+
+
+    block <- 2
+    ##Block 2: Letter blocks
+    inst2 <-gInst2
+
+      footer3.text <- gStrings.footer2
+      tmp1 <- Nth(stimCacheL,5)
+      AddObject(tmp1,gWin)
+      Move(tmp1,gVideoWidth/2-200,gVideoHeight/2)
+      Show(tmp1)
+      tmp2 <- Nth(stimCacheL,6)
+      AddObject(tmp2,gWin)
+      Move(tmp2,gVideoWidth/2+200,gVideoHeight/2)
+      Show(tmp2)
+
+      message.text <- inst2
+      AddObject(message,gWin)#add to bring to top.
+      Show(message)
+      Draw()
+      WaitForKeyPress(" ")
+
+      Hide(message)
+      Hide(tmp1)
+      Hide(tmp2)
+      Move(tmp1,gVideoWidth/2,gVideoHeight/2)
+      Move(tmp2,gVideoWidth/2,gVideoHeight/2)
+      Draw()
+
+
+      trials <- Shuffle(RepeatList([1,2],gParams.reps))
+      stims <- [tmp1,tmp2]
+
+       loop(i,trials)
+        {
+
+         stim   <- Nth(stims,i)
+
+          Show(stim)
+          Draw()
+          time1 <- GetTime()
+
+          resp <- WaitForListKeyPress(["<lshift>","<rshift>"])
+          time2 <- GetTime()
+
+
+
+
+      if(Uppercase(resp)=="<LSHIFT>")
+           {
+            corr <- i==1
+           }else {
+            corr <- i==2
+           }
+
+
+
+
+      globalStim <-  "O"
+      localstim <- Nth(stimset,Nth(keyLocalLocal,i))
+
+      correctLocal <- corr
+      correctGlobal <- "NA"
+      correctresp <- localStim
+      consistency <- GetConsistency(globalstim, localstim)
+
+      FilePrint(gFileOut,gSubNum+","+block+","+trial+","+correctresp+","+
+                localStim+","+globalStim+"," +  consistency+","+correctLocal+","+
+                correctGlobal+"," +stim.x+","+stim.y+"," +resp+","+corr+","+time1+
+                 ","+(time2-time1))
+
+      PushOnEnd(gDataBlock,block)
+      PushOnEnd(gDataConsistency,consistency)
+      PushOnEnd(gDataRT,(time2-time1))
+      PushOnEnd(gDataAcc,corr)
+
+      Hide(stim)
+      if(gParams.giveErrorFeedback)
+       {
+            if(not corr)
+            {
+             stimlabel.text <- gStrings.incorrect
+	     } else {
+             stimlabel.text <- gStrings.correct
+             }
+
+	     Show(stimlabel)
+	     Draw()
+	     Wait(250)
+	     Hide(stimlabel)
+
+       }
+
+         Hide(stim)
+         Draw()
+         Wait(500)
+         trial <- trial + 1
+
+        }
+
+   RemoveObject(tmp1,gWin)
+   RemoveObject(tmp2,gWin)
+
+
+    block <- 3
+    ##Block 3: global pure letters
+    inst3 <- gInst3
+
+     footer3.text <- gStrings.footer3
+      tmp1 <- Nth(stimCacheG,3)
+      AddObject(tmp1,gWin)
+      Move(tmp1,gVideoWidth/2-200,gVideoHeight/2)
+      Show(tmp1)
+      tmp2 <- Nth(stimCacheG,6)
+      AddObject(tmp2,gWin)
+      Move(tmp2,gVideoWidth/2+200,gVideoHeight/2)
+      Show(tmp2)
+
+
+      message.text <- inst3
+      AddObject(message,gWin)##re-add to make it on top.
+      Show(message)
+      Draw()
+      WaitForKeyPress(" ")
+
+      Hide(message)
+      Hide(tmp1)
+      Hide(tmp2)
+      Move(tmp1,gVideoWidth/2,gVideoHeight/2)
+      Move(tmp2,gVideoWidth/2,gVideoHeight/2)
+      Draw()
+
+
+      trials <- Shuffle(RepeatList([1,2],gParams.reps))
+      stims <- [tmp1,tmp2]
+
+       loop(i,trials)
+        {
+
+         stim   <- Nth(stims,i)
+
+          Show(stim)
+          Draw()
+          time1 <- GetTime()
+
+          resp <- WaitForListKeyPress(["<lshift>","<rshift>"])
+          time2 <- GetTime()
+          if(Uppercase(resp)=="<LSHIFT>")
+           {
+            corr <- i==1
+           }else {
+            corr <- i==2
+           }
+
+
+      globalStim <- Nth(stimset,Nth(keyGlobalGlobal,i))
+      localstim <-  "O"
+
+      correctLocal <- "NA"
+      correctGlobal <- corr
+      correctresp <- globalStim
+      consistency <- GetConsistency(globalstim, localstim)
+
+      FilePrint(gFileOut,gSubNum+","+block+","+trial+","+correctresp+","+
+                localStim+","+globalStim+"," +  consistency+","+correctLocal+","+
+                correctGlobal+","  +stim.x+","+stim.y+","+resp+","+corr+","+time1+
+                 ","+(time2-time1))
+
+      PushOnEnd(gDataBlock,block)
+      PushOnEnd(gDataConsistency,consistency)
+      PushOnEnd(gDataRT,(time2-time1))
+      PushOnEnd(gDataAcc,corr)
+
+      Hide(stim)
+      if(gParams.giveErrorFeedback)
+       {
+            if(not corr)
+            {
+             stimlabel.text <- gStrings.INCORRECT
+	     } else {
+             stimlabel.text <- gStrings.correct
+             }
+
+	     Show(stimlabel)
+	     Draw()
+	     Wait(250)
+	     Hide(stimlabel)
+
+       }
+
+         Hide(stim)
+         Draw()
+         Wait(500)
+         trial <- trial + 1
+
+        }
+   RemoveObject(tmp1,gWin)
+   RemoveObject(tmp2,gWin)
+
+
+
+
+    block <- 4
+    ##Block 4: local mixed letters
+    footer3.text <- gStrings.footer4
+
+
+      tmp1 <- Nth(stimCacheL,1)
+      AddObject(tmp1,gWin)
+      Move(tmp1,gVideoWidth/2-300,gVideoHeight/2)
+      Show(tmp1)
+
+      tmp2 <- Nth(stimCacheL,4)
+      AddObject(tmp2,gWin)
+      Move(tmp2,gVideoWidth/2,gVideoHeight/2)
+      Show(tmp2)
+
+      tmp3 <- Nth(stimCacheL,6)
+      AddObject(tmp3,gWin)
+      Move(tmp3,gVideoWidth/2+300,gVideoHeight/2)
+      Show(tmp3)
+
+      message.text <- ginst4
+      AddObject(message,gWin)#add to bring to top.
+      Show(message)
+      Draw()
+      WaitForKeyPress(" ")
+
+      RemoveObject(tmp1,gWin)
+      RemoveObject(tmp2,gWin)
+      RemoveObject(tmp3,gWin)
+
+      loop(i,stimCacheL)
+      {
+        AddObject(i,gWin)
+	Move(i,gVideoWidth/2,gVideoHeight/2)
+	Hide(i)
+      }
+      Hide(message)
+      Draw()
+
+
+      trials <- Shuffle(RepeatList(Sequence(1,6,1),gParams.reps))
+
+       loop(i,trials)
+        {
+
+          stim   <- Nth(stimCacheL,i)
+
+          Show(stim)
+          Draw()
+          time1 <- GetTime()
+
+          resp <- WaitForListKeyPress(["<lshift>","<rshift>"])
+          time2 <- GetTime()
+
+
+      globalStim <- Nth(stimset,Nth(keyLocalGlobal,i))
+      localstim <- Nth(stimset,Nth(keyLocalLocal,i))
+
+
+          if(Uppercase(resp)=="<LSHIFT>")
+           {
+
+            correctGlobal <- globalstim == gParams.stim1
+            correctLocal <-  localstim == gParams.stim1
+           }else {
+
+            correctGlobal <- globalstim == gParams.stim2
+            correctLocal <-  localstim == gParams.stim2
+
+           }
+          corr <- correctLocal
+          Hide(stim)
+
+
+       correctresp <- localStim
+
+      consistency <- GetConsistency(globalstim, localstim)
+
+      FilePrint(gFileOut,gSubNum+","+block+","+trial+","+correctresp+","+
+                localStim+","+globalStim+"," +  consistency+","+correctLocal+","+
+                correctGlobal+","  +stim.x+","+stim.y+","+resp+","+corr+","+time1+
+                 ","+(time2-time1))
+
+      PushOnEnd(gDataBlock,block)
+      PushOnEnd(gDataConsistency,consistency)
+      PushOnEnd(gDataRT,(time2-time1))
+      PushOnEnd(gDataAcc,corr)
+
+      if(gParams.giveErrorFeedback)
+       {
+            if(not corr)
+            {
+             stimlabel.text <- gStrings.incorrect
+	     } else {
+             stimlabel.text <- gStrings.correct
+             }
+
+	     Show(stimlabel)
+	     Draw()
+	     Wait(250)
+	     Hide(stimlabel)
+
+       }
+
+         Hide(stim)
+         Draw()
+         Wait(500)
+         trial <- trial + 1
+
+        }
+
+      loop(i,stimCacheL)
+      {
+        RemoveObject(i,gWin)
+      }
+
+
+    block <- 5
+    ##Block 5: Global mixed letters
+    footer3.text <- gStrings.footer5
+
+
+      tmp1 <- Nth(stimCacheG,1)
+      AddObject(tmp1,gWin)
+      Move(tmp1,gVideoWidth/2-300,gVideoHeight/2)
+      Show(tmp1)
+
+      tmp2 <- Nth(stimCacheG,4)
+      AddObject(tmp2,gWin)
+      Move(tmp2,gVideoWidth/2,gVideoHeight/2)
+      Show(tmp2)
+
+      tmp3 <- Nth(stimCacheG,6)
+      AddObject(tmp3,gWin)
+      Move(tmp3,gVideoWidth/2+300,gVideoHeight/2)
+      Show(tmp3)
+
+
+      message.text <- ginst5
+      AddObject(message,gWin)#add to bring to top.
+      Show(message)
+      Draw()
+      WaitForKeyPress(" ")
+
+      Hide(message)
+      RemoveObject(tmp1,gWin)
+      RemoveObject(tmp2,gWin)
+      RemoveObject(tmp3,gWin)
+
+      loop(i,stimCacheG)
+      {
+        AddObject(i,gWin)
+	Move(i,gVideoWidth/2,gVideoHeight/2)
+	Hide(i)
+      }
+
+      Draw()
+
+
+      trials <- Shuffle(RepeatList(Sequence(1,6,1),gParams.reps))
+
+       loop(i,trials)
+        {
+
+          stim   <- Nth(stimCacheG,i)
+
+          Show(stim)
+          Draw()
+          time1 <- GetTime()
+
+          resp <- WaitForListKeyPress(["<lshift>","<rshift>"])
+          time2 <- GetTime()
+
+
+        ##Global /local dimensions:
+        globalStim <- Nth(stimset,Nth(keyGlobalGlobal,i))
+        localstim <- Nth(stimset,Nth(keyGlobalLocal,i))
+
+
+       if(Uppercase(resp)=="<LSHIFT>")
+           {
+            correctGlobal <- globalstim == gParams.stim1
+            correctLocal <-  localstim == gParams.stim1
+           }else {
+
+            correctGlobal <- globalstim == gParams.stim2
+            correctLocal <-  localstim == gParams.stim2
+
+           }
+          corr <- correctGlobal
+          correctresp   <- globalStim
+
+      consistency <- GetConsistency(globalstim, localstim)
+
+      FilePrint(gFileOut,gSubNum+","+block+","+trial+","+correctresp+","+
+                localStim+","+globalStim+"," +  consistency+","+correctLocal+","+
+                correctGlobal+"," +stim.x+","+stim.y+"," +resp+","+corr+","+time1+
+                 ","+(time2-time1))
+
+
+      PushOnEnd(gDataBlock,block)
+      PushOnEnd(gDataConsistency,consistency)
+      PushOnEnd(gDataRT,(time2-time1))
+      PushOnEnd(gDataAcc,corr)
+
+      Hide(stim)
+      if(gParams.giveErrorFeedback)
+       {
+            if(not corr)
+            {
+             stimlabel.text <- gStrings.incorrect
+	     } else {
+             stimlabel.text <- gStrings.correct
+             }
+
+	     Show(stimlabel)
+	     Draw()
+	     Wait(250)
+	     Hide(stimlabel)
+
+       }
+
+         Hide(stim)
+         Draw()
+         Wait(500)
+         trial <- trial + 1
+
+        }
+
+      loop(i,stimCacheG)
+      {
+        RemoveObject(i,gWin)
+      }
+
+
+
+if(gParams.doscatterconditions)
+{
+    block <- 6
+    ##Block 6: local mixed letters, distributed around the screen
+    footer3.text <- gStrings.footer6
+
+
+      tmp1 <- Nth(stimCacheL,1)
+      AddObject(tmp1,gWin)
+      Move(tmp1,gVideoWidth/2-300,gVideoHeight/2)
+      Show(tmp1)
+
+      tmp2 <- Nth(stimCacheL,4)
+      AddObject(tmp2,gWin)
+      Move(tmp2,gVideoWidth/2,gVideoHeight/2)
+      Show(tmp2)
+
+      tmp3 <- Nth(stimCacheL,6)
+      AddObject(tmp3,gWin)
+      Move(tmp3,gVideoWidth/2+300,gVideoHeight/2)
+      Show(tmp3)
+
+      message.text <- gInst6
+      AddObject(message,gWin)#add to bring to top.
+      Show(message)
+      Draw()
+      WaitForKeyPress(" ")
+
+      RemoveObject(tmp1,gWin)
+      RemoveObject(tmp2,gWin)
+      RemoveObject(tmp3,gWin)
+
+      loop(i,stimCacheL)
+      {
+        AddObject(i,gWin)
+	Move(i,gVideoWidth/2,gVideoHeight/2)
+	Hide(i)
+      }
+      Hide(message)
+      Draw()
+
+
+      trials <- Shuffle(RepeatList(Sequence(1,6,1),gParams.reps))
+
+       loop(i,trials)
+        {
+
+          stim   <- Nth(stimCacheL,i)
+	  positionX <- gVideoWidth/2 -gParams.scatterwidth/2 + Random()*gParams.scatterwidth
+	  positionY <- gVideoHeight/2 -gParams.scatterheight/2 + Random()*gParams.scatterheight
+	  Move(stim,positionX,positionY)
+          Show(stim)
+          Draw()
+          time1 <- GetTime()
+
+          resp <- WaitForListKeyPress(["<lshift>","<rshift>"])
+          time2 <- GetTime()
+
+
+      globalStim <- Nth(stimset,Nth(keyLocalGlobal,i))
+      localstim <- Nth(stimset,Nth(keyLocalLocal,i))
+
+
+          if(Uppercase(resp)=="<LSHIFT>")
+           {
+
+            correctGlobal <- globalstim == gParams.stim1
+            correctLocal <-  localstim == gParams.stim1
+           }else {
+
+            correctGlobal <- globalstim == gParams.stim2
+            correctLocal <-  localstim == gParams.stim2
+
+           }
+          corr <- correctLocal
+          Hide(stim)
+
+
+       correctresp <- localStim
+
+      consistency <- GetConsistency(globalstim, localstim)
+
+      FilePrint(gFileOut,gSubNum+","+block+","+trial+","+correctresp+","+
+                localStim+","+globalStim+"," +  consistency+","+correctLocal+","+
+                correctGlobal+"," +stim.x+","+stim.y+","+resp+","+corr+","+time1+
+                 ","+(time2-time1))
+
+      PushOnEnd(gDataBlock,block)
+      PushOnEnd(gDataConsistency,consistency)
+      PushOnEnd(gDataRT,(time2-time1))
+      PushOnEnd(gDataAcc,corr)
+
+      if(gParams.giveErrorFeedback)
+       {
+            if(not corr)
+            {
+             stimlabel.text <- gStrings.incorrect
+	     } else {
+             stimlabel.text <- gStrings.correct
+             }
+
+	     Show(stimlabel)
+	     Draw()
+	     Wait(250)
+	     Hide(stimlabel)
+
+       }
+
+         Hide(stim)
+         Draw()
+         Wait(500)
+         trial <- trial + 1
+
+        }
+
+      loop(i,stimCacheL)
+      {
+        RemoveObject(i,gWin)
+      }
+
+
+    block <- 7
+    ##Block 7: Global mixed letters, distributed aronud the screen
+    footer3.text <- gStrings.footer7
+
+
+      tmp1 <- Nth(stimCacheG,1)
+      AddObject(tmp1,gWin)
+      Move(tmp1,gVideoWidth/2-300,gVideoHeight/2)
+      Show(tmp1)
+
+      tmp2 <- Nth(stimCacheG,4)
+      AddObject(tmp2,gWin)
+      Move(tmp2,gVideoWidth/2,gVideoHeight/2)
+      Show(tmp2)
+
+      tmp3 <- Nth(stimCacheG,6)
+      AddObject(tmp3,gWin)
+      Move(tmp3,gVideoWidth/2+300,gVideoHeight/2)
+      Show(tmp3)
+
+
+      message.text <- gInst7
+      AddObject(message,gWin)#add to bring to top.
+      Show(message)
+      Draw()
+      WaitForKeyPress(" ")
+
+      Hide(message)
+      RemoveObject(tmp1,gWin)
+      RemoveObject(tmp2,gWin)
+      RemoveObject(tmp3,gWin)
+
+      loop(i,stimCacheG)
+      {
+        AddObject(i,gWin)
+	Move(i,gVideoWidth/2,gVideoHeight/2)
+	Hide(i)
+      }
+
+      Draw()
+
+
+      trials <- Shuffle(RepeatList(Sequence(1,6,1),gParams.reps))
+
+       loop(i,trials)
+        {
+
+          stim   <- Nth(stimCacheG,i)
+
+	  positionX <- gVideoWidth/2 -gParams.scatterwidth/2 + Random()*gParams.scatterwidth
+	  positionY <- gVideoHeight/2 -gParams.scatterheight/2 + Random()*gParams.scatterheight
+	  Move(stim,positionX,positionY)
+
+          Show(stim)
+          Draw()
+          time1 <- GetTime()
+
+          resp <- WaitForListKeyPress(["<lshift>","<rshift>"])
+          time2 <- GetTime()
+
+
+        ##Global /local dimensions:
+        globalStim <- Nth(stimset,Nth(keyGlobalGlobal,i))
+        localstim <- Nth(stimset,Nth(keyGlobalLocal,i))
+
+
+       if(Uppercase(resp)=="<LSHIFT>")
+           {
+            correctGlobal <- globalstim == gParams.stim1
+            correctLocal <-  localstim == gParams.stim1
+           }else {
+
+            correctGlobal <- globalstim == gParams.stim2
+            correctLocal <-  localstim == gParams.stim2
+
+           }
+          corr <- correctGlobal
+          correctresp   <- globalStim
+
+      consistency <- GetConsistency(globalstim, localstim)
+
+      FilePrint(gFileOut,gSubNum+","+block+","+trial+","+correctresp+","+
+                localStim+","+globalStim+"," +  consistency+","+correctLocal+","+
+                correctGlobal+","  +stim.x+","+stim.y+","+resp+","+corr+","+time1+
+                 ","+(time2-time1))
+
+
+      PushOnEnd(gDataBlock,block)
+      PushOnEnd(gDataConsistency,consistency)
+      PushOnEnd(gDataRT,(time2-time1))
+      PushOnEnd(gDataAcc,corr)
+
+      Hide(stim)
+      if(gParams.giveErrorFeedback)
+       {
+            if(not corr)
+            {
+             stimlabel.text <- gStrings.incorrect
+	     } else {
+             stimlabel.text <- gStrings.correct
+             }
+
+	     Show(stimlabel)
+	     Draw()
+	     Wait(250)
+	     Hide(stimlabel)
+
+       }
+
+         Hide(stim)
+         Draw()
+         Wait(500)
+         trial <- trial + 1
+
+        }
+
+      loop(i,stimCacheG)
+      {
+        RemoveObject(i,gWin)
+      }
+
+
+   }
+
+
+   ##Now, compute averages of consistent, inconsistent/neutral for each block
+   dataset <- Transpose([gDatablock,gDataConsistency,gDataRT,gDataAcc])
+
+   ##Go through each block
+   ##
+    accs <- []
+    rts <- []
+
+    if(gParams.doscatterconditions)
+    {
+      conds <- [1,2,3,4,5,6,7]
+    }else{
+      conds <- [1,2,3,4,5]
+    }
+   loop(i,conds)
+    {
+      filter <- Match(gDataBlock,i)
+      trials <- Filter(dataset,filter)
+
+      ##Now, within this set, we want to aggregate rt and accuracy across levels of consistency
+
+      cons <- Second(Transpose(trials))
+
+        rtline <- []
+        accline <- []
+       loop(j,[-1,0,1])
+        {
+          filter2 <- Match(cons,j)
+          tmpdat <- (Filter(trials,filter2))
+           if(Length(tmpdat)>0)
+           {
+               ttdat <- Transpose(tmpdat)
+               PushOnEnd(rtLine,Median(Nth(ttdat,3)))
+               PushOnEnd(accline,Mean(Nth(ttdat,4)))
+           } else{
+               PushOnEnd(rtLine,"NA")
+               PushOnEnd(accline,"NA")
+           }
+        }
+       PushOnEnd(rts,rtline)
+       PushOnEnd(accs,accline)
+    }
+
+
+
+  FilePrint(gReportFile,"PEBL Global-local interference task")
+  FilePrint(gReportFile,"Version 1.0, Released 2014")
+  FilePrint(gReportFile,TimeStamp())
+  FilePrint(gReportFile,"PEBL Version: " +GetPEBLVersion())
+  FilePrint(gReportFile,"Elapsed time: " + (GetTime()/1000/60) + " min")
+  FilePrint(gReportFile,"--------------------------------------------------")
+  FilePrint(gReportFile,"Median Response times (ms):")
+  FilePrint(gReportFile,"--------------------------------------------------")
+  FilePrint(gReportFile,"Condition         Incong   Neutral  Congr")
+  FilePrint(gReportFile,"--------------------------------------------------")
+  row <- First(rts)
+
+  FilePrint(gReportFile,"Pure condition:    " + First(row) + "     " + Second(row) +  "        " + Third(row))
+  row <- Second(rts)
+  FilePrint(gReportFile,"Local 1-D:         " + First(row) + "     " + Second(row) +  "        " + Third(row))
+  row <- Third(rts)
+  FilePrint(gReportFile,"Global 1-D:        " + First(row) + "     " + Second(row) +  "        " + Third(row))
+  row <- Fourth(rts)
+  FilePrint(gReportFile,"Local mixed:       " + First(row) + "     " + Second(row) +  "        " + Third(row))
+  row <- Fifth(rts)
+  FilePrint(gReportFile,"Global mixed:      " + First(row) + "     " + Second(row) +  "        " + Third(row))
+
+  if(gParams.doscatterconditions)
+ {
+  row <- Nth(rts,6)
+  FilePrint(gReportFile,"Local mixed/scatter:       " + First(row) + "     " + Second(row) +  "        " + Third(row))
+  row <- Nth(rts,7)
+  FilePrint(gReportFile,"Global mixed/scatter:      " + First(row) + "     " + Second(row) +  "        " + Third(row))
+
+ }
+
+  FilePrint(gReportFile,"--------------------------------------------------")
+
+  FilePrint(gReportFile,"--------------------------------------------------")
+  FilePrint(gReportFile,"Accuracy (pc):")
+  FilePrint(gReportFile,"--------------------------------------------------")
+  FilePrint(gReportFile,"Condition         Incong   Neutral  Congr")
+  FilePrint(gReportFile,"--------------------------------------------------")
+  row <- First(accs)
+  FilePrint(gReportFile,"Pure condition:    " + First(row) + "     " + Second(row) +  "        " + Third(row))
+  row <- Second(accs)
+  FilePrint(gReportFile,"Local 1-D:         " + First(row) + "     " + Second(row) +  "        " + Third(row))
+  row <- Third(accs)
+  FilePrint(gReportFile,"Global 1-D:        " + First(row) + "     " + Second(row) +  "        " + Third(row))
+  row <- Fourth(accs)
+  FilePrint(gReportFile,"Local mixed:       " + First(row) + "     " + Second(row) +  "        " + Third(row))
+  row <- Fifth(accs)
+  FilePrint(gReportFile,"Global mixed:      " + First(row) + "     " + Second(row) +  "        " + Third(row))
+
+  if(gParams.doscatterconditions)
+ {
+  row <- Nth(accs,6)
+  FilePrint(gReportFile,"Local mixed/scatter:       " + First(row) + "     " + Second(row) +  "        " + Third(row))
+  row <- Nth(accs,7)
+  FilePrint(gReportFile,"Global mixed/scatter:      " + First(row) + "     " + Second(row) +  "        " + Third(row))
+  }
+
+  FilePrint(gReportFile,"--------------------------------------------------")
+  FileClose(gReportFile)
+
+
+  MessageBox(gStrings.debrief,gWin)
+
+}
+
+
+
+define MakeNavonStimX(stimGlobal, stimLocal, fontname, localfontmax,xsize,
+                     scalestamp,stampongrid)
+{
+
+  debug <- 0
+  fontnamelocal <- fontname
+  fontnameglobal <- fontname
+
+
+  ##First, make a global stimulus template, preferably something large.
+  bg <- MakeColor("black")
+  bg.alpha <- 255
+
+  fontGlobal <- MakeFont(fontnameGlobal,0,40,MakeColor("white"),MakeColor("black"),0)
+  fontLocal <- MakeFont(fontnameLocal,0,localFontMax,MakeColor("white"),MakeColor("black"),0)
+
+  ##Here is the printing template.  Add a label onto a canvas so we have a real background.
+  orig1 <- MakeLabel(stimGlobal,fontGlobal)
+  orig <- MakeCanvas(orig1.width+2, orig1.height+2, MakeColor("black"))
+  AddObject(orig1,orig)
+  Move(orig1,Floor(orig.width/2),Floor(orig.height/2))
+  Draw(orig)
+
+ if(debug)
+  {
+  AddObject(orig,gWin)
+  Move(orig,200,200)
+  orig.zoomX <- 10
+  orig.zoomY <- 10
+
+   Draw()
+  WaitForAnyKeyPress()
+  orig.zoomX <- 1
+  orig.zoomY <- 1
+  Draw()
+ }
+
+
+
+  ##Here is the stamp:
+  stamp <- MakeLabel(stimLocal,fontLocal)
+  canv <- PrintImageWithStamp(orig,stamp,xsize,scalestamp,stampongrid)
+
+  return canv
+}
+
+
+##This creates a new canvas the same proportions as basewidget
+##which is embossed with the 'stamp' widget.  This is a generalization
+##of the Navon stimulus, and is reminiscent of AALib.
+define PrintImageWithStamp(basewidget,stamp,width,scalestamp,stampongrid)
+{
+
+  ##Make the background color of the canvas:
+  bg <- MakeColor("black")
+#  bg.alpha <- 255
+
+  scale <- width/basewidget.width
+
+  ##Make canv with the same aspect ratio as the basewidget, but possibly of a different size.
+  canv <- MakeCanvas(width, basewidget.height*scale,bg)
+
+  ##Create a stamp out of the local stimulus character, and get its dimensions.
+  stampw <-  stamp.width
+  stamph <- stamp.height
+
+
+
+  ##Now, set up a grid on canv to print the character.
+
+  ##We should maybe do an offset here to center it on the sampling size.
+  hratio <- Floor(canv.height/stamph)  #How many stamps high is it?
+  wratio <- Floor(canv.width/stampw)  #How many stamps wide is it?
+
+  if(gDebugDraw)
+  {
+   AddObject(canv,gWin)
+   Move(canv,300,300)
+  }
+  ##Now, take the original template widget and figure out the grid size of pixels that
+  ##needs to be sampled on each round:
+
+  ##While we are at it, create a canvas so we can actually access the pixels
+  ##Some widgets may not be accessible.
+  copy <- MakeCanvas(basewidget.width,basewidget.height,MakeColor("black"))
+  AddObject(basewidget,copy)
+  MoveCorner(basewidget,0,0)
+  Draw(copy)
+
+  RemoveObject(basewidget,copy)
+  if(gDebugDraw)
+  {
+    AddObject(copy,gWin)
+    Move(copy,copy.width/2+10,copy.height/2+10)
+    Draw()
+  }
+  ##For debugging only?:
+
+
+
+  AddObject(stamp,canv)
+  ##Go through each gridpoint on the global stimulus (copy).
+  loop(i,Sequence(1,wRatio,1))
+   {
+   loop(j,Sequence(1,hRatio,1))
+    {
+
+    ##Now, we need the average intensity of the orig
+    ##stimulus at the corresponding grid location.
+    ##intensity should be a value between 0 and 1
+
+    ##select the appropriate sampling region and compute its intensity
+    vals <- GetIntensity(copy,i,wRatio,j,hRatio)
+
+    intensity <- First(vals)
+    xcenter <- Second(vals)
+    yCenter <- Third(vals)
+
+    cutoffLow <- 40    #Anything below cutoff doesn't get printed.
+    cutoffHigh <- 220  #Anything above this is the max size
+
+    ##There should be a high cutoff too.
+    if(intensity > cutoffLow)
+    {
+
+      if(intensity > cutoffHigh)
+      {
+       newsize <- 1
+      }	else {
+       newsize <- .5 + ((intensity-cutoffLow)/(cutoffHigh-cutoffLow) )/2
+      }
+
+      if(scalestamp)
+      {
+        stamp.zoomX <- newsize
+        stamp.zoomY <- newsize
+      }
+
+     if(stampongrid)
+      {
+        Move(stamp,(i)*stampw,(j)*stamph)
+      }else{
+        Move(stamp,(i+xcenter)*stampw,(j+ycenter)*stamph)
+      }
+      Draw(canv)
+#      Draw()
+    }
+   }
+  }
+#  RemoveObject(canv,gWin)
+ return canv
+}
+
+
+##This creates a new canvas
+## it it scales based on assuming the upper corner
+## is at (0,0). computes a virtual canvas large enough for that,
+## then scales it by scale to create the new canvas.
+## if scale <1, it might vignette a bit.
+
+define MakeNavonFromPoints(stimGlobalPoints, stimLocal,
+                           fontname, localfontmax,scale)
+{
+
+   obj <- MakeCustomObject("GlobalLocalStim")
+
+  font <- MakeFont(fontname,0,localfontmax,MakeColor("white"),MakeColor("black"),0)
+
+
+  ##this is for the size of the character:
+  lab <- MakeLabel(stimLocal,font)
+
+
+   tp <- Transpose(stimGlobalPoints)
+
+   canvaswidth <- Ceiling((Max(First(tp)))*scale) + lab.width*2
+   canvasheight <- Ceiling((Max(Second(tp)))*scale) + lab.height*2
+
+  ##Make the background color of the canvas:
+  bg <- MakeColor("black")
+
+  ##While we are at it, create a canvas so we can actually access the pixels
+  ##Some widgets may not be accessible.
+  canv <- MakeCanvas(canvaswidth,canvasheight,bg)
+
+  obj.bgcol <- bg
+  obj.canv <- canv
+
+
+  labs <-  []
+  obj.labs <- labs
+  ##Go through each gridpoint on the global stimulus (copy).
+  loop(i, stimGlobalPoints)
+  {
+   tmp <- MakeLabel(stimLocal,font)
+   x <- First(i)*scale + lab.width
+   y <- Second(i)*scale + lab.height
+
+    AddObject(tmp,canv)
+    Move(tmp,x,y)
+
+    PushOnEnd(labs,tmp)
+
+   }
+  obj.draw <- "DrawObject"
+  obj.move <- "MoveObjectX"
+  obj.addobject <- "AddObjectX"
+  obj.removeobject <- "RemoveObjectX"
+  obj.hide <- "HideObject"
+  obj.show <- "ShowObject"
+  obj.width <- canv.width
+  obj.height <- canv.height
+  obj.x <- canv.x
+  obj.y <- canv.y
+
+ return obj
+ }
+
+
+define MoveObjectX(obj,x,y)
+{
+  Move(obj.canv,x,y)
+  obj.x <- x
+  obj.y <- y
+}
+
+
+
+define GetIntensity(template,xgrid,maxxgrid,ygrid,maxygrid)
+{
+
+
+
+   ##xgrid,ygrid should tell us the grid position (from upper left)
+   ##that we are sampling from.  maxxgrid, maxygrid tells us the number
+   ##of grids in each direction.
+
+
+ ## This is the size of the sampling region, in pixels
+ ## it might be a non-whole number like 1.5.
+   stepx <- template.width / maxxgrid
+   stepy <- template.height / maxygrid
+
+   #Print("Step:" + stepx + ","+ stepy)
+   xmin <- Max([0,Round((xgrid-1)*stepx)])
+   ymin <- Max([0,Round((ygrid-1)*stepy)])
+
+   xmax <-(Min([xmin+stepx,template.width]))
+   ymax <-(Min([ymin+stepy,template.height]))
+
+   sumN  <- 0
+   sumValue <- 0
+   dcolor <- MakeColor("red")
+
+   ##compute the center of gravity of the stimuli.
+   xCenter <- 0
+   yCenter <- 0
+
+  loop(x,MakeRangeSequence(xmin,xmax))
+   {
+     loop(y,MakeRangeSequence(ymin,ymax))
+     {
+
+       ##x and y are separators which may be mid-pixel.
+       ##we need to estimate the color of the pixel they are on,
+       ##then add them to the total in a weighted fashion.
+
+      px <- Floor(First(x))#+1  ##pixel locations are 0-based.
+      py <- Floor(First(y))#+1
+
+      pixel <- GetPixelColor(template,px,py)
+
+      hsv <- RGBtoHSV(pixel)
+      v <- Third(hsv)
+
+
+      weight <-  (Second(x)-First(x))*(Second(y)-First(y))
+
+       sumN <- sumN +weight
+       sumValue <- sumValue + v*weight
+
+       xratio <- (Second(x)-xmin)/(xmax-xmin)
+       yratio <- (Second(y)-ymin)/(ymax-ymin)
+
+       xCenter <- xCenter + v*(xratio-.5)
+       yCenter <- yCenter + v*(yRatio-.5)
+
+     }
+   }
+
+  if(gDebugDraw)
+  {
+     Draw(template)
+     Draw()
+     Print("Intensity of : " + xgrid + "," + ygrid + " of " + maxxgrid+","+maxygrid+" --  "+ xmin + ":-:" + xmax + "     ,    "  + ymin + ":-:"+ymax +":     "+sumValue/sumN)
+ }
+
+  ##center of gravity is the x values, weighted by the sum of the weights.
+  xCenter <- (xCenter/sumValue)
+  yCenter <- (yCenter/sumValue)
+
+  return [sumValue / sumN,xCenter,yCenter]
+}
+
+
+## Create a list of whole numbers between lo and hi,
+## including lo and hi at the ends (they may be non-integers)
+##
+define MakeRangeSequence(lo,hi)
+{
+ if(lo>hi)
+ {
+   SignalFatalError("hi must be higher than lo")
+ }
+
+  rlo <- Ceiling(lo)
+  rhi <- Floor(hi)
+
+ if(rlo==lo)
+ {
+   rlo <- rlo+1
+ }
+ if(rhi ==hi)
+ {
+  rhi <- rhi - 1
+ }
+
+ if(rlo>rhi)
+ {
+  los <- [lo]
+  his <- [hi]
+ }else {
+
+ los <- Unique(Merge([lo],Sequence(rlo,rhi,1)))
+ his <- Unique(Merge(Sequence(rlo,rhi,1),[hi]))
+}
+
+ return Transpose([los,his])
+}
+
+define Unique(list)
+  {
+    tmp <- Sort(list)
+    newlist <- [First(tmp)]
+    prev <- First(tmp)
+    loop(i,tmp)
+    {
+	if(not i==prev)
+	{
+	  PushOnEnd(newlist,i)
+	}
+	prev <- i
+    }
+    return newlist
+   }
+
+
+
+
+define GetConsistency(stimglobal, stimLocal)
+{
+
+      consistency <- -1
+      if(stimlocal == stimGlobal)
+         {
+            consistency <- 1
+         }
+  ##neutral:
+      if(stimLocal==gParams.stimDummy or stimGlobal == gParams.stimDummy or
+        stimLocal=="O" or stimGlobal == "O")
+        {
+          consistency <- 0
+        }
+ return consistency
+}
+
+
+
+
+define GetStrings(lang)
+{
+
+   ##Known translations: EN
+
+  lang <- Uppercase(lang)
+  fname <- "translations/globallocal.pbl-"+LowerCase(lang)+".json"
+
+  if(FileExists(fname))
+  {
+    gStrings <- ReadTranslationJSON(fname,lang)
+  } else
+  {
+    gStrings <- ReadTranslationJSON("translations/globallocal.pbl-en.json",lang)
+  }
+
+    ##substitute special codes for the actual stimuli  to simplify
+    gInst1 <- gStrings.inst1
+    ginst1 <- ReplaceChar(ginst1,"<STIM1>",gParams.stim1)
+    ginst1 <- ReplaceChar(ginst1,"<STIM2>",gParams.stim2)
+
+
+    gInst2 <- ReplaceChar(gStrings.inst2,"<STIM1>",gParams.stim1)
+    gInst2 <- ReplaceChar(ginst2,"<STIM2>",gParams.stim2)
+
+    gInst3 <- ReplaceChar(gStrings.inst3,"<STIM1>",gParams.stim1)
+    gInst3 <- ReplaceChar(ginst3,"<STIM2>",gParams.stim2)
+
+    gInst4 <- ReplaceChar(gStrings.inst4,"<STIM1>",gParams.stim1)
+    gInst4 <- ReplaceChar(ginst4,"<STIM2>",gParams.stim2)
+
+
+    gInst5 <- ReplaceChar(gStrings.inst5,"<STIM1>",gParams.stim1)
+    gInst5 <- ReplaceChar(ginst5,"<STIM2>",gParams.stim2)
+
+
+    gInst6 <- ReplaceChar(gStrings.inst6,"<STIM1>",gParams.stim1)
+    gInst6 <- ReplaceChar(ginst6,"<STIM2>",gParams.stim2)
+
+    gInst7 <- ReplaceChar(gStrings.inst7,"<STIM1>",gParams.stim1)
+    gInst7 <- ReplaceChar(ginst7,"<STIM2>",gParams.stim2)
+
+
+}
+
+
+define ReadPoints (fname)
+{
+   base <- ReadCSV(fname)
+   numbers <- []
+   loop(i,base)
+   {
+     PushOnEnd(numbers, [ToNumber(First(i)),ToNumber(Second(i))])
+   }
+   return numbers
+}

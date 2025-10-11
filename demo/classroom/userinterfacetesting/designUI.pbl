@@ -1,0 +1,475 @@
+define Start(p)
+{ 
+#  gVideoWidth<-800
+#  gVideoHeight<-600
+  gWin <- MakeWindow("grey90")
+  gSleepEasy <- 1
+
+  gSaved <- 0
+
+  filenames <- FilterDir(GetDirectoryListing("./"),"dsn")
+
+  gDesignFileName <- "default.dsn"
+  gButtons <- []
+
+  if(FileExists(gDesignFileName))
+  {
+     LoadDesign(gDesignFileName)
+  }
+  center <- Rectangle(gVideoWidth/2,gVideoheight/2,500,400,MakeColor("blue"),0)
+  AddObject(center,gWin)
+  gCenterlab <- EasyLabel("Design name: " + gDesignFileName,gVideowidth/2,gVideoHeight/2-190,gWin,12)
+  gStatusline <- EasyLabel("Add or save",gVideoWidth/2,gVideoheight/2+190,gWin,14)
+  
+
+
+
+   xline <- gVideoWidth/2-150
+   yline <- gVideoHeight/2-150
+
+
+   done <- MakeButton("QUIT",xline,yline,gWin,150)
+   add <- MakeButton("Add New Button",xline,yline+22,gWin,150)
+   del <- MakeButton("Delete button",xline,yline+44,gWin,150)
+   copy <- MakeButton("Copy button",xline,yline+66,gWin,150)
+   move <- MakeButton("Move button",xline,yline+88,gWin,150)
+
+   save <- MakeButton("Save configuration",xline,yline+128,gWin,150)
+   gclear <- MakeButton("Clear design",xline,yline+150,gWin,150)
+
+   designoptions <- MakePulldown(Append(filenames,"NEW FILE"),xline+160,yline,gWin,12,150,1)
+
+    
+   add.clickon <- "AddButton"
+   del.clickon <- "DeleteButton"
+   save.clickon <- "SaveDesign"
+   copy.clickon <- "COPY"
+   move.clickon <- "MoveButton"
+   designoptions.clickon <- "ClickOnDesign"
+   gclear.clickon <- "cleardesign"
+   cont <- 1
+   items <- [done,add,del,save,copy,move,gClear,designoptions]
+   Draw()
+
+  while(cont)
+  {
+
+
+  if(Length(gButtons)>0)
+  {
+   tb <- Transpose(gButtons)
+   buttons <- Second(tb)
+   labs <- First(tb)
+
+   targets <- Flatten([items,buttons,labs])
+   indexes <- Flatten([Sequence(1,Length(items),1),
+                     Sequence(1001,1000+Length(gButtons),1),
+ 		     Sequence(2001,2000+Length(gButtons),1)])
+		     
+
+   }else{
+     targets <- items
+     indexes <- Sequence(1,Length(items),1)
+   }
+
+
+    resp <-  WaitForClickOnTarget(targets,indexes)
+    gSaved <- 0
+
+   if(resp<1000)
+    {
+      obj <- Nth(items,resp)
+      CallFunction(obj.clickon,[obj,gClick])
+      Draw()
+    }elseif(resp<2000)
+    {
+       ##Button moving   
+       DragButton(resp-1000)
+    }elseif(resp<3000)
+    {
+       SetButtonText(resp-2000)
+    }
+
+
+    #Exit condition:
+    cont <- resp>1
+  }
+}  
+
+
+
+
+
+define SetFileName(box,pos)
+{
+   PopUpEntryBox("Set new design name",box.win,pos,"")
+   gcenterlab.text <- box.text
+
+}
+
+
+define AddButton(box,pos)
+{
+  PushButton(box,pos)
+  gStatusLine.text <- "click on position to add button."
+  Draw()
+  xy <- WaitForDownClick()
+
+  rect <- Rectangle(First(xy),Second(xy),1,1,MakeColor("blue"),1)
+  AddObject(rect,gWin)
+  lab <- EasyLabel("",rect.x,rect.y,gWin,14)  
+  
+   PushOnEnd(gButtons,[lab,rect])
+   
+  gStatusLine.text <- "Click to size button"
+  Draw()
+
+  cont <- 1
+  while(cont)
+  {
+
+   xy2 <-  WaitForMouseButtonWithTimeout(10)
+   if(First(xy2)=="<timeout>")
+    { 
+     cont<- 1
+     xy2 <- GetMouseCursorPosition()
+    }else{
+     cont <- 0
+
+    }
+
+
+    rect.width <-   Abs(First(xy2)-First(xy))*2
+    rect.height <-  Abs(Second(xy2)-Second(xy))*2
+    Draw()
+  }
+
+
+   SetButtonText(Length(gButtons))
+   gStatusLine.text <- ""
+   Draw()
+}
+
+
+define DeleteButton(box,pos)
+{
+  PushButton(box,pos)
+  if(Length(gButtons)>0)
+  {
+
+   gStatusLine.text <- "Click on button to remove"
+   Draw()
+   targets <- Append(Second(Transpose(gButtons)),box)
+
+    ids <- Append(Sequence(1,Length(gButtons),1),0)
+    resp <- WaitForClickOnTarget(targets,ids)
+
+    if(resp>0)
+     {
+        button <- Nth(gButtons,resp)
+	
+	gButtons <- RemoveSubSet(gButtons,[resp])
+        RemoveObject(First(button),gWin)
+        RemoveObject(Second(button),gWin)
+     }
+
+  gStatusLine.text <- ""
+  Draw()
+  }
+
+}
+
+
+define SaveDesign(box,pos)
+{
+
+  PushButton(box,pos)
+  SaveDesignFile(gDesignFileName)
+  gSaved <- 1
+}
+
+define Copy(box,pos)
+{
+  PushButton(box,pos)
+  if(Length(gButtons)>0)
+   {
+    gStatusLine.text <- "Select button to copy"
+
+    Draw()
+    targets <- Append(Second(Transpose(gButtons)),box)
+
+    ids <- Append(Sequence(1,Length(gButtons),1),0)
+    resp <- WaitForClickOnTarget(targets,ids)
+
+    if(resp>0)
+     {
+
+       button <- Nth(gButtons,resp)
+       box <- Second(button)
+       buttonlab <- First(button)
+       rect <- Rectangle(box.x,box.y,box.width,box.height,MakeColor("blue"),1)
+       AddObject(rect,gWin)
+       lab <- EasyLabel(buttonlab.text,rect.x,rect.y,gWin,14)
+       PushonEnd(gButtons, [lab,rect])
+
+       DragButton(Length(gButtons))
+       SetButtonText(Length(gButtons))
+       Draw()
+   }
+
+  gStatusLine.text <- ""
+  Draw()
+
+   }
+}
+
+
+
+define MoveButton(box,pos)
+{
+
+  PushButton(box,pos)
+  if(Length(gButtons)>0)
+   {
+    gStatusLine.text <- "Select button to Move"
+
+    Draw()
+    targets <- Append(Second(Transpose(gButtons)),box)
+
+    ids <- Append(Sequence(1,Length(gButtons),1),0)
+    resp <- WaitForClickOnTarget(targets,ids)
+
+    if(resp>0)
+     {
+
+  
+
+     }
+
+  gStatusLine.text <- ""
+  Draw()
+
+   }
+}
+
+##This filter returns only files,whose
+##final characters match type.
+define FilterDir(inlist,type)
+{
+
+  outlist <- []
+  typelen <- StringLength(type)
+  loop(i, inlist)
+   {
+
+    if(not IsDirectory(i))
+      {
+        len <- StringLength(i)
+        if(len>=typelen)
+           {
+               if(SubString(i,len-typelen+1,typelen)==type)
+	     	{
+		   PushOnEnd(outlist,i)
+                }
+           }
+       }
+     }
+
+  return outlist
+
+}
+
+define DragButton(buttonindex)
+{
+
+     button <- Second(Nth(gButtons,buttonindex))
+     rect <- Second(Nth(gButtons,buttonindex))
+     text <- First(Nth(gButtons,buttonindex))
+
+     gStatusLine.text <- "Adjust location and click mouse to finalize placement"
+     cont <- 1
+     while(cont)
+       {
+        xy3 <-  WaitForMouseButtonWithTimeout(10)
+        if(First(xy3)=="<timeout>")
+          { 
+            cont<- 1
+            xy3 <- GetMouseCursorPosition()
+          }else{
+            cont <- 0
+
+          }
+
+      rect.x <- First(xy3)
+      rect.y <- Second(xy3)
+      text.x <- First(xy3)
+      text.y <- Second(xy3)
+
+   Draw()
+  }
+   gStatusLine.text <- ""
+   Draw()
+
+}
+
+
+define SetButtonText(buttonindex)
+{
+    lab <-First( Nth(gButtons,buttonindex))
+    lab.text  <- PopUpEntryBox("Enter text Label",gWin,[lab.x,lab.y],lab.text)
+
+   gStatusLine.text <- ""
+   Draw()
+
+}
+
+define SaveDesignFile(fname)
+{
+
+  out <- FileOpenOverwrite(fname)
+  loop(i,gButtons)
+  {
+   rect <- Second(i)
+   lab <- First(i)
+   FilePrint(out,rect.x+","+rect.y+","+rect.width+","+rect.height+","+gQuote+lab.text+gQuote+",1")
+  }
+}
+
+
+define LoadDesign(fname)
+{
+
+
+   des <- ReadCSV(fname)
+
+   loop(i,des)
+   {
+     x <- ToInteger(First(i))
+     y <- ToInteger(Second(i))
+     w  <- ToInteger(Third(i))
+     h  <- ToInteger(Fourth(i))
+     rect <- Rectangle(x,y,w,h,MakeColor("blue"),1)
+     AddObject(rect,gWin)
+     lab <- EasyLabel(Nth(i,5),x,y,gWin,14)
+     PushOnEnd(gButtons,[lab,rect])
+   }
+}
+
+
+define ClearDesign(box,xy)
+{
+
+  PushButton(gClear,xy)
+  loop(i,gButtons)
+  {
+     RemoveObject(First(i),gWin)
+     RemoveObject(Second(i),gWin)
+  }
+  gButtons <- []
+  Draw()
+}
+
+define ClickOnDesign(box,xy)
+{
+
+  Pulldown(box,xy)
+
+  filename <- box.selectedtext
+  Print(filename)
+ if(box.selected==Length(box.list))
+  {
+    gDesignFileName <- PopUpEntryBox("Enter new design name (+.dsn)",gWin,[box.x,box.y],"")
+
+    len <- StringLength(gDesignFileName)
+    if(len>4)
+     { 
+        if(not SubString(gDesignFileName,len-3,4)==".dsn")
+	     	{
+                     gDesignFileName <- gDesignFileName + ".dsn"
+                }
+          
+     }else{
+        gDesignFileName <- gDesignFileName + ".dsn"
+     }
+    SaveDesignFile(gDesignFileName)
+    filenames <- FilterDir(GetDirectoryListing("./"),"dsn")
+
+    ##find which one matches; if any.
+
+    match <- Filter(Sequence(1,Length(filenames),1),Match(filenames,gDesignFilename))
+    if(Length(match)>0)
+    {
+       UpdatePulldown(box,Append(filenames,"NEW FILE"))
+       box.selected <- First(match)
+    }
+
+    DrawPulldown(box)
+
+ 
+  }else{
+  
+    if(FileExists(filename))
+    {
+      ClearDesign(box,xy)
+      LoadDesign(filename)
+    }
+     gDesignFileName <- filename
+  }
+
+
+  gCenterlab.text<- "Design name: " + gDesignFileName
+  Draw()
+
+
+
+  ## Print(gDesignFileName)
+}
+
+##Make an easy-to-use (small 300x200) pop-up messagebox function.
+define PopUpEntryBox(text,win,xy,default)
+{
+  boxwidth <- 301
+  boxheight <- 101
+  if(not IsWindow(win))
+  { 
+    SignalFatalError("PopupEntryBox(win) needs a window to be specified, not [" + win + "]")
+  }
+
+
+    curmouse <- xy
+   	   
+    xpos <- Min([Max([boxwidth/2+5,First(curmouse)]),
+                      gVideoWidth-boxwidth/2-5])
+
+    ypos <- Min([Max([boxheight/2+5,Second(curmouse)]),
+                      gVideoHeight-boxheight/2-5])
+   
+
+   bgcol <- win.BGCOLOR
+
+   popup  <- MakeCanvas(boxwidth,boxheight,MakeColor("grey60"))
+   Move(popup,xpos,ypos)
+   AddObject(popup,win)
+   
+   
+   bg <- Rectangle(boxwidth/2,boxheight/2,boxwidth-2,boxheight-2,bgcol,1)
+   AddObject(bg,popup)
+   font <- MakeFont(gPEBLBaseFont,0,13,MakeColor("black"),bgcol,0)
+   box <- MakeTextBox(text,font,boxwidth-20,boxheight-50)
+   Move(box, 10,20)
+   AddObject(box,popup)
+
+
+   Draw(popup)
+   Hide(bg)
+   Hide(box)
+   entrybox <-  EasyTextBox(default,10,boxheight-25, popup,13,boxwidth-20,20)
+   
+   Draw()
+   resp <- GetInput(entrybox,"<return>")
+
+   RemoveObject(popup,win)
+#   Draw()
+   return resp
+}
+

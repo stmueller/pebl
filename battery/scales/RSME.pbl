@@ -1,0 +1,161 @@
+##PEBL RSME (Rating Scale of Mental Effort)
+## See: Rating Scale Mental Effort (Zijlstra, 1993).
+##http://www.home.zonnet.nl/waard2/mwlappA.htm
+
+define Start(p)
+{
+
+  ##no parameters currently.
+#  gParams <- CreateParameters(parpairs,gParamFile)
+
+  gSleepEasy <- 1
+  gWin <- MakeWindow()
+
+  if(gSubNum+""=="0")
+   {
+     gSubNum <- GetSubNum(gWin)
+   }
+
+  time1 <- GetTime()
+  rsme     <-  RSME(gWin)
+  time2 <- GetTime()
+
+  MakeDirectory("data")
+  filepool <- FileOpenAppend("data/RSME-pooled.csv")
+  line <-  gSubNum + ",RSME," + TimeStamp() +","+ rsme + "," + (time2-time1))
+  Print(line)
+  FilePrint(filepool,line)
+
+ 
+  MakeDirectory("pooled")
+  pooled <- FileOpenAppend("pooled/pooleddat.csv")
+  time <- TimeStamp()
+  key <- MD5Sum(gSubNum+time)
+  Print("done1")
+  FilePrint(pooled,gSubNum+",rsme,"+key+",time,"+time)
+  FilePrint(pooled,gSubNum+",rsme,"+key+",rating,"+rsme)
+  FilePrint(pooled,gSubNum+",rsme,"+key+",elapsedtime,"+(time2-time1))
+   Print("done2")
+}
+
+
+
+define RSME(win)
+{
+   black <- MakeColor("black")
+   font <-   MakeFont(gPEBLBaseFont,0,18,black,MakeColor("grey"),1)
+
+   label <- MakeTextBox("Please indicate, by clicking on the line below, how much effort it took for you to complete the task you've just finished (click on the line below to indicate your degree of effort)",font ,800,80)
+   AddObject(label,win)
+   Move(label,100,20)
+
+   labels <- ["Extreme Effort","Very great effort","Great effort","Considerable Effort","Rather much effort","Some effort","A little effort","Almost no effort",
+"Absolutely no effort"]
+   labheights <- [113, 102, 85,72,57,38,26,13,3]
+
+
+   scaleMax <- 150
+   scaleMin <- 0
+   scaleSize <- scaleMax-scaleMin
+
+   nums <- Sequence(scaleMin,scaleSize,10)
+   lnums <- Length(nums)   
+   ##bottom and top in pixels:
+   top <- 150
+   bottom <- gVideoHeight-200
+   scale <- (bottom-top)/scaleSize
+   skip <- (bottom-top)/(lnums-1)
+   i <- bottom
+
+   ##add click-in box
+    box <- Rectangle(180,(top+bottom)/2,25,(bottom-top)+2,MakeColor("grey60"),1)
+    AddObject(box,win)
+   tmp <- [label,box] ##holder of graphical objects       
+
+
+   loop(n,nums)
+   {
+     lab <- MakeLabel(n+"",font)
+     AddObject(lab,win)
+     Move(lab,160-lab.width/2,i)
+
+     tmp <- Append(tmp,lab)     
+
+     #add tick
+     line <-  Line(170,i,9,0,black)
+     AddObject(line,win)
+     tmp <- Append(tmp,line)
+
+     i <- i- skip
+   }
+    
+
+   ##Add text labels
+   loop(i,Transpose([labels,labheights]))
+   {
+      lab <- MakeLabel(First(i),font)
+      AddObject(lab,win)
+      y <-  bottom - (Second(i)) * scale
+      Move(lab,195 + lab.width/2,y)
+      tmp <- Append(tmp,lab)
+      #add tick
+     line <-  Line(180,y,9,0,black)
+     AddObject(line,win)
+     tmp <- Append(tmp,line)
+
+   }
+
+   #add vertical line
+   line <-    Line(180,top,0,(bottom-top),black)
+   AddObject(line,win) 
+   Draw()
+   tmp <- Append(tmp,line)
+
+   click <- WaitForClickOnTarget([box],[1])
+   line <- Line(170,Second(gClick),20,0,MakeColor("red"))
+   AddObject(line,win)
+
+   Draw()
+
+  ## Make a 'continue' button
+
+  back <- Rectangle(270,bottom+30,140,30,MakeColor("grey60"),0)
+  AddObject(back,win)
+  cont <- MakeLabel("CONTINUE",font)
+  AddObject(cont,win)
+  Move(cont,270,bottom + 30)
+  Draw()
+  continue <- 1
+  while(continue)
+   {
+     resp <- WaitForClickOnTarget([back,box],[0,1])
+     if(resp == 1 )
+     {
+       line.y <- Second(gClick)
+       Draw()
+     } else {
+
+      continue <- 0
+     }
+
+      
+   }
+
+  RemoveObjects(tmp,win)
+  RemoveObject(back,win)
+  RemoveObject(cont,win)
+  RemoveObject(line,win)
+
+
+  return scaleMin + (bottom-line.y)/(bottom-top)*scaleSize
+}
+
+define RemoveObjects(list,win)
+{
+   loop(i,list) 
+   { 
+     RemoveObject(i,win)
+   }
+}
+
+

@@ -1,0 +1,192 @@
+define Start(p)
+{
+  #############################################################
+  ## This is a simple keyboard tapping task. It has been
+  ## used to test low-level motor timing ability, and may be impacted
+  ## by things like fatigue and sleep deprivation.
+  ##
+  ##  The participant is supposed to tap at a self-paced even
+  ##  rate for three minutes.
+  ##
+  ##  See UTC-PAB test 19
+  ##
+  ## (c) 2008 Shane T. Mueller (smueller obereed net)
+  #############################################################
+
+  gScriptName <- "Time-tap Task"
+
+  parpairs <- [["numtrials",3],
+               ["trialtime",180],
+               ["keytouse","A"],
+	       ["nameofkeytouse","A"],
+               ["mintaptime",250],
+               ["trainingflashes",10],
+	       ["maxtaptime",1000]]
+
+  gParams <- CreateParameters(parpairs,gParamFile)
+  ## The time of each trial
+
+  numtrials <- gParams.numtrials
+  trialtime <- gparams.trialtime*1000   #number of seconds * 1000 = ms
+
+  gWin <- MakeWindow()
+  gSleepEasy <- 1
+
+   if(gSubNum+""=="0")
+   {
+     gSubNum <- GetSubNum(gWin)
+   }
+
+
+  GetStrings(glanguage)
+
+  gFileOut <- GetNewDataFile(gSubNum,gWin,"timetap","csv",
+              "subNum,trial,trialtype,targtime,hits,time,rt")
+
+
+  inst<- SubstituteStrings(gStrings.inst1,
+                            [["<NUMTRIALS>",numtrials],
+			     ["<TIME>",trialtime/1000],
+			     ["<KEY>",gParams.nameofkeytouse]])
+
+  tb <- EasyTextBox(inst,20,20,gWin,16,600,300)
+
+  Draw()
+
+
+  lab <- EasyLabel("",gVideoWidth/2,gVideoHeight/2,gWin,24)
+  Hide(lab)
+
+  data <- []
+  trial <- 1
+
+
+  WaitForKeyPress(gParams.keytouse)
+
+  template <- Sequence(0,gParams.numtrials-1,1)
+  offset <- Mean(template)
+  middletime <- (gParams.maxtaptime+gParams.mintaptime)/2
+  timerange <-  (gParams.maxtaptime-gParams.mintaptime)
+  times <- []
+  loop(i,template)
+  {
+    PushOnEnd(times, middletime + (i-offset)*timerange/(gParams.numtrials-1))
+  }
+
+  if(Length(times)==1)
+   {
+    times <- [middletime]
+   }
+
+  times <- Shuffle(times)
+  Print(times)
+  while (trial <= numtrials)
+  {
+
+     ##On the trial, gate the beginning with the "A" press
+     lab.text <-ReplaceChar(gStrings.tobegin,"<KEY>",gParams.nameofkeytouse)
+     Show(lab)
+     Hide(tb)
+     Draw()
+     WaitForKeyPress(gParams.keytouse)
+     Hide(lab)
+     Draw()
+     Wait(2000)    #Give 2 seconds before trial begins
+     targtime <-   Nth(times,trial)
+
+     Train(targtime,gParams.trainingflashes)
+     lab.text <- gStrings.go
+     Show(lab)
+     Draw()
+
+    ##Give a 1 second lead time
+    Wait(1000)
+    Draw()
+
+     ##Compute the end-time of the trial
+    finaltime <- GetTime() + trialtime
+    hits <- 0
+    prevtime <- GetTime()
+    time <- prevtime
+    while(time < finaltime)
+     {
+
+       WaitForKeyPress(gParams.keytouse)
+
+       time <- GetTime()
+       remaining <- Ceiling((finaltime - time)/60000)
+       lab.text <- ReplaceChar(gStrings.recording,"<REM>",remaining)
+
+
+       FilePrint(gFileOut,gSubNum + "," + trial + ",1," + targtime + ","  + hits + "," +  time + "," + (time-prevtime))
+       Draw()
+       hits <- hits + 1
+       prevtime <-time
+     }
+
+   data <- Append(data,hits-1)
+
+
+   ## Give feedback for each trial.
+   Hide(lab)
+   Show(tb)
+   tb.text <- ReplaceChar(gStrings.status,"<HITS>",(hits-1))
+   Draw()
+   trial <- trial + 1
+   WaitForKeyPress("X")
+  }
+
+  x <- PrintList(data)
+  tb.text <- gStrings.report  + CR(3)+ x+ CR(2)+ gstrings.toexit
+
+  Show(tb)
+  Draw()
+  WaitForKeyPress("X")
+
+}
+
+
+define Train(cycle, count)
+{
+   targ <- EasyLabel("+",gVideoWidth/2,gVideoHeight/2+50,gWin,100)
+
+   start <- GetTime()
+   lasttime <- start
+   i <- 1
+   while(i <= count)
+   {
+       time <- GetTime()
+       endcycle <- start + i * cycle
+       Show(targ)
+       Draw()
+       Wait(100)
+       Hide(targ)
+       FilePrint(gFIleOut,gSubNum + ",X,-1," + cycle + "," + i + "," +
+   time + "," + (time-lasttime))
+       Draw()
+       i <- i + 1
+	   lasttime <- time
+       Wait(endcycle - GetTime())
+   }
+
+  RemoveObject(targ,gWin)
+}
+
+
+
+define GetStrings(lang)
+{
+
+  lang <- Uppercase(lang)
+  fname <- "translations/timetap.pbl-"+LowerCase(lang)+".json"
+
+  if(FileExists(fname))
+  {
+    gStrings <- ReadTranslationjson(fname,lang)
+  } else
+  {
+    gStrings <- ReadTranslationjson("translations/timetap.pbl-en.json",lang)
+  }
+
+
+}

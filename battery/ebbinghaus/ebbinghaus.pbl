@@ -1,0 +1,333 @@
+##  This is a short (5-10 minute) experiment replicating some of the
+##  basics of Ebbinghaus's famous self-experiments.  It gives lists of CVCs
+##  repeatedly until the subject gets them correct twice, then moves
+##  on to a new list.  It then repeats the same lists, to allow 'savings'
+##  to be computed.
+##
+
+define Start(p)
+{
+
+
+  parpairs <- [["numlists",2],
+               ["length",8], ##Should be 8, 12, or maybe 16
+	       ["cond","choose"] ##choose, cvcs, or words
+              ]
+
+  gParams <- CreateParameters(parpairs,gParamFile)
+
+  ##How many lists? (each repeated twice)
+  numlists <- gParams.numlists
+
+  length <- gParams.length
+
+   gSleepEasy <- 1
+   gWin <- MakeWindow("black")
+   if(gSubNum+""=="0")
+   {
+      gSubNum <- GetSubNum(gWin)
+   }
+
+   if(gParams.cond=="choose")
+    {
+      gParams.cond <- GetEasyChoice("Select stimulus set to use:",["Nonsense CVS","3-letter Words"],["cvcs","words"],gWin)
+    }
+
+
+
+   gFileOut <- GetNewDataFile(gSubNum,gWin,"ebbing-"+gParams.cond,"csv",
+      "subNum,trial,corr,list,resplist,corrorder,resp,rounds,abstime,rt")
+
+
+   GetStrings(gLanguage)
+
+   MessageBox(gStrings.inst1a +length+
+         gStrings.inst1b +numlists+ gStrings.inst1c ,gWin)
+
+   stim <- FoldList(MakeStimList(length*numlists,
+                          gParams.cond+".txt"),length)
+   gTrial <- 1
+   learning1 <- []
+   loop(i, stim)
+    {
+      CountDown(gWin)
+      num <-  Trial(i)
+      learning1 <- Append(learning1,num)
+      gTrial <- gTrial + 1
+    }
+
+   MessageBox(gStrings.inst2a, gWin)
+
+   ##Now, run through second learning round:
+   learning2 <- []
+   loop(i, stim)
+    {
+      CountDown(gWin)
+      num <-  Trial(i)
+      learning2 <- Append(learning2,num)
+      gTrial <- gTrial + 1
+    }
+
+
+   savings <- []
+   loop(i,Transpose([learning1,learning2]))
+    {
+     savings <- Append(savings, Second(i)-First(i))
+    }
+
+  MessageBox(gStrings.debrief,gWin)
+
+}
+
+
+define Trial(list)
+{
+  time0 <- GetTime()
+  length <- Length(list)
+  cont <- 1
+  rounds <- 0
+  oncecorrect <- 0
+
+   while(cont)
+   {
+     resp <- LearningTrial(list)
+     if(First(resp)==length)
+      {
+        ##Are we correct at least once already?
+        if(oncecorrect)
+	{
+        cont <- 0
+	}
+       oncecorrect <- 1
+      } else {
+       #If wrong, reset oncecorrect:
+       oncecorrect <- 0
+      }
+
+      rounds <- rounds + 1
+     time <- GetTime()
+     FilePrint(gFileOut,gSubNum +","+ gTrial +","+ ConcatenateList(resp,",") +","+ rounds +","+ time + "," + (time-time0))
+   }
+
+ return rounds
+}
+
+
+
+
+define LearningTrial(list)
+{
+
+
+   label <- EasyLabel(gStrings.ready,gVideoWidth/2,gVideoHeight/2,gWin,60)
+   ShowCursor(0)
+   Draw()
+
+   Wait(1000)
+
+   Hide(label)
+   labs <- []
+   loop(i,list)
+   {
+
+     lab <- EasyLabel(i,gVideoWidth/2,gVideoHeight/2,gWin,60)
+     Draw()
+     Wait(1000)
+     RemoveObject(lab,gWin)
+     labs<-Append(labs,lab)
+
+  }
+
+   ShowCursor(1)
+   Draw()
+
+   order <- Shuffle(Sequence(1,Length(labs),1))
+   choices <- SortBy(labs,order)
+   corrorder <- SortBy(Sequence(1,Length(labs),1),order)
+
+   resplist <- []
+   while(Length(resplist)<Length(list))
+    {
+      resp <-  MultiOptionChoice(choices, gWin)
+      curchoice <- First(resp)
+      tmp <-Nth(choices,curchoice)
+      if(not tmp.text=="")
+      {
+
+          resplist <- Append(resplist,tmp.text)
+	  tmp.text <- ""
+	  SetElement(choices,curchoice,tmp)
+      }
+    }
+
+    corr <- ListMatch(list,resplist)
+   label.text <- corr + "/" + Length(list) + gStrings.correct
+   Show(label)
+   Draw()
+   Wait(500)
+   return [corr,list,resplist,corrorder]
+}
+
+
+##How many items match in l1 to l2?
+define ListMatch(l1,l2)
+{
+
+  if(Length(l1)==Length(l2))
+  {
+   same <- 0
+   loop(i,Transpose([l1,l2]))
+    {
+     if(not (First(i) == Nth(i,2)))
+      {
+
+        same <- same
+      }else{
+        same <- same + 1
+      }
+
+    }
+   } else {
+     same <- 0
+   }
+  return same
+}
+
+
+
+define GetGrid(items)
+{
+   grids <- [[1,1],  #1 item
+             [1,2],  # 2 items
+             [1,3],  # 3 items
+             [2,2] , #4 item
+             [2,3],  #5 items
+             [2,3],  #6 items
+             [2,4],  #7 items
+             [2,4],  #8 items
+             [3,3],  #9 items
+             [3,4],  #10 items
+             [3,4],  #11 items
+             [3,4],  #12 items
+             [3,5],  #13 items
+             [3,5],  #14 items
+             [3,5]]  #15 items
+
+   if(items <=15)
+   {
+
+     ret <- Nth(grids,items)
+
+   } else {
+
+     base <- Round(Sqrt(items))
+    if((base-1)*base >=items)
+     {
+      ret <- [base-1,base]
+     } elseif(base*base >= items)
+     {
+        ret <- [base, base]
+     } elseif(base*(base+1)>=items)
+     {
+       ret <- [base, base+1]
+     } else
+     {
+       ret <- [base+1,base+1]
+     }
+   }
+  return ret
+}
+
+
+##foils should be widgets to choose amongst.
+##They need not be added to the window.
+define MultiOptionChoice(options,win)
+{
+
+
+  grid <- GetGrid(Length(options))
+
+   width <- Max([750,gVideoWidth-100])
+   height <- Max([550,gVideoHeight-100])
+  layout <-  LayoutGrid((gVideoWidth-width)/2, (gVideoWidth+width)/2,
+                       (gVideoHeight-height)/2, (gVideoheight+height)/2,
+                        First(grid), Second(grid), 1)
+
+  ##make it the right length
+  layout <- SubList(layout, 1, Length(options))
+
+  tmp <- Transpose([options,layout])
+  loop(i,tmp)
+  {
+    AddObject(First(i),win)
+    xy <- Second(i)
+    Move(First(i),First(xy),Second(xy))
+    Show(First(i))
+  }
+
+  Draw()
+
+  time0 <- GetTime()
+  resp <- WaitForClickOnTarget(options, Sequence(1,Length(options),1))
+  time1 <- GetTime()
+
+
+  ##Remove the stimuli
+
+  loop(i,options)
+  {
+    RemoveObject(i, win)
+  }
+  ##Get the chosen object.
+  chosen <- Nth(options,resp)
+
+  return [resp, (time1-time0), chosen.x, chosen.y]
+
+}
+
+
+define MakeStimList(length,file)
+{
+  stim <- FileReadList(file)
+  list <- SampleN(stim,length)
+  return list
+}
+
+## Used to generate new words; we now read it all in
+## from pre-generated list.
+define MakeList(length)
+  {
+  ##Let's create a stimulus set of CVS.
+   cs <- FileReadList("UppercaseConsonants.txt")
+   vs <- FileReadList("UppercaseVowels.txt")
+
+    list <- []
+    while(Length(list)<length)
+     {
+          cvc <- Sample(cs)+Sample(vs)+Sample(cs)
+        if(not IsMember(cvc,list))
+	{
+	  list <- Append(list,cvc)
+	}
+     }
+
+   return list
+  }
+
+define GetStrings(lang)
+{
+
+   ##Known translations: EN
+
+  lang <- Uppercase(lang)
+  fname <- "translations/ebbinghaus.pbl-"+LowerCase(lang)+".json"
+
+  if(FileExists(fname))
+  {
+    gStrings <- ReadTranslationJSON(fname,lang)
+  } else
+  {
+    gStrings <- ReadTranslationJSON("translations/ebbinghaus.pbl-en.json",lang)
+  }
+
+}

@@ -1,12 +1,76 @@
+## Diagnostic tests for Asyncify implementation
+
 define Start(p)
 {
-  gWin <- MakeWindow()
+  Print("=== TEST.PBL START ===")
+  Print("Creating window...")
 
-  tb <- EasyTextBox("",50,50,gWin,22,300,50)
+  ## Try to call the built-in MakeWindow using : prefix
+  Print("About to call :MakeWindow()")
+  gWin <- :MakeWindow()
+  Print("Window created")
+  Print("gWin value: [" + gWin + "]")
+  Print("IsWidget(gWin): " + IsWidget(gWin))
+  if(IsWidget(gWin))
+  {
+    PrintProperties(gWin)
+  }
+
+  ## Test 1: Basic drawing and labels
+  Print("=== TEST 1: Basic Drawing ===")
+  label1 <- EasyLabel("Test 1: If you see this, drawing works",50,50,gWin,22)
   Draw()
+  Print("Label drawn, waiting 1 second...")
+  Wait(1000)
+  Print("Wait(1000) completed")
+
+  ## Test 2: Simple WaitForAnyKeyPress
+  Print("=== TEST 2: WaitForAnyKeyPress ===")
+  label2 <- EasyLabel("Test 2: Press any key...",50,100,gWin,22)
+  Draw()
+  Print("About to call WaitForAnyKeyPress()")
+  key <- WaitForAnyKeyPress()
+  Print("WaitForAnyKeyPress() returned: [" + key + "]")
+
+  ## Test 3: Multiple key presses
+  Print("=== TEST 3: Multiple Keys ===")
+  RemoveObject(label2, gWin)
+  label3 <- EasyLabel("Test 3: Press 5 keys rapidly...",50,100,gWin,22)
+  countLabel <- EasyLabel("Keys pressed: 0",50,150,gWin,18)
+  Draw()
+
+  count <- 0
+  loop(i, Sequence(1,5,1))
+  {
+    Print("Waiting for key #" + i)
+    key <- WaitForAnyKeyPress()
+    Print("Got key #" + i + ": [" + key + "]")
+    count <- count + 1
+    SetText(countLabel, "Keys pressed: " + count + " (last: " + key + ")")
+    Draw()
+  }
+  Print("All 5 keys received!")
+
+  ## Test 4: GetInput with detailed logging
+  Print("=== TEST 4: GetInput ===")
+  RemoveObject(label3, gWin)
+  RemoveObject(countLabel, gWin)
+  label4 <- EasyLabel("Test 4: Type text, press RETURN",50,100,gWin,22)
+  tb <- EasyTextBox("",50,150,gWin,22,300,50)
+  Draw()
+
+  Print("About to call GetInput()")
   out <- GetInput(tb,"<return>")
-  
+  Print("GetInput() returned: [" + out + "]")
+
+  ## Test 5: Display results
+  Print("=== TEST 5: Results ===")
+  RemoveObject(label4, gWin)
+  RemoveObject(tb, gWin)
+  resultLabel <- EasyLabel("You typed: " + out,50,100,gWin,22)
+  doneLabel <- EasyLabel("All tests complete! Press any key to exit.",50,150,gWin,18)
+  Draw()
+
+  WaitForAnyKeyPress()
+  Print("=== ALL TESTS COMPLETE ===")
 }
-
-
-

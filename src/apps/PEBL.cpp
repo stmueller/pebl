@@ -199,79 +199,6 @@ PNode * head;
 
 
 #ifdef PEBL_EMSCRIPTEN
-enum PEBLEMState
-    {
-        PEM_EVAL,
-        PEM_EVENT
-    };
-
-struct context
-{
-    PEBLEMState mState;
-    int count;
-};
-
-
-//This is the main looper function for the emscripten event loop.
-//When launched, it will run as the main loop.  It will operate by
-// _either_ calling the evaluator or the PEBL event loop, dependent on what mode we are in.
-
-
-void loop_fn(void *arg)
-{
-
-    struct context *ctx = static_cast<struct context*>(arg);
-    (ctx->count)++;
-
-    PEventLoop * loop =    myEval->GetEventLoop();
-    //cout << "@@@@@@@@@@@@@@@@@@@@@@@@@@@@loop-fn |"<< ctx->count<<"| depth: " << myEval->GetNodeStackDepth() <<  ":" << ctx->mState <<endl;
-
-        if(loop)
-            {
-
-
-                if(loop->IsLooping())
-                {
-
-                    ctx->mState = PEM_EVENT;
-                }else
-                {
-                    ctx->mState = PEM_EVAL;
-                }
-            } else {
-
-        }
-
-
-    switch(ctx->mState)
-        {
-        case PEM_EVAL:
-            // Run multiple evaluator steps per frame for better performance
-            // Balance between speed and ensuring Draw() calls render promptly
-            for(int i = 0; i < 200 && myEval->GetNodeStackDepth() > 0; i++)
-            {
-                myEval->Evaluate1();
-            }
-            break;
-        case PEM_EVENT:
-
-            loop->Loop1();
-            break;
-
-        }
-
-    bool cont = (myEval->GetNodeStackDepth()>0);
-    if(!cont)
-        {
-            std::cout << std::endl;
-            std::cout << "========================================" << std::endl;
-            std::cout << "PEBL program completed successfully." << std::endl;
-            std::cout << "========================================" << std::endl;
-            emscripten_cancel_main_loop();
-        }
-
-    }
-
 
 #endif
 
@@ -355,11 +282,11 @@ int PEBLInterpret( int argc, std::vector<std::string> argv )
 #endif
     //    files.push_back("Taguchi.pbl"); //not ready
 
-
+   //this was already loaded on the command-line.
    //load/run test.pbl here.
 #ifdef PEBL_EMSCRIPTEN
-	std::cout << "Loading filename:[test.pbl]\n";
-    files.push_back("test.pbl");
+    //std::cout << "Loading filename:[test.pbl]\n";
+    //files.push_back("test.pbl");
 #endif
 
 
@@ -447,7 +374,7 @@ int PEBLInterpret( int argc, std::vector<std::string> argv )
     delete head;
     head = NULL;
 
-#if 0
+#if 1
     cerr << "\n\n--------------------------------\n";
     cerr << "Functions used in program: " << endl;
     cerr << "--------------------------------\n";
@@ -820,27 +747,24 @@ int PEBLInterpret( int argc, std::vector<std::string> argv )
 
 #ifdef PEBL_EMSCRIPTEN
 
-            //    myEval->Evaluate1(head);
-            //cout << "Finished evaluating head1\n";
+            cout << "Starting evaluation with Asyncify support\n";
 
-            //            while(myEval->GetNodeStackDepth()>0)
-            //                {
-            //                    myEval->Evaluate1();
-            //                    cout << "step complete1\n";
-            //                }
-            cout << "Evaluating first step\n";
-            struct context ctx;
-            int simulate_infinite_loop = 1;
-
-            ctx.mState  = PEM_EVAL;
-            ctx.count = 1;
-
-            //start evaluator at head of pnode tree:
+            // Start evaluator at head of pnode tree
             myEval->Evaluate1(head);
 
-            emscripten_set_main_loop_arg(loop_fn, &ctx, 0, simulate_infinite_loop);
+            // Run the evaluator
+            // Asyncify blocking happens in PEventLoop::Loop1() when waiting for events
+            // SDL_PumpEvents is called in gEventQueue->Prime() inside Loop1()
+            cout << "Running evaluator loop\n";
+            while(myEval->GetNodeStackDepth() > 0)
+            {
+                myEval->Evaluate1();
+            }
 
-            cout << "Exiting main loop; going asynchronous\n";
+            cout << "========================================" << endl;
+            cout << "PEBL program completed successfully." << endl;
+            cout << "========================================" << endl;
+
             return 0;
 #else
 

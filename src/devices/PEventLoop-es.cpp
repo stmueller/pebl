@@ -266,37 +266,21 @@ void LoopAsync(void* data)
 */
 
 
-//This will run the loop exactly once.
+//This will run the loop, blocking until an event arrives or gKeepLooping becomes false.
+//With Asyncify, emscripten_sleep() allows yielding to browser without freezing.
 PEvent PEventLoop::Loop1()
 {
-
-    //std::cout << "." << std::flush;
-
     PEvent returnval(PDT_UNKNOWN,0,0);
     unsigned int result =0;
 
-    //Evaluator * myEval = gEvaluator;
-    //while loop stops when gKeepLooping turns false or there are no more states to check for.
-    //cout << "gkeeplooping b\n";
-    bool stop = (mNumStates==0) ||
-        ((pInt)(myEval->gGlobalVariableMap.RetrieveValue("gKeepLooping"))==(pInt)0);
+    // Loop until we get a matching event or gKeepLooping becomes false
+    while(mNumStates > 0 &&
+          (pInt)(myEval->gGlobalVariableMap.RetrieveValue("gKeepLooping")))
+    {
+        bool matched = false;
 
-#if 0
-    cout << myEval->gGlobalVariableMap.RetrieveValue("gKeepLooping") << endl;
-
-    cout << "stop:" << stop << endl;
-    cout << "numstates: " << mStates.size() << endl;
-    cout << "numstates: " << mNumStates << endl;
-    cout << "states2    " << mIsEvent.size() << endl;
-    cout << "Nodes size:" << mNodes.size() << endl;
-    cout << mStates[0] << endl;
-#endif
-
-    if(!stop)
-        {
-
-            //At the beginning of a cycle, the event queue has not yet been primed.
-            gEventQueue->Prime();
+        // Prime the event queue (process pending SDL events)
+        gEventQueue->Prime();
 
             //cout << "number of states:" << mStates.size() << "  ";
             //cout << "number of states:" << mNumStates << "  ";
@@ -359,7 +343,8 @@ PEvent PEventLoop::Loop1()
                                                             myEval->gGlobalVariableMap.AddVariable("gKeepLooping", 0);
 
                                                         }
-                                                    goto end;
+                                                    matched = true;
+                                                    break;
                                                 }
                                         }
                                 }
@@ -424,16 +409,17 @@ PEvent PEventLoop::Loop1()
                                             //again, careful here...
                                             //myEval->Pop();
 
-                                        
+
                                         }
                                     else
                                         {
 
-                                            
+
                                             myEval->gGlobalVariableMap.AddVariable("gKeepLooping", 0);
 
                                         }
-                                    goto end;
+                                    matched = true;
+                                    break;
 
                                 } else
                                 {
@@ -441,80 +427,27 @@ PEvent PEventLoop::Loop1()
                                     //cout << "state test is 0; \n";
                                 }
                         }
-
-                end:;
-
                 }
 
-            //        end:
-            //Get rid of the top item in the event queue; it has been handled...
+        // Pop the event from the queue
+        gEventQueue->PopEvent();
 
-            gEventQueue->PopEvent();
-
-            //for emscripten asynchrony, we now need to exit, calling the loop1 function again after returning
-            //to the web page for updating.
-
-#if  defined(PEBL_EMSCRIPTEN)
-
-
- 
-            if(myEval->gGlobalVariableMap.RetrieveValue("gKeepLooping"))
-                {
-                    //cout << "gkeeplooping/ is /true\n";
-                } else{
-                //cout << "gkeeplooping/ is NOT true\n";
-                //not clear this is where it should be.
-                //mIsLooping = false;
-            }
- 
-            
-            //This does a nano sleep function to avoid burning cpu, if the gSleepEasy variable is set.
-            //Probably is only available on unix.
-            
-            
-            
-#elif defined(PEBL_UNIX)
-            if(myEval->gGlobalVariableMap.Exists("gSleepEasy") )
-                {
-                    if(myEval->gGlobalVariableMap.RetrieveValue("gSleepEasy"))
-                        {
-                            struct timespec a,b;
-                            a.tv_sec  = 0;
-                            a.tv_nsec = 100000; //1 ms
-                            //int retval = nanosleep(&a,&b);
-                            nanosleep(&a,&b);
-                        }
-                }
-
-#elif defined(PEBL_WIN32)
-            if(myEval->gGlobalVariableMap.Exists("gSleepEasy") )
-                {
-                    if(myEval->gGlobalVariableMap.RetrieveValue("gSleepEasy"))
-                        {
-                            //Sleep(1);  //sleep about 1 ms(might be as much as 10)
-                            SDL_Delay(1);
-                        }
-
-                }
-
-
-            if(myEval->gGlobalVariableMap.RetrieveValue("gKeepLooping"))
-                {
-                    returnval = Loop1();
-                }
-            else
-                {
-                    //stop looping; we need to clear the loop.
-
-                    Clear();
-                }
-#endif
-        }
-    else
+        if(matched)
         {
-
-            Clear();
+            // Got an event, exit the loop
+            break;
         }
+
+        // No match - yield to browser and wait for events
+#ifdef PEBL_EMSCRIPTEN
+        emscripten_sleep(10);  // Sleep 10ms, let keyboard events arrive
+                               // Asyncify pauses execution here, browser runs,
+                               // then we resume and check again
+#endif
+    }
+
+    // Clear the event loop when we're done
+    Clear();
 
 
     return returnval;

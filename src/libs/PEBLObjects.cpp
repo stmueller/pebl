@@ -35,6 +35,7 @@
 #ifdef PEBL_EMSCRIPTEN
 #include "../base/Evaluator-es.h"
 #include "../devices/PEventLoop-es.h"
+#include <emscripten.h>
 #else
 #include "../base/Evaluator.h"
 #include "../devices/PEventLoop.h"
@@ -190,6 +191,23 @@ Variant PEBLObjects::MakeWindow(Variant v)
     PComplexData *  pcd = new PComplexData(tmp2);
 
     Variant tmp = Variant(pcd);
+
+#ifdef PEBL_EMSCRIPTEN
+    // Debug: Use EM_ASM to ensure output isn't optimized away
+    EM_ASM({
+        console.log("=== C++ MakeWindow() CALLED ===");
+    });
+
+    std::string tmpStr = tmp.GetString();
+    EM_ASM({
+        console.log("C++ MakeWindow: Variant as string: [" + UTF8ToString($0) + "]");
+    }, tmpStr.c_str());
+
+    EM_ASM({
+        console.log("C++ MakeWindow: tmp.IsComplexData() = " + $0);
+    }, tmp.IsComplexData());
+#endif
+
     delete pcd;
     delete pcolor;
     pcd=NULL;

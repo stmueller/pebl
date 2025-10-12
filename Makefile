@@ -521,6 +521,9 @@ em-opt:  $(DIRS) $(EMMAIN_OBJ) $(EMMAIN_INC)
 	-s FETCH=1 \
 	-s FORCE_FILESYSTEM=1 \
 	-s ASSERTIONS=1 \
+	-s ASYNCIFY=1 \
+	-s ASYNCIFY_STACK_SIZE=131072 \
+	-s ASYNCIFY_IMPORTS='["emscripten_sleep"]' \
 	--closure 1 \
 	-DPEBL_EMSCRIPTEN \
 	-o $(BIN_DIR)/pebl2.html \

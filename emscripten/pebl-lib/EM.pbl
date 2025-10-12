@@ -147,13 +147,9 @@ define WaitForKeyRelease(key)
 
 define WaitForAnyKeyPress()
 {
-  Print("WaitForAnyKeyPress: Registering event")
   RegisterEvent("<KEY_PRESS>","<ANYKEY>",0,"<EQUAL>","",[])
-  Print("WaitForAnyKeyPress: Starting event loop")
   out <- StartEventLoop()
-  Print("WaitForAnyKeyPress: Event loop returned: [" + out + "]")
   ClearEventLoop()
-  Print("WaitForAnyKeyPress: Returning [" + out + "]")
   return(out)
 } 
 
@@ -226,62 +222,39 @@ define WaitForMouseButtonWithTimeout(timeout)
 
 
 ## GetInput reimplementation for emscripten
-## This avoids nested event loops that cause memory explosions
-## Manually captures text input and checks for exit key
+## With Asyncify, WaitForAnyKeyPress() now blocks properly
 define GetInput(textbox, exitkey)
 {
-    Print("GetInput: Starting, exitkey=" + exitkey)
     SetEditable(textbox, 1)
     SetText(textbox, "")
     Draw()
 
     text <- ""
     continue <- 1
-    keyCount <- 0
 
     while(continue)
     {
-        Print("GetInput: Checking for key press #" + keyCount)
-        ## Register event fresh each time
-        RegisterEvent("<KEY_PRESS>","<ANYKEY>",0,"<EQUAL>","",[])
-        key <- StartEventLoop()
-        ClearEventLoop()
-        keyCount <- keyCount + 1
+        key <- WaitForAnyKeyPress()  ## This now properly blocks via Asyncify
 
-        Print("GetInput: Got key: [" + key + "], length=" + StringLength(key) + ", text so far: [" + text + "]")
-
-        ## If no key ready, wait a bit to yield control to browser
-        if(key == "<unknown>")
+        if(Lowercase(key) == Lowercase(exitkey))
         {
-            Print("GetInput: No key ready, waiting 10ms")
-            Wait(10)
-        }elseif(Lowercase(key) == Lowercase(exitkey))
-        {
-            Print("GetInput: Exit key detected!")
             continue <- 0
         }elseif(key == "<backspace>")
         {
-            Print("GetInput: Backspace detected")
             if(StringLength(text) > 0)
             {
                 text <- SubString(text, 1, StringLength(text) - 1)
-                Print("GetInput: After backspace, text=[" + text + "]")
                 SetText(textbox, text)
                 Draw()
             }
         }elseif(StringLength(key) == 1)
         {
-            Print("GetInput: Adding character to text")
             text <- text + key
-            Print("GetInput: New text=[" + text + "]")
             SetText(textbox, text)
             Draw()
-        }else{
-            Print("GetInput: Ignoring key (length != 1): [" + key + "]")
         }
     }
 
-    Print("GetInput: Exiting with text=[" + text + "]")
     SetEditable(textbox, 0)
     return text
 }

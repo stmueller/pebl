@@ -16,6 +16,27 @@ INTERPRETED FUNCTION OVERRIDES (emscripten/pebl-lib/EM.pbl):
   - The interpreted versions use RegisterEvent/StartEventLoop/ClearEventLoop pattern
   - IMPORTANT: Always include return() statement at end of these functions
 
+EM.PBL FILE SYNCING (CRITICAL):
+  - There are TWO copies of EM.pbl that MUST be kept in sync:
+    1. pebl-lib/EM.pbl (source version)
+    2. emscripten/pebl-lib/EM.pbl (packaged version)
+  - When you modify one, ALWAYS update the other immediately
+  - Use: cp emscripten/pebl-lib/EM.pbl pebl-lib/EM.pbl (or vice versa)
+  - The emscripten version gets packaged into pebl2.data for the browser build
+  - If these get out of sync, the Emscripten build may behave differently than expected
+
+PEBL MODULE-LEVEL CODE RESTRICTION:
+  - PEBL does NOT allow raw executable code at the module level in .pbl files
+  - All code must be inside define functions
+  - All execution starts from the Start() function
+  - WRONG: gMyCounter <- 0  (at module level - will not execute!)
+  - RIGHT: Put initialization code inside functions:
+    define Start(p) {
+      gMyCounter <- 0  ## This executes when Start() is called
+    }
+  - You CANNOT maintain global state with module-level variable initialization
+  - Use MakeCustomObject() to create stateful objects instead of global variables
+
 EMSCRIPTEN BUILD FILES:
   - Main source: pebl-lib/ (authoritative versions)
   - Copy for packaging: emscripten/pebl-lib/ (gets packaged into pebl2.data)

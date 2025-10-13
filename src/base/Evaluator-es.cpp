@@ -557,33 +557,37 @@ bool Evaluator::Evaluate1(const OpNode * node)
           *********************************/
             case PEBL_IF:
                 {
-                    
+
                     //Left node is the expression test;
                     //Right node is the code block to execute if true.
-                    
+
                     const PNode * node1 = node->GetLeft();
                     const OpNode * tail = new OpNode(PEBL_IF_TAIL,NULL,NULL,
                                                      node->GetFilename(), node->GetLineNumber());
 
                     const PNode * codeblock = node->GetRight();
-                    
+
                     //Put the codeblock on the stack; we will remove it
                     //later if need be.
 
                     mNodeStack.push(codeblock);
                     mNodeStack.push(tail);
                     mNodeStack.push(node1);
-                    
+
                 }
                 break;
-                
+
             case PEBL_IF_TAIL:
                 {
                     Variant v1 = Pop();
                     if(v1)
                         {
-                            //really, nothing to do here; we need to just execute the next node 
-                            //on the stack, which is the relevant code block.
+                            //The test was true, so execute the codeblock.
+                            //We need a tail to check if the codeblock returned a STACK_BREAK
+                            const OpNode * tail2 = new OpNode(PEBL_IF_TAIL2,NULL,NULL,
+                                                              node->GetFilename(), node->GetLineNumber());
+                            mNodeStack.push(tail2);
+                            //The codeblock is already on the node stack and will execute next
 
                         }
                     else
@@ -592,10 +596,19 @@ bool Evaluator::Evaluate1(const OpNode * node)
                             //remove it because the test failed.
 
                             mNodeStack.pop();
-                            
+
                             //Put a dummy value on the stack as the return value.
                             Push(0);
                         }
+                }
+                break;
+
+            case PEBL_IF_TAIL2:
+                {
+                    //The codeblock has executed. Check if it returned a STACK_BREAK
+                    //If so, propagate it; otherwise leave the result as-is
+                    //Actually, we don't need to do anything here - the result is already
+                    //on the stack and will be checked by the enclosing STATEMENTS node
                 }
                 break;
                 
@@ -627,9 +640,9 @@ bool Evaluator::Evaluate1(const OpNode * node)
             {
                 //This looks on the top of the stack and
                 //executes the left node if true; right node if false.
-                
+
                 Variant v1 = Pop();
-                
+
                 const PNode * node1;
                 if(v1)
                     {
@@ -639,7 +652,20 @@ bool Evaluator::Evaluate1(const OpNode * node)
                     {
                         node1 = node->GetRight();
                     }
+
+                //Add a tail to check if the codeblock returns a STACK_BREAK
+                const OpNode * tail = new OpNode(PEBL_ELSE_TAIL,NULL,NULL,
+                                                  node->GetFilename(), node->GetLineNumber());
+                mNodeStack.push(tail);
                 mNodeStack.push(node1);
+            }
+            break;
+
+        case PEBL_ELSE_TAIL:
+            {
+                //The codeblock has executed. Check if it returned a STACK_BREAK
+                //If so, propagate it; otherwise leave the result as-is
+                //The result is already on the stack and will be checked by the enclosing STATEMENTS node
             }
             break;
 
@@ -1296,21 +1322,21 @@ bool Evaluator::Evaluate1(const OpNode * node)
         case PEBL_LOOP_TAIL2:
             {
 
-                //the code block has just been executed. We need to look at the results to 
+                //the code block has just been executed. We need to look at the results to
                 //handle any breaks.
                 //Normally, the top of the stack will be the next index to handle
 
                 Variant results = Pop();
-                
+
                 if(results.GetDataType() == P_DATA_STACK_SIGNAL &&
                    results == Variant(STACK_BREAK))
                     {
-
                         Pop();  //pop the list
                         Pop();  //pop the variable name
                         Pop();  //pop the next index
                         Push(Variant(0));  //Push on a dummy return value
-                        mNodeStack.pop(); //pop the codeblock
+
+                        mNodeStack.pop(); //pop the codeblock (the original copy from PEBL_LOOP setup)
                     } else {
                 
 
@@ -1732,17 +1758,20 @@ bool Evaluator::Evaluate1(const OpNode * node)
 
                     //The results of the first statement are on top of the stack.  Get them off:
                     Variant v1 = Pop();
-                    
-                    
+
+
                     if(v1.GetDataType() == P_DATA_STACK_SIGNAL &&
                        v1 == Variant(STACK_BREAK))
                         {
-                                //If this is a stack signal, and if 
+                                //If this is a stack signal, and if
                                 //it is a break, we should just back out
+                                //But first, we need to pop the Right node from the node stack
+                                //to prevent it from executing
+                            mNodeStack.pop();  //Remove the right statement from the node stack
                             Push(Variant(STACK_BREAK));
                             break;
                         }
-                    
+
                 }
                 break;
 

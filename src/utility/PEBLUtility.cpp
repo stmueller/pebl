@@ -372,11 +372,7 @@ PEBL_Keycode  PEBLUtility::TranslateString(const std::string & let)
 {
     std::string letters = PEBLUtility::ToLower(let);
 
-#ifdef PEBL_EMSCRIPTEN
-    SDL_Keycode code = SDLK_UNKNOWN;
-#else
     SDL_Keycode code =SDL_GetKeyFromName(letters.c_str());
-#endif
     
     //cout <<"testing letters: [" << letters << "]"<<endl;
 

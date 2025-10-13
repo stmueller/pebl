@@ -106,7 +106,9 @@
 %token   PEBL_EQ_TAIL
 %token   PEBL_GE_TAIL 
 %token   PEBL_GT_TAIL 
-%token   PEBL_IF_TAIL 
+%token   PEBL_IF_TAIL
+%token   PEBL_IF_TAIL2
+%token   PEBL_ELSE_TAIL
 %token   PEBL_LE_TAIL 
 %token   PEBL_LISTITEM_TAIL 
 %token   PEBL_LOOP_TAIL1    

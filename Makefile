@@ -531,9 +531,12 @@ em-opt:  $(DIRS) $(EMMAIN_OBJ) $(EMMAIN_INC)
 	$(patsubst %.o, $(OBJ_DIR)/%.o, $(EMMAIN_OBJ)) \
 	libs/SDL2_gfx-1.0.4/build-em/SDL2_gfxPrimitives.o \
 	--shell-file emscripten/shell_PEBL_debug.html \
-	--preload-file test.pbl \
+	--preload-file battery/corsi \
+	--preload-file battery/corsi/translations@translations \
+	--preload-file battery/corsi/params@params \
 	--preload-file emscripten/pebl-lib@/usr/local/share/pebl2/pebl-lib \
-	--preload-file emscripten/media/@/usr/local/share/pebl2/media 
+	--preload-file emscripten/media/@/usr/local/share/pebl2/media
+
 
 
 #

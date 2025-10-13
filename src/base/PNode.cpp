@@ -311,6 +311,8 @@ std::string  OpNode::GetOpName() const
         case   PEBL_GE_TAIL : return   "PEBL_GE_TAIL";
         case   PEBL_GT_TAIL : return   "PEBL_GT_TAIL";
         case   PEBL_IF_TAIL : return "PEBL_IF_TAIL";
+        case   PEBL_IF_TAIL2 : return "PEBL_IF_TAIL2";
+        case   PEBL_ELSE_TAIL : return "PEBL_ELSE_TAIL";
         case   PEBL_LE_TAIL : return "PEBL_LE_TAIL";
         case   PEBL_LISTITEM_TAIL : return   "PEBL_LISTITEM_TAIL";
         case   PEBL_LOOP_TAIL1  : return    "PEBL_LOOP_TAIL1";

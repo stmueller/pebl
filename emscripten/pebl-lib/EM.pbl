@@ -59,7 +59,7 @@ define WaitForKeyPress(key)
 }
 
 
-define WaitForListKeyPressWithTimeout(keys,timeout)
+define WaitForListKeyPressWithTimeout(keys,timeout,style:1)
 {
 
     endtime <- GetTime() + timeout
@@ -74,7 +74,7 @@ define WaitForListKeyPressWithTimeout(keys,timeout)
    RegisterEvent("<TIMER>", 1, endtime,"<GEQ>","",[])
    out <-   StartEventLoop()
    ClearEventLoop()
-   
+
    return(out)
 }
 
@@ -257,6 +257,76 @@ define GetInput(textbox, exitkey)
 
     SetEditable(textbox, 0)
     return text
+}
+
+
+##############################################################################
+## File operation overrides for Emscripten
+## These redirect file output to console since browser has no real filesystem
+##############################################################################
+
+
+## Override GetNewDataFile to return a dummy file handle and print header
+define GetNewDataFile(subnum, win, basename, ext, header)
+{
+
+
+    filename <- "data/" + subnum + "/" + basename + "-" + subnum + "." + ext
+
+    ## Return the counter as a fake file handle
+    return (FileOpenWrite(filename))
+}
+
+## Override FileOpenWrite
+define FileOpenWrite(filename)
+{
+    Print("=== EM FILE OPENED: " + filename + " ===")
+    file <- MakeCustomObject("FILEOBJECT")
+    file.filename <- filename
+    file.direction <- "WRITE"
+
+    return(file)
+}
+
+## Override FileOpenAppend
+define FileOpenAppend(filename)
+{
+    Print("=== EM FILE OPENED (APPEND): " + filename + " ===")
+    file <- MakeCustomObject("FILEOBJECT")
+    file.filename <- filename
+    file.direction <- "APPEND"
+
+    return(file)
+}
+
+## Override FilePrint to print to console
+define FilePrint(filehandle, text)
+{
+    Print(text)
+    return(1)
+}
+
+## Override FilePrint_ (no newline version)
+define FilePrint_(filehandle, text)
+{
+    Print_(text)
+    return(1)
+}
+
+## Override FileClose (no-op)
+define FileClose(filehandle)
+{
+
+    Print("=== EM FILE CLOSED: "+ filehandle.filename)
+
+    return(1)
+}
+
+## Override FileReadList - returns empty list since we can't read files in browser
+define FileReadList(filename)
+{
+    Print("=== EM FILE READ (returning empty list): " + filename + " ===")
+    return([])
 }
 
 

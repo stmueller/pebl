@@ -987,7 +987,7 @@ int main(int argc,  char *argv[])
     std::string basedir = "/usr/local/share/pebl2";
 
     std::string resourcepath = basedir;
-    std::string launch = "test.pbl";
+    std::string launch = "battery/corsi/corsi.pbl";
     std::string script = launch;
 
     Evaluator::gGlobalVariableMap.AddVariable("gPEBLResourcePath",Variant(resourcepath));

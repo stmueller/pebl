@@ -38,7 +38,7 @@ PEBL_VERSION =2.1
 #USE_AUDIOIN=1     ##Optional; comment out to turn off  sdl_audioin library
 #USE_NETWORK=1      ##Optional; comment out to turn off sdl_net library.
 #USE_PORTS=1        ##lpt, serial port, etc.
-#USE_HTTP=1         ##Optional; turn on/off for http get/set
+USE_HTTP=1         ##Optional; turn on/off for http get/set
 USE_MIXER=1        ##Optional; uses sdl mixer for better audio+ogg/mp3/etc.
 
 
@@ -78,7 +78,7 @@ CXXFLAGS0 = -O3
 
 #CXXFLAGS_EMSCRIPTEN = -DPEBL_EMSCRIPTEN -DPEBL_ITERATIVE_EVAL -DPREFIX=$(PREFIX) -DEXECNAME=$(EXECNAME) -DPEBLNAME=$(PEBLNAME) -DPEBLDIRNAME=$(PEBLDIRNAME) -I/usr/include/x86_64-linux-gnu/ -I/usr/local/include/emscripten/
 
-CXXFLAGS_EMSCRIPTEN = -DPEBL_EMSCRIPTEN -DPEBL_HTTP -DPEBL_ITERATIVE_EVAL -DPREFIX=$(PREFIX) -DEXECNAME=$(EXECNAME) -DPEBLNAME=$(PEBLNAME) -DPEBLDIRNAME=$(PEBLDIRNAME) -sUSE_SDL=2 -sUSE_SDL_NET=2 -sUSE_SDL_TTF=2 -sUSE_SDL_IMAGE=2 -sUSE_SDL_MIXER=2
+CXXFLAGS_EMSCRIPTEN = -DPEBL_EMSCRIPTEN -DPEBL_HTTP -DPEBL_ITERATIVE_EVAL -DHTTP_LIB=3 -DPREFIX=$(PREFIX) -DEXECNAME=$(EXECNAME) -DPEBLNAME=$(PEBLNAME) -DPEBLDIRNAME=$(PEBLDIRNAME) -sUSE_SDL=2 -sUSE_SDL_NET=2 -sUSE_SDL_TTF=2 -sUSE_SDL_IMAGE=2 -sUSE_SDL_MIXER=2
 
 
 ## http=2 is curl
@@ -498,7 +498,8 @@ em:  $(DIRS) $(EMMAIN_OBJ) $(EMMAIN_INC)
 	$(patsubst %.o, $(OBJ_DIR)/%.o, $(EMMAIN_OBJ)) \
 	libs/SDL2_gfx-1.0.4/build-em/SDL2_gfxPrimitives.o \
 	--shell-file emscripten/shell_PEBL_debug.html \
-	--preload-file test.pbl \
+	--preload-file upload-battery/test/testUpload.pbl@test.pbl \
+	--preload-file upload-battery/test/upload.json@upload.json \
 	--preload-file emscripten/pebl-lib@/usr/local/share/pebl2/pebl-lib \
 	--preload-file emscripten/media/@/usr/local/share/pebl2/media
 
@@ -531,9 +532,9 @@ em-opt:  $(DIRS) $(EMMAIN_OBJ) $(EMMAIN_INC)
 	$(patsubst %.o, $(OBJ_DIR)/%.o, $(EMMAIN_OBJ)) \
 	libs/SDL2_gfx-1.0.4/build-em/SDL2_gfxPrimitives.o \
 	--shell-file emscripten/shell_PEBL_debug.html \
-	--preload-file battery/corsi \
-	--preload-file battery/corsi/translations@translations \
-	--preload-file battery/corsi/params@params \
+	--preload-file upload-battery/test/testUpload.pbl@test.pbl \
+	--preload-file upload-battery/test/upload.json@upload.json \
+	--preload-file upload-battery/test/data@data \
 	--preload-file emscripten/pebl-lib@/usr/local/share/pebl2/pebl-lib \
 	--preload-file emscripten/media/@/usr/local/share/pebl2/media
 

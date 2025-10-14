@@ -921,15 +921,20 @@ Variant PEBLHTTP::PostHTTP(Variant pagename,
 
 #include <stdio.h>
 
+// Global completion flag for async uploads
+static volatile int upload_complete = 0;
+
 void uploadSucceeded(emscripten_fetch_t *fetch) {
   printf("Finished uploading %llu bytes from URL %s.\n", fetch->numBytes, fetch->url);
-  // The data is now available at fetch->data[0] through fetch->data[fetch->numBytes-1];
-  emscripten_fetch_close(fetch); // Free data associated with the fetch.
+  printf("Upload succeeded with status: %d\n", fetch->status);
+  upload_complete = 1;  // Signal completion
+  // DON'T close here - let the main thread do it after extracting response
 }
 
 void uploadFailed(emscripten_fetch_t *fetch) {
   printf("Uploading %s failed, HTTP failure status code: %d.\n", fetch->url, fetch->status);
-  emscripten_fetch_close(fetch); // Also free data on failure.
+  upload_complete = -1;  // Signal failure
+  // DON'T close here - let the main thread do it
 }
 
 
@@ -938,8 +943,6 @@ PEBLHTTP::PEBLHTTP(Variant host, int port)
 {
   mHost = host;
   mPort = port;
-  std::cout <<"Creating PEBLHTTP object\n";
-
 }
 
 
@@ -955,11 +958,15 @@ PEBLHTTP::~PEBLHTTP()
 int PEBLHTTP::GetHTTPFile(Variant  filename,
 			  Variant savename)
 {
+  // Set the basename url with protocol
+  std::string protocol = "http://";
+  if (mPort == 443) {
+    protocol = "https://";
+  }
+  Variant fname = Variant(protocol) + mHost + Variant(":") + Variant(mPort) + filename;
 
-  std::cout << "Getting file\n";
-  //set the basename url:
-  Variant fname = mHost +Variant(":")+Variant(mPort) + filename;
-  std::cout << "fname1: " << fname << std::endl;
+  // Store URL as string to keep it alive during fetch
+  std::string url_str = fname.GetString();
 
   emscripten_fetch_attr_t attr;
   emscripten_fetch_attr_init(&attr);
@@ -972,9 +979,7 @@ int PEBLHTTP::GetHTTPFile(Variant  filename,
    emscripten_fetch_t * fetch;
 
 
-   fetch = emscripten_fetch(&attr, fname.GetString().c_str());
-
-   std::cout << "done fetching\n";
+   fetch = emscripten_fetch(&attr, url_str.c_str());
    mStatus = fetch->status;
 
    //The data is now available at fetch->data[0] through fetch->data[fetch->numBytes-1];
@@ -993,18 +998,22 @@ int PEBLHTTP::GetHTTPFile(Variant  filename,
 
 
 
- //This gets an http url and saves it to the specified file.
- //this assumes you are getting a binary-formatted file.
+ //This gets an http url and returns it as text
 std::string PEBLHTTP::GetHTTPText(Variant  filename)
 {
+  // Set the basename url with protocol
+  std::string protocol = "http://";
+  if (mPort == 443) {
+    protocol = "https://";
+  }
+  Variant fname = Variant(protocol) + mHost + Variant(":") + Variant(mPort) + Variant(filename);
 
+  // Store URL as string to keep it alive during fetch
+  std::string url_str = fname.GetString();
 
-  //set the basename url:
-  Variant fname = mHost +Variant(":")+Variant(mPort) + Variant(filename);
    emscripten_fetch_attr_t attr;
    emscripten_fetch_attr_init(&attr);
    strcpy(attr.requestMethod, "GET");
-    std::cout << "fname2: " << fname << std::endl;
    attr.attributes = EMSCRIPTEN_FETCH_LOAD_TO_MEMORY | EMSCRIPTEN_FETCH_SYNCHRONOUS;
 
   attr.onsuccess = uploadSucceeded;
@@ -1012,7 +1021,7 @@ std::string PEBLHTTP::GetHTTPText(Variant  filename)
 
 
    emscripten_fetch_t *fetch;
-   fetch = emscripten_fetch(&attr, fname.GetString().c_str());
+   fetch = emscripten_fetch(&attr, url_str.c_str());
    mStatus = fetch->status;
 
    //The data is now available at fetch->data[0] through fetch->data[fetch->numBytes-1];
@@ -1084,8 +1093,16 @@ Variant PEBLHTTP::PostHTTP(Variant pagename,
       sep = "&";
     }
 
-  Variant fname = mHost +Variant(":")+Variant(mPort) + pagename + arguments;
-   std::cout << "fname3: " << fname << std::endl;
+  // Set the basename url with protocol
+  std::string protocol = "http://";
+  if (mPort == 443) {
+    protocol = "https://";
+  }
+  Variant fname = Variant(protocol) + mHost + Variant(":") + Variant(mPort) + pagename + arguments;
+
+  // Store URL as string to keep it alive during fetch
+  std::string url_str = fname.GetString();
+
   /* Now specify the POST data */
   const char * const * rH;
 
@@ -1124,7 +1141,7 @@ Variant PEBLHTTP::PostHTTP(Variant pagename,
 
 
    emscripten_fetch_t * fetch;
-   fetch = emscripten_fetch(&attr, fname.GetString().c_str());
+   fetch = emscripten_fetch(&attr, url_str.c_str());
    mStatus = fetch->status;
 
    //The data is now available at fetch->data[0] through fetch->data[fetch->numBytes-1];
@@ -1156,73 +1173,263 @@ Variant PEBLHTTP::PostMulti(Variant pagename,
 			    Variant uploadname,
 			    Variant form)
 {
+  /////////////////////////////////////////////////////////////////////////
+  // IMPORTANT: Why we use JavaScript Fetch API instead of emscripten_fetch
+  //
+  // This implementation uses browser's native Fetch API via EM_ASM instead
+  // of Emscripten's emscripten_fetch API. This is necessary because:
+  //
+  // 1. Binary Data Handling: emscripten_fetch treats the requestData buffer
+  //    as a C string (null-terminated), even when requestDataSize is explicitly
+  //    set. This causes truncation at the first null byte (0x00) in binary data.
+  //
+  // 2. Multipart POST Bodies: When uploading files via multipart/form-data,
+  //    the POST body contains file content that may include null bytes. CSV
+  //    files, for example, often contain values that map to 0x00 bytes.
+  //
+  // 3. Solution: By copying data byte-by-byte into JavaScript's Uint8Array
+  //    and using the browser's native fetch() function, we bypass all C string
+  //    handling and ensure binary data (including null bytes) is sent correctly.
+  //
+  // 4. Asyncify: We use emscripten_sleep() in a busy-wait loop to handle the
+  //    async nature of fetch() while maintaining synchronous semantics expected
+  //    by PEBL code. This requires Asyncify to be enabled at compile time.
+  /////////////////////////////////////////////////////////////////////////
 
-
-      /* Now specify the POST data */
-
-
-  //First, add the page arguments &a=b&c=d etc..
-  //to contain it (with a 0 at the end).
-  PError::AssertType(args, PEAT_LIST, "PostHTTP arguments must be a list");
-
+  // Parse args list - these become form fields in the multipart body
+  PError::AssertType(args, PEAT_LIST, "PostMulti arguments must be a list");
   PList * dataList = (PList*)(args.GetComplexData()->GetPEBLObject().get());
 
   std::vector<Variant>::iterator p1 = dataList->Begin();
   std::vector<Variant>::iterator p1end = dataList->End();
 
-  Variant arguments;
-  Variant sep = "?";
+  // Store args to add as form fields later
+  std::vector<std::pair<std::string, std::string>> form_fields;
   while(p1 != p1end)
     {
       std::string head = *p1;
       p1++;
       std::string value = *p1;
       p1++;
-      arguments = arguments +  sep + (head + "=" + value);
-      sep = "&";
+      form_fields.push_back(std::make_pair(head, value));
     }
 
-  Variant fname = mHost +Variant(":")+Variant(mPort) + pagename + arguments;
+  // Build full URL with protocol (without query string - args go in body)
+  std::string protocol = "http://";
+  if (mPort == 443) {
+    protocol = "https://";
+  }
+  Variant fname = Variant(protocol) + mHost + Variant(":") + Variant(mPort) + pagename;
 
-  /*
+  // Read file content from virtual filesystem
+  std::string uploadname_str = uploadname.GetString();
 
-  curl_formadd(&formpost,
-	       &lastptr,
-	       CURLFORM_COPYNAME, ((std::string)form).c_str(),
-	       CURLFORM_FILE, ((std::string)uploadname).c_str(),
-	       CURLFORM_END);
+  // Check file exists via Emscripten FS API
+  // This ensures PEBL's writes are visible before we try C++ fopen()
+  int fs_size = EM_ASM_INT({
+    try {
+      var path = UTF8ToString($0);
+      var stat = FS.stat(path);
+      return stat.size;
+    } catch(e) {
+      console.error('FS.stat error:', e);
+      return -1;
+    }
+  }, uploadname_str.c_str());
 
-  // Fill in the 'filename' field. This might differ based on server.
-  curl_formadd(&formpost,
-	       &lastptr,
-	       CURLFORM_COPYNAME,"filename",
-	       CURLFORM_COPYCONTENTS,  ((std::string)uploadname).c_str(),
-	       CURLFORM_END);
+  if (fs_size <= 0) {
+    PError::SignalWarning("PostMulti: File not found or empty: " + uploadname_str);
+    return Variant("");
+  }
 
-  // Fill in the submit field too, even if this is rarely needed
-  curl_formadd(&formpost,
-	       &lastptr,
-	       CURLFORM_COPYNAME, "submit",
-	       CURLFORM_COPYCONTENTS, "send",
-	       CURLFORM_END);
+  FILE* file = fopen(uploadname_str.c_str(), "rb");
+  if (!file) {
+    PError::SignalWarning("PostMulti: Could not open file " + uploadname_str);
+    return Variant("");
+  }
 
+  // Get file size
+  fseek(file, 0, SEEK_END);
+  long filesize = ftell(file);
+  fseek(file, 0, SEEK_SET);
 
-  curl_easy_setopt(mCurl, CURLOPT_HTTPPOST, formpost);
+  if (filesize == 0) {
+    fclose(file);
+    PError::SignalWarning("PostMulti: File is empty (0 bytes): " + uploadname_str);
+    return Variant("");
+  }
 
+  // Read file content
+  char* filedata = (char*)malloc(filesize);
+  if (!filedata) {
+    fclose(file);
+    PError::SignalWarning("PostMulti: Memory allocation failed");
+    return Variant("");
+  }
 
+  size_t bytes_read = fread(filedata, 1, filesize, file);
+  fclose(file);
 
-*/
+  if (bytes_read != filesize) {
+    free(filedata);
+    PError::SignalWarning("PostMulti: File read error");
+    return Variant("");
+  }
 
+  // Build multipart/form-data body
+  std::string boundary = "----PEBLFormBoundary7MA4YWxkTrZu0gW";
+  std::string form_str = form.GetString();
 
+  // Extract just the filename from the path
+  std::string filename = uploadname_str;
+  size_t last_slash = filename.find_last_of("/\\");
+  if (last_slash != std::string::npos) {
+    filename = filename.substr(last_slash + 1);
+  }
 
+  // Build multipart body
+  std::string body;
 
+  // Add form field parameters (user_name, upload_password, taskname, subnum, etc.)
+  for (size_t i = 0; i < form_fields.size(); i++) {
+    body += "--" + boundary + "\r\n";
+    body += "Content-Disposition: form-data; name=\"" + form_fields[i].first + "\"\r\n\r\n";
+    body += form_fields[i].second + "\r\n";
+  }
 
+  // Add file upload field
+  body += "--" + boundary + "\r\n";
+  body += "Content-Disposition: form-data; name=\"" + form_str + "\"; filename=\"" + filename + "\"\r\n";
+  body += "Content-Type: application/octet-stream\r\n\r\n";
+  body.append(filedata, filesize);
+  body += "\r\n";
 
+  // Add filename field
+  body += "--" + boundary + "\r\n";
+  body += "Content-Disposition: form-data; name=\"filename\"\r\n\r\n";
+  body += filename + "\r\n";
 
+  // Add submit field
+  body += "--" + boundary + "\r\n";
+  body += "Content-Disposition: form-data; name=\"submit\"\r\n\r\n";
+  body += "send\r\n";
 
+  // Final boundary
+  body += "--" + boundary + "--\r\n";
+
+  free(filedata);
+
+  // Store URL as string to keep it alive during fetch
+  std::string url_str = fname.GetString();
+
+  // Allocate persistent storage for headers
+  static std::string content_type_header;
+  content_type_header = "multipart/form-data; boundary=" + boundary;
+
+  // Allocate persistent buffer for POST body
+  size_t body_len = body.length();
+  char* persistent_body = (char*)malloc(body_len);
+  if (!persistent_body) {
+    PError::SignalWarning("PostMulti: Failed to allocate body buffer");
+    return Variant("");
+  }
+
+  // Use body.data() (not c_str()) to handle binary data correctly
+  memcpy(persistent_body, body.data(), body_len);
+
+  // Initialize JavaScript completion flags
+  EM_ASM({
+    Module._js_fetch_complete = 0;
+    Module._js_fetch_status = 0;
+    Module._js_fetch_response = '';
+  });
+
+  // Use JavaScript's Fetch API directly with Uint8Array
+  EM_ASM_INT({
+    var url = UTF8ToString($0);
+    var bodyPtr = $1;
+    var bodyLen = $2;
+    var contentType = UTF8ToString($3);
+
+    // Copy POST body from C++ memory to JavaScript Uint8Array (binary-safe)
+    var bodyData = new Uint8Array(bodyLen);
+    for (var i = 0; i < bodyLen; i++) {
+      bodyData[i] = HEAPU8[bodyPtr + i];
+    }
+
+    // Perform fetch with binary body
+    fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': contentType
+      },
+      body: bodyData
+    })
+    .then(response => {
+      Module._js_fetch_status = response.status;
+      return response.text();
+    })
+    .then(text => {
+      Module._js_fetch_response = text;
+      Module._js_fetch_complete = 1;
+    })
+    .catch(error => {
+      console.error('Upload error:', error);
+      Module._js_fetch_status = 0;
+      Module._js_fetch_complete = -1;
+    });
+
+    return 0;
+  }, url_str.c_str(), (int)persistent_body, (int)body_len, content_type_header.c_str());
+
+  // Busy-wait for JavaScript fetch to complete (requires Asyncify)
+  int wait_count = 0;
+  int js_complete = 0;
+  while (js_complete == 0) {
+    js_complete = EM_ASM_INT({
+      return Module._js_fetch_complete || 0;
+    });
+
+    if (js_complete == 0) {
+      emscripten_sleep(50);  // Sleep 50ms between checks
+      wait_count++;
+      if (wait_count > 600) {  // 30 second timeout
+        free(persistent_body);
+        PError::SignalWarning("PostMulti: Upload timeout after 30 seconds");
+        return Variant("");
+      }
+    }
+  }
+
+  free(persistent_body);
+
+  // Get HTTP status from JavaScript
+  mStatus = EM_ASM_INT({
+    return Module._js_fetch_status || 0;
+  });
+
+  if (js_complete < 0) {
+    return Variant("Upload failed");
+  }
+
+  // Get response text from JavaScript
+  char* response_text = (char*)EM_ASM_INT({
+    var text = Module._js_fetch_response || '';
+    var len = lengthBytesUTF8(text) + 1;
+    var buffer = _malloc(len);
+    stringToUTF8(text, buffer, len);
+    return buffer;
+  });
+
+  if (response_text) {
+    mText = std::string(response_text);
+    free(response_text);
+  } else {
+    mText = "";
+  }
 
   return mText;
-  }
+}
 
 
 

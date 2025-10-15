@@ -332,3 +332,80 @@ define GetInput(textbox, exitkey)
 ## }
 
 
+##############################################################################
+## Token-based multi-test hosting support
+##############################################################################
+
+## Initialize token-based upload configuration
+## Call this at the start of battery tests that will be hosted online
+## Reads upload.json (written by JavaScript launcher) and sets up:
+## - gToken: Study identifier
+## - gTestName: Test name (e.g., "stroop", "flanker")
+## - gUploadURL: Server endpoint for data upload
+## - gParticipant: Participant ID
+## - gDataDirectory: Centralized data path: /data/{token}/{test}/{participant}/
+## - gUploadSettings: Full configuration object
+## - gUseUpload: Flag indicating token mode is active
+define InitializeUpload()
+{
+    if(FileExists("upload.json"))
+    {
+        settings <- ParseJSON(FileReadText("upload.json"))
+        gToken <- settings.token
+        gTestName <- settings.test
+        gUploadURL <- settings.uploadURL
+        gParticipant <- settings.participant
+
+        ## Set gSubNum to participant ID so battery tests can use it
+        gSubNum <- gParticipant
+
+        ## Set working directory to the test directory so relative paths work
+        SetWorkingDirectory("/usr/local/share/pebl2/battery/" + gTestName)
+
+        ## Set centralized data directory for token mode
+        ## Create directories one level at a time since MakeDirectory doesn't create parents
+        MakeDirectory("/data")
+        MakeDirectory("/data/" + gToken)
+        MakeDirectory("/data/" + gToken + "/" + gTestName)
+        gDataDirectory <- "/data/" + gToken + "/" + gTestName + "/" + gParticipant + "/"
+        MakeDirectory(gDataDirectory)
+
+        gUseUpload <- 1
+        gUploadSettings <- settings  ## Make full config available
+
+        result <- 1
+    } else {
+        result <- 0
+    }
+    return(result)
+}
+
+## Override GetNewDataFile to use token-based paths in Emscripten
+## When gDataDirectory is defined (token mode), files save to centralized location
+## Otherwise uses standard test-local data/ directory (desktop mode)
+define GetNewDataFile(subnum, win, basename, ext, header)
+{
+    if(VariableExists("gDataDirectory"))
+    {
+        ## Token mode - use centralized directory with participant subdirectory
+        filename <- gDataDirectory + basename + "-" + subnum + "." + ext
+    }    else    {
+        ## Desktop mode - use test's local data/ directory
+        filename <- "data/" + basename + "-" + subnum + "." + ext
+    }
+
+    fileout <- FileOpenWrite(filename)
+    if(header != "")
+    {
+        FilePrint(fileout, header)
+    }
+    return(fileout)
+}
+
+## Note: FileOpenAppend is NOT overridden here.
+## In token mode, pooled files opened with FileOpenAppend("data/...") will create
+## files in the participant directory because the working directory is set by
+## InitializeUpload(). This means each participant gets their own pooled files,
+## which prevents conflicts during upload.
+
+

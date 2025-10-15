@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PEBL Token-Based Test Launcher</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        #launcher-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        #status {
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        .status-loading {
+            background-color: #e3f2fd;
+            color: #1976d2;
+        }
+        .status-error {
+            background-color: #ffebee;
+            color: #c62828;
+        }
+        .status-success {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+        }
+        #pebl-container {
+            display: none;
+            margin-top: 20px;
+        }
+        .info-panel {
+            background-color: #f5f5f5;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 8px 0;
+        }
+        .info-label {
+            font-weight: bold;
+            color: #666;
+        }
+        .info-value {
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div id="launcher-container">
+        <h1>PEBL Research Study</h1>
+
+        <div id="status" class="status-loading">
+            Initializing study...
+        </div>
+
+        <div id="info-panel" class="info-panel" style="display: none;">
+            <div class="info-row">
+                <span class="info-label">Test:</span>
+                <span class="info-value" id="info-test"></span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Participant ID:</span>
+                <span class="info-value" id="info-participant"></span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Study Code:</span>
+                <span class="info-value" id="info-token"></span>
+            </div>
+        </div>
+
+        <div id="pebl-container">
+            <!-- PEBL canvas will be inserted here -->
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const VALIDATION_URL = '/api/validate';  // Update to your server URL
+
+        // Parse URL parameters
+        function getURLParams() {
+            const params = new URLSearchParams(window.location.search);
+            return {
+                test: params.get('test'),
+                token: params.get('token'),
+                participant: params.get('participant'),
+                language: params.get('language') || 'en'
+            };
+        }
+
+        // Display status message
+        function setStatus(message, type) {
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = message;
+            statusEl.className = 'status-' + type;
+        }
+
+        // Display study information
+        function showInfo(params) {
+            document.getElementById('info-test').textContent = params.test;
+            document.getElementById('info-participant').textContent = params.participant;
+            document.getElementById('info-token').textContent = params.token;
+            document.getElementById('info-panel').style.display = 'block';
+        }
+
+        // Validate parameters
+        function validateParams(params) {
+            if (!params.test) {
+                setStatus('Error: Missing "test" parameter in URL', 'error');
+                return false;
+            }
+            if (!params.token) {
+                setStatus('Error: Missing "token" parameter in URL', 'error');
+                return false;
+            }
+            if (!params.participant) {
+                setStatus('Error: Missing "participant" parameter in URL', 'error');
+                return false;
+            }
+            return true;
+        }
+
+        // Validate token with server
+        async function validateToken(params) {
+            try {
+                const queryString = new URLSearchParams({
+                    token: params.token,
+                    test: params.test,
+                    participant: params.participant
+                }).toString();
+
+                const response = await fetch(`${VALIDATION_URL}?${queryString}`);
+
+                if (!response.ok) {
+                    throw new Error('Server returned error: ' + response.status);
+                }
+
+                const config = await response.json();
+
+                if (!config.valid) {
+                    throw new Error(config.error || 'Invalid study configuration');
+                }
+
+                return config;
+            } catch (error) {
+                throw new Error('Validation failed: ' + error.message);
+            }
+        }
+
+        // Write upload.json to Emscripten filesystem
+        function writeUploadConfig(Module, params, config) {
+            const uploadConfig = {
+                token: params.token,
+                test: params.test,
+                participant: params.participant,
+                uploadURL: config.uploadURL || '/api/upload'
+            };
+
+            const configJSON = JSON.stringify(uploadConfig);
+            Module.FS.writeFile('/upload.json', configJSON);
+
+            console.log('Wrote upload.json:', uploadConfig);
+        }
+
+        // Launch PEBL with command-line arguments
+        function launchPEBL(Module, params) {
+            const scriptPath = `/usr/local/share/pebl2/battery/${params.test}/${params.test}.pbl`;
+            const args = [scriptPath, '-s', params.participant];
+
+            // Add optional language parameter
+            if (params.language && params.language !== 'en') {
+                args.push('--language', params.language);
+            }
+
+            console.log('Launching PEBL with args:', args);
+
+            // Call PEBL's main function with arguments
+            Module.callMain(args);
+        }
+
+        // Main initialization
+        var Module = {
+            preRun: [],
+            postRun: [],
+            print: function(text) {
+                console.log('PEBL:', text);
+            },
+            printErr: function(text) {
+                console.error('PEBL Error:', text);
+            },
+            canvas: (function() {
+                // Canvas will be created by Emscripten
+                return null;
+            })(),
+            setStatus: function(text) {
+                if (text) {
+                    console.log('PEBL Status:', text);
+                }
+            },
+            totalDependencies: 0,
+            monitorRunDependencies: function(left) {
+                this.totalDependencies = Math.max(this.totalDependencies, left);
+            },
+            onRuntimeInitialized: async function() {
+                try {
+                    // Get URL parameters
+                    const params = getURLParams();
+
+                    // Validate required parameters
+                    if (!validateParams(params)) {
+                        return;
+                    }
+
+                    // Show study info
+                    showInfo(params);
+
+                    // Validate token with server
+                    setStatus('Validating study token...', 'loading');
+                    const config = await validateToken(params);
+
+                    setStatus('Loading test...', 'loading');
+
+                    // Write upload.json configuration
+                    writeUploadConfig(Module, params, config);
+
+                    // Launch PEBL
+                    launchPEBL(Module, params);
+
+                    // Show PEBL container
+                    setStatus('Test is running', 'success');
+                    document.getElementById('pebl-container').style.display = 'block';
+
+                } catch (error) {
+                    console.error('Launch error:', error);
+                    setStatus('Error: ' + error.message, 'error');
+                }
+            }
+        };
+
+        // Handle window load to show initial message
+        window.addEventListener('DOMContentLoaded', function() {
+            const params = getURLParams();
+
+            if (!validateParams(params)) {
+                return;
+            }
+
+            setStatus('Loading PEBL runtime...', 'loading');
+        });
+    </script>
+
+    <!-- Load the PEBL Emscripten build -->
+    <!-- Update the path to point to your actual pebl2.js file -->
+    <script async src="pebl2.js"></script>
+</body>
+</html>

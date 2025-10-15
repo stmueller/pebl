@@ -1053,8 +1053,8 @@ bool Evaluator::Evaluate1(const OpNode * node)
                     case PEBL_LAMBDAFUNCTION:
                         {   //Need to create a new scope to allow for variable declaration
                             //within case statement
-                            
-                            //We want to avoid creating multiple evaluators so that we can 
+
+                            //We want to avoid creating multiple evaluators so that we can
                             //more easily async the evaluator loop.  So, create a stack
                             //to hold them.
 
@@ -1066,6 +1066,9 @@ bool Evaluator::Evaluate1(const OpNode * node)
 
 
                             mScope = funcname.GetFunctionName();
+
+                            //Push the call site onto the call stack for error reporting
+                            gCallStack.Push(node);
 
                             //This cleans up the return arguments of the lambda function.
                             const OpNode * tail = new OpNode( PEBL_FUNCTION_TAIL_LIBFUNCTION,NULL,NULL,
@@ -1093,14 +1096,16 @@ bool Evaluator::Evaluate1(const OpNode * node)
         case PEBL_FUNCTION_TAIL_LIBFUNCTION:
             {
 
-                
+                //Pop the call site from the call stack for error reporting
+                gCallStack.Pop();
+
                 //Go to the previous context/scope label and variables.
                 mScope = mScopeStack.top();
                 mScopeStack.pop();
 
                 mLocalVariableMap= mVariableMapStack.top();
                 mVariableMapStack.pop();
-                
+
             }
             break;
             

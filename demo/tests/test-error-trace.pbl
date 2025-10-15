@@ -1,0 +1,62 @@
+## Test file for error reporting and call stack trace
+## This file intentionally contains an error to test error feedback
+## The error should show the complete call chain:
+##   Start() -> FunctionA() -> FunctionB() -> FunctionC() -> [ERROR]
+
+define Start(p)
+{
+    gVideoWidth <- 800
+    gVideoHeight <- 600
+    gWin <- MakeWindow()
+
+    Print("=== Error Trace Test ===")
+    Print("Testing nested function calls with intentional error")
+    Print("Expected call chain: Start -> FunctionA -> FunctionB -> FunctionC")
+    Print("")
+
+    ## Call the first function which will trigger nested calls
+    result <- FunctionA(10, 20)
+
+    Print("If you see this, the error was not caught!")
+    Print("Result: " + result)
+
+    return 1
+}
+
+## First level function
+define FunctionA(x, y)
+{
+    Print("Entering FunctionA with x=" + x + ", y=" + y)
+
+    ## Call second level
+    value <- FunctionB(x + 5, y + 10)
+
+    Print("FunctionA returning: " + value)
+    return value
+}
+
+## Second level function
+define FunctionB(a, b)
+{
+    Print("Entering FunctionB with a=" + a + ", b=" + b)
+
+    ## Call third level
+    result <- FunctionC(a * 2, b * 2)
+
+    Print("FunctionB returning: " + result)
+    return result
+}
+
+## Third level function - this one contains the error
+define FunctionC(m, n)
+{
+    Print("Entering FunctionC with m=" + m + ", n=" + n)
+
+    ## This line has an intentional error:
+    ## RandomUniform() takes 0 arguments, but we're calling it with 2
+    ## This should trigger an error and show the call stack
+    badValue <- RandomUniform(m, n)
+
+    Print("FunctionC returning: " + badValue)
+    return badValue
+}

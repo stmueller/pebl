@@ -470,39 +470,6 @@ main:  $(DIRS) $(PEBLMAIN_OBJ) $(PEBLMAIN_INC)
 ## -Wl,-rpath,/usr/lib \
  #	-s MAXIMUM_MEMORY=2147483648 \
 ##Make emscripten target (debug):
-em:  $(DIRS) $(EMMAIN_OBJ) $(EMMAIN_INC)
-	$(CXX) $(CXXFLAGS) \
-	-O2 \
-	-g \
-	-gsource-map \
-	-s WASM=1 \
-	-s USE_SDL=2 \
-	-s USE_SDL_NET=2 \
-	-s USE_SDL_TTF=2 \
-	-s USE_SDL_IMAGE=2 \
-	-s SDL2_IMAGE_FORMATS='["png","jpeg","gif","bmp"]' \
-	-s ALLOW_MEMORY_GROWTH=1 \
-	-s INITIAL_MEMORY=67108864 \
-	-s MAXIMUM_MEMORY=4294967296 \
-	-s EXPORTED_RUNTIME_METHODS='["ccall","cwrap"]' \
-	-s MODULARIZE=1 \
-	-s EXPORT_NAME="createPEBLModule" \
-	-s FETCH=1 \
-	-s FORCE_FILESYSTEM=1 \
-	-s ASSERTIONS=1 \
-	-s STACK_OVERFLOW_CHECK=2 \
-	--profiling \
-	-DPEBL_EMSCRIPTEN \
-	-o $(BIN_DIR)/pebl2.html \
-	$(BASE_DIR)/lex.yy.c \
-	$(patsubst %.o, $(OBJ_DIR)/%.o, $(EMMAIN_OBJ)) \
-	libs/SDL2_gfx-1.0.4/build-em/SDL2_gfxPrimitives.o \
-	--shell-file emscripten/shell_PEBL_debug.html \
-	--preload-file upload-battery/test/testUpload.pbl@test.pbl \
-	--preload-file upload-battery/test/upload.json@upload.json \
-	--preload-file emscripten/pebl-lib@/usr/local/share/pebl2/pebl-lib \
-	--preload-file emscripten/media/@/usr/local/share/pebl2/media
-
 ##Make optimized emscripten target (production):
 em-opt:  $(DIRS) $(EMMAIN_OBJ) $(EMMAIN_INC)
 	$(CXX) $(CXXFLAGS) \
@@ -516,7 +483,7 @@ em-opt:  $(DIRS) $(EMMAIN_OBJ) $(EMMAIN_INC)
 	-s ALLOW_MEMORY_GROWTH=1 \
 	-s INITIAL_MEMORY=67108864 \
 	-s MAXIMUM_MEMORY=4294967296 \
-	-s EXPORTED_RUNTIME_METHODS='["ccall","cwrap"]' \
+	-s EXPORTED_RUNTIME_METHODS='["ccall","cwrap","FS","callMain"]' \
 	-s MODULARIZE=1 \
 	-s EXPORT_NAME="createPEBLModule" \
 	-s FETCH=1 \
@@ -525,16 +492,18 @@ em-opt:  $(DIRS) $(EMMAIN_OBJ) $(EMMAIN_INC)
 	-s ASYNCIFY=1 \
 	-s ASYNCIFY_STACK_SIZE=131072 \
 	-s ASYNCIFY_IMPORTS='["emscripten_sleep"]' \
-	--closure 1 \
+	--pre-js emscripten/load-idbfs.js \
+	-lidbfs.js \
 	-DPEBL_EMSCRIPTEN \
 	-o $(BIN_DIR)/pebl2.html \
 	$(BASE_DIR)/lex.yy.c \
 	$(patsubst %.o, $(OBJ_DIR)/%.o, $(EMMAIN_OBJ)) \
 	libs/SDL2_gfx-1.0.4/build-em/SDL2_gfxPrimitives.o \
 	--shell-file emscripten/shell_PEBL_debug.html \
-	--preload-file upload-battery/test/testUpload.pbl@test.pbl \
-	--preload-file upload-battery/test/upload.json@upload.json \
-	--preload-file upload-battery/test/data@data \
+	--preload-file upload-battery/ptrails/ptrails.pbl@test.pbl \
+	--preload-file upload-battery/ptrails/params@params \
+	--preload-file upload-battery/ptrails/translations@translations \
+	--preload-file upload-battery/ptrails/upload.json@upload.json \
 	--preload-file emscripten/pebl-lib@/usr/local/share/pebl2/pebl-lib \
 	--preload-file emscripten/media/@/usr/local/share/pebl2/media
 

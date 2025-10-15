@@ -74,6 +74,7 @@
       var spinnerElement = document.getElementById('spinner');
 
       var Module = {
+        noInitialRun: true,  // Don't run main() automatically
         preRun: [],
         postRun: [],
         print: (function() {
@@ -151,6 +152,61 @@
       window.addEventListener('load', function() {
         createPEBLModule(Module).then(function(instance) {
           console.log("PEBL module loaded successfully");
+          window.PEBLModule = instance;
+
+          // Set up IDBFS BEFORE running main()
+          console.log('Setting up IDBFS persistent storage...');
+
+          var FS = instance.FS;
+
+          // Debug: Check what's available
+          console.log('FS available:', !!FS);
+          console.log('FS.filesystems available:', FS ? !!FS.filesystems : 'N/A');
+          if (FS && FS.filesystems) {
+            console.log('Available filesystems:', Object.keys(FS.filesystems));
+          }
+
+          // Check if IDBFS is available
+          if (!FS || !FS.filesystems || !FS.filesystems.IDBFS) {
+            console.error('IDBFS not available. Starting without persistence.');
+            // Run main anyway
+            instance.callMain();
+            return;
+          }
+
+          try {
+            var IDBFS = FS.filesystems.IDBFS;
+
+            // Create and mount /data directory
+            FS.mkdir('/data');
+            FS.mount(IDBFS, {}, '/data');
+            console.log('IDBFS mounted at /data');
+
+            // Load from IndexedDB THEN run main()
+            FS.syncfs(true, function(err) {
+              if (err) {
+                console.error('Error loading from IndexedDB:', err);
+              } else {
+                console.log('Files loaded from IndexedDB');
+              }
+
+              // Now run PEBL's main() after IDBFS is ready
+              console.log('Starting PEBL main()...');
+              instance.callMain();
+
+              // Set up auto-sync
+              window.syncFS = function() {
+                FS.syncfs(false, function(err) {
+                  if (!err) console.log('Files synced to IndexedDB');
+                });
+              };
+              setInterval(window.syncFS, 5000);
+              console.log('Auto-sync enabled');
+            });
+          } catch (e) {
+            console.error('Failed to set up IDBFS:', e);
+            instance.callMain();  // Run anyway
+          }
         }).catch(function(error) {
           console.error("Failed to load PEBL module:", error);
         });

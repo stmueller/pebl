@@ -500,10 +500,7 @@ em-opt:  $(DIRS) $(EMMAIN_OBJ) $(EMMAIN_INC)
 	$(patsubst %.o, $(OBJ_DIR)/%.o, $(EMMAIN_OBJ)) \
 	libs/SDL2_gfx-1.0.4/build-em/SDL2_gfxPrimitives.o \
 	--shell-file emscripten/shell_PEBL_debug.html \
-	--preload-file upload-battery/ptrails/ptrails.pbl@test.pbl \
-	--preload-file upload-battery/ptrails/params@params \
-	--preload-file upload-battery/ptrails/translations@translations \
-	--preload-file upload-battery/ptrails/upload.json@upload.json \
+	--preload-file demo/tests/test-token-upload.pbl@test.pbl \
 	--preload-file emscripten/pebl-lib@/usr/local/share/pebl2/pebl-lib \
 	--preload-file emscripten/media/@/usr/local/share/pebl2/media
 

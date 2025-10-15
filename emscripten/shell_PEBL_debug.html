@@ -150,6 +150,15 @@
     {{{ SCRIPT }}}
     <script type="text/javascript">
       window.addEventListener('load', function() {
+        // Extract URL parameters for token-based authentication
+        const urlParams = new URLSearchParams(window.location.search);
+        const token = urlParams.get('token');
+        const server = urlParams.get('server') || 'localhost';
+        const port = urlParams.get('port') || '8080';
+        const taskname = urlParams.get('task') || 'unknown';
+
+        console.log('URL Parameters:', { token: token, server: server, port: port, task: taskname });
+
         createPEBLModule(Module).then(function(instance) {
           console.log("PEBL module loaded successfully");
           window.PEBLModule = instance;
@@ -169,6 +178,28 @@
           // Check if IDBFS is available
           if (!FS || !FS.filesystems || !FS.filesystems.IDBFS) {
             console.error('IDBFS not available. Starting without persistence.');
+
+            // Still inject token-based config even without IDBFS
+            if (token) {
+              console.log('Creating token-based upload.json configuration (no IDBFS)...');
+              const uploadConfig = {
+                host: server,
+                page: "/uploadPEBL_token.php",  // Token-specific endpoint
+                subnumpage: "/getNewSubNum.php",
+                port: parseInt(port),
+                token: token,
+                taskname: taskname,
+                username: "token_user",
+                uploadpassword: "token_auth"
+              };
+              try {
+                FS.writeFile('/upload.json', JSON.stringify(uploadConfig, null, 2));
+                console.log('Upload configuration written:', uploadConfig);
+              } catch (e) {
+                console.error('Failed to write upload.json:', e);
+              }
+            }
+
             // Run main anyway
             instance.callMain();
             return;
@@ -188,6 +219,32 @@
                 console.error('Error loading from IndexedDB:', err);
               } else {
                 console.log('Files loaded from IndexedDB');
+              }
+
+              // Inject token-based upload.json configuration
+              if (token) {
+                console.log('Creating token-based upload.json configuration...');
+                const uploadConfig = {
+                  host: server,
+                  page: "/uploadPEBL_token.php",  // Token-specific endpoint
+                  subnumpage: "/getNewSubNum.php",
+                  port: parseInt(port),
+                  token: token,
+                  taskname: taskname,
+                  username: "token_user",  // Placeholder for compatibility
+                  uploadpassword: "token_auth"  // Placeholder for compatibility
+                };
+
+                try {
+                  const configJson = JSON.stringify(uploadConfig, null, 2);
+                  FS.writeFile('/upload.json', configJson);
+                  console.log('Upload configuration written to /upload.json:', uploadConfig);
+                } catch (e) {
+                  console.error('Failed to write upload.json:', e);
+                }
+              } else {
+                console.warn('No token provided in URL. Upload functionality may not work.');
+                console.log('Expected URL format: pebl2.html?token=YOUR_TOKEN&server=yourserver.com&port=8080&task=taskname');
               }
 
               // Now run PEBL's main() after IDBFS is ready

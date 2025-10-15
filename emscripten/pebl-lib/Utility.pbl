@@ -1864,20 +1864,31 @@ define UploadFile(subcode,datafilename,settings:"upload.json")
   host <- settings.host
   page <- settings.page
   port <- ToInteger(settings.port)
-  username <- settings.username
-  uploadpassword <- settings.uploadpassword
   taskname <- settings.taskname
   if(taskname == "<USE_TASK_NAME>")
   {
     taskname <- gScriptName
   }
-  
-  out <-   SyncDataFile(host,page,port,username,uploadpassword,taskname,subcode,datafilename)
+
+  ## Support token-based authentication (Option 3 from architecture)
+  ## If token field exists, use it; otherwise fall back to username/password
+  token <- ""
+  if(PropertyExists(settings, "token"))
+  {
+    token <- settings.token
+    username <- "token_user"  ## Placeholder for compatibility
+    uploadpassword <- "token_auth"  ## Placeholder for compatibility
+  } else {
+    username <- settings.username
+    uploadpassword <- settings.uploadpassword
+  }
+
+  out <-   SyncDataFile(host,page,port,username,uploadpassword,taskname,subcode,datafilename,token)
 
  return out
 }
 
-define SyncDataFile(server,page,port,username,pword,taskname,subcode,datafilename)
+define SyncDataFile(server,page,port,username,pword,taskname,subcode,datafilename,token:"")
 {
 
   filecontent <-FileReadText(datafilename)
@@ -1898,10 +1909,18 @@ define SyncDataFile(server,page,port,username,pword,taskname,subcode,datafilenam
   boundary + "--"
   cl <- StringLength(content)+1
 
+  ## Build args array with standard fields
   args <- ["user_name",username,
            "upload_password",pword,
 	   "taskname",taskname,
 	   "subnum",subcode]
+
+  ## If token is provided, add it to args for server-side validation
+  if(token != "")
+  {
+    args <- Append(args, "auth_token")
+    args <- Append(args, token)
+  }
 
   headers <- ["Connection","close",
   	      "Accept", "text/plain",

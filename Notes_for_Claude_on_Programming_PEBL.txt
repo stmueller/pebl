@@ -3,6 +3,34 @@ COMMON PEBL PROGRAMMING MISTAKES TO AVOID
 
 This document lists common mistakes made when programming PEBL tasks and how to avoid them.
 
+EMSCRIPTEN BUILD CONFIGURATION
+--------------------------------
+
+CHANGING WHICH BATTERY TEST TO BUILD FOR BROWSER:
+  - Emscripten builds compile PEBL to WebAssembly for running in browsers
+  - The test file is specified in the Makefile, NOT in PEBL.cpp
+  - PEBL.cpp (line ~990) hardcodes launch = "test.pbl" for Emscripten builds
+  - The Makefile maps the actual battery test file to test.pbl using @
+
+HOW TO SWITCH BATTERY TESTS:
+  1. Edit the Makefile (lines ~501 for 'em', ~536 for 'em-opt')
+  2. Change the --preload-file lines to point to your desired battery test
+  3. Example for stroop-vic task:
+     --preload-file battery/stroop/stroop-vic.pbl@test.pbl \
+     --preload-file battery/stroop/params@params \
+     --preload-file battery/stroop/translations@translations \
+  4. The @test.pbl syntax maps stroop-vic.pbl to test.pbl in the virtual filesystem
+  5. No need to modify PEBL.cpp or copy files around!
+
+WHICH MAKE TARGET TO USE:
+  - make em       # Debug build: -O2, source maps, profiling, stack checks
+                  # Use for development and debugging issues
+  - make em-opt   # Production build: -Oz, Asyncify, closure compiler
+                  # Use for testing and final deployment
+                  # RECOMMENDED for most testing since it includes Asyncify
+  - Both targets now preload libraries from emscripten/pebl-lib/ and emscripten/media/
+  - After compiling, open bin/pebl2.html in a web browser to test
+
 EMSCRIPTEN-SPECIFIC NOTES
 --------------------------
 
@@ -218,6 +246,79 @@ EMSCRIPTEN BUILD FILES:
     - Comments must go INSIDE the blocks, not between them
     - This is a parser requirement - PEBL treats }elseif as a single token
     - Violation causes "syntax error" on the elseif line
+
+18. LOGICAL NOT OPERATOR
+    SYNTAX: Use 'not' keyword, NOT the '!' operator
+    WRONG: if(!configExists)
+           if(!value)
+           result <- !condition
+    RIGHT: if(not configExists)
+           if(not value)
+           result <- not condition
+
+    RULES:
+    - PEBL does NOT support the ! operator for logical negation
+    - ALWAYS use the 'not' keyword instead
+    - The 'not' keyword must be lowercase
+    - Can be used in any boolean context (if statements, while loops, assignments)
+
+    EXAMPLES:
+    if(not FileExists("data.csv"))
+    {
+        Print("File not found")
+    }
+
+    while(not done)
+    {
+        ## loop body
+    }
+
+    shouldContinue <- not errorOccurred
+
+19. EARLY EXIT FROM FUNCTIONS
+    SYNTAX: Use SignalFatalError() to exit early, NOT return()
+    WRONG: define MyFunction(param)
+           {
+               if(error)
+               {
+                   return(0)  ## Cannot return early!
+               }
+               ## ... rest of function
+               return(result)
+           }
+
+    RIGHT: define MyFunction(param)
+           {
+               if(error)
+               {
+                   SignalFatalError("Error message describing problem")
+               }
+               ## ... rest of function
+               return(result)
+           }
+
+    RULES:
+    - return() can ONLY appear as the LAST statement in a function
+    - To exit a function early (e.g., due to error), use SignalFatalError()
+    - SignalFatalError() halts program execution with an error message
+    - Cannot have multiple return statements in different branches
+    - ALL execution paths must reach the single return() at the end
+
+    ALTERNATIVE PATTERN - Nested logic to avoid early exit:
+    define MyFunction(param)
+    {
+        result <- 0
+        if(not error)
+        {
+            ## main function logic here
+            result <- calculatedValue
+        }
+        return(result)
+    }
+
+    NOTE: This restriction means you cannot use guard clauses or early returns
+          as in other languages. Structure your code with nested conditionals or
+          use SignalFatalError() for true error conditions.
 
 ====================================================================================
 HOW TO FIND AND USE PEBL FUNCTIONS

@@ -731,7 +731,7 @@ Variant PEBLUtility::MakeDirectory(std::string path)
             return Variant(1);
           }
 
-#ifdef PEBL_UNIX
+#if defined(PEBL_UNIX) || defined(PEBL_EMSCRIPTEN)
 
     if (mkdir(path.c_str(), 0777) == -1)
        {
@@ -802,7 +802,13 @@ Variant PEBLUtility::GetWorkingDirectory()
     char* path = get_current_dir_name();
 
 #elif defined (PEBL_EMSCRIPTEN)
-    const char* path = ""; //maybe this won't work
+    // Emscripten supports getcwd() with its virtual filesystem (MEMFS)
+    char buffer[PATH_MAX];
+    char* path = getcwd(buffer, sizeof(buffer));
+    if (path == NULL) {
+        // If getcwd fails, default to root of virtual filesystem
+        return Variant("/");
+    }
 #endif
 
  return Variant(path);

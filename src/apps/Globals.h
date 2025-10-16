@@ -27,9 +27,27 @@
 #ifndef __GLOBALS_H__
 #define __GLOBALS_H__
 
+//
+// EVALUATOR ARCHITECTURE SELECTION:
+//
+// PEBL has two evaluator implementations:
+//
+// 1. RECURSIVE (Evaluator.cpp): Uses C++ call stack recursion.
+//    - Works correctly on native builds
+//    - Has hard recursion depth limit of 1 on Emscripten with Asyncify
+//    - Crashes at depth >= 2 with "index out of bounds"
+//
+// 2. ITERATIVE (Evaluator-es.cpp): Uses manual stack management.
+//    - Required for Emscripten builds to handle recursion correctly
+//    - Uses explicit mNodeStack and mStack instead of C++ call stack
+//    - Compatible with Asyncify call stack transformations
+//    - Handles arbitrary recursion depth on all platforms
+//
+// The PEBL_ITERATIVE_EVAL macro controls which evaluator is included.
+// For Emscripten builds (em target), this macro MUST be defined in CXXFLAGS.
+//
 
-
-#ifdef PEBL_EMSCRIPTEN
+#ifdef PEBL_ITERATIVE_EVAL
 #include "../base/Evaluator-es.h"
 #else
 #include "../base/Evaluator.h"

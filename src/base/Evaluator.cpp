@@ -1,13 +1,32 @@
 //* -*- mode:C++; tab-width:4; c-basic-offset:4; indent-tabs-mode:nil -*- */
 /////////////////////////////////////////////////////////////////////////////////
 //    Name:       src/base/Evaluator.cpp
-//    Purpose:    Defines an class that can evaluate PNodes
+//    Purpose:    Defines an class that can evaluate PNodes (Recursive Evaluator)
 //    Author:     Shane T. Mueller, Ph.D.
 //    Copyright:  (c) 2003--2016 Shane T. Mueller <smueller@obereed.net>
 //    License:    GPL 2
 //
+//    ARCHITECTURE NOTE - Recursive vs Iterative Evaluator:
 //
+//    This is the RECURSIVE evaluator implementation. It uses C++ call stack
+//    recursion to evaluate the PEBL abstract syntax tree (AST). Each call to
+//    Evaluate() recurses through the AST using native C++ function calls.
 //
+//    EMSCRIPTEN INCOMPATIBILITY:
+//    This recursive evaluator is INCOMPATIBLE with Emscripten builds that use
+//    the Asyncify feature (required for async I/O and event handling). Testing
+//    shows a hard recursion depth limit of 1 for PEBL user-defined recursive
+//    functions when compiled to WebAssembly. Any recursion depth >= 2 crashes
+//    with "index out of bounds" errors. This occurs because Emscripten's
+//    Asyncify transformation rewrites the call stack to enable pause/resume
+//    operations, which breaks the recursive evaluator's function call mechanism.
+//
+//    For Emscripten builds, use the iterative evaluator (Evaluator-es.cpp)
+//    instead, which uses manual stack management and handles arbitrary recursion
+//    depth correctly.
+//
+//    The PEBL_ITERATIVE_EVAL macro controls which evaluator is compiled.
+//    See src/apps/Globals.h for the selection logic.
 //
 //     This file is part of the PEBL project.
 //
@@ -48,6 +67,10 @@
 
 #include "../objects/PCustomObject.h"
 #include "../devices/PEventLoop.h"
+
+#ifdef PEBL_EMSCRIPTEN
+#include <emscripten.h>
+#endif
 
 #undef PEBL_DEBUG_PRINT
 //#define PEBL_DEBUG_PRINT 1

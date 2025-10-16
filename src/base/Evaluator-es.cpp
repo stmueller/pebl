@@ -1,13 +1,41 @@
 //* -*- mode:C++; tab-width:4; c-basic-offset:4; indent-tabs-mode:nil -*- */
 /////////////////////////////////////////////////////////////////////////////////
-//    Name:       src/base/Evaluator.cpp
-//    Purpose:    Defines an class that can evaluate PNodes
+//    Name:       src/base/Evaluator-es.cpp
+//    Purpose:    Defines an class that can evaluate PNodes (Iterative Evaluator)
 //    Author:     Shane T. Mueller, Ph.D.
 //    Copyright:  (c) 2003--2017 Shane T. Mueller <smueller@obereed.net>
 //    License:    GPL 2
 //
+//    ARCHITECTURE NOTE - Iterative Evaluator for Emscripten:
 //
-//   
+//    This is the ITERATIVE evaluator implementation. It uses manual stack
+//    management (mNodeStack and mStack) instead of C++ call stack recursion to
+//    evaluate the PEBL abstract syntax tree (AST). Operations are split into
+//    "head" and "tail" phases (e.g., PEBL_ADD -> PEBL_ADD_TAIL), with the
+//    evaluator loop managing execution order explicitly.
+//
+//    WHY THIS EXISTS:
+//    This evaluator was specifically designed for Emscripten/WebAssembly builds
+//    that use the Asyncify feature. The recursive evaluator (Evaluator.cpp) has
+//    a hard recursion depth limit of 1 for PEBL user-defined recursive functions
+//    when compiled with Asyncify, crashing at depth >= 2 with "index out of
+//    bounds" errors. This occurs because Asyncify transforms the call stack to
+//    enable pause/resume operations, breaking the recursive evaluator's function
+//    call mechanism.
+//
+//    This iterative evaluator avoids C++ call stack recursion entirely, using
+//    manual stack management that is compatible with Asyncify transformations.
+//    Testing confirms it handles arbitrary recursion depth correctly on
+//    Emscripten.
+//
+//    IMPLEMENTATION:
+//    A single Evaluate1() loop processes nodes from mNodeStack. Each operation
+//    type pushes child nodes and "tail" operations onto mNodeStack, with results
+//    stored in mStack. This transforms recursive tree traversal into iterative
+//    loop execution, avoiding C++ function call depth issues.
+//
+//    The PEBL_ITERATIVE_EVAL macro controls which evaluator is compiled.
+//    See src/apps/Globals.h for the selection logic.
 //
 //     This file is part of the PEBL project.
 //
@@ -24,11 +52,7 @@
 //    You should have received a copy of the GNU General Public License
 //    along with PEBL; if not, write to the Free Software
 //    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-////////////////////////////////////////////////////////////////////////////////
-//
-// Note: this is an experimental evaluator that attempts to 
-// de-recursify the evaluation cycle.  Thus, a single loop will
-// execute a 
+//////////////////////////////////////////////////////////////////////////////// 
 
 
 #include "Evaluator-es.h"

@@ -45,6 +45,35 @@
             display: none;
             margin-top: 20px;
         }
+        /* Full-screen mode styles */
+        body.fullscreen {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+        body.fullscreen #launcher-container {
+            display: none;
+        }
+        body.fullscreen #pebl-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            margin: 0;
+            padding: 0;
+            background-color: black;
+            display: flex !important;
+            align-items: center;
+            justify-content: center;
+        }
+        body.fullscreen #canvas {
+            display: block;
+            max-width: 100%;
+            max-height: 100%;
+            width: auto;
+            height: auto;
+        }
         .info-panel {
             background-color: #f5f5f5;
             padding: 15px;
@@ -62,6 +91,23 @@
         }
         .info-value {
             color: #333;
+        }
+        #start-button {
+            display: none;
+            background-color: #4CAF50;
+            color: white;
+            padding: 15px 32px;
+            text-align: center;
+            font-size: 18px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 20px auto;
+            width: 100%;
+            max-width: 300px;
+        }
+        #start-button:hover {
+            background-color: #45a049;
         }
     </style>
 </head>
@@ -88,6 +134,8 @@
             </div>
         </div>
 
+        <button id="start-button">Start Test</button>
+
         <div id="pebl-container">
             <!-- PEBL canvas will be inserted here -->
         </div>
@@ -95,7 +143,7 @@
 
     <script>
         // Configuration
-        const VALIDATION_URL = '/api/validate';  // Update to your server URL
+        const VALIDATION_URL = 'PEBLDataServer/api/validate.php';  // Relative path - same origin
 
         // Parse URL parameters
         function getURLParams() {
@@ -198,79 +246,137 @@
             Module.callMain(args);
         }
 
-        // Main initialization
-        var Module = {
-            preRun: [],
-            postRun: [],
-            print: function(text) {
-                console.log('PEBL:', text);
-            },
-            printErr: function(text) {
-                console.error('PEBL Error:', text);
-            },
-            canvas: (function() {
-                // Canvas will be created by Emscripten
-                return null;
-            })(),
-            setStatus: function(text) {
-                if (text) {
-                    console.log('PEBL Status:', text);
-                }
-            },
-            totalDependencies: 0,
-            monitorRunDependencies: function(left) {
-                this.totalDependencies = Math.max(this.totalDependencies, left);
-            },
-            onRuntimeInitialized: async function() {
-                try {
-                    // Get URL parameters
-                    const params = getURLParams();
+        // Main initialization function
+        async function initializePEBL() {
+            try {
+                // Get URL parameters
+                const params = getURLParams();
 
-                    // Validate required parameters
-                    if (!validateParams(params)) {
-                        return;
+                // Validate required parameters
+                if (!validateParams(params)) {
+                    return;
+                }
+
+                // Show study info
+                showInfo(params);
+
+                setStatus('Loading PEBL runtime...', 'loading');
+
+                // Create PEBL module (for MODULARIZE=1 builds)
+                const Module = await createPEBLModule({
+                    noInitialRun: true,  // Don't call main() automatically
+                    canvas: (function() {
+                        const canvas = document.createElement('canvas');
+                        canvas.id = 'canvas';
+                        document.getElementById('pebl-container').appendChild(canvas);
+                        return canvas;
+                    })(),
+                    print: function(text) {
+                        console.log('PEBL:', text);
+                    },
+                    printErr: function(text) {
+                        console.error('PEBL Error:', text);
+                    }
+                });
+
+                console.log('Module initialized');
+
+                // Validate token with server
+                setStatus('Validating study token...', 'loading');
+                const config = await validateToken(params);
+
+                setStatus('Ready to start test', 'success');
+
+                // Write upload.json configuration
+                writeUploadConfig(Module, params, config);
+
+                // Show start button
+                const startButton = document.getElementById('start-button');
+                startButton.style.display = 'block';
+
+                // Function to resize canvas to fill the screen
+                function resizeCanvas() {
+                    const canvas = document.getElementById('canvas');
+                    if (!canvas) return;
+
+                    const width = window.innerWidth;
+                    const height = window.innerHeight;
+
+                    canvas.width = width;
+                    canvas.height = height;
+
+                    console.log('Canvas resized to:', width, 'x', height);
+                }
+
+                // Handle start button click
+                startButton.addEventListener('click', async function() {
+                    startButton.style.display = 'none';
+                    setStatus('Test is running', 'success');
+
+                    const container = document.getElementById('pebl-container');
+                    const canvas = document.getElementById('canvas');
+
+                    console.log('Canvas element:', canvas);
+                    console.log('Canvas size before fullscreen:', canvas.width, 'x', canvas.height);
+                    console.log('Window size before fullscreen:', window.innerWidth, 'x', window.innerHeight);
+
+                    // Try to use browser's fullscreen API for better canvas sizing
+                    try {
+                        // Request fullscreen on the container element
+                        if (container.requestFullscreen) {
+                            await container.requestFullscreen();
+                        } else if (container.webkitRequestFullscreen) {
+                            await container.webkitRequestFullscreen();
+                        } else if (container.mozRequestFullScreen) {
+                            await container.mozRequestFullScreen();
+                        } else {
+                            // Fallback to CSS fullscreen if API not available
+                            document.body.classList.add('fullscreen');
+                        }
+
+                        // Wait a moment for fullscreen transition
+                        await new Promise(resolve => setTimeout(resolve, 100));
+
+                    } catch (err) {
+                        console.log('Fullscreen API not supported, using CSS fallback:', err);
+                        document.body.classList.add('fullscreen');
                     }
 
-                    // Show study info
-                    showInfo(params);
+                    // Make container visible
+                    container.style.display = 'flex';
 
-                    // Validate token with server
-                    setStatus('Validating study token...', 'loading');
-                    const config = await validateToken(params);
+                    console.log('Window size after fullscreen:', window.innerWidth, 'x', window.innerHeight);
 
-                    setStatus('Loading test...', 'loading');
+                    // Resize canvas to fill the screen
+                    resizeCanvas();
 
-                    // Write upload.json configuration
-                    writeUploadConfig(Module, params, config);
+                    console.log('Canvas size after resize:', canvas.width, 'x', canvas.height);
 
-                    // Launch PEBL
+                    // Listen for resize events (window resize, orientation change, etc.)
+                    window.addEventListener('resize', resizeCanvas);
+
+                    // Listen for fullscreen changes
+                    document.addEventListener('fullscreenchange', resizeCanvas);
+                    document.addEventListener('webkitfullscreenchange', resizeCanvas);
+                    document.addEventListener('mozfullscreenchange', resizeCanvas);
+
+                    console.log('Launching PEBL...');
+
+                    // Launch PEBL after entering fullscreen
                     launchPEBL(Module, params);
+                });
 
-                    // Show PEBL container
-                    setStatus('Test is running', 'success');
-                    document.getElementById('pebl-container').style.display = 'block';
-
-                } catch (error) {
-                    console.error('Launch error:', error);
-                    setStatus('Error: ' + error.message, 'error');
-                }
+            } catch (error) {
+                console.error('Launch error:', error);
+                setStatus('Error: ' + error.message, 'error');
             }
-        };
+        }
 
-        // Handle window load to show initial message
-        window.addEventListener('DOMContentLoaded', function() {
-            const params = getURLParams();
-
-            if (!validateParams(params)) {
-                return;
-            }
-
-            setStatus('Loading PEBL runtime...', 'loading');
-        });
+        // Start initialization when DOM is ready
+        window.addEventListener('DOMContentLoaded', initializePEBL);
     </script>
 
     <!-- Load the PEBL Emscripten build -->
-    <!-- Update the path to point to your actual pebl2.js file -->
-    <script async src="pebl2.js"></script>
+    <script src="pebl2.js"></script>
 </body>
 </html>

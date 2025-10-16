@@ -2,9 +2,18 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>PEBL Token-Based Test Launcher</title>
     <style>
+        /* Force 100% zoom for consistent canvas sizing */
+        html {
+            zoom: 1.0;
+            -moz-transform: scale(1.0);
+            -moz-transform-origin: 0 0;
+        }
+        body {
+            zoom: 1.0;
+        }
         body {
             font-family: Arial, sans-serif;
             margin: 0;
@@ -74,6 +83,31 @@
             width: auto;
             height: auto;
         }
+        /* Styles for when container is fullscreen element (browser fullscreen API) */
+        #pebl-container:fullscreen,
+        #pebl-container:-webkit-full-screen,
+        #pebl-container:-moz-full-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            margin: 0;
+            padding: 0;
+            background-color: black;
+            display: flex !important;
+            align-items: center;
+            justify-content: center;
+        }
+        #pebl-container:fullscreen #canvas,
+        #pebl-container:-webkit-full-screen #canvas,
+        #pebl-container:-moz-full-screen #canvas {
+            display: block;
+            max-width: 100%;
+            max-height: 100%;
+            width: auto;
+            height: auto;
+        }
         .info-panel {
             background-color: #f5f5f5;
             padding: 15px;
@@ -109,6 +143,25 @@
         #start-button:hover {
             background-color: #45a049;
         }
+        #fullscreen-button {
+            display: none;
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background-color: #2196F3;
+            color: white;
+            padding: 12px 24px;
+            text-align: center;
+            font-size: 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            z-index: 9999;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+        #fullscreen-button:hover {
+            background-color: #0b7dda;
+        }
     </style>
 </head>
 <body>
@@ -140,6 +193,8 @@
             <!-- PEBL canvas will be inserted here -->
         </div>
     </div>
+
+    <button id="fullscreen-button">Return to Fullscreen</button>
 
     <script>
         // Configuration
@@ -299,6 +354,8 @@
                     const canvas = document.getElementById('canvas');
                     if (!canvas) return;
 
+                    // Always use window dimensions which account for browser zoom automatically
+                    // This ensures consistent sizing regardless of zoom level
                     const width = window.innerWidth;
                     const height = window.innerHeight;
 
@@ -306,6 +363,8 @@
                     canvas.height = height;
 
                     console.log('Canvas resized to:', width, 'x', height);
+                    console.log('(Window:', window.innerWidth, 'x', window.innerHeight,
+                                ', Screen:', screen.width, 'x', screen.height + ')');
                 }
 
                 // Handle start button click
@@ -347,23 +406,89 @@
 
                     console.log('Window size after fullscreen:', window.innerWidth, 'x', window.innerHeight);
 
-                    // Resize canvas to fill the screen
+                    // Resize canvas to fill the screen BEFORE launching PEBL
                     resizeCanvas();
 
                     console.log('Canvas size after resize:', canvas.width, 'x', canvas.height);
+                    console.log('About to launch PEBL with canvas at:', canvas.width, 'x', canvas.height);
 
-                    // Listen for resize events (window resize, orientation change, etc.)
-                    window.addEventListener('resize', resizeCanvas);
+                    // NOTE: We deliberately do NOT add window resize listeners here
+                    // because resizing the canvas after PEBL initializes causes
+                    // SDL surface misalignment issues. The canvas size is set once
+                    // and maintained throughout the test.
 
-                    // Listen for fullscreen changes
-                    document.addEventListener('fullscreenchange', resizeCanvas);
-                    document.addEventListener('webkitfullscreenchange', resizeCanvas);
-                    document.addEventListener('mozfullscreenchange', resizeCanvas);
-
-                    console.log('Launching PEBL...');
-
-                    // Launch PEBL after entering fullscreen
+                    // Launch PEBL after canvas is properly sized
                     launchPEBL(Module, params);
+
+                    console.log('PEBL launched');
+
+                    // Set up fullscreen button functionality AFTER test has launched
+                    const fullscreenButton = document.getElementById('fullscreen-button');
+                    let peblLaunched = true;  // Flag to prevent ANY canvas resizing after PEBL launch
+
+                    // Function to re-enter fullscreen
+                    fullscreenButton.addEventListener('click', async function() {
+                        try {
+                            const container = document.getElementById('pebl-container');
+                            const canvas = document.getElementById('canvas');
+
+                            console.log('Before re-entering fullscreen:');
+                            console.log('  Window size:', window.innerWidth, 'x', window.innerHeight);
+                            console.log('  Canvas size:', canvas.width, 'x', canvas.height);
+                            console.log('  Container display:', container.style.display);
+
+                            // Ensure container display is set correctly BEFORE fullscreen
+                            container.style.display = 'flex';
+
+                            // Request fullscreen
+                            if (container.requestFullscreen) {
+                                await container.requestFullscreen();
+                            } else if (container.webkitRequestFullscreen) {
+                                await container.webkitRequestFullscreen();
+                            } else if (container.mozRequestFullScreen) {
+                                await container.mozRequestFullScreen();
+                            }
+
+                            // Wait for fullscreen transition
+                            await new Promise(resolve => setTimeout(resolve, 100));
+
+                            console.log('After entering fullscreen:');
+                            console.log('  Window size:', window.innerWidth, 'x', window.innerHeight);
+
+                            // Note: Canvas will be resized automatically by handleFullscreenChange
+                            // which is triggered by the fullscreen event
+                        } catch (err) {
+                            console.log('Fullscreen request failed:', err);
+                        }
+                    });
+
+                    // Listen for fullscreen changes to show/hide the button
+                    function handleFullscreenChange() {
+                        // Check if we're in fullscreen mode
+                        const isFullscreen = !!(document.fullscreenElement ||
+                                                document.webkitFullscreenElement ||
+                                                document.mozFullScreenElement);
+
+                        console.log('Fullscreen changed. isFullscreen:', isFullscreen);
+                        console.log('  Canvas size:', canvas.width, 'x', canvas.height);
+                        console.log('  Window size:', window.innerWidth, 'x', window.innerHeight);
+
+                        // Show button when NOT in fullscreen, hide when in fullscreen
+                        fullscreenButton.style.display = isFullscreen ? 'none' : 'block';
+
+                        // CRITICAL: Never resize canvas after PEBL has launched
+                        // PEBL's SDL surface cannot handle canvas size changes
+                        // The canvas size is set once before PEBL launch and never changed
+                        console.log('  Canvas resize blocked - PEBL cannot handle size changes');
+                    }
+
+                    // Add listeners for all browsers
+                    document.addEventListener('fullscreenchange', handleFullscreenChange);
+                    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+                    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+
+                    // Check initial state (button stays hidden if we're in fullscreen)
+                    handleFullscreenChange();
                 });
 
             } catch (error) {

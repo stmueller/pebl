@@ -44,6 +44,7 @@
  
 #include "../base/PComplexData.h"
 #include "../base/PEBLObject.h"
+#include "../base/PNode.h"
 #include "../base/grammar.tab.hpp"
 
 #include "../utility/Defs.h"
@@ -75,6 +76,8 @@ PEventLoop::PEventLoop()
     //  eloop = this;
     mNumStates = 0;
     mIsLooping = false;
+    mCallbackScheduled = false;
+    mCallbackNodeStackSize = 0;
 }
 
 /// This is the standard pNode destructor
@@ -105,31 +108,19 @@ void PEventLoop::RegisterState(DeviceState * state,
     if(function != "")
         {
 
-            //Get the node associated with the function name.
-            //Note that node will be the right node of a PEBL_FUNCTION node
-            //The namenode goes on the left.
+            //Store the function name for later use
             Variant fname = Variant(function.c_str(),P_DATA_FUNCTION);
-            DataNode * namenode = new DataNode(fname,"user-generated function",-1);
+            mFunctionNames.push_back(fname);
 
-            //On the right, we need a node representing the lambda function.
-
-            //we need the arglist too.
-
-            PNode * node = Evaluator::mFunctionMap.GetFunction(function);
-
-            PNode * arglist = ((OpNode*)node)->GetLeft();
-
-            PNode * fnode = new OpNode(PEBL_FUNCTION, namenode, arglist, "user-generated", -1);
-
-
-            mNodes.push_back(fnode);
-
+            //We don't store any node - we'll handle the function call manually
+            mNodes.push_back(NULL);
 
         }
     else
         {
 
             mNodes.push_back(NULL);
+            mFunctionNames.push_back(Variant(""));
         }
     //Add parameters, for use later.
     //parameters is passed in as a pointer, and must be attached to a counted pointer
@@ -162,27 +153,17 @@ void PEventLoop::RegisterEvent(DeviceState * state,
     if(function != "")
         {
 
-            //Get the node associated with the function name.
-            //Note that node will be the right node of a PEBL_FUNCTION node
-            //The namenode goes on the left.
+            //Store the function name for later use
             Variant fname = Variant(function.c_str(),P_DATA_FUNCTION);
-            DataNode * namenode = new DataNode(fname,"user-generated function",-1);
+            mFunctionNames.push_back(fname);
 
-            //On the right, we need a node representing the lambda function.
-
-            PNode * node = Evaluator::mFunctionMap.GetFunction(function);
-
-            PNode * arglist =  ((OpNode*)node)->GetLeft();
-
-            PNode * fnode = new OpNode(PEBL_FUNCTION, namenode, arglist, "user-generated", -1);
-
-
-
-            mNodes.push_back(fnode);
+            //We don't store any node - we'll handle the function call manually
+            mNodes.push_back(NULL);
         }
     else
         {
             mNodes.push_back(NULL);
+            mFunctionNames.push_back(Variant(""));
         }
     //Add parameters, for use later.
 
@@ -206,6 +187,7 @@ void PEventLoop::Clear()
 
     mStates.clear();
     mNodes.clear();
+    mFunctionNames.clear();
     mParameters.clear();
     mIsEvent.clear();
     mNumStates=0;
@@ -237,18 +219,52 @@ PEvent PEventLoop::Loop()
     //    cout <<"*****" <<myEval->gGlobalVariableMap.RetrieveValue("gKeepLooping") << "--"<< mStates.size() << std::endl;
 
 
-#ifdef PEBL_EMSCRIPTEN
-    returnval =  Loop1();
+    //Loop until gKeepLooping becomes false
+    //In Emscripten, emscripten_sleep() yields to browser between iterations
+    while(mNumStates > 0 &&
+          (pInt)(myEval->gGlobalVariableMap.RetrieveValue("gKeepLooping")))
+    {
+        //Process one iteration of event checking
+        returnval = Loop1();
 
-#else
-    //cout << "gkeeplooping 1\n";
-    while(myEval->gGlobalVariableMap.RetrieveValue("gKeepLooping"))
+#ifdef PEBL_ITERATIVE_EVAL
+        //If Loop1() scheduled a callback, execute it now
+        //The callback schedules 4 nodes initially, but lambdaNode pushes the entire function body
+        //Execute until the callback completes (all scheduled nodes consumed)
+        if(mCallbackScheduled)
         {
-            returnval = Loop1();
+            //Save the node stack size before we scheduled the callback
+            //We want to execute until we're back to this size (all callback nodes consumed)
+            size_t targetNodeStackSize = mCallbackNodeStackSize;
+
+            //Execute nodes until the callback completes
+            //Continue until node stack is back to the size it was before we scheduled the callback
+            while(!myEval->mNodeStack.empty() &&
+                  myEval->mNodeStack.size() > targetNodeStackSize)
+            {
+                myEval->Evaluate1();  //Process one node from the stack
+            }
         }
-     Clear(); //Clear the event loop when we succeed.
-   
 #endif
+
+#ifdef PEBL_EMSCRIPTEN
+        //Yield to browser to allow browser events to be processed
+        emscripten_sleep(10);
+#elif defined(PEBL_UNIX)
+        //Unix: nanosleep for 100 microseconds to avoid burning CPU
+        struct timespec a, b;
+        a.tv_sec = 0;
+        a.tv_nsec = 100000;  //100 microseconds
+        nanosleep(&a, &b);
+#elif defined(PEBL_WIN32)
+        //Windows: Use SDL_Delay
+        SDL_Delay(1);  //Sleep about 1 ms
+#endif
+    }
+
+    //Clear the event loop when we're done
+    Clear();
+
     return returnval;
 }
 
@@ -266,33 +282,28 @@ void LoopAsync(void* data)
 */
 
 
-//This will run the loop, blocking until an event arrives or gKeepLooping becomes false.
-//With Asyncify, emscripten_sleep() allows yielding to browser without freezing.
+//This processes ONE iteration of the event loop.
+//Checks all registered events once, schedules any matching callbacks, then returns.
+//The caller (Loop) will execute the scheduled callbacks.
 PEvent PEventLoop::Loop1()
 {
     PEvent returnval(PDT_UNKNOWN,0,0);
     unsigned int result =0;
+    bool matched = false;
 
-    // Loop until we get a matching event or gKeepLooping becomes false
-    while(mNumStates > 0 &&
-          (pInt)(myEval->gGlobalVariableMap.RetrieveValue("gKeepLooping")))
-    {
-        bool matched = false;
+    //Reset callback flag
+    mCallbackScheduled = false;
 
-        // Prime the event queue (process pending SDL events)
-        gEventQueue->Prime();
+    // Prime the event queue (process pending SDL events)
+    gEventQueue->Prime();
 
-            //cout << "number of states:" << mStates.size() << "  ";
-            //cout << "number of states:" << mNumStates << "  ";
-            //Scan through each event in the event vector.
+            //Check event queue events FIRST (keyboard, mouse) so they have priority over timers
             for(int i = 0; i < mNumStates; i++)
                 {
-                    //cout<<  "********" << i << "/"<<mStates.size() << ":"<<  mNodes[i] << " \n";
+                    if(!mIsEvent[i])   //Skip non-event states (timers) in this first pass
+                        continue;
 
-                    if(mIsEvent[i])   //The test is for an event queue-type event.
-                        {
-
-                            //cout << "EVENT type\n";
+                    //The test is for an event queue-type event.
                             // Note: 'events' contrast with 'states', handled later.
                             // These are devices which send events through the PEBL Event queue.
                             // So, if the current test is an 'event' state, we need to check the event queue.
@@ -300,39 +311,63 @@ PEvent PEventLoop::Loop1()
                             //Only test the event if the queue is not empty.
                             if(!gEventQueue->IsEmpty())
                                 {
-
-                                    //      cout << "Event queue not empty:\n";
                                     //Now, we only should test an event if it is the proper device type.
-                                    //cout << "statetype"<< mStates[i]->GetDeviceType() << endl;
 
                                     if(gEventQueue->GetFirstEventType() == mStates[i]->GetDeviceType())
                                         {
-
                                             //Now, just test the device.
                                             //I don't think any devices support TestDevice currently.
                                             result = mStates[i]->TestDevice();
-                                            //cout << "Testing results:" << result << endl;
                                              
                                             if(result)
                                                 {
                                                     returnval = gEventQueue->GetFirstEvent();
 
 
-                                                    if(mNodes[i])  //Execute mNodes
+                                                    if(mFunctionNames[i].GetString() != "")  //Execute callback if function name exists
                                                         {
+                                                            //Save node stack size before scheduling callback
+                                                            mCallbackNodeStackSize = myEval->mNodeStack.size();
 
                                                             //Add the parameters, as a list, to the stack.
+                                                            //Need to add the returnval (event) to the parameter list
+                                                            //just like the recursive evaluator does in PEventLoop.cpp
 
-                                                            //Note that we don't want to execute it until we have made it all
-                                                            //the way through ALL the tests,
-                                                            myEval->Push(mParameters[i]);
-                                                            //myEval->Evaluate(mNodes[i]);
-                                                            myEval->NodeStackPush(mNodes[i]);
+                                                            Variant parlist = mParameters[i];
 
-                                                            //We need to handle this carefully....
-                                                            //originally we popped the result of the execution.
-                                                            //myEval->CallFunction((OpNode*)mNodes[i]);
-                                                            //myEval->Pop();
+                                                            const PList *tmp = parlist.GetComplexData()->GetList();
+
+                                                            PList * list = new PList(*tmp);
+                                                            list->PushBack(Variant(returnval));
+
+                                                            counted_ptr<PEBLObjectBase> list2 = counted_ptr<PEBLObjectBase>(list);
+                                                            PComplexData * pcd = new PComplexData(list2);  // Heap allocation - will be managed by Variant
+
+                                                            //Save node stack size before scheduling callback
+                                                            mCallbackNodeStackSize = myEval->GetNodeStackDepth();
+
+                                                            //Create a DataNode containing the parameter list
+                                                            //This will be evaluated by PEBL_FUNCTION and push the list onto the stack
+                                                            DataNode * paramsNode = new DataNode(Variant(pcd), "", -1);
+
+                                                            //Create a DataNode for the function name
+                                                            DataNode * funcNameNode = new DataNode(mFunctionNames[i], "", -1);
+
+                                                            //Create PEBL_FUNCTION node with parameter DataNode as right child
+                                                            //When PEBL_FUNCTION executes, it will evaluate paramsNode which pushes the parameter list
+                                                            OpNode * functionCallNode = new OpNode(PEBL_FUNCTION, (PNode*)funcNameNode, (PNode*)paramsNode, "event-callback", -1);
+
+                                                            //Mark that we scheduled a callback (for Loop() to execute)
+                                                            mCallbackScheduled = true;
+
+                                                            //Schedule nodes to execute the function and pop its return value
+
+                                                            //Pop the callback's return value (we don't need it)
+                                                            const OpNode * popResult = new OpNode(PEBL_STATEMENTS_TAIL1,NULL,NULL,"event-callback",-1);
+                                                            myEval->NodeStackPush(popResult);
+
+                                                            //Execute the function call (this will handle all stack management)
+                                                            myEval->NodeStackPush(functionCallNode);
 
                                                         }
                                                     else  //If mNodes[i] is null, terminate
@@ -350,17 +385,29 @@ PEvent PEventLoop::Loop1()
                                 }
 
                             //cout << "END Event code\n";
+                }
 
-                        }
-                    else
-                        {
-                            //this is where time events (wait) land.
-                            //cout << "STATE type\n";  
-                            //mStates[i] isn't a device-type state.
+            //If no event queue match and queue not empty, pop the non-matching event
+            if(!matched && !gEventQueue->IsEmpty())
+            {
+                gEventQueue->PopEvent();
+            }
 
-                            //The test examines the device's state directly.
+            //If no event queue match, check timer/state events (second pass)
+            if(!matched)
+            {
+                for(int i = 0; i < mNumStates; i++)
+                {
+                    if(mIsEvent[i])   //Skip event states in this second pass
+                        continue;
 
-                            result = mStates[i]->TestDevice();
+                    //this is where time events (wait) land.
+                    //cout << "STATE type\n";
+                    //mStates[i] isn't a device-type state.
+
+                    //The test examines the device's state directly.
+
+                    result = mStates[i]->TestDevice();
                                   if(result)
 
                                 {
@@ -388,27 +435,50 @@ PEvent PEventLoop::Loop1()
                                         }
                                     //If mNodes[i] is null, terminate
 
-                                    if(mNodes[i])
+                                    if(mFunctionNames[i].GetString() != "")  //Execute callback if function name exists
                                         {
-                                            //cout << "=====" << i << ": " << mNodes[i] << std::endl;
+                                            //Save node stack size before scheduling callback
+                                            mCallbackNodeStackSize = myEval->mNodeStack.size();
 
                                             //Add the parameters, as a list, to the stack.
-                                            //Put the parameter on the top of the stack.
+                                            //Need to add the returnval (event) to the parameter list
+                                            //just like the recursive evaluator does in PEventLoop.cpp
 
-                                            Variant v2 = Variant(mParameters[i]);
+                                            Variant parlist = mParameters[i];
 
-                                            myEval->Push(v2);
+                                            const PList *tmp = parlist.GetComplexData()->GetList();
 
+                                            PList * list = new PList(*tmp);
+                                            list->PushBack(Variant(returnval));
 
+                                            counted_ptr<PEBLObjectBase> list2 = counted_ptr<PEBLObjectBase>(list);
+                                            PComplexData * pcd = new PComplexData(list2);  // Heap allocation - will be managed by Variant
 
-                                            //myEval->Evaluate(mNodes[i]);
-                                            //myEval->CallFunction((OpNode*)mNodes[i]);
+                                            //Save node stack size before scheduling callback
+                                            mCallbackNodeStackSize = myEval->GetNodeStackDepth();
 
-                                            myEval->NodeStackPush(mNodes[i]);
+                                            //Create a DataNode containing the parameter list
+                                            //This will be evaluated by PEBL_FUNCTION and push the list onto the stack
+                                            DataNode * paramsNode = new DataNode(Variant(pcd), "", -1);
 
-                                            //again, careful here...
-                                            //myEval->Pop();
+                                            //Create a DataNode for the function name
+                                            DataNode * funcNameNode = new DataNode(mFunctionNames[i], "", -1);
 
+                                            //Create PEBL_FUNCTION node with parameter DataNode as right child
+                                            //When PEBL_FUNCTION executes, it will evaluate paramsNode which pushes the parameter list
+                                            OpNode * functionCallNode = new OpNode(PEBL_FUNCTION, (PNode*)funcNameNode, (PNode*)paramsNode, "event-callback", -1);
+
+                                            //Mark that we scheduled a callback (for Loop() to execute)
+                                            mCallbackScheduled = true;
+
+                                            //Schedule nodes to execute the function and pop its return value
+
+                                            //Pop the callback's return value (we don't need it)
+                                            const OpNode * popResult = new OpNode(PEBL_STATEMENTS_TAIL1,NULL,NULL,"event-callback",-1);
+                                            myEval->NodeStackPush(popResult);
+
+                                            //Execute the function call (this will handle all stack management)
+                                            myEval->NodeStackPush(functionCallNode);
 
                                         }
                                     else
@@ -426,30 +496,18 @@ PEvent PEventLoop::Loop1()
 
                                     //cout << "state test is 0; \n";
                                 }
-                        }
-                }
+                }  //End second for loop (timer/state events)
+            }  //End if(!matched)
 
-        // Pop the event from the queue
+    // After checking all events, pop matched event queue events
+    if(matched && returnval.GetType() != PDT_TIMER)
+    {
+        //Pop the matched event from queue
         gEventQueue->PopEvent();
-
-        if(matched)
-        {
-            // Got an event, exit the loop
-            break;
-        }
-
-        // No match - yield to browser and wait for events
-#ifdef PEBL_EMSCRIPTEN
-        emscripten_sleep(10);  // Sleep 10ms, let keyboard events arrive
-                               // Asyncify pauses execution here, browser runs,
-                               // then we resume and check again
-#endif
     }
 
-    // Clear the event loop when we're done
-    Clear();
-
-
+    // Return the event (or UNKNOWN if no match)
+    // The caller (Loop) will call this again to continue checking events
     return returnval;
 }
 

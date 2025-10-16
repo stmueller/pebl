@@ -54,10 +54,6 @@
 #include <math.h>
 #include <algorithm>
 
-#ifdef PEBL_EMSCRIPTEN
-#include "emscripten.h"
-#endif
-
 #undef PEBL_DEBUG_PRINT
 //#define PEBL_DEBUG_PRINT 1
 
@@ -183,18 +179,7 @@ bool Evaluator::Evaluate1()
 
     mNodeStack.pop();
 
-#ifdef PEBL_EMSCRIPTEN
-
-    Evaluate1(node);
-    //cout << "rescheduling eval1\n";
-    //Now, reschedule next one:
-    //emscripten_async_call(Eval1,NULL,10);
-    return true;
-#else
     return Evaluate1(node);
-
-#endif
-
 }
 
 
@@ -202,7 +187,7 @@ bool Evaluator::Evaluate1()
 
 bool Evaluator::Evaluate1(const OpNode * node)
 {
-    
+
     int numargs = -1;
     if(node == NULL) PError::SignalFatalError("Trying to evaluate null node\n");
     //Set up the globally-accessible structure to allow
@@ -210,10 +195,11 @@ bool Evaluator::Evaluate1(const OpNode * node)
     if(node->GetLineNumber() > -1)
         gEvalNode = node;
 
-#ifdef PEBL_DEBUG_PRINT 
+#ifdef PEBL_DEBUG_PRINT
     cout << "---------------async--b--------Evaluating OpNode ["<< node->GetOp() << "] of Type: " << node->GetOpName() << "------------\n";
 
 #endif
+
 
 
     switch(node->GetOp()) 
@@ -684,8 +670,6 @@ bool Evaluator::Evaluate1(const OpNode * node)
                 
                 //Get the variable list.
                 const PNode * node1 = node->GetLeft();
-                
-
 
                 //Get the argument list.
                 Variant v1 = Pop();
@@ -965,29 +949,53 @@ bool Evaluator::Evaluate1(const OpNode * node)
 
         case PEBL_FUNCTION_TAIL1:
             {
-                
+
                 //The arguments should have been evaluated, and are at the top of the stack.
                 //Right below them is the function name.
-                
+
                 // The parameters for a function are in a list on the top of the stack.
                 // A function should pull the list off the stack and push it onto
                 // the stack of the new evaluator scope.
-                   
+
                 //    cout << dynamic_cast<DataNode*>(node->GetLeft())->GetValue() << endl;
-                //Get the name of the function.  
+                //Get the name of the function.
 
                 Variant args = Pop();
 
                 Variant funcname = Pop(); //We would just put this back later, so only take a look.
 
 
+                //Check for custom object method dispatch before looking up the function
+                //If the first argument is a custom object with a property matching the function name,
+                //redirect to that function name instead
+                if(args.IsComplexData())
+                {
+                    PList *plist = dynamic_cast<PList*>(args.GetComplexData()->GetObject().get());
+                    if(plist && plist->Length() > 0)
+                    {
+                        Variant first = plist->First();
+
+                        if(first.IsComplexData())
+                        {
+                            if(first.GetComplexData()->IsCustomObject())
+                            {
+                                PCustomObject * pco = dynamic_cast<PCustomObject*>(first.GetComplexData()->GetObject().get());
+
+                                if(OVE_SUCCESS == pco->ValidateProperty(funcname))
+                                {
+                                    funcname = Variant(pco->GetProperty(funcname).GetString().c_str(), P_DATA_FUNCTION);
+                                }
+                            }
+                        }
+                    }
+                }
 
                 //put the arguments back on top of the stack for the second tail, in
                 //reverse order.
                 Push(args);
 
 
-                //The funcname is just used to update the scope variable.  Maybe we could do that now instead 
+                //The funcname is just used to update the scope variable.  Maybe we could do that now instead
                 //of putting it on the stack?
                 Push(funcname);
 
@@ -1095,15 +1103,25 @@ bool Evaluator::Evaluate1(const OpNode * node)
 
         case PEBL_FUNCTION_TAIL_LIBFUNCTION:
             {
-
                 //Pop the call site from the call stack for error reporting
+                if(gCallStack.Size() == 0) {
+                    PError::SignalFatalError("gCallStack is empty in PEBL_FUNCTION_TAIL_LIBFUNCTION");
+                }
                 gCallStack.Pop();
 
                 //Go to the previous context/scope label and variables.
+                if(mScopeStack.size() == 0) {
+                    PError::SignalFatalError("mScopeStack is empty in PEBL_FUNCTION_TAIL_LIBFUNCTION");
+                }
+
                 mScope = mScopeStack.top();
                 mScopeStack.pop();
 
-                mLocalVariableMap= mVariableMapStack.top();
+                if(mVariableMapStack.size() == 0) {
+                    PError::SignalFatalError("mVariableMapStack is empty in PEBL_FUNCTION_TAIL_LIBFUNCTION");
+                }
+
+                mLocalVariableMap = mVariableMapStack.top();
                 mVariableMapStack.pop();
 
             }
@@ -1252,10 +1270,8 @@ bool Evaluator::Evaluate1(const OpNode * node)
 
         case PEBL_LOOP_TAIL1:
             {
-
                 //Now, the next two items on the stack should be the datum and the variable.
 
-                
                 Variant list = Pop();
                 Variant varname = Pop();
                 const long unsigned int index = (const long unsigned int)Pop();
@@ -1274,7 +1290,9 @@ bool Evaluator::Evaluate1(const OpNode * node)
                         tmp->PushBack(count);
                     }
                     // Update the list on the stack to be this new list
-                    list = Variant(tmp);
+                    counted_ptr<PEBLObjectBase> tmpptr = counted_ptr<PEBLObjectBase>(tmp);
+                    PComplexData * pcd = new PComplexData(tmpptr);
+                    list = Variant(pcd);
                 }
                 else
                 {
@@ -1326,7 +1344,6 @@ bool Evaluator::Evaluate1(const OpNode * node)
 
         case PEBL_LOOP_TAIL2:
             {
-
                 //the code block has just been executed. We need to look at the results to
                 //handle any breaks.
                 //Normally, the top of the stack will be the next index to handle
@@ -1812,9 +1829,8 @@ bool Evaluator::Evaluate1(const OpNode * node)
                 //node should be NULL.  So evaluate the left node; then what's on
                 //the stack will be the return value.
 
-
                 //Push(Variant(STACK_RETURN_DUMMY));
-            
+
                 const PNode * node1 = node->GetLeft();
                 mNodeStack.push(node1);
 

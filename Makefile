@@ -65,6 +65,8 @@ em: CC=$(EMCC)
 em: CXX=$(EMCXX)
 em-opt: CC=$(EMCC)
 em-opt: CXX=$(EMCXX)
+em-test: CC=$(EMCC)
+em-test: CXX=$(EMCXX)
 main: CC=$(CL)
 main: CXX=$(CLXX)
 
@@ -78,7 +80,7 @@ CXXFLAGS0 = -O3
 
 #CXXFLAGS_EMSCRIPTEN = -DPEBL_EMSCRIPTEN -DPEBL_ITERATIVE_EVAL -DPREFIX=$(PREFIX) -DEXECNAME=$(EXECNAME) -DPEBLNAME=$(PEBLNAME) -DPEBLDIRNAME=$(PEBLDIRNAME) -I/usr/include/x86_64-linux-gnu/ -I/usr/local/include/emscripten/
 
-CXXFLAGS_EMSCRIPTEN = -DPEBL_EMSCRIPTEN -DPEBL_HTTP -DPEBL_ITERATIVE_EVAL -DHTTP_LIB=3 -DPREFIX=$(PREFIX) -DEXECNAME=$(EXECNAME) -DPEBLNAME=$(PEBLNAME) -DPEBLDIRNAME=$(PEBLDIRNAME) -sUSE_SDL=2 -sUSE_SDL_NET=2 -sUSE_SDL_TTF=2 -sUSE_SDL_IMAGE=2 -sUSE_SDL_MIXER=2
+CXXFLAGS_EMSCRIPTEN = -DPEBL_EMSCRIPTEN -DPEBL_HTTP -DHTTP_LIB=3 -DPREFIX=$(PREFIX) -DEXECNAME=$(EXECNAME) -DPEBLNAME=$(PEBLNAME) -DPEBLDIRNAME=$(PEBLDIRNAME) -sUSE_SDL=2 -sUSE_SDL_NET=2 -sUSE_SDL_TTF=2 -sUSE_SDL_IMAGE=2 -sUSE_SDL_MIXER=2
 
 
 ## http=2 is curl
@@ -140,10 +142,12 @@ CXXFLAGSX = $(CXXFLAGS0) $(CXXFLAGS1) $(CXXFLAGS2) $(CXXFLAGS2B) $(CXXFLAGS3) $(
 LINKOPTS = $(LINKOPTS1) $(LINKOPTS2) $(LINKOPTS2B) $(LINKOPTS3) $(LINKOPTS4) $(LINKOPTS5) $(LINKOPTS7)
 
 
-em: CXXFLAGS = $(CXXFLAGSX) $(CXXFLAGS_EMSCRIPTEN)
+em: CXXFLAGS = $(CXXFLAGSX) $(CXXFLAGS_EMSCRIPTEN) -DPEBL_ITERATIVE_EVAL
 em: SDL_FLAGS = $(EM_SDL_FLAGS)
-em-opt: CXXFLAGS = $(CXXFLAGSX) $(CXXFLAGS_EMSCRIPTEN)
+em-opt: CXXFLAGS = $(CXXFLAGSX) $(CXXFLAGS_EMSCRIPTEN) -DPEBL_ITERATIVE_EVAL
 em-opt: SDL_FLAGS = $(EM_SDL_FLAGS)
+em-test: CXXFLAGS = $(CXXFLAGSX) $(CXXFLAGS_EMSCRIPTEN) -DPEBL_ITERATIVE_EVAL
+em-test: SDL_FLAGS = $(EM_SDL_FLAGS)
 main: CXXFLAGS = $(CXXFLAGSX) $(CXXFLAGS_LINUX)
 cl: CXXFLAGS = $(CXXFLAGSX) $(CXXFLAGS_LINUX)
 
@@ -490,7 +494,7 @@ em-opt:  $(DIRS) $(EMMAIN_OBJ) $(EMMAIN_INC)
 	-s FORCE_FILESYSTEM=1 \
 	-s ASSERTIONS=1 \
 	-s ASYNCIFY=1 \
-	-s ASYNCIFY_STACK_SIZE=131072 \
+	-s ASYNCIFY_STACK_SIZE=524288 \
 	-s ASYNCIFY_IMPORTS='["emscripten_sleep"]' \
 	--pre-js emscripten/load-idbfs.js \
 	-lidbfs.js \
@@ -500,10 +504,47 @@ em-opt:  $(DIRS) $(EMMAIN_OBJ) $(EMMAIN_INC)
 	$(patsubst %.o, $(OBJ_DIR)/%.o, $(EMMAIN_OBJ)) \
 	libs/SDL2_gfx-1.0.4/build-em/SDL2_gfxPrimitives.o \
 	--shell-file emscripten/shell_PEBL_debug.html \
-	--preload-file demo/tests/test-token-upload.pbl@test.pbl \
+	--preload-file upload-battery/flanker/flanker.pbl@/usr/local/share/pebl2/battery/flanker/flanker.pbl \
+	--preload-file upload-battery/flanker/params@/usr/local/share/pebl2/battery/flanker/params \
+	--preload-file upload-battery/flanker/translations@/usr/local/share/pebl2/battery/flanker/translations \
+	--preload-file upload-battery/corsi@/usr/local/share/pebl2/battery/corsi \
+	--preload-file upload-battery/spatialgrid@/usr/local/share/pebl2/battery/spatialgrid \
 	--preload-file emscripten/pebl-lib@/usr/local/share/pebl2/pebl-lib \
 	--preload-file emscripten/media/@/usr/local/share/pebl2/media
 
+##Make test emscripten target (for development/debugging):
+em-test:  $(DIRS) $(EMMAIN_OBJ) $(EMMAIN_INC)
+	$(CXX) $(CXXFLAGS) \
+	-O0 \
+	-s WASM=1 \
+	-s USE_SDL=2 \
+	-s USE_SDL_NET=2 \
+	-s USE_SDL_TTF=2 \
+	-s USE_SDL_IMAGE=2 \
+	-s SDL2_IMAGE_FORMATS='["png","jpeg","gif","bmp"]' \
+	-s ALLOW_MEMORY_GROWTH=1 \
+	-s INITIAL_MEMORY=67108864 \
+	-s MAXIMUM_MEMORY=4294967296 \
+	-s EXPORTED_RUNTIME_METHODS='["ccall","cwrap","FS","callMain"]' \
+	-s MODULARIZE=1 \
+	-s EXPORT_NAME="createPEBLModule" \
+	-s FETCH=1 \
+	-s FORCE_FILESYSTEM=1 \
+	-s ASSERTIONS=1 \
+	-s ASYNCIFY=1 \
+	-s ASYNCIFY_STACK_SIZE=524288 \
+	-s ASYNCIFY_IMPORTS='["emscripten_sleep"]' \
+	--pre-js emscripten/load-idbfs.js \
+	-lidbfs.js \
+	-DPEBL_EMSCRIPTEN \
+	-o $(BIN_DIR)/pebl2-test.html \
+	$(BASE_DIR)/lex.yy.c \
+	$(patsubst %.o, $(OBJ_DIR)/%.o, $(EMMAIN_OBJ)) \
+	libs/SDL2_gfx-1.0.4/build-em/SDL2_gfxPrimitives.o \
+	--shell-file emscripten/shell_PEBL_test.html \
+	--preload-file test.pbl@/test.pbl \
+	--preload-file emscripten/pebl-lib@/usr/local/share/pebl2/pebl-lib \
+	--preload-file emscripten/media/@/usr/local/share/pebl2/media
 
 
 #
@@ -521,12 +562,12 @@ em-opt:  $(DIRS) $(EMMAIN_OBJ) $(EMMAIN_INC)
 #	-lpng \
 #	$(LINKOPTS) 
 
-##This packages the emscripten data/file/js.
-fp:
-	python $(FP) bin/pebl2.data --js-output=bin/pebl2-files.js \
-	--preload test.pbl \
-	--preload emscripten/pebl-lib@/usr/local/share/pebl2/pebl-lib \
-	--preload emscripten/media@/usr/local/share/pebl2/media 
+##This packages the emscripten data/file/js. (NON-FUNCTIONAL - commented out)
+#fp:
+#	python $(FP) bin/pebl2.data --js-output=bin/pebl2-files.js \
+#	--preload test.pbl \
+#	--preload emscripten/pebl-lib@/usr/local/share/pebl2/pebl-lib \
+#	--preload emscripten/media@/usr/local/share/pebl2/media 
 
 doc: $(PEBL_DOCSRC)
 	cd doc/pman; pdflatex main.tex

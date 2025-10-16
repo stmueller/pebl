@@ -40,7 +40,7 @@
 #include "../base/PNode.h"
 #include "../base/grammar.tab.hpp"
 
-#ifdef PEBL_EMSCRIPTEN
+#ifdef PEBL_ITERATIVE_EVAL
 #include "../base/Evaluator-es.h"
 #include "../devices/PEventLoop-es.h"
 #else
@@ -2030,8 +2030,8 @@ Variant PEBLEnvironment::CallFunction(Variant v)
             PNode * arglistnode = ((OpNode*)node)->GetLeft();
 
 
-#ifdef PEBL_EMSCRIPTEN
-            //For Emscripten iterative evaluator, schedule the function call and execute until complete
+#ifdef PEBL_ITERATIVE_EVAL
+            //For iterative evaluator, schedule the function call and execute until complete
 
             //Create a DataNode containing the actual parameter values
             DataNode * argsDataNode = new DataNode(args, "user-generated", -1);
@@ -2070,7 +2070,7 @@ Variant PEBLEnvironment::CallFunction(Variant v)
             delete argsDataNode;
             delete fnode;
 #else
-            //For non-Emscripten (recursive evaluator), create a new evaluator as before
+            //For recursive evaluator, create a new evaluator as before
             OpNode * fnode = new OpNode(PEBL_FUNCTION, namenode, arglistnode, "user-generated", -1);
 
             Evaluator * eval = new Evaluator();
@@ -2126,7 +2126,7 @@ Variant PEBLEnvironment::CallFunction(Variant v)
 
             eval->Push(args);//add the  parameter node
 
-#ifdef PEBL_EMSCRIPTEN
+#ifdef PEBL_ITERATIVE_EVAL
             eval->Evaluate1(node);
             eval->Evaluate1();
 #else

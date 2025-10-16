@@ -32,13 +32,16 @@
 
 #include "../apps/Globals.h"
 
-#ifdef PEBL_EMSCRIPTEN
+#ifdef PEBL_ITERATIVE_EVAL
 #include "PEventLoop-es.h"
 #include "../base/Evaluator-es.h"
-#include "emscripten.h"
 #else
 #include "PEventLoop.h"
 #include "../base/Evaluator.h"
+#endif
+
+#ifdef PEBL_EMSCRIPTEN
+#include "emscripten.h"
 #endif
 
 

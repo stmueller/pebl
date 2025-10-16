@@ -25,22 +25,18 @@
 //    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifdef PEBL_EMSCRIPTEN
-#include "../base/Evaluator-es.h"
-#include "../devices/PEventLoop-es.h"
-#include <emscripten.h>
-#include <emscripten/html5.h>
-
-#elif defined (PEBL_ITERATIVE_EVAL)
+#ifdef PEBL_ITERATIVE_EVAL
 #include "../base/Evaluator-es.h"
 #include "../devices/PEventLoop-es.h"
 #else
-
-
 #include "Globals.h"
-
 #include "../base/Evaluator.h"
 #include "../devices/PEventLoop.h"
+#endif
+
+#ifdef PEBL_EMSCRIPTEN
+#include <emscripten.h>
+#include <emscripten/html5.h>
 #endif
 
 #include "../base/grammar.tab.hpp"
@@ -622,28 +618,13 @@ int PEBLInterpret( int argc, std::vector<std::string> argv )
     //Set the default screen resolution based on the current one.
     Variant cursize = SDLUtility::GetCurrentScreenResolution();
 
-#ifdef PEBL_EMSCRIPTEN
-
-    // Use fixed default dimensions for emscripten build
-    // These can be overridden by setting gVideoWidth/gVideoHeight before MakeWindow()
-    Variant width = 800;
-    Variant height = 600;
-
-#else
-    //#ifdef SDL2_DELETE
+    // Extract width and height from SDL display mode for both native and Emscripten builds
     PList * plist = cursize.GetComplexData()->GetList();
-    Variant width = plist->First(); //plist->PopFront();
-    Variant height = plist->Nth(2);//plist->PopFront();
+    Variant width = plist->First();
+    Variant height = plist->Nth(2);
 
     delete plist;
     cursize = 0;
-
-    //#else
-    //    Variant width = 800;
-    //    Variant height = 600;
-    //#endif
-
-#endif
 
     myEval->gGlobalVariableMap.AddVariable("gVideoWidth", width);
     myEval->gGlobalVariableMap.AddVariable("gVideoHeight", height);
@@ -745,44 +726,31 @@ int PEBLInterpret( int argc, std::vector<std::string> argv )
             //Execute everything
 
 
-#ifdef PEBL_EMSCRIPTEN
-
-            cout << "Starting evaluation with Asyncify support\n";
-
-            // Start evaluator at head of pnode tree
+#ifdef PEBL_ITERATIVE_EVAL
+            // Iterative evaluator - start at head node and run until stack is empty
+            cout << "Starting evaluation with iterative evaluator\n";
             myEval->Evaluate1(head);
 
-            // Run the evaluator
-            // Asyncify blocking happens in PEventLoop::Loop1() when waiting for events
-            // SDL_PumpEvents is called in gEventQueue->Prime() inside Loop1()
             cout << "Running evaluator loop\n";
             while(myEval->GetNodeStackDepth() > 0)
             {
                 myEval->Evaluate1();
             }
+#else
+            // Recursive evaluator - traditional single-call evaluation
+            cout << "Starting evaluation with recursive evaluator\n";
+            ::myEval->Evaluate(head);
+#endif
 
+#ifdef PEBL_EMSCRIPTEN
+            // Emscripten: Early return without cleanup (browser manages lifecycle)
             cout << "========================================" << endl;
             cout << "PEBL program completed successfully." << endl;
             cout << "========================================" << endl;
 
             return 0;
 #else
-
-#ifdef PEBL_ITERATIVE_EVAL
-
-            //This creates an iterative evaluator
-            myEval->Evaluate1(head);
-
-            while(myEval->GetNodeStackDepth()>0)
-                {
-                    myEval->Evaluate1();
-                }
-#else
-            //Use traditional recursive version.
-            ::myEval->Evaluate(head);
-#endif
-
-
+            // Native platforms: Perform full cleanup
             Evaluator::gGlobalVariableMap.Destroy();
 
             if(myLoader) delete myLoader;
@@ -987,8 +955,10 @@ int main(int argc,  char *argv[])
     std::string basedir = "/usr/local/share/pebl2";
 
     std::string resourcepath = basedir;
-    std::string launch = "test.pbl";
-    std::string script = launch;
+    // For Emscripten, script path should always be passed via Module.callMain()
+    // No default launcher - require explicit arguments
+    std::string launch = "";
+    std::string script = "";
 
     Evaluator::gGlobalVariableMap.AddVariable("gPEBLResourcePath",Variant(resourcepath));
     Evaluator::gGlobalVariableMap.AddVariable("gPEBLBasePath",Variant(basedir));

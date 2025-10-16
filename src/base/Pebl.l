@@ -46,7 +46,7 @@ void yyerror(char *);
 %}
 bom        \xef\xbb\xbf
 whitespace [ \t]+
-comment     #.*$  
+comment     #.*
 integer    [0-9]+
 float      [0-9]*\.[0-9]+ 
 if         [Ii][Ff]
@@ -158,8 +158,19 @@ if(yylval.strValue[yyleng-2] != '"')     /*"*/
                  snprintf(message,99,"\nUnknown characters in line %d: [%s]\n",yylineno,yytext);
                  yyerror(message);
            }
+
+<<EOF>>    {
+                 /* Ensure file ends with a newline token for proper parsing.
+                  * This handles files that don't end with a trailing newline. */
+                 static int eof_newline_sent = 0;
+                 if (!eof_newline_sent) {
+                     eof_newline_sent = 1;
+                     return PEBL_NEWLINE;
+                 }
+                 eof_newline_sent = 0;  /* Reset for next file */
+                 yyterminate();
+           }
 %%
 int yywrap(void) {
-
     return 1;
 }

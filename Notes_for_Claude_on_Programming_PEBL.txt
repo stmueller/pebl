@@ -3,6 +3,17 @@ COMMON PEBL PROGRAMMING MISTAKES TO AVOID
 
 This document lists common mistakes made when programming PEBL tasks and how to avoid them.
 
+CRITICAL WORKFLOW RULES
+------------------------
+
+NEVER RUN MAKE COMMANDS:
+  - NEVER run make, make em, make em-opt, make main, or any make command yourself
+  - ALWAYS ask the user to run make commands
+  - The user needs to control when compilation happens
+  - Compilation can take significant time and the user may want to batch changes
+  - Simply suggest: "Would you like me to run 'make em-opt' to compile this?" or
+    "I've made the changes. When you're ready, please run 'make em-opt' to compile."
+
 EMSCRIPTEN BUILD CONFIGURATION
 --------------------------------
 
@@ -70,6 +81,17 @@ EMSCRIPTEN BUILD FILES:
   - Copy for packaging: emscripten/pebl-lib/ (gets packaged into pebl2.data)
   - Always edit BOTH versions when fixing library functions
   - Run 'make fp' to rebuild pebl2.data after changing library files
+
+FILE ENDING REQUIREMENTS:
+  - PEBL files can now end with or without a trailing newline
+  - Two lexer fixes handle missing trailing newlines:
+    1. Comment pattern changed from `#.*$` to `#.*` (line 49)
+       - Allows comments to work at EOF without requiring a newline
+       - The `$` anchor required a newline; without it, pattern matches to EOF
+    2. <<EOF>> rule injects synthetic PEBL_NEWLINE (lines 162-172)
+       - Ensures parser properly terminates when file ends without newline
+  - After regenerating the lexer with 'make parse', both fixes are active
+  - Files ending with code, comments, or just `}` will all parse correctly
 
 1. CONDITIONAL EXPRESSIONS
    WRONG: isMany <- If(numDots > 7, 1, 0)

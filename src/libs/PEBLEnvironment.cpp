@@ -2028,9 +2028,50 @@ Variant PEBLEnvironment::CallFunction(Variant v)
 
 
             PNode * arglistnode = ((OpNode*)node)->GetLeft();
+
+
+#ifdef PEBL_EMSCRIPTEN
+            //For Emscripten iterative evaluator, schedule the function call and execute until complete
+
+            //Create a DataNode containing the actual parameter values
+            DataNode * argsDataNode = new DataNode(args, "user-generated", -1);
+
+            //Create the PEBL_FUNCTION node with the parameter values
+            OpNode * fnode = new OpNode(PEBL_FUNCTION, namenode, (PNode*)argsDataNode, "user-generated", -1);
+
+            //Save the current node stack size to know when the function completes
+            size_t nodeStackSizeBefore = myEval->GetNodeStackDepth();
+
+            //Schedule the PEBL_FUNCTION node on myEval's node stack
+            //PEBL_FUNCTION will evaluate argsDataNode which pushes the parameter list onto the stack
+            myEval->NodeStackPush(fnode);
+
+            //Execute nodes until the function completes
+            //The function is complete when the node stack is back to its original size
+            while(myEval->GetNodeStackDepth() > (int)nodeStackSizeBefore)
+            {
+                myEval->Evaluate1();
+            }
+
+            //The function's return value should now be on top of the data stack
+            //Pop it to return to the caller
+            if(myEval->GetStackDepth() >= 1)
+            {
+                retval = myEval->Pop();
+            }
+            else
+            {
+                retval = Variant(0);  //Default return value if stack is empty
+            }
+
+            //Clean up the allocated nodes to prevent memory leaks
+            //The nodes have been processed and the values are on the stack,
+            //so we can safely delete them now
+            delete argsDataNode;
+            delete fnode;
+#else
+            //For non-Emscripten (recursive evaluator), create a new evaluator as before
             OpNode * fnode = new OpNode(PEBL_FUNCTION, namenode, arglistnode, "user-generated", -1);
-
-
 
             Evaluator * eval = new Evaluator();
 
@@ -2051,6 +2092,7 @@ Variant PEBLEnvironment::CallFunction(Variant v)
 
 
             delete eval;
+#endif
             //Maybe this argument structure should be cleaned up?
             rest->DestroyChildren();
             delete rest;

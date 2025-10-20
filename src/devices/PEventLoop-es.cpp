@@ -343,9 +343,7 @@ PEvent PEventLoop::Loop1()
                                                             counted_ptr<PEBLObjectBase> list2 = counted_ptr<PEBLObjectBase>(list);
                                                             PComplexData * pcd = new PComplexData(list2);  // Heap allocation - will be managed by Variant
 
-                                                            //Save node stack size before scheduling callback
-                                                            mCallbackNodeStackSize = myEval->GetNodeStackDepth();
-
+                                                            
                                                             //Create a DataNode containing the parameter list
                                                             //This will be evaluated by PEBL_FUNCTION and push the list onto the stack
                                                             DataNode * paramsNode = new DataNode(Variant(pcd), "", -1);
@@ -413,13 +411,23 @@ PEvent PEventLoop::Loop1()
                                 {
                                     //We need to create a 'dummy' event to use here.
                                     PEBL_DummyEvent pde;
-                                    pde.value = mStates[i]->GetInterface();
+                                    pde.value = mStates[i]->GetState(mStates[i]->GetInterface());
 
 
                                     if(mStates[i]->GetDevice()->GetDeviceType() == PDT_TIMER)
                                         {
 
                                             returnval = PEvent(PDT_TIMER,0,0);
+                                            returnval.SetDummyEvent(pde);
+
+                                        }
+                                    else if(mStates[i]->GetDevice()->GetDeviceType() == PDT_KEYBOARD)
+                                        {
+                                            //This is a keyboard state; different from a keypress event!
+
+                                            pde.value = (PEBL_Keycode)(mStates[i]->GetInterface());
+
+                                            returnval = PEvent(PDT_DUMMY,0,0);
                                             returnval.SetDummyEvent(pde);
 
                                         }
@@ -454,9 +462,6 @@ PEvent PEventLoop::Loop1()
                                             counted_ptr<PEBLObjectBase> list2 = counted_ptr<PEBLObjectBase>(list);
                                             PComplexData * pcd = new PComplexData(list2);  // Heap allocation - will be managed by Variant
 
-                                            //Save node stack size before scheduling callback
-                                            mCallbackNodeStackSize = myEval->GetNodeStackDepth();
-
                                             //Create a DataNode containing the parameter list
                                             //This will be evaluated by PEBL_FUNCTION and push the list onto the stack
                                             DataNode * paramsNode = new DataNode(Variant(pcd), "", -1);
@@ -489,7 +494,8 @@ PEvent PEventLoop::Loop1()
 
                                         }
                                     matched = true;
-                                    break;
+                                    //Don't break - allow other timer states to fire in same iteration
+                                    //break;
 
                                 } else
                                 {

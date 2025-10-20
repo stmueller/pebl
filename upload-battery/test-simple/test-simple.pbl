@@ -1,0 +1,67 @@
+## Simple test script for chain testing
+## Tests upload initialization, parameters, and data file upload
+
+define Start(p)
+{
+    ## Initialize upload configuration (reads upload.json if exists)
+    uploadResult <- InitializeUpload()
+
+    ## Create parameters with defaults
+    parpairs <- [["color", "blue"],
+                 ["size", 24],
+                 ["duration", 2000],
+                 ["message", "Hello World"]]
+    gParams <- CreateParameters(parpairs, gParamFile)
+
+    ## Create window
+    gWin <- MakeWindow("black")
+
+    ## Create timestamp label
+    timestamp <- TimeStamp()
+    label <- EasyLabel("Test Started: " + timestamp, gVideoWidth/2, gVideoHeight/2 - 130, gWin, 24, "white")
+
+    ## Show parameter message with configured color and size
+    ## Convert size to integer (JSON parameters come in as floats)
+    msgLabel <- EasyLabel(gParams.message, gVideoWidth/2, gVideoHeight/2 - 90, gWin, Round(gParams.size), gParams.color)
+
+    ## Show upload status
+    if(uploadResult)
+    {
+        statusLabel <- EasyLabel("Upload initialized: YES", gVideoWidth/2, gVideoHeight/2 - 50, gWin, 18, "green")
+        tokenLabel <- EasyLabel("Token: " + gToken, gVideoWidth/2, gVideoHeight/2 - 20, gWin, 16, "white")
+        participantLabel <- EasyLabel("Participant: " + gSubNum, gVideoWidth/2, gVideoHeight/2 + 10, gWin, 16, "white")
+    } else {
+        statusLabel <- EasyLabel("Upload initialized: NO", gVideoWidth/2, gVideoHeight/2 - 50, gWin, 18, "red")
+    }
+
+    ## Create instruction
+    inst <- EasyLabel("Press any key to complete test", gVideoWidth/2, gVideoHeight/2 + 50, gWin, 18, "white")
+
+    Draw()
+
+    ## Wait for keypress
+    WaitForAnyKeyPress()
+
+    ## Create and upload a test data file
+    if(uploadResult)
+    {
+        ## Create test data file
+        MakeDirectory("data")
+        dataFile <- GetNewDataFile(gSubNum, gWin, "test-simple", "csv", "timestamp,participant,color,size,duration,message,status")
+        FilePrint(dataFile, timestamp + "," + gSubNum + "," + gParams.color + "," + gParams.size + "," + gParams.duration + "," + gParams.message + ",completed")
+
+        ## Upload the file (use absolute path since working directory has changed)
+        uploadStatus <- UploadFile(gSubNum, dataFile.filename, "/upload.json")
+        Print(uploadStatus)
+        ## Show upload result
+        RemoveObject(inst, gWin)
+        resultLabel <- EasyTextBox("Upload status: " + uploadStatus, gVideoWidth/2-400, gVideoHeight/2 + 50, gWin, 12,800,300)
+        Draw()
+#        Wait(gParams.duration)
+    } else {
+#        Wait(gParams.duration)
+    }
+
+    ## Test complete - return control to chain launcher
+    return(1)
+}

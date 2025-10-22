@@ -122,7 +122,41 @@ void PlatformEnvironment::Initialize()
                 mIsInitialized = false;
             } else
             {
+                std::cerr << "TTF INITIALIZED\n";
+            }
 
+        // Initialize SDL_image for JPEG, PNG, etc.
+#ifdef PEBL_EMSCRIPTEN
+        // Emscripten: formats specified at compile time via SDL2_IMAGE_FORMATS
+        int imgFlags = IMG_INIT_JPG | IMG_INIT_PNG;
+#else
+        int imgFlags = IMG_INIT_JPG | IMG_INIT_PNG | IMG_INIT_TIF;
+#endif
+        cerr << "Attempting to initialize SDL_image with flags: " << imgFlags << endl;
+        cerr << "  IMG_INIT_JPG = " << IMG_INIT_JPG << endl;
+        cerr << "  IMG_INIT_PNG = " << IMG_INIT_PNG << endl;
+
+        int imgInitResult = IMG_Init(imgFlags);
+        cerr << "IMG_Init returned: " << imgInitResult << endl;
+
+        if ((imgInitResult & imgFlags) != imgFlags)
+            {
+                cerr << "WARNING: SDL_image could not initialize all requested formats!" << endl;
+                cerr << "  Requested flags: " << imgFlags << endl;
+                cerr << "  Initialized flags: " << imgInitResult << endl;
+                cerr << "  IMG_Error: " << IMG_GetError() << endl;
+
+                if (!(imgInitResult & IMG_INIT_JPG)) {
+                    cerr << "  JPEG support NOT available!" << endl;
+                }
+                if (!(imgInitResult & IMG_INIT_PNG)) {
+                    cerr << "  PNG support NOT available!" << endl;
+                }
+            } else
+            {
+                std::cerr << "SDL_image INITIALIZED successfully with all formats" << endl;
+                std::cerr << "  JPEG support: YES" << endl;
+                std::cerr << "  PNG support: YES" << endl;
             }
 
 

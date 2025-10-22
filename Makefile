@@ -2,7 +2,7 @@
 #//////////////////////////////////////////////////////////////////////////
 #//////////////////////////////////////////////////////////////////////////
 #//
-#//	Copyright (c) 2003-2024
+#//	Copyright (c) 2003-2025
 #//	Shane T. Mueller, Ph.D.  smueller at obereed dot net
 #//
 #//     This file is part of the PEBL project.
@@ -61,6 +61,8 @@ CLXX = clang++
 
 native: CC=$(GCC)
 native: CXX = $(GCXX)
+native-iterative: CC=$(GCC)
+native-iterative: CXX = $(GCXX)
 em: CC=$(EMCC)
 em: CXX=$(EMCXX)
 em-opt: CC=$(EMCC)
@@ -148,6 +150,8 @@ em-opt: CXXFLAGS = $(CXXFLAGSX) $(CXXFLAGS_EMSCRIPTEN) -DPEBL_ITERATIVE_EVAL
 em-opt: SDL_FLAGS = $(EM_SDL_FLAGS)
 em-test: CXXFLAGS = $(CXXFLAGSX) $(CXXFLAGS_EMSCRIPTEN) -DPEBL_ITERATIVE_EVAL
 em-test: SDL_FLAGS = $(EM_SDL_FLAGS)
+native-iterative: CXXFLAGS = $(CXXFLAGSX) $(CXXFLAGS_LINUX) -DPEBL_ITERATIVE_EVAL
+native-iterative: SDL_FLAGS = $(BASE_SDL_FLAGS)
 main: CXXFLAGS = $(CXXFLAGSX) $(CXXFLAGS_LINUX)
 cl: CXXFLAGS = $(CXXFLAGSX) $(CXXFLAGS_LINUX)
 
@@ -425,11 +429,23 @@ EMMAIN_SRC =	$(APPS_DIR)/PEBL.cpp \
 			$(FUNCTIONLIB_SRC) \
 			$(POBJECT_SRC) \
 			$(EMUTILITIES_SRC) \
-			$(PLATFORM_SDL_SRC) 
+			$(PLATFORM_SDL_SRC)
 ###			$(LIB_SRC)
 
 EMMAIN_OBJ = $(patsubst %.cpp, %.o, $(EMMAIN_SRC))
 EMMAIN_INC = $(patsubst %.cpp, %.h, $(EMMAIN_SRC))
+
+# Native build with iterative evaluator (for debugging call stack issues)
+NATIVE_ITERATIVE_SRC = $(APPS_DIR)/PEBL.cpp \
+			$(EMBASE_SRCXX) \
+			$(EMDEVICES_SRC) \
+			$(FUNCTIONLIB_SRC) \
+			$(POBJECT_SRC) \
+			$(PUTILITIES_SRC) \
+			$(PLATFORM_SDL_SRC)
+
+NATIVE_ITERATIVE_OBJ = $(patsubst %.cpp, %.o, $(NATIVE_ITERATIVE_SRC))
+NATIVE_ITERATIVE_INC = $(patsubst %.cpp, %.h, $(NATIVE_ITERATIVE_SRC))
 
 
 DIRS = \
@@ -470,6 +486,27 @@ main:  $(DIRS) $(PEBLMAIN_OBJ) $(PEBLMAIN_INC)
 	-lSDL2 -lpthread -lSDL2_image -lSDL2_net -lSDL2_ttf -lSDL2_gfx  \
 	-lpng  $(LINKOPTS)
 
+##Make native build with iterative evaluator (for debugging Evaluator-es.cpp):
+native-iterative:  $(DIRS) $(NATIVE_ITERATIVE_OBJ) $(NATIVE_ITERATIVE_INC)
+	$(CXX) $(CXXFLAGS) -Wall -Wl,-rpath -Wl,LIBDIR $(DEBUGFLAGS) \
+	-Wno-write-strings \
+	-DPEBL_LINUX \
+	$(SDL_FLAGS) -g	\
+	-o $(BIN_DIR)/$(PEBLNAME)-iterative \
+	$(BASE_DIR)/$(PEBLBASE_SRC) \
+	$(patsubst %.o, $(OBJ_DIR)/%.o, $(NATIVE_ITERATIVE_OBJ)) \
+	-lSDL2 -lpthread -lSDL2_image -lSDL2_net -lSDL2_ttf -lSDL2_gfx  \
+	-lpng  $(LINKOPTS)
+	@echo ""
+	@echo "Native iterative build complete!"
+	@echo "Binary created: bin/$(PEBLNAME)-iterative"
+	@echo ""
+	@echo "This build uses Evaluator-es.cpp (iterative) and PEventLoop-es.cpp"
+	@echo "instead of the regular recursive versions. Use for debugging call stack issues."
+	@echo ""
+	@echo "Run tests with: bin/$(PEBLNAME)-iterative demo/tests/test-callstack-simple.pbl"
+	@echo ""
+
 ##  -Wl,-V #verbose linking 
 ## -Wl,-rpath,/usr/lib \
  #	-s MAXIMUM_MEMORY=2147483648 \
@@ -483,7 +520,7 @@ em-opt:  $(DIRS) $(EMMAIN_OBJ) $(EMMAIN_INC)
 	-s USE_SDL_NET=2 \
 	-s USE_SDL_TTF=2 \
 	-s USE_SDL_IMAGE=2 \
-	-s SDL2_IMAGE_FORMATS='["png","jpeg","gif","bmp"]' \
+	-s SDL2_IMAGE_FORMATS='["png","jpg","gif","bmp"]' \
 	-s ALLOW_MEMORY_GROWTH=1 \
 	-s INITIAL_MEMORY=67108864 \
 	-s MAXIMUM_MEMORY=4294967296 \
@@ -493,6 +530,7 @@ em-opt:  $(DIRS) $(EMMAIN_OBJ) $(EMMAIN_INC)
 	-s FETCH=1 \
 	-s FORCE_FILESYSTEM=1 \
 	-s ASSERTIONS=1 \
+	-s EXIT_RUNTIME=1 \
 	-s ASYNCIFY=1 \
 	-s ASYNCIFY_STACK_SIZE=524288 \
 	-s ASYNCIFY_IMPORTS='["emscripten_sleep"]' \
@@ -504,13 +542,14 @@ em-opt:  $(DIRS) $(EMMAIN_OBJ) $(EMMAIN_INC)
 	$(patsubst %.o, $(OBJ_DIR)/%.o, $(EMMAIN_OBJ)) \
 	libs/SDL2_gfx-1.0.4/build-em/SDL2_gfxPrimitives.o \
 	--shell-file emscripten/shell_PEBL_debug.html \
-	--preload-file upload-battery/flanker/flanker.pbl@/usr/local/share/pebl2/battery/flanker/flanker.pbl \
-	--preload-file upload-battery/flanker/params@/usr/local/share/pebl2/battery/flanker/params \
-	--preload-file upload-battery/flanker/translations@/usr/local/share/pebl2/battery/flanker/translations \
-	--preload-file upload-battery/corsi@/usr/local/share/pebl2/battery/corsi \
-	--preload-file upload-battery/spatialgrid@/usr/local/share/pebl2/battery/spatialgrid \
+	--preload-file upload-battery@/usr/local/share/pebl2/battery \
 	--preload-file emscripten/pebl-lib@/usr/local/share/pebl2/pebl-lib \
 	--preload-file emscripten/media/@/usr/local/share/pebl2/media
+	@echo ""
+	@echo "Build complete! To deploy to PEBLOnlinePlatform, run:"
+	@echo "  ./deploy-to-online-platform.sh production"
+	@echo ""
+
 
 ##Make test emscripten target (for development/debugging):
 em-test:  $(DIRS) $(EMMAIN_OBJ) $(EMMAIN_INC)
@@ -521,7 +560,7 @@ em-test:  $(DIRS) $(EMMAIN_OBJ) $(EMMAIN_INC)
 	-s USE_SDL_NET=2 \
 	-s USE_SDL_TTF=2 \
 	-s USE_SDL_IMAGE=2 \
-	-s SDL2_IMAGE_FORMATS='["png","jpeg","gif","bmp"]' \
+	-s SDL2_IMAGE_FORMATS='["png","jpg","gif","bmp"]' \
 	-s ALLOW_MEMORY_GROWTH=1 \
 	-s INITIAL_MEMORY=67108864 \
 	-s MAXIMUM_MEMORY=4294967296 \
@@ -542,11 +581,14 @@ em-test:  $(DIRS) $(EMMAIN_OBJ) $(EMMAIN_INC)
 	$(patsubst %.o, $(OBJ_DIR)/%.o, $(EMMAIN_OBJ)) \
 	libs/SDL2_gfx-1.0.4/build-em/SDL2_gfxPrimitives.o \
 	--shell-file emscripten/shell_PEBL_test.html \
-	--preload-file test.pbl@/test.pbl \
+	--preload-file demo/tests/test-jpg-load.pbl@/test.pbl \
 	--preload-file emscripten/pebl-lib@/usr/local/share/pebl2/pebl-lib \
+	--preload-file media/images/launcher-bg.jpg@/usr/local/share/pebl2/media/images/launcher-bg.jpg \
 	--preload-file emscripten/media/@/usr/local/share/pebl2/media
-
-
+	@echo ""
+	@echo "Test build complete! To deploy to PEBLOnlinePlatform, run:"
+	@echo "  ./deploy-to-online-platform.sh test"
+	@echo ""
 #
 #	 --embed-file demo/getnewsubnum.pbl@test.pbl \
 #	 --embed-file pebl-lib@/usr/local/share/pebl2/pebl-lib \
@@ -622,7 +664,9 @@ dep:
 clean:
 	-rm -f $(patsubst %.o, $(OBJ_DIR)/%.o, $(PEBLBASE_OBJ)) \
 	$(patsubst %.o,  $(OBJ_DIR)/%.o, $(PEBLBASE_OBJSXX))  \
-	$(patsubst %.o,  $(OBJ_DIR)/%.o, $(PEBLMAIN_OBJ))
+	$(patsubst %.o,  $(OBJ_DIR)/%.o, $(PEBLMAIN_OBJ)) \
+	$(patsubst %.o,  $(OBJ_DIR)/%.o, $(EMBASE_OBJXX)) \
+	$(patsubst %.o,  $(OBJ_DIR)/%.o, $(EMDEVICES_OBJ))
 
 
 .PHONY: install

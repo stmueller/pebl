@@ -35,17 +35,18 @@
 #include "../../base/PEBLObject.h"
 
 
-#ifdef PEBL_OSX 
+#ifdef PEBL_OSX
 #include "SDL.h"
 #include "SDL_ttf.h"
+#include "SDL_image.h"
 #elif defined(PEBL_EMSCRIPTEN)
 #include "SDL.h"
 #include "SDL_ttf.h"
-#include "SDL.h"
-#include "SDL_ttf.h"
+#include "SDL_image.h"
 #else
 #include "SDL.h"
 #include "SDL_ttf.h"
+#include "SDL_image.h"
 #endif
 
 #include <list>

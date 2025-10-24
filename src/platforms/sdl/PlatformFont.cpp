@@ -155,9 +155,8 @@ PlatformFont::PlatformFont(const std::string & filename, int style, int size, PC
             PError::SignalFatalError("Failed to create font\n");
         }
 
-#ifndef PEBL_EMSCRIPTEN
+    // Modern Emscripten (2.0+) supports TTF_SetFontStyle
     TTF_SetFontStyle(mTTF_Font, mFontStyle);
-#endif
 
    //Translate PColor to SDLcolor for direct use in rendering.
     mSDL_FGColor = SDLUtility::PColorToSDLColor(mFontColor);
@@ -270,12 +269,7 @@ SDL_Surface * PlatformFont::RenderText(const std::string & text)
     //Using the RenderUTF8 stuff below has a hard time with 'foreign' characters; possibly because
     //the toberendered needs to be converted to UTF-8????
 
-    
-#ifdef PEBL_EMSCRIPTEN
-    tmpSurface =  TTF_RenderText_Blended(mTTF_Font, toBeRendered.c_str(), mSDL_FGColor);
-#else
-
-    //Note, renderUTF paths are not available in EMSCRIPTEN.
+    //Note: Modern Emscripten (2.0+) DOES support TTF_RenderUTF8 functions
     if(mAntiAliased)
         {
 
@@ -300,7 +294,7 @@ SDL_Surface * PlatformFont::RenderText(const std::string & text)
                 tmpSurface =  TTF_RenderText_Blended(mTTF_Font, toBeRendered.c_str(), mSDL_FGColor);
              }
         }
-#endif
+
     //
     //TTF_RenderText_Blended(
     //TTF_Font *font, // This is the TTF_Font to use.

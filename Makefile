@@ -61,16 +61,23 @@ CLXX = clang++
 
 native: CC=$(GCC)
 native: CXX = $(GCXX)
+native: OBJ_DIR = obj-native
 native-iterative: CC=$(GCC)
 native-iterative: CXX = $(GCXX)
+native-iterative: OBJ_DIR = obj-native
 em: CC=$(EMCC)
 em: CXX=$(EMCXX)
+em: OBJ_DIR = obj-em
 em-opt: CC=$(EMCC)
 em-opt: CXX=$(EMCXX)
+em-opt: OBJ_DIR = obj-em
 em-test: CC=$(EMCC)
 em-test: CXX=$(EMCXX)
+em-test: OBJ_DIR = obj-em
 main: CC=$(CL)
 main: CXX=$(CLXX)
+main: OBJ_DIR = obj-native
+debug: OBJ_DIR = obj-native
 
 
 ifdef USE_DEBUG
@@ -580,8 +587,8 @@ em-test:  $(DIRS) $(EMMAIN_OBJ) $(EMMAIN_INC)
 	$(BASE_DIR)/lex.yy.c \
 	$(patsubst %.o, $(OBJ_DIR)/%.o, $(EMMAIN_OBJ)) \
 	libs/SDL2_gfx-1.0.4/build-em/SDL2_gfxPrimitives.o \
-	--shell-file emscripten/shell_PEBL_test.html \
-	--preload-file demo/tests/test-jpg-load.pbl@/test.pbl \
+	--shell-file emscripten/pebl-test-debug.html \
+	--preload-file demo/tests/test-render-performance.pbl@/test.pbl \
 	--preload-file emscripten/pebl-lib@/usr/local/share/pebl2/pebl-lib \
 	--preload-file media/images/launcher-bg.jpg@/usr/local/share/pebl2/media/images/launcher-bg.jpg \
 	--preload-file emscripten/media/@/usr/local/share/pebl2/media
@@ -634,7 +641,8 @@ parse-debug:
 
 
 %.o: %.cpp
-	$(CXX)   $(CXXFLAGS) -g -c $^  -o $(OBJ_DIR)/$@  $(SDL_FLAGS) 
+	@mkdir -p $(dir $(OBJ_DIR)/$@)
+	$(CXX)   $(CXXFLAGS) -g -c $<  -o $(OBJ_DIR)/$@  $(SDL_FLAGS) 
 
 #	-s USE_SDL=2 \   #this is for emscriten, which doesn't work.
 #	-s USE_SDL_NET=2 \
@@ -662,11 +670,7 @@ dep:
 
 .PHONY: clean
 clean:
-	-rm -f $(patsubst %.o, $(OBJ_DIR)/%.o, $(PEBLBASE_OBJ)) \
-	$(patsubst %.o,  $(OBJ_DIR)/%.o, $(PEBLBASE_OBJSXX))  \
-	$(patsubst %.o,  $(OBJ_DIR)/%.o, $(PEBLMAIN_OBJ)) \
-	$(patsubst %.o,  $(OBJ_DIR)/%.o, $(EMBASE_OBJXX)) \
-	$(patsubst %.o,  $(OBJ_DIR)/%.o, $(EMDEVICES_OBJ))
+	-rm -rf obj-native obj-em obj
 
 
 .PHONY: install

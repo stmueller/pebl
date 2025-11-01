@@ -59,16 +59,24 @@ CL = clang
 CLXX = clang++
 
 
-native: CC=$(GCC)
-native: CXX = $(GCXX)
-em: CC=$(EMCC)
-em: CXX=$(EMCXX)
-em-opt: CC=$(EMCC)
-em-opt: CXX=$(EMCXX)
-em-test: CC=$(EMCC)
-em-test: CXX=$(EMCXX)
-main: CC=$(CL)
-main: CXX=$(CLXX)
+# Wrapper targets that set OBJ_DIR and call the real targets
+# Default target
+main:
+	$(MAKE) OBJ_DIR=obj-native CC=$(CL) CXX=$(CLXX) main-real
+
+em-opt:
+	$(MAKE) OBJ_DIR=obj-em CC=$(EMCC) CXX=$(EMCXX) em-opt-real
+
+em-test:
+	$(MAKE) OBJ_DIR=obj-em CC=$(EMCC) CXX=$(EMCXX) em-test-real
+
+# Real build targets
+em-opt-real: CC=$(EMCC)
+em-opt-real: CXX=$(EMCXX)
+em-test-real: CC=$(EMCC)
+em-test-real: CXX=$(EMCXX)
+main-real: CC=$(CL)
+main-real: CXX=$(CLXX)
 
 
 ifdef USE_DEBUG
@@ -144,11 +152,11 @@ LINKOPTS = $(LINKOPTS1) $(LINKOPTS2) $(LINKOPTS2B) $(LINKOPTS3) $(LINKOPTS4) $(L
 
 em: CXXFLAGS = $(CXXFLAGSX) $(CXXFLAGS_EMSCRIPTEN) -DPEBL_ITERATIVE_EVAL
 em: SDL_FLAGS = $(EM_SDL_FLAGS)
-em-opt: CXXFLAGS = $(CXXFLAGSX) $(CXXFLAGS_EMSCRIPTEN) -DPEBL_ITERATIVE_EVAL
-em-opt: SDL_FLAGS = $(EM_SDL_FLAGS)
-em-test: CXXFLAGS = $(CXXFLAGSX) $(CXXFLAGS_EMSCRIPTEN) -DPEBL_ITERATIVE_EVAL
-em-test: SDL_FLAGS = $(EM_SDL_FLAGS)
-main: CXXFLAGS = $(CXXFLAGSX) $(CXXFLAGS_LINUX)
+em-opt-real: CXXFLAGS = $(CXXFLAGSX) $(CXXFLAGS_EMSCRIPTEN) -DPEBL_ITERATIVE_EVAL
+em-opt-real: SDL_FLAGS = $(EM_SDL_FLAGS)
+em-test-real: CXXFLAGS = $(CXXFLAGSX) $(CXXFLAGS_EMSCRIPTEN) -DPEBL_ITERATIVE_EVAL
+em-test-real: SDL_FLAGS = $(EM_SDL_FLAGS)
+main-real: CXXFLAGS = $(CXXFLAGSX) $(CXXFLAGS_LINUX)
 cl: CXXFLAGS = $(CXXFLAGSX) $(CXXFLAGS_LINUX)
 
 
@@ -184,7 +192,11 @@ FLEX  = /usr/bin/flex
 
 BIN_DIR  = bin
 SBIN_DIR = sbin
-OBJ_DIR  = obj
+# Object directory - can be overridden at invocation time:
+#   make OBJ_DIR=obj-native main
+#   make OBJ_DIR=obj-em em-opt
+# Default is 'obj' for backward compatibility
+OBJ_DIR  ?= obj
 OUT_DIR  = output
 SRC_DIR  = src
 BASE_DIR = src/base
@@ -459,7 +471,7 @@ DIRS = \
 #	@echo $(PEBLMAIN_OBJ)
 
 
-main:  $(DIRS) $(PEBLMAIN_OBJ) $(PEBLMAIN_INC)
+main-real:  $(DIRS) $(PEBLMAIN_OBJ) $(PEBLMAIN_INC)
 	$(CXX) $(CXXFLAGS) -Wall -Wl,-rpath -Wl,LIBDIR $(DEBUGFLAGS) \
 	-Wno-write-strings \
 	-DPEBL_LINUX \
@@ -475,7 +487,7 @@ main:  $(DIRS) $(PEBLMAIN_OBJ) $(PEBLMAIN_INC)
  #	-s MAXIMUM_MEMORY=2147483648 \
 ##Make emscripten target (debug):
 ##Make optimized emscripten target (production):
-em-opt:  $(DIRS) $(EMMAIN_OBJ) $(EMMAIN_INC)
+em-opt-real:  $(DIRS) $(EMMAIN_OBJ) $(EMMAIN_INC)
 	$(CXX) $(CXXFLAGS) \
 	-Oz \
 	-s WASM=1 \
@@ -504,16 +516,12 @@ em-opt:  $(DIRS) $(EMMAIN_OBJ) $(EMMAIN_INC)
 	$(patsubst %.o, $(OBJ_DIR)/%.o, $(EMMAIN_OBJ)) \
 	libs/SDL2_gfx-1.0.4/build-em/SDL2_gfxPrimitives.o \
 	--shell-file emscripten/shell_PEBL_debug.html \
-	--preload-file upload-battery/flanker/flanker.pbl@/usr/local/share/pebl2/battery/flanker/flanker.pbl \
-	--preload-file upload-battery/flanker/params@/usr/local/share/pebl2/battery/flanker/params \
-	--preload-file upload-battery/flanker/translations@/usr/local/share/pebl2/battery/flanker/translations \
-	--preload-file upload-battery/corsi@/usr/local/share/pebl2/battery/corsi \
-	--preload-file upload-battery/spatialgrid@/usr/local/share/pebl2/battery/spatialgrid \
+	--preload-file upload-battery/@/usr/local/share/pebl2/battery \
 	--preload-file emscripten/pebl-lib@/usr/local/share/pebl2/pebl-lib \
 	--preload-file emscripten/media/@/usr/local/share/pebl2/media
 
 ##Make test emscripten target (for development/debugging):
-em-test:  $(DIRS) $(EMMAIN_OBJ) $(EMMAIN_INC)
+em-test-real:  $(DIRS) $(EMMAIN_OBJ) $(EMMAIN_INC)
 	$(CXX) $(CXXFLAGS) \
 	-O0 \
 	-s WASM=1 \

@@ -1,0 +1,548 @@
+##  This implements two tiredness scales: 
+##  The Karolinska sleepiness scale (KSS), a single VAS-style ratings scale, and
+##  a novel 'current tiredness scale',
+##  based mostly the Epsley scale with minor changes to wording
+##  the scale values.
+##
+define Start(p)
+{
+
+  parpairs <- [["doKSS",1],
+               ["doTiredness",1],
+	       ["KSSPoints",9]]
+
+  gParams <- CreateParameters(parpairs,gParamFile)
+
+
+   gScaleHeight <- Min([700,gVideoHeight-100])##
+
+   ##Should you collect the pairwise weights?
+
+
+   gWin <- MakeWindow("black")
+   if(gSubNum == 0)
+   {
+     gSubNum <- GetSubNum(gWin)
+   }
+
+  ## Initialize upload system for Emscripten
+  InitializeUpload()
+
+  ## Load translations
+  GetStrings(gLanguage)
+
+## Save data using upload system
+   gDatafile <- GetNewDataFile(gSubNum, gWin, "tiredness", "csv",
+                              "subnum,timestamp,KSS,KSSTime,reading,tv,public,passenger,lyingdown,talking,afterlunch,incar,average,totaltime")
+
+
+
+      outKSS <- "NA"
+      outTiredness <- "NA,NA,NA,NA,NA,NA,NA,NA"
+    if(gParams.DOKSS)
+    {
+      outKSS <-  DoKSS()
+      kssTime <- GetTime()/1000
+    }
+    if(gParams.DOTIREDNESS)
+   {
+      outTired <- DoTiredness()
+   }
+
+   outline <- gSubnum +"," + TimeStamp() +","+outKSS+","+outTiredness + (GetTime()/1000-ksstime)
+   FilePrint(gdatafile, outline)
+   FileClose(gDatafile)
+   ## Upload the data file
+   UploadFile(gSubnum,gdatafile)
+
+}
+
+
+
+define DoTiredness()
+{
+
+
+  labelmain <- EasyLabel(gStrings.main_label,gVideoWidth/2,20,gWin,24)
+
+  scales <- [[gStrings.scale_1_num, gStrings.scale_1_low, gStrings.scale_1_high, gStrings.scale_1_desc],
+  		   	 [gStrings.scale_2_num, gStrings.scale_2_low, gStrings.scale_2_high, gStrings.scale_2_desc],
+		 [gStrings.scale_3_num, gStrings.scale_3_low, gStrings.scale_3_high, gStrings.scale_3_desc],
+		 [gStrings.scale_4_num, gStrings.scale_4_low, gStrings.scale_4_high, gStrings.scale_4_desc],
+		 [gStrings.scale_5_num, gStrings.scale_5_low, gStrings.scale_5_high, gStrings.scale_5_desc],
+		 [gStrings.scale_6_num, gStrings.scale_6_low, gStrings.scale_6_high, gStrings.scale_6_desc],
+		 [gStrings.scale_7_num, gStrings.scale_7_low, gStrings.scale_7_high, gStrings.scale_7_desc]]
+
+
+ ## The scales are cramped but fit in 800 width. If we have more room, scale up by up to 20%
+  scale <- 1.20
+  maxscale <- gVideoWidth/850
+  scale <- Min([scale,maxscale])
+  Print(scale)
+  xs <- VecTimes([-350,-240,-130,-20,90,200,310],Repeat(scale,7))
+
+  doit<- Transpose(Append(Transpose(scales),xs))
+
+
+
+
+  tmp <- []
+  rects <- []
+  thumbs <- []
+  loop(i,doit)
+  {
+     Print("----")
+     Print(i)
+     out <-  PlotScale(Nth(i,5)+gVideoWidth/2,gVideoHeight/2+50,(i),gScaleHeight-100 )  
+
+     tmp <- Append(tmp,out)
+	 rect <- First(out)
+	 rects <- Append(rects,rect)
+     line <- Rectangle(Nth(i,5)+gVideoWidth/2,0,31,3,MakeColor("red"),1)
+	 thumbs <- Append(thumbs,line)
+  }
+
+   Draw()
+
+   rated <- [0,0,0,0,0,0,0]
+   ratings <- [0,0,0,0,0,0,0]
+
+
+
+   while (Sum(rated)<7)
+    { 
+
+	   click <- WaitForClickOnTarget(rects,Sequence(1,7,1))
+
+	   y <- Second(gClick)
+	   
+	   rating <- 21- Round(((y-400+gScaleheight/2)/gScaleheight)*20) 
+	   ylev <- (400 + gScaleheight/2) - (rating-1) * gScaleheight/20
+       tmpthumb <- Nth(thumbs,click)
+       tmpthumb.y <- ylev
+       AddObject(tmpthumb,gWin)
+
+       rated <- SpliceList(rated,1,click)
+       ratings <- SpliceList(ratings,rating,click) 
+       Draw()
+    }
+
+
+    labelmain.text <- gStrings.complete_label
+    doneback <- Rectangle(gVideoWidth/2,50,100,30,MakeColor("white"),0)
+
+    AddObject(doneback,gWin)
+    done <- EasyLabel(gStrings.done,gVideoWidth/2,50,gWin,18)
+    Draw()
+
+   while (click < 8)
+    { 
+	
+	   click <- WaitForClickOnTarget(Append(rects,doneback),Sequence(1,8,1))
+
+	   if(click<7)
+       {
+ 	   y <- Second(gClick)
+	   
+	   rating <- 21- Round(((y-400+height/2)/height)*20) 
+	   ylev <- (400 + height/2) - (rating-1) * height/20
+       tmpthumb <- Nth(thumbs,click)
+       tmpthumb.y <- ylev
+       AddObject(tmpthumb,gWin)
+
+	   rated <- SpliceList(rated,1,click)
+	   ratings <- SpliceList(ratings,rating,click) 
+
+      } 
+       Draw()
+    }
+
+   Draw()
+   outline <- ""
+   sum <- 0
+   loop(i,ratings)
+    {
+	  outline <- outline +","+i
+	  sum <- sum + ToNumber(i)
+    }
+
+   average <- sum/8
+   outline <- outline + ","+ average +","
+
+   return outline
+}
+
+
+##puts item into position on list
+define SpliceList(list,item,pos)
+{
+  i <- 1
+  tmp <- []
+  loop(itm,list)
+  {
+     if(i==pos)
+	  {
+	    itm <- item
+      }
+    tmp <- Append(tmp,itm)
+   i <- i + 1
+  }
+  return tmp
+}
+
+##this is for the tiredness scale, NOT KSS
+##this makes a column for rating. It is 110 pixels wide.
+define PlotScale(x,y,info,height)
+{
+
+
+   black <- MakeColor("black")
+   darkgrey <- MakeColor("black")
+   font1 <-   MakeFont(gPEBLBaseFont,0,25,MakeColor("white"),darkgrey,1)
+   font <-   MakeFont(gPEBLBaseFont,0,12,MakeColor("white"),darkgrey,1)
+
+   ##this is just the number.
+   title <- MakeTextBox(First(info),font1, 41,30)
+   title.justify <- "CENTER"
+   AddObject(title,gWin)
+   Move(title,x-21,y-height/2-115)
+
+   ## the text decription
+   tb <- MakeTextBox(Fourth(info),font, 90,70)
+   tb.justify<- "CENTER"
+   AddObject(tb,gWin)
+   Move(tb,x-45,y-height/2-85)
+   
+   labels <- [Second(info),Third(info)]
+   labheights <- [0,21]
+
+
+
+   nums <- Sequence(1,21,1)
+   lnums <- Length(nums)   
+
+   top <- y-height/2
+   bottom <- y+height/2
+   skip <- (bottom-top)/(lnums-1)
+
+   i <- bottom
+   ##add click-in box
+   box <- Rectangle(x,y,41,height+2,MakeColor("grey60"),1)
+   AddObject(box,gwin)
+   tmp <- [box,title,tb] ##holder of graphical objects       
+   loop(n,nums)
+   {
+
+     #add tick
+	 if(n==11 or n==1 or n==21)
+     {
+     line <-  Line(x-18,i,37,0,black)
+     } else {
+
+     line <-  Line(x-12,i,25,0,black)
+     }
+     AddObject(line,gwin)
+     tmp <- Append(tmp,line)
+     i <- i- skip
+   }
+   
+
+
+   lab <- MakeLabel(First(labels),font)   
+   AddObject(lab,gWin)
+   Move(lab,x,bottom+15)
+   tmp <- Append(tmp,lab)
+
+   lab <- MakeLabel(Second(labels),font)   
+   AddObject(lab,gWin)
+   Move(lab,x,top-15)
+   tmp <- Append(tmp,lab)
+
+
+   #add vertical line
+   line <-    Line(x,top,0,(bottom-top),black)
+   AddObject(line,gwin) 
+   Draw()
+   tmp <- Append(tmp,line)
+
+
+  return tmp
+}
+
+define Pairs(list)
+{
+  tmp <- []
+  idi <- 1
+
+   loop(i,list)
+    {
+
+     idj <- 1
+	   loop(j,list)
+        {
+
+
+		  if(idi<idj)
+           {
+
+		     tmp <- Append(tmp,[i,j])
+           }
+
+		  idj <- idj+1
+        }
+     idi <- idi + 1
+    }
+
+  return tmp
+}
+
+define GetStrings(lang)
+{
+  lang <- Uppercase(lang)
+  fname <- "translations/tiredness.pbl-" + LowerCase(lang) + ".json"
+
+  if(FileExists(fname))
+  {
+    gStrings <- ReadTranslationJSON(fname, lang)
+  } else {
+    gStrings <- ReadTranslationJSON("translations/tiredness.pbl-en.json", lang)
+  }
+}
+
+
+
+
+
+
+define DoKSS()
+{
+
+  taskname <- "KSS: Karolinska Sleep Scale"
+
+  gNumPoints     <- gParams.KSSPoints
+
+  
+  ## 取 KSS 锚定文本（避免全局数组初始化语法问题）
+  gKSSLabels <- GetKSSLabels()##the labels for each tickmark.
+
+  ## ③ 标题改为 KSS 全称；④ 字号 +2（24->26）
+  labelmain <- EasyLabel(gStrings.KSS_TITLE, gVideoWidth/2, 40, gWin, 26)
+
+  ## 单一维度：KSS
+  scales <- [gStrings.KSS_QUESTION,
+              gStrings.KSS_LOW,
+              gStrings.KSS_HIGH,
+              ""]
+
+
+
+  kssheight <- Min([600,gscaleheight-120])
+  ycenter <- kssheight/2 + 140  ##put it as far down as is reasonable.  
+  xcenter <- gVideoWidth/2-250
+
+  Print("KSSheigth:" + kssheight)
+  out <- PlotScaleKSS(xcenter,ycenter,scales,kssheight)
+  Draw()
+
+  rects <- [First(out)]  ##list of the rectangle of plotscale.
+
+  ##red marker:
+  line <- Rectangle(xcenter,ycenter,31,3,MakeColor("red"),1)
+
+  thumbs <- [line]
+  rated   <- [0]
+  ratings <- [0]
+  Draw()
+
+
+  while (Sum(rated) < 1)
+  {
+     click <- WaitForClickOnTarget(rects,[1])
+     y <- Second(gClick)
+
+     rating <- gNumPoints - Round(((y - ycenter + kssheight/2)/kssheight)*(gNumPoints-1))
+     if(rating < 1) { rating <- 1 }
+     if(rating > gNumPoints) { rating <- gNumPoints }
+
+     ylev <- (ycenter + kssheight/2) - (rating-1) * kssheight/(gNumPoints-1)
+     tmpthumb <- Nth(thumbs,click)
+     tmpthumb.y <- ylev
+     AddObject(tmpthumb,gWin)
+
+     rated   <- SpliceList(rated,1,click)
+     ratings <- SpliceList(ratings,rating,click)
+     Draw()
+  }
+
+  ## ④ DONE 字号 +2（18->20）
+  labelmain.text <- gStrings.KSS_COMPLETE
+
+  done <- EasyLabel(gStrings.KSS_DONE,  gVideoWidth/2,100,gWin,26)
+  doneback <- Rectangle(done.x,done.y,done.width+20, done.height+10,MakeColor("white"),0)
+  AddObject(doneback,gWin)
+  AddObject(done,gWin)
+
+  Draw()
+
+  click <- 0
+  while (click < 2)
+  {
+     click <- WaitForClickOnTarget(Append(rects,doneback),Sequence(1,2,1))
+     if(click < 2)
+     {
+        y <- Second(gClick)
+        rating <- gNumPoints - Round(((y - ycenter + kssheight/2)/kssHeight)*(gNumPoints-1))
+        if(rating < 1) { rating <- 1 }
+        if(rating > gNumPoints) { rating <- gNumPoints }
+
+        ylev <- (ycenter + kssheight/2) - (rating-1) * kssHeight/(gNumPoints-1)
+        tmpthumb <- Nth(thumbs,click)
+        tmpthumb.y <- ylev
+        AddObject(tmpthumb,gWin)
+
+        rated   <- SpliceList(rated,1,click)
+        ratings <- SpliceList(ratings,rating,click)
+     }
+     Draw()
+  }
+
+  Draw()
+
+  outline <- "PEBL-KSS,"+TimeStamp()+","+gSubNum+","+taskname
+  loop(i,ratings)
+  {
+    outline <- outline + ","+i
+  }
+  outline <- outline + ","+GetTime()
+
+  MakeDirectory("data")
+  out <- FileOpenAppend("data/kss-data.csv")
+  FilePrint(out,outline)
+}
+
+## puts item into position on list
+define SpliceList(list,item,pos)
+{
+  i <- 1
+  tmp <- []
+  loop(itm,list)
+  {
+     if(i==pos)
+     {
+       itm <- item
+     }
+     tmp <- Append(tmp,itm)
+     i <- i + 1
+  }
+  return tmp
+}
+
+## 绘制量表（支持任意点数），右侧锚定单行显示；④ 字号整体 +2（15->17, 12->14）
+define PlotScaleKSS(x,y,info,height)
+{
+   black <- MakeColor("black")
+   font1 <- MakeFont(gPEBLBaseFont,0,20,MakeColor("white"),black,0)  ## 标题字
+   font  <- MakeFont(gPEBLBaseFont,0,18,MakeColor("white"),black,0)  ## 正文字
+
+   ##how sleepy do you feel?
+   title <- MakeLabel(First(info),font)
+   AddObject(title,gWin)
+   Move(title,gVideoWidth/2, 60)
+   
+   ##Karolinska sleepiness
+   tb <- MakeLabel(Fourth(info),font1)
+   AddObject(tb,gWin)
+   Move(tb,gVideoWidth/2, 25)
+
+
+
+   nums <- Sequence(1,gNumPoints,1)
+   lnums <- Length(nums)
+
+   top <- y - height/2
+   bottom <- y + height/2
+   skip <- (bottom - top)/(lnums - 1)
+
+   box <- Rectangle(x,y,41,height+2,MakeColor("grey60"),1)
+   AddObject(box,gWin)
+   tmp <- [box,title,tb]
+
+
+
+   i <- bottom
+   loop(n,nums)
+   {
+     if(n==1 or n==gNumPoints or n==((gNumPoints+1)/2))
+     {
+       line <- Line(x-18,i,37,0,black)
+     } else {
+       line <- Line(x-12,i,25,0,black)
+     }
+     AddObject(line,gWin)
+     tmp <- Append(tmp,line)
+
+
+       labn <- MakeTextBox(Nth(gKSSLabels, n),font,gVideoWidth-x-50,skip-5)
+       AddObject(labn, gWin)
+       MoveCorner(labn, x+35, i-8)
+       tmp <- Append(tmp, labn)
+
+     i <- i - skip
+   }
+
+
+   #replot endpoint anchors:   
+   ##extremely alert
+   lab <- MakeLabel(Second(info),font)
+   AddObject(lab,gWin)
+   Move(lab,x,bottom+50)
+   tmp <- Append(tmp,lab)
+
+   ##very sleepy fighting sleep
+   lab <- MakeLabel(Nth(info,3), font)
+   AddObject(lab, gWin)
+   Move(lab,x,top-25)
+   tmp <- Append(tmp, lab)
+
+
+   line <- Line(x,top,0,(bottom-top),black)
+   AddObject(line,gWin)
+   Draw()
+   tmp <- Append(tmp,line)
+
+   return tmp
+}
+
+define Pairs(list)
+{
+  tmp <- []
+  idi <- 1
+  loop(i,list)
+  {
+    idj <- 1
+    loop(j,list)
+    {
+      if(idi<idj)
+      {
+        tmp <- Append(tmp,[i,j])
+      }
+      idj <- idj+1
+    }
+    idi <- idi + 1
+  }
+  return tmp
+}
+
+define GetKSSLabels()
+{
+  return [gStrings.KSS_LABEL_1,
+          gStrings.KSS_LABEL_2,
+          gStrings.KSS_LABEL_3,
+          gStrings.KSS_LABEL_4,
+          gStrings.KSS_LABEL_5,
+          gStrings.KSS_LABEL_6,
+          gStrings.KSS_LABEL_7,
+          gStrings.KSS_LABEL_8,
+          gStrings.KSS_LABEL_9]
+}
+

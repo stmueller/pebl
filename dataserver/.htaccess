@@ -1,0 +1,52 @@
+# PEBL Simple Data Server - Security Configuration
+# Apache .htaccess file
+
+# Protect configuration file from direct access
+<Files "config.php">
+    Require all denied
+</Files>
+
+# Protect counter file from direct access
+<Files "counter.txt">
+    Require all denied
+</Files>
+
+# Protect password generator from web access
+<Files "generate_password.php">
+    Require all denied
+</Files>
+
+# Protect README and other documentation
+<FilesMatch "\.(md|txt)$">
+    Require all denied
+</FilesMatch>
+
+# Disable directory listing
+Options -Indexes
+
+# Enable FollowSymLinks if needed (some servers require this)
+Options +FollowSymLinks
+
+# Set default charset
+AddDefaultCharset UTF-8
+
+# PHP Security Settings (if mod_php is used)
+<IfModule mod_php7.c>
+    php_flag display_errors Off
+    php_value upload_max_filesize 10M
+    php_value post_max_size 10M
+    php_value max_execution_time 300
+    php_value max_input_time 300
+</IfModule>
+
+# Protect uploads directory from PHP execution
+<Directory "uploads">
+    <FilesMatch "\.ph(p[3457]?|tml)$">
+        Require all denied
+    </FilesMatch>
+    Options -Indexes
+</Directory>
+
+# Custom error pages (optional)
+# ErrorDocument 403 "Access denied"
+# ErrorDocument 404 "File not found"

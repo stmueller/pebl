@@ -1,0 +1,1285 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>PEBLObjects - Graphics and Objects &#8212; PEBL Function Reference</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css?v=cb25574f" />
+    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=4c664190" />
+    <script src="../_static/documentation_options.js?v=c4a36953"></script>
+    <script src="../_static/doctools.js?v=888ff710"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="PEBLStream - File and Network I/O" href="peblstream.html" />
+    <link rel="prev" title="PEBLList - List Manipulation" href="pebllist.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="peblobjects-graphics-and-objects">
+<h1>PEBLObjects - Graphics and Objects<a class="headerlink" href="#peblobjects-graphics-and-objects" title="Link to this heading">¶</a></h1>
+<p>This module contains functions for creating and manipulating graphical objects, windows, and visual elements.</p>
+<nav class="contents local" id="function-index">
+<p class="topic-title">Function Index</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="#addobject" id="id1">AddObject()</a></p></li>
+<li><p><a class="reference internal" href="#bezier" id="id2">Bezier()</a></p></li>
+<li><p><a class="reference internal" href="#circle" id="id3">Circle()</a></p></li>
+<li><p><a class="reference internal" href="#draw" id="id4">Draw()</a></p></li>
+<li><p><a class="reference internal" href="#drawfor" id="id5">DrawFor()</a></p></li>
+<li><p><a class="reference internal" href="#ellipse" id="id6">Ellipse()</a></p></li>
+<li><p><a class="reference internal" href="#getcursorposition" id="id7">GetCursorPosition()</a></p></li>
+<li><p><a class="reference internal" href="#getlinebreaks" id="id8">GetLineBreaks()</a></p></li>
+<li><p><a class="reference internal" href="#getparent" id="id9">GetParent()</a></p></li>
+<li><p><a class="reference internal" href="#getpixelcolor" id="id10">GetPixelColor()</a></p></li>
+<li><p><a class="reference internal" href="#getproperty" id="id11">GetProperty()</a></p></li>
+<li><p><a class="reference internal" href="#getpropertylist" id="id12">GetPropertyList()</a></p></li>
+<li><p><a class="reference internal" href="#getsize" id="id13">GetSize()</a></p></li>
+<li><p><a class="reference internal" href="#gettext" id="id14">GetText()</a></p></li>
+<li><p><a class="reference internal" href="#getvocalresponsetime" id="id15">GetVocalResponseTime()</a></p></li>
+<li><p><a class="reference internal" href="#hide" id="id16">Hide()</a></p></li>
+<li><p><a class="reference internal" href="#line" id="id17">Line()</a></p></li>
+<li><p><a class="reference internal" href="#loadaudiofile" id="id18">LoadAudioFile()</a></p></li>
+<li><p><a class="reference internal" href="#loadmovie" id="id19">LoadMovie()</a></p></li>
+<li><p><a class="reference internal" href="#loadsound" id="id20">LoadSound()</a></p></li>
+<li><p><a class="reference internal" href="#makeaudioinputbuffer" id="id21">MakeAudioInputBuffer()</a></p></li>
+<li><p><a class="reference internal" href="#makecanvas" id="id22">MakeCanvas()</a></p></li>
+<li><p><a class="reference internal" href="#makecolor" id="id23">MakeColor()</a></p></li>
+<li><p><a class="reference internal" href="#makecolorrgb" id="id24">MakeColorRGB()</a></p></li>
+<li><p><a class="reference internal" href="#makecustomobject" id="id25">MakeCustomObject()</a></p></li>
+<li><p><a class="reference internal" href="#makefont" id="id26">MakeFont()</a></p></li>
+<li><p><a class="reference internal" href="#makeimage" id="id27">MakeImage()</a></p></li>
+<li><p><a class="reference internal" href="#makelabel" id="id28">MakeLabel()</a></p></li>
+<li><p><a class="reference internal" href="#makesinewave" id="id29">MakeSineWave()</a></p></li>
+<li><p><a class="reference internal" href="#maketextbox" id="id30">MakeTextBox()</a></p></li>
+<li><p><a class="reference internal" href="#makewindow" id="id31">MakeWindow()</a></p></li>
+<li><p><a class="reference internal" href="#move" id="id32">Move()</a></p></li>
+<li><p><a class="reference internal" href="#pauseplayback" id="id33">PausePlayback()</a></p></li>
+<li><p><a class="reference internal" href="#playbackground" id="id34">PlayBackground()</a></p></li>
+<li><p><a class="reference internal" href="#playforeground" id="id35">PlayForeground()</a></p></li>
+<li><p><a class="reference internal" href="#polygon" id="id36">Polygon()</a></p></li>
+<li><p><a class="reference internal" href="#printproperties" id="id37">PrintProperties()</a></p></li>
+<li><p><a class="reference internal" href="#propertyexists" id="id38">PropertyExists()</a></p></li>
+<li><p><a class="reference internal" href="#rectangle" id="id39">Rectangle()</a></p></li>
+<li><p><a class="reference internal" href="#removeobject" id="id40">RemoveObject()</a></p></li>
+<li><p><a class="reference internal" href="#resizewindow" id="id41">ResizeWindow()</a></p></li>
+<li><p><a class="reference internal" href="#rotozoom" id="id42">RotoZoom()</a></p></li>
+<li><p><a class="reference internal" href="#saveaudiotowavefile" id="id43">SaveAudioToWaveFile()</a></p></li>
+<li><p><a class="reference internal" href="#setcursorposition" id="id44">SetCursorPosition()</a></p></li>
+<li><p><a class="reference internal" href="#seteditable" id="id45">SetEditable()</a></p></li>
+<li><p><a class="reference internal" href="#setfont" id="id46">SetFont()</a></p></li>
+<li><p><a class="reference internal" href="#setpanning" id="id47">SetPanning()</a></p></li>
+<li><p><a class="reference internal" href="#setplayrepeats" id="id48">SetPlayRepeats()</a></p></li>
+<li><p><a class="reference internal" href="#setproperty" id="id49">SetProperty()</a></p></li>
+<li><p><a class="reference internal" href="#settext" id="id50">SetText()</a></p></li>
+<li><p><a class="reference internal" href="#show" id="id51">Show()</a></p></li>
+<li><p><a class="reference internal" href="#square" id="id52">Square()</a></p></li>
+<li><p><a class="reference internal" href="#startplayback" id="id53">StartPlayback()</a></p></li>
+<li><p><a class="reference internal" href="#stop" id="id54">Stop()</a></p></li>
+<li><p><a class="reference internal" href="#thickline" id="id55">ThickLine()</a></p></li>
+</ul>
+</nav>
+<section id="addobject">
+<span id="index-0"></span><h2><a class="toc-backref" href="#id1" role="doc-backlink">AddObject()</a><a class="headerlink" href="#addobject" title="Link to this heading">¶</a></h2>
+<p><em>Adds an object to a parent object (window)</em></p>
+<p><strong>Description:</strong></p>
+<p>Adds a widget to a parent window, at the top of the object stack.  Once added, the object will be drawn onto the parent last, meaning it will be on top of anything previously added.   In general, objects can be added to other objects as well as windows.  For example, you can add drawing objects (circles, etc.) to an image to annotate the image and maintain its proper x,y coordinates.  Also, if you ‘re-add’ an object that is already on a widget, it will get automatically removed from the window first.  This is an easy way to reorder elements on a screen.</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>AddObject(&lt;obj&gt;, &lt;window&gt;) AddObject(&lt;obj&gt;, &lt;canvas&gt;) AddObject(&lt;obj&gt;, &lt;widget&gt;)
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="k">define</span><span class="w"> </span><span class="nf">Start</span><span class="p">(</span><span class="nv">p</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w"> </span><span class="nv">win</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeWindow</span><span class="p">()</span>
+<span class="w"> </span><span class="nv">img</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeImage</span><span class="p">(</span><span class="s2">&quot;pebl.png&quot;</span><span class="p">)</span>
+<span class="w"> </span><span class="nv">circ</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">Circle</span><span class="p">(</span><span class="mi">20</span><span class="p">,</span><span class="mi">20</span><span class="p">,</span><span class="mi">10</span><span class="p">,</span><span class="nf">MakeColor</span><span class="p">(</span><span class="s2">&quot;red&quot;</span><span class="p">),</span><span class="mi">1</span><span class="p">)</span>
+<span class="w"> </span><span class="nf">AddObject</span><span class="p">(</span><span class="nv">circ</span><span class="p">,</span><span class="nv">img</span><span class="p">)</span>
+<span class="w"> </span><span class="nf">AddObject</span><span class="p">(</span><span class="nv">img</span><span class="p">,</span><span class="nv">win</span><span class="p">)</span>
+<span class="w"> </span><span class="nf">Move</span><span class="p">(</span><span class="nv">img</span><span class="p">,</span><span class="mi">100</span><span class="p">,</span><span class="mi">100</span><span class="p">)</span>
+<span class="w"> </span><span class="nf">Draw</span><span class="p">()</span>
+<span class="w"> </span><span class="nf">WaitForAnyKeyPress</span><span class="p">()</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#removeobject"><code class="xref py py-func docutils literal notranslate"><span class="pre">RemoveObject()</span></code></a></p>
+</section>
+<section id="bezier">
+<span id="index-1"></span><h2><a class="toc-backref" href="#id2" role="doc-backlink">Bezier()</a><a class="headerlink" href="#bezier" title="Link to this heading">¶</a></h2>
+<p><em>Creates bezier curve centered at x,y with relative points</em></p>
+<p><strong>Description:</strong></p>
+<p>Creates a smoothed line through the  points specified by <code class="docutils literal notranslate"><span class="pre">&lt;xpoints&gt;</span></code>, <code class="docutils literal notranslate"><span class="pre">&lt;ypoints&gt;</span></code>. The lists <code class="docutils literal notranslate"><span class="pre">&lt;xpoints&gt;</span></code> and <code class="docutils literal notranslate"><span class="pre">&lt;ypoints&gt;</span></code> are adjusted by  <code class="docutils literal notranslate"><span class="pre">&lt;x&gt;</span></code> and <code class="docutils literal notranslate"><span class="pre">&lt;y&gt;</span></code>, so they should be relative to 0, not the location you want the points to be at.  Like other drawn objects, the bezier must then be added to the window to appear. &lt;steps&gt; denotes how smooth the approximation will be.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">Bezier</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">x</span><span class="o">&gt;</span><span class="p">,</span><span class="o">&lt;</span><span class="nv">y</span><span class="o">&gt;</span><span class="p">,</span><span class="o">&lt;</span><span class="nv">xpoints</span><span class="o">&gt;</span><span class="p">,</span><span class="o">&lt;</span><span class="nv">ypoints</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="w">         </span><span class="o">&lt;</span><span class="nv">steps</span><span class="o">&gt;</span><span class="p">,</span><span class="o">&lt;</span><span class="nv">color</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">win</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeWindow</span><span class="p">()</span>
+<span class="w">   </span><span class="c1">#This makes a T</span>
+<span class="w">   </span><span class="nv">xpoints</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="p">[</span><span class="o">-</span><span class="mi">10</span><span class="p">,</span><span class="mi">10</span><span class="p">,</span><span class="mi">10</span><span class="p">,</span><span class="mi">20</span><span class="p">,</span><span class="mi">20</span><span class="p">,</span><span class="o">-</span><span class="mi">20</span><span class="p">,</span><span class="o">-</span><span class="mi">20</span><span class="p">,</span><span class="o">-</span><span class="mi">10</span><span class="p">]</span>
+<span class="w">   </span><span class="nv">ypoints</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="p">[</span><span class="o">-</span><span class="mi">20</span><span class="p">,</span><span class="o">-</span><span class="mi">20</span><span class="p">,</span><span class="mi">40</span><span class="p">,</span><span class="mi">40</span><span class="p">,</span><span class="mi">50</span><span class="p">,</span><span class="mi">50</span><span class="p">,</span><span class="mi">40</span><span class="p">,</span><span class="mi">40</span><span class="p">]</span>
+<span class="w">  </span><span class="nv">p1</span><span class="w"> </span><span class="o">&lt;-</span><span class="w">    </span><span class="nf">Bezier</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span><span class="mi">100</span><span class="p">,</span><span class="nv">xpoints</span><span class="p">,</span><span class="w"> </span><span class="nv">ypoints</span><span class="p">,</span>
+<span class="w">           </span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="nf">MakeColor</span><span class="p">(</span><span class="s2">&quot;black&quot;</span><span class="p">))</span>
+<span class="w">  </span><span class="nf">AddObject</span><span class="p">(</span><span class="nv">p1</span><span class="p">,</span><span class="nv">win</span><span class="p">)</span>
+<span class="w">  </span><span class="nf">Draw</span><span class="p">()</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="graphics.html#blocke"><code class="xref py py-func docutils literal notranslate"><span class="pre">BlockE()</span></code></a>, <a class="reference internal" href="#polygon"><code class="xref py py-func docutils literal notranslate"><span class="pre">Polygon()</span></code></a>, <a class="reference internal" href="graphics.html#makestarpoints"><code class="xref py py-func docutils literal notranslate"><span class="pre">MakeStarPoints()</span></code></a>, <a class="reference internal" href="graphics.html#makengonpoints"><code class="xref py py-func docutils literal notranslate"><span class="pre">MakeNGonPoints()</span></code></a></p>
+</section>
+<section id="circle">
+<span id="index-2"></span><h2><a class="toc-backref" href="#id3" role="doc-backlink">Circle()</a><a class="headerlink" href="#circle" title="Link to this heading">¶</a></h2>
+<p><em>Creates circle with radius r centered at position x,y</em></p>
+<p><strong>Description:</strong></p>
+<p>Creates a circle for graphing at x,y with radius r.   Circles must be added to a parent widget before it can be drawn; it   may be added to widgets other than a base window. The properties of   circles may be changed by accessing their properties directly,   including the FILLED property which makes the object an outline   versus a filled shape.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">Circle</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">x</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">y</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">r</span><span class="o">&gt;</span><span class="p">,</span><span class="o">&lt;</span><span class="nv">color</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">c</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">Circle</span><span class="p">(</span><span class="mi">30</span><span class="p">,</span><span class="mi">30</span><span class="p">,</span><span class="mi">20</span><span class="p">,</span><span class="w"> </span><span class="nf">MakeColor</span><span class="p">(</span><span class="vg">green</span><span class="p">))</span>
+<span class="w">  </span><span class="nf">AddObject</span><span class="p">(</span><span class="nv">c</span><span class="p">,</span><span class="w"> </span><span class="nv">win</span><span class="p">)</span>
+<span class="w">  </span><span class="nf">Draw</span><span class="p">()</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#square"><code class="xref py py-func docutils literal notranslate"><span class="pre">Square()</span></code></a>, <a class="reference internal" href="#ellipse"><code class="xref py py-func docutils literal notranslate"><span class="pre">Ellipse()</span></code></a>, <a class="reference internal" href="#rectangle"><code class="xref py py-func docutils literal notranslate"><span class="pre">Rectangle()</span></code></a>, <a class="reference internal" href="#line"><code class="xref py py-func docutils literal notranslate"><span class="pre">Line()</span></code></a></p>
+</section>
+<section id="draw">
+<span id="index-3"></span><h2><a class="toc-backref" href="#id4" role="doc-backlink">Draw()</a><a class="headerlink" href="#draw" title="Link to this heading">¶</a></h2>
+<p><em>Redraws a widget and its children</em></p>
+<p><strong>Description:</strong></p>
+<p>Redraws the screen or a specific widget.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">Draw</span><span class="p">()</span>
+<span class="nf">Draw</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">object</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#drawfor"><code class="xref py py-func docutils literal notranslate"><span class="pre">DrawFor()</span></code></a>, <a class="reference internal" href="#show"><code class="xref py py-func docutils literal notranslate"><span class="pre">Show()</span></code></a>, <a class="reference internal" href="#hide"><code class="xref py py-func docutils literal notranslate"><span class="pre">Hide()</span></code></a></p>
+</section>
+<section id="drawfor">
+<span id="index-4"></span><h2><a class="toc-backref" href="#id5" role="doc-backlink">DrawFor()</a><a class="headerlink" href="#drawfor" title="Link to this heading">¶</a></h2>
+<p><strong>Description:</strong></p>
+<p>Draws a screen or widget, returning after   <code class="docutils literal notranslate"><span class="pre">&lt;cycles&gt;</span></code> refreshes. This function currently does not work as   intended in the SDL implementation, because of a lack of control   over the refresh blank.  It may work in the future.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">DrawFor</span><span class="p">(</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">object</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">cycles</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#draw"><code class="xref py py-func docutils literal notranslate"><span class="pre">Draw()</span></code></a>, <a class="reference internal" href="#show"><code class="xref py py-func docutils literal notranslate"><span class="pre">Show()</span></code></a>, <a class="reference internal" href="#hide"><code class="xref py py-func docutils literal notranslate"><span class="pre">Hide()</span></code></a></p>
+</section>
+<section id="ellipse">
+<span id="index-5"></span><h2><a class="toc-backref" href="#id6" role="doc-backlink">Ellipse()</a><a class="headerlink" href="#ellipse" title="Link to this heading">¶</a></h2>
+<p><em>Creates ellipse with radii rx and ry centered at position x,y</em></p>
+<p><strong>Description:</strong></p>
+<p>Creates a ellipse for graphing at x,y with radii   rx and ry. Ellipses are only currently definable oriented in   horizontal/vertical directions.  Ellipses  must be added   to a parent widget before it can be drawn; it may be added to   widgets other than a base window.  The properties of ellipses may be   changed by accessing their properties directly, including the FILLED   property which makes the object an outline versus a filled shape.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">Ellipse</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">x</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">y</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">rx</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">ry</span><span class="o">&gt;</span><span class="p">,</span><span class="o">&lt;</span><span class="nv">color</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">e</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">Ellipse</span><span class="p">(</span><span class="mi">30</span><span class="p">,</span><span class="mi">30</span><span class="p">,</span><span class="mi">20</span><span class="p">,</span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="nf">MakeColor</span><span class="p">(</span><span class="vg">green</span><span class="p">))</span>
+<span class="w">  </span><span class="nf">AddObject</span><span class="p">(</span><span class="nv">e</span><span class="p">,</span><span class="w"> </span><span class="nv">win</span><span class="p">)</span>
+<span class="w">  </span><span class="nf">Draw</span><span class="p">()</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#square"><code class="xref py py-func docutils literal notranslate"><span class="pre">Square()</span></code></a>, <a class="reference internal" href="#circle"><code class="xref py py-func docutils literal notranslate"><span class="pre">Circle()</span></code></a>, <a class="reference internal" href="#rectangle"><code class="xref py py-func docutils literal notranslate"><span class="pre">Rectangle()</span></code></a>, <a class="reference internal" href="#line"><code class="xref py py-func docutils literal notranslate"><span class="pre">Line()</span></code></a></p>
+</section>
+<section id="getcursorposition">
+<span id="index-6"></span><h2><a class="toc-backref" href="#id7" role="doc-backlink">GetCursorPosition()</a><a class="headerlink" href="#getcursorposition" title="Link to this heading">¶</a></h2>
+<p><strong>Description:</strong></p>
+<p>Returns an integer specifying where in a textbox the edit cursor is.  The value indicates which character it is on.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">GetCursorPosition</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">textbox</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#setcursorposition"><code class="xref py py-func docutils literal notranslate"><span class="pre">SetCursorPosition()</span></code></a>, <a class="reference internal" href="#maketextbox"><code class="xref py py-func docutils literal notranslate"><span class="pre">MakeTextBox()</span></code></a>, <a class="reference internal" href="#settext"><code class="xref py py-func docutils literal notranslate"><span class="pre">SetText()</span></code></a></p>
+</section>
+<section id="getlinebreaks">
+<span id="index-7"></span><h2><a class="toc-backref" href="#id8" role="doc-backlink">GetLineBreaks()</a><a class="headerlink" href="#getlinebreaks" title="Link to this heading">¶</a></h2>
+<p><strong>Description:</strong></p>
+<p>This gets linebreaks for a textbox.  It is mainly used internally for   text rendering/layout, but could be useful in other contexts.</p>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="vg">gWin</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeWindow</span><span class="p">()</span>
+<span class="w">     </span><span class="nv">obj</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">EasyTextbox</span><span class="p">(</span><span class="s2">&quot;test a b c</span>
+<span class="s2">      d e f</span>
+<span class="s2">      g h i j k</span>
+<span class="s2">      l m n o p q r</span>
+<span class="s2">      s t u v&quot;</span><span class="p">,</span><span class="mi">30</span><span class="p">,</span><span class="mi">30</span><span class="p">,</span><span class="vg">gWin</span><span class="p">,</span><span class="mi">22</span><span class="p">,</span><span class="w"> </span><span class="mi">40</span><span class="p">,</span><span class="mi">200</span><span class="p">)</span>
+
+<span class="w">     </span><span class="nv">breaks</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">GetLineBreaks</span><span class="p">(</span><span class="nv">obj</span><span class="p">)</span>
+<span class="w">     </span><span class="nf">Print</span><span class="p">(</span><span class="s2">&quot;Number of lines:&quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nf">Length</span><span class="p">(</span><span class="nv">breaks</span><span class="p">))</span>
+</pre></div>
+</div>
+</section>
+<section id="getparent">
+<span id="index-8"></span><h2><a class="toc-backref" href="#id9" role="doc-backlink">GetParent()</a><a class="headerlink" href="#getparent" title="Link to this heading">¶</a></h2>
+<p><strong>Description:</strong></p>
+<p>This gets parent of a widget.</p>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="vg">gWin</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeWindow</span><span class="p">()</span>
+<span class="w">   </span><span class="nv">obj</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">EasyLabel</span><span class="p">(</span><span class="s2">&quot;test&quot;</span><span class="p">,</span><span class="mi">30</span><span class="p">,</span><span class="mi">30</span><span class="p">,</span><span class="vg">gWin</span><span class="p">,</span><span class="mi">22</span><span class="p">)</span>
+
+<span class="w">   </span><span class="c1">## later</span>
+
+<span class="w">   </span><span class="nv">win</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">GetParent</span><span class="p">(</span><span class="nv">obj</span><span class="p">)</span><span class="w"> </span><span class="c1">##should be gWin</span>
+</pre></div>
+</div>
+</section>
+<section id="getpixelcolor">
+<span id="index-9"></span><h2><a class="toc-backref" href="#id10" role="doc-backlink">GetPixelColor()</a><a class="headerlink" href="#getpixelcolor" title="Link to this heading">¶</a></h2>
+<p><em>Gets the color of a specified pixel on a widget</em></p>
+<p><strong>Description:</strong></p>
+<p>Gets a color object specifying the color of a particular pixel on a widget.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">color</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">GetPixelColor</span><span class="p">(</span><span class="nv">widget</span><span class="p">,</span><span class="nv">x</span><span class="p">,</span><span class="nv">y</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="c1">##Judge brightness of a pixel</span>
+<span class="w">  </span><span class="nv">img</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeImage</span><span class="p">(</span><span class="s2">&quot;test.png&quot;</span><span class="p">)</span>
+<span class="w">  </span><span class="nv">col</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">GetPixelColor</span><span class="p">(</span><span class="nv">img</span><span class="p">,</span><span class="mi">20</span><span class="p">,</span><span class="mi">20</span><span class="p">)</span>
+<span class="w">  </span><span class="nv">hsv</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">RGBtoHSV</span><span class="p">(</span><span class="nv">col</span><span class="p">)</span>
+<span class="w">  </span><span class="nf">Print</span><span class="p">(</span><span class="nf">Third</span><span class="p">(</span><span class="nv">hsv</span><span class="p">))</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><code class="xref py py-func docutils literal notranslate"><span class="pre">SetPixel()</span></code></p>
+</section>
+<section id="getproperty">
+<span id="index-10"></span><h2><a class="toc-backref" href="#id11" role="doc-backlink">GetProperty()</a><a class="headerlink" href="#getproperty" title="Link to this heading">¶</a></h2>
+<p><em>Returns value of property</em></p>
+<p><strong>Description:</strong></p>
+<p>Gets a particular named property of an object. This works for custom or built-in objects.  If the property does not exist, a fatal error will be signaled, and so you should check using PropertyExists() if there is any chance the property does not exist.</p>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">obj</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeCustomObject</span><span class="p">(</span><span class="s2">&quot;myobject&quot;</span><span class="p">)</span>
+<span class="nv">obj.taste</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="s2">&quot;buttery&quot;</span>
+<span class="nv">obj.texture</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="s2">&quot;creamy&quot;</span>
+<span class="nf">SetProperty</span><span class="p">(</span><span class="nv">obj</span><span class="p">,</span><span class="s2">&quot;flavor&quot;</span><span class="p">,</span><span class="s2">&quot;tasty&quot;</span><span class="p">)</span>
+
+<span class="nv">list</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">GetPropertyList</span><span class="p">(</span><span class="nv">obj</span><span class="p">)</span>
+<span class="k">loop</span><span class="p">(</span><span class="nv">i</span><span class="p">,</span><span class="nv">list</span><span class="p">)</span>
+<span class="w">   </span><span class="p">{</span>
+<span class="w">     </span><span class="k">if</span><span class="p">(</span><span class="nf">PropertyExists</span><span class="p">(</span><span class="nv">obj</span><span class="p">,</span><span class="nv">i</span><span class="p">)</span>
+<span class="w">      </span><span class="p">{</span>
+<span class="w">        </span><span class="nf">Print</span><span class="p">(</span><span class="nv">i</span><span class="w">  </span><span class="o">+</span><span class="w"> </span><span class="s2">&quot;:  &quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nf">GetProperty</span><span class="p">(</span><span class="nv">obj</span><span class="p">,</span><span class="nv">i</span><span class="p">))</span>
+<span class="w">      </span><span class="p">}</span>
+<span class="w">   </span><span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#getpropertylist"><code class="xref py py-func docutils literal notranslate"><span class="pre">GetPropertyList()</span></code></a>, <a class="reference internal" href="#propertyexists"><code class="xref py py-func docutils literal notranslate"><span class="pre">PropertyExists()</span></code></a>, <a class="reference internal" href="#setproperty"><code class="xref py py-func docutils literal notranslate"><span class="pre">SetProperty()</span></code></a>, <a class="reference internal" href="#makecustomobject"><code class="xref py py-func docutils literal notranslate"><span class="pre">MakeCustomObject()</span></code></a>, <a class="reference internal" href="#printproperties"><code class="xref py py-func docutils literal notranslate"><span class="pre">PrintProperties()</span></code></a></p>
+</section>
+<section id="getpropertylist">
+<span id="index-11"></span><h2><a class="toc-backref" href="#id12" role="doc-backlink">GetPropertyList()</a><a class="headerlink" href="#getpropertylist" title="Link to this heading">¶</a></h2>
+<p><em>Gets a list of all the property names of an object</em></p>
+<p><strong>Description:</strong></p>
+<p>Gets a list of all of the properties an object has.  This works for custom or built-in objects.</p>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">obj</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeCustomObject</span><span class="p">(</span><span class="s2">&quot;myobject&quot;</span><span class="p">)</span>
+<span class="w">  </span><span class="nv">obj.taste</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="s2">&quot;buttery&quot;</span>
+<span class="w">  </span><span class="nv">obj.texture</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="s2">&quot;creamy&quot;</span>
+<span class="w">  </span><span class="nf">SetProperty</span><span class="p">(</span><span class="nv">obj</span><span class="p">,</span><span class="s2">&quot;flavor&quot;</span><span class="p">,</span><span class="s2">&quot;tasty&quot;</span><span class="p">)</span>
+
+<span class="w">  </span><span class="nv">list</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">GetPropertyList</span><span class="p">(</span><span class="nv">obj</span><span class="p">)</span>
+<span class="w">  </span><span class="k">loop</span><span class="p">(</span><span class="nv">i</span><span class="p">,</span><span class="nv">list</span><span class="p">)</span>
+<span class="w">   </span><span class="p">{</span>
+<span class="w">     </span><span class="k">if</span><span class="p">(</span><span class="nf">PropertyExists</span><span class="p">(</span><span class="nv">obj</span><span class="p">,</span><span class="nv">i</span><span class="p">)</span>
+<span class="w">      </span><span class="p">{</span>
+<span class="w">        </span><span class="nf">Print</span><span class="p">(</span><span class="nv">i</span><span class="w">  </span><span class="o">+</span><span class="w"> </span><span class="s2">&quot;:  &quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nf">GetProperty</span><span class="p">(</span><span class="nv">obj</span><span class="p">,</span><span class="nv">i</span><span class="p">))</span>
+<span class="w">      </span><span class="p">}</span>
+<span class="w">   </span><span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#getproperty"><code class="xref py py-func docutils literal notranslate"><span class="pre">GetProperty()</span></code></a>, <a class="reference internal" href="#propertyexists"><code class="xref py py-func docutils literal notranslate"><span class="pre">PropertyExists()</span></code></a>, <a class="reference internal" href="#setproperty"><code class="xref py py-func docutils literal notranslate"><span class="pre">SetProperty()</span></code></a> <a class="reference internal" href="#makecustomobject"><code class="xref py py-func docutils literal notranslate"><span class="pre">MakeCustomObject()</span></code></a>, <a class="reference internal" href="#printproperties"><code class="xref py py-func docutils literal notranslate"><span class="pre">PrintProperties()</span></code></a></p>
+</section>
+<section id="getsize">
+<span id="index-12"></span><h2><a class="toc-backref" href="#id13" role="doc-backlink">GetSize()</a><a class="headerlink" href="#getsize" title="Link to this heading">¶</a></h2>
+<p><strong>Description:</strong></p>
+<p>Returns a list of <code class="docutils literal notranslate"><span class="pre">[height,</span> <span class="pre">width]</span></code>,   specifying the size of the widget.   The .width and .height properties can also be used instead of this function</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">GetSize</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">widget</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">image</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeImage</span><span class="p">(</span><span class="s2">&quot;stim1.bmp&quot;</span><span class="p">)</span>
+<span class="nv">xy</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">GetSize</span><span class="p">(</span><span class="nv">image</span><span class="p">)</span>
+<span class="nv">x</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">Nth</span><span class="p">(</span><span class="nv">xy</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span>
+<span class="nv">y</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">Nth</span><span class="p">(</span><span class="nv">xy</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="gettext">
+<span id="index-13"></span><h2><a class="toc-backref" href="#id14" role="doc-backlink">GetText()</a><a class="headerlink" href="#gettext" title="Link to this heading">¶</a></h2>
+<p><em>Returns the text in a textbox or label</em></p>
+<p><strong>Description:</strong></p>
+<p>Returns the text stored in a text object                (either a textbox or a label).  The .text properties can also   be used instead of this function.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">GetText</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">widget</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#setcursorposition"><code class="xref py py-func docutils literal notranslate"><span class="pre">SetCursorPosition()</span></code></a>, <a class="reference internal" href="#getcursorposition"><code class="xref py py-func docutils literal notranslate"><span class="pre">GetCursorPosition()</span></code></a>, <a class="reference internal" href="#seteditable"><code class="xref py py-func docutils literal notranslate"><span class="pre">SetEditable()</span></code></a>, <a class="reference internal" href="#maketextbox"><code class="xref py py-func docutils literal notranslate"><span class="pre">MakeTextBox()</span></code></a></p>
+</section>
+<section id="getvocalresponsetime">
+<span id="index-14"></span><h2><a class="toc-backref" href="#id15" role="doc-backlink">GetVocalResponseTime()</a><a class="headerlink" href="#getvocalresponsetime" title="Link to this heading">¶</a></h2>
+<p><em>A simple voice key</em></p>
+<p><strong>Description:</strong></p>
+<p>This is a simple audio amplitude voice key controlled by two parameters  <em>ONLY AVAILABLE ON WINDOWS AND LINUX</em>.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">GetVocalResponseTime</span><span class="p">(</span><span class="nv">buffer</span><span class="p">,</span>
+<span class="w">                     </span><span class="nv">timethreshold</span><span class="p">,</span>
+<span class="w">                     </span><span class="nv">energythreshold</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">buffer</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeAudioInputBuffer</span><span class="p">(</span><span class="mi">5000</span><span class="p">)</span>
+<span class="w">  </span><span class="nv">resp0</span><span class="w"> </span><span class="o">&lt;-</span><span class="w">  </span><span class="nf">GetVocalResponseTime</span><span class="p">(</span><span class="nv">buffer</span><span class="p">,</span><span class="mf">.35</span><span class="p">,</span><span class="w"> </span><span class="mi">200</span><span class="p">)</span>
+<span class="w">  </span><span class="nf">SaveAudioToWaveFile</span><span class="p">(</span><span class="s2">&quot;output.wav&quot;</span><span class="p">,</span><span class="nv">buffer</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#makeaudioinputbuffer"><code class="xref py py-func docutils literal notranslate"><span class="pre">MakeAudioInputBuffer()</span></code></a>, <a class="reference internal" href="#saveaudiotowavefile"><code class="xref py py-func docutils literal notranslate"><span class="pre">SaveAudioToWaveFile()</span></code></a>,</p>
+</section>
+<section id="hide">
+<span id="index-15"></span><h2><a class="toc-backref" href="#id16" role="doc-backlink">Hide()</a><a class="headerlink" href="#hide" title="Link to this heading">¶</a></h2>
+<p><em>Hides an object</em></p>
+<p><strong>Description:</strong></p>
+<p>Makes an object invisible, so it will not be drawn.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">Hide</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">object</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">window</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeWindow</span><span class="p">()</span>
+<span class="nv">image1</span><span class="w">  </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeImage</span><span class="p">(</span><span class="s2">&quot;pebl.bmp&quot;</span><span class="p">)</span>
+<span class="nv">image2</span><span class="w">  </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeImage</span><span class="p">(</span><span class="s2">&quot;pebl.bmp&quot;</span><span class="p">)</span>
+<span class="nf">AddObject</span><span class="p">(</span><span class="nv">image1</span><span class="p">,</span><span class="w"> </span><span class="nv">window</span><span class="p">)</span>
+<span class="nf">AddObject</span><span class="p">(</span><span class="nv">image2</span><span class="p">,</span><span class="w"> </span><span class="nv">window</span><span class="p">)</span>
+<span class="nf">Hide</span><span class="p">(</span><span class="nv">image1</span><span class="p">)</span>
+<span class="nf">Hide</span><span class="p">(</span><span class="nv">image2</span><span class="p">)</span>
+<span class="nf">Draw</span><span class="p">()</span><span class="w">               </span><span class="c1"># empty screen will be drawn.</span>
+
+<span class="nf">Wait</span><span class="p">(</span><span class="mi">3000</span><span class="p">)</span>
+<span class="nf">Show</span><span class="p">(</span><span class="nv">image2</span><span class="p">)</span>
+<span class="nf">Draw</span><span class="p">()</span><span class="w">               </span><span class="c1"># image2 will appear.</span>
+
+<span class="nf">Hide</span><span class="p">(</span><span class="nv">image2</span><span class="p">)</span>
+<span class="nf">Draw</span><span class="p">()</span><span class="w">               </span><span class="c1"># image2 will disappear.</span>
+
+<span class="nf">Wait</span><span class="p">(</span><span class="mi">1000</span><span class="p">)</span>
+<span class="nf">Show</span><span class="p">(</span><span class="nv">image1</span><span class="p">)</span>
+<span class="nf">Draw</span><span class="p">()</span><span class="w">               </span><span class="c1"># image1 will appear.</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#show"><code class="xref py py-func docutils literal notranslate"><span class="pre">Show()</span></code></a></p>
+</section>
+<section id="line">
+<span id="index-16"></span><h2><a class="toc-backref" href="#id17" role="doc-backlink">Line()</a><a class="headerlink" href="#line" title="Link to this heading">¶</a></h2>
+<p><em>Creates line starting at x,y and ending at x+dx, y+dy</em></p>
+<p><strong>Description:</strong></p>
+<p>Creates a line for graphing at x,y ending at x+dx,   y+dy.  dx and dy describe the size of the line.  Lines must be added   to a parent widget before it can be drawn; it may be added to   widgets other than a base window. Properties of lines may be   accessed and set later.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">Line</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">x</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">y</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">dx</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">dy</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">color</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">l</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">Line</span><span class="p">(</span><span class="mi">30</span><span class="p">,</span><span class="mi">30</span><span class="p">,</span><span class="mi">20</span><span class="p">,</span><span class="mi">20</span><span class="p">,</span><span class="w"> </span><span class="nf">MakeColor</span><span class="p">(</span><span class="s2">&quot;green&quot;</span><span class="p">)</span>
+<span class="w">  </span><span class="nf">AddObject</span><span class="p">(</span><span class="nv">l</span><span class="p">,</span><span class="w"> </span><span class="nv">win</span><span class="p">)</span>
+<span class="w">  </span><span class="nf">Draw</span><span class="p">()</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#square"><code class="xref py py-func docutils literal notranslate"><span class="pre">Square()</span></code></a>, <a class="reference internal" href="#ellipse"><code class="xref py py-func docutils literal notranslate"><span class="pre">Ellipse()</span></code></a>, <a class="reference internal" href="#rectangle"><code class="xref py py-func docutils literal notranslate"><span class="pre">Rectangle()</span></code></a>, <a class="reference internal" href="#circle"><code class="xref py py-func docutils literal notranslate"><span class="pre">Circle()</span></code></a></p>
+</section>
+<section id="loadaudiofile">
+<span id="index-17"></span><h2><a class="toc-backref" href="#id18" role="doc-backlink">LoadAudioFile()</a><a class="headerlink" href="#loadaudiofile" title="Link to this heading">¶</a></h2>
+<p><em>Load an audio file</em></p>
+<p><strong>Description:</strong></p>
+<p>Loads an audio file supported by  the ffmpeg library.  It is nearly identical to LoadMovie(), but only works for audio files (.ogg, .mp3, .wav, .aiff, .wma, et.).  It creates a movie object, which can then be played using PlayMovie() or StartPlayback() functions.  Currently, only supported on Windows and Linux.  The ffmpeg (<code class="docutils literal notranslate"><span class="pre">http://ffmpeg.org</span></code>) library supports a wide range of audio formats, including most .wav, .mp3, .ogg, .flac, .aiff, .wma, and others.   Currently, there appears to sometimes be playback problems if the audio stream is not stereo, so be sure to convert your audio to stereo. Also, there appears to be some problems with .flac data formats.  If you have problems with playback,  you should verify that your media file loads with another ffmpeg media player.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">LoadAudioFile</span><span class="p">(</span><span class="nv">audiofile</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">movie</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">LoadAudioFile</span><span class="p">(</span><span class="s2">&quot;instuctions.mp3&quot;</span><span class="p">)</span>
+<span class="w">   </span><span class="nf">PrintProperties</span><span class="p">(</span><span class="nv">inst</span><span class="p">)</span>
+<span class="w">   </span><span class="nf">PlayMovie</span><span class="p">(</span><span class="nv">inst</span><span class="p">)</span>
+<span class="w">   </span><span class="nf">PausePlayback</span><span class="p">(</span><span class="nv">insnt</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#loadmovie"><code class="xref py py-func docutils literal notranslate"><span class="pre">LoadMovie()</span></code></a>, <a class="reference internal" href="peblenvironment.html#playmovie"><code class="xref py py-func docutils literal notranslate"><span class="pre">PlayMovie()</span></code></a>, <a class="reference internal" href="#startplayback"><code class="xref py py-func docutils literal notranslate"><span class="pre">StartPlayback()</span></code></a>, <a class="reference internal" href="#pauseplayback"><code class="xref py py-func docutils literal notranslate"><span class="pre">PausePlayback()</span></code></a></p>
+</section>
+<section id="loadmovie">
+<span id="index-18"></span><h2><a class="toc-backref" href="#id19" role="doc-backlink">LoadMovie()</a><a class="headerlink" href="#loadmovie" title="Link to this heading">¶</a></h2>
+<p><em>Load a movie file</em></p>
+<p><strong>Description:</strong></p>
+<p>DOES NOT WORK IN PEBL 2.0+    Loads a movie file using the ffmpeg library.  It creates a movie object, which can then be played using PlayMovie() or StartPlayback() functions.  Currently, only supported on Windows and Linux.  The ffmpeg (<code class="docutils literal notranslate"><span class="pre">http://ffmpeg.org</span></code>) library supports a wide range of video and audio formats, including most .mpg, .avi, .ogg and .mp3 type formats.  Audio-only formats should load and play with LoadMovie, but another function, LoadAudioFile(), has been created for these, as they do not need to be added to a window to work.  If you have problems with playback,  you should verify that your media file loads with another ffmpeg media player.  For technical reasons, a movie MUST be loaded directly onto a window, and not another widget.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">LoadMovie</span><span class="p">(</span><span class="nv">movie</span><span class="p">,</span><span class="nv">window</span><span class="p">,</span><span class="w"> </span><span class="nv">width</span><span class="p">,</span><span class="w"> </span><span class="nv">height</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">movie</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">LoadMovie</span><span class="p">(</span><span class="s2">&quot;movie.avi&quot;</span><span class="p">,</span><span class="vg">gWin</span><span class="p">,</span><span class="mi">640</span><span class="p">,</span><span class="mi">480</span><span class="p">)</span>
+<span class="w">   </span><span class="nf">PrintProperties</span><span class="p">(</span><span class="nv">movie</span><span class="p">)</span>
+<span class="w">   </span><span class="nf">Move</span><span class="p">(</span><span class="nv">movie</span><span class="p">,</span><span class="mi">20</span><span class="p">,</span><span class="mi">20</span><span class="p">)</span>
+<span class="w">   </span><span class="nf">Draw</span><span class="p">()</span>
+<span class="w">   </span><span class="nf">StartPlayback</span><span class="p">(</span><span class="nv">movie</span><span class="p">)</span>
+<span class="w">   </span><span class="nf">Wait</span><span class="p">(</span><span class="mi">500</span><span class="p">)</span><span class="w"> </span><span class="c1">#Play 500 ms of the movie.</span>
+<span class="w">   </span><span class="nf">PausePlayback</span><span class="p">(</span><span class="nv">movie</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#loadaudiofile"><code class="xref py py-func docutils literal notranslate"><span class="pre">LoadAudioFile()</span></code></a>, <a class="reference internal" href="#loadmovie"><code class="xref py py-func docutils literal notranslate"><span class="pre">LoadMovie()</span></code></a>, <a class="reference internal" href="peblenvironment.html#playmovie"><code class="xref py py-func docutils literal notranslate"><span class="pre">PlayMovie()</span></code></a>, <a class="reference internal" href="#startplayback"><code class="xref py py-func docutils literal notranslate"><span class="pre">StartPlayback()</span></code></a>, <a class="reference internal" href="#pauseplayback"><code class="xref py py-func docutils literal notranslate"><span class="pre">PausePlayback()</span></code></a></p>
+</section>
+<section id="loadsound">
+<span id="index-19"></span><h2><a class="toc-backref" href="#id20" role="doc-backlink">LoadSound()</a><a class="headerlink" href="#loadsound" title="Link to this heading">¶</a></h2>
+<p><em>Loads a soundfile from the filename, returning a variable that can be played</em></p>
+<p><strong>Description:</strong></p>
+<p>Loads a soundfile from <code class="docutils literal notranslate"><span class="pre">&lt;filename&gt;</span></code>,  returning a variable that can be played using the PlayForeground or PlayBackground functions.  <code class="docutils literal notranslate"><span class="pre">LoadSound</span></code> As of PEBL version 2.1, LoadSound will load raw and compressed audio files of various sorts.  This includes uncompressed .wav files, .mp3, .ogg, .flac, and .midi files. This is based on the sdl2_mixer library, and so more details about the file formats accepted can be found by examining that library.  Examples of using LoadSound are found in <code class="docutils literal notranslate"><span class="pre">demo</span> <span class="pre">tests</span> <span class="pre">testaudio.pbl</span></code>  When the file gets loaded, it gets automatically transcoded into a stereo 44100-sampling rate audio stream, regardless of its original playback rate.  We have reports that in some cases, this can cause some problems, especially if a mono file gets loaded multiple times in an experiment. If you experience playback problems, try converting your audio to  stereo 44100 hz and see if it helps.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">LoadSound</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">filename</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">woof</span><span class="w">   </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">LoadSound</span><span class="p">(</span><span class="s2">&quot;dog.wav&quot;</span><span class="p">)</span>
+<span class="w">  </span><span class="nf">PlayBackground</span><span class="p">(</span><span class="nv">woof</span><span class="p">)</span>
+<span class="w">  </span><span class="nf">Wait</span><span class="p">(</span><span class="mi">200</span><span class="p">)</span>
+<span class="w">  </span><span class="nf">Stop</span><span class="p">(</span><span class="nv">woof</span><span class="p">)</span>
+<span class="w">  </span><span class="nf">PlayForeground</span><span class="p">(</span><span class="nv">woof</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#playforeground"><code class="xref py py-func docutils literal notranslate"><span class="pre">PlayForeground()</span></code></a>, <a class="reference internal" href="#playbackground"><code class="xref py py-func docutils literal notranslate"><span class="pre">PlayBackground()</span></code></a>, <a class="reference internal" href="#loadaudiofile"><code class="xref py py-func docutils literal notranslate"><span class="pre">LoadAudioFile()</span></code></a>, <a class="reference internal" href="#loadmovie"><code class="xref py py-func docutils literal notranslate"><span class="pre">LoadMovie()</span></code></a></p>
+</section>
+<section id="makeaudioinputbuffer">
+<span id="index-20"></span><h2><a class="toc-backref" href="#id21" role="doc-backlink">MakeAudioInputBuffer()</a><a class="headerlink" href="#makeaudioinputbuffer" title="Link to this heading">¶</a></h2>
+<p><em>Creates a buffer to record audio input</em></p>
+<p><strong>Description:</strong></p>
+<p>Creates a sound buffer to use for audio recording or voicekey sound input.  It is currently very simple, allowing only to set the duration.  By default, it record mono at 44100 hz.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">MakeAudioInputBuffer</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">time</span><span class="o">-</span><span class="nv">in</span><span class="o">-</span><span class="nv">ms</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">buffer</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeAudioInputBuffer</span><span class="p">(</span><span class="mi">5000</span><span class="p">)</span>
+<span class="w">  </span><span class="nv">resp0</span><span class="w"> </span><span class="o">&lt;-</span><span class="w">  </span><span class="nf">GetVocalResponseTime</span><span class="p">(</span><span class="nv">buffer</span><span class="p">,</span><span class="mf">.35</span><span class="p">,</span><span class="w"> </span><span class="mi">200</span><span class="p">)</span>
+<span class="w">  </span><span class="nf">SaveAudioToWaveFile</span><span class="p">(</span><span class="s2">&quot;output.wav&quot;</span><span class="p">,</span><span class="nv">buffer</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#getvocalresponsetime"><code class="xref py py-func docutils literal notranslate"><span class="pre">GetVocalResponseTime()</span></code></a>, <a class="reference internal" href="#saveaudiotowavefile"><code class="xref py py-func docutils literal notranslate"><span class="pre">SaveAudioToWaveFile()</span></code></a>,</p>
+</section>
+<section id="makecanvas">
+<span id="index-21"></span><h2><a class="toc-backref" href="#id22" role="doc-backlink">MakeCanvas()</a><a class="headerlink" href="#makecanvas" title="Link to this heading">¶</a></h2>
+<p><em>Creates a blank canvas</em></p>
+<p><strong>Description:</strong></p>
+<p>Makes a canvas object  <code class="docutils literal notranslate"><span class="pre">&lt;x&gt;</span></code> pixels by   <code class="docutils literal notranslate"><span class="pre">y</span></code> pixels, in color <code class="docutils literal notranslate"><span class="pre">&lt;color&gt;</span></code>.  A canvas is an object that other objects can be attached to, and imprinted upon. When the canvas gets moved, the attached objects move as well. The background of a canvas can be made invisible by using a color with alpha channel == 0. The Setpixel and SetPoint functions let you change individual pixels on a canvas, to enable adding noise, drawing functional images, etc. A canvas gets ‘cleared’ by calling ResetCanvas(canvas). Any object added to a canvas creates an ‘imprint’ on the canvas that remains if the object is moved.  This allows you to use another image as a paintbrush on the canvas, and lets you to add noise to text. Because a text label gets re-rendered when its drawn, if you want to add pixel noise to a stimulus, you can create a label, add it to a canvas, then add pixel noise to the canvas.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">MakeCanvas</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">x</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">y</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">color</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="vg">gWin</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeWindow</span><span class="p">()</span>
+<span class="w">  </span><span class="nv">clear</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeColor</span><span class="p">(</span><span class="s2">&quot;white&quot;</span><span class="p">)</span>
+<span class="w">  </span><span class="nv">clear.alpha</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="mi">0</span>
+<span class="w">  </span><span class="c1">#make a transparent canvas:</span>
+<span class="w">  </span><span class="nv">x</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeCanvas</span><span class="p">(</span><span class="mi">300</span><span class="p">,</span><span class="mi">300</span><span class="p">,</span><span class="nv">clear</span><span class="p">)</span>
+<span class="w">  </span><span class="nf">AddObject</span><span class="p">(</span><span class="nv">x</span><span class="p">,</span><span class="vg">gWin</span><span class="p">)</span>
+<span class="w">  </span><span class="nf">Move</span><span class="p">(</span><span class="nv">x</span><span class="p">,</span><span class="mi">300</span><span class="p">,</span><span class="mi">300</span><span class="p">)</span>
+<span class="w">  </span><span class="nv">img</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeImage</span><span class="p">(</span><span class="s2">&quot;pebl.png&quot;</span><span class="p">)</span>
+<span class="w">  </span><span class="nf">AddObject</span><span class="p">(</span><span class="nv">img</span><span class="p">,</span><span class="nv">x</span><span class="p">)</span>
+<span class="w">  </span><span class="nf">Move</span><span class="p">(</span><span class="nv">img</span><span class="p">,</span><span class="mi">100</span><span class="p">,</span><span class="mi">100</span><span class="p">)</span>
+<span class="w">  </span><span class="nf">Draw</span><span class="p">(</span><span class="nv">x</span><span class="p">)</span><span class="w">          </span><span class="c1">#imprint the image on the canvas</span>
+<span class="w">  </span><span class="nf">Move</span><span class="p">(</span><span class="nv">img</span><span class="p">,</span><span class="mi">100</span><span class="p">,</span><span class="mi">200</span><span class="p">)</span>
+<span class="w">  </span><span class="nf">Draw</span><span class="p">(</span><span class="nv">x</span><span class="p">)</span><span class="w">          </span><span class="c1">#imprint the image on the canvas</span>
+<span class="w">  </span><span class="nf">Hide</span><span class="p">(</span><span class="nv">img</span><span class="p">)</span>
+
+<span class="w">  </span><span class="c1">#draw a line on the canvas</span>
+<span class="w">   </span><span class="nv">i</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="mi">10</span>
+<span class="w">   </span><span class="nv">red</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeColor</span><span class="p">(</span><span class="s2">&quot;red&quot;</span><span class="p">)</span>
+<span class="w">  </span><span class="k">while</span><span class="p">(</span><span class="nv">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">200</span><span class="p">)</span>
+<span class="w">   </span><span class="p">{</span>
+<span class="w">     </span><span class="nf">SetPixel</span><span class="p">(</span><span class="nv">x</span><span class="p">,</span><span class="mi">20</span><span class="p">,</span><span class="nv">i</span><span class="p">,</span><span class="nv">red</span><span class="p">)</span>
+<span class="w">     </span><span class="nv">i</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nv">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span>
+<span class="w">   </span><span class="p">}</span>
+<span class="w">  </span><span class="nf">Draw</span><span class="p">()</span>
+<span class="w">  </span><span class="nf">WaitForAnyKeyPress</span><span class="p">()</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#makeimage"><code class="xref py py-func docutils literal notranslate"><span class="pre">MakeImage()</span></code></a>, <code class="xref py py-func docutils literal notranslate"><span class="pre">SetPixel()</span></code>,   <a class="reference internal" href="graphics.html#makegabor"><code class="xref py py-func docutils literal notranslate"><span class="pre">MakeGabor()</span></code></a>, <a class="reference internal" href="graphics.html#resetcanvas"><code class="xref py py-func docutils literal notranslate"><span class="pre">ResetCanvas()</span></code></a></p>
+</section>
+<section id="makecolor">
+<span id="index-22"></span><h2><a class="toc-backref" href="#id23" role="doc-backlink">MakeColor()</a><a class="headerlink" href="#makecolor" title="Link to this heading">¶</a></h2>
+<p><em>Creates a color based on a color name</em></p>
+<p><strong>Description:</strong></p>
+<p>Makes a color from <code class="docutils literal notranslate"><span class="pre">&lt;colorname&gt;</span></code> such as   <code class="docutils literal notranslate"><span class="pre">red'',</span> <span class="pre">``green'',</span> <span class="pre">and</span> <span class="pre">nearly</span> <span class="pre">800</span> <span class="pre">others.</span>&#160; <span class="pre">Color</span> <span class="pre">names</span> <span class="pre">and</span>&#160;&#160; <span class="pre">corresponding</span> <span class="pre">RGB</span> <span class="pre">values</span> <span class="pre">can</span> <span class="pre">be</span> <span class="pre">found</span> <span class="pre">in</span> <span class="pre">``doc/colors.txt</span></code>.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">MakeColor</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">colorname</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="vg">green</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeColor</span><span class="p">(</span><span class="s2">&quot;green&quot;</span><span class="p">)</span>
+<span class="w"> </span><span class="nv">black</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeColor</span><span class="p">(</span><span class="s2">&quot;black&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#makecolorrgb"><code class="xref py py-func docutils literal notranslate"><span class="pre">MakeColorRGB()</span></code></a>, <a class="reference internal" href="graphics.html#rgbtohsv"><code class="xref py py-func docutils literal notranslate"><span class="pre">RGBtoHSV()</span></code></a></p>
+</section>
+<section id="makecolorrgb">
+<span id="index-23"></span><h2><a class="toc-backref" href="#id24" role="doc-backlink">MakeColorRGB()</a><a class="headerlink" href="#makecolorrgb" title="Link to this heading">¶</a></h2>
+<p><em>Creates a color based on red, green, and blue values</em></p>
+<p><strong>Description:</strong></p>
+<p>Makes an RGB color by specifying <code class="docutils literal notranslate"><span class="pre">&lt;red&gt;</span></code>,   <code class="docutils literal notranslate"><span class="pre">&lt;green&gt;</span></code>, and <code class="docutils literal notranslate"><span class="pre">&lt;blue&gt;</span></code> values (between 0 and 255).</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">MakeColorRGB</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">red</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="vg">green</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">blue</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#makecolor"><code class="xref py py-func docutils literal notranslate"><span class="pre">MakeColor()</span></code></a>, <a class="reference internal" href="graphics.html#rgbtohsv"><code class="xref py py-func docutils literal notranslate"><span class="pre">RGBtoHSV()</span></code></a></p>
+</section>
+<section id="makecustomobject">
+<span id="index-24"></span><h2><a class="toc-backref" href="#id25" role="doc-backlink">MakeCustomObject()</a><a class="headerlink" href="#makecustomobject" title="Link to this heading">¶</a></h2>
+<p><em>Creates custom object.</em></p>
+<p><strong>Description:</strong></p>
+<p>Creates a ‘custom’ object that can encapsulate multiple properties. It takes a name as an argument, but this is currently not accessible.</p>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">obj</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeCustomObject</span><span class="p">(</span><span class="s2">&quot;myobject&quot;</span><span class="p">)</span>
+<span class="w">  </span><span class="nv">obj.taste</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="s2">&quot;buttery&quot;</span>
+<span class="w">  </span><span class="nv">obj.texture</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="s2">&quot;creamy&quot;</span>
+<span class="w">  </span><span class="nf">SetProperty</span><span class="p">(</span><span class="nv">obj</span><span class="p">,</span><span class="s2">&quot;flavor&quot;</span><span class="p">,</span><span class="s2">&quot;tasty&quot;</span><span class="p">)</span>
+
+<span class="w">  </span><span class="nv">list</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">GetPropertyList</span><span class="p">(</span><span class="nv">obj</span><span class="p">)</span>
+<span class="w">  </span><span class="k">loop</span><span class="p">(</span><span class="nv">i</span><span class="p">,</span><span class="nv">list</span><span class="p">)</span>
+<span class="w">   </span><span class="p">{</span>
+<span class="w">     </span><span class="k">if</span><span class="p">(</span><span class="nf">PropertyExists</span><span class="p">(</span><span class="nv">obj</span><span class="p">,</span><span class="nv">i</span><span class="p">)</span>
+<span class="w">      </span><span class="p">{</span>
+<span class="w">        </span><span class="nf">Print</span><span class="p">(</span><span class="nv">i</span><span class="w">  </span><span class="o">+</span><span class="w"> </span><span class="s2">&quot;:  &quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nf">GetProperty</span><span class="p">(</span><span class="nv">obj</span><span class="p">,</span><span class="nv">i</span><span class="p">))</span>
+<span class="w">      </span><span class="p">}</span>
+<span class="w">   </span><span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#getpropertylist"><code class="xref py py-func docutils literal notranslate"><span class="pre">GetPropertyList()</span></code></a>, <a class="reference internal" href="#propertyexists"><code class="xref py py-func docutils literal notranslate"><span class="pre">PropertyExists()</span></code></a>, <a class="reference internal" href="#setproperty"><code class="xref py py-func docutils literal notranslate"><span class="pre">SetProperty()</span></code></a>, <a class="reference internal" href="peblenvironment.html#iscustomobject"><code class="xref py py-func docutils literal notranslate"><span class="pre">IsCustomObject()</span></code></a>, <a class="reference internal" href="#printproperties"><code class="xref py py-func docutils literal notranslate"><span class="pre">PrintProperties()</span></code></a>, <a class="reference internal" href="#getproperty"><code class="xref py py-func docutils literal notranslate"><span class="pre">GetProperty()</span></code></a></p>
+</section>
+<section id="makefont">
+<span id="index-25"></span><h2><a class="toc-backref" href="#id26" role="doc-backlink">MakeFont()</a><a class="headerlink" href="#makefont" title="Link to this heading">¶</a></h2>
+<p><em>Creates a font which can be used to make labels</em></p>
+<p><strong>Description:</strong></p>
+<p>Makes a font.  The first argument must be a text   name of a font.  The font can reside anywhere in PEBL’s search path,   which would primarily include the media/fonts directory, and the   working directory (where the script is saved).</p>
+<ul class="simple">
+<li><p>style changes from normal to bold/underline, italic. 0=normal, 1=underline, 2=italic,3=bolditalic</p></li>
+<li><p>fgcolor and bgcolor need to be colors, not just names of colors</p></li>
+<li><p>if show-backing is 0, the font gets rendered with an invisible</p></li>
+<li><p>background; otherwise with a bgcolor background. (Note: previous to PEBL 0.11, the final argument = 0 rendered the font  with non anti-aliased background, which I can see almost no use for.)</p></li>
+</ul>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">MakeFont</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">ttf_filename</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">style</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">size</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="w">         </span><span class="o">&lt;</span><span class="nv">fgcolor</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">bgcolor</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">show</span><span class="o">-</span><span class="nv">backing</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">font</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeFont</span><span class="p">(</span><span class="s2">&quot;Vera.ttf&quot;</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">22</span><span class="p">,</span><span class="nf">MakeColor</span><span class="p">(</span><span class="s2">&quot;black&quot;</span><span class="p">),</span>
+<span class="w">                    </span><span class="nf">MakeColor</span><span class="p">(</span><span class="s2">&quot;white&quot;</span><span class="p">),</span><span class="mi">1</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="makeimage">
+<span id="index-26"></span><h2><a class="toc-backref" href="#id27" role="doc-backlink">MakeImage()</a><a class="headerlink" href="#makeimage" title="Link to this heading">¶</a></h2>
+<p><em>Creates an image by reading in an image file (jpg, gif, png, bmp, etc.)</em></p>
+<p><strong>Description:</strong></p>
+<p>Makes an image widget from an image file.               <code class="docutils literal notranslate"><span class="pre">.bmp</span></code> formats should be supported; others may be as well.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">MakeImage</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">filename</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="makelabel">
+<span id="index-27"></span><h2><a class="toc-backref" href="#id28" role="doc-backlink">MakeLabel()</a><a class="headerlink" href="#makelabel" title="Link to this heading">¶</a></h2>
+<p><strong>Description:</strong></p>
+<p>Makes a text label for display on-screen. Text will   be on a single line, and the <code class="docutils literal notranslate"><span class="pre">Move()</span></code> command centers   <code class="docutils literal notranslate"><span class="pre">&lt;text&gt;</span></code> on the specified point.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">MakeLabel</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">text</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">font</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="makesinewave">
+<span id="index-28"></span><h2><a class="toc-backref" href="#id29" role="doc-backlink">MakeSineWave()</a><a class="headerlink" href="#makesinewave" title="Link to this heading">¶</a></h2>
+<p><em>Creates a pure sine wave.</em></p>
+<p><strong>Description:</strong></p>
+<p>Creates a sine wave that can be played using the Play() or PlayBackground() functions.  It will create a single-channel sound at 44100 bitrate, 16 bit precision.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">MakeSineWave</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">duration_in_ms</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">hz</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">amplitude</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="c1">##Make a sound that is 1000 ms, but just play 300 ms</span>
+<span class="w">   </span><span class="nv">sound</span><span class="w">  </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeSineWave</span><span class="p">(</span><span class="mi">200</span><span class="p">,</span><span class="w"> </span><span class="mi">220</span><span class="p">,</span><span class="w"> </span><span class="mi">1000</span><span class="p">)</span>
+<span class="w">   </span><span class="nf">PlayBackground</span><span class="p">(</span><span class="nv">sound</span><span class="p">)</span>
+<span class="w">   </span><span class="nf">Wait</span><span class="p">(</span><span class="mi">300</span><span class="p">)</span>
+<span class="w">   </span><span class="nf">Stop</span><span class="p">(</span><span class="nv">sound</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#playforeground"><code class="xref py py-func docutils literal notranslate"><span class="pre">PlayForeground()</span></code></a>, <code class="xref py py-func docutils literal notranslate"><span class="pre">PlayBackGround()</span></code>, <a class="reference internal" href="#stop"><code class="xref py py-func docutils literal notranslate"><span class="pre">Stop()</span></code></a></p>
+</section>
+<section id="maketextbox">
+<span id="index-29"></span><h2><a class="toc-backref" href="#id30" role="doc-backlink">MakeTextBox()</a><a class="headerlink" href="#maketextbox" title="Link to this heading">¶</a></h2>
+<p><em>Creates a sized box filled</em></p>
+<p><strong>Description:</strong></p>
+<p>Creates a textbox in which to display text.             Textboxes allow multiple lines of text to be rendered;          automatically breaking the text into lines.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">MakeTextbox</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">text</span><span class="o">&gt;</span><span class="p">,</span><span class="o">&lt;</span><span class="nv">font</span><span class="o">&gt;</span><span class="p">,</span><span class="o">&lt;</span><span class="nv">width</span><span class="o">&gt;</span><span class="p">,</span><span class="o">&lt;</span><span class="nv">height</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">font</span><span class="w"> </span><span class="o">&lt;-</span><span class="nf">MakeFont</span><span class="p">(</span><span class="s2">&quot;Vera.ttf&quot;</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">12</span><span class="p">,</span><span class="w"> </span><span class="nf">MakeColor</span><span class="p">(</span><span class="s2">&quot;red&quot;</span><span class="p">),</span>
+<span class="nf">MakeColor</span><span class="p">(</span><span class="s2">&quot;green&quot;</span><span class="p">),</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span>
+<span class="nv">tb</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeTextBox</span><span class="p">(</span><span class="s2">&quot;This is the text in the textbox&quot;</span><span class="p">,</span>
+<span class="nv">font</span><span class="p">,</span><span class="w"> </span><span class="mi">100</span><span class="p">,</span><span class="w"> </span><span class="mi">250</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#makelabel"><code class="xref py py-func docutils literal notranslate"><span class="pre">MakeLabel()</span></code></a>, <a class="reference internal" href="#gettext"><code class="xref py py-func docutils literal notranslate"><span class="pre">GetText()</span></code></a>, <a class="reference internal" href="#settext"><code class="xref py py-func docutils literal notranslate"><span class="pre">SetText()</span></code></a>, <a class="reference internal" href="#setcursorposition"><code class="xref py py-func docutils literal notranslate"><span class="pre">SetCursorPosition()</span></code></a>,                 <a class="reference internal" href="#getcursorposition"><code class="xref py py-func docutils literal notranslate"><span class="pre">GetCursorPosition()</span></code></a>, <a class="reference internal" href="#seteditable"><code class="xref py py-func docutils literal notranslate"><span class="pre">SetEditable()</span></code></a></p>
+</section>
+<section id="makewindow">
+<span id="index-30"></span><h2><a class="toc-backref" href="#id31" role="doc-backlink">MakeWindow()</a><a class="headerlink" href="#makewindow" title="Link to this heading">¶</a></h2>
+<p><em>Creates main window, in color named by argument, or grey if no argument is named</em></p>
+<p><strong>Description:</strong></p>
+<p>Creates a window to display things in.          Background is specified by <code class="docutils literal notranslate"><span class="pre">&lt;color&gt;</span></code>.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">MakeWindow</span><span class="p">(</span><span class="nv">opt</span><span class="o">:&lt;</span><span class="nv">color</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="nv">opt</span><span class="o">:&lt;</span><span class="nv">width</span><span class="o">&gt;</span><span class="p">,</span><span class="nv">opt</span><span class="o">:&lt;</span><span class="nv">height</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">win</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeWindow</span><span class="p">()</span>
+<span class="w">  </span><span class="vg">gWin</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeWindow</span><span class="p">(</span><span class="s2">&quot;white&quot;</span><span class="p">)</span>
+
+<span class="w">  </span><span class="c1">##make a second window for debugging or experimenter data entry.</span>
+<span class="w">  </span><span class="vg">gWin2</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeWindow</span><span class="p">(</span><span class="s2">&quot;black&quot;</span><span class="p">,</span><span class="mi">400</span><span class="p">,</span><span class="mi">200</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="move">
+<span id="index-31"></span><h2><a class="toc-backref" href="#id32" role="doc-backlink">Move()</a><a class="headerlink" href="#move" title="Link to this heading">¶</a></h2>
+<p><strong>Description:</strong></p>
+<p>Moves an object to a specified location.                Images and Labels are moved according to their center;                  TextBoxes are moved according to their upper left corner.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">Move</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">object</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">x</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">y</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">Move</span><span class="p">(</span><span class="nv">label</span><span class="p">,</span><span class="w"> </span><span class="mi">33</span><span class="p">,</span><span class="w"> </span><span class="mi">100</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="utility.html#movecorner"><code class="xref py py-func docutils literal notranslate"><span class="pre">MoveCorner()</span></code></a>, <a class="reference internal" href="utility.html#movecenter"><code class="xref py py-func docutils literal notranslate"><span class="pre">MoveCenter()</span></code></a>, <code class="xref py py-func docutils literal notranslate"><span class="pre">X()</span></code> and <code class="xref py py-func docutils literal notranslate"><span class="pre">Y()</span></code> properties.</p>
+</section>
+<section id="pauseplayback">
+<span id="index-32"></span><h2><a class="toc-backref" href="#id33" role="doc-backlink">PausePlayback()</a><a class="headerlink" href="#pauseplayback" title="Link to this heading">¶</a></h2>
+<p><em>Pauses playback of movie</em></p>
+<p><strong>Description:</strong></p>
+<p>Pauses a playing movie or audio stream.  This is used for  movies whose playback was initiated using <code class="docutils literal notranslate"><span class="pre">StartPlayback</span></code>, which then ran as background threads during a Wait() function.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">PausePlayBack</span><span class="p">(</span><span class="nv">movie</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">movie</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">LoadMovie</span><span class="p">(</span><span class="s2">&quot;movie.avi&quot;</span><span class="p">,</span><span class="vg">gWin</span><span class="p">,</span><span class="mi">640</span><span class="p">,</span><span class="mi">480</span><span class="p">)</span>
+<span class="w">   </span><span class="nf">PrintProperties</span><span class="p">(</span><span class="nv">movie</span><span class="p">)</span>
+<span class="w">   </span><span class="nf">Move</span><span class="p">(</span><span class="nv">movie</span><span class="p">,</span><span class="mi">20</span><span class="p">,</span><span class="mi">20</span><span class="p">)</span>
+<span class="w">   </span><span class="nf">Draw</span><span class="p">()</span>
+<span class="w">   </span><span class="nf">StartPlayback</span><span class="p">(</span><span class="nv">movie</span><span class="p">)</span>
+<span class="w">   </span><span class="nf">Wait</span><span class="p">(</span><span class="mi">500</span><span class="p">)</span><span class="w"> </span><span class="c1">#Play 500 ms of the movie.</span>
+<span class="w">   </span><span class="nf">PausePlayback</span><span class="p">(</span><span class="nv">movie</span><span class="p">)</span>
+<span class="w">   </span><span class="nf">Wait</span><span class="p">(</span><span class="mi">500</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#loadaudiofile"><code class="xref py py-func docutils literal notranslate"><span class="pre">LoadAudioFile()</span></code></a>, <a class="reference internal" href="#loadmovie"><code class="xref py py-func docutils literal notranslate"><span class="pre">LoadMovie()</span></code></a>, <a class="reference internal" href="peblenvironment.html#playmovie"><code class="xref py py-func docutils literal notranslate"><span class="pre">PlayMovie()</span></code></a>, <a class="reference internal" href="#startplayback"><code class="xref py py-func docutils literal notranslate"><span class="pre">StartPlayback()</span></code></a></p>
+</section>
+<section id="playbackground">
+<span id="index-33"></span><h2><a class="toc-backref" href="#id34" role="doc-backlink">PlayBackground()</a><a class="headerlink" href="#playbackground" title="Link to this heading">¶</a></h2>
+<p><em>Plays the sound ‘in the background’, returning immediately</em></p>
+<p><strong>Description:</strong></p>
+<p>Plays the sound ‘in the background’, returning immediately.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">PlayBackground</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">sound</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">sound</span><span class="w">  </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeSineWave</span><span class="p">(</span><span class="mi">200</span><span class="p">,</span><span class="w"> </span><span class="mi">220</span><span class="p">,</span><span class="w"> </span><span class="mi">1000</span><span class="p">)</span>
+<span class="w">   </span><span class="nf">PlayBackground</span><span class="p">(</span><span class="nv">sound</span><span class="p">)</span>
+<span class="w">   </span><span class="nf">Wait</span><span class="p">(</span><span class="mi">300</span><span class="p">)</span>
+<span class="w">   </span><span class="nf">Stop</span><span class="p">(</span><span class="nv">sound</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#playforeground"><code class="xref py py-func docutils literal notranslate"><span class="pre">PlayForeground()</span></code></a>, <a class="reference internal" href="#stop"><code class="xref py py-func docutils literal notranslate"><span class="pre">Stop()</span></code></a></p>
+</section>
+<section id="playforeground">
+<span id="index-34"></span><h2><a class="toc-backref" href="#id35" role="doc-backlink">PlayForeground()</a><a class="headerlink" href="#playforeground" title="Link to this heading">¶</a></h2>
+<p><em>Plays the sound ‘in the foreground’, not returning until the sound is complete</em></p>
+<p><strong>Description:</strong></p>
+<p>Plays the sound ‘in the foreground’;            does not return until the sound is complete.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">PlayForeground</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">sound</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">sound</span><span class="w">  </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeSineWave</span><span class="p">(</span><span class="mi">200</span><span class="p">,</span><span class="w"> </span><span class="mi">220</span><span class="p">,</span><span class="w"> </span><span class="mi">1000</span><span class="p">)</span>
+<span class="w">   </span><span class="nf">PlayForeground</span><span class="p">(</span><span class="nv">sound</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#playbackground"><code class="xref py py-func docutils literal notranslate"><span class="pre">PlayBackground()</span></code></a>, <a class="reference internal" href="#stop"><code class="xref py py-func docutils literal notranslate"><span class="pre">Stop()</span></code></a></p>
+</section>
+<section id="polygon">
+<span id="index-35"></span><h2><a class="toc-backref" href="#id36" role="doc-backlink">Polygon()</a><a class="headerlink" href="#polygon" title="Link to this heading">¶</a></h2>
+<p><strong>Description:</strong></p>
+<p>Creates a polygon in the shape of the points specified by <code class="docutils literal notranslate"><span class="pre">&lt;xpoints&gt;</span></code>, <code class="docutils literal notranslate"><span class="pre">&lt;ypoints&gt;</span></code>. The lists <code class="docutils literal notranslate"><span class="pre">&lt;xpoints&gt;</span></code> and <code class="docutils literal notranslate"><span class="pre">&lt;ypoints&gt;</span></code> are adjusted by  <code class="docutils literal notranslate"><span class="pre">&lt;x&gt;</span></code> and <code class="docutils literal notranslate"><span class="pre">&lt;y&gt;</span></code>, so they should be relative to 0, not the location you want the points to be at.  Like other drawn objects, the polygon must then be added to the window to appear.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">Polygon</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">x</span><span class="o">&gt;</span><span class="p">,</span><span class="o">&lt;</span><span class="nv">y</span><span class="o">&gt;</span><span class="p">,</span><span class="o">&lt;</span><span class="nv">xpoints</span><span class="o">&gt;</span><span class="p">,</span><span class="o">&lt;</span><span class="nv">ypoints</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="w">          </span><span class="o">&lt;</span><span class="nv">color</span><span class="o">&gt;</span><span class="p">,</span><span class="o">&lt;</span><span class="nv">filled</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">win</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeWindow</span><span class="p">()</span>
+<span class="w">   </span><span class="c1">#This makes a T</span>
+<span class="w">   </span><span class="nv">xpoints</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="p">[</span><span class="o">-</span><span class="mi">10</span><span class="p">,</span><span class="mi">10</span><span class="p">,</span><span class="mi">10</span><span class="p">,</span><span class="mi">20</span><span class="p">,</span><span class="mi">20</span><span class="p">,</span><span class="o">-</span><span class="mi">20</span><span class="p">,</span><span class="o">-</span><span class="mi">20</span><span class="p">,</span><span class="o">-</span><span class="mi">10</span><span class="p">]</span>
+<span class="w">   </span><span class="nv">ypoints</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="p">[</span><span class="o">-</span><span class="mi">20</span><span class="p">,</span><span class="o">-</span><span class="mi">20</span><span class="p">,</span><span class="mi">40</span><span class="p">,</span><span class="mi">40</span><span class="p">,</span><span class="mi">50</span><span class="p">,</span><span class="mi">50</span><span class="p">,</span><span class="mi">40</span><span class="p">,</span><span class="mi">40</span><span class="p">]</span>
+<span class="w">  </span><span class="nv">p1</span><span class="w"> </span><span class="o">&lt;-</span><span class="w">    </span><span class="nf">Polygon</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span><span class="mi">100</span><span class="p">,</span><span class="nv">xpoints</span><span class="p">,</span><span class="w"> </span><span class="nv">ypoints</span><span class="p">,</span>
+<span class="w">                   </span><span class="nf">MakeColor</span><span class="p">(</span><span class="s2">&quot;black&quot;</span><span class="p">),</span><span class="mi">1</span><span class="p">)</span>
+<span class="w">  </span><span class="nf">AddObject</span><span class="p">(</span><span class="nv">p1</span><span class="p">,</span><span class="nv">win</span><span class="p">)</span>
+<span class="w">  </span><span class="nf">Draw</span><span class="p">()</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="graphics.html#blocke"><code class="xref py py-func docutils literal notranslate"><span class="pre">BlockE()</span></code></a>, <a class="reference internal" href="#bezier"><code class="xref py py-func docutils literal notranslate"><span class="pre">Bezier()</span></code></a>, <a class="reference internal" href="graphics.html#makestarpoints"><code class="xref py py-func docutils literal notranslate"><span class="pre">MakeStarPoints()</span></code></a>, <a class="reference internal" href="graphics.html#makengonpoints"><code class="xref py py-func docutils literal notranslate"><span class="pre">MakeNGonPoints()</span></code></a></p>
+</section>
+<section id="printproperties">
+<span id="index-36"></span><h2><a class="toc-backref" href="#id37" role="doc-backlink">PrintProperties()</a><a class="headerlink" href="#printproperties" title="Link to this heading">¶</a></h2>
+<p><em>Prints a list of all available properties of an object (for debugging)</em></p>
+<p><strong>Description:</strong></p>
+<p>Prints .properties/values for any complex object.   These include textboxes, fonts, colors, images, shapes, etc. Mostly   useful as a debugging tool.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">PrintProperties</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">object</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">win</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeWindow</span><span class="p">()</span>
+<span class="w">   </span><span class="nv">tb</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">EasyTextbox</span><span class="p">(</span><span class="s2">&quot;one&quot;</span><span class="p">,</span><span class="mi">20</span><span class="p">,</span><span class="mi">20</span><span class="p">,</span><span class="nv">win</span><span class="p">,</span><span class="mi">22</span><span class="p">,</span><span class="mi">400</span><span class="p">,</span><span class="mi">80</span><span class="p">)</span>
+<span class="w">   </span><span class="nf">PrintProperties</span><span class="p">(</span><span class="nv">tb</span><span class="p">)</span>
+
+<span class="c1">##Output:</span>
+<span class="o">----------</span>
+<span class="p">[</span>CURSORPOS<span class="p">]</span><span class="o">:</span><span class="w"> </span><span class="mi">0</span>
+<span class="p">[</span>EDITABLE<span class="p">]</span><span class="o">:</span><span class="w"> </span><span class="mi">0</span>
+<span class="p">[</span>HEIGHT<span class="p">]</span><span class="o">:</span><span class="w"> </span><span class="mi">80</span>
+<span class="p">[</span>ROTATION<span class="p">]</span><span class="o">:</span><span class="w"> </span><span class="mi">0</span>
+<span class="p">[</span>TEXT<span class="p">]</span><span class="o">:</span><span class="w"> </span><span class="nv">one</span>
+<span class="p">[</span>VISIBLE<span class="p">]</span><span class="o">:</span><span class="w"> </span><span class="mi">1</span>
+<span class="p">[</span>WIDTH<span class="p">]</span><span class="o">:</span><span class="w"> </span><span class="mi">400</span>
+<span class="p">[</span>X<span class="p">]</span><span class="o">:</span><span class="w"> </span><span class="mi">20</span>
+<span class="p">[</span>Y<span class="p">]</span><span class="o">:</span><span class="w"> </span><span class="mi">20</span>
+<span class="p">[</span>ZOOMX<span class="p">]</span><span class="o">:</span><span class="w"> </span><span class="mi">1</span>
+<span class="p">[</span>ZOOMY<span class="p">]</span><span class="o">:</span><span class="w"> </span><span class="mi">1</span>
+<span class="o">----------</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="peblstream.html#print"><code class="xref py py-func docutils literal notranslate"><span class="pre">Print()</span></code></a></p>
+</section>
+<section id="propertyexists">
+<span id="index-37"></span><h2><a class="toc-backref" href="#id38" role="doc-backlink">PropertyExists()</a><a class="headerlink" href="#propertyexists" title="Link to this heading">¶</a></h2>
+<p><em>Determines whether a particular property exists</em></p>
+<p><strong>Description:</strong></p>
+<p>Tests whether a particular named property exists. This works for custom or built-in objects. This is important to check properties that might not exist, because trying to <code class="docutils literal notranslate"><span class="pre">GetProperty</span></code> of a non-existent property will cause a fatal error.</p>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">obj</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeCustomObject</span><span class="p">(</span><span class="s2">&quot;myobject&quot;</span><span class="p">)</span>
+<span class="w">  </span><span class="nv">obj.taste</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="s2">&quot;buttery&quot;</span>
+<span class="w">  </span><span class="nv">obj.texture</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="s2">&quot;creamy&quot;</span>
+<span class="w">  </span><span class="nf">SetProperty</span><span class="p">(</span><span class="nv">obj</span><span class="p">,</span><span class="s2">&quot;flavor&quot;</span><span class="p">,</span><span class="s2">&quot;tasty&quot;</span><span class="p">)</span>
+
+<span class="w">  </span><span class="nv">list</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">GetPropertyList</span><span class="p">(</span><span class="nv">obj</span><span class="p">)</span>
+<span class="w">  </span><span class="k">loop</span><span class="p">(</span><span class="nv">i</span><span class="p">,</span><span class="nv">list</span><span class="p">)</span>
+<span class="w">   </span><span class="p">{</span>
+<span class="w">     </span><span class="k">if</span><span class="p">(</span><span class="nf">PropertyExists</span><span class="p">(</span><span class="nv">obj</span><span class="p">,</span><span class="nv">i</span><span class="p">)</span>
+<span class="w">      </span><span class="p">{</span>
+<span class="w">        </span><span class="nf">Print</span><span class="p">(</span><span class="nv">i</span><span class="w">  </span><span class="o">+</span><span class="w"> </span><span class="s2">&quot;:  &quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nf">GetProperty</span><span class="p">(</span><span class="nv">obj</span><span class="p">,</span><span class="nv">i</span><span class="p">))</span>
+<span class="w">      </span><span class="p">}</span>
+<span class="w">   </span><span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#getpropertylist"><code class="xref py py-func docutils literal notranslate"><span class="pre">GetPropertyList()</span></code></a>, <a class="reference internal" href="#getproperty"><code class="xref py py-func docutils literal notranslate"><span class="pre">GetProperty()</span></code></a>, <a class="reference internal" href="#setproperty"><code class="xref py py-func docutils literal notranslate"><span class="pre">SetProperty()</span></code></a> <a class="reference internal" href="#makecustomobject"><code class="xref py py-func docutils literal notranslate"><span class="pre">MakeCustomObject()</span></code></a>, <a class="reference internal" href="#printproperties"><code class="xref py py-func docutils literal notranslate"><span class="pre">PrintProperties()</span></code></a></p>
+</section>
+<section id="rectangle">
+<span id="index-38"></span><h2><a class="toc-backref" href="#id39" role="doc-backlink">Rectangle()</a><a class="headerlink" href="#rectangle" title="Link to this heading">¶</a></h2>
+<p><em>Creates rectangle with size (dx, dy) centered at position x,y</em></p>
+<p><strong>Description:</strong></p>
+<p>Creates a rectangle for graphing at x,y with size   dx and dy. Rectangles are only currently definable oriented in   horizontal/vertical directions.  A rectangle  must be added   to a parent widget before it can be drawn; it may be added to   widgets other than a base window.  The properties of rectangles may be   changed by accessing their properties directly, including the FILLED   property which makes the object an outline versus a filled shape.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">Rectangle</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">x</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">y</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">dx</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">dy</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">color</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">r</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">Rectangle</span><span class="p">(</span><span class="mi">30</span><span class="p">,</span><span class="mi">30</span><span class="p">,</span><span class="mi">20</span><span class="p">,</span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="nf">MakeColor</span><span class="p">(</span><span class="vg">green</span><span class="p">))</span>
+<span class="w">  </span><span class="nf">AddObject</span><span class="p">(</span><span class="nv">r</span><span class="p">,</span><span class="w"> </span><span class="nv">win</span><span class="p">)</span>
+<span class="w">  </span><span class="nf">Draw</span><span class="p">()</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#circle"><code class="xref py py-func docutils literal notranslate"><span class="pre">Circle()</span></code></a>, <a class="reference internal" href="#ellipse"><code class="xref py py-func docutils literal notranslate"><span class="pre">Ellipse()</span></code></a>, <a class="reference internal" href="#square"><code class="xref py py-func docutils literal notranslate"><span class="pre">Square()</span></code></a>, <a class="reference internal" href="#line"><code class="xref py py-func docutils literal notranslate"><span class="pre">Line()</span></code></a></p>
+</section>
+<section id="removeobject">
+<span id="index-39"></span><h2><a class="toc-backref" href="#id40" role="doc-backlink">RemoveObject()</a><a class="headerlink" href="#removeobject" title="Link to this heading">¶</a></h2>
+<p><em>Removes an object from a parent window</em></p>
+<p><strong>Description:</strong></p>
+<p>Removes a child widget from a parent.  Useful if   you are adding a local widget to a global window inside a loop.  If   you do not remove the object and only <code class="docutils literal notranslate"><span class="pre">Hide()</span></code> it, drawing will   be sluggish.  Objects that are local to a function are removed   automatically when the function terminates, so you do not need to   call <code class="docutils literal notranslate"><span class="pre">RemoveObject()</span></code> on them at the end of a function.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">RemoveObject</span><span class="p">(</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">object</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">parent</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="resizewindow">
+<span id="index-40"></span><h2><a class="toc-backref" href="#id41" role="doc-backlink">ResizeWindow()</a><a class="headerlink" href="#resizewindow" title="Link to this heading">¶</a></h2>
+<p><em>Resizes a window to a specified width and height</em></p>
+<p><strong>Description:</strong></p>
+<p>Resizes an existing window to the specified dimensions. This allows you to dynamically change the size of a window during program execution.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">ResizeWindow</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">window</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">width</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">height</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">win</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeWindow</span><span class="p">(</span><span class="s2">&quot;grey&quot;</span><span class="p">)</span>
+<span class="c1">##Start with default size, then resize</span>
+<span class="nf">ResizeWindow</span><span class="p">(</span><span class="nv">win</span><span class="p">,</span><span class="w"> </span><span class="mi">1024</span><span class="p">,</span><span class="w"> </span><span class="mi">768</span><span class="p">)</span>
+<span class="nf">Draw</span><span class="p">()</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#makewindow"><code class="xref py py-func docutils literal notranslate"><span class="pre">MakeWindow()</span></code></a></p>
+</section>
+<section id="rotozoom">
+<span id="index-41"></span><h2><a class="toc-backref" href="#id42" role="doc-backlink">RotoZoom()</a><a class="headerlink" href="#rotozoom" title="Link to this heading">¶</a></h2>
+<p><em>Rotates and zooms a graphical widget</em></p>
+<p><strong>Description:</strong></p>
+<p>Rotates and zooms a widget (such as an image or label) by specified amounts. The rotation parameter specifies rotation in degrees. The xzoom and yzoom parameters specify scaling factors for horizontal and vertical dimensions (1.0 = no change, 2.0 = double size, 0.5 = half size). The smooth parameter (0 or 1) determines whether to use anti-aliasing for smoother appearance.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">RotoZoom</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">widget</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">rotation</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">xzoom</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">yzoom</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">smooth</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">img</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeImage</span><span class="p">(</span><span class="s2">&quot;stimulus.png&quot;</span><span class="p">)</span>
+<span class="nf">AddObject</span><span class="p">(</span><span class="nv">img</span><span class="p">,</span><span class="w"> </span><span class="nv">win</span><span class="p">)</span>
+<span class="nf">Move</span><span class="p">(</span><span class="nv">img</span><span class="p">,</span><span class="w"> </span><span class="mi">320</span><span class="p">,</span><span class="w"> </span><span class="mi">240</span><span class="p">)</span>
+
+<span class="c1">##Rotate 45 degrees, double size, with smoothing</span>
+<span class="nf">RotoZoom</span><span class="p">(</span><span class="nv">img</span><span class="p">,</span><span class="w"> </span><span class="mi">45</span><span class="p">,</span><span class="w"> </span><span class="mf">2.0</span><span class="p">,</span><span class="w"> </span><span class="mf">2.0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span>
+<span class="nf">Draw</span><span class="p">()</span>
+
+<span class="c1">##Rotate 90 degrees, normal size, no smoothing</span>
+<span class="nf">RotoZoom</span><span class="p">(</span><span class="nv">img</span><span class="p">,</span><span class="w"> </span><span class="mi">90</span><span class="p">,</span><span class="w"> </span><span class="mf">1.0</span><span class="p">,</span><span class="w"> </span><span class="mf">1.0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span>
+<span class="nf">Draw</span><span class="p">()</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#move"><code class="xref py py-func docutils literal notranslate"><span class="pre">Move()</span></code></a>, <a class="reference internal" href="#makeimage"><code class="xref py py-func docutils literal notranslate"><span class="pre">MakeImage()</span></code></a>, <a class="reference internal" href="#makelabel"><code class="xref py py-func docutils literal notranslate"><span class="pre">MakeLabel()</span></code></a></p>
+</section>
+<section id="saveaudiotowavefile">
+<span id="index-42"></span><h2><a class="toc-backref" href="#id43" role="doc-backlink">SaveAudioToWaveFile()</a><a class="headerlink" href="#saveaudiotowavefile" title="Link to this heading">¶</a></h2>
+<p><em>Saves buffer to a .wav file format</em></p>
+<p><strong>Description:</strong></p>
+<p>Saves a buffer, recorded using the GetAudioInputBuffer, to a .wav file for later analysis or archive.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">SaveAudioToWaveFile</span><span class="p">(</span><span class="nv">filename</span><span class="p">,</span><span class="w"> </span><span class="nv">buffer</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="vg">gResponseBuffer</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeAudioInputBuffer</span><span class="p">(</span><span class="mi">5000</span><span class="p">)</span>
+<span class="w">       </span><span class="nv">resp0</span><span class="w"> </span><span class="o">&lt;-</span><span class="w">  </span><span class="nf">GetVocalResponseTime</span><span class="p">(</span><span class="vg">gResponseBuffer</span><span class="p">,</span><span class="mf">.35</span><span class="p">,</span><span class="w"> </span><span class="mi">200</span><span class="p">)</span>
+<span class="w">      </span><span class="nf">SaveAudioToWaveFile</span><span class="p">(</span><span class="s2">&quot;output.wav&quot;</span><span class="p">,</span><span class="vg">gResponseBuffer</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#getvocalresponsetime"><code class="xref py py-func docutils literal notranslate"><span class="pre">GetVocalResponseTime()</span></code></a>, <a class="reference internal" href="#makeaudioinputbuffer"><code class="xref py py-func docutils literal notranslate"><span class="pre">MakeAudioInputBuffer()</span></code></a></p>
+</section>
+<section id="setcursorposition">
+<span id="index-43"></span><h2><a class="toc-backref" href="#id44" role="doc-backlink">SetCursorPosition()</a><a class="headerlink" href="#setcursorposition" title="Link to this heading">¶</a></h2>
+<p><strong>Description:</strong></p>
+<p>Moves the editing cursor to a specified character               position in a textbox.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">SetCursorPosition</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">textbox</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">integer</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">SetCursorPosition</span><span class="p">(</span><span class="nv">tb</span><span class="p">,</span><span class="w"> </span><span class="mi">23</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#seteditable"><code class="xref py py-func docutils literal notranslate"><span class="pre">SetEditable()</span></code></a>, <a class="reference internal" href="#getcursorposition"><code class="xref py py-func docutils literal notranslate"><span class="pre">GetCursorPosition()</span></code></a>, <a class="reference internal" href="#settext"><code class="xref py py-func docutils literal notranslate"><span class="pre">SetText()</span></code></a>, <a class="reference internal" href="#gettext"><code class="xref py py-func docutils literal notranslate"><span class="pre">GetText()</span></code></a></p>
+</section>
+<section id="seteditable">
+<span id="index-44"></span><h2><a class="toc-backref" href="#id45" role="doc-backlink">SetEditable()</a><a class="headerlink" href="#seteditable" title="Link to this heading">¶</a></h2>
+<p><em>Turns on or off the editing cursor</em></p>
+<p><strong>Description:</strong></p>
+<p>Sets the <code class="docutils literal notranslate"><span class="pre">editable''</span> <span class="pre">status</span> <span class="pre">of</span> <span class="pre">the</span> <span class="pre">textbox.</span>&#160; <span class="pre">All</span>&#160;&#160; <span class="pre">this</span> <span class="pre">really</span> <span class="pre">does</span> <span class="pre">is</span> <span class="pre">turns</span> <span class="pre">on</span> <span class="pre">or</span> <span class="pre">off</span> <span class="pre">the</span> <span class="pre">cursor;</span> <span class="pre">editing</span> <span class="pre">must</span> <span class="pre">be</span> <span class="pre">done</span>&#160;&#160; <span class="pre">with</span> <span class="pre">the</span> <span class="pre">(currently</span> <span class="pre">unsupported)</span> <span class="pre">device</span> <span class="pre">function</span> <span class="pre">``GetInput()</span></code>.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">SetEditable</span><span class="p">()</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">SetEditable</span><span class="p">(</span><span class="nv">tb</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span>
+<span class="nf">SetEditable</span><span class="p">(</span><span class="nv">tb</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><code class="xref py py-func docutils literal notranslate"><span class="pre">GetEditable()</span></code></p>
+</section>
+<section id="setfont">
+<span id="index-45"></span><h2><a class="toc-backref" href="#id46" role="doc-backlink">SetFont()</a><a class="headerlink" href="#setfont" title="Link to this heading">¶</a></h2>
+<p><em>Changes the font of a text object</em></p>
+<p><strong>Description:</strong></p>
+<p>Resets the font of a textbox or label.  Change will   not appear until the next <code class="docutils literal notranslate"><span class="pre">Draw()</span></code> function is called.  Can be   used, for example, to change the color of a label to give richer   feedback about correctness on a trial (see example below).  Font can alse be set by assigning to the object.font property of an object.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">SetFont</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">text</span><span class="o">-</span><span class="nv">widget</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">font</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">fontGreen</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeFont</span><span class="p">(</span><span class="s2">&quot;vera.ttf&quot;</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">22</span><span class="p">,</span>
+<span class="w">                      </span><span class="nf">MakeColor</span><span class="p">(</span><span class="s2">&quot;green&quot;</span><span class="p">),</span>
+<span class="w">                      </span><span class="nf">MakeColor</span><span class="p">(</span><span class="s2">&quot;black&quot;</span><span class="p">),</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span>
+<span class="nv">fontRed</span><span class="w">   </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeFont</span><span class="p">(</span><span class="s2">&quot;vera.ttf&quot;</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">22</span><span class="p">,</span>
+<span class="w">                      </span><span class="nf">MakeColor</span><span class="p">(</span><span class="s2">&quot;red&quot;</span><span class="p">),</span>
+<span class="w">                      </span><span class="nf">MakeColor</span><span class="p">(</span><span class="s2">&quot;black&quot;</span><span class="p">),</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span>
+<span class="nv">label</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeLabel</span><span class="p">(</span><span class="nv">fontGreen</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;Correct&quot;</span><span class="p">)</span>
+
+<span class="c1">#Do trial here.</span>
+
+<span class="k">if</span><span class="p">(</span><span class="nv">response</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="nf">SetText</span><span class="p">(</span><span class="nv">label</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;CORRECT&quot;</span><span class="p">)</span>
+<span class="nf">SetFont</span><span class="p">(</span><span class="nv">label</span><span class="p">,</span><span class="w"> </span><span class="nv">fontGreen</span><span class="p">)</span>
+<span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="nf">SetText</span><span class="p">(</span><span class="nv">label</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;INCORRECT&quot;</span><span class="p">)</span>
+<span class="nf">SetFont</span><span class="p">(</span><span class="nv">label</span><span class="p">,</span><span class="w"> </span>&quot;<span class="nv">fontRed</span><span class="p">)</span>
+<span class="p">}</span>
+<span class="nf">Draw</span><span class="p">()</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#settext"><code class="xref py py-func docutils literal notranslate"><span class="pre">SetText()</span></code></a></p>
+</section>
+<section id="setpanning">
+<span id="index-46"></span><h2><a class="toc-backref" href="#id47" role="doc-backlink">SetPanning()</a><a class="headerlink" href="#setpanning" title="Link to this heading">¶</a></h2>
+<p><em>Sets volume of left and right channel.</em></p>
+<p><strong>Description:</strong></p>
+<p>Sets the audio panning; the volume of the left and right audio channels.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">SetPanning</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">audio</span><span class="o">&gt;</span><span class="p">,</span><span class="o">&lt;</span><span class="nv">left</span><span class="o">&gt;</span><span class="p">,</span><span class="o">&lt;</span><span class="nv">right</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">one</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">LoadSound</span><span class="p">(</span><span class="s2">&quot;1.wav&quot;</span><span class="p">)</span>
+<span class="w">   </span><span class="nf">PlayForeground</span><span class="p">(</span><span class="nv">one</span><span class="p">)</span>
+<span class="w">   </span><span class="nf">SetPanning</span><span class="p">(</span><span class="nv">one</span><span class="p">,</span><span class="mf">1.0</span><span class="p">,</span><span class="mf">0.0</span><span class="p">)</span>
+<span class="w">   </span><span class="nf">PlayForeground</span><span class="p">(</span><span class="nv">one</span><span class="p">)</span>
+<span class="w">   </span><span class="nf">SetPanning</span><span class="p">(</span><span class="nv">one</span><span class="p">,</span><span class="mf">.5</span><span class="p">,</span><span class="mf">.5</span><span class="p">)</span>
+<span class="w">   </span><span class="nf">PlayForeground</span><span class="p">(</span><span class="nv">one</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#loadsound"><code class="xref py py-func docutils literal notranslate"><span class="pre">LoadSound()</span></code></a></p>
+</section>
+<section id="setplayrepeats">
+<span id="index-47"></span><h2><a class="toc-backref" href="#id48" role="doc-backlink">SetPlayRepeats()</a><a class="headerlink" href="#setplayrepeats" title="Link to this heading">¶</a></h2>
+<p><em>Sets a repeat count on a sound playback.</em></p>
+<p><strong>Description:</strong></p>
+<p>Sets repetition count on an audio file.  When played back, i   will play this sound reps+1 times. If set to 0, it will play just once.  If set to -1, it   will repeat indefinitely.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">SetPlayRepeats</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">audio</span><span class="o">&gt;</span><span class="p">,</span><span class="o">&lt;</span><span class="nv">reps</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">one</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">LoadSound</span><span class="p">(</span><span class="s2">&quot;1.wav&quot;</span><span class="p">)</span>
+<span class="w">   </span><span class="nf">PlayForeground</span><span class="p">(</span><span class="nv">one</span><span class="p">)</span>
+<span class="w">   </span><span class="nf">SetPlayRepeats</span><span class="p">(</span><span class="nv">one</span><span class="p">,</span><span class="mi">5</span><span class="p">)</span>
+<span class="w">   </span><span class="nf">PlayForeground</span><span class="p">(</span><span class="nv">one</span><span class="p">)</span>
+<span class="w">   </span><span class="nf">SetPanning</span><span class="p">(</span><span class="nv">one</span><span class="p">,</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+<span class="w">   </span><span class="nf">PlayBackground</span><span class="p">(</span><span class="nv">one</span><span class="p">)</span>
+<span class="w">   </span><span class="nf">Wait</span><span class="p">(</span><span class="mi">5000</span><span class="p">)</span>
+<span class="w">   </span><span class="nf">Stop</span><span class="p">(</span><span class="nv">one</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#loadsound"><code class="xref py py-func docutils literal notranslate"><span class="pre">LoadSound()</span></code></a></p>
+</section>
+<section id="setproperty">
+<span id="index-48"></span><h2><a class="toc-backref" href="#id49" role="doc-backlink">SetProperty()</a><a class="headerlink" href="#setproperty" title="Link to this heading">¶</a></h2>
+<p><em>Sets property of an object</em></p>
+<p><strong>Description:</strong></p>
+<p>Sets a a property of a custom object.   This works for custom or built-in objects, but new properties can only be set on custom object. This function works essentially identically to the obj.property assignment, but it allows you to create property names from input. It is used extensively for the PEBL parameter setting.</p>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">obj</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeCustomObject</span><span class="p">(</span><span class="s2">&quot;myobject&quot;</span><span class="p">)</span>
+<span class="w">  </span><span class="nv">obj.taste</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="s2">&quot;buttery&quot;</span>
+<span class="w">  </span><span class="nv">obj.texture</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="s2">&quot;creamy&quot;</span>
+<span class="w">  </span><span class="nf">SetProperty</span><span class="p">(</span><span class="nv">obj</span><span class="p">,</span><span class="s2">&quot;flavor&quot;</span><span class="p">,</span><span class="s2">&quot;tasty&quot;</span><span class="p">)</span>
+
+<span class="w">  </span><span class="nv">list</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">GetPropertyList</span><span class="p">(</span><span class="nv">obj</span><span class="p">)</span>
+<span class="w">  </span><span class="k">loop</span><span class="p">(</span><span class="nv">i</span><span class="p">,</span><span class="nv">list</span><span class="p">)</span>
+<span class="w">   </span><span class="p">{</span>
+<span class="w">     </span><span class="k">if</span><span class="p">(</span><span class="nf">PropertyExists</span><span class="p">(</span><span class="nv">obj</span><span class="p">,</span><span class="nv">i</span><span class="p">)</span>
+<span class="w">      </span><span class="p">{</span>
+<span class="w">        </span><span class="nf">Print</span><span class="p">(</span><span class="nv">i</span><span class="w">  </span><span class="o">+</span><span class="w"> </span><span class="s2">&quot;:  &quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nf">GetProperty</span><span class="p">(</span><span class="nv">obj</span><span class="p">,</span><span class="nv">i</span><span class="p">))</span>
+<span class="w">      </span><span class="p">}</span>
+<span class="w">   </span><span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#getproperty"><code class="xref py py-func docutils literal notranslate"><span class="pre">GetProperty()</span></code></a>, <a class="reference internal" href="#propertyexists"><code class="xref py py-func docutils literal notranslate"><span class="pre">PropertyExists()</span></code></a>, <a class="reference internal" href="#getpropertylist"><code class="xref py py-func docutils literal notranslate"><span class="pre">GetPropertyList()</span></code></a>, <a class="reference internal" href="#makecustomobject"><code class="xref py py-func docutils literal notranslate"><span class="pre">MakeCustomObject()</span></code></a>, <a class="reference internal" href="#printproperties"><code class="xref py py-func docutils literal notranslate"><span class="pre">PrintProperties()</span></code></a></p>
+</section>
+<section id="settext">
+<span id="index-49"></span><h2><a class="toc-backref" href="#id50" role="doc-backlink">SetText()</a><a class="headerlink" href="#settext" title="Link to this heading">¶</a></h2>
+<p><em>Sets the text in a textbox or label</em></p>
+<p><strong>Description:</strong></p>
+<p>Resets the text of a textbox or label.  Change will not                 appear until the next <code class="docutils literal notranslate"><span class="pre">Draw()</span></code> function is called.  The object.text property can also be used to change text of an object, by doing: <code class="docutils literal notranslate"><span class="pre">object.text</span> <span class="pre">&lt;-</span> <span class="pre">&quot;new</span> <span class="pre">text&quot;</span></code></p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">SetText</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">text</span><span class="o">-</span><span class="nv">widget</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">text</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="c1"># Fixation Cross:</span>
+<span class="nv">label</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeLabel</span><span class="p">(</span><span class="nv">font</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;+&quot;</span><span class="p">)</span>
+<span class="nf">Draw</span><span class="p">()</span>
+
+<span class="nf">SetText</span><span class="p">(</span><span class="nv">label</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;X&quot;</span><span class="p">)</span>
+<span class="nf">Wait</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span>
+<span class="nf">Draw</span><span class="p">()</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#gettext"><code class="xref py py-func docutils literal notranslate"><span class="pre">GetText()</span></code></a>, <a class="reference internal" href="#setfont"><code class="xref py py-func docutils literal notranslate"><span class="pre">SetFont()</span></code></a></p>
+</section>
+<section id="show">
+<span id="index-50"></span><h2><a class="toc-backref" href="#id51" role="doc-backlink">Show()</a><a class="headerlink" href="#show" title="Link to this heading">¶</a></h2>
+<p><em>Shows an object</em></p>
+<p><strong>Description:</strong></p>
+<p>Sets a widget to visible, once it has been added to   a parent widget.  This just changes the visibility property, it does   not make the widget appear.  The widget will not be displayed until   the <code class="docutils literal notranslate"><span class="pre">Draw()</span></code> function is called.  The .visible property of objects can also be used to hide or show the object.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">Show</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">object</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">window</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeWindow</span><span class="p">()</span>
+<span class="nv">image1</span><span class="w">  </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeImage</span><span class="p">(</span><span class="s2">&quot;pebl.bmp&quot;</span><span class="p">)</span>
+<span class="nv">image2</span><span class="w">  </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeImage</span><span class="p">(</span><span class="s2">&quot;pebl.bmp&quot;</span><span class="p">)</span>
+<span class="nf">AddObject</span><span class="p">(</span><span class="nv">image1</span><span class="p">,</span><span class="w"> </span><span class="nv">window</span><span class="p">)</span>
+<span class="nf">AddObject</span><span class="p">(</span><span class="nv">image2</span><span class="p">,</span><span class="w"> </span><span class="nv">window</span><span class="p">)</span>
+<span class="nf">Hide</span><span class="p">(</span><span class="nv">image2</span><span class="p">)</span>
+<span class="nf">Draw</span><span class="p">()</span>
+<span class="nf">Wait</span><span class="p">(</span><span class="mi">300</span><span class="p">)</span>
+<span class="nf">Show</span><span class="p">(</span><span class="nv">image2</span><span class="p">)</span>
+<span class="nf">Draw</span><span class="p">()</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#hide"><code class="xref py py-func docutils literal notranslate"><span class="pre">Hide()</span></code></a></p>
+</section>
+<section id="square">
+<span id="index-51"></span><h2><a class="toc-backref" href="#id52" role="doc-backlink">Square()</a><a class="headerlink" href="#square" title="Link to this heading">¶</a></h2>
+<p><em>Creates square with width size centered at position x,y</em></p>
+<p><strong>Description:</strong></p>
+<p>Creates a square for graphing at x,y with size   <code class="docutils literal notranslate"><span class="pre">&lt;size&gt;</span></code>. Squares are only currently definable oriented in   horizontal/vertical directions.  A square  must be added   to a parent widget before it can be drawn; it may be added to   widgets other than a base window.  The properties of squares may be   changed by accessing their properties directly, including the FILLED   property which makes the object an outline versus a filled shape.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">Ellipse</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">x</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">y</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">size</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">color</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">s</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">Square</span><span class="p">(</span><span class="mi">30</span><span class="p">,</span><span class="mi">30</span><span class="p">,</span><span class="mi">20</span><span class="p">,</span><span class="w"> </span><span class="nf">MakeColor</span><span class="p">(</span><span class="vg">green</span><span class="p">))</span>
+<span class="w">  </span><span class="nf">AddObject</span><span class="p">(</span><span class="nv">s</span><span class="p">,</span><span class="w"> </span><span class="nv">win</span><span class="p">)</span>
+<span class="w">  </span><span class="nf">Draw</span><span class="p">()</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#circle"><code class="xref py py-func docutils literal notranslate"><span class="pre">Circle()</span></code></a>, <a class="reference internal" href="#ellipse"><code class="xref py py-func docutils literal notranslate"><span class="pre">Ellipse()</span></code></a>, <a class="reference internal" href="#rectangle"><code class="xref py py-func docutils literal notranslate"><span class="pre">Rectangle()</span></code></a>, <a class="reference internal" href="#line"><code class="xref py py-func docutils literal notranslate"><span class="pre">Line()</span></code></a></p>
+</section>
+<section id="startplayback">
+<span id="index-52"></span><h2><a class="toc-backref" href="#id53" role="doc-backlink">StartPlayback()</a><a class="headerlink" href="#startplayback" title="Link to this heading">¶</a></h2>
+<p><em>Initiates playback in background, updated with Wait()</em></p>
+<p><strong>Description:</strong></p>
+<p>Initiates playback of a movie so that it will play in the background when a Wait() or WaitFor() function is called.  This allows one to collect a response while  playing a movie.  The movie will not actually play until the event loop is started, typically with something like Wait().</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">StartPlayBack</span><span class="p">(</span><span class="nv">movie</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">movie</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">LoadMovie</span><span class="p">(</span><span class="s2">&quot;movie.avi&quot;</span><span class="p">,</span><span class="vg">gWin</span><span class="p">,</span><span class="mi">640</span><span class="p">,</span><span class="mi">480</span><span class="p">)</span>
+<span class="w">   </span><span class="nf">PrintProperties</span><span class="p">(</span><span class="nv">movie</span><span class="p">)</span>
+<span class="w">   </span><span class="nf">Move</span><span class="p">(</span><span class="nv">movie</span><span class="p">,</span><span class="mi">20</span><span class="p">,</span><span class="mi">20</span><span class="p">)</span>
+<span class="w">   </span><span class="nf">Draw</span><span class="p">()</span>
+<span class="w">   </span><span class="nf">StartPlayback</span><span class="p">(</span><span class="nv">movie</span><span class="p">)</span>
+<span class="w">   </span><span class="nf">Wait</span><span class="p">(</span><span class="mi">500</span><span class="p">)</span><span class="w"> </span><span class="c1">#Play 500 ms of the movie.</span>
+<span class="w">   </span><span class="nf">PausePlayback</span><span class="p">(</span><span class="nv">movie</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#loadaudiofile"><code class="xref py py-func docutils literal notranslate"><span class="pre">LoadAudioFile()</span></code></a>, <a class="reference internal" href="#loadmovie"><code class="xref py py-func docutils literal notranslate"><span class="pre">LoadMovie()</span></code></a>, <a class="reference internal" href="peblenvironment.html#playmovie"><code class="xref py py-func docutils literal notranslate"><span class="pre">PlayMovie()</span></code></a>, <a class="reference internal" href="#pauseplayback"><code class="xref py py-func docutils literal notranslate"><span class="pre">PausePlayback()</span></code></a></p>
+</section>
+<section id="stop">
+<span id="index-53"></span><h2><a class="toc-backref" href="#id54" role="doc-backlink">Stop()</a><a class="headerlink" href="#stop" title="Link to this heading">¶</a></h2>
+<p><em>Stops a sound playing in the background from playing</em></p>
+<p><strong>Description:</strong></p>
+<p>Stops a sound playing in the background from   playing.  Calling <code class="docutils literal notranslate"><span class="pre">Stop()</span></code> on a sound object that is not   playing should have no effect, but if an object is aliased,   <code class="docutils literal notranslate"><span class="pre">Stop()</span></code> will stop the file.  Note that sounds play in a   separate thread, so interrupting the thread has a granularity up to   the duration of the thread-switching quantum on your computer; this   may be tens of milliseconds.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">Stop</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">sound</span><span class="o">-</span><span class="nv">object</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">buzz</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">LoadSound</span><span class="p">(</span><span class="s2">&quot;buzz.wav&quot;</span><span class="p">)</span>
+<span class="nf">PlayBackground</span><span class="p">(</span><span class="nv">buzz</span><span class="p">)</span>
+<span class="nf">Wait</span><span class="p">(</span><span class="mi">50</span><span class="p">)</span>
+<span class="nf">Stop</span><span class="p">(</span><span class="nv">buzz</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#playforeground"><code class="xref py py-func docutils literal notranslate"><span class="pre">PlayForeground()</span></code></a>, <code class="xref py py-func docutils literal notranslate"><span class="pre">PlayBackGround()</span></code></p>
+</section>
+<section id="thickline">
+<span id="index-54"></span><h2><a class="toc-backref" href="#id55" role="doc-backlink">ThickLine()</a><a class="headerlink" href="#thickline" title="Link to this heading">¶</a></h2>
+<p><em>Creates a thick line between two points</em></p>
+<p><strong>Description:</strong></p>
+<p>Makes a thick line between two coordinates. This uses the SDL_gfx thickline primitive.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">ThickLine</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">x1</span><span class="o">&gt;</span><span class="p">,</span><span class="o">&lt;</span><span class="nv">y1</span><span class="o">&gt;</span><span class="p">,</span><span class="o">&lt;</span><span class="nv">x2</span><span class="o">&gt;</span><span class="p">,</span><span class="o">&lt;</span><span class="nv">y2</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="w">          </span><span class="o">&lt;</span><span class="nv">size</span><span class="o">-</span><span class="nv">in</span><span class="o">-</span><span class="nv">pixels</span><span class="o">&gt;</span><span class="p">,</span><span class="o">&lt;</span><span class="nv">color</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">a</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">ThickLine</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span><span class="mi">10</span><span class="p">,</span><span class="mi">300</span><span class="p">,</span><span class="mi">400</span><span class="p">,</span><span class="mi">20</span><span class="p">,</span>
+<span class="w">                </span><span class="nf">MakeColor</span><span class="p">(</span><span class="s2">&quot;red&quot;</span><span class="p">))</span>
+<span class="w">   </span><span class="nf">AddObject</span><span class="p">(</span><span class="nv">a</span><span class="p">,</span><span class="vg">gWin</span><span class="p">)</span>
+<span class="w">   </span><span class="nf">Draw</span><span class="p">()</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#line"><code class="xref py py-func docutils literal notranslate"><span class="pre">Line()</span></code></a>, <a class="reference internal" href="#polygon"><code class="xref py py-func docutils literal notranslate"><span class="pre">Polygon()</span></code></a></p>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">PEBL Function Reference</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Built-in Namespaces:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="peblenvironment.html">Environment</a></li>
+<li class="toctree-l1"><a class="reference internal" href="pebllist.html">Lists</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Graphics &amp; Objects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="peblstream.html">File &amp; Network</a></li>
+<li class="toctree-l1"><a class="reference internal" href="peblstring.html">Strings</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Library Functions:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="design.html">Design</a></li>
+<li class="toctree-l1"><a class="reference internal" href="graphics.html">Graphics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="html.html">HTML</a></li>
+<li class="toctree-l1"><a class="reference internal" href="math.html">Math</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ui.html">UI</a></li>
+<li class="toctree-l1"><a class="reference internal" href="utility.html">Utility</a></li>
+</ul>
+
+
+<hr />
+<ul>
+    
+    <li class="toctree-l1"><a href="../genindex.html">Function Index</a></li>
+    
+    <li class="toctree-l1"><a href="../documentation.html">PEBL Documentation</a></li>
+    
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="pebllist.html" title="previous chapter">PEBLList - List Manipulation</a></li>
+      <li>Next: <a href="peblstream.html" title="next chapter">PEBLStream - File and Network I/O</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2025, Shane T. Mueller.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 7.2.6</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/reference/peblobjects.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

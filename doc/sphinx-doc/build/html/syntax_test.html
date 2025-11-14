@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>PEBL Example Syntax &#8212; PEBL Function Reference</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="_static/alabaster.css?v=cb25574f" />
+    <link rel="stylesheet" type="text/css" href="_static/custom.css?v=4c664190" />
+    <script src="_static/documentation_options.js?v=c4a36953"></script>
+    <script src="_static/doctools.js?v=888ff710"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="pebl-example-syntax">
+<h1>PEBL Example Syntax<a class="headerlink" href="#pebl-example-syntax" title="Link to this heading">¶</a></h1>
+<p>This page demonstrates the PEBL syntax highlighter.</p>
+<section id="basic-example">
+<h2>Basic Example<a class="headerlink" href="#basic-example" title="Link to this heading">¶</a></h2>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="c1">## Simple PEBL program</span>
+<span class="k">define</span><span class="w"> </span><span class="nf">Start</span><span class="p">(</span><span class="nv">p</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="c1"># Create a window</span>
+<span class="w">    </span><span class="vg">gWin</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeWindow</span><span class="p">()</span>
+
+<span class="w">    </span><span class="c1"># Variables</span>
+<span class="w">    </span><span class="nv">numTrials</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="mi">10</span>
+<span class="w">    </span><span class="nv">accuracy</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="mf">0.95</span>
+<span class="w">    </span><span class="vg">gSubNum</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">GetSubNum</span><span class="p">(</span><span class="vg">gWin</span><span class="p">)</span>
+
+<span class="w">    </span><span class="c1"># Conditionals (must use parentheses)</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="vg">gSubNum</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="nf">Print</span><span class="p">(</span><span class="s2">&quot;Starting experiment for subject &quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="vg">gSubNum</span><span class="p">)</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1"># Loops</span>
+<span class="w">    </span><span class="k">loop</span><span class="p">(</span><span class="nv">i</span><span class="p">,</span><span class="w"> </span><span class="nf">Sequence</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="nv">numTrials</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">))</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="nv">rt</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">RunTrial</span><span class="p">(</span><span class="nv">i</span><span class="p">)</span>
+<span class="w">        </span><span class="nf">FilePrint</span><span class="p">(</span><span class="vg">gFileOut</span><span class="p">,</span><span class="w"> </span><span class="vg">gSubNum</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s2">&quot;,&quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nv">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s2">&quot;,&quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nv">rt</span><span class="p">)</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="function-definitions">
+<h2>Function Definitions<a class="headerlink" href="#function-definitions" title="Link to this heading">¶</a></h2>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="k">define</span><span class="w"> </span><span class="nf">CalculateAccuracy</span><span class="p">(</span><span class="nv">hits</span><span class="p">,</span><span class="w"> </span><span class="nv">total</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="nv">accuracy</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nv">hits</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nv">total</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nv">accuracy</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="built-in-functions">
+<h2>Built-in Functions<a class="headerlink" href="#built-in-functions" title="Link to this heading">¶</a></h2>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="c1"># Math functions</span>
+<span class="nv">x</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">Sqrt</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span>
+<span class="nv">y</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">Round</span><span class="p">(</span><span class="mf">3.14159</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">)</span>
+<span class="nv">z</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">Random</span><span class="p">()</span>
+
+<span class="c1"># List operations</span>
+<span class="nv">myList</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="mi">4</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">]</span>
+<span class="nv">shuffled</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">Shuffle</span><span class="p">(</span><span class="nv">myList</span><span class="p">)</span>
+<span class="nv">mean</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">Mean</span><span class="p">(</span><span class="nv">myList</span><span class="p">)</span>
+
+<span class="c1"># String operations</span>
+<span class="nv">text</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="s2">&quot;Hello World&quot;</span>
+<span class="nv">lower</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">Lowercase</span><span class="p">(</span><span class="nv">text</span><span class="p">)</span>
+<span class="nv">parts</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">SplitString</span><span class="p">(</span><span class="nv">text</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot; &quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="comparison-operators">
+<h2>Comparison Operators<a class="headerlink" href="#comparison-operators" title="Link to this heading">¶</a></h2>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nv">x</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">10</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="nf">Print</span><span class="p">(</span><span class="s2">&quot;Equal&quot;</span><span class="p">)</span>
+<span class="p">}</span>
+
+<span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nv">y</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mi">5</span><span class="w"> </span><span class="k">and</span><span class="w"> </span><span class="nv">z</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">100</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="nf">Print</span><span class="p">(</span><span class="s2">&quot;In range&quot;</span><span class="p">)</span>
+<span class="p">}</span>
+
+<span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="k">not</span><span class="w"> </span><span class="nf">IsKeyDown</span><span class="p">(</span><span class="s2">&quot;&lt;space&gt;&quot;</span><span class="p">))</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="nf">Wait</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="assignment-and-arithmetic">
+<h2>Assignment and Arithmetic<a class="headerlink" href="#assignment-and-arithmetic" title="Link to this heading">¶</a></h2>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="c1"># Assignment</span>
+<span class="nv">result</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="mi">0</span>
+
+<span class="c1"># Arithmetic</span>
+<span class="nv">sum</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="mi">10</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">20</span>
+<span class="nv">diff</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="mi">100</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">25</span>
+<span class="nv">product</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="mi">5</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">6</span>
+<span class="nv">quotient</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="mi">100</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">4</span>
+<span class="nv">power</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="o">^</span><span class="w"> </span><span class="mi">8</span>
+</pre></div>
+</div>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">PEBL Function Reference</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Built-in Namespaces:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="reference/peblenvironment.html">Environment</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reference/pebllist.html">Lists</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reference/peblobjects.html">Graphics &amp; Objects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reference/peblstream.html">File &amp; Network</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reference/peblstring.html">Strings</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Library Functions:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="reference/design.html">Design</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reference/graphics.html">Graphics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reference/html.html">HTML</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reference/math.html">Math</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reference/ui.html">UI</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reference/utility.html">Utility</a></li>
+</ul>
+
+
+<hr />
+<ul>
+    
+    <li class="toctree-l1"><a href="../genindex.html">Function Index</a></li>
+    
+    <li class="toctree-l1"><a href="../documentation.html">PEBL Documentation</a></li>
+    
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2025, Shane T. Mueller.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 7.2.6</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="_sources/syntax_test.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

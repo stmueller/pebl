@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Graphics Library - Advanced Graphics &#8212; PEBL Function Reference</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css?v=cb25574f" />
+    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=4c664190" />
+    <script src="../_static/documentation_options.js?v=c4a36953"></script>
+    <script src="../_static/doctools.js?v=888ff710"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="HTML Library - HTML Generation" href="html.html" />
+    <link rel="prev" title="Design Library - Experimental Design" href="design.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="graphics-library-advanced-graphics">
+<h1>Graphics Library - Advanced Graphics<a class="headerlink" href="#graphics-library-advanced-graphics" title="Link to this heading">¶</a></h1>
+<p>This library contains advanced graphics functions for creating complex visual stimuli and shapes.</p>
+<nav class="contents local" id="function-index">
+<p class="topic-title">Function Index</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="#blocke" id="id7">BlockE()</a></p></li>
+<li><p><a class="reference internal" href="#convexhull" id="id8">ConvexHull()</a></p></li>
+<li><p><a class="reference internal" href="#getangle" id="id9">GetAngle()</a></p></li>
+<li><p><a class="reference internal" href="#getangle3" id="id10">GetAngle3()</a></p></li>
+<li><p><a class="reference internal" href="#kaniszapolygon" id="id11">KaniszaPolygon()</a></p></li>
+<li><p><a class="reference internal" href="#kaniszasquare" id="id12">KaniszaSquare()</a></p></li>
+<li><p><a class="reference internal" href="#layoutgrid" id="id13">LayoutGrid()</a></p></li>
+<li><p><a class="reference internal" href="#makeattneave" id="id14">MakeAttneave()</a></p></li>
+<li><p><a class="reference internal" href="#makegabor" id="id15">MakeGabor()</a></p></li>
+<li><p><a class="reference internal" href="#makegraph" id="id16">MakeGraph()</a></p></li>
+<li><p><a class="reference internal" href="#makengonpoints" id="id17">MakeNGonPoints()</a></p></li>
+<li><p><a class="reference internal" href="#makestarpoints" id="id18">MakeStarPoints()</a></p></li>
+<li><p><a class="reference internal" href="#nonoverlaplayout" id="id19">NonOverlapLayout()</a></p></li>
+<li><p><a class="reference internal" href="#plus" id="id20">Plus()</a></p></li>
+<li><p><a class="reference internal" href="#reflectpoints" id="id21">ReflectPoints()</a></p></li>
+<li><p><a class="reference internal" href="#resetcanvas" id="id22">ResetCanvas()</a></p></li>
+<li><p><a class="reference internal" href="#rgbtohsv" id="id23">RGBtoHSV()</a></p></li>
+<li><p><a class="reference internal" href="#rotatepoints" id="id24">RotatePoints()</a></p></li>
+<li><p><a class="reference internal" href="#segmentsintersect" id="id25">SegmentsIntersect()</a></p></li>
+<li><p><a class="reference internal" href="#toright" id="id26">ToRight()</a></p></li>
+<li><p><a class="reference internal" href="#zoompoints" id="id27">ZoomPoints()</a></p></li>
+<li><p><a class="reference internal" href="#functions-pending-documentation" id="id28">Functions Pending Documentation</a></p></li>
+<li><p><a class="reference internal" href="#getmindist" id="id29">GetMinDist()</a></p></li>
+<li><p><a class="reference internal" href="#hideobject" id="id30">HideObject()</a></p></li>
+<li><p><a class="reference internal" href="#landoltring" id="id31">LandoltRing()</a></p></li>
+<li><p><a class="reference internal" href="#maketable" id="id32">MakeTable()</a></p></li>
+<li><p><a class="reference internal" href="#showobject" id="id33">ShowObject()</a></p></li>
+<li><p><a class="reference internal" href="#functions-under-investigation" id="id34">Functions Under Investigation</a></p></li>
+<li><p><a class="reference internal" href="#thickline2" id="id35">ThickLine2()</a></p></li>
+</ul>
+</nav>
+<section id="blocke">
+<span id="index-0"></span><h2><a class="toc-backref" href="#id7" role="doc-backlink">BlockE()</a><a class="headerlink" href="#blocke" title="Link to this heading">¶</a></h2>
+<p><em>Creates a block E as a useable polygon which can be added to a window directly.</em></p>
+<p><strong>Description:</strong></p>
+<p>Creates a polygon in the shape of a  block E, pointing in one of four directions. Arguments include position in window.</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;x&gt;</span></code> and <code class="docutils literal notranslate"><span class="pre">&lt;y&gt;</span></code> is the position of the center</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;h&gt;</span></code> and <code class="docutils literal notranslate"><span class="pre">&lt;w&gt;</span></code> or the size of the E in pixels</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;thickness&gt;</span></code> thickness of the E</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;direction&gt;</span></code> specifies which way the E points:  1=right,   2=down, 3=left, 4=up.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;color&gt;</span></code> is a color object (not just the name)</p>
+<p>Like other drawn objects, the Block E must then be added to the window to appear.</p>
+</li>
+</ul>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="k">define</span><span class="w"> </span><span class="nf">BlockE</span><span class="p">(...)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">win</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeWindow</span><span class="p">()</span>
+<span class="nv">e1</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">BlockE</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span><span class="mi">100</span><span class="p">,</span><span class="mi">40</span><span class="p">,</span><span class="mi">80</span><span class="p">,</span><span class="mi">10</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="nf">MakeColor</span><span class="p">(</span><span class="s2">&quot;black&quot;</span><span class="p">))</span>
+<span class="nf">AddObject</span><span class="p">(</span><span class="nv">e1</span><span class="p">,</span><span class="nv">win</span><span class="p">)</span>
+<span class="nf">Draw</span><span class="p">()</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#plus"><code class="xref py py-func docutils literal notranslate"><span class="pre">Plus()</span></code></a>, <a class="reference internal" href="peblobjects.html#polygon"><code class="xref py py-func docutils literal notranslate"><span class="pre">Polygon()</span></code></a>, <a class="reference internal" href="#makestarpoints"><code class="xref py py-func docutils literal notranslate"><span class="pre">MakeStarPoints()</span></code></a>,
+<a class="reference internal" href="#makengonpoints"><code class="xref py py-func docutils literal notranslate"><span class="pre">MakeNGonPoints()</span></code></a></p>
+</section>
+<section id="convexhull">
+<span id="index-1"></span><h2><a class="toc-backref" href="#id8" role="doc-backlink">ConvexHull()</a><a class="headerlink" href="#convexhull" title="Link to this heading">¶</a></h2>
+<p><em>Returns a convex subset of points for a set</em></p>
+<p><strong>Description:</strong></p>
+<p>Computes the convex hull of a set of [x,y]   points. It returns a set of points that forms the convex hull, with   the first and last point identical.  A convex hull is the set of   outermost points, such that a polygon connecting just those points   will encompass all other points, and such that no angle is acute.   It is used in MakeAttneave.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="k">define</span><span class="w"> </span><span class="nf">ConvexHull</span><span class="p">(...)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">pts</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="p">[[</span><span class="mf">0.579081</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0327737</span><span class="p">],</span>
+<span class="w">         </span><span class="p">[</span><span class="mf">0.0536094</span><span class="p">,</span><span class="w"> </span><span class="mf">0.378258</span><span class="p">],</span>
+<span class="w">         </span><span class="p">[</span><span class="mf">0.239628</span><span class="p">,</span><span class="w"> </span><span class="mf">0.187751</span><span class="p">],</span>
+<span class="w">         </span><span class="p">[</span><span class="mf">0.940625</span><span class="p">,</span><span class="w"> </span><span class="mf">0.26526</span><span class="p">],</span>
+<span class="w">         </span><span class="p">[</span><span class="mf">0.508748</span><span class="p">,</span><span class="w"> </span><span class="mf">0.840846</span><span class="p">],</span>
+<span class="w">         </span><span class="p">[</span><span class="mf">0.352604</span><span class="p">,</span><span class="w"> </span><span class="mf">0.200193</span><span class="p">],</span>
+<span class="w">         </span><span class="p">[</span><span class="mf">0.38684</span><span class="p">,</span><span class="w"> </span><span class="mf">0.212413</span><span class="p">],</span>
+<span class="w">         </span><span class="p">[</span><span class="mf">0.00114761</span><span class="p">,</span><span class="w"> </span><span class="mf">0.768165</span><span class="p">],</span>
+<span class="w">         </span><span class="p">[</span><span class="mf">0.432963</span><span class="p">,</span><span class="w"> </span><span class="mf">0.629412</span><span class="p">]]</span>
+<span class="w">  </span><span class="nf">Print</span><span class="p">(</span><span class="nf">ConvexHull</span><span class="p">(</span><span class="nv">pts</span><span class="p">))</span>
+
+
+
+<span class="nv">output</span><span class="o">:</span>
+
+<span class="p">[[</span><span class="mf">0.940625</span><span class="p">,</span><span class="w"> </span><span class="mf">0.26526</span><span class="p">]</span>
+<span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="mf">0.508748</span><span class="p">,</span><span class="w"> </span><span class="mf">0.840846</span><span class="p">]</span>
+<span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="mf">0.00114761</span><span class="p">,</span><span class="w"> </span><span class="mf">0.768165</span><span class="p">]</span>
+<span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="mf">0.0536094</span><span class="p">,</span><span class="w"> </span><span class="mf">0.378258</span><span class="p">]</span>
+<span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="mf">0.239628</span><span class="p">,</span><span class="w"> </span><span class="mf">0.187751</span><span class="p">]</span>
+<span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="mf">0.579081</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0327737</span><span class="p">]</span>
+<span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="mf">0.940625</span><span class="p">,</span><span class="w"> </span><span class="mf">0.26526</span><span class="p">]</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><code class="docutils literal notranslate"><span class="pre">MakeAttneave</span></code>,</p>
+</section>
+<section id="getangle">
+<span id="index-2"></span><h2><a class="toc-backref" href="#id9" role="doc-backlink">GetAngle()</a><a class="headerlink" href="#getangle" title="Link to this heading">¶</a></h2>
+<p><em>Returns the angle in degrees of a vector.</em></p>
+<p><strong>Description:</strong></p>
+<p>Gets  an angle (in degrees) from (0,0) of an x,y coordinate</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="k">define</span><span class="w"> </span><span class="nf">GetAngle</span><span class="p">(...)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="c1">##point sprite in the direction of a click</span>
+<span class="nv">sprite</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">LoadImage</span><span class="p">(</span><span class="s2">&quot;car.png&quot;</span><span class="p">)</span>
+<span class="nf">AddObject</span><span class="p">(</span><span class="nv">sprite</span><span class="p">,</span><span class="vg">gWin</span><span class="p">)</span>
+<span class="nf">Move</span><span class="p">(</span><span class="nv">sprite</span><span class="p">,</span><span class="mi">300</span><span class="p">,</span><span class="mi">300</span><span class="p">)</span>
+<span class="nv">xy</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">WaitForDownClick</span><span class="p">()</span>
+<span class="nv">newangle</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">GetAngle</span><span class="p">(</span><span class="nf">First</span><span class="p">(</span><span class="nv">xy</span><span class="p">)</span><span class="o">-</span><span class="mi">300</span><span class="p">,</span><span class="nf">Second</span><span class="p">(</span><span class="nv">xy</span><span class="p">)</span><span class="o">-</span><span class="mi">300</span><span class="p">)</span>
+<span class="nv">sprite.rotation</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nv">newangle</span>
+<span class="nf">Draw</span><span class="p">()</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><code class="docutils literal notranslate"><span class="pre">DegtoRad</span></code>, <code class="docutils literal notranslate"><span class="pre">RadToDeg</span></code></p>
+</section>
+<section id="getangle3">
+<span id="index-3"></span><h2><a class="toc-backref" href="#id10" role="doc-backlink">GetAngle3()</a><a class="headerlink" href="#getangle3" title="Link to this heading">¶</a></h2>
+<p><em>Gets angle abc.</em></p>
+<p><strong>Description:</strong></p>
+<p>Gets  an angle (in radians) of abc.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="k">define</span><span class="w"> </span><span class="nf">GetAngle3</span><span class="p">(...)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="w"> </span><span class="nv">a</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="p">[</span><span class="mf">0.579081</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0327737</span><span class="p">]</span>
+<span class="w"> </span><span class="nv">b</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="p">[</span><span class="mf">0.0536094</span><span class="p">,</span><span class="w"> </span><span class="mf">0.378258</span><span class="p">]</span>
+<span class="w"> </span><span class="nv">c</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="p">[</span><span class="mf">0.239628</span><span class="p">,</span><span class="w"> </span><span class="mf">0.187751</span><span class="p">]</span>
+
+<span class="nf">Print</span><span class="p">(</span><span class="nf">GetAngle3</span><span class="p">(</span><span class="nv">a</span><span class="p">,</span><span class="nv">b</span><span class="p">,</span><span class="nv">c</span><span class="p">))</span><span class="w"> </span><span class="c1">## .2157</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><code class="docutils literal notranslate"><span class="pre">DegtoRad</span></code>, <code class="docutils literal notranslate"><span class="pre">RadToDeg</span></code>, <code class="docutils literal notranslate"><span class="pre">GetAngle</span></code>, <code class="docutils literal notranslate"><span class="pre">ToRight</span></code></p>
+</section>
+<section id="kaniszapolygon">
+<span id="index-4"></span><h2><a class="toc-backref" href="#id11" role="doc-backlink">KaniszaPolygon()</a><a class="headerlink" href="#kaniszapolygon" title="Link to this heading">¶</a></h2>
+<p><strong>Description:</strong></p>
+<p>Creates generic polygon, defined only by with <a href="#id1"><span class="problematic" id="id2">``</span></a>pac-man’’ circles at specified vertices.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="k">define</span><span class="w"> </span><span class="nf">KaniszaPolygon</span><span class="p">(...)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span>F<span class="nv">or</span><span class="w"> </span><span class="nv">detailed</span><span class="w"> </span><span class="nv">usage</span><span class="w"> </span><span class="nv">example</span><span class="p">,</span><span class="w"> </span><span class="nv">see</span><span class="o">:</span><span class="w"> </span>`<span class="nv">http</span><span class="o">://</span><span class="nv">peblblog.blogspot</span><span class="p">.</span><span class="nv">com</span><span class="o">/</span><span class="mi">2010</span><span class="o">/</span><span class="mi">11</span><span class="o">/</span><span class="nv">kanizsa</span><span class="o">-</span><span class="nv">shapes.html</span>`
+P<span class="nv">art</span><span class="w"> </span><span class="nv">of</span><span class="w"> </span><span class="nv">a</span><span class="w"> </span><span class="nv">script</span><span class="w"> </span><span class="nv">using</span><span class="w"> </span>K<span class="nv">aniszaPolygon</span><span class="o">:</span>
+
+<span class="w">   </span><span class="c1">#Specify the xy points</span>
+<span class="w">   </span><span class="nv">xys</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="p">[[</span><span class="mi">10</span><span class="p">,</span><span class="mi">10</span><span class="p">],[</span><span class="mi">10</span><span class="p">,</span><span class="mi">50</span><span class="p">],[</span><span class="mi">130</span><span class="p">,</span><span class="mi">60</span><span class="p">],[</span><span class="mi">100</span><span class="p">,</span><span class="mi">100</span><span class="p">],[</span><span class="mi">150</span><span class="p">,</span><span class="mi">100</span><span class="p">],</span>
+<span class="w">           </span><span class="p">[</span><span class="mi">150</span><span class="p">,</span><span class="mi">20</span><span class="p">],[</span><span class="mi">80</span><span class="p">,</span><span class="o">-</span><span class="mi">10</span><span class="p">],[</span><span class="mi">45</span><span class="p">,</span><span class="mi">10</span><span class="p">]]</span>
+
+<span class="w">    </span><span class="c1">#Specify which vertices to show (do all)</span>
+<span class="w">    </span><span class="nv">show</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span>
+
+<span class="w">    </span><span class="c1">#Make one, showing the line</span>
+<span class="w">    </span><span class="nv">x</span><span class="w"> </span><span class="o">&lt;-</span><span class="w">  </span><span class="nf">KaniszaPolygon</span><span class="p">(</span><span class="nv">xys</span><span class="p">,</span><span class="nv">show</span><span class="p">,</span><span class="mi">10</span><span class="p">,</span><span class="nv">fg</span><span class="p">,</span><span class="nv">bg</span><span class="p">,</span><span class="mi">1</span><span class="p">)</span>
+<span class="w">    </span><span class="nf">AddObject</span><span class="p">(</span><span class="nv">x</span><span class="p">,</span><span class="vg">gWin</span><span class="p">);</span><span class="w">   </span><span class="nf">Move</span><span class="p">(</span><span class="nv">x</span><span class="p">,</span><span class="mi">200</span><span class="p">,</span><span class="mi">200</span><span class="p">)</span>
+
+<span class="w">    </span><span class="c1">#Make a second, not showing the line</span>
+<span class="w">    </span><span class="nv">x2</span><span class="w"> </span><span class="o">&lt;-</span><span class="w">  </span><span class="nf">KaniszaPolygon</span><span class="p">(</span><span class="nv">xys</span><span class="p">,</span><span class="nv">show</span><span class="p">,</span><span class="mi">10</span><span class="p">,</span><span class="nv">fg</span><span class="p">,</span><span class="nv">bg</span><span class="p">,</span><span class="mi">0</span><span class="p">)</span>
+<span class="w">    </span><span class="nf">AddObject</span><span class="p">(</span><span class="nv">x2</span><span class="p">,</span><span class="vg">gWin</span><span class="p">);</span><span class="w">   </span><span class="nf">Move</span><span class="p">(</span><span class="nv">x2</span><span class="p">,</span><span class="mi">400</span><span class="p">,</span><span class="mi">200</span><span class="p">)</span>
+
+<span class="w">    </span><span class="c1">#Make a third, only showing some vertices:</span>
+<span class="w">    </span><span class="nv">x3</span><span class="w"> </span><span class="o">&lt;-</span><span class="w">  </span><span class="nf">KaniszaPolygon</span><span class="p">(</span><span class="nv">xys</span><span class="p">,[</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">],</span><span class="mi">10</span><span class="p">,</span><span class="nv">fg</span><span class="p">,</span><span class="nv">bg</span><span class="p">,</span><span class="mi">0</span><span class="p">)</span>
+<span class="w">    </span><span class="nf">AddObject</span><span class="p">(</span><span class="nv">x3</span><span class="p">,</span><span class="vg">gWin</span><span class="p">);</span><span class="w">  </span><span class="nf">Move</span><span class="p">(</span><span class="nv">x3</span><span class="p">,</span><span class="mi">600</span><span class="p">,</span><span class="mi">200</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="peblobjects.html#polygon"><code class="xref py py-func docutils literal notranslate"><span class="pre">Polygon()</span></code></a>, <code class="xref py py-func docutils literal notranslate"><span class="pre">KaneszaSquare()</span></code></p>
+</section>
+<section id="kaniszasquare">
+<span id="index-5"></span><h2><a class="toc-backref" href="#id12" role="doc-backlink">KaniszaSquare()</a><a class="headerlink" href="#kaniszasquare" title="Link to this heading">¶</a></h2>
+<p><strong>Description:</strong></p>
+<p>Creates generic Kanesza Square, one defined only by with <a href="#id3"><span class="problematic" id="id4">``</span></a>pac-man’’ circles at its vertices:</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="k">define</span><span class="w"> </span><span class="nf">KaniszaSquare</span><span class="p">(...)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span>F<span class="nv">or</span><span class="w"> </span><span class="nv">detailed</span><span class="w"> </span><span class="nv">usage</span><span class="w"> </span><span class="nv">example</span><span class="p">,</span><span class="w"> </span><span class="nv">see</span>
+`<span class="nv">http</span><span class="o">://</span><span class="nv">peblblog.blogspot</span><span class="p">.</span><span class="nv">com</span><span class="o">/</span><span class="mi">2010</span><span class="o">/</span><span class="mi">11</span><span class="o">/</span><span class="nv">kanizsa</span><span class="o">-</span><span class="nv">shapes.html</span>`
+
+
+
+<span class="w">   </span><span class="vg">gWin</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeWindow</span><span class="p">()</span>
+<span class="w">   </span><span class="nv">square</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">KaniszaSquare</span><span class="p">(</span><span class="mi">150</span><span class="p">,</span><span class="mi">20</span><span class="p">,</span><span class="nf">MakeColor</span><span class="p">(</span><span class="s2">&quot;red&quot;</span><span class="p">),</span>
+<span class="w">                                  </span><span class="nf">MakeColor</span><span class="p">(</span><span class="s2">&quot;green&quot;</span><span class="p">))</span>
+<span class="w">   </span><span class="nf">AddObject</span><span class="p">(</span><span class="nv">square</span><span class="p">,</span><span class="vg">gWin</span><span class="p">)</span>
+<span class="w">   </span><span class="nf">Move</span><span class="p">(</span><span class="nv">square</span><span class="p">,</span><span class="mi">200</span><span class="p">,</span><span class="mi">200</span><span class="p">)</span>
+<span class="w">   </span><span class="nf">Draw</span><span class="p">()</span>
+<span class="w">   </span><span class="nf">WaitForAnyKeyPress</span><span class="p">()</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="peblobjects.html#polygon"><code class="xref py py-func docutils literal notranslate"><span class="pre">Polygon()</span></code></a>, <code class="xref py py-func docutils literal notranslate"><span class="pre">KaneszaPolygon()</span></code></p>
+</section>
+<section id="layoutgrid">
+<span id="index-6"></span><h2><a class="toc-backref" href="#id13" role="doc-backlink">LayoutGrid()</a><a class="headerlink" href="#layoutgrid" title="Link to this heading">¶</a></h2>
+<p><em>Creates [x,y] pairs in a grid for graphical layout</em></p>
+<p><strong>Description:</strong></p>
+<p>Creates a grid of x,y points in a range, that are  spaced in a specified number of rows and columns.  Furthermore, you can specify whether they are vertical or horizontally laid out.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="k">define</span><span class="w"> </span><span class="nf">LayoutGrid</span><span class="p">(...)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span>E<span class="nv">xample</span><span class="w"> </span>PEBL<span class="w"> </span>P<span class="nv">rogram</span><span class="w"> </span><span class="nv">using</span><span class="w"> </span>N<span class="nv">onoverlapLayout</span><span class="o">:</span>
+
+<span class="k">define</span><span class="w"> </span><span class="nf">Start</span><span class="p">(</span><span class="nv">p</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">   </span><span class="vg">gWin</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeWindow</span><span class="p">()</span>
+<span class="w">   </span><span class="vg">gVideoWidth</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="mi">800</span>
+<span class="w">   </span><span class="vg">gVideoHeight</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="mi">300</span>
+
+<span class="w">   </span><span class="nv">lab1</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">EasyLabel</span><span class="p">(</span><span class="s2">&quot;LayoutGrid, horizontal&quot;</span><span class="p">,</span>
+<span class="w">                     </span><span class="mi">200</span><span class="p">,</span><span class="mi">25</span><span class="p">,</span><span class="vg">gWin</span><span class="p">,</span><span class="mi">24</span><span class="p">)</span>
+<span class="w">   </span><span class="nv">lab2</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">EasyLabel</span><span class="p">(</span><span class="s2">&quot;LayoutGrid, vertical&quot;</span><span class="p">,</span>
+<span class="w">                     </span><span class="mi">600</span><span class="p">,</span><span class="mi">25</span><span class="p">,</span><span class="vg">gWin</span><span class="p">,</span><span class="mi">24</span><span class="p">)</span>
+<span class="w">   </span><span class="nv">nums</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">Sequence</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">20</span><span class="p">,</span><span class="mi">1</span><span class="p">)</span>
+<span class="w">   </span><span class="nv">stim1</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="p">[]</span>
+<span class="w">   </span><span class="nv">stim2</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="p">[]</span>
+
+<span class="w">   </span><span class="nv">font</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeFont</span><span class="p">(</span><span class="vg">gPeblBaseFont</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">25</span><span class="p">,</span>
+<span class="w">              </span><span class="nf">MakeColor</span><span class="p">(</span><span class="s2">&quot;black&quot;</span><span class="p">),</span><span class="nf">MakeColor</span><span class="p">(</span><span class="s2">&quot;white&quot;</span><span class="p">),</span><span class="mi">0</span><span class="p">)</span>
+<span class="w">   </span><span class="k">loop</span><span class="p">(</span><span class="nv">i</span><span class="p">,</span><span class="nv">nums</span><span class="p">)</span>
+<span class="w">   </span><span class="p">{</span>
+<span class="w">     </span><span class="nv">stim1</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">Append</span><span class="p">(</span><span class="nv">stim1</span><span class="p">,</span><span class="nf">MakeLabel</span><span class="p">(</span><span class="nv">i</span><span class="o">+</span><span class="s2">&quot;&quot;</span><span class="p">,</span><span class="nv">font</span><span class="p">))</span>
+<span class="w">     </span><span class="nv">stim2</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">Append</span><span class="p">(</span><span class="nv">stim2</span><span class="p">,</span><span class="nf">MakeLabel</span><span class="p">(</span><span class="nv">i</span><span class="o">+</span><span class="s2">&quot;&quot;</span><span class="p">,</span><span class="nv">font</span><span class="p">))</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">  </span><span class="nv">layout1</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">LayoutGrid</span><span class="p">(</span><span class="mi">50</span><span class="p">,</span><span class="vg">gVideoWidth</span><span class="o">/</span><span class="mi">2</span><span class="o">-</span><span class="mi">50</span><span class="p">,</span>
+<span class="w">                       </span><span class="mi">50</span><span class="p">,</span><span class="vg">gVideoHeight</span><span class="o">-</span><span class="mi">50</span><span class="p">,</span><span class="mi">5</span><span class="p">,</span><span class="mi">4</span><span class="p">,</span><span class="mi">0</span><span class="p">)</span>
+<span class="w">  </span><span class="nv">layout2</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">LayoutGrid</span><span class="p">(</span><span class="vg">gVideoWidth</span><span class="o">/</span><span class="mi">2</span><span class="o">+</span><span class="mi">50</span><span class="p">,</span><span class="vg">gVideoWidth</span><span class="o">-</span><span class="mi">50</span><span class="p">,</span>
+<span class="w">                       </span><span class="mi">50</span><span class="p">,</span><span class="vg">gVideoHeight</span><span class="o">-</span><span class="mi">50</span><span class="p">,</span><span class="mi">5</span><span class="p">,</span><span class="mi">4</span><span class="p">,</span><span class="mi">1</span><span class="p">)</span>
+
+
+<span class="w">  </span><span class="c1">##Now, layout the stuff.</span>
+
+<span class="w">  </span><span class="k">loop</span><span class="p">(</span><span class="nv">i</span><span class="p">,</span><span class="nf">Transpose</span><span class="p">([</span><span class="nv">stim1</span><span class="p">,</span><span class="nv">layout1</span><span class="p">]))</span>
+<span class="w">   </span><span class="p">{</span>
+<span class="w">      </span><span class="nv">obj</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">First</span><span class="p">(</span><span class="nv">i</span><span class="p">)</span>
+<span class="w">      </span><span class="nv">xy</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">Second</span><span class="p">(</span><span class="nv">i</span><span class="p">)</span>
+<span class="w">      </span><span class="nf">AddObject</span><span class="p">(</span><span class="nv">obj</span><span class="p">,</span><span class="vg">gWin</span><span class="p">)</span>
+<span class="w">      </span><span class="nf">Move</span><span class="p">(</span><span class="nv">obj</span><span class="p">,</span><span class="w"> </span><span class="nf">First</span><span class="p">(</span><span class="nv">xy</span><span class="p">),</span><span class="nf">Second</span><span class="p">(</span><span class="nv">xy</span><span class="p">))</span>
+<span class="w">   </span><span class="p">}</span>
+
+<span class="w">  </span><span class="k">loop</span><span class="p">(</span><span class="nv">i</span><span class="p">,</span><span class="nf">Transpose</span><span class="p">([</span><span class="nv">stim2</span><span class="p">,</span><span class="nv">layout2</span><span class="p">]))</span>
+<span class="w">   </span><span class="p">{</span>
+<span class="w">      </span><span class="nv">obj</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">First</span><span class="p">(</span><span class="nv">i</span><span class="p">)</span>
+<span class="w">      </span><span class="nv">xy</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">Second</span><span class="p">(</span><span class="nv">i</span><span class="p">)</span>
+<span class="w">      </span><span class="nf">AddObject</span><span class="p">(</span><span class="nv">obj</span><span class="p">,</span><span class="vg">gWin</span><span class="p">)</span>
+<span class="w">      </span><span class="nf">Move</span><span class="p">(</span><span class="nv">obj</span><span class="p">,</span><span class="w"> </span><span class="nf">First</span><span class="p">(</span><span class="nv">xy</span><span class="p">),</span><span class="nf">Second</span><span class="p">(</span><span class="nv">xy</span><span class="p">))</span>
+<span class="w">   </span><span class="p">}</span>
+
+<span class="w">  </span><span class="nf">Draw</span><span class="p">()</span>
+<span class="w">  </span><span class="nf">WaitForAnyKeyPress</span><span class="p">()</span>
+<span class="p">}</span>
+
+
+T<span class="nv">he</span><span class="w"> </span><span class="nv">output</span><span class="w"> </span><span class="nv">of</span><span class="w"> </span><span class="nv">the</span><span class="w"> </span><span class="nv">above</span><span class="w"> </span><span class="nv">program</span><span class="w"> </span><span class="nv">is</span><span class="w"> </span><span class="nv">shown</span><span class="w"> </span><span class="nv">below</span><span class="p">.</span><span class="w">  </span>E<span class="nv">ven</span><span class="w"> </span><span class="nv">for</span><span class="w"> </span><span class="nv">the</span><span class="w"> </span><span class="nv">left</span><span class="w"> </span><span class="nv">configuration</span><span class="p">,</span><span class="w"> </span><span class="nv">which</span><span class="w"> </span><span class="nv">is</span><span class="w"> </span><span class="nv">too</span><span class="w"> </span><span class="nv">compact</span><span class="w"> </span><span class="p">(</span><span class="k">and</span><span class="w"> </span><span class="nv">which</span><span class="w"> </span><span class="nv">takes</span><span class="w"> </span><span class="nv">a</span><span class="w"> </span><span class="nv">couple</span><span class="w"> </span><span class="nv">seconds</span><span class="w"> </span><span class="nv">to</span><span class="w"> </span><span class="nv">run</span><span class="p">),</span><span class="w"> </span><span class="nv">the</span><span class="w"> </span><span class="nv">targets</span><span class="w"> </span><span class="nv">are</span><span class="w"> </span><span class="nv">fairly</span><span class="w"> </span><span class="nv">well</span><span class="w"> </span><span class="nv">distributed</span><span class="p">.</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#nonoverlaplayout"><code class="xref py py-func docutils literal notranslate"><span class="pre">NonOverlapLayout()</span></code></a></p>
+</section>
+<section id="makeattneave">
+<span id="index-7"></span><h2><a class="toc-backref" href="#id14" role="doc-backlink">MakeAttneave()</a><a class="headerlink" href="#makeattneave" title="Link to this heading">¶</a></h2>
+<p><em>Makes a complex ``Attneave’’ polygon</em></p>
+<p><strong>Description:</strong></p>
+<p>Makes a random ‘Attneave’ figure((Collin, C. A., &amp; Mcmullen, P. A. (2002). Using Matlab to generate  families of similar Attneave shapes. Behavior Research Methods  Instruments and Computers, 34(1), 55-68.).). An Attneave figure is a complex polygon that can be used as a stimulus in a number of situations.  It returns a sequence of points for use in Polygon().  {} MakeAttneave uses ConvexHull,  InsertAttneavePointRandom() and ValidateAttneaveShape(), found in Graphics.pbl.  Override these to change constraints such as  minimum/maximum side lengths, angles, complexity, etc.  MakeAttneave uses a sampling-and-rejection scheme to create in-bounds shapes.  Thus, if you specify impossible or nearly-impossible constraints, the time necessary to create shapes may be very long or infinite.   The arguments to MakeAttneave are:</p>
+<ul class="simple">
+<li><p>size: size, in pixels, of a circle from which points are   sampled in a uniform distribution.</p></li>
+<li><p>numpoints: number of points in the polygon.</p></li>
+<li><p>minangle: smallest angle acceptable (in degrees).</p></li>
+<li><p>maxangle: largest angle acceptable  (in degrees).</p></li>
+</ul>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="k">define</span><span class="w"> </span><span class="nf">MakeAttneave</span><span class="p">(...)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="vg">gWin</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeWindow</span><span class="p">()</span>
+<span class="nv">shape</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeAttneave</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span><span class="mi">5</span><span class="o">+</span><span class="nf">RandomDiscrete</span><span class="p">(</span><span class="mi">5</span><span class="p">),</span><span class="mi">5</span><span class="p">,</span><span class="mi">170</span><span class="p">)</span>
+<span class="nv">pts</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">Transpose</span><span class="p">(</span><span class="nv">shape</span><span class="p">)</span>
+<span class="nv">poly</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">Polygon</span><span class="p">(</span><span class="mi">200</span><span class="p">,</span><span class="mi">200</span><span class="p">,</span><span class="nf">First</span><span class="p">(</span><span class="nv">pts</span><span class="p">),</span><span class="nf">Second</span><span class="p">(</span><span class="nv">pts</span><span class="p">),</span>
+<span class="w">                </span><span class="nf">MakeColor</span><span class="p">(</span><span class="s2">&quot;blue&quot;</span><span class="p">),</span><span class="mi">1</span><span class="p">)</span>
+<span class="nf">AddObject</span><span class="p">(</span><span class="nv">poly</span><span class="p">,</span><span class="vg">gWin</span><span class="p">)</span>
+<span class="nf">Draw</span><span class="p">()</span>
+<span class="nf">WaitForAnyKeyPress</span><span class="p">()</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="peblobjects.html#makeimage"><code class="xref py py-func docutils literal notranslate"><span class="pre">MakeImage()</span></code></a>, <a class="reference internal" href="peblobjects.html#polygon"><code class="xref py py-func docutils literal notranslate"><span class="pre">Polygon()</span></code></a>, <a class="reference internal" href="peblobjects.html#square"><code class="xref py py-func docutils literal notranslate"><span class="pre">Square()</span></code></a></p>
+</section>
+<section id="makegabor">
+<span id="index-8"></span><h2><a class="toc-backref" href="#id15" role="doc-backlink">MakeGabor()</a><a class="headerlink" href="#makegabor" title="Link to this heading">¶</a></h2>
+<p><em>Creates a ‘gabor patch’ with specified parameters</em></p>
+<p><strong>Description:</strong></p>
+<p>Creates a greyscale gabor patch, with seven variables:</p>
+<ul>
+<li><p>size (in pixels) of square the patch is drawn on</p></li>
+<li><p>freq: frequency of grating (number of wavelengths in size)</p></li>
+<li><p>sd: standard deviation, in pixels, of gaussian window</p></li>
+<li><p>angle: angle of rotation of grating, in radians</p></li>
+<li><p>phase: phase offset of grating (in radians)</p></li>
+<li><p>bglev: number between 0 and 255 indicating background color in greyscale.</p>
+<p>{ }</p>
+</li>
+</ul>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="k">define</span><span class="w"> </span><span class="nf">MakeGabor</span><span class="p">(...)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">win</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeWindow</span><span class="p">()</span>
+<span class="nv">patch</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeGabor</span><span class="p">(</span><span class="mi">80</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="mi">10</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">100</span><span class="p">)</span>
+<span class="nf">AddObject</span><span class="p">(</span><span class="nv">patch</span><span class="p">,</span><span class="nv">win</span><span class="p">)</span>
+<span class="nf">Move</span><span class="p">(</span><span class="nv">patch</span><span class="p">,</span><span class="mi">200</span><span class="p">,</span><span class="mi">200</span><span class="p">)</span>
+<span class="nf">Draw</span><span class="p">()</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#makeattneave"><code class="xref py py-func docutils literal notranslate"><span class="pre">MakeAttneave()</span></code></a>, <code class="xref py py-func docutils literal notranslate"><span class="pre">SetPixel()</span></code>, <a class="reference internal" href="peblobjects.html#makecanvas"><code class="xref py py-func docutils literal notranslate"><span class="pre">MakeCanvas()</span></code></a></p>
+</section>
+<section id="makegraph">
+<span id="index-9"></span><h2><a class="toc-backref" href="#id16" role="doc-backlink">MakeGraph()</a><a class="headerlink" href="#makegraph" title="Link to this heading">¶</a></h2>
+<p><strong>Description:</strong></p>
+<p>Creates a simple bargraph that can be added to/moved on a window..</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="k">define</span><span class="w"> </span><span class="nf">MakeGraph</span><span class="p">(...)</span>
+</pre></div>
+</div>
+</section>
+<section id="makengonpoints">
+<span id="index-10"></span><h2><a class="toc-backref" href="#id17" role="doc-backlink">MakeNGonPoints()</a><a class="headerlink" href="#makengonpoints" title="Link to this heading">¶</a></h2>
+<p><em>Creates points for a polygon, which can then be fed to Polygon</em></p>
+<p><strong>Description:</strong></p>
+<p>Creates a set of points that form a regular n-gon.  It can be transformed with functions like <code class="docutils literal notranslate"><span class="pre">RotatePoints</span></code>, or it can be  used to create a graphical object with <code class="docutils literal notranslate"><span class="pre">Polygon</span></code>.  Note: <code class="docutils literal notranslate"><span class="pre">MakeNGonPoints</span></code> returns a list like:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>  [[x1, x2, x3,...],[y1,y2,y3,...]],
+
+while Polygon() takes the X and Y lists independently.
+</pre></div>
+</div>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="k">define</span><span class="w"> </span><span class="nf">MakeNGonPoints</span><span class="p">(...)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">window</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeWindow</span><span class="p">()</span>
+<span class="nv">ngonp</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeNGonPoints</span><span class="p">(</span><span class="mi">50</span><span class="p">,</span><span class="mi">10</span><span class="p">)</span>
+<span class="nv">ngon</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">Polygon</span><span class="p">(</span><span class="mi">200</span><span class="p">,</span><span class="mi">200</span><span class="p">,</span><span class="nf">First</span><span class="p">(</span><span class="nv">ngonp</span><span class="p">),</span><span class="nf">Nth</span><span class="p">(</span><span class="nv">ngonp</span><span class="p">,</span><span class="mi">2</span><span class="p">),</span>
+<span class="w">                </span><span class="nf">MakeColor</span><span class="p">(</span><span class="s2">&quot;red&quot;</span><span class="p">),</span><span class="mi">1</span><span class="p">)</span>
+<span class="nf">AddObject</span><span class="p">(</span><span class="nv">ngon</span><span class="p">,</span><span class="nv">window</span><span class="p">)</span>
+<span class="nf">Draw</span><span class="p">()</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><code class="docutils literal notranslate"><span class="pre">MakeStarPoints</span></code>, <code class="docutils literal notranslate"><span class="pre">Polygon</span></code>, <code class="docutils literal notranslate"><span class="pre">RotatePoints</span></code>, <code class="docutils literal notranslate"><span class="pre">ZoomPoints</span></code></p>
+</section>
+<section id="makestarpoints">
+<span id="index-11"></span><h2><a class="toc-backref" href="#id18" role="doc-backlink">MakeStarPoints()</a><a class="headerlink" href="#makestarpoints" title="Link to this heading">¶</a></h2>
+<p><em>Creates points for a star, which can then be fed to Polygon</em></p>
+<p><strong>Description:</strong></p>
+<p>Creates a set of points that form a regular star.  It can be transformed with functions like <code class="docutils literal notranslate"><span class="pre">RotatePoints</span></code>, or it can be  used to create a graphical object with <code class="docutils literal notranslate"><span class="pre">Polygon</span></code>.  Note: <code class="docutils literal notranslate"><span class="pre">MakeStarPoints</span></code> returns a list:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>  [[x1, x2, x3,...],[y1,y2,y3,...]],
+
+while ``Polygon()`` takes the X and Y lists independently.
+</pre></div>
+</div>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="k">define</span><span class="w"> </span><span class="nf">MakeStarPoints</span><span class="p">(...)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">window</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeWindow</span><span class="p">()</span>
+<span class="nv">sp</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeStarPoints</span><span class="p">(</span><span class="mi">50</span><span class="p">,</span><span class="mi">20</span><span class="p">,</span><span class="mi">10</span><span class="p">)</span>
+<span class="nv">star</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">Polygon</span><span class="p">(</span><span class="mi">200</span><span class="p">,</span><span class="mi">200</span><span class="p">,</span><span class="nf">First</span><span class="p">(</span><span class="nv">sp</span><span class="p">),</span><span class="nf">Nth</span><span class="p">(</span><span class="nv">sp</span><span class="p">,</span><span class="mi">2</span><span class="p">),</span>
+<span class="w">                </span><span class="nf">MakeColor</span><span class="p">(</span><span class="s2">&quot;red&quot;</span><span class="p">),</span><span class="mi">1</span><span class="p">)</span>
+<span class="nf">AddObject</span><span class="p">(</span><span class="nv">star</span><span class="p">,</span><span class="nv">window</span><span class="p">)</span>
+<span class="nf">Draw</span><span class="p">()</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><code class="docutils literal notranslate"><span class="pre">MakeNGonPoints</span></code>, <code class="docutils literal notranslate"><span class="pre">Polygon</span></code>, <code class="docutils literal notranslate"><span class="pre">RotatePoints</span></code>, <code class="docutils literal notranslate"><span class="pre">ZoomPoints</span></code></p>
+</section>
+<section id="nonoverlaplayout">
+<span id="index-12"></span><h2><a class="toc-backref" href="#id19" role="doc-backlink">NonOverlapLayout()</a><a class="headerlink" href="#nonoverlaplayout" title="Link to this heading">¶</a></h2>
+<p><em>Creates a set of num points that don’t overlap, but fails gracefully</em></p>
+<p><strong>Description:</strong></p>
+<p>Creates a set of num points in a xy range, that have a (soft) minimum tolerance of ‘tol’ between points.  That is, to the extent possible, the returned points will have a minumum distance between them of <code class="docutils literal notranslate"><span class="pre">&lt;tol&gt;</span></code>.  This may not be possible or be very difficult, and so after a limited number of attempts (by default, 100), the algorithm will return the current configuration, which may have some violations of the minimum tolerance rule, but it will usually be fairly good.    The algorithm works by initializing with a random set of points, then computing a pairwise distance matrix between all points, finding the closest two points, and resampling one of them until its minumum distance is larger than the current.  Thus, each internal iteration uniformly improves (or keeps the configuration the same), and the worst points are reconfigured first, so that even if a configuration that does not satisfy the constraints, it will usually be very close.  Internally, the function (located in pebl-lib/Graphics.pbl) has a variable that controls how many steps are taken, called <a href="#id5"><span class="problematic" id="id6">``</span></a>limit’’, which is set to 100.  For very compacted or very large iterations, this limit can be increased by editing the file or making a copy of the function.    The function usually returns fairly quickly, so it can often be used real-time between trials.  However, for complex enough configurations, it can take on the order of seconds; furthermore, more  complex configurations might take longer than less complex configurations, which could represent a potential confound (if more complex stimuli have longer ISIs).  Users should thus consider creating the configurations when the test is initialized, or created prior to the study and then saved out to a file for later use.   newpage</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="k">define</span><span class="w"> </span><span class="nf">NonOverlapLayout</span><span class="p">(...)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span>E<span class="nv">xample</span><span class="w"> </span>PEBL<span class="w"> </span>P<span class="nv">rogram</span><span class="w"> </span><span class="nv">using</span><span class="w"> </span>N<span class="nv">onoverlapLayout</span><span class="o">:</span>
+
+<span class="k">define</span><span class="w"> </span><span class="nf">Start</span><span class="p">(</span><span class="nv">p</span><span class="p">)</span>
+<span class="w"> </span><span class="p">{</span>
+<span class="w">   </span><span class="nv">win</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeWindow</span><span class="p">()</span>
+<span class="w">   </span><span class="c1">## Make 25 points in a square in the middle</span>
+<span class="w">   </span><span class="c1">## of the screen, a minimum of 50 pixels apart.</span>
+<span class="w">   </span><span class="c1">## This is too compact, but it will be OK.</span>
+
+<span class="w">   </span><span class="nv">points</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">NonOverlapLayout</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span><span class="mi">300</span><span class="p">,</span><span class="mi">200</span><span class="p">,</span><span class="mi">400</span><span class="p">,</span><span class="mi">50</span><span class="p">,</span><span class="mi">25</span><span class="p">)</span>
+<span class="w">   </span><span class="nv">circs</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="p">[]</span>
+<span class="w">   </span><span class="c1">##This should non-overlapping circles of radius 25</span>
+<span class="w">   </span><span class="k">loop</span><span class="p">(</span><span class="nv">i</span><span class="p">,</span><span class="nv">points</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">       </span><span class="nv">tmp</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">Circle</span><span class="p">(</span><span class="nf">First</span><span class="p">(</span><span class="nv">i</span><span class="p">),</span><span class="nf">Second</span><span class="p">(</span><span class="nv">i</span><span class="p">),</span><span class="mi">25</span><span class="p">,</span>
+<span class="w">                     </span><span class="nf">MakeColor</span><span class="p">(</span><span class="s2">&quot;blue&quot;</span><span class="p">),</span><span class="mi">0</span><span class="p">)</span>
+<span class="w">       </span><span class="nf">AddObject</span><span class="p">(</span><span class="nv">tmp</span><span class="p">,</span><span class="nv">win</span><span class="p">)</span>
+<span class="w">       </span><span class="nv">circs</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">Append</span><span class="p">(</span><span class="nv">circs</span><span class="p">,</span><span class="nv">tmp</span><span class="p">)</span>
+<span class="w">    </span><span class="p">}</span>
+
+
+<span class="w">   </span><span class="nv">rect1</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">Square</span><span class="p">(</span><span class="mi">200</span><span class="p">,</span><span class="mi">300</span><span class="p">,</span><span class="mi">200</span><span class="p">,</span><span class="nf">MakeColor</span><span class="p">(</span><span class="s2">&quot;black&quot;</span><span class="p">),</span><span class="mi">0</span><span class="p">)</span>
+<span class="w">   </span><span class="nv">rect2</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">Square</span><span class="p">(</span><span class="mi">600</span><span class="p">,</span><span class="mi">300</span><span class="p">,</span><span class="mi">200</span><span class="p">,</span><span class="nf">MakeColor</span><span class="p">(</span><span class="s2">&quot;black&quot;</span><span class="p">),</span><span class="mi">0</span><span class="p">)</span>
+
+<span class="w">   </span><span class="nf">AddObject</span><span class="p">(</span><span class="nv">rect1</span><span class="p">,</span><span class="nv">win</span><span class="p">)</span>
+<span class="w">   </span><span class="nf">AddObject</span><span class="p">(</span><span class="nv">rect2</span><span class="p">,</span><span class="nv">win</span><span class="p">)</span>
+<span class="w">   </span><span class="c1">##Reduce the tolerance: this one should be bettter</span>
+<span class="w">   </span><span class="nv">points</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">NonOverlapLayout</span><span class="p">(</span><span class="mi">500</span><span class="p">,</span><span class="mi">700</span><span class="p">,</span><span class="mi">200</span><span class="p">,</span><span class="mi">400</span><span class="p">,</span><span class="mi">50</span><span class="p">,</span><span class="mi">15</span><span class="p">)</span>
+
+
+<span class="w">   </span><span class="c1">##This should non-overlapping circles of radius 15</span>
+<span class="w">   </span><span class="k">loop</span><span class="p">(</span><span class="nv">i</span><span class="p">,</span><span class="nv">points</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">       </span><span class="nv">tmp</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">Circle</span><span class="p">(</span><span class="nf">First</span><span class="p">(</span><span class="nv">i</span><span class="p">),</span><span class="nf">Second</span><span class="p">(</span><span class="nv">i</span><span class="p">),</span>
+<span class="w">                     </span><span class="mi">15</span><span class="p">,</span><span class="nf">MakeColor</span><span class="p">(</span><span class="s2">&quot;blue&quot;</span><span class="p">),</span><span class="mi">0</span><span class="p">)</span>
+<span class="w">       </span><span class="nf">AddObject</span><span class="p">(</span><span class="nv">tmp</span><span class="p">,</span><span class="nv">win</span><span class="p">)</span>
+<span class="w">        </span><span class="nv">circs</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">Append</span><span class="p">(</span><span class="nv">circs</span><span class="p">,</span><span class="nv">tmp</span><span class="p">)</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">   </span><span class="nf">Draw</span><span class="p">()</span>
+<span class="w">   </span><span class="nf">WaitForAnyKeyPress</span><span class="p">()</span>
+
+<span class="p">}</span>
+
+T<span class="nv">he</span><span class="w"> </span><span class="nv">output</span><span class="w"> </span><span class="nv">of</span><span class="w"> </span><span class="nv">the</span><span class="w"> </span><span class="nv">above</span><span class="w"> </span><span class="nv">program</span><span class="w"> </span><span class="nv">is</span><span class="w"> </span><span class="nv">shown</span><span class="w"> </span><span class="nv">below</span><span class="p">.</span><span class="w">  </span>E<span class="nv">ven</span><span class="w"> </span><span class="nv">for</span><span class="w"> </span><span class="nv">the</span><span class="w"> </span><span class="nv">left</span><span class="w"> </span><span class="nv">configuration</span><span class="p">,</span><span class="w"> </span><span class="nv">which</span><span class="w"> </span><span class="nv">is</span><span class="w"> </span><span class="nv">too</span><span class="w"> </span><span class="nv">compact</span><span class="w"> </span><span class="p">(</span><span class="k">and</span><span class="w"> </span><span class="nv">which</span><span class="w"> </span><span class="nv">takes</span><span class="w"> </span><span class="nv">a</span><span class="w"> </span><span class="nv">couple</span><span class="w"> </span><span class="nv">seconds</span><span class="w"> </span><span class="nv">to</span><span class="w"> </span><span class="nv">run</span><span class="p">),</span><span class="w"> </span><span class="nv">the</span><span class="w"> </span><span class="nv">targets</span><span class="w"> </span><span class="nv">are</span><span class="w"> </span><span class="nv">fairly</span><span class="w"> </span><span class="nv">well</span><span class="w"> </span><span class="nv">distributed</span><span class="p">.</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#layoutgrid"><code class="xref py py-func docutils literal notranslate"><span class="pre">LayoutGrid()</span></code></a></p>
+</section>
+<section id="plus">
+<span id="index-13"></span><h2><a class="toc-backref" href="#id20" role="doc-backlink">Plus()</a><a class="headerlink" href="#plus" title="Link to this heading">¶</a></h2>
+<p><em>Creates a plus sign as a useable polygon which can be added to a window directly.</em></p>
+<p><strong>Description:</strong></p>
+<p>Creates a polygon in the shape of a  plus sign. Arguments include position in window.</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;x&gt;</span></code> and <code class="docutils literal notranslate"><span class="pre">&lt;y&gt;</span></code> is the position of the center</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;size&gt;</span></code> or the size of the plus sign in pixels</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;width&gt;</span></code> thickness of the plus</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;color&gt;</span></code> is a color object (not just the name)</p>
+<p>Like other drawn objects, the plus must then be added to the window to appear.</p>
+</li>
+</ul>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="k">define</span><span class="w"> </span><span class="nf">Plus</span><span class="p">(...)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">win</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeWindow</span><span class="p">()</span>
+<span class="nv">p1</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">Plus</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span><span class="mi">100</span><span class="p">,</span><span class="mi">80</span><span class="p">,</span><span class="mi">15</span><span class="p">,</span><span class="nf">MakeColor</span><span class="p">(</span><span class="s2">&quot;red&quot;</span><span class="p">))</span>
+<span class="nf">AddObject</span><span class="p">(</span><span class="nv">p1</span><span class="p">,</span><span class="nv">win</span><span class="p">)</span>
+<span class="nf">Draw</span><span class="p">()</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#blocke"><code class="xref py py-func docutils literal notranslate"><span class="pre">BlockE()</span></code></a>, <a class="reference internal" href="peblobjects.html#polygon"><code class="xref py py-func docutils literal notranslate"><span class="pre">Polygon()</span></code></a>, <a class="reference internal" href="#makestarpoints"><code class="xref py py-func docutils literal notranslate"><span class="pre">MakeStarPoints()</span></code></a>,
+<a class="reference internal" href="#makengonpoints"><code class="xref py py-func docutils literal notranslate"><span class="pre">MakeNGonPoints()</span></code></a></p>
+</section>
+<section id="reflectpoints">
+<span id="index-14"></span><h2><a class="toc-backref" href="#id21" role="doc-backlink">ReflectPoints()</a><a class="headerlink" href="#reflectpoints" title="Link to this heading">¶</a></h2>
+<p><em>Reflects points on vertical axis</em></p>
+<p><strong>Description:</strong></p>
+<p>Takes a set of points (defined in a joined list  [[x1,x2,x3,…],[y1,y2,y3,…]] and reflects them around the vertical axis x=0, returning a similar [[x],[y]] list.  Identical to <code class="docutils literal notranslate"><span class="pre">ZoomPoints(pts,-1,1)</span></code></p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="k">define</span><span class="w"> </span><span class="nf">ReflectPoints</span><span class="p">(...)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">points</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="p">[[</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">,</span><span class="mi">4</span><span class="p">],[</span><span class="mi">20</span><span class="p">,</span><span class="mi">21</span><span class="p">,</span><span class="mi">22</span><span class="p">,</span><span class="mi">23</span><span class="p">]]</span>
+<span class="nv">newpoints</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">ReflectPoints</span><span class="p">(</span><span class="nv">points</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#zoompoints"><code class="xref py py-func docutils literal notranslate"><span class="pre">ZoomPoints()</span></code></a>, <a class="reference internal" href="#rotatepoints"><code class="xref py py-func docutils literal notranslate"><span class="pre">RotatePoints()</span></code></a></p>
+</section>
+<section id="resetcanvas">
+<span id="index-15"></span><h2><a class="toc-backref" href="#id22" role="doc-backlink">ResetCanvas()</a><a class="headerlink" href="#resetcanvas" title="Link to this heading">¶</a></h2>
+<p><em>Resets a canvas to its background, erasing anything drawn on the canvas</em></p>
+<p><strong>Description:</strong></p>
+<p>Resets a canvas, so that anything drawn onto it is   erased and returned to its background color.  Implemented by   resetting the background color to itself:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span> canvas.color &lt;- canvas.
+
+The function does not return the canvas,   but has the side effect of resetting it.
+</pre></div>
+</div>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="k">define</span><span class="w"> </span><span class="nf">ResetCanvas</span><span class="p">(...)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="c1">#create a canvas, add pixel noise, then reset and repeat.</span>
+<span class="k">define</span><span class="w"> </span><span class="nf">Start</span><span class="p">(</span><span class="nv">p</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">  </span><span class="vg">gWin</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeWindow</span><span class="p">()</span>
+<span class="w">  </span><span class="nv">canvas</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeCanvas</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span><span class="mi">100</span><span class="p">,</span><span class="nf">MakeColor</span><span class="p">(</span><span class="s2">&quot;black&quot;</span><span class="p">))</span>
+<span class="w">  </span><span class="nf">AddObject</span><span class="p">(</span><span class="nv">canvas</span><span class="p">,</span><span class="vg">gWin</span><span class="p">);</span><span class="w"> </span><span class="nf">Move</span><span class="p">(</span><span class="nv">canvas</span><span class="p">,</span><span class="mi">300</span><span class="p">,</span><span class="mi">300</span><span class="p">)</span>
+<span class="w">  </span><span class="nf">Draw</span><span class="p">()</span>
+<span class="w">  </span><span class="nv">white</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeColor</span><span class="p">(</span><span class="s2">&quot;white&quot;</span><span class="p">)</span>
+<span class="w">  </span><span class="c1">##add pixel noise</span>
+<span class="w">  </span><span class="nv">j</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="mi">1</span>
+<span class="w">  </span><span class="k">while</span><span class="p">(</span><span class="nv">j</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">5</span><span class="p">)</span>
+<span class="w">   </span><span class="p">{</span>
+<span class="w">  </span><span class="nv">i</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="mi">1</span>
+<span class="w">  </span><span class="k">while</span><span class="p">(</span><span class="nv">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">200</span><span class="p">)</span>
+<span class="w">   </span><span class="p">{</span>
+<span class="w">     </span><span class="nf">SetPixel</span><span class="p">(</span><span class="nv">canvas</span><span class="p">,</span><span class="nf">Round</span><span class="p">(</span><span class="nf">Random</span><span class="p">()</span><span class="o">*</span><span class="mi">100</span><span class="p">),</span>
+<span class="w">              </span><span class="nf">Round</span><span class="p">(</span><span class="nf">Random</span><span class="p">()</span><span class="o">*</span><span class="mi">100</span><span class="p">),</span><span class="nv">white</span><span class="p">)</span>
+<span class="w">     </span><span class="nv">i</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nv">i</span><span class="w"> </span><span class="o">+</span><span class="mi">1</span>
+<span class="w">   </span><span class="p">}</span>
+<span class="w">  </span><span class="nf">Draw</span><span class="p">()</span>
+<span class="w">  </span><span class="nf">WaitForAnyKeyPress</span><span class="p">()</span>
+<span class="w">  </span><span class="nf">ResetCanvas</span><span class="p">(</span><span class="nv">canvas</span><span class="p">)</span>
+<span class="w">  </span><span class="nf">Draw</span><span class="p">()</span>
+<span class="w">   </span><span class="nv">j</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nv">j</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="w">  </span><span class="nf">WaitForAnyKeyPress</span><span class="p">()</span>
+
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><code class="xref py py-func docutils literal notranslate"><span class="pre">SetPixel()</span></code>, <a class="reference internal" href="peblobjects.html#makecanvas"><code class="xref py py-func docutils literal notranslate"><span class="pre">MakeCanvas()</span></code></a>, <a class="reference internal" href="peblobjects.html#draw"><code class="xref py py-func docutils literal notranslate"><span class="pre">Draw()</span></code></a></p>
+</section>
+<section id="rgbtohsv">
+<span id="index-16"></span><h2><a class="toc-backref" href="#id23" role="doc-backlink">RGBtoHSV()</a><a class="headerlink" href="#rgbtohsv" title="Link to this heading">¶</a></h2>
+<p><em>Converts a color to HSV triple</em></p>
+<p><strong>Description:</strong></p>
+<p>Converts a color object to HSV values.  May be useful for computing color-space distances an so on.  No HSVtoRGB is currently implemented.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="k">define</span><span class="w"> </span><span class="nf">RGBtoHSV</span><span class="p">(...)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">x</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">RGBtoHSV</span><span class="p">(</span><span class="nf">MakeColor</span><span class="p">(</span>&quot;<span class="nv">red</span><span class="p">))</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="peblobjects.html#makecolor"><code class="xref py py-func docutils literal notranslate"><span class="pre">MakeColor()</span></code></a>, <a class="reference internal" href="peblobjects.html#makecolorrgb"><code class="xref py py-func docutils literal notranslate"><span class="pre">MakeColorRGB()</span></code></a></p>
+</section>
+<section id="rotatepoints">
+<span id="index-17"></span><h2><a class="toc-backref" href="#id24" role="doc-backlink">RotatePoints()</a><a class="headerlink" href="#rotatepoints" title="Link to this heading">¶</a></h2>
+<p><strong>Description:</strong></p>
+<p>Takes a set of points (defined in a joined list  <code class="docutils literal notranslate"><span class="pre">[[x1,x2,x3,...],</span></code> <code class="docutils literal notranslate"><span class="pre">[y1,y2,y3,...]]</span></code> and rotates them <code class="docutils literal notranslate"><span class="pre">&lt;angle&gt;</span></code> degrees around the point <code class="docutils literal notranslate"><span class="pre">[0,0]</span></code>,  returning a similar <code class="docutils literal notranslate"><span class="pre">[[x],[y]]</span></code> list.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="k">define</span><span class="w"> </span><span class="nf">RotatePoints</span><span class="p">(...)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">points</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="p">[[</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">,</span><span class="mi">4</span><span class="p">],[</span><span class="mi">20</span><span class="p">,</span><span class="mi">21</span><span class="p">,</span><span class="mi">22</span><span class="p">,</span><span class="mi">23</span><span class="p">]]</span>
+<span class="nv">newpoints</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">RotatePoints</span><span class="p">(</span><span class="nv">points</span><span class="p">,</span><span class="mi">10</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#zoompoints"><code class="xref py py-func docutils literal notranslate"><span class="pre">ZoomPoints()</span></code></a>, <a class="reference internal" href="#reflectpoints"><code class="xref py py-func docutils literal notranslate"><span class="pre">ReflectPoints()</span></code></a></p>
+</section>
+<section id="segmentsintersect">
+<span id="index-18"></span><h2><a class="toc-backref" href="#id25" role="doc-backlink">SegmentsIntersect()</a><a class="headerlink" href="#segmentsintersect" title="Link to this heading">¶</a></h2>
+<p><em>Determines whether line segment ab intersects cd.</em></p>
+<p><strong>Description:</strong></p>
+<p>Determines whether two line segments, defined by   four xy point pairs, intersect. Two line segments that share a   corner return 0, although they could be considered to intersect.  This function is defined in pebl-lib/Graphics.pbl</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="k">define</span><span class="w"> </span><span class="nf">SegmentsIntersect</span><span class="p">(...)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">SegmentsIntersect</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span>
+<span class="w">                  </span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">2</span><span class="p">)</span><span class="w">  </span><span class="c1">#0</span>
+
+<span class="c1">#returns 0, though they share (1,0)</span>
+<span class="nf">SegmentsIntersect</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span>
+<span class="w">                   </span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">2</span><span class="p">)</span>
+<span class="nf">SegmentsIntersect</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">3</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span>
+<span class="w">                  </span><span class="mi">2</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">0</span><span class="p">)</span><span class="w">  </span><span class="c1">#1</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><code class="docutils literal notranslate"><span class="pre">GetAngle3</span></code>, <code class="docutils literal notranslate"><span class="pre">ToRight</span></code></p>
+</section>
+<section id="toright">
+<span id="index-19"></span><h2><a class="toc-backref" href="#id26" role="doc-backlink">ToRight()</a><a class="headerlink" href="#toright" title="Link to this heading">¶</a></h2>
+<p><em>Determines whether p3 is te the right of line p1p2</em></p>
+<p><strong>Description:</strong></p>
+<p>Determines whether a point p3 is ‘to the right’   of a line segment defined by p1  to p2.  Works essentially by   computing the determinant.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="k">define</span><span class="w"> </span><span class="nf">ToRight</span><span class="p">(...)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">a</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="p">[</span><span class="mi">100</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span>
+<span class="nv">b</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="p">[</span><span class="mi">100</span><span class="p">,</span><span class="mi">100</span><span class="p">]</span>
+<span class="nv">c</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="p">[</span><span class="mi">150</span><span class="p">,</span><span class="mi">50</span><span class="p">]</span>
+<span class="nf">ToRight</span><span class="p">(</span><span class="nv">a</span><span class="p">,</span><span class="nv">b</span><span class="p">,</span><span class="nv">c</span><span class="p">)</span><span class="w"> </span><span class="c1"># returns 1; true</span>
+<span class="nf">ToRight</span><span class="p">(</span><span class="nv">b</span><span class="p">,</span><span class="nv">a</span><span class="p">,</span><span class="nv">c</span><span class="p">)</span><span class="w"> </span><span class="c1"># returns 0; false</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#getangle"><code class="xref py py-func docutils literal notranslate"><span class="pre">GetAngle()</span></code></a>, <a class="reference internal" href="#getangle3"><code class="xref py py-func docutils literal notranslate"><span class="pre">GetAngle3()</span></code></a>, <a class="reference internal" href="#segmentsintersect"><code class="xref py py-func docutils literal notranslate"><span class="pre">SegmentsIntersect()</span></code></a></p>
+</section>
+<section id="zoompoints">
+<span id="index-20"></span><h2><a class="toc-backref" href="#id27" role="doc-backlink">ZoomPoints()</a><a class="headerlink" href="#zoompoints" title="Link to this heading">¶</a></h2>
+<p><em>Zooms a set of points in 2 directions</em></p>
+<p><strong>Description:</strong></p>
+<p>Takes a set of points (defined in a joined list  [[x1,x2,x3,…],[y1,y2,y3,…]] and adjusts them in the x and y direction independently, returning a similar [[x],[y]] list.  Note: The original points should be centered at zero, because the get adjusted relative to zero, not relative to their center.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="k">define</span><span class="w"> </span><span class="nf">ZoomPoints</span><span class="p">(...)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">points</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="p">[[</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">,</span><span class="mi">4</span><span class="p">],[</span><span class="mi">20</span><span class="p">,</span><span class="mi">21</span><span class="p">,</span><span class="mi">22</span><span class="p">,</span><span class="mi">23</span><span class="p">]]</span>
+<span class="nv">newpoints</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">ZoomPoints</span><span class="p">(</span><span class="nv">points</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mf">.5</span><span class="p">)</span>
+<span class="c1">##Produces [[2,4,6,8],[10,11.5,11,11.5]]</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#rotatepoints"><code class="xref py py-func docutils literal notranslate"><span class="pre">RotatePoints()</span></code></a>, <a class="reference internal" href="#reflectpoints"><code class="xref py py-func docutils literal notranslate"><span class="pre">ReflectPoints()</span></code></a></p>
+</section>
+<section id="functions-pending-documentation">
+<h2><a class="toc-backref" href="#id28" role="doc-backlink">Functions Pending Documentation</a><a class="headerlink" href="#functions-pending-documentation" title="Link to this heading">¶</a></h2>
+</section>
+<section id="getmindist">
+<span id="index-21"></span><h2><a class="toc-backref" href="#id29" role="doc-backlink">GetMinDist()</a><a class="headerlink" href="#getmindist" title="Link to this heading">¶</a></h2>
+<p><em>Finds the minimum distance between any two points in a list</em></p>
+<p><strong>Description:</strong></p>
+<p>Computes and returns the minimum distance between any pair of points in a list of [x,y] coordinate pairs. This function examines all possible pairs of points and returns the smallest distance found. Useful for validating point distributions, checking spacing constraints, or analyzing geometric layouts.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="k">define</span><span class="w"> </span><span class="nf">GetMinDist</span><span class="p">(</span><span class="nv">pts</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">points</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="p">[[</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">],</span><span class="w"> </span><span class="p">[</span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">],</span><span class="w"> </span><span class="p">[</span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">],</span><span class="w"> </span><span class="p">[</span><span class="mi">100</span><span class="p">,</span><span class="w"> </span><span class="mi">100</span><span class="p">]]</span>
+<span class="nv">minDist</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">GetMinDist</span><span class="p">(</span><span class="nv">points</span><span class="p">)</span>
+<span class="nf">Print</span><span class="p">(</span><span class="nv">minDist</span><span class="p">)</span>
+<span class="c1"># Result: 7.07107  (distance between [5,5] and [10,0])</span>
+
+<span class="c1"># Check if points are spaced far enough apart</span>
+<span class="nv">layout</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">NonOverlapLayout</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span><span class="w"> </span><span class="mi">400</span><span class="p">,</span><span class="w"> </span><span class="mi">100</span><span class="p">,</span><span class="w"> </span><span class="mi">400</span><span class="p">,</span><span class="w"> </span><span class="mi">50</span><span class="p">,</span><span class="w"> </span><span class="mi">20</span><span class="p">)</span>
+<span class="nv">spacing</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">GetMinDist</span><span class="p">(</span><span class="nv">layout</span><span class="p">)</span>
+<span class="k">if</span><span class="p">(</span><span class="nv">spacing</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">50</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">   </span><span class="nf">Print</span><span class="p">(</span><span class="s2">&quot;Warning: some points are too close together&quot;</span><span class="p">)</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#nonoverlaplayout"><code class="xref py py-func docutils literal notranslate"><span class="pre">NonOverlapLayout()</span></code></a>, <a class="reference internal" href="math.html#dist"><code class="xref py py-func docutils literal notranslate"><span class="pre">Dist()</span></code></a></p>
+</section>
+<section id="hideobject">
+<span id="index-22"></span><h2><a class="toc-backref" href="#id30" role="doc-backlink">HideObject()</a><a class="headerlink" href="#hideobject" title="Link to this heading">¶</a></h2>
+<p><em>Hides a custom graphical object</em></p>
+<p><strong>Description:</strong></p>
+<p>Hides a custom graphical object by hiding its canvas. This function is designed for use with complex custom objects that have a <code class="docutils literal notranslate"><span class="pre">.canv</span></code> property containing their graphical representation. The object remains in memory but is not displayed until shown again with <code class="docutils literal notranslate"><span class="pre">ShowObject()</span></code>. This is useful for temporarily removing custom stimuli from view without destroying them.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="k">define</span><span class="w"> </span><span class="nf">HideObject</span><span class="p">(</span><span class="nv">obj</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="c1"># Create a custom object with a canvas</span>
+<span class="nv">myObject</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeCustomShape</span><span class="p">()</span><span class="w">  </span><span class="c1"># hypothetical function</span>
+
+<span class="c1"># Display the object</span>
+<span class="nf">ShowObject</span><span class="p">(</span><span class="nv">myObject</span><span class="p">)</span>
+<span class="nf">Draw</span><span class="p">()</span>
+<span class="nf">Wait</span><span class="p">(</span><span class="mi">1000</span><span class="p">)</span>
+
+<span class="c1"># Hide the object temporarily</span>
+<span class="nf">HideObject</span><span class="p">(</span><span class="nv">myObject</span><span class="p">)</span>
+<span class="nf">Draw</span><span class="p">()</span>
+<span class="nf">Wait</span><span class="p">(</span><span class="mi">1000</span><span class="p">)</span>
+
+<span class="c1"># Show it again</span>
+<span class="nf">ShowObject</span><span class="p">(</span><span class="nv">myObject</span><span class="p">)</span>
+<span class="nf">Draw</span><span class="p">()</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#showobject"><code class="xref py py-func docutils literal notranslate"><span class="pre">ShowObject()</span></code></a>, <a class="reference internal" href="peblobjects.html#hide"><code class="xref py py-func docutils literal notranslate"><span class="pre">Hide()</span></code></a>, <a class="reference internal" href="peblobjects.html#show"><code class="xref py py-func docutils literal notranslate"><span class="pre">Show()</span></code></a></p>
+</section>
+<section id="landoltring">
+<span id="index-23"></span><h2><a class="toc-backref" href="#id31" role="doc-backlink">LandoltRing()</a><a class="headerlink" href="#landoltring" title="Link to this heading">¶</a></h2>
+<p><em>Creates a Landolt C ring stimulus for visual acuity testing</em></p>
+<p><strong>Description:</strong></p>
+<p>Creates a Landolt C (also known as Landolt ring), a classic visual acuity stimulus used in optometry and vision research. The Landolt C is a ring with a gap at a specified angular position. Subjects identify the location of the gap to assess visual acuity. The function returns a canvas object containing the rendered stimulus.</p>
+<p>The Landolt C was introduced by Edmund Landolt in 1888 (Landolt, E. Methode optométrique simple. <em>Bull Mem Soc Fran Ophtalmol.</em> 1888;6:213–4) and remains a standard stimulus in visual psychophysics and clinical vision testing.</p>
+<p>Parameters:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">outer</span></code>: Outer diameter of the ring in pixels</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">inner</span></code>: Inner diameter (size of the central hole) in pixels</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">angle</span></code>: Angular position of the gap in degrees (0=right, 90=down, 180=left, 270=up)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">lgap</span></code>: Width of the gap in pixels</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">color</span></code>: Color object for the ring</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">bgcolor</span></code>: Color object for the background and gap</p></li>
+</ul>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="k">define</span><span class="w"> </span><span class="nf">LandoltRing</span><span class="p">(</span><span class="nv">outer</span><span class="p">,</span><span class="w"> </span><span class="nv">inner</span><span class="p">,</span><span class="w"> </span><span class="nv">angle</span><span class="p">,</span><span class="w"> </span><span class="nv">lgap</span><span class="p">,</span><span class="w"> </span><span class="nv">color</span><span class="p">,</span><span class="w"> </span><span class="nv">bgcolor</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="vg">gWin</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeWindow</span><span class="p">()</span>
+<span class="nv">black</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeColor</span><span class="p">(</span><span class="s2">&quot;black&quot;</span><span class="p">)</span>
+<span class="nv">white</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeColor</span><span class="p">(</span><span class="s2">&quot;white&quot;</span><span class="p">)</span>
+
+<span class="c1"># Create a Landolt C with gap on the right (0 degrees)</span>
+<span class="nv">ring1</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">LandoltRing</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span><span class="w"> </span><span class="mi">60</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">20</span><span class="p">,</span><span class="w"> </span><span class="nv">black</span><span class="p">,</span><span class="w"> </span><span class="nv">white</span><span class="p">)</span>
+<span class="nf">AddObject</span><span class="p">(</span><span class="nv">ring1</span><span class="p">,</span><span class="w"> </span><span class="vg">gWin</span><span class="p">)</span>
+<span class="nf">Move</span><span class="p">(</span><span class="nv">ring1</span><span class="p">,</span><span class="w"> </span><span class="mi">200</span><span class="p">,</span><span class="w"> </span><span class="mi">200</span><span class="p">)</span>
+
+<span class="c1"># Create a smaller ring with gap at bottom (90 degrees)</span>
+<span class="nv">ring2</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">LandoltRing</span><span class="p">(</span><span class="mi">60</span><span class="p">,</span><span class="w"> </span><span class="mi">40</span><span class="p">,</span><span class="w"> </span><span class="mi">90</span><span class="p">,</span><span class="w"> </span><span class="mi">12</span><span class="p">,</span><span class="w"> </span><span class="nv">black</span><span class="p">,</span><span class="w"> </span><span class="nv">white</span><span class="p">)</span>
+<span class="nf">AddObject</span><span class="p">(</span><span class="nv">ring2</span><span class="p">,</span><span class="w"> </span><span class="vg">gWin</span><span class="p">)</span>
+<span class="nf">Move</span><span class="p">(</span><span class="nv">ring2</span><span class="p">,</span><span class="w"> </span><span class="mi">400</span><span class="p">,</span><span class="w"> </span><span class="mi">200</span><span class="p">)</span>
+
+<span class="c1"># Create rings at different orientations for acuity test</span>
+<span class="nv">angles</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">45</span><span class="p">,</span><span class="w"> </span><span class="mi">90</span><span class="p">,</span><span class="w"> </span><span class="mi">135</span><span class="p">,</span><span class="w"> </span><span class="mi">180</span><span class="p">,</span><span class="w"> </span><span class="mi">225</span><span class="p">,</span><span class="w"> </span><span class="mi">270</span><span class="p">,</span><span class="w"> </span><span class="mi">315</span><span class="p">]</span>
+<span class="k">loop</span><span class="p">(</span><span class="nv">i</span><span class="p">,</span><span class="w"> </span><span class="nf">Sequence</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="nf">Length</span><span class="p">(</span><span class="nv">angles</span><span class="p">),</span><span class="w"> </span><span class="mi">1</span><span class="p">))</span>
+<span class="p">{</span>
+<span class="w">   </span><span class="nv">ring</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">LandoltRing</span><span class="p">(</span><span class="mi">80</span><span class="p">,</span><span class="w"> </span><span class="mi">50</span><span class="p">,</span><span class="w"> </span><span class="nf">Nth</span><span class="p">(</span><span class="nv">angles</span><span class="p">,</span><span class="w"> </span><span class="nv">i</span><span class="p">),</span><span class="w"> </span><span class="mi">15</span><span class="p">,</span><span class="w"> </span><span class="nv">black</span><span class="p">,</span><span class="w"> </span><span class="nv">white</span><span class="p">)</span>
+<span class="w">   </span><span class="nf">AddObject</span><span class="p">(</span><span class="nv">ring</span><span class="p">,</span><span class="w"> </span><span class="vg">gWin</span><span class="p">)</span>
+<span class="w">   </span><span class="nf">Move</span><span class="p">(</span><span class="nv">ring</span><span class="p">,</span><span class="w"> </span><span class="mi">100</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nv">i</span><span class="o">*</span><span class="mi">80</span><span class="p">,</span><span class="w"> </span><span class="mi">300</span><span class="p">)</span>
+<span class="p">}</span>
+
+<span class="nf">Draw</span><span class="p">()</span>
+<span class="nf">WaitForAnyKeyPress</span><span class="p">()</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="peblobjects.html#circle"><code class="xref py py-func docutils literal notranslate"><span class="pre">Circle()</span></code></a>, <a class="reference internal" href="#blocke"><code class="xref py py-func docutils literal notranslate"><span class="pre">BlockE()</span></code></a>, <a class="reference internal" href="peblobjects.html#makecanvas"><code class="xref py py-func docutils literal notranslate"><span class="pre">MakeCanvas()</span></code></a></p>
+</section>
+<section id="maketable">
+<span id="index-24"></span><h2><a class="toc-backref" href="#id32" role="doc-backlink">MakeTable()</a><a class="headerlink" href="#maketable" title="Link to this heading">¶</a></h2>
+<p><em>Creates a formatted table display with headers and data</em></p>
+<p><strong>Description:</strong></p>
+<p>Creates a visual table object containing data arranged in rows and columns with headers. Returns a custom table object drawn on a canvas that can be added to a window and positioned like other graphical objects. The table includes horizontal rules separating the header from data and bordering the table. Headers can be multi-row (nested lists). Useful for displaying results, feedback, or structured information to participants.</p>
+<p>Parameters:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">data</span></code>: Nested list of data values (rows × columns)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">header</span></code>: List of column headers (can be nested for multi-row headers)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">width</span></code>: Total width of the table in pixels</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">height</span></code>: Total height of the table in pixels</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">fontsize</span></code>: Base font size for table text</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">fgcol</span></code>: Foreground color object for text and lines</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">bgcolor</span></code>: Background color object for the table</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">layout</span></code>: Layout mode (default: 1)</p></li>
+</ul>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="k">define</span><span class="w"> </span><span class="nf">MakeTable</span><span class="p">(</span><span class="nv">data</span><span class="p">,</span><span class="w"> </span><span class="nv">header</span><span class="p">,</span><span class="w"> </span><span class="nv">width</span><span class="p">,</span><span class="w"> </span><span class="nv">height</span><span class="p">,</span><span class="w"> </span><span class="nv">fontsize</span><span class="p">,</span><span class="w"> </span><span class="nv">fgcol</span><span class="p">,</span><span class="w"> </span><span class="nv">bgcol</span><span class="p">,</span><span class="w"> </span><span class="nv">layout</span><span class="o">:</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="vg">gWin</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeWindow</span><span class="p">()</span>
+<span class="nv">black</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeColor</span><span class="p">(</span><span class="s2">&quot;black&quot;</span><span class="p">)</span>
+<span class="nv">white</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeColor</span><span class="p">(</span><span class="s2">&quot;white&quot;</span><span class="p">)</span>
+
+<span class="c1"># Create a simple results table</span>
+<span class="nv">headers</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;Trial&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;RT (ms)&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;Accuracy&quot;</span><span class="p">]</span>
+<span class="nv">data</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="p">[[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">523</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;Correct&quot;</span><span class="p">],</span>
+<span class="w">         </span><span class="p">[</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">456</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;Correct&quot;</span><span class="p">],</span>
+<span class="w">         </span><span class="p">[</span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="mi">678</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;Error&quot;</span><span class="p">],</span>
+<span class="w">         </span><span class="p">[</span><span class="mi">4</span><span class="p">,</span><span class="w"> </span><span class="mi">501</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;Correct&quot;</span><span class="p">]]</span>
+
+<span class="nv">table</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeTable</span><span class="p">(</span><span class="nv">data</span><span class="p">,</span><span class="w"> </span><span class="nv">headers</span><span class="p">,</span><span class="w"> </span><span class="mi">400</span><span class="p">,</span><span class="w"> </span><span class="mi">300</span><span class="p">,</span><span class="w"> </span><span class="mi">16</span><span class="p">,</span><span class="w"> </span><span class="nv">black</span><span class="p">,</span><span class="w"> </span><span class="nv">white</span><span class="p">)</span>
+<span class="nf">AddObject</span><span class="p">(</span><span class="nv">table.canv</span><span class="p">,</span><span class="w"> </span><span class="vg">gWin</span><span class="p">)</span>
+<span class="nf">Move</span><span class="p">(</span><span class="nv">table.canv</span><span class="p">,</span><span class="w"> </span><span class="mi">400</span><span class="p">,</span><span class="w"> </span><span class="mi">300</span><span class="p">)</span>
+<span class="nf">Draw</span><span class="p">()</span>
+<span class="nf">WaitForAnyKeyPress</span><span class="p">()</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="peblobjects.html#makecanvas"><code class="xref py py-func docutils literal notranslate"><span class="pre">MakeCanvas()</span></code></a>, <a class="reference internal" href="peblobjects.html#makelabel"><code class="xref py py-func docutils literal notranslate"><span class="pre">MakeLabel()</span></code></a>, <a class="reference internal" href="utility.html#easylabel"><code class="xref py py-func docutils literal notranslate"><span class="pre">EasyLabel()</span></code></a></p>
+</section>
+<section id="showobject">
+<span id="index-25"></span><h2><a class="toc-backref" href="#id33" role="doc-backlink">ShowObject()</a><a class="headerlink" href="#showobject" title="Link to this heading">¶</a></h2>
+<p><em>Shows a custom graphical object</em></p>
+<p><strong>Description:</strong></p>
+<p>Shows a custom graphical object by displaying its canvas. This function is designed for use with complex custom objects that have a <code class="docutils literal notranslate"><span class="pre">.canv</span></code> property containing their graphical representation. Use this to display objects that were previously hidden with <code class="docutils literal notranslate"><span class="pre">HideObject()</span></code> or to initially display custom objects after creation. The object must have been created with a canvas property for this function to work properly.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="k">define</span><span class="w"> </span><span class="nf">ShowObject</span><span class="p">(</span><span class="nv">obj</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="c1"># Create a custom object with a canvas</span>
+<span class="nv">myObject</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeCustomShape</span><span class="p">()</span><span class="w">  </span><span class="c1"># hypothetical function</span>
+
+<span class="c1"># Initially hide the object</span>
+<span class="nf">HideObject</span><span class="p">(</span><span class="nv">myObject</span><span class="p">)</span>
+<span class="nf">Draw</span><span class="p">()</span>
+
+<span class="c1"># Wait for user input</span>
+<span class="nf">WaitForAnyKeyPress</span><span class="p">()</span>
+
+<span class="c1"># Now show the object</span>
+<span class="nf">ShowObject</span><span class="p">(</span><span class="nv">myObject</span><span class="p">)</span>
+<span class="nf">Draw</span><span class="p">()</span>
+
+<span class="c1"># Toggle visibility</span>
+<span class="k">if</span><span class="p">(</span><span class="nv">someCondition</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">   </span><span class="nf">ShowObject</span><span class="p">(</span><span class="nv">myObject</span><span class="p">)</span>
+<span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">   </span><span class="nf">HideObject</span><span class="p">(</span><span class="nv">myObject</span><span class="p">)</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#hideobject"><code class="xref py py-func docutils literal notranslate"><span class="pre">HideObject()</span></code></a>, <a class="reference internal" href="peblobjects.html#show"><code class="xref py py-func docutils literal notranslate"><span class="pre">Show()</span></code></a>, <a class="reference internal" href="peblobjects.html#hide"><code class="xref py py-func docutils literal notranslate"><span class="pre">Hide()</span></code></a></p>
+</section>
+<section id="functions-under-investigation">
+<h2><a class="toc-backref" href="#id34" role="doc-backlink">Functions Under Investigation</a><a class="headerlink" href="#functions-under-investigation" title="Link to this heading">¶</a></h2>
+</section>
+<section id="thickline2">
+<span id="index-26"></span><h2><a class="toc-backref" href="#id35" role="doc-backlink">ThickLine2()</a><a class="headerlink" href="#thickline2" title="Link to this heading">¶</a></h2>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p><strong>Under investigation.</strong> This function’s status is being reviewed.</p>
+</div>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="k">define</span><span class="w"> </span><span class="nf">ThickLine2</span><span class="p">(</span><span class="nv">x1</span><span class="p">,</span><span class="nv">y1</span><span class="p">,</span><span class="nv">x2</span><span class="p">,</span><span class="nv">y2</span><span class="p">,</span><span class="nv">size</span><span class="p">,</span><span class="nv">color</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">PEBL Function Reference</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Built-in Namespaces:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="peblenvironment.html">Environment</a></li>
+<li class="toctree-l1"><a class="reference internal" href="pebllist.html">Lists</a></li>
+<li class="toctree-l1"><a class="reference internal" href="peblobjects.html">Graphics &amp; Objects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="peblstream.html">File &amp; Network</a></li>
+<li class="toctree-l1"><a class="reference internal" href="peblstring.html">Strings</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Library Functions:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="design.html">Design</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Graphics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="html.html">HTML</a></li>
+<li class="toctree-l1"><a class="reference internal" href="math.html">Math</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ui.html">UI</a></li>
+<li class="toctree-l1"><a class="reference internal" href="utility.html">Utility</a></li>
+</ul>
+
+
+<hr />
+<ul>
+    
+    <li class="toctree-l1"><a href="../genindex.html">Function Index</a></li>
+    
+    <li class="toctree-l1"><a href="../documentation.html">PEBL Documentation</a></li>
+    
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="design.html" title="previous chapter">Design Library - Experimental Design</a></li>
+      <li>Next: <a href="html.html" title="next chapter">HTML Library - HTML Generation</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2025, Shane T. Mueller.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 7.2.6</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/reference/graphics.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

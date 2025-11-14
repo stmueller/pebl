@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>PEBLStream - File and Network I/O &#8212; PEBL Function Reference</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css?v=cb25574f" />
+    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=4c664190" />
+    <script src="../_static/documentation_options.js?v=c4a36953"></script>
+    <script src="../_static/doctools.js?v=888ff710"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="PEBLString - String Manipulation" href="peblstring.html" />
+    <link rel="prev" title="PEBLObjects - Graphics and Objects" href="peblobjects.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="peblstream-file-and-network-i-o">
+<h1>PEBLStream - File and Network I/O<a class="headerlink" href="#peblstream-file-and-network-i-o" title="Link to this heading">¶</a></h1>
+<p>This module contains functions for file I/O, network communication, and data streaming.</p>
+<nav class="contents local" id="function-index">
+<p class="topic-title">Function Index</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="#appendfile" id="id1">AppendFile()</a></p></li>
+<li><p><a class="reference internal" href="#acceptnetworkconnection" id="id2">AcceptNetworkConnection()</a></p></li>
+<li><p><a class="reference internal" href="#checkfornetworkconnection" id="id3">CheckForNetworkConnection()</a></p></li>
+<li><p><a class="reference internal" href="#closenetworkconnection" id="id4">CloseNetworkConnection()</a></p></li>
+<li><p><a class="reference internal" href="#connecttohost" id="id5">ConnectToHost()</a></p></li>
+<li><p><a class="reference internal" href="#connecttoip" id="id6">ConnectToIP()</a></p></li>
+<li><p><a class="reference internal" href="#copyfile" id="id7">CopyFile()</a></p></li>
+<li><p><a class="reference internal" href="#endoffile" id="id8">EndOfFile()</a></p></li>
+<li><p><a class="reference internal" href="#endofline" id="id9">EndOfLine()</a></p></li>
+<li><p><a class="reference internal" href="#fileclose" id="id10">FileClose()</a></p></li>
+<li><p><a class="reference internal" href="#fileopenappend" id="id11">FileOpenAppend()</a></p></li>
+<li><p><a class="reference internal" href="#fileopenoverwrite" id="id12">FileOpenOverwrite()</a></p></li>
+<li><p><a class="reference internal" href="#fileopenread" id="id13">FileOpenRead()</a></p></li>
+<li><p><a class="reference internal" href="#fileopenwrite" id="id14">FileOpenWrite()</a></p></li>
+<li><p><a class="reference internal" href="#fileprint" id="id15">FilePrint()</a></p></li>
+<li><p><a class="reference internal" href="#filereadcharacter" id="id16">FileReadCharacter()</a></p></li>
+<li><p><a class="reference internal" href="#filereadline" id="id17">FileReadLine()</a></p></li>
+<li><p><a class="reference internal" href="#filereadlist" id="id18">FileReadList()</a></p></li>
+<li><p><a class="reference internal" href="#filereadtable" id="id19">FileReadTable()</a></p></li>
+<li><p><a class="reference internal" href="#filereadtext" id="id20">FileReadText()</a></p></li>
+<li><p><a class="reference internal" href="#filereadword" id="id21">FileReadWord()</a></p></li>
+<li><p><a class="reference internal" href="#getdata" id="id22">GetData()</a></p></li>
+<li><p><a class="reference internal" href="#getmyipaddress" id="id23">GetMyIPAddress()</a></p></li>
+<li><p><a class="reference internal" href="#getpportstate" id="id24">GetPPortState()</a></p></li>
+<li><p><a class="reference internal" href="#opencomport" id="id25">OpenCOMPort()</a></p></li>
+<li><p><a class="reference internal" href="#opennetworklistener" id="id26">OpenNetworkListener()</a></p></li>
+<li><p><a class="reference internal" href="#openpport" id="id27">OpenPPort()</a></p></li>
+<li><p><a class="reference internal" href="#parsejson" id="id28">ParseJSON()</a></p></li>
+<li><p><a class="reference internal" href="#print" id="id29">Print()</a></p></li>
+<li><p><a class="reference internal" href="#senddata" id="id30">SendData()</a></p></li>
+<li><p><a class="reference internal" href="#setnetworkport" id="id31">SetNetworkPort()</a></p></li>
+<li><p><a class="reference internal" href="#setpportmode" id="id32">SetPPortMode()</a></p></li>
+<li><p><a class="reference internal" href="#setpportstate" id="id33">SetPPortState()</a></p></li>
+<li><p><a class="reference internal" href="#waitfornetworkconnection" id="id34">WaitForNetworkConnection()</a></p></li>
+<li><p><a class="reference internal" href="#writepng" id="id35">WritePNG()</a></p></li>
+<li><p><a class="reference internal" href="#comportgetbyte" id="id36">COMPortGetByte()</a></p></li>
+<li><p><a class="reference internal" href="#comportsendbyte" id="id37">COMPortSendByte()</a></p></li>
+<li><p><a class="reference internal" href="#gethttpfile" id="id38">GetHTTPFile()</a></p></li>
+<li><p><a class="reference internal" href="#gethttptext" id="id39">GetHTTPText()</a></p></li>
+<li><p><a class="reference internal" href="#posthttp" id="id40">PostHTTP()</a></p></li>
+<li><p><a class="reference internal" href="#posthttpfile" id="id41">PostHTTPFile()</a></p></li>
+</ul>
+</nav>
+<section id="appendfile">
+<span id="index-0"></span><h2><a class="toc-backref" href="#id1" role="doc-backlink">AppendFile()</a><a class="headerlink" href="#appendfile" title="Link to this heading">¶</a></h2>
+<p><em>Appends a file2 to file1</em></p>
+<p><strong>Description:</strong></p>
+<p>Appends onto the end of <code class="docutils literal notranslate"><span class="pre">&lt;file1&gt;</span></code> the contents of <code class="docutils literal notranslate"><span class="pre">&lt;file2&gt;</span></code>.  Useful for compiling pooled data at the end of an experiment.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">AppendFile</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">file1</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">file2</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#fileopenwrite"><code class="xref py py-func docutils literal notranslate"><span class="pre">FileOpenWrite()</span></code></a> , <a class="reference internal" href="#fileopenappend"><code class="xref py py-func docutils literal notranslate"><span class="pre">FileOpenAppend()</span></code></a></p>
+</section>
+<section id="acceptnetworkconnection">
+<span id="index-1"></span><h2><a class="toc-backref" href="#id2" role="doc-backlink">AcceptNetworkConnection()</a><a class="headerlink" href="#acceptnetworkconnection" title="Link to this heading">¶</a></h2>
+<p><em>Accepts an incoming network connection on a listening port</em></p>
+<p><strong>Description:</strong></p>
+<p>Accepts an incoming TCP/IP connection on a network listener that was opened using <code class="docutils literal notranslate"><span class="pre">OpenNetworkListener()</span></code>. Returns a network connection object that can be used to send and receive data. This is typically used after <code class="docutils literal notranslate"><span class="pre">CheckForNetworkConnection()</span></code> confirms a connection is available.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">AcceptNetworkConnection</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">listener</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">port</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">listener</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">OpenNetworkListener</span><span class="p">(</span><span class="mi">4444</span><span class="p">)</span>
+<span class="k">if</span><span class="p">(</span><span class="nf">CheckForNetworkConnection</span><span class="p">(</span><span class="nv">listener</span><span class="p">))</span>
+<span class="p">{</span>
+<span class="w">   </span><span class="nv">connection</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">AcceptNetworkConnection</span><span class="p">(</span><span class="nv">listener</span><span class="p">,</span><span class="w"> </span><span class="mi">4444</span><span class="p">)</span>
+<span class="w">   </span><span class="nf">SendData</span><span class="p">(</span><span class="nv">connection</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;Hello client!&quot;</span><span class="p">)</span>
+<span class="w">   </span><span class="nf">CloseNetworkConnection</span><span class="p">(</span><span class="nv">connection</span><span class="p">)</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#opennetworklistener"><code class="xref py py-func docutils literal notranslate"><span class="pre">OpenNetworkListener()</span></code></a>, <a class="reference internal" href="#checkfornetworkconnection"><code class="xref py py-func docutils literal notranslate"><span class="pre">CheckForNetworkConnection()</span></code></a>, <a class="reference internal" href="#waitfornetworkconnection"><code class="xref py py-func docutils literal notranslate"><span class="pre">WaitForNetworkConnection()</span></code></a>, <a class="reference internal" href="#closenetworkconnection"><code class="xref py py-func docutils literal notranslate"><span class="pre">CloseNetworkConnection()</span></code></a></p>
+</section>
+<section id="checkfornetworkconnection">
+<span id="index-2"></span><h2><a class="toc-backref" href="#id3" role="doc-backlink">CheckForNetworkConnection()</a><a class="headerlink" href="#checkfornetworkconnection" title="Link to this heading">¶</a></h2>
+<p><strong>Description:</strong></p>
+<p>Checks to see if there is an incoming TCP/IP connection on a network that is opened using <code class="docutils literal notranslate"><span class="pre">OpenNetworkListener</span></code>.  This is an alternative to the <code class="docutils literal notranslate"><span class="pre">WaitForNetworkConnection</span></code> function that allows more flexibility (and allows updating the during waiting for the connection).</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">net</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">CheckForNetwokConnection</span><span class="p">(</span><span class="nv">network</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">network</span><span class="w"> </span><span class="o">&lt;-</span><span class="w">      </span><span class="nf">OpenNetworkListener</span><span class="p">(</span><span class="mi">4444</span><span class="p">)</span>
+<span class="w">  </span><span class="nv">time</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">GetTime</span><span class="p">()</span>
+<span class="w">  </span><span class="k">while</span><span class="p">(</span><span class="k">not</span><span class="w"> </span><span class="nv">connected</span><span class="w"> </span><span class="k">and</span><span class="w"> </span><span class="p">(</span><span class="nf">GetTime</span><span class="p">()</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="nv">time</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">5000</span><span class="p">))</span>
+<span class="w">   </span><span class="p">{</span>
+<span class="w">      </span><span class="nv">connected</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">CheckForNetwokConnection</span><span class="p">(</span><span class="nv">network</span><span class="p">)</span>
+<span class="w">   </span><span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#opennetworklistener"><code class="xref py py-func docutils literal notranslate"><span class="pre">OpenNetworkListener()</span></code></a>, <code class="xref py py-func docutils literal notranslate"><span class="pre">Getdata()</span></code>, <a class="reference internal" href="#waitfornetworkconnection"><code class="xref py py-func docutils literal notranslate"><span class="pre">WaitForNetworkConnection()</span></code></a>, <code class="xref py py-func docutils literal notranslate"><span class="pre">CloseNetwork()</span></code></p>
+</section>
+<section id="closenetworkconnection">
+<span id="index-3"></span><h2><a class="toc-backref" href="#id4" role="doc-backlink">CloseNetworkConnection()</a><a class="headerlink" href="#closenetworkconnection" title="Link to this heading">¶</a></h2>
+<p><strong>Description:</strong></p>
+<p>Closes network connection</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">CloseNetwork</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">network</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">net</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">WaitForNetworkConnection</span><span class="p">(</span><span class="s2">&quot;localhost&quot;</span><span class="p">,</span><span class="mi">1234</span><span class="p">)</span>
+<span class="nf">SendData</span><span class="p">(</span><span class="nv">net</span><span class="p">,</span><span class="s2">&quot;Watson, come here. I need you.&quot;</span><span class="p">)</span>
+<span class="nf">CloseNetworkConnection</span><span class="p">(</span><span class="nv">net</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#connecttoip"><code class="xref py py-func docutils literal notranslate"><span class="pre">ConnectToIP()</span></code></a>, <a class="reference internal" href="#connecttohost"><code class="xref py py-func docutils literal notranslate"><span class="pre">ConnectToHost()</span></code></a>,  <a class="reference internal" href="#waitfornetworkconnection"><code class="xref py py-func docutils literal notranslate"><span class="pre">WaitForNetworkConnection()</span></code></a>, <a class="reference internal" href="#getdata"><code class="xref py py-func docutils literal notranslate"><span class="pre">GetData()</span></code></a>,  <a class="reference internal" href="#senddata"><code class="xref py py-func docutils literal notranslate"><span class="pre">SendData()</span></code></a>, <a class="reference internal" href="utility.html#convertipstring"><code class="xref py py-func docutils literal notranslate"><span class="pre">ConvertIPString()</span></code></a></p>
+</section>
+<section id="connecttohost">
+<span id="index-4"></span><h2><a class="toc-backref" href="#id5" role="doc-backlink">ConnectToHost()</a><a class="headerlink" href="#connecttohost" title="Link to this heading">¶</a></h2>
+<p><em>Connects to a port on another computer, returning network object.</em></p>
+<p><strong>Description:</strong></p>
+<p>Connects to a host computer waiting for a   connection on &lt;port&gt;, returning a network object that can be used to   communicate.  Host is a text hostname, like <code class="docutils literal notranslate"><span class="pre">&quot;myname.indiana.edu&quot;</span></code>, or   use <code class="docutils literal notranslate"><span class="pre">&quot;localhost&quot;</span></code> to specify your current computer.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">ConnectToHost</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">hostname</span><span class="o">&gt;</span><span class="p">,</span><span class="o">&lt;</span><span class="nv">port</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#connecttoip"><code class="xref py py-func docutils literal notranslate"><span class="pre">ConnectToIP()</span></code></a>, <a class="reference internal" href="#getdata"><code class="xref py py-func docutils literal notranslate"><span class="pre">GetData()</span></code></a>,  <a class="reference internal" href="#waitfornetworkconnection"><code class="xref py py-func docutils literal notranslate"><span class="pre">WaitForNetworkConnection()</span></code></a>, <a class="reference internal" href="#senddata"><code class="xref py py-func docutils literal notranslate"><span class="pre">SendData()</span></code></a>, <a class="reference internal" href="utility.html#convertipstring"><code class="xref py py-func docutils literal notranslate"><span class="pre">ConvertIPString()</span></code></a>, <a class="reference internal" href="#closenetworkconnection"><code class="xref py py-func docutils literal notranslate"><span class="pre">CloseNetworkConnection()</span></code></a></p>
+</section>
+<section id="connecttoip">
+<span id="index-5"></span><h2><a class="toc-backref" href="#id6" role="doc-backlink">ConnectToIP()</a><a class="headerlink" href="#connecttoip" title="Link to this heading">¶</a></h2>
+<p><em>Connects to a port on another computer, returning network object.</em></p>
+<p><strong>Description:</strong></p>
+<p>Connects to a host computer waiting for a   connection on <code class="docutils literal notranslate"><span class="pre">&lt;port&gt;</span></code>, returning a network object that can be used to   communicate.  <code class="docutils literal notranslate"><span class="pre">&lt;ip&gt;</span></code> is a numeric ip address, which must be   created with the <code class="docutils literal notranslate"><span class="pre">ConvertIPString(ip)</span></code> function.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">ConnectToIP</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">ip</span><span class="o">&gt;</span><span class="p">,</span><span class="o">&lt;</span><span class="nv">port</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#connecttohost"><code class="xref py py-func docutils literal notranslate"><span class="pre">ConnectToHost()</span></code></a>, <a class="reference internal" href="#getdata"><code class="xref py py-func docutils literal notranslate"><span class="pre">GetData()</span></code></a>, <a class="reference internal" href="#waitfornetworkconnection"><code class="xref py py-func docutils literal notranslate"><span class="pre">WaitForNetworkConnection()</span></code></a>, <a class="reference internal" href="#senddata"><code class="xref py py-func docutils literal notranslate"><span class="pre">SendData()</span></code></a>, <a class="reference internal" href="utility.html#convertipstring"><code class="xref py py-func docutils literal notranslate"><span class="pre">ConvertIPString()</span></code></a>, <a class="reference internal" href="#closenetworkconnection"><code class="xref py py-func docutils literal notranslate"><span class="pre">CloseNetworkConnection()</span></code></a></p>
+</section>
+<section id="copyfile">
+<span id="index-6"></span><h2><a class="toc-backref" href="#id7" role="doc-backlink">CopyFile()</a><a class="headerlink" href="#copyfile" title="Link to this heading">¶</a></h2>
+<p><em>Makes a copy of a file</em></p>
+<p><strong>Description:</strong></p>
+<p>This makes a copy of a specified file, by  Copying the contents of one file to another.         This makes the copy byte-by-byte (so should work for binary data).  It is probably better to use a systemcall function to make a copy of an entire file at once. This is likely to be slower and possibly error-prone (i.e., permissions and other file properties may not copy.), but it is a useful cross-platform solution to creating a new file based on others.  It copies by name from the current working directory.</p>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">base</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="s2">&quot;template.txt&quot;</span>
+<span class="nf">CopyFile</span><span class="p">(</span><span class="nv">base</span><span class="p">,</span><span class="s2">&quot;newfile.txt&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="peblenvironment.html#deletefile"><code class="xref py py-func docutils literal notranslate"><span class="pre">DeleteFile()</span></code></a>, <a class="reference internal" href="#appendfile"><code class="xref py py-func docutils literal notranslate"><span class="pre">AppendFile()</span></code></a> , <a class="reference internal" href="peblenvironment.html#fileexists"><code class="xref py py-func docutils literal notranslate"><span class="pre">FileExists()</span></code></a></p>
+</section>
+<section id="endoffile">
+<span id="index-7"></span><h2><a class="toc-backref" href="#id8" role="doc-backlink">EndOfFile()</a><a class="headerlink" href="#endoffile" title="Link to this heading">¶</a></h2>
+<p><em>Returns true if at the end of a file</em></p>
+<p><strong>Description:</strong></p>
+<p>Returns true if at the end of a file.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">EndOfFile</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">filestream</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="k">while</span><span class="p">(</span><span class="k">not</span><span class="w"> </span><span class="nf">EndOfFile</span><span class="p">(</span><span class="nv">fstream</span><span class="p">))</span>
+<span class="p">{</span>
+<span class="w"> </span><span class="nf">Print</span><span class="p">(</span><span class="nf">FileReadLine</span><span class="p">(</span><span class="nv">fstream</span><span class="p">))</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="endofline">
+<span id="index-8"></span><h2><a class="toc-backref" href="#id9" role="doc-backlink">EndOfLine()</a><a class="headerlink" href="#endofline" title="Link to this heading">¶</a></h2>
+<p><em>Returns true if at end of line</em></p>
+<p><strong>Description:</strong></p>
+<p>Returns true if at end of line.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">EndOfLine</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">filestream</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="fileclose">
+<span id="index-9"></span><h2><a class="toc-backref" href="#id10" role="doc-backlink">FileClose()</a><a class="headerlink" href="#fileclose" title="Link to this heading">¶</a></h2>
+<p><em>Closes a filestream variable. Pass the variable name, not the filename</em></p>
+<p><strong>Description:</strong></p>
+<p>Closes a filestream  variable.  Be sure to              pass the variable name, not the filename.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">FileClose</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">filestream</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">x</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">FileOpenRead</span><span class="p">(</span><span class="s2">&quot;file.txt&quot;</span><span class="p">)</span>
+<span class="c1"># Do relevant stuff here.</span>
+<span class="nf">FileClose</span><span class="p">(</span><span class="nv">x</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#fileopenappend"><code class="xref py py-func docutils literal notranslate"><span class="pre">FileOpenAppend()</span></code></a>, <a class="reference internal" href="#fileopenread"><code class="xref py py-func docutils literal notranslate"><span class="pre">FileOpenRead()</span></code></a>, <a class="reference internal" href="#fileopenwrite"><code class="xref py py-func docutils literal notranslate"><span class="pre">FileOpenWrite()</span></code></a></p>
+</section>
+<section id="fileopenappend">
+<span id="index-10"></span><h2><a class="toc-backref" href="#id11" role="doc-backlink">FileOpenAppend()</a><a class="headerlink" href="#fileopenappend" title="Link to this heading">¶</a></h2>
+<p><em>Opens a filename, returning a stream that can be used for writing info. Appends if the file already exists, opens if file does not</em></p>
+<p><strong>Description:</strong></p>
+<p>Opens a filename, returning a stream that can be   used for writing information.  Appends if the file already exists.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">FileOpenAppend</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">filename</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#fileclose"><code class="xref py py-func docutils literal notranslate"><span class="pre">FileClose()</span></code></a>, <a class="reference internal" href="#fileopenread"><code class="xref py py-func docutils literal notranslate"><span class="pre">FileOpenRead()</span></code></a>, <a class="reference internal" href="#fileopenwrite"><code class="xref py py-func docutils literal notranslate"><span class="pre">FileOpenWrite()</span></code></a>,  <code class="xref py py-func docutils literal notranslate"><span class="pre">FileOpenOverWrite()</span></code></p>
+</section>
+<section id="fileopenoverwrite">
+<span id="index-11"></span><h2><a class="toc-backref" href="#id12" role="doc-backlink">FileOpenOverwrite()</a><a class="headerlink" href="#fileopenoverwrite" title="Link to this heading">¶</a></h2>
+<p><em>Opens a filename, returning a stream that can be used for writing information. Overwrites if file already exists</em></p>
+<p><strong>Description:</strong></p>
+<p>Opens a filename, returning a stream that can be   used for writing information.  Overwrites if file already exists.   This function should not be used for opening data files; instead,   use FileOpenWrite, which saves to a backup file if the specified   file already exists.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">FileOpenOverWrite</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">filename</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#fileclose"><code class="xref py py-func docutils literal notranslate"><span class="pre">FileClose()</span></code></a>, <a class="reference internal" href="#fileopenappend"><code class="xref py py-func docutils literal notranslate"><span class="pre">FileOpenAppend()</span></code></a>, <a class="reference internal" href="#fileopenread"><code class="xref py py-func docutils literal notranslate"><span class="pre">FileOpenRead()</span></code></a>  <a class="reference internal" href="#fileopenwrite"><code class="xref py py-func docutils literal notranslate"><span class="pre">FileOpenWrite()</span></code></a></p>
+</section>
+<section id="fileopenread">
+<span id="index-12"></span><h2><a class="toc-backref" href="#id13" role="doc-backlink">FileOpenRead()</a><a class="headerlink" href="#fileopenread" title="Link to this heading">¶</a></h2>
+<p><em>Opens a filename, returning a stream to be used for reading information</em></p>
+<p><strong>Description:</strong></p>
+<p>Opens a filename, returning  a stream to be used                for reading information.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">FileOpenRead</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">filename</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#fileclose"><code class="xref py py-func docutils literal notranslate"><span class="pre">FileClose()</span></code></a>, <a class="reference internal" href="#fileopenappend"><code class="xref py py-func docutils literal notranslate"><span class="pre">FileOpenAppend()</span></code></a>, <a class="reference internal" href="#fileopenwrite"><code class="xref py py-func docutils literal notranslate"><span class="pre">FileOpenWrite()</span></code></a>, <code class="xref py py-func docutils literal notranslate"><span class="pre">FileOpenOverWrite()</span></code></p>
+</section>
+<section id="fileopenwrite">
+<span id="index-13"></span><h2><a class="toc-backref" href="#id14" role="doc-backlink">FileOpenWrite()</a><a class="headerlink" href="#fileopenwrite" title="Link to this heading">¶</a></h2>
+<p><em>Opens a filename, returning a stream that can be used for writing information. Creates new file if file already exists</em></p>
+<p><strong>Description:</strong></p>
+<p>Opens a filename, returning a stream that can be   used for writing information.  If the specified filename exists, it   won’t overwrite that file.  Instead, it will create a related   filename, appending a -integer before the filename extension.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">FileOpenWrite</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">filename</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#fileclose"><code class="xref py py-func docutils literal notranslate"><span class="pre">FileClose()</span></code></a>, <a class="reference internal" href="#fileopenappend"><code class="xref py py-func docutils literal notranslate"><span class="pre">FileOpenAppend()</span></code></a>, <a class="reference internal" href="#fileopenread"><code class="xref py py-func docutils literal notranslate"><span class="pre">FileOpenRead()</span></code></a>, <code class="xref py py-func docutils literal notranslate"><span class="pre">FileOpenOverWrite()</span></code></p>
+</section>
+<section id="fileprint">
+<span id="index-14"></span><h2><a class="toc-backref" href="#id15" role="doc-backlink">FilePrint()</a><a class="headerlink" href="#fileprint" title="Link to this heading">¶</a></h2>
+<p><strong>Description:</strong></p>
+<p>Like <code class="docutils literal notranslate"><span class="pre">Print_</span></code>, but to a file.  Prints a   string to a file,   without appending a newline character.  Returns a   copy of the string it prints.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">FilePrint_</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">filestream</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">value</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">FilePrint_</span><span class="p">(</span><span class="nv">fstream</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;This line doesn&#39;t end.&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><code class="xref py py-func docutils literal notranslate"><span class="pre">Print_()</span></code>, <a class="reference internal" href="#fileprint"><code class="xref py py-func docutils literal notranslate"><span class="pre">FilePrint()</span></code></a></p>
+</section>
+<section id="filereadcharacter">
+<span id="index-15"></span><h2><a class="toc-backref" href="#id16" role="doc-backlink">FileReadCharacter()</a><a class="headerlink" href="#filereadcharacter" title="Link to this heading">¶</a></h2>
+<p><em>Reads and returns a single character from a filestream</em></p>
+<p><strong>Description:</strong></p>
+<p>Reads and returns a single character from a filestream.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">FileReadCharacter</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">filestream</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#filereadlist"><code class="xref py py-func docutils literal notranslate"><span class="pre">FileReadList()</span></code></a>, <a class="reference internal" href="#filereadtable"><code class="xref py py-func docutils literal notranslate"><span class="pre">FileReadTable()</span></code></a>    <a class="reference internal" href="#filereadline"><code class="xref py py-func docutils literal notranslate"><span class="pre">FileReadLine()</span></code></a>,      <a class="reference internal" href="#filereadtext"><code class="xref py py-func docutils literal notranslate"><span class="pre">FileReadText()</span></code></a>,         <a class="reference internal" href="#filereadword"><code class="xref py py-func docutils literal notranslate"><span class="pre">FileReadWord()</span></code></a>,</p>
+</section>
+<section id="filereadline">
+<span id="index-16"></span><h2><a class="toc-backref" href="#id17" role="doc-backlink">FileReadLine()</a><a class="headerlink" href="#filereadline" title="Link to this heading">¶</a></h2>
+<p><em>Reads and returns a line from a file; all characters up until the next newline or the end of the file</em></p>
+<p><strong>Description:</strong></p>
+<p>Reads and returns a line from a file; all characters up                 until the next newline or the end of the file.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">FileReadLine</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">filestream</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#filereadcharacter"><code class="xref py py-func docutils literal notranslate"><span class="pre">FileReadCharacter()</span></code></a>, <a class="reference internal" href="#filereadlist"><code class="xref py py-func docutils literal notranslate"><span class="pre">FileReadList()</span></code></a>, <a class="reference internal" href="#filereadtable"><code class="xref py py-func docutils literal notranslate"><span class="pre">FileReadTable()</span></code></a>, <a class="reference internal" href="#filereadtext"><code class="xref py py-func docutils literal notranslate"><span class="pre">FileReadText()</span></code></a>, <a class="reference internal" href="#filereadword"><code class="xref py py-func docutils literal notranslate"><span class="pre">FileReadWord()</span></code></a></p>
+</section>
+<section id="filereadlist">
+<span id="index-17"></span><h2><a class="toc-backref" href="#id18" role="doc-backlink">FileReadList()</a><a class="headerlink" href="#filereadlist" title="Link to this heading">¶</a></h2>
+<p><em>Given a filename, will open it, read in all the items into a list (one item per line), and close the file afterwards</em></p>
+<p><strong>Description:</strong></p>
+<p>Given a filename, will open it, read in all the   items into a list (one item per line), and close the file afterward.   Ignores blank lines or lines starting with <code class="docutils literal notranslate"><span class="pre">#</span></code>.  Useful with a   number of pre-defined data files stored in <code class="docutils literal notranslate"><span class="pre">media/text/</span></code>.  See   Section~ref{sec:media}: Provided Media Files.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">FileReadList</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">filename</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">FileReadList</span><span class="p">(</span><span class="s2">&quot;data.txt&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#filereadcharacter"><code class="xref py py-func docutils literal notranslate"><span class="pre">FileReadCharacter()</span></code></a>, <a class="reference internal" href="#filereadtable"><code class="xref py py-func docutils literal notranslate"><span class="pre">FileReadTable()</span></code></a>    <a class="reference internal" href="#filereadline"><code class="xref py py-func docutils literal notranslate"><span class="pre">FileReadLine()</span></code></a>,         <a class="reference internal" href="#filereadtext"><code class="xref py py-func docutils literal notranslate"><span class="pre">FileReadText()</span></code></a>,         <a class="reference internal" href="#filereadword"><code class="xref py py-func docutils literal notranslate"><span class="pre">FileReadWord()</span></code></a>,</p>
+</section>
+<section id="filereadtable">
+<span id="index-18"></span><h2><a class="toc-backref" href="#id19" role="doc-backlink">FileReadTable()</a><a class="headerlink" href="#filereadtable" title="Link to this heading">¶</a></h2>
+<p><strong>Description:</strong></p>
+<p>Reads a table directly from a file. Data in file should                 separated by spaces.  Reads each line onto a sublist,           with space-separated tokens as items in sublist.  Ignores               blank lines or lines beginning with <code class="docutils literal notranslate"><span class="pre">#</span></code>. Optionally,          specify a token separator other than space.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">FileReadTable</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">filename</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">optional</span><span class="o">-</span><span class="nv">separator</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">a</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">FileReadTable</span><span class="p">(</span><span class="s2">&quot;data.txt&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#filereadcharacter"><code class="xref py py-func docutils literal notranslate"><span class="pre">FileReadCharacter()</span></code></a>, <a class="reference internal" href="#filereadlist"><code class="xref py py-func docutils literal notranslate"><span class="pre">FileReadList()</span></code></a>, <a class="reference internal" href="#filereadline"><code class="xref py py-func docutils literal notranslate"><span class="pre">FileReadLine()</span></code></a>, <a class="reference internal" href="#filereadtext"><code class="xref py py-func docutils literal notranslate"><span class="pre">FileReadText()</span></code></a>, <a class="reference internal" href="#filereadword"><code class="xref py py-func docutils literal notranslate"><span class="pre">FileReadWord()</span></code></a></p>
+</section>
+<section id="filereadtext">
+<span id="index-19"></span><h2><a class="toc-backref" href="#id20" role="doc-backlink">FileReadText()</a><a class="headerlink" href="#filereadtext" title="Link to this heading">¶</a></h2>
+<p><em>Reads all of the text in the file into a variable</em></p>
+<p><strong>Description:</strong></p>
+<p>Returns all of the text from a file, ignoring any lines                 beginning with <code class="docutils literal notranslate"><span class="pre">#</span></code>. Opens and closes the file transparently.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">FileReadText</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">filename</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">instructions</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">FileReadText</span><span class="p">(</span><span class="s2">&quot;instructions.txt&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#filereadcharacter"><code class="xref py py-func docutils literal notranslate"><span class="pre">FileReadCharacter()</span></code></a>, <a class="reference internal" href="#filereadlist"><code class="xref py py-func docutils literal notranslate"><span class="pre">FileReadList()</span></code></a>, <a class="reference internal" href="#filereadtable"><code class="xref py py-func docutils literal notranslate"><span class="pre">FileReadTable()</span></code></a>, <a class="reference internal" href="#filereadline"><code class="xref py py-func docutils literal notranslate"><span class="pre">FileReadLine()</span></code></a>, <a class="reference internal" href="#filereadword"><code class="xref py py-func docutils literal notranslate"><span class="pre">FileReadWord()</span></code></a></p>
+</section>
+<section id="filereadword">
+<span id="index-20"></span><h2><a class="toc-backref" href="#id21" role="doc-backlink">FileReadWord()</a><a class="headerlink" href="#filereadword" title="Link to this heading">¶</a></h2>
+<p><strong>Description:</strong></p>
+<p>Reads and returns  a <cite>word’ from a file; the next               connected stream of characters not including a `</cite>’ ‘``          or a newline. Will not read newline characters.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">FileReadWord</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">filestream</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#filereadcharacter"><code class="xref py py-func docutils literal notranslate"><span class="pre">FileReadCharacter()</span></code></a>, <a class="reference internal" href="#filereadlist"><code class="xref py py-func docutils literal notranslate"><span class="pre">FileReadList()</span></code></a>, <a class="reference internal" href="#filereadtable"><code class="xref py py-func docutils literal notranslate"><span class="pre">FileReadTable()</span></code></a>, <a class="reference internal" href="#filereadline"><code class="xref py py-func docutils literal notranslate"><span class="pre">FileReadLine()</span></code></a>, <a class="reference internal" href="#filereadtext"><code class="xref py py-func docutils literal notranslate"><span class="pre">FileReadText()</span></code></a></p>
+</section>
+<section id="getdata">
+<span id="index-21"></span><h2><a class="toc-backref" href="#id22" role="doc-backlink">GetData()</a><a class="headerlink" href="#getdata" title="Link to this heading">¶</a></h2>
+<p><em>return a string from network connection</em></p>
+<p><strong>Description:</strong></p>
+<p>Gets Data from network connection.  Example of   usage in demo/nim.pbl.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">val</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">GetData</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">network</span><span class="o">&gt;</span><span class="p">,</span><span class="o">&lt;</span><span class="nv">size</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#connecttoip"><code class="xref py py-func docutils literal notranslate"><span class="pre">ConnectToIP()</span></code></a>, <a class="reference internal" href="#connecttohost"><code class="xref py py-func docutils literal notranslate"><span class="pre">ConnectToHost()</span></code></a>, <a class="reference internal" href="#waitfornetworkconnection"><code class="xref py py-func docutils literal notranslate"><span class="pre">WaitForNetworkConnection()</span></code></a>,    <a class="reference internal" href="#senddata"><code class="xref py py-func docutils literal notranslate"><span class="pre">SendData()</span></code></a>, <a class="reference internal" href="utility.html#convertipstring"><code class="xref py py-func docutils literal notranslate"><span class="pre">ConvertIPString()</span></code></a>, <a class="reference internal" href="#closenetworkconnection"><code class="xref py py-func docutils literal notranslate"><span class="pre">CloseNetworkConnection()</span></code></a></p>
+</section>
+<section id="getmyipaddress">
+<span id="index-22"></span><h2><a class="toc-backref" href="#id23" role="doc-backlink">GetMyIPAddress()</a><a class="headerlink" href="#getmyipaddress" title="Link to this heading">¶</a></h2>
+<p><em>Returns the local IP address of this computer</em></p>
+<p><strong>Description:</strong></p>
+<p>Returns the IP address of the current computer as a formatted string. The returned address is suitable for use in networking functions. If multiple network interfaces are present, it typically returns the primary interface address.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">GetMyIPAddress</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">interface_number</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">myIP</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">GetMyIPAddress</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+<span class="nf">Print</span><span class="p">(</span><span class="s2">&quot;My IP address is: &quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nv">myIP</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#connecttohost"><code class="xref py py-func docutils literal notranslate"><span class="pre">ConnectToHost()</span></code></a>, <a class="reference internal" href="#connecttoip"><code class="xref py py-func docutils literal notranslate"><span class="pre">ConnectToIP()</span></code></a>, <a class="reference internal" href="#opennetworklistener"><code class="xref py py-func docutils literal notranslate"><span class="pre">OpenNetworkListener()</span></code></a></p>
+</section>
+<section id="getpportstate">
+<span id="index-23"></span><h2><a class="toc-backref" href="#id24" role="doc-backlink">GetPPortState()</a><a class="headerlink" href="#getpportstate" title="Link to this heading">¶</a></h2>
+<p><em>Gets state of parallel port data bits</em></p>
+<p><strong>Description:</strong></p>
+<p>Gets the parallel port state, as a list of 8 ‘bits’ (1s or 0s).</p>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#comportgetbyte"><code class="xref py py-func docutils literal notranslate"><span class="pre">COMPortGetByte()</span></code></a>, <a class="reference internal" href="#comportsendbyte"><code class="xref py py-func docutils literal notranslate"><span class="pre">COMPortSendByte()</span></code></a>, <a class="reference internal" href="#openpport"><code class="xref py py-func docutils literal notranslate"><span class="pre">OpenPPort()</span></code></a> <a class="reference internal" href="#opencomport"><code class="xref py py-func docutils literal notranslate"><span class="pre">OpenCOMPort()</span></code></a>, <a class="reference internal" href="#setpportmode"><code class="xref py py-func docutils literal notranslate"><span class="pre">SetPPortMode()</span></code></a>, <a class="reference internal" href="#getpportstate"><code class="xref py py-func docutils literal notranslate"><span class="pre">GetPPortState()</span></code></a></p>
+</section>
+<section id="opencomport">
+<span id="index-24"></span><h2><a class="toc-backref" href="#id25" role="doc-backlink">OpenCOMPort()</a><a class="headerlink" href="#opencomport" title="Link to this heading">¶</a></h2>
+<p><em>Opens a serial (com) port</em></p>
+<p><strong>Description:</strong></p>
+<p>This opens a COM/Serial port, and is used by many usb devices for communication.  The general process is to use OpenComPort to create the port, and then send and receive text strings from that port.  These are sent one byte at a time. The mode argument is a 3-character string that specifies aspects of the mode (see  Teunis van Beelen’s rs232 library at <a class="reference external" href="http://www.teuniz.net/RS-232/">http://www.teuniz.net/RS-232/</a>. The first character is the data bits (5,6,7 or 8), parity (N=none, E=even, O=odd), and the third is the stop bit (1 or 2 bits).   Within the demodirectory, there is some basic code for communicating with the cedrus response box that uses these functions.  In addition, that script provide a NumToASCII() function that can be useful in translating numbers to strings to communicate with a device.</p>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">port</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">OpenCOMPort</span><span class="p">(</span><span class="mi">16</span><span class="p">,</span><span class="mi">9600</span><span class="p">,</span><span class="s2">&quot;8N1&quot;</span><span class="p">)</span>
+<span class="w">  </span><span class="nf">Print</span><span class="p">(</span><span class="w"> </span><span class="nf">ComPortGetByte</span><span class="p">(</span><span class="nv">port</span><span class="p">))</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#comportgetbyte"><code class="xref py py-func docutils literal notranslate"><span class="pre">COMPortGetByte()</span></code></a>, <a class="reference internal" href="#comportsendbyte"><code class="xref py py-func docutils literal notranslate"><span class="pre">COMPortSendByte()</span></code></a>, <a class="reference internal" href="#openpport"><code class="xref py py-func docutils literal notranslate"><span class="pre">OpenPPort()</span></code></a>, <a class="reference internal" href="#setpportmode"><code class="xref py py-func docutils literal notranslate"><span class="pre">SetPPortMode()</span></code></a>, <code class="xref py py-func docutils literal notranslate"><span class="pre">GetPPortMode()</span></code></p>
+</section>
+<section id="opennetworklistener">
+<span id="index-25"></span><h2><a class="toc-backref" href="#id26" role="doc-backlink">OpenNetworkListener()</a><a class="headerlink" href="#opennetworklistener" title="Link to this heading">¶</a></h2>
+<p><em>Opens a port for listening</em></p>
+<p><strong>Description:</strong></p>
+<p>Creates a network object that listens on a particular port, and is able to accept incoming connections. You can the nuse <code class="docutils literal notranslate"><span class="pre">CheckForNetworkConnections</span></code> to accept incoming connections.   This is an alternative to the <code class="docutils literal notranslate"><span class="pre">WaitForNetworkConnection</span></code> function that allows more flexibility (and allows updating the during waiting for the connection).</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">net</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">OpennetworkListener</span><span class="p">(</span><span class="nv">port</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">network</span><span class="w"> </span><span class="o">&lt;-</span><span class="w">      </span><span class="nf">OpenNetworkListener</span><span class="p">(</span><span class="mi">4444</span><span class="p">)</span>
+<span class="w">  </span><span class="nv">time</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">GetTime</span><span class="p">()</span>
+<span class="w">  </span><span class="k">while</span><span class="p">(</span><span class="k">not</span><span class="w"> </span><span class="nv">connected</span><span class="w"> </span><span class="k">and</span><span class="w"> </span><span class="p">(</span><span class="nf">GetTime</span><span class="p">()</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="nv">time</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">5000</span><span class="p">))</span>
+<span class="w">   </span><span class="p">{</span>
+<span class="w">      </span><span class="nv">connected</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">CheckForNetwokConnection</span><span class="p">(</span><span class="nv">network</span><span class="p">)</span>
+<span class="w">   </span><span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#checkfornetworkconnection"><code class="xref py py-func docutils literal notranslate"><span class="pre">CheckForNetworkConnection()</span></code></a>, <code class="xref py py-func docutils literal notranslate"><span class="pre">Getdata()</span></code>, <a class="reference internal" href="#waitfornetworkconnection"><code class="xref py py-func docutils literal notranslate"><span class="pre">WaitForNetworkConnection()</span></code></a>, <code class="xref py py-func docutils literal notranslate"><span class="pre">CloseNetwork()</span></code></p>
+</section>
+<section id="openpport">
+<span id="index-26"></span><h2><a class="toc-backref" href="#id27" role="doc-backlink">OpenPPort()</a><a class="headerlink" href="#openpport" title="Link to this heading">¶</a></h2>
+<p><em>Opens parallel port</em></p>
+<p><strong>Description:</strong></p>
+<p>Opens a Parallel  port, returning an object that can be used for parallel port communications.</p>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#comportgetbyte"><code class="xref py py-func docutils literal notranslate"><span class="pre">COMPortGetByte()</span></code></a>, <a class="reference internal" href="#comportsendbyte"><code class="xref py py-func docutils literal notranslate"><span class="pre">COMPortSendByte()</span></code></a>, <a class="reference internal" href="#opencomport"><code class="xref py py-func docutils literal notranslate"><span class="pre">OpenCOMPort()</span></code></a>, <a class="reference internal" href="#setpportmode"><code class="xref py py-func docutils literal notranslate"><span class="pre">SetPPortMode()</span></code></a>, <code class="xref py py-func docutils literal notranslate"><span class="pre">GetPPortMode()</span></code></p>
+</section>
+<section id="parsejson">
+<span id="index-27"></span><h2><a class="toc-backref" href="#id28" role="doc-backlink">ParseJSON()</a><a class="headerlink" href="#parsejson" title="Link to this heading">¶</a></h2>
+<p><em>Parses a JSON string into PEBL data structures</em></p>
+<p><strong>Description:</strong></p>
+<p>Parses a JSON-formatted string and converts it into PEBL data structures (lists and custom objects). JSON objects become PEBL custom objects with properties, and JSON arrays become PEBL lists. This is useful for working with web APIs and configuration files.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">ParseJSON</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">json_string</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">jsonString</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">GetHTTPText</span><span class="p">(</span><span class="s2">&quot;https://api.example.com/data&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+<span class="nv">data</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">ParseJSON</span><span class="p">(</span><span class="nv">jsonString</span><span class="p">)</span>
+
+<span class="c1">##Access parsed data</span>
+<span class="nf">Print</span><span class="p">(</span><span class="nv">data.name</span><span class="p">)</span>
+<span class="nf">Print</span><span class="p">(</span><span class="nv">data.values</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#gethttptext"><code class="xref py py-func docutils literal notranslate"><span class="pre">GetHTTPText()</span></code></a>, <a class="reference internal" href="utility.html#jsontext"><code class="xref py py-func docutils literal notranslate"><span class="pre">JSONText()</span></code></a>, <a class="reference internal" href="#posthttp"><code class="xref py py-func docutils literal notranslate"><span class="pre">PostHTTP()</span></code></a>, <a class="reference internal" href="peblobjects.html#makecustomobject"><code class="xref py py-func docutils literal notranslate"><span class="pre">MakeCustomObject()</span></code></a></p>
+</section>
+<section id="print">
+<span id="index-28"></span><h2><a class="toc-backref" href="#id29" role="doc-backlink">Print()</a><a class="headerlink" href="#print" title="Link to this heading">¶</a></h2>
+<p><strong>Description:</strong></p>
+<p>Prints <code class="docutils literal notranslate"><span class="pre">&lt;value&gt;</span></code> to stdout; doesn’t append a newline afterwards.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">Print_</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">value</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">Print_</span><span class="p">(</span><span class="s2">&quot;This line&quot;</span><span class="p">)</span>
+<span class="nf">Print_</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">)</span>
+<span class="nf">Print_</span><span class="p">(</span><span class="s2">&quot;and&quot;</span><span class="p">)</span>
+<span class="nf">Print_</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">)</span>
+<span class="nf">Print</span><span class="p">(</span><span class="s2">&quot;Another line&quot;</span><span class="p">)</span>
+<span class="c1"># prints out: &#39;This line and Another line&#39;</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#print"><code class="xref py py-func docutils literal notranslate"><span class="pre">Print()</span></code></a>, <a class="reference internal" href="#fileprint"><code class="xref py py-func docutils literal notranslate"><span class="pre">FilePrint()</span></code></a></p>
+</section>
+<section id="senddata">
+<span id="index-29"></span><h2><a class="toc-backref" href="#id30" role="doc-backlink">SendData()</a><a class="headerlink" href="#senddata" title="Link to this heading">¶</a></h2>
+<p><em>Sends a data string over connection.</em></p>
+<p><strong>Description:</strong></p>
+<p>Sends data on network connection.  Example of   usage in demo/nim.pbl. You can only send text data.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">SendData</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">network</span><span class="o">&gt;</span><span class="p">,</span><span class="o">&lt;</span><span class="nv">data_as_string</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#connecttoip"><code class="xref py py-func docutils literal notranslate"><span class="pre">ConnectToIP()</span></code></a>, <a class="reference internal" href="#connecttohost"><code class="xref py py-func docutils literal notranslate"><span class="pre">ConnectToHost()</span></code></a>, <a class="reference internal" href="#waitfornetworkconnection"><code class="xref py py-func docutils literal notranslate"><span class="pre">WaitForNetworkConnection()</span></code></a>, <a class="reference internal" href="#getdata"><code class="xref py py-func docutils literal notranslate"><span class="pre">GetData()</span></code></a>, <a class="reference internal" href="utility.html#convertipstring"><code class="xref py py-func docutils literal notranslate"><span class="pre">ConvertIPString()</span></code></a>, <a class="reference internal" href="#closenetworkconnection"><code class="xref py py-func docutils literal notranslate"><span class="pre">CloseNetworkConnection()</span></code></a></p>
+</section>
+<section id="setnetworkport">
+<span id="index-30"></span><h2><a class="toc-backref" href="#id31" role="doc-backlink">SetNetworkPort()</a><a class="headerlink" href="#setnetworkport" title="Link to this heading">¶</a></h2>
+<p><em>Configures the default network port for connections</em></p>
+<p><strong>Description:</strong></p>
+<p>Sets the default network port number to be used for subsequent network operations. This allows you to configure the port once rather than specifying it for each connection. The port number should be between 1024 and 65535 for user applications.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">SetNetworkPort</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">port</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">SetNetworkPort</span><span class="p">(</span><span class="mi">8080</span><span class="p">)</span>
+<span class="nv">listener</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">OpenNetworkListener</span><span class="p">(</span><span class="mi">8080</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#opennetworklistener"><code class="xref py py-func docutils literal notranslate"><span class="pre">OpenNetworkListener()</span></code></a>, <a class="reference internal" href="#connecttohost"><code class="xref py py-func docutils literal notranslate"><span class="pre">ConnectToHost()</span></code></a>, <a class="reference internal" href="#connecttoip"><code class="xref py py-func docutils literal notranslate"><span class="pre">ConnectToIP()</span></code></a></p>
+</section>
+<section id="setpportmode">
+<span id="index-31"></span><h2><a class="toc-backref" href="#id32" role="doc-backlink">SetPPortMode()</a><a class="headerlink" href="#setpportmode" title="Link to this heading">¶</a></h2>
+<p><em>Sets parallel port mode (input/output)</em></p>
+<p><strong>Description:</strong></p>
+<p>Sets a parallel port mode, either “&lt;input&gt;” or “&lt;output&gt;”.</p>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#comportgetbyte"><code class="xref py py-func docutils literal notranslate"><span class="pre">COMPortGetByte()</span></code></a>, <a class="reference internal" href="#comportsendbyte"><code class="xref py py-func docutils literal notranslate"><span class="pre">COMPortSendByte()</span></code></a>, <a class="reference internal" href="#openpport"><code class="xref py py-func docutils literal notranslate"><span class="pre">OpenPPort()</span></code></a> <a class="reference internal" href="#opencomport"><code class="xref py py-func docutils literal notranslate"><span class="pre">OpenCOMPort()</span></code></a>, <a class="reference internal" href="#setpportmode"><code class="xref py py-func docutils literal notranslate"><span class="pre">SetPPortMode()</span></code></a>, <a class="reference internal" href="#getpportstate"><code class="xref py py-func docutils literal notranslate"><span class="pre">GetPPortState()</span></code></a></p>
+</section>
+<section id="setpportstate">
+<span id="index-32"></span><h2><a class="toc-backref" href="#id33" role="doc-backlink">SetPPortState()</a><a class="headerlink" href="#setpportstate" title="Link to this heading">¶</a></h2>
+<p><em>Sets parallel port state</em></p>
+<p><strong>Description:</strong></p>
+<p>Sets a parallel port state, using a list of 8 ‘bits’ (1s or 0s).</p>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#comportgetbyte"><code class="xref py py-func docutils literal notranslate"><span class="pre">COMPortGetByte()</span></code></a>, <a class="reference internal" href="#comportsendbyte"><code class="xref py py-func docutils literal notranslate"><span class="pre">COMPortSendByte()</span></code></a>, <a class="reference internal" href="#openpport"><code class="xref py py-func docutils literal notranslate"><span class="pre">OpenPPort()</span></code></a> <a class="reference internal" href="#opencomport"><code class="xref py py-func docutils literal notranslate"><span class="pre">OpenCOMPort()</span></code></a>, <a class="reference internal" href="#setpportmode"><code class="xref py py-func docutils literal notranslate"><span class="pre">SetPPortMode()</span></code></a>, <a class="reference internal" href="#getpportstate"><code class="xref py py-func docutils literal notranslate"><span class="pre">GetPPortState()</span></code></a></p>
+</section>
+<section id="waitfornetworkconnection">
+<span id="index-33"></span><h2><a class="toc-backref" href="#id34" role="doc-backlink">WaitForNetworkConnection()</a><a class="headerlink" href="#waitfornetworkconnection" title="Link to this heading">¶</a></h2>
+<p><strong>Description:</strong></p>
+<p>Listens on a port, waiting until another computer or process   connects. Return a network object that can be used for communication.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">WaitForNetworkConnection</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">port</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#connecttohost"><code class="xref py py-func docutils literal notranslate"><span class="pre">ConnectToHost()</span></code></a>, <a class="reference internal" href="#connecttoip"><code class="xref py py-func docutils literal notranslate"><span class="pre">ConnectToIP()</span></code></a>, <a class="reference internal" href="#getdata"><code class="xref py py-func docutils literal notranslate"><span class="pre">GetData()</span></code></a>, <a class="reference internal" href="#waitfornetworkconnection"><code class="xref py py-func docutils literal notranslate"><span class="pre">WaitForNetworkConnection()</span></code></a>,    <a class="reference internal" href="#senddata"><code class="xref py py-func docutils literal notranslate"><span class="pre">SendData()</span></code></a>, <a class="reference internal" href="utility.html#convertipstring"><code class="xref py py-func docutils literal notranslate"><span class="pre">ConvertIPString()</span></code></a>, <a class="reference internal" href="#closenetworkconnection"><code class="xref py py-func docutils literal notranslate"><span class="pre">CloseNetworkConnection()</span></code></a></p>
+</section>
+<section id="writepng">
+<span id="index-34"></span><h2><a class="toc-backref" href="#id35" role="doc-backlink">WritePNG()</a><a class="headerlink" href="#writepng" title="Link to this heading">¶</a></h2>
+<p><em>Makes a .png from a window or object</em></p>
+<p><strong>Description:</strong></p>
+<p>WritePNG() creates a graphic file of the screen or   a widget on the screen.  It can also be given an arbitrary widget.   For the most part, widgets added to other widgets will be captured   fine, but sometimes polygons and shapes added to other widgets may   not appear in the output png.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">x</span><span class="w"> </span><span class="o">&lt;-</span><span class="w">  </span><span class="nf">WritePNG</span><span class="p">(</span><span class="s2">&quot;screen1.png&quot;</span><span class="p">,</span><span class="vg">gWin</span><span class="p">)</span>
+
+<span class="w">  </span><span class="c1">## Use like this to create an animated screencast</span>
+<span class="w">   </span><span class="k">define</span><span class="w"> </span><span class="nf">DrawMe</span><span class="p">()</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">      </span><span class="nv">pname</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="s2">&quot;fileout&quot;</span><span class="o">+</span><span class="nf">ZeroPad</span><span class="p">(</span><span class="vg">gid</span><span class="p">,</span><span class="mi">5</span><span class="p">)</span><span class="o">+</span><span class="s2">&quot;.png&quot;</span>
+<span class="w">      </span><span class="nf">Draw</span><span class="p">()</span>
+<span class="w">      </span><span class="nf">WritePNG</span><span class="p">(</span><span class="nv">pname</span><span class="p">,</span><span class="vg">gWin</span><span class="p">)</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">   </span><span class="k">define</span><span class="w"> </span><span class="nf">Start</span><span class="p">(</span><span class="nv">p</span><span class="p">)</span>
+<span class="w">   </span><span class="p">{</span>
+<span class="w">     </span><span class="vg">gid</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="mi">1</span>
+<span class="w">     </span><span class="vg">gWin</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeWindow</span><span class="p">()</span>
+<span class="w">     </span><span class="nv">img</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">MakeImage</span><span class="p">(</span><span class="s2">&quot;pebl.png&quot;</span><span class="p">)</span>
+<span class="w">     </span><span class="nf">AddObject</span><span class="p">(</span><span class="nv">img</span><span class="p">,</span><span class="vg">gWin</span><span class="p">)</span>
+<span class="w">     </span><span class="k">while</span><span class="p">(</span><span class="vg">gid</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">100</span><span class="p">)</span>
+<span class="w">      </span><span class="p">{</span>
+<span class="w">         </span><span class="nf">Move</span><span class="p">(</span><span class="nv">img</span><span class="p">,</span><span class="nf">RandomDiscrete</span><span class="p">(</span><span class="mi">800</span><span class="p">),</span>
+<span class="w">                  </span><span class="nf">RandomDiscrete</span><span class="p">(</span><span class="mi">600</span><span class="p">))</span>
+
+<span class="w">         </span><span class="nf">DrawMe</span><span class="p">()</span>
+<span class="w">         </span><span class="vg">gid</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="vg">gid</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span>
+<span class="w">      </span><span class="p">}</span>
+
+<span class="w">   </span><span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><code class="xref py py-func docutils literal notranslate"><span class="pre">FileWriteTable()</span></code></p>
+</section>
+<section id="comportgetbyte">
+<span id="index-35"></span><h2><a class="toc-backref" href="#id36" role="doc-backlink">COMPortGetByte()</a><a class="headerlink" href="#comportgetbyte" title="Link to this heading">¶</a></h2>
+<p><em>Gets a byte from the COM port</em></p>
+<p><strong>Description:</strong></p>
+<p>Reads a single byte from an open COM/serial port. Returns the byte value as an integer (0-255). If no data is available, it returns -1. This is used for serial communication with external devices.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">COMPortGetByte</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">port</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">port</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">OpenCOMPort</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">9600</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;8N1&quot;</span><span class="p">)</span>
+<span class="nv">byte</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">COMPortGetByte</span><span class="p">(</span><span class="nv">port</span><span class="p">)</span>
+<span class="k">if</span><span class="p">(</span><span class="nv">byte</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">   </span><span class="nf">Print</span><span class="p">(</span><span class="s2">&quot;Received byte: &quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nv">byte</span><span class="p">)</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#comportsendbyte"><code class="xref py py-func docutils literal notranslate"><span class="pre">COMPortSendByte()</span></code></a>, <a class="reference internal" href="#opencomport"><code class="xref py py-func docutils literal notranslate"><span class="pre">OpenCOMPort()</span></code></a></p>
+</section>
+<section id="comportsendbyte">
+<span id="index-36"></span><h2><a class="toc-backref" href="#id37" role="doc-backlink">COMPortSendByte()</a><a class="headerlink" href="#comportsendbyte" title="Link to this heading">¶</a></h2>
+<p><em>Sends a byte to the COM port</em></p>
+<p><strong>Description:</strong></p>
+<p>Sends a single byte to an open COM/serial port. The byte should be an integer value between 0 and 255. This is used for serial communication with external devices.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">COMPortSendByte</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">port</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">byte</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nv">port</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">OpenCOMPort</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">9600</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;8N1&quot;</span><span class="p">)</span>
+<span class="c1">##Send ASCII &#39;A&#39; (65)</span>
+<span class="nf">COMPortSendByte</span><span class="p">(</span><span class="nv">port</span><span class="p">,</span><span class="w"> </span><span class="mi">65</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#comportgetbyte"><code class="xref py py-func docutils literal notranslate"><span class="pre">COMPortGetByte()</span></code></a>, <a class="reference internal" href="#opencomport"><code class="xref py py-func docutils literal notranslate"><span class="pre">OpenCOMPort()</span></code></a></p>
+</section>
+<section id="gethttpfile">
+<span id="index-37"></span><h2><a class="toc-backref" href="#id38" role="doc-backlink">GetHTTPFile()</a><a class="headerlink" href="#gethttpfile" title="Link to this heading">¶</a></h2>
+<p><em>Downloads a file from a web server via HTTP</em></p>
+<p><strong>Description:</strong></p>
+<p>Fetches a file from a web server using HTTP and saves it to a local file. Supports HTTP and HTTPS protocols. Useful for downloading stimuli, configuration files, or data from web servers during experiments.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">GetHTTPFile</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">url</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">output_filename</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">username</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">password</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="c1">##Download without authentication</span>
+<span class="nv">success</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">GetHTTPFile</span><span class="p">(</span><span class="s2">&quot;http://example.com/data.csv&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;local_data.csv&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+
+<span class="c1">##Download with authentication</span>
+<span class="nv">success</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">GetHTTPFile</span><span class="p">(</span><span class="s2">&quot;https://secure.example.com/file.zip&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;download.zip&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;user&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;pass&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#gethttptext"><code class="xref py py-func docutils literal notranslate"><span class="pre">GetHTTPText()</span></code></a>, <a class="reference internal" href="#posthttp"><code class="xref py py-func docutils literal notranslate"><span class="pre">PostHTTP()</span></code></a>, <a class="reference internal" href="#posthttpfile"><code class="xref py py-func docutils literal notranslate"><span class="pre">PostHTTPFile()</span></code></a></p>
+</section>
+<section id="gethttptext">
+<span id="index-38"></span><h2><a class="toc-backref" href="#id39" role="doc-backlink">GetHTTPText()</a><a class="headerlink" href="#gethttptext" title="Link to this heading">¶</a></h2>
+<p><em>Retrieves text content from a web server via HTTP</em></p>
+<p><strong>Description:</strong></p>
+<p>Fetches content from a web server using HTTP and returns it as a text string. Supports HTTP and HTTPS protocols. Useful for retrieving instructions, configurations, or data from web services during experiments.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">GetHTTPText</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">url</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">username</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">password</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="c1">##Fetch text without authentication</span>
+<span class="nv">text</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">GetHTTPText</span><span class="p">(</span><span class="s2">&quot;http://example.com/instructions.txt&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+<span class="nf">Print</span><span class="p">(</span><span class="nv">text</span><span class="p">)</span>
+
+<span class="c1">##Fetch JSON data with authentication</span>
+<span class="nv">jsonData</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">GetHTTPText</span><span class="p">(</span><span class="s2">&quot;https://api.example.com/config&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;user&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;pass&quot;</span><span class="p">)</span>
+<span class="nv">config</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">ParseJSON</span><span class="p">(</span><span class="nv">jsonData</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#gethttpfile"><code class="xref py py-func docutils literal notranslate"><span class="pre">GetHTTPFile()</span></code></a>, <a class="reference internal" href="#posthttp"><code class="xref py py-func docutils literal notranslate"><span class="pre">PostHTTP()</span></code></a>, <a class="reference internal" href="#parsejson"><code class="xref py py-func docutils literal notranslate"><span class="pre">ParseJSON()</span></code></a></p>
+</section>
+<section id="posthttp">
+<span id="index-39"></span><h2><a class="toc-backref" href="#id40" role="doc-backlink">PostHTTP()</a><a class="headerlink" href="#posthttp" title="Link to this heading">¶</a></h2>
+<p><em>Sends data to a web server via HTTP POST</em></p>
+<p><strong>Description:</strong></p>
+<p>Sends data to a web server using the HTTP POST method. Returns the server’s response as a string. This is useful for submitting experimental data to web servers, interacting with web APIs, or logging data remotely.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">PostHTTP</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">url</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">post_data</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">username</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">password</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">content_type</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="c1">##Post form data</span>
+<span class="nv">postData</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="s2">&quot;subjectID=123&amp;condition=A&amp;score=85&quot;</span>
+<span class="nv">response</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">PostHTTP</span><span class="p">(</span><span class="s2">&quot;http://example.com/submit&quot;</span><span class="p">,</span><span class="w"> </span><span class="nv">postData</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;application/x-www-form-urlencoded&quot;</span><span class="p">)</span>
+
+<span class="c1">##Post JSON data</span>
+<span class="nv">jsonData</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="s2">&quot;{&quot;</span><span class="nv">subject</span><span class="s2">&quot;:123,&quot;</span><span class="nv">rt</span><span class="s2">&quot;:450}&quot;</span>
+<span class="nv">response</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">PostHTTP</span><span class="p">(</span><span class="s2">&quot;https://api.example.com/data&quot;</span><span class="p">,</span><span class="w"> </span><span class="nv">jsonData</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;user&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;pass&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;application/json&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#posthttpfile"><code class="xref py py-func docutils literal notranslate"><span class="pre">PostHTTPFile()</span></code></a>, <a class="reference internal" href="#gethttptext"><code class="xref py py-func docutils literal notranslate"><span class="pre">GetHTTPText()</span></code></a>, <a class="reference internal" href="#gethttpfile"><code class="xref py py-func docutils literal notranslate"><span class="pre">GetHTTPFile()</span></code></a></p>
+</section>
+<section id="posthttpfile">
+<span id="index-40"></span><h2><a class="toc-backref" href="#id41" role="doc-backlink">PostHTTPFile()</a><a class="headerlink" href="#posthttpfile" title="Link to this heading">¶</a></h2>
+<p><em>Uploads a file to a web server via HTTP POST</em></p>
+<p><strong>Description:</strong></p>
+<p>Uploads a file to a web server using HTTP POST multipart/form-data encoding. This is useful for uploading experimental data files, log files, or other content to a web server for storage or processing.</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="nf">PostHTTPFile</span><span class="p">(</span><span class="o">&lt;</span><span class="nv">url</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">filename</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">fieldname</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">username</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">password</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">additional_fields</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example:</strong></p>
+<div class="highlight-pebl notranslate"><div class="highlight"><pre><span></span><span class="c1">##Upload data file</span>
+<span class="nv">response</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">PostHTTPFile</span><span class="p">(</span><span class="s2">&quot;http://example.com/upload&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;data.csv&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;datafile&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+
+<span class="c1">##Upload with additional form fields</span>
+<span class="nv">additionalData</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="s2">&quot;subjectID=123&amp;session=1&quot;</span>
+<span class="nv">response</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">PostHTTPFile</span><span class="p">(</span><span class="s2">&quot;https://secure.example.com/upload&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;results.txt&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;file&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;user&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;pass&quot;</span><span class="p">,</span><span class="w"> </span><span class="nv">additionalData</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>See Also:</strong></p>
+<p><a class="reference internal" href="#posthttp"><code class="xref py py-func docutils literal notranslate"><span class="pre">PostHTTP()</span></code></a>, <a class="reference internal" href="#gethttpfile"><code class="xref py py-func docutils literal notranslate"><span class="pre">GetHTTPFile()</span></code></a>, <a class="reference internal" href="#fileopenread"><code class="xref py py-func docutils literal notranslate"><span class="pre">FileOpenRead()</span></code></a></p>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">PEBL Function Reference</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Built-in Namespaces:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="peblenvironment.html">Environment</a></li>
+<li class="toctree-l1"><a class="reference internal" href="pebllist.html">Lists</a></li>
+<li class="toctree-l1"><a class="reference internal" href="peblobjects.html">Graphics &amp; Objects</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">File &amp; Network</a></li>
+<li class="toctree-l1"><a class="reference internal" href="peblstring.html">Strings</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Library Functions:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="design.html">Design</a></li>
+<li class="toctree-l1"><a class="reference internal" href="graphics.html">Graphics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="html.html">HTML</a></li>
+<li class="toctree-l1"><a class="reference internal" href="math.html">Math</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ui.html">UI</a></li>
+<li class="toctree-l1"><a class="reference internal" href="utility.html">Utility</a></li>
+</ul>
+
+
+<hr />
+<ul>
+    
+    <li class="toctree-l1"><a href="../genindex.html">Function Index</a></li>
+    
+    <li class="toctree-l1"><a href="../documentation.html">PEBL Documentation</a></li>
+    
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="peblobjects.html" title="previous chapter">PEBLObjects - Graphics and Objects</a></li>
+      <li>Next: <a href="peblstring.html" title="next chapter">PEBLString - String Manipulation</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2025, Shane T. Mueller.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 7.2.6</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/reference/peblstream.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

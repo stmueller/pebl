@@ -469,7 +469,6 @@ define EasyTextBox(text,x,y,win,fontsize,width,height,
 #    SignalFatalError("EasyTextbox[text,x,y,window,fontsize] must be added to a window, not [" + parent+"]")
 #  }
 #  Print("making easytextbox")
-#  Print(gPEBLBaseFont)
   font <-  MakeFont(gPEBLBaseFont,0,fontsize,MakeColor(fgcolor),
                     MakeColor(bgcolor),1)
 #  Print(font)
@@ -572,7 +571,8 @@ define GetEasyInput(text,win)
    bg    <- Rectangle(gVideoWidth/2,gVideoHeight/2,400,400,bgcol,1)
    AddObject(bg,win)
 
-   font <- MakeFont("Caliban.ttf",0,22,fgcol,bgcol,0)
+   ## Changed from Caliban.ttf (removed) to gPEBLBaseFont
+   font <- MakeFont(gPEBLBaseFont,0,22,fgcol,bgcol,0)
    query <- MakeLabel(text,font)
    AddObject(query, win)
    Move(query, bg.x,bg.y-bg.height/2+20)

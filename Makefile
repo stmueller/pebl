@@ -2,7 +2,7 @@
 #//////////////////////////////////////////////////////////////////////////
 #//////////////////////////////////////////////////////////////////////////
 #//
-#//	Copyright (c) 2003-2024
+#//	Copyright (c) 2003-2025
 #//	Shane T. Mueller, Ph.D.  smueller at obereed dot net
 #//
 #//     This file is part of the PEBL project.
@@ -33,7 +33,7 @@ PREFIX = /usr/local/
 PEBLNAME = pebl2
 PEBLDIRNAME = "pebl2"
 EXECNAME = $(PEBLNAME)
-PEBL_VERSION =2.1
+PEBL_VERSION = 2.2
 #USE_WAAVE=1       ##Optional; comment out to turn off waave multimedia library
 #USE_AUDIOIN=1     ##Optional; comment out to turn off  sdl_audioin library
 #USE_NETWORK=1      ##Optional; comment out to turn off sdl_net library.
@@ -88,11 +88,11 @@ CXXFLAGS0 = -O3
 
 #CXXFLAGS_EMSCRIPTEN = -DPEBL_EMSCRIPTEN -DPEBL_ITERATIVE_EVAL -DPREFIX=$(PREFIX) -DEXECNAME=$(EXECNAME) -DPEBLNAME=$(PEBLNAME) -DPEBLDIRNAME=$(PEBLDIRNAME) -I/usr/include/x86_64-linux-gnu/ -I/usr/local/include/emscripten/
 
-CXXFLAGS_EMSCRIPTEN = -DPEBL_EMSCRIPTEN -DPEBL_HTTP -DHTTP_LIB=3 -DPREFIX=$(PREFIX) -DEXECNAME=$(EXECNAME) -DPEBLNAME=$(PEBLNAME) -DPEBLDIRNAME=$(PEBLDIRNAME) -sUSE_SDL=2 -sUSE_SDL_NET=2 -sUSE_SDL_TTF=2 -sUSE_SDL_IMAGE=2 -sUSE_SDL_MIXER=2
+CXXFLAGS_EMSCRIPTEN = -DPEBL_EMSCRIPTEN -DPEBL_HTTP -DHTTP_LIB=3 -DPREFIX=$(PREFIX) -DEXECNAME=$(EXECNAME) -DPEBLNAME=$(PEBLNAME) -DPEBLDIRNAME=$(PEBLDIRNAME) -DPEBL_VERSION=\"$(PEBL_VERSION)\" -sUSE_SDL=2 -sUSE_SDL_NET=2 -sUSE_SDL_TTF=2 -sUSE_SDL_IMAGE=2 -sUSE_SDL_MIXER=2
 
 
 ## http=2 is curl
-CXXFLAGS_LINUX =   -DPEBL_UNIX -DPEBL_LINUX -DENABLE_BINRELOC -DPREFIX=$(PREFIX) -DEXECNAME=$(EXECNAME) -DPEBLNAME=$(PEBLNAME) -DPEBLDIRNAME=$(PEBLDIRNAME) -DHTTP_LIB=2
+CXXFLAGS_LINUX =   -DPEBL_UNIX -DPEBL_LINUX -DENABLE_BINRELOC -DPREFIX=$(PREFIX) -DEXECNAME=$(EXECNAME) -DPEBLNAME=$(PEBLNAME) -DPEBLDIRNAME=$(PEBLDIRNAME) -DPEBL_VERSION=\"$(PEBL_VERSION)\" -DHTTP_LIB=2
 
 ## Enable HTTP support by default
 USE_HTTP = 1
@@ -584,6 +584,24 @@ doc: $(PEBL_DOCSRC)
 deb:    main doc
 	epm -f deb $(PEBLNAME)
 
+.PHONY: appimage
+appimage: main
+	@echo "========================================="
+	@echo "Building PEBL AppImage"
+	@echo "========================================="
+	./build-appimage.sh $(PEBL_VERSION)
+
+.PHONY: appimage-clean
+appimage-clean:
+	@echo "Cleaning AppImage build artifacts..."
+	rm -rf AppDir
+	rm -f *.AppImage
+	rm -f bin/*.AppImage
+	rm -f linuxdeploy-*.AppImage
+	rm -rf squashfs-root
+	rm -f bin/pebl2-appimage
+	@echo "✓ AppImage artifacts cleaned"
+
 parse:
 	bison -d $(BASE_DIR)/grammar.y -o $(BASE_DIR)/grammar.tab.cpp
 	flex -o$(BASE_DIR)/lex.yy.c  $(BASE_DIR)/Pebl.l 
@@ -598,8 +616,11 @@ parse-debug:
 %.h:
 	@echo Updating %.h;
 
+# Loader.cpp depends on Functions.h because it loads the function tables
+$(BASE_DIR)/Loader.o: $(BASE_DIR)/Loader.cpp $(LIBS_DIR)/Functions.h | $(DIRS)
+	$(CXX)   $(CXXFLAGS) -g -c $<  -o $(OBJ_DIR)/$@  $(SDL_FLAGS)
 
-%.o: %.cpp
+%.o: %.cpp | $(DIRS)
 	$(CXX)   $(CXXFLAGS) -g -c $^  -o $(OBJ_DIR)/$@  $(SDL_FLAGS) 
 
 #	-s USE_SDL=2 \   #this is for emscriten, which doesn't work.
@@ -610,8 +631,8 @@ parse-debug:
 
 #$(EM_SDL_FLAGS)
 
-$(DIRS): %:
-	-test -d $@ || mkdir $@
+$(DIRS):
+	@mkdir -p $@
 
 
 dox: $(PEBLBASE_SRCXX)
@@ -628,60 +649,61 @@ dep:
 
 .PHONY: clean
 clean:
-	-rm -f $(patsubst %.o, $(OBJ_DIR)/%.o, $(PEBLBASE_OBJ)) \
-	$(patsubst %.o,  $(OBJ_DIR)/%.o, $(PEBLBASE_OBJSXX))  \
-	$(patsubst %.o,  $(OBJ_DIR)/%.o, $(PEBLMAIN_OBJ))
+	@echo "Cleaning build artifacts..."
+	rm -rf obj-native obj-em obj
+	@echo "✓ Build artifacts cleaned"
 
 
 .PHONY: install
 
 uninstall:
-	rm -Rf $(PREFIX)bin/$(PEBLNAME)
-	rm -Rf $(PREFIX)share/$(PEBLNAME)
+	rm -Rf $(PREFIX)/bin/$(PEBLNAME)
+	rm -Rf $(PREFIX)/share/$(PEBLNAME)
 
-install: uninstall
+install:
+	@if [ -z "$(DESTDIR)" ]; then $(MAKE) uninstall; fi
 
-	install -d $(PREFIX)bin/	
+	install -d $(DESTDIR)$(PREFIX)/bin/
 
-	cp bin/$(PEBLNAME) $(PREFIX)bin/$(PEBLNAME)
-	rm -Rf $(PREFIX)share/$(PEBLNAME)
-	install -d $(PREFIX)share/$(PEBLNAME)
-	install -d $(PREFIX)share/$(PEBLNAME)/media
-	install -d $(PREFIX)share/$(PEBLNAME)/pebl-lib
-	install -d $(PREFIX)share/$(PEBLNAME)/doc
-	install -d $(PREFIX)share/$(PEBLNAME)/battery
-	install -d $(PREFIX)share/$(PEBLNAME)/demo
-	install -d $(PREFIX)share/$(PEBLNAME)/tutorials
+	cp bin/$(PEBLNAME) $(DESTDIR)$(PREFIX)/bin/$(PEBLNAME)
+	rm -Rf $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)
+	install -d $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)
+	install -d $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/media
+	install -d $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/pebl-lib
+	install -d $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/doc
+	install -d $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/battery
+	install -d $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/demo
+	install -d $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/tutorials
 
-	cp -R tutorials/ $(PREFIX)share/$(PEBLNAME)/tutorials/
-	cp -R media/* $(PREFIX)share/$(PEBLNAME)/media/
-	cp -R demo/*  $(PREFIX)share/$(PEBLNAME)/demo/
-	cp -R experiments/*  $(PREFIX)share/$(PEBLNAME)/demo/
-	rm -rf `find $(PREFIX)share/$(PEBLNAME)/media -type d -name .svn`
-	cp  pebl-lib/*.pbl $(PREFIX)share/$(PEBLNAME)/pebl-lib/
-	cp doc/pman/PEBLManual$(PEBL_VERSION).pdf $(PREFIX)/share/$(PEBLNAME)/doc
-	cp bin/launcher.pbl $(PREFIX)/share/$(PEBLNAME)/pebl-lib/
-	cp pebl-lib/translatetest.pbl $(PREFIX)/share/$(PEBLNAME)/pebl-lib/
-	chmod -R uga+r $(PREFIX)share/$(PEBLNAME)/
+	cp -R tutorials/ $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/tutorials/
+	cp -R media/* $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/media/
+	cp -R demo/*  $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/demo/
+	cp -R experiments/*  $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/demo/
+	rm -rf `find $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/media -type d -name .svn`
+	cp  pebl-lib/*.pbl $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/pebl-lib/
+	cp doc/pman/PEBLManual$(PEBL_VERSION).pdf $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/doc
+	cp bin/launcher.pbl $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/pebl-lib/
+	cp pebl-lib/translatetest.pbl $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/pebl-lib/
+	chmod -R uga+r $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/
 
-
+	mkdir -p $(DESTDIR)$(PREFIX)/share/applications/
 	sed -e '$(SEDLINE)' bin/PEBL2.desktop > PEBL2.desktop
-	cp PEBL2.desktop $(PREFIX)share/applications
+	cp PEBL2.desktop $(DESTDIR)$(PREFIX)/share/applications/
 
-	cp -R battery/* $(PREFIX)share/$(PEBLNAME)/battery
-	cp battery/\.\.png $(PREFIX)share/$(PEBLNAME)/battery
-	cp battery/\.\.about.txt $(PREFIX)share/$(PEBLNAME)/battery
+	cp -R battery/* $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/battery
+	cp battery/\.\.png $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/battery
+	cp battery/\.\.about.txt $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/battery
 
 
-	rm -rf `find $(PREFIX)share/$(PEBLNAME)/battery -type d -name .svn`
-	rm -f `find $(PREFIX)share/$(PEBLNAME)/battery | grep \~`
-	rm -Rf `find $(PREFIX)share/pebl/battery | grep 'data'`
-	rm -f $(PREFIX)share/$(PEBLNAME)/battery/launch.bat
-	rm -f $(PREFIX)share/$(PEBLNAME)/battery/PEBLLaunch-log.txt
-	rm -f $(PREFIX)share/$(PEBLNAME)/battery/*.config
-	rm -f $(PREFIX)share/$(PEBLNAME)/battery/makelinks-mac.sh
+	rm -rf `find $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/battery -type d -name .svn`
+	rm -f `find $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/battery | grep \~`
+	rm -Rf `find $(DESTDIR)$(PREFIX)/share/pebl/battery | grep 'data'`
+	rm -f $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/battery/launch.bat
+	rm -f $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/battery/PEBLLaunch-log.txt
+	rm -f $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/battery/*.config
+	rm -f $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/battery/makelinks-mac.sh
 ##Now, convert all the battery files to unix format.
-	find $(PREFIX)share/$(PEBLNAME)/battery -name '*pbl' -exec dos2unix {} \;
+	find $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/battery -name '*pbl' -exec dos2unix {} \;
 
 ifeq (.depend,$(wildcard .depend))
 include .depend

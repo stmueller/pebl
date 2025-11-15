@@ -37,6 +37,25 @@
 #ifdef PEBL_EMSCRIPTEN
 #include <emscripten.h>
 #include <emscripten/html5.h>
+
+// Signal test completion to JavaScript launcher for test chains
+void SignalTestComplete(const char* status = "completed") {
+    EM_ASM({
+        var event = new CustomEvent('peblTestComplete', {
+            detail: {
+                status: UTF8ToString($0),
+                timestamp: Date.now()
+            }
+        });
+        document.dispatchEvent(event);
+        console.log('PEBL test completed with status:', UTF8ToString($0));
+    }, status);
+}
+#else
+// No-op on native builds
+inline void SignalTestComplete(const char* status = "completed") {
+    // Native PEBL doesn't need completion signaling
+}
 #endif
 
 #include "../base/grammar.tab.hpp"
@@ -222,7 +241,7 @@ int PEBLInterpret( int argc, std::vector<std::string> argv )
 
             string prefix = br_find_prefix("/usr/local/");
             basedir = prefix + string("/share/pebl2/battery/");
-            string destdir = "~/Documents/pebl-exp.2.1";
+            string destdir = string("~/Documents/pebl-exp.") + PEBL_VERSION;
 
             //Now, copy everything in 'battery' to your documents directory.
             //std::cerr << "Creating Documents/pebl-exp.0.14 Directory\n";
@@ -370,7 +389,7 @@ int PEBLInterpret( int argc, std::vector<std::string> argv )
     delete head;
     head = NULL;
 
-#if 1
+#if 0
     cerr << "\n\n--------------------------------\n";
     cerr << "Functions used in program: " << endl;
     cerr << "--------------------------------\n";
@@ -400,7 +419,10 @@ int PEBLInterpret( int argc, std::vector<std::string> argv )
     bool  softrender = false;
     bool resizeable = false;
     bool unicode = true;
-    bool upload = true;
+    bool upload = false;
+    bool showHelp = false;
+    bool showTestResults = false;
+    
     Variant uploadConfigFile = "";
     
     Variant lang = "en";
@@ -472,13 +494,24 @@ int PEBLInterpret( int argc, std::vector<std::string> argv )
 
             else if(strcmp(argv[j].c_str(),"--pfile")==0)
                 {
-                    pfile = Variant("params/") +Variant(argv[++j]);
+                    std::string pfileArg = argv[++j];
+                    // Check if it's a URL - if so, use it directly without prepending "params/"
+                    if(pfileArg.compare(0, 7, "http://") == 0 || pfileArg.compare(0, 8, "https://") == 0)
+                    {
+                        pfile = Variant(pfileArg);
+                    }
+                    else
+                    {
+                        pfile = Variant("params/") + Variant(pfileArg);
+                    }
                 }
 
             else if(strcmp(argv[j].c_str(),"--upload")==0)
                 {
+
                     upload = true;
                     uploadConfigFile = Variant(argv[++j]);  //Pass the upload config file in
+                    cout << "setting upload file: [" << uploadConfigFile << "]\n";
                 }
 
             else if(strcmp(argv[j].c_str(),"--resizeable")==0 ||
@@ -500,6 +533,15 @@ int PEBLInterpret( int argc, std::vector<std::string> argv )
                 {
                     softrender = true;
                 }
+            else if(strcmp(argv[j].c_str(),"--help")==0)
+                {
+                    showHelp = true;
+                }
+            else if(strcmp(argv[j].c_str(),"--showtestresults")==0)
+                {
+                    showTestResults = true;
+                }
+
 
 
         }
@@ -606,14 +648,44 @@ int PEBLInterpret( int argc, std::vector<std::string> argv )
     PComplexData * pcd2 = new PComplexData(counted_ptr<PEBLObjectBase>(pList));
     Variant v = Variant(pcd2);
 
+    if(showHelp)
+        {
+            PrintOptions();
+        }
 
+
+    
     std::list<PNode> tmpcallstack;
 
     //myEval is now a global, because we have moved to a single-evaluator model:
     myEval = new Evaluator(v,"Start");
 
     //Set the executable name here:
+#if defined(PEBL_LINUX) || defined(PEBL_UNIX)
+    // Check for AppImage first (special case - need .AppImage path, not extracted binary)
+    const char* appimage_path = getenv("APPIMAGE");
+    if (appimage_path != NULL) {
+        // Running from AppImage - use APPIMAGE env var
+        myEval->gGlobalVariableMap.AddVariable("gExecutableName", appimage_path);
+        cerr << "Running from AppImage: " << appimage_path << endl;
+    } else {
+        // Standard Linux installation or local build - use BinReloc
+        char* exe_path = br_find_exe(argv[0].c_str());
+        if (exe_path != NULL) {
+            // br_find_exe succeeded - use absolute path
+            myEval->gGlobalVariableMap.AddVariable("gExecutableName", exe_path);
+            cerr << "Executable path: " << exe_path << endl;
+            free(exe_path);  // br_find_exe allocates memory
+        } else {
+            // Fallback: use argv[0] as-is (shouldn't happen on Linux)
+            myEval->gGlobalVariableMap.AddVariable("gExecutableName", argv[0]);
+            PError::SignalWarning("Warning: br_find_exe failed, using argv[0]");
+        }
+    }
+#else
+    // Windows, macOS, Emscripten - use argv[0]
     myEval->gGlobalVariableMap.AddVariable("gExecutableName", argv[0]);
+#endif
     myEval->gGlobalVariableMap.AddVariable("gScriptName", Variant(inputfilename));
     //Set the default screen resolution based on the current one.
     Variant cursize = SDLUtility::GetCurrentScreenResolution();
@@ -630,6 +702,7 @@ int PEBLInterpret( int argc, std::vector<std::string> argv )
     myEval->gGlobalVariableMap.AddVariable("gVideoHeight", height);
 
 
+    myEval->gGlobalVariableMap.AddVariable("gShowTestResults",Variant(showTestResults));
     //displaysize may have been set at the command line.  If so, we will need to
     //override it.  It is currently a string called displaysize.
 
@@ -729,7 +802,22 @@ int PEBLInterpret( int argc, std::vector<std::string> argv )
 #ifdef PEBL_ITERATIVE_EVAL
             // Iterative evaluator - start at head node and run until stack is empty
             cout << "Starting evaluation with iterative evaluator\n";
-            myEval->Evaluate1(head);
+
+            // Wrap Start() call in proper PEBL_FUNCTION node to ensure call stack is managed correctly
+            // This matches how all other lambda function calls work (PEBL_FUNCTION -> PEBL_FUNCTION_TAIL1 -> PEBL_FUNCTION_TAIL2 -> PEBL_LAMBDAFUNCTION)
+            // Without this wrapper, the call stack push in PEBL_FUNCTION_TAIL2 (line 1103) is skipped,
+            // causing gCallStack to be empty when PEBL_FUNCTION_TAIL_LIBFUNCTION tries to pop (line 1134)
+
+            // Create argument for Start() - pass the command-line arguments list (same as recursive evaluator)
+            // If no args, this will be a list containing 0
+            DataNode* argNode = new DataNode(v, "", 0);  // v is the Variant created above (pcd2 containing pList)
+            OpNode* argList = new OpNode(PEBL_LISTITEM, argNode, NULL, "", 0);
+            OpNode* args = new OpNode(PEBL_ARGLIST, argList, NULL, "", 0);
+
+            DataNode* funcNameNode = new DataNode(Variant("START", P_DATA_FUNCTION), "", 0);
+            OpNode* startCall = new OpNode(PEBL_FUNCTION, funcNameNode, args, "", 0);
+
+            myEval->Evaluate1(startCall);
 
             cout << "Running evaluator loop\n";
             while(myEval->GetNodeStackDepth() > 0)
@@ -747,6 +835,9 @@ int PEBLInterpret( int argc, std::vector<std::string> argv )
             cout << "========================================" << endl;
             cout << "PEBL program completed successfully." << endl;
             cout << "========================================" << endl;
+
+            // Signal completion to JavaScript launcher (for test chains)
+            SignalTestComplete("completed");
 
             return 0;
 #else
@@ -801,6 +892,9 @@ void  CaptureSignal(int signal)
     AllowAccessibilityShortcutKeys( false );
 
 #endif // WIN32
+
+    // Signal completion to JavaScript launcher (for test chains)
+    SignalTestComplete("signal");
 
     Evaluator::gGlobalVariableMap.Destroy();
 
@@ -993,14 +1087,14 @@ int main(int argc,  char *argv[])
 
             //Now, everything is ready.  Check for the pebl directory, if it  exists,
             //change to that directory, and select the launcher script to run.
-			if(PEBLUtility::FileExists(home + "/Documents/pebl-exp.2.1/"))
+			if(PEBLUtility::FileExists(home + "/Documents/pebl-exp." + PEBL_VERSION + "/"))
 			   {
 
 
 
                    //Move to the right directory and run the launcher
                    // script = (std::string)resourcepath + (std::string)"/launcher.pbl";
-                   std::string base = home + std::string("/Documents/pebl-exp.2.1/");
+                   std::string base = home + std::string("/Documents/pebl-exp.") + PEBL_VERSION + "/";
                    PEBLUtility::SetWorkingDirectory(base);
 
 
@@ -1092,7 +1186,9 @@ std::list<std::string> GetFiles(int argc,  std::vector<std::string> argv)
                      i->compare("--resizable")==0||
                      i->compare("--vsyncoff")==0||
                      i->compare("--vsyncon")==0 ||
-                     i->compare("--softrender")==0
+                     i->compare("--softrender")==0 ||
+                     i->compare("--help")==0 ||
+                     i->compare("--showtestresults")==0
                      )
 
 
@@ -1101,6 +1197,7 @@ std::list<std::string> GetFiles(int argc,  std::vector<std::string> argv)
                 }
             else
                 {
+                    //Any other command line arguments are files to load.
                    // cout << "Adding: [" << *i << "]" << endl;
 
                     tmp.push_back(std::string(*i));
@@ -1114,8 +1211,8 @@ void PrintOptions()
 {
     cout << "-------------------------------------------------------------------------------\n";
     cout << "PEBL: The Psychology Experiment Building Language\n";
-    cout << "Version 2.1\n";
-    cout << "(c) 2003-2018 Shane T. Mueller, Ph.D.\n";
+    cout << "Version " << PEBL_VERSION << "\n";
+    cout << "(c) 2003-2025 Shane T. Mueller, Ph.D.\n";
     cout << "smueller@obereed.net   http://pebl.sf.net\n";
     cout << "-------------------------------------------------------------------------------\n";
 
@@ -1152,10 +1249,21 @@ void PrintOptions()
     cout << "  Turns on unicode handling, with slight overhead\n";
     cout << "--pfile <filename>\n";
     cout << "  Specifies which parameter file to use, gets bound to variable gParamFile.\n";
+    cout << " --upload <fname>\n";
+    cout << "   specifies an upload.json file to use to sync with data server\n";
     cout << " --vsyncon\n";
     cout << "  Turns Vsync ON (for special tasks where you need precise control of video refresh, but may be tfussy on some hardware.\n";
 
     cout << " --softrender\n";
     cout << " Uses software renderer instead of accelerated hardware fallback.  Disables vsync setting\n";
+
+    cout << " --help\n";
+    cout << " Display this output screen\n";
+
+    cout << " --showtestresults\n";
+    cout << " Sets global variable gShowTestResults to 1 vs 0. Allows a test to autoatically show a screen with results at the end.\n";
+
+    cout << " Display this output screen\n";
+
 
 }

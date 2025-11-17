@@ -78,6 +78,7 @@ public:
     virtual void HandleTextInput(std::string input);
     virtual std::string ObjectName()const{return "PlatformTextBox";} ;
     virtual int FindCursorPosition(long int x, long int y);
+    virtual void SetEditable(bool val);
     Variant GetLineBreaks();
 protected:
 

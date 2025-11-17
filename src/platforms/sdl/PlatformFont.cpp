@@ -62,7 +62,12 @@ using std::string;
 using std::cout;
 using std::endl;
 
-
+// Helper function to convert std::string script to const char* for TTF functions
+// Returns NULL for empty string (Latin/unknown scripts)
+static const char* script_to_cstr(const std::string & script) {
+    if (script.empty()) return NULL;
+    return script.c_str();
+}
 
 
 //Stolen from
@@ -266,6 +271,20 @@ SDL_Surface * PlatformFont::RenderText(const std::string & text)
     //The text renderer doesn't like to render empty text.
     if(toBeRendered.length() == 0) toBeRendered = " ";
 
+    // Auto-detect script and set both script and direction for proper HarfBuzz shaping
+    std::string script = PEBLUtility::DetectScript(toBeRendered);
+    const char* script_cstr = script_to_cstr(script);
+
+    // Set the script for proper shaping (ligatures, contextual forms, etc.)
+    TTF_SetFontScriptName(mTTF_Font, script_cstr);
+
+    // Set direction based on script
+    if (PEBLUtility::IsRTLScript(script)) {
+        TTF_SetFontDirection(mTTF_Font, TTF_DIRECTION_RTL);
+    } else {
+        TTF_SetFontDirection(mTTF_Font, TTF_DIRECTION_LTR);
+    }
+
     //Using the RenderUTF8 stuff below has a hard time with 'foreign' characters; possibly because
     //the toberendered needs to be converted to UTF-8????
 
@@ -387,10 +406,20 @@ unsigned int PlatformFont::GetTextWidth(const std::string & text)
     int height, width;
     std::string toBeRendered = StripText(text.c_str());
 
-    
+    // Auto-detect script and set direction for accurate width measurement
+    std::string script = PEBLUtility::DetectScript(toBeRendered);
+    const char* script_cstr = script_to_cstr(script);
+
+    TTF_SetFontScriptName(mTTF_Font, script_cstr);
+    if (PEBLUtility::IsRTLScript(script)) {
+        TTF_SetFontDirection(mTTF_Font, TTF_DIRECTION_RTL);
+    } else {
+        TTF_SetFontDirection(mTTF_Font, TTF_DIRECTION_LTR);
+    }
+
     if(PEBLUtility::is_utf8(toBeRendered))
         {
-            
+
             TTF_SizeUTF8(mTTF_Font,toBeRendered.c_str(),&width,&height); // should work on all utf8
         }
     else

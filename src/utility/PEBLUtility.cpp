@@ -107,6 +107,7 @@
 
 
 #include <SDL_scancode.h>
+#include <SDL_locale.h>
 
 //Some math libraries contain this, but let's not take any chances.
 #define PI 3.141592653589793238462643383279502884197169399375
@@ -1409,4 +1410,237 @@ Variant PEBLUtility::ParseJSON(const std::string &text)
     //skip past the first token, and extract the rest (r-1 remaining; token 1)
     Variant out = ExtractJSONObject(text, r-1,tt,0,text.length());
     return out;
+}
+
+// Detect script from UTF-8 text content
+// Returns ISO 15924 4-letter script code, or empty string for Latin/unknown
+// Used to enable proper text rendering for complex scripts
+std::string PEBLUtility::DetectScript(const std::string & text) {
+    if (!is_utf8(text)) {
+        return "";  // Can't reliably detect in non-UTF8
+    }
+
+    // Walk through UTF-8 string looking for script-specific codepoints
+    const unsigned char *bytes = (const unsigned char *)text.c_str();
+    while (*bytes) {
+        // Hebrew: U+0590 to U+05FF (0xD6 0x90 to 0xD7 0xBF in UTF-8)
+        if ((bytes[0] == 0xD6 && bytes[1] >= 0x90) ||
+            (bytes[0] == 0xD7 && bytes[1] <= 0xBF)) {
+            return "Hebr";
+        }
+
+        // Arabic: U+0600 to U+06FF (0xD8 0x80 to 0xDB 0xBF in UTF-8)
+        if (bytes[0] >= 0xD8 && bytes[0] <= 0xDB) {
+            return "Arab";
+        }
+
+        // Devanagari: U+0900 to U+097F (0xE0 0xA4 0x80 to 0xE0 0xA5 0xBF)
+        if (bytes[0] == 0xE0 && bytes[1] == 0xA4) {
+            return "Deva";
+        }
+
+        // Thai: U+0E00 to U+0E7F (0xE0 0xB8 0x80 to 0xE0 0xB9 0xBF)
+        if (bytes[0] == 0xE0 && bytes[1] == 0xB8) {
+            return "Thai";
+        }
+
+        // Bengali: U+0980 to U+09FF (0xE0 0xA6 0x80 to 0xE0 0xA7 0xBF)
+        if (bytes[0] == 0xE0 && bytes[1] == 0xA6) {
+            return "Beng";
+        }
+
+        // Georgian: U+10A0 to U+10FF (0xE1 0x82 0xA0 to 0xE1 0x83 0xBF)
+        if (bytes[0] == 0xE1 && (bytes[1] == 0x82 || bytes[1] == 0x83)) {
+            return "Geor";
+        }
+
+        // Hiragana: U+3040 to U+309F (0xE3 0x81 0x80 to 0xE3 0x82 0x9F)
+        if (bytes[0] == 0xE3 && (bytes[1] == 0x81 || bytes[1] == 0x82)) {
+            return "Hira";  // Japanese Hiragana
+        }
+
+        // Katakana: U+30A0 to U+30FF (0xE3 0x82 0xA0 to 0xE3 0x83 0xBF)
+        if (bytes[0] == 0xE3 && bytes[1] == 0x83) {
+            return "Kana";  // Japanese Katakana
+        }
+
+        // Hangul Syllables: U+AC00 to U+D7AF (0xEA 0xB0 0x80 to 0xED 0x9E 0xAF)
+        if (bytes[0] >= 0xEA && bytes[0] <= 0xED) {
+            return "Hang";  // Korean Hangul
+        }
+
+        // CJK Unified Ideographs: U+4E00 to U+9FFF
+        // (0xE4 0xB8 0x80 to 0xE9 0xBF 0xBF)
+        if (bytes[0] >= 0xE4 && bytes[0] <= 0xE9) {
+            return "Hani";  // Han (Chinese/Japanese/Korean)
+        }
+
+        // Skip to next codepoint
+        if (bytes[0] < 0x80) bytes += 1;
+        else if ((bytes[0] & 0xE0) == 0xC0) bytes += 2;
+        else if ((bytes[0] & 0xF0) == 0xE0) bytes += 3;
+        else if ((bytes[0] & 0xF8) == 0xF0) bytes += 4;
+        else bytes += 1;  // Invalid UTF-8, skip
+    }
+
+    return "";  // Default: Latin/unknown, no special script needed
+}
+
+// Determine if script is right-to-left
+bool PEBLUtility::IsRTLScript(const std::string & script) {
+    return (script == "Hebr" || script == "Arab");
+}
+
+// Get appropriate font for a language code (2-letter ISO 639-1) or script code (4-letter ISO 15924)
+// fontType: 0=sans-serif, 1=monospace, 2=serif
+// Returns font filename appropriate for the language/script
+std::string PEBLUtility::GetFontForLanguageOrScript(const std::string & code, int fontType) {
+    std::string upperCode = code;
+    std::transform(upperCode.begin(), upperCode.end(), upperCode.begin(), ::toupper);
+
+    // Default fonts (Western scripts - Latin, Cyrillic, Greek)
+    std::string defaultSans = "DejaVuSans.ttf";
+    std::string defaultMono = "DejaVuSansMono.ttf";
+    std::string defaultSerif = "DejaVuSerif.ttf";
+
+    // CJK fonts
+    std::string cjkSans = "NotoSansCJK-Regular.ttc";
+    std::string cjkMono = "NotoSansMono-Regular.ttf";
+    std::string cjkSerif = "NotoSerif-Regular.ttf";
+
+    // Check if it's a 2-letter language code or 4-letter script code
+    if (upperCode.length() == 2) {
+        // Language code - map to appropriate font
+        if (upperCode == "AR") {
+            // Arabic - DejaVu has Arabic + Latin support
+            return (fontType == 0) ? defaultSans : (fontType == 1) ? defaultMono : defaultSerif;
+        }
+        else if (upperCode == "HE" || upperCode == "IW") {
+            // Hebrew - DejaVu has Hebrew + Latin support
+            return (fontType == 0) ? defaultSans : (fontType == 1) ? defaultMono : defaultSerif;
+        }
+        else if (upperCode == "TH") {
+            // Thai
+            return (fontType == 0) ? "NotoSansThai-Regular.ttf" :
+                   (fontType == 1) ? cjkMono : cjkSerif;
+        }
+        else if (upperCode == "HI" || upperCode == "MR" || upperCode == "NE") {
+            // Devanagari (Hindi, Marathi, Nepali)
+            return (fontType == 0) ? "NotoSansDevanagari-Regular.ttf" :
+                   (fontType == 1) ? cjkMono : cjkSerif;
+        }
+        else if (upperCode == "BN") {
+            // Bengali
+            return (fontType == 0) ? "NotoSansBengali-Regular.ttf" :
+                   (fontType == 1) ? cjkMono : cjkSerif;
+        }
+        else if (upperCode == "KA") {
+            // Georgian - DejaVu has Georgian + Latin support
+            return (fontType == 0) ? defaultSans : (fontType == 1) ? defaultMono : defaultSerif;
+        }
+        else if (upperCode == "ZH" || upperCode == "CN" || upperCode == "TW") {
+            // Chinese
+            return (fontType == 0) ? cjkSans : (fontType == 1) ? cjkMono : cjkSerif;
+        }
+        else if (upperCode == "JA" || upperCode == "JP") {
+            // Japanese
+            return (fontType == 0) ? cjkSans : (fontType == 1) ? cjkMono : cjkSerif;
+        }
+        else if (upperCode == "KO" || upperCode == "KR" || upperCode == "KP") {
+            // Korean
+            return (fontType == 0) ? cjkSans : (fontType == 1) ? cjkMono : cjkSerif;
+        }
+        else {
+            // Default to Western fonts for unrecognized language codes
+            return (fontType == 0) ? defaultSans : (fontType == 1) ? defaultMono : defaultSerif;
+        }
+    }
+    else if (upperCode.length() == 4) {
+        // Script code (ISO 15924) - map to appropriate font
+        if (upperCode == "ARAB") {
+            // Arabic script
+            return (fontType == 0) ? defaultSans : (fontType == 1) ? defaultMono : defaultSerif;
+        }
+        else if (upperCode == "HEBR") {
+            // Hebrew script
+            return (fontType == 0) ? defaultSans : (fontType == 1) ? defaultMono : defaultSerif;
+        }
+        else if (upperCode == "THAI") {
+            // Thai script
+            return (fontType == 0) ? "NotoSansThai-Regular.ttf" :
+                   (fontType == 1) ? cjkMono : cjkSerif;
+        }
+        else if (upperCode == "DEVA") {
+            // Devanagari script
+            return (fontType == 0) ? "NotoSansDevanagari-Regular.ttf" :
+                   (fontType == 1) ? cjkMono : cjkSerif;
+        }
+        else if (upperCode == "BENG") {
+            // Bengali script
+            return (fontType == 0) ? "NotoSansBengali-Regular.ttf" :
+                   (fontType == 1) ? cjkMono : cjkSerif;
+        }
+        else if (upperCode == "GEOR") {
+            // Georgian script
+            return (fontType == 0) ? defaultSans : (fontType == 1) ? defaultMono : defaultSerif;
+        }
+        else if (upperCode == "HIRA" || upperCode == "KANA" || upperCode == "HANI") {
+            // Japanese scripts (Hiragana, Katakana, Han/Kanji)
+            return (fontType == 0) ? cjkSans : (fontType == 1) ? cjkMono : cjkSerif;
+        }
+        else if (upperCode == "HANG") {
+            // Korean Hangul script
+            return (fontType == 0) ? cjkSans : (fontType == 1) ? cjkMono : cjkSerif;
+        }
+        else {
+            // Default to Western fonts (Latin and unknown scripts)
+            return (fontType == 0) ? defaultSans : (fontType == 1) ? defaultMono : defaultSerif;
+        }
+    }
+    else {
+        // Invalid code length - return default
+        return (fontType == 0) ? defaultSans : (fontType == 1) ? defaultMono : defaultSerif;
+    }
+}
+
+// Get the system locale from OS settings
+// Uses SDL_GetPreferredLocales() to query OS for user's preferred language/locale
+// Returns locale string like "ar", "en_US", "zh_CN", "he_IL"
+// Returns empty string on error
+std::string PEBLUtility::GetSystemLocale() {
+    SDL_Locale *locales = SDL_GetPreferredLocales();
+    if (!locales) {
+        return "";  // Error or not supported on this platform
+    }
+
+    // Get the first (primary) locale
+    std::string result = "";
+    if (locales[0].language) {
+        result = locales[0].language;
+
+        // Append country code if available (e.g., "en_US", "zh_CN")
+        if (locales[0].country) {
+            result += "_";
+            result += locales[0].country;
+        }
+    }
+
+    SDL_free(locales);
+    return result;  // e.g., "ar", "en_US", "zh_CN", "he_IL", "ko_KR"
+}
+
+// Check if the system locale is RTL (Arabic, Hebrew)
+// Useful for setting default text box justification before any text input
+bool PEBLUtility::IsSystemLocaleRTL() {
+    std::string locale = GetSystemLocale();
+    if (locale.empty()) {
+        return false;  // Default to LTR if we can't detect
+    }
+
+    // Extract language code (first 2 characters)
+    std::string langCode = locale.substr(0, 2);
+    std::transform(langCode.begin(), langCode.end(), langCode.begin(), ::tolower);
+
+    // Check if it's Arabic or Hebrew
+    return (langCode == "ar" || langCode == "he" || langCode == "iw");
 }

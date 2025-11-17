@@ -425,7 +425,7 @@ int PEBLInterpret( int argc, std::vector<std::string> argv )
     
     Variant uploadConfigFile = "";
     
-    Variant lang = "en";
+    Variant lang = "";
     Variant subnum = 0;
 
 
@@ -826,6 +826,14 @@ int PEBLInterpret( int argc, std::vector<std::string> argv )
         Evaluator::gGlobalVariableMap.AddVariable("gPEBLBaseFontMono",Variant("DejaVuSansMono.ttf"));
         Evaluator::gGlobalVariableMap.AddVariable("gPEBLBaseFontSerif",Variant("DejaVuSerif.ttf"));
     }
+
+    // Always set fallback fonts to DejaVu (optimal for Western/Latin scripts)
+    // These are used when translations aren't available, avoiding issues like:
+    // - RTL languages (AR/HE) right-justifying English text
+    // - CJK languages rendering Latin text in CJK fonts
+    Evaluator::gGlobalVariableMap.AddVariable("gPEBLBaseFontFallback",Variant("DejaVuSans.ttf"));
+    Evaluator::gGlobalVariableMap.AddVariable("gPEBLBaseFontMonoFallback",Variant("DejaVuSansMono.ttf"));
+    Evaluator::gGlobalVariableMap.AddVariable("gPEBLBaseFontSerifFallback",Variant("DejaVuSerif.ttf"));
 
     //load the parameter file into a global variable
     Evaluator::gGlobalVariableMap.AddVariable("gParamFile",Variant(pfile));

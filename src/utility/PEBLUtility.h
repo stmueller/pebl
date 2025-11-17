@@ -123,6 +123,29 @@ namespace PEBLUtility
 
     Variant ParseJSON(const std::string &text);
 
+    // Unicode script detection functions
+    // Returns ISO 15924 4-letter script code (e.g., "Arab", "Hebr", "Hani", "Thai")
+    // Returns NULL/empty string for Latin/unknown scripts
+    std::string DetectScript(const std::string & text);
+
+    // Returns true if the script code is right-to-left (Arabic, Hebrew)
+    bool IsRTLScript(const std::string & script);
+
+    // Font selection based on language code (2-letter ISO 639-1) or script code (4-letter ISO 15924)
+    // Returns appropriate font filename for the given language/script
+    // fontType: 0=sans-serif, 1=monospace, 2=serif
+    std::string GetFontForLanguageOrScript(const std::string & code, int fontType);
+
+    // System locale detection
+    // Returns the user's preferred locale from OS settings (e.g., "ar", "en_US", "zh_CN", "he_IL")
+    // Uses SDL_GetPreferredLocales() to query OS locale preferences
+    // Returns empty string if detection fails
+    std::string GetSystemLocale();
+
+    // Returns true if the system locale is RTL (Arabic, Hebrew)
+    // Useful for setting default text box justification before any input
+    bool IsSystemLocaleRTL();
+
 
 }
 

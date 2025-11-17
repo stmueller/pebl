@@ -63,6 +63,51 @@ using std::list;
 using std::ostream;
 using std::string;
 
+// Detect if text contains RTL (Right-to-Left) characters
+// Used for auto-adjusting textbox justification
+static bool has_rtl_text(const std::string & text) {
+    if (!utf8::is_valid(text.begin(), text.end())) {
+        return false;
+    }
+
+    const unsigned char *bytes = (const unsigned char *)text.c_str();
+    while (*bytes) {
+        // Hebrew: U+0590 to U+05FF (0xD6 0x90 to 0xD7 0xBF in UTF-8)
+        if ((bytes[0] == 0xD6 && bytes[1] >= 0x90) ||
+            (bytes[0] == 0xD7 && bytes[1] <= 0xBF)) {
+            return true;
+        }
+
+        // Arabic: U+0600 to U+06FF (0xD8 0x80 to 0xDB 0xBF in UTF-8)
+        if (bytes[0] >= 0xD8 && bytes[0] <= 0xDB) {
+            return true;
+        }
+
+        // Skip to next codepoint
+        if (bytes[0] < 0x80) bytes += 1;
+        else if ((bytes[0] & 0xE0) == 0xC0) bytes += 2;
+        else if ((bytes[0] & 0xF0) == 0xE0) bytes += 3;
+        else if ((bytes[0] & 0xF8) == 0xF0) bytes += 4;
+        else bytes += 1;
+    }
+
+    return false;
+}
+
+// Helper function to determine if a line should be right-justified
+// Used in cursor positioning to account for both RTL text and explicit RIGHT justification
+static bool is_line_right_justified(const std::string & line_text, const Variant & justify_property) {
+    // RTL text is always right-justified
+    if (has_rtl_text(line_text)) {
+        return true;
+    }
+    // Check if justification is explicitly set to RIGHT
+    if (justify_property == "RIGHT") {
+        return true;
+    }
+    return false;
+}
+
 
 PlatformTextBox::PlatformTextBox(string text, counted_ptr<PEBLObjectBase> font, int width, int height):
     PlatformWidget(),
@@ -215,35 +260,40 @@ bool  PlatformTextBox::RenderText()
 
                     SDL_Rect to;
 
-                    if(mJustify == "RIGHT")
+                    // Auto-detect RTL for THIS LINE and adjust justification
+                    std::string line_text = mText.substr(linestart, linelength);
+                    bool isLineRTL = has_rtl_text(line_text);
+
+                    // Determine effective justification: RTL overrides mJustify
+                    Variant effectiveJustify;
+                    if (isLineRTL) {
+                        effectiveJustify = "RIGHT";
+                    } else {
+                        effectiveJustify = mJustify;
+                    }
+
+                    if(effectiveJustify == "RIGHT")
                         {
                             //right flush
-                            tmpSurface = mFont->RenderText(mText.substr(linestart, linelength).c_str());
+                            tmpSurface = mFont->RenderText(line_text.c_str());
                             SDL_Rect tmprect = {mSurface->w - tmpSurface->w,
                                                 static_cast<int>(totalheight),
                                                 tmpSurface->w,tmpSurface->h};
                             to = tmprect;
-
-
                         }
-                    else if (mJustify == "CENTER"){
+                    else if (effectiveJustify == "CENTER"){
                         //centered
-
-                            tmpSurface = mFont->RenderText(mText.substr(linestart, linelength).c_str());
+                            tmpSurface = mFont->RenderText(line_text.c_str());
                             int xval = (mSurface->w - tmpSurface->w)/2;
                             SDL_Rect tmprect = {xval,static_cast<int>(totalheight),
                                                 tmpSurface->w,tmpSurface->h};
                             to = tmprect;
-                        
-                        
-                    }else{
-                        //if(mJustify == "LEFT")   {//fallback to left-justify
-                            tmpSurface = mFont->RenderText(mText.substr(linestart, linelength).c_str());
+                        }
+                    else{
+                        // LEFT justification (default)
+                            tmpSurface = mFont->RenderText(line_text.c_str());
                             SDL_Rect tmprect = {0,static_cast<int>(totalheight),tmpSurface->w,tmpSurface->h};
                             to = tmprect;
-
-                            //cout << "Rendering text :" << mText.substr(linestart,linelength)
-                            //<<endl;
                         }
 
 
@@ -408,6 +458,19 @@ void PlatformTextBox::SetText(string text)
     //Re-render the text onto mSurface
     //    if(!RenderText()) cerr << "Unable to render text.\n";
 
+}
+
+void PlatformTextBox::SetEditable(bool val)
+{
+    // Call parent implementation
+    PTextBox::SetEditable(val);
+
+    // When making a textbox editable, position cursor at end of text
+    // This works for all justifications - the rendering code handles visual positioning
+    if (val) {
+        mCursorPos = mText.length();
+        mCursorChanged = true;
+    }
 }
 
 
@@ -900,9 +963,38 @@ int PlatformTextBox::FindCursorPosition(long int x, long int y)
     //find the length in bytes of the current line:
     int length = mBreaks[linenum] - startchar;
 
-    
-    int charnum = mFont->GetPosition(mText.substr(startchar, length),
-                                     (unsigned int)x);
+    // Get the line text to check for RTL
+    std::string line_text = mText.substr(startchar, length);
+
+    // For right-justified text, x is the visual position from left edge of textbox
+    // We need to convert it to what GetPosition() expects
+    unsigned int x_adjusted = x;
+    if (is_line_right_justified(line_text, mJustify)) {
+        // Get line width to calculate where text starts
+        int line_width = mFont->GetTextWidth(line_text);
+        int text_start_x = mWidth - line_width;  // Right justification offset
+
+        if ((int)x >= text_start_x) {
+            // Click is within the text area
+            // For RTL text, GetPosition() expects x from LEFT edge of text,
+            // but RTL text renders right-to-left, so we need to flip:
+            // Visual position from left of text = (x - text_start_x)
+            // For RTL, we need position from RIGHT = line_width - (x - text_start_x)
+            if (has_rtl_text(line_text)) {
+                x_adjusted = line_width - ((int)x - text_start_x);
+            } else {
+                // Explicit RIGHT justification with LTR text
+                x_adjusted = (int)x - text_start_x;
+            }
+        } else {
+            // Click is to the left of the text (in the padding area)
+            // For RTL, this means beginning of text (which is visually on right)
+            // For LTR right-justified, this means before text starts
+            x_adjusted = has_rtl_text(line_text) ? line_width : 0;
+        }
+    }
+
+    int charnum = mFont->GetPosition(line_text, x_adjusted);
 
     //finally, if the current cursor position is a non-printing character (i.e. a carriage return)
     //back up one
@@ -935,7 +1027,12 @@ void PlatformTextBox::DrawCursor()
     x = width-1;    //Initialize x with the biggest value it can have.
     if(mCursorPos==0)
         {
-            x=0;
+            // For empty textbox, cursor starts at left for LTR, right for RTL
+            if (has_rtl_text(mText)) {
+                x = width - 1;  // RTL: cursor starts on the right
+            } else {
+                x = 0;  // LTR: cursor starts on the left
+            }
 
         } else {
         //The cursor is not at the beginning.
@@ -952,8 +1049,31 @@ void PlatformTextBox::DrawCursor()
 
                             std::string subst = mText.substr(linestart, mCursorPos - linestart);
 
-                            x =  mFont->GetTextWidth(subst);
-                            x = ( x >= width ) ? width-1: x;
+                            // Check if this line is right-justified (RTL text or explicit RIGHT)
+                            int line_end = mBreaks[i];
+                            std::string full_line = mText.substr(linestart, line_end - linestart);
+
+                            if (is_line_right_justified(full_line, mJustify)) {
+                                // Right-justified: text starts at (width - line_width)
+                                // For RTL, cursor is at (line_width - text_before_cursor) from right edge of text
+                                // For LTR right-justified, cursor is at text_before_cursor from left edge of text
+                                int line_width = mFont->GetTextWidth(full_line);
+                                int text_before_cursor_width = mFont->GetTextWidth(subst);
+                                int text_start_x = width - line_width;  // RIGHT justification offset
+
+                                if (has_rtl_text(full_line)) {
+                                    // RTL: cursor position is flipped
+                                    x = text_start_x + (line_width - text_before_cursor_width);
+                                } else {
+                                    // LTR right-justified: cursor position is normal
+                                    x = text_start_x + text_before_cursor_width;
+                                }
+                                x = ( x >= width ) ? width-1: x;
+                            } else {
+                                // Left-justified: cursor is positioned from the left edge (original behavior)
+                                x =  mFont->GetTextWidth(subst);
+                                x = ( x >= width ) ? width-1: x;
+                            }
                             break;
                         }
 
@@ -1057,7 +1177,26 @@ void PlatformTextBox::HandleKeyPress(int keycode, int modkeys)
                         if(mBreaks[i] > mCursorPos)
                             {
                                 y = i * height;
-                                x = mFont->GetTextWidth(mText.substr(linestart, mCursorPos - linestart));
+
+                                // Calculate x position (visual position from left edge of textbox)
+                                std::string text_before_cursor = mText.substr(linestart, mCursorPos - linestart);
+
+                                // Get the full line to check justification
+                                int line_end = mBreaks[i];
+                                std::string full_line = mText.substr(linestart, line_end - linestart);
+
+                                if (is_line_right_justified(full_line, mJustify)) {
+                                    // Right-justified: text starts at (width - line_width)
+                                    // Cursor is at distance (line_width - text_before_cursor_width) from right edge of text
+                                    // Visual x = text_start + (line_width - text_before_cursor_width)
+                                    //          = (width - line_width) + (line_width - text_before_cursor_width)
+                                    //          = width - text_before_cursor_width
+                                    int text_before_cursor_width = mFont->GetTextWidth(text_before_cursor);
+                                    x = mWidth - text_before_cursor_width;
+                                } else {
+                                    // Left-justified: x is simply width of text before cursor
+                                    x = mFont->GetTextWidth(text_before_cursor);
+                                }
                                 break;
                             }
                         linestart = mBreaks[i];
@@ -1093,11 +1232,47 @@ void PlatformTextBox::HandleKeyPress(int keycode, int modkeys)
             break;
 
         case PEBL_KEYCODE_LEFT:
-            DecrementCursor();
-            break;
-
         case PEBL_KEYCODE_RIGHT:
-            IncrementCursor();
+            {
+                // For RTL text, LEFT/RIGHT arrows should move in visual direction, not logical
+                // Find which line the cursor is on to check if it's RTL
+                bool isRTLLine = false;
+
+                if (mBreaks.size() > 0 && mText.length() > 0) {
+                    unsigned int i = 0;
+                    int linestart = 0;
+
+                    while(i < mBreaks.size()) {
+                        if(mBreaks[i] >= mCursorPos) {
+                            // Found the current line
+                            int line_end = mBreaks[i];
+                            std::string current_line = mText.substr(linestart, line_end - linestart);
+                            isRTLLine = has_rtl_text(current_line);
+                            break;
+                        }
+                        linestart = mBreaks[i];
+                        i++;
+                    }
+                }
+
+                // In RTL text, swap the behavior:
+                // - LEFT arrow moves visually left (logically forward) = IncrementCursor
+                // - RIGHT arrow moves visually right (logically backward) = DecrementCursor
+                if (isRTLLine) {
+                    if (keycode == PEBL_KEYCODE_LEFT) {
+                        IncrementCursor();
+                    } else {
+                        DecrementCursor();
+                    }
+                } else {
+                    // LTR text: normal behavior
+                    if (keycode == PEBL_KEYCODE_LEFT) {
+                        DecrementCursor();
+                    } else {
+                        IncrementCursor();
+                    }
+                }
+            }
             break;
 
 

@@ -455,6 +455,11 @@ namespace PEBLString
             {(char*)"FINDINSTRING",              FindInString, 3, 3},
             {(char*)"SPLITSTRING",               SplitString, 2, 2},
             {(char*)"COPYTOCLIPBOARD",           CopyToClipboard,1,1},
+            {(char*)"DETECTTEXTSCRIPT",          DetectTextScript, 1, 1},
+            {(char*)"ISRTL",                     IsRTL, 1, 1},
+            {(char*)"GETFONTFORTEXT",            GetFontForText, 1, 2},
+            {(char*)"GETSYSTEMLOCALE",           GetSystemLocale, 0, 0},
+            {(char*)"ISSYSTEMLOCALERTL",         IsSystemLocaleRTL, 0, 0},
             //          {(char*)"TOKEN",                     TokenMakeWindow, 1, 1},
             //          {(char*)"FORMAT",        Format, 1, 1},
             {0,            0,  0, 0}

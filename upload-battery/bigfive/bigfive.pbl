@@ -1,0 +1,343 @@
+##Big-five scale, from ipip.ori.org:
+##Although none of the IPIP scales have official names, one should refer 
+## to them by the scales on which they are based.  Hence, these scales 
+##could be labeled "the 50-item (or 100-item) IPIP representation of the
+## Goldberg (1992) markers for the big-five factor structure" or something
+## like that.
+##http://ipip.ori.org/
+##
+## See:  Goldberg, L. R. (1992).  The development of markers for the
+##      Big-Five factor structure.  Psychological Assessment, 4, 26-42.
+##
+
+
+define Start(p)
+{
+
+  parpairs <- [["shufflequestions",1],
+               ["doExt",1],
+               ["doAgr",1],
+               ["doCon",1],
+               ["doEmo",1],
+               ["doInt",1]]
+
+  InitializeUpload()
+
+  gParams <- CreateParameters(parpairs,gParamFile)
+  traitfilter <- [gParams.doext,gParams.doagr,gParams.docon,gParams.doemo,gParams.doint]
+
+  gSleepEasy <- 1
+  GetStrings(gLanguage)
+  MakeDirectory("data")
+
+   gWin <- MakeWindow("black")
+
+   if(gSubNum+""=="0")
+   {
+    gSubNum <- GetSubNum(gWin)
+   }
+
+   suboutfile <- GetNewDataFile(gSubNum,gWin,"bigfive","csv",
+                          "subnum,order,time,qnum,ques,dim,valence,resp,rt")
+    dir <- GetDirectory(suboutfile.filename)+"../"
+
+
+
+   ##open a pooled file for appending if it exists, in parent directory of subject directory.
+   ##
+
+
+    ##Now, create a report file to output text report
+    reportFile <- GetNewDataFile(gSubNum,gWin,"bigfivereport","txt","")
+   
+
+   pooledfname <- dir + "bigfive-pooled.csv"
+   if(FileExists(pooledfname))
+   {
+       pooledfile <- FileOpenAppend(pooledfname)
+   } else {
+   
+       pooledfile <- FileOpenWrite(pooledfname)
+       FilePrint(pooledfile, "subnum,timestamp,time,q1,q2,q3,q4,q5,q6,q7,q8,q9,q10,q11,q12,q13,q14,q15,q16,q17,q18,q19,q20,q21,q22,q23,q24,q25,q26,q27,q28,q29,q30,q31,q32,q33,q34,q35,q36,q37,q38,q39,q40,q41,q42,q43,q44,q45,q46,q47,q48,q49,q50,EXT,AGR,CONS,EMO,INT")
+   }
+
+
+     
+    
+
+
+
+
+
+
+   gQuestfont <- MakeFont(gPEBLBaseFont,0,35,MakeColor("white"),MakeColor("black"),0)
+   gSmallFont <- MakeFont(gPEBLBaseFont,0,18,MakeColor("white"),MakeColor("black"),0)
+
+  ## Define questions with metadata: [qnum, text_key, dimension, valence]
+  ## Dimension: 1=Extraversion, 2=Agreeableness, 3=Conscientiousness, 4=Emotional_Stability, 5=Intellect
+  ## Valence: +1 or -1 for scoring direction
+  questionData <- [
+    ["1", "q1", "1", "+1"],
+    ["2", "q2", "2", "-1"],
+    ["3", "q3", "3", "+1"],
+    ["4", "q4", "4", "-1"],
+    ["5", "q5", "5", "+1"],
+    ["6", "q6", "1", "-1"],
+    ["7", "q7", "2", "+1"],
+    ["8", "q8", "3", "-1"],
+    ["9", "q9", "4", "+1"],
+    ["10", "q10", "5", "-1"],
+    ["11", "q11", "1", "+1"],
+    ["12", "q12", "2", "-1"],
+    ["13", "q13", "3", "+1"],
+    ["14", "q14", "4", "-1"],
+    ["15", "q15", "5", "+1"],
+    ["16", "q16", "1", "-1"],
+    ["17", "q17", "2", "+1"],
+    ["18", "q18", "3", "-1"],
+    ["19", "q19", "4", "+1"],
+    ["20", "q20", "5", "-1"],
+    ["21", "q21", "1", "+1"],
+    ["22", "q22", "2", "-1"],
+    ["23", "q23", "3", "+1"],
+    ["24", "q24", "4", "-1"],
+    ["25", "q25", "5", "+1"],
+    ["26", "q26", "1", "-1"],
+    ["27", "q27", "2", "+1"],
+    ["28", "q28", "3", "-1"],
+    ["29", "q29", "4", "-1"],
+    ["30", "q30", "5", "-1"],
+    ["31", "q31", "1", "+1"],
+    ["32", "q32", "2", "-1"],
+    ["33", "q33", "3", "+1"],
+    ["34", "q34", "4", "-1"],
+    ["35", "q35", "5", "+1"],
+    ["36", "q36", "1", "-1"],
+    ["37", "q37", "2", "+1"],
+    ["38", "q38", "3", "-1"],
+    ["39", "q39", "4", "-1"],
+    ["40", "q40", "5", "+1"],
+    ["41", "q41", "1", "+1"],
+    ["42", "q42", "2", "+1"],
+    ["43", "q43", "3", "+1"],
+    ["44", "q44", "4", "-1"],
+    ["45", "q45", "5", "+1"],
+    ["46", "q46", "1", "-1"],
+    ["47", "q47", "2", "+1"],
+    ["48", "q48", "3", "+1"],
+    ["49", "q49", "4", "-1"],
+    ["50", "q50", "5", "+1"]
+  ]
+
+  ## Get question text from translations and add to question data
+  questions <- []
+  loop(qd, questionData)
+  {
+    qnum <- First(qd)
+    text_key <- Second(qd)
+    dimension <- Third(qd)
+    valence <- Fourth(qd)
+
+    ## Get translated text from gStrings
+    questionText <- GetProperty(gStrings, text_key)
+
+    ## Build question in CSV format: [qnum, text, dimension, valence]
+    PushOnEnd(questions, [qnum, questionText, dimension, valence])
+  }
+
+  if(gParams.shufflequestions)
+   {
+     questions <- Shuffle(questions)
+   }
+  responses <- []
+  data <- []
+
+   ##DO THE INSTRUCTIONS:
+   MessageBox(gInst,gWin)
+
+   startTime <- GetTime()
+   questorder <- 1
+   loop(q,questions)
+   {
+     type <- ToNumber(Nth(q,3))
+     
+     doQuestion <- Nth(traitfilter,type)
+      if(doQuestion)
+      {
+        resp <- Likert(Second(q))
+        dataline <- Flatten([[gSubNum,questorder,GetTime()],q,resp])
+        FilePrint(subOutFile,ConcatenateList(dataline,","))
+        PushOnEnd(responses,resp)
+        PushonEnd(data,dataline)
+        questorder <- questorder + 1
+      } else {
+        PushOnEnd(responses,["NA","NA"])
+      }
+
+   }
+
+
+
+
+   tDat <- Transpose(data)
+   
+   ##Now, compute composite scores.
+   traits <- ["Extroversion", "Agreeableness","Conscientiousness",
+              "Emotional Stability","Intellect/Imagination"]
+
+   values <- []
+   loop(i,[1,2,3,4,5])
+    {
+
+
+      if(Nth(traitfilter,i))
+       {
+
+         
+       filter <- Match(Nth(tDat,6),i+"")
+       subSet <- Filter(data,filter)
+       sum <- 0
+       loop(q,subset)	
+       {
+         if(ToNumber(Nth(q,7))<0)
+         {
+          sum <- sum + 6- ToNumber(Nth(q,8))
+         } else {
+          sum <- sum + ToNumber(Nth(q,8))
+         }
+
+       }
+      PushOnEnd(values,sum)
+     } else {
+      PushOnEnd(values,"NA")
+     }
+   }
+
+
+   completiontime <- ((GetTime()-starttime)/1000/60) 
+   ratings <- First(Transpose(responses))
+   FilePrint_(pooledfile,gSubNum+","+TimeStamp()+","+completiontime + ","+ConcatenateList(ratings,",")+",")
+   FilePrint(pooledfile,ConcatenateList(values,","))
+
+
+   FilePrint(reportfile,CR(2)+"--------------------------------------------------------------------")
+   FilePrint(reportfile,"50-item  IPIP representation of the Goldberg (1992) markers for the big-five factor structure.")
+   FilePrint(reportfile,"see http://ipip.ori.org/")
+   FilePrint(reportfile,"Implementation part of the PEBL Project")
+   FilePrint(reportfile,"http://pebl.sf.net"+CR(3))
+   FilePrint(reportfile,CR(2)+"--------------------------------------------------------------------")
+   FilePrint(reportfile,"see  Goldberg, L. R. (1992).  The development of markers for the Big-Five factor structure.  Psychological Assessment, 4, 26-42.")
+
+   FilePrint(reportfile,CR(2)+"--------------------------------------------------------------------")
+   FilePrint(reportfile,TimeStamp())
+   FilePrint(reportfile,GetPEBLVersion())
+   FilePrint(reportfile,"Participant code:" +gSubNum)
+##   FilePrint(reportfile,"Data saved in "+ suboutfile.filename)
+   FilePrint(reportfile,"Time to complete: "+ completiontime + " min.")
+
+   FilePrint(reportfile,CR(2)+"Composite score for each dimension:")
+
+
+   loop(i,Transpose([traits,values]))
+    {
+       FilePrint(reportfile,Format(First(i)+":",25)+""+ Second(i))
+    }
+
+   FilePrint(reportfile,CR(2)+"--------------------------------------------------------------------")
+   FileClose(reportfile)
+   FileClose(pooledfile)
+   FileClose(suboutfile)
+   
+   UploadFile(gSubnum,reportfile.filename)
+   UploadFile(gSubnum,pooledfile.filename)
+   UploadFile(gSubnum,suboutfile.filename)
+
+  MessageBox(gDebriefing,gWin)
+}
+
+
+
+##These helper functions require gTextBox, gHeader, and gFooter to work.
+define Likert(question)
+{
+
+   
+    ##spread should be a total of at least 640 pixels, or 80 per option
+    skip <- 150
+
+    ##Add the question:
+    questionHead <- MakeLabel(gQuestionHead, gQuestFont)
+    AddObject(questionHead,gWin)
+    Move(questionHead,gVideoWidth/2,150)
+
+
+    questionL <- MakeLabel(question,gQuestFont)
+    AddObject(questionL,gWin)
+    Move(questionL,gVideoWidth/2,300)
+    ##compress a little if it is too wide for the screen.
+    if(questionL.width > gVideoWidth)
+      {
+
+        questionL.zoomX <- (gVideoWidth-2)/questionL.width
+        questionL.zoomY <- questionL.zoomX
+      }
+    left <- gVideoWidth/2-skip*3
+    yval <- gVideoHeight/2+100
+
+    backs <- []
+    nums <- []
+    texts <- []
+
+    loop(i,[1,2,3,4,5])
+     {
+
+      x <- left + skip * i
+      back <- Rectangle(x,yval+50,skip-10,180,MakeColor("white"),0)
+      num <- MakeLabel(i+"",gQuestFont)
+      Move(num, x,yval)
+      AddObject(num,gWin)
+      AddObject(back,gWin)
+
+     
+      optLabel  <- MakeTextBox(Nth(gLikertOptions,i),gSmallFont,skip-15,80) 
+      AddObject(optLabel,gWin)
+      Move(optlabel,x-optLabel.width/2,yval+50)
+
+      PushOnEnd(backs,back)
+      PushOnEnd(nums,num)
+      PushOnEnd(texts,optlabel)
+       
+     }
+
+
+  Draw()
+  t1 <- GetTime()
+  response <-WaitForClickOnTarget(backs,[1,2,3,4,5])
+  t2 <- GetTime()
+
+  return [response,(t2-t1)]
+}
+
+   
+define GetStrings(lang)
+{
+  lang <- Uppercase(lang)
+  fname <- "translations/bigfive.pbl-" + LowerCase(lang) + ".json"
+
+  if(FileExists(fname))
+  {
+    gStrings <- ReadTranslationJSON(fname, lang)
+  } else {
+    gStrings <- ReadTranslationJSON("translations/bigfive.pbl-en.json", lang)
+  }
+
+  ## Set global strings from translation
+  gInst <- gStrings.instructions
+  gQuestionHead <- gStrings.question_head
+  gLikertoptions <- [gStrings.likert_1,
+                     gStrings.likert_2,
+                     gStrings.likert_3,
+                     gStrings.likert_4,
+                     gStrings.likert_5]
+  gDebriefing <- gStrings.debriefing
+}

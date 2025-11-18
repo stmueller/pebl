@@ -1,0 +1,227 @@
+
+##  PEBL Clock Task
+##  An implementation of the so-called "Mackworth Clock" test.
+##  (C) 2011 Shane T. Mueller
+##  smueller@obereed.net
+##
+##  To cite:  Mueller, S. T. (2011). PEBL's Clock Test.  Computer
+##  software retrieved from http://pebl.sf.net/battery.html
+##
+##
+##
+##  http://en.wikipedia.org/wiki/Mackworth_Clock
+### Mackworth, N. H. (1948). The breakdown of vigilance during
+##  prolonged visual search. Quarterly Journal of Experimental
+##  Psychology, vol. 1, pp.6-21
+##
+##
+##  Shackel, B. (1999). How I broke the Mackworth clock test (and what
+##  I learned). In Hanson, M., Lovesey, E. J., and Robertson,
+##  S. A. Contemporary Ergonomics 1999. Taylor & Francis. (pp. 193-197)
+##
+##  Lichstein, K. L., Riedel, B. W., & Richman, S. L. (2000). The
+##    Mackworth clock test: A computerized version (statistical data
+##    included). The Journal of Psychology.
+##    http://www.encyclopedia.com/doc/1G1-62024427.html
+
+define Start(p)
+{
+     ## Initialize upload system (works for both online and native)
+     InitializeUpload()
+
+     ##Set initial values to use if .par file does not exist.
+     parpairs <- [["pskip",0.4],
+                  ["radius",240], ##radius in pixels of clock
+                  ["size",9],  ##size of target
+    	          ["trials",60] ##number of 1-sec trials
+                 ]
+
+
+  gParams <- CreateParameters(parpairs,gParamFile)
+
+  gWin <- MakeWindow("black")
+  gBasecolor <- MakeColor("white")
+  gTargcol <- MakeColor("red")
+  gHomeX <- gVideoWidth/2
+  gHomeY <- gVideoHeight/2
+
+   ##Get subject code if we need to:
+   if(gSubNum+""=="0")
+    {
+	  gSubNum <- GetSubNum(gWin)
+    }
+
+
+   GetStrings(gLanguage)
+
+  #Get starting position and put red target there.
+  xy <- GetXY(1)
+  targ <- Circle(First(xy),Second(xy),gParams.Size,gTargcol,1)
+  AddObject(targ,gWin)
+
+
+
+
+  ##Create target positions:
+  pos <- []
+  circs <- []
+  mins <- Sequence(1,60,1)
+  loop(i,mins)
+  {
+     xy <- GetXY(i)
+     pos <- Append(pos,xy)
+     circ <-  Circle(First(xy), Second(xy),gParams.Size,gBaseColor,0)
+     AddObject(circ,gWin)
+	 circs <- Append(circs,circ)
+
+
+  }
+  ShowCursor(0)
+  tb <-  EasyTextBox (gStrings.inst1,gVideoWidth/2-150,gVideoHeight/2-60,gWin,22,300,120)
+  Draw()
+  WaitForAnyKeyPress()
+  tb.text <-  gStrings.inst2
+
+  fileOut <- GetNewDataFile(gSubNum,gWin,"clock","csv",
+               "subnum,trial,ticker,sec,skip,resp,corr,starttime,rt,curtime")
+
+  trial <- 1
+  ticker <- 1
+  second <- 1
+  doskip <- 0
+  lastend <- GetTime()
+  skips <- 0
+   dataRT <- []
+   dataCorr <- 0
+   dataTargets <- 0
+    fa <- 0
+    hit <- 0
+    corrs <- 0
+
+  while(trial <= gParams.trials)
+  {
+   ##compute seconds/clock position, and move there.
+    second <- Mod(ticker,60)
+    pos <- GetXY(second)
+    Move(targ,First(pos),Second(pos))
+    Show(targ)
+    Draw()
+
+    ##cycle should end 1000 ms after current
+    nexttime <- lastend + 1000
+    curtime <- GetTime()
+
+
+    resp <-  WaitForListKeyPressWithTimeout([" "],nexttime - curtime,1)
+    rtime <- GetTime()
+    ##Score response
+    if(not (resp == "<timeout>"))
+     {
+       pressed <- 1
+       Wait(nexttime - GetTime())
+     } else {
+       pressed <- 0
+     }
+
+     if(resp == " ")
+      {
+        resp <- 1
+      }else{
+        resp <- 0
+      }
+
+    corr <- resp == doskip
+    corrs <- corrs + corr
+    hit <- hit + (doskip and corr)
+    fa <- fa + ((not doskip) and (not corr))
+
+    if(resp== 1 and corr)
+    {
+      PushOnEnd( dataRT, (rtime-curtime))
+    }
+
+     dataCorr <- dataCorr+ corr
+
+    FilePrint(fileout,gSubNum + "," + trial + "," + ticker + "," + second + "," + doskip+
+	       "," + resp +"," + corr + "," + rtime + "," + (rtime - curtime) + "," + GetTime())
+    lastend <- GetTime()
+    skips <- skips + doskip
+
+    ##Determine if we should skip on this trial.
+    if(Random() < gParams.pskip)
+     {
+       doskip <- 1
+
+     } else {
+
+       doskip <- 0
+     }
+
+    trial <- trial + 1
+    ticker <- ticker + doskip + 1
+    dataTargets <- dataTargets + doskip
+
+    ##Do a brief disappear of the target.
+
+    Hide(targ)
+    Draw()
+    Wait(400)
+  }
+
+  text <- "PEBL Mackworth Clock Test "+ CR(1)+
+          TimeStamp()+CR(1)+
+
+ 	  "Trials:     "+ gParams.trials+ CR(1)+
+	  "Targets (skips):   " + skips +CR(1)+
+          "Correct Responses: "+ corrs+CR(1)+
+          "Correct targets:   " +hit+ CR(1)+
+	  "False alarms:      " +fa+CR(1)+
+	  "Mean correct RT:   "  +Mean(dataRT)+CR(1)
+
+
+  tb.text <-  text+gStrings.debrief
+
+  tb.width <- gVideoWidth-200
+  tb.height<-gVideoHeight-200
+  Move(tb,100,100)
+   report <- FileOpenAppend("data/"+ gSubNum+"/clock-report-"+gSubNum+".txt")
+   FilePrint(report,text)
+   FileClose(report)
+
+   ## Upload data files (works online, no-op on native)
+   UploadFile(gSubNum, "data/" + gSubNum + "/clock-" + gSubNum + ".csv")
+   UploadFile(gSubNum, "data/" + gSubNum + "/clock-report-" + gSubNum + ".txt")
+
+   Draw()
+   WaitForKeyAnyKeyPress()
+
+
+}
+
+##Gets x,y coordinates based on 1:60 minutes.
+define GetXY(minute)
+{
+     angle <- 2*3.14159/360 * (minute * 6 -90)
+     x <- gParams.radius * Cos(angle) + gHomeX
+     y <- gParams.radius * Sin(angle) + gHomeY
+  return [x,y]
+}
+
+
+define GetStrings(lang)
+{
+
+   ##Known trasnlations: EN
+
+  lang <- Uppercase(lang)
+  fname <- "translations/clocktest.pbl-"+LowerCase(lang)+".json"
+
+  if(FileExists(fname))
+  {
+    gStrings <- ReadTranslationjson(fname,lang)
+  } else
+  {
+    gStrings <- ReadTranslationjson("translations/clocktest.pbl-en.json",lang)
+  }
+
+}

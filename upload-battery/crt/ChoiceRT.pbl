@@ -1,0 +1,208 @@
+## Simple choice reaction time task
+## type the letter displayed on the screen.
+##
+
+define Start(lPar)
+{
+
+
+  parpairs <- [["reps",5],      #How many reps of the stimuli
+  	       ["maxtrials",150], ##max number of trials.
+               ["soa",2000],    #how long between stimili?
+               ["numstim",6],   #use only numstim stimuli for design
+               ["stimchars","adceonbgsq"],
+               ["maskchars","&#@$%*|?/\"],
+	       ["breaks","50"],
+               ["timeout",1500]
+              ]
+
+  gParams <- CreateParameters(parpairs,gParamFile)
+
+  reps <- gParams.reps
+  gSoa <- gParams.soa
+
+  ##Stimuli to choose from:
+
+  stimkeys <- SplitString(gParams.stimchars,"")
+  if(Length(stimkeys)>gParams.numstim)
+  {
+      stimkeys <- SampleN(stimkeys, gParams.numstim)
+  }
+  gMaskChars <- SplitString(gParams.maskchars,"")  
+  numstim <- gParams.numstim
+  baseStim <- stimkeys
+
+  #Initialize Window
+  gWindow <- MakeWindow("black")
+  InitializeUpload()  ## Initialize token-based hosting if upload.json exists
+
+  if(gSubNum+""=="0")
+   {
+      gSubNum <- GetSubNum(gWindow)
+   }
+  GetStrings(gLanguage)
+
+  #Initialize Font and colors
+  fg <- MakeColor("white")
+  bg <- MakeColor("RED")
+  gFont <- MakeFont(gPEBLBaseFont,0,44,fg,bg,0)
+  gFixation <- MakeLabel(gStrings.fixation,gFont)
+  AddObject(gFixation,gWindow)
+  Move(gFixation, gVideoWidth/2,gVideoHeight/2)
+  gFooter <- EasyLabel(gStrings.footer,
+                          gVideoWidth/2,gVideoHeight-50,gWindow,15)
+  Draw()
+
+  stimuli <- Shuffle(RepeatList(CrossFactorWithoutDuplicates(basestim),reps))
+
+ if(Length(stimuli)>gParams.maxtrials)
+  {
+    stimuli <- SampleN(stimuli,gParams.maxtrials)
+  }
+
+  fileOut <- GetNewDataFile(gSubNum,gWindow,"CRT","csv",
+  "subnum,trial,targ,foil,time,delay,resp,corr,mask,presstart,respend,prestime,rt")
+
+
+
+  breakbox <- EasyTextBox(gStrings.inst,10,50,gWindow,20,gVideoWidth-20,gVideoHeight-160)
+  Draw()
+  WaitForListKeyPress(["<rshift>","<lshift>"])
+  Hide(breakbox)
+  Draw()
+  Wait(1000)
+  
+  ShowCursor(0)
+
+  gStatus <- EasyLabel("",100,25,gWindow,14)
+  trial <- 1
+  ntrials <- Length(stimuli)
+  CountDown(gWindow)
+  loop(i, stimuli)
+  {
+
+    gStatus.text <- "["+trial + "/"+ntrials+ "]"
+    time <- GetTime()
+    out <- Trial(i)
+    FilePrint_(fileout,gSubNum+","+trial+","+First(i)+","+Second(i)+","+time)
+     loop(tmp,out)
+      {
+         FilePrint_(fileout,","+tmp)
+      }
+    FilePrint(fileout,"")
+    WaitUntil(time+gSOA)
+   if(gParams.breaks>0 and trial<ntrials)
+    {
+    if(Mod(trial,gParams.breaks)==0)
+    {
+     breakbox.text <- gStrings.takeabreak
+     Show(breakbox)
+     Draw()
+     Wait(250)
+     WaitForListKeyPress(["<lshift>","<rshift>"])
+     Hide(breakbox)
+     Draw()
+     CountDown(gWindow)
+    }
+   }
+   trial <- trial + 1
+  }
+
+  FileClose(fileOut)
+
+  ##Upload data files
+  Print("Uploading data files...")
+  out <- UploadFile(gSubNum, fileOut.filename); Print(out)
+  breakbox.text <- gStrings.debrief
+  Show(breakbox)
+  Draw()
+  WaitForAnyKeyPress()
+}
+
+
+define Trial(lStim)
+{
+  targ <- First(lstim)
+  foil <- Second(lstim)
+
+  lText <- MakeLabel(First(lStim),gFont)  ##Make stimulus label
+  ##Add label to window
+  AddObject(lText,gWindow)
+
+  ##Move text to center
+  Move(lText, gVideoWidth/2,gVideoHeight/2)
+  ##Hide the text; show the fixation
+  Hide(lText)
+  Show(gFixation)
+  Draw()
+
+  #Wait 1250 msecs and hide the fixation
+  Hide(gFixation)
+  Wait(200)
+
+
+  delay <- RandomDiscrete(200)+100
+  t0 <-GetTime()
+  Draw()
+  Wait(delay)
+  Show(lText)
+  Draw()
+  t1 <-GetTime()
+  Wait(100)
+  Hide(lText)
+  Draw()
+  #Get start time.
+
+  #Wait for response, hiding stimulus as soon as it occurs.
+  order <- Sample([-1,1])
+  mask <- ListtoString(SampleN(gMaskChars,3))
+  if(order==1)
+   {
+     ltext.text <- targ + "         "+mask+"          " + foil
+   }else{
+     ltext.text <- foil + "         "+mask+"          " + targ
+   }
+  Show(lText)
+  Draw()
+  start <- GetTime()
+  ##This turns off the stimulus after 00 ms
+  resp <- WaitForListKeyPressWithTimeOut(["<lshift>","<rshift>"],gParams.timeout,1)
+  #Get the response time.
+  end <- GetTime()
+
+  Draw()
+
+  corr <- (resp =="<lshift>" and order == 1) or  (resp =="<rshift>" and order == -1)
+  RemoveObject(lText, gWindow)
+  Draw()
+  return [delay,resp, corr , mask,t0,end,(t1-t0),(end - start)]
+}
+
+
+define WaitUntil(time)
+{
+
+     RegisterEvent("<TIMER>", 1, time,"<GEQ>","", [])
+     StartEventLoop()  #Start the timer
+     ClearEventLoop()  #clear it out when done.
+
+}
+
+
+define GetStrings(lang)
+{
+
+   ##Known translations: EN
+
+  lang <- Uppercase(lang)
+  fname <- "translations/ChoiceRT.pbl-"+LowerCase(lang)+".json"
+
+  if(FileExists(fname))
+  {
+    gStrings <- ReadTranslationjson(fname,lang)
+  } else
+  {
+    gStrings <- ReadTranslationjson("translations/ChoiceRT.pbl-en.json",lang)
+  }
+
+}

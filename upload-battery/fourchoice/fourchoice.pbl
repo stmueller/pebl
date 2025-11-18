@@ -1,0 +1,331 @@
+#####################################################
+## PEBL  four-choice response time task, Version 0.2
+## as described by  Wilkinson & Houghton (1975),
+## and  test 7 of the  UTC test battery.
+##
+##
+## Perez,  W. A., Masline, P. J., Ramsey, E. G. and Urban, K. E. (1984).
+##  UNIFIED TRI-SERVICES COGNITIVE PERFORMANCE  ASSESSMENT BATTERY:
+##  REVIEW AND METHODOLOGY, DTIC Document #ADA181697
+##  http://stinet.dtic.mil/oai/oai?verb=getRecord&metadataPrefix=html&identifier=ADA181697
+## Version 0.1 Released 2008
+## Version 0.2 2010 Shane T. Mueller
+##   -fixed key mapping error for fvjn version.
+## smueller@obereed.net
+##
+#####################################################
+
+define Start(p)
+{
+
+  gSleepEasy <- 1
+
+  parpairs <- [["usesound",1],
+               ["numtrials",50],
+	       ["isi",200],
+	       ["responsetype",2],
+	       ["key1","F"],
+       	       ["key2","J"],
+       	       ["key3","V"],
+	       ["key4","N"]
+              ]
+  gParams <- CreateParameters(parpairs,gParamFile)
+
+  gUseSound <- gParams.usesound
+  gNumTrials <- gParams.numtrials
+  isi <- gParams.isi
+
+  gWin <- MakeWindow("black")
+  InitializeUpload()  ## Initialize token-based hosting if upload.json exists
+  ##Get subject code if we need to:
+  if(gSubNum+""=="0")
+    {
+	  gSubNum <- GetSubNum(gWin)
+    }
+
+
+  MakeDirectory("data")
+  gFileOut <- GetNewDataFile(gSubNum,gWin,"fourchoice","csv",
+  "subnum,resptype,isi,trial,sound,resp,quad,leftright,updown,respquad,corr,lapse,rt")
+  gSummary <- GetNewDataFile(gSubNum,gWin,"fourchoice-summary","txt","")
+  gBeep <- LoadSound("tone.wav")
+
+  GetStrings(gLanguage)
+
+  ShowCursor(0)
+
+##Identify how we should do the responses.
+ gKBInst <- gStrings.keyboard+CR(1)+"    "+gParams.key1+"     "+gParams.key2 + CR(1) + "     "+gParams.key3+" " + gParams.key4
+ gKPInst <- gStrings.keypad +CR(1)+"     4  5" + CR(1) + "     1  2"
+
+
+ if(gParams.responsetype==0)
+  {  ##let user choose:
+    gRtype <-  GetResponseKeys()
+  }else{
+    gRtype <- gParams.responsetype
+  }
+
+ if(gRtype == 1)
+  {
+    gKeys <- [gParams.key1,gParams.key2,gParams.key3,gParams.key4]
+    gMatch <- [Lowercase(gParams.key1),
+               Lowercase(gParams.key2),
+	       Lowercase(gParams.key3),
+	       Lowercase(gParams.key4)]
+
+    gInst <- gKBInst
+ } else {
+    gKeys <- ["<KP_4>","<KP_5>", "<KP_1>", "<KP_2>"]
+    gMatch <- ["4","5","1","2"]
+    gInst <- gKPInst
+  }
+  Draw()
+
+
+   instructions <- gStrings.inst1a+ gParams.numtrials+ gStrings.inst1b+
+    CR(2)+gInst+CR(2)+gStrings.inst1c
+
+  inst <- EasyTextBox(instructions, 100,50,gWin, 20,gVideoWidth-200,500)
+  Draw()
+  WaitForAnyKeyPress()
+  RemoveObject(inst,gWin)
+  bg <-  DrawBG()
+
+   ##Do some finger-checking
+  Practice()
+   
+  Draw()
+  Wait(1000)
+  dat <- []
+  gSleepEasy <- 0
+  trial <- 1
+
+
+  while(trial <= gNumTrials)
+  {
+    FilePrint_(gFileOut,gSubNum + "," + gRtype + "," + isi +"," +  trial + ",")
+     x <- Trial()
+    dat <- Append(dat,x)
+    Wait(isi)
+    trial <- trial + 1
+  }
+  gSleepEasy <- 1
+  dat2 <- Transpose(dat)
+
+   corr <- First(dat2)
+   rt <-   Nth(dat2,2)
+
+   feedback <-   Print("-------------------------------------") +CR(1)
+   feedback <- feedback + Print("PEBL 4-choice Response Task Version 0.2") + CR(1)
+   feedback <- feedback + Print("Released 2010 Shane T. Mueller smueller@obereed.net") + CR(1)
+   feedback <- feedback + Print("Version of Wilkinson & Houghton (1975) 4-choice task") + CR(1)
+   feedback <- feedback + Print(GetPEBLVersion()) + CR(1)
+   feedback <- feedback + Print(TimeStamp()) + CR(1)
+   feedback <- feedback +   Print("-------------------------------------") +CR(1)
+   feedback <- feedback +  Print("Accuracy: " + Mean(corr)*100)+CR(1)
+   feedback <- feedback +  Print("Mean RT:  " + Mean(rt))+CR(1)
+   feedback <- feedback +  Print("-------------------------------------") +CR(1)
+
+   summ <- SummaryStats(rt,corr)
+
+   feedback <- feedback +    Print("corr N median mean sd")+CR(1)
+   feedback <- feedback +    Print("-------------------------------------") +CR(1)
+
+  loop(i,summ)
+    {
+      feedback <- feedback +  PrintList(i)+CR(1)
+    }
+   feedback <- feedback +    Print("-------------------------------------") +CR(1)
+
+
+   FilePrint(gSummary,feedback)
+   FileClose(gSummary)
+   FileClose(gFileOut)
+
+  ##Upload data files
+  Print("Uploading data files...")
+  out <- UploadFile(gSubNum, gFileOut.filename); Print(out)
+  out <- UploadFile(gSubNum, gSummary.filename); Print(out)
+
+   inst.text <- gStrings.debrief + CR(1)+feedback
+   AddObject(inst,gWin)
+   Draw()
+   WaitForAnyKeyPress()
+}
+
+
+define DrawBG()
+{
+  ##this should take only the middle 800x600 regardless of screen size.
+  col <- MakeColor("white")
+  box <- Rectangle(gVideoWidth/2,gVideoHeight/2,800,600,col,0)
+  l1 <- Line(gVideoWidth/2-400,gVideoHeight/2,800,0,col)
+  l2 <- Line(gVideoWidth/2,gVideoHeight/2-300,0,600,col)
+  tb <- EasyTextBox(gInst,gVideoWidth/2-60,gVideoHeight/2-40,gWin,22,120,80)
+  AddObject(l1,gWin)
+  AddObject(l2,gWin)
+  AddObject(tb,gWin)
+  AddObject(box,gWin)
+  Draw()
+  return [l1,l2,tb,box]
+}
+
+
+##this ensures their fingers are on the right buttons.
+define Practice()
+
+{
+   header <- EasyLabel(gstrings.pressx,gVideoWidth/2,gVideoHeight/2-280,gWin,22,MakeColor("white"))
+   bg <- Rectangle(header.x,header.y,header.width,header.height,MakeColor("black"),1)
+   AddObject(bg,gWin)
+   AddObject(header,gWin)##change z-order.
+  stim <- EasyLabel("X",gVideoWidth/2,gVideoHeight/2-200,gWin,50)
+  quads <- Shuffle(RepeatList([1,2,4,3],3))
+  loop(i,quads)
+  { 
+   pos <- GetQuadPosition(i)
+   Move(stim,Nth(pos,1),Nth(pos,2))
+   Show(stim)
+   Draw()
+   WaitForKeyPress(Nth(gKeys,i))
+   Hide(stim)
+   Draw()
+   Wait(100)
+  }
+
+  header.text <- gstrings.fingers
+  Draw()
+  WaitForAnyKeyPress()
+  CountDown(gWin)
+
+}
+
+define Trial()
+{
+  ##It is supposed to blink, but we won't worry about that.
+
+  ## Determine which quadrant
+  quad <- RandomDiscrete(4)
+  pos <- GetQuadPosition(quad)
+
+  stim <- EasyLabel("+",Nth(pos,1),Nth(pos,2),gWin,80)  
+  Draw()
+  lapse <- 0
+  starttime <- GetTime()
+
+  if(gUseSound)
+   {
+     x <- WaitForListKeyPressWithTimeout(gKeys,2500,1)
+     while(x=="<timeout>")
+  	  {
+          lapse <- 1
+   	  PlayBackground(gBeep)
+   	  x <- WaitForListKeyPressWithTimeout(gKeys,500,1)
+  	  }
+    } else {
+      x <- WaitForListKeyPress(gKeys)
+    }
+
+   endtime <- GetTime()
+   respquad <- GetResponseQuadrant(x,gMatch)
+
+
+   corr <- (respquad == quad)
+   rt <- endtime - starttime
+
+   quadlabel <- GetQuadLabel(quad)
+
+  FilePrint(gFileOut,  gUseSound + "," + x + "," + quad + ","+
+        First(quadlabel) + "," + Nth(quadlabel,2) + "," +
+        respquad + "," + corr + "," + lapse + "," + rt)
+
+   RemoveObject(stim,gWin)
+   Draw()
+
+ return [corr, rt]
+}
+
+
+
+define GetQuadPosition(quad)
+{
+  ##in-order 45 12 top then bottom left then right
+   x1 <- gVideoWidth/2 - 200
+   x2 <- gVideoWidth/2 + 200
+   y1 <- gVideoHeight/2 -150
+   y2 <- gVideoHeight/2 +150
+
+   pos <- [[x1,y1],
+           [x2,y1],
+	   [x1,y2],
+           [x2,y2]]
+
+   return Nth(pos,quad)
+}
+
+define GetQuadLabel(quad)
+{
+
+   x1 <- "left"
+   x2 <- "right"
+   y1 <- "top"
+   y2 <- "bottom"
+
+   pos <- [[x1,y1],
+           [x2,y1],
+	   [x1,y2],
+           [x2,y2]]
+
+   return Nth(pos,quad)
+}
+
+
+
+define GetResponseQuadrant(key,keys)
+{
+  return Lookup(key,keys, [1,2,3,4])
+}
+
+
+define GetResponseKeys ()
+{
+
+  ##let the user decide which keys to use.
+
+  lab1 <- EasyLabel(gStrings.choose,   gVideoWidth/2,100,gWin,22)
+
+  lab2 <- EasyLabel(gStrings.lab12, gVideoWidth/2,130,gWin,22)
+  tb1 <- EasyTextBox(gKBInst,gVideoWidth/2-250,200,gWin,22,120,80)
+  tb2 <- EasyTextBox(gKPInst,gVideoWidth/2+100,200,gWin,22,120,80)
+
+  Draw()
+  resp <-  ToNumber(WaitForListKeyPress(["1","2"]))
+
+  RemoveObject(lab1,gWin)
+  RemoveObject(lab2,gWin)
+  RemoveObject(tb1,gWin)
+  RemoveObject(tb2,gWin)
+
+  return resp
+}
+
+
+define GetStrings(lang)
+{
+
+   ##Known translations: EN
+
+  lang <- Uppercase(lang)
+  fname <- "translations/fourchoice.pbl-"+LowerCase(lang)+".json"
+
+  if(FileExists(fname))
+  {
+    gStrings <- ReadTranslationJSON(fname,lang)
+  } else
+  {
+    gStrings <- ReadTranslationJSON("translations/fourchoice.pbl-en.json",lang)
+  }
+
+
+}

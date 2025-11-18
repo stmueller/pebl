@@ -8,7 +8,7 @@
 ## Version 0.3: Adds parameter setting (version 0.14),
 ## data file combining, http version check.
 ##
-##  (c) 2011-2025 Shane T. Mueller, Ph.D. smueller@obereed.net
+##  (c) 2011-2018 Shane T. Mueller, Ph.D. smueller@obereed.net
 ##
 
 ##rename to Draw() for some time debugging
@@ -31,11 +31,10 @@ define Start(p)
 	##Print("startout workking directory" + gWorkingDirectory)
     gdebug <- 0
     gUseReloc <- 0
-      ## NOT from an installation in Program Files, but from
-      ##A PEBL subdirectory of the current working directory.
-    pvs <- GetPEBLVersion()
-    gPEBLVersion <- Substring(pvs,14,StringLength(pvs)-14+1) #e.g., 2.2
+                   ## NOT from an installation in Program Files, but from
+                   ##A PEBL subdirectory of the current working directory.
 
+    gPEBLVersion <- "2.1"
     gScriptName <- "PEBL Launcher " + gPEBLVersion
     gvsync <- 0
 
@@ -176,7 +175,7 @@ define FileSelect(p,resources)
    {
 
     gViewerCommand <- "gedit"
-    gPEBLName      <- gExecutableName
+    gPEBLName      <- "pebl2"
     gOpenManual    <- "acroread /usr/local/share/pebl2/doc/PEBLManual"+gPEBLVersion+".pdf&"
     gOpenURL        <- "firefox"
     gManualLoc      <- "/usr/local/share/pebl2/doc/PEBLManual"+gPEBLVersion+".pdf"
@@ -266,10 +265,10 @@ define FileSelect(p,resources)
 
    gSleepEasy <- 1
    ##this reads the configuration in, but does not populate the pulldown
-   ReadConfigFile(gConfigName)
+   ReadConfigFile(gConfigname)
    if(not FileExists(gConfigName))
    {
-      Saveconfig(gConfigName)
+      Saveconfig(gconfigname)
    }
 
 
@@ -340,8 +339,8 @@ define FileSelect(p,resources)
               ["Change launcher size","Set password","Configure upload","Enable/Disable screenshots"],
               ["ChangeLauncherSize","SetPassword","ConfigureUpload","EnableDisableScreenshots"])
 
-    menu3 <- MakeMenu("Help",180,0,win,14,120,["About","Manual","Website","Tutorial","Review PEBL","Donate","Cite"],
-          ["AboutMessage","OpenManual","GoToWeb","Tutorial","Review","Donate","CitePEBL"])
+    menu3 <- MakeMenu("Help",180,0,win,14,120,["About","Manual","Website", "PEBL Wiki","Tutorial","Review PEBL","Donate","Cite"],
+          ["AboutMessage","OpenManual","GoToWeb","VisitWIKI","Tutorial","Review","Donate","CitePEBL"])
 
 
 
@@ -483,17 +482,9 @@ define FileSelect(p,resources)
 #   AddObject(expboxhighlight,win)
 #   Hide(expboxhighlight)
 
-   ##upload checkbox:
-   uploadbox  <-  MakeCheckBox(gUploadText,xbase+210,ybase2+140,win,80)
+   ##Fullscreen checkbox:
+   uploadbox <-  MakeCheckBox(gUploadtext,xbase+220,ybase2+40,win,80)
    SetCheckBox(uploadbox,gUploadSetting)
-
-   ##upload file textbox:
-   uploadfilebox <- EasyTextBox(gUploadFile,xbase+330,ybase2+140,win,fontsize,180,yheight)
-   uploadfilelabel <- EasyLabel("File:", uploadfilebox.x,uploadfilebox.y,win,fontsize)
-   MoveCorner(uploadfilelabel,uploadfilebox.x-uploadfilelabel.width-5,uploadfilebox.y)
-   uploadfileboxhighlight <- Rectangle(uploadfilebox.x+uploadfilebox.width/2,uploadfilebox.y+uploadfilebox.height/2,uploadfilebox.width,uploadfilebox.height,MakeColor("red"),0)
-   AddObject(uploadfileboxhighlight,win)
-   Hide(uploadfileboxhighlight)
 
 
 ### Language box:
@@ -547,12 +538,12 @@ define FileSelect(p,resources)
 
 #####################################
    ##Fullscreen checkbox:
-   fullscreenbox <-  MakeCheckBox(gFulltext,xbase+220,ybase2+40,win,120)
+   fullscreenbox <-  MakeCheckBox(gFulltext,xbase+210,ybase2+140,win,120)
    SetCheckBox(fullscreenbox,gFullScreen)
 
-#   demobox <-  MakeCheckBox(gCollectDemoText,xbase+345,ybase2+140,win,200)
-#   ##Demographics checkbox:
-#   SetCheckBox(demobox,gNIMHdemographics)
+   demobox <-  MakeCheckBox(gCollectDemoText,xbase+345,ybase2+140,win,200)
+   ##Demographics checkbox:
+   SetCheckBox(demobox,gNIMHdemographics)
 
 
   ## vsync checkbox:
@@ -667,8 +658,8 @@ define FileSelect(p,resources)
 	   run,subjectbox,fullscreenbox,uploadbox,langbox,
 	   addtochain,clearchain,launchchain,viewoutput,viewerror,
 	   edit,gMenuStdErr,gMenuStdOut,gMenuReload,
-	   gDescription,savechain,loadchain,wiki,
-           subplusbutton,clobox,uploadfilebox,filter,namechain,    #donate,review,
+	   gDescription,demobox,savechain,loadchain,wiki,
+           subplusbutton,clobox,filter,namechain,    #donate,review,
            screenselection, randomizeChainBox,params,  combinedata,psetbox,
           deletechain,menu1,menu2,menu3,makelauncher,
 	  translatetest,vsynccheck,rendererbox]
@@ -676,9 +667,9 @@ define FileSelect(p,resources)
       returns <- [1,2,3,4,0,
 		   6,7,8,9,10,
 		   11,12,13,14,15,
-		   16,0,0,0,21,  ##removed 22 get demographics
-		   23,24,25,
-		   26,27,42,28,39,     #29,30,
+		   16,0,0,0,
+		   21,22,23,24,25,
+		   26,27,28,39,     #29,30,
 		   31,32,33,34,35,
 		   36,0,0,0,37,
 		   38,40,41]
@@ -850,10 +841,10 @@ define FileSelect(p,resources)
          } else {
 
 	   ##it is a real PEBL test:
-#       	  if(gnimhdemographics)
-#    	  {
-#	      	  GetNIMHDemographics(gsubcode,win,"demographics-log.csv")
-#          }
+       	  if(gnimhdemographics)
+    	  {
+	      	  GetNIMHDemographics(gsubcode,win,"demographics-log.csv")
+          }
 
 	     paramindex <- psetbox.selected
 
@@ -908,19 +899,17 @@ define FileSelect(p,resources)
                }
 
 	   Hide(subboxhighlight)
-	   Saveconfig(gConfigName)
 
       }elseif(tmp==8)
       {
          ClickCheckBox(fullscreenbox,[0,0])
 	 gfullscreen <- fullscreenbox.state
-	 Saveconfig(gConfigName)
       }elseif(tmp==9)
       {
       ##upload checkbox
          ClickCheckBox(uploadbox,[0,0])
-	 gUploadSetting <- uploadbox.state
-	 Saveconfig(gConfigName)
+	 gUploadSetting <- uploadBox.state
+
 
       }elseif(tmp==999999)  ##Change experimenter code (deprecated)
       {
@@ -946,7 +935,6 @@ define FileSelect(p,resources)
 	   Draw()
 	   gLanguage <- GetInput(langbox,"<return>",1)
 	   Hide(langboxhighlight)
-	   Saveconfig(gConfigName)
       }elseif(tmp==2)
       {
         ##experiment chain
@@ -1044,10 +1032,10 @@ define FileSelect(p,resources)
       }elseif(tmp==13)  ##launch chain
       {
          PushButton(launchchain,[0,0])
-#	 if(gnimhdemographics)
-#	  {
-#              GetNIMHDemographics(gSubcode,win,"demographics-log.csv")
-#          }
+	 if(gnimhdemographics)
+	  {
+              GetNIMHDemographics(gSubcode,win,"demographics-log.csv")
+          }
 
           if(gRandomizeChain)
 	     {
@@ -1121,13 +1109,13 @@ define FileSelect(p,resources)
 
       }elseif(tmp==22)
       {
-          #  ClickCheckBox(demobox,[0,0])
-          #  gnimhdemographics <- demobox.state
+            ClickCheckBox(demobox,[0,0])
+            gnimhdemographics <- demobox.state
 
       }elseif(tmp==23)  ##SAVE CHAIN
       {
          PushButton(savechain,[0,0])
-         Saveconfig(gConfigName)
+         Saveconfig(gconfigname)
          PopupMessageBox("Configuration file:" + gConfigName+ " saved.",win)
        }elseif(tmp==39)
        {  ##name chain button.
@@ -1136,15 +1124,15 @@ define FileSelect(p,resources)
 
 	 while(cname=="")
 	 {
-   	    cname <- PopUpEntryBox(gConfigNameText,win,gClick,gConfigName)
+   	    cname <- PopUpEntryBox(gConfigNameText,win,gClick,gConfigname)
 	 }
         if(not IsConfigFile(cname))
 	{
           cname <- cname + ".config"
 	}
 
-         gConfigName <- cname
-         Saveconfig(gConfigName)
+         gConfigname <- cname
+         Saveconfig(gconfigname)
 
       opts <- GetConfigFiles()
 	  Print("config files: ")
@@ -1191,7 +1179,7 @@ define FileSelect(p,resources)
      ReadConfigFile(gConfigName)
      if(not FileExists(gConfigName))
        {
-         Saveconfig(gConfigName)
+         Saveconfig(gConfigname)
        }
 
    ##try to select gConfigName:
@@ -1212,9 +1200,8 @@ define FileSelect(p,resources)
 
 	SetCheckBox(fullscreenbox,gFullScreen)
 	SetCheckBox(uploadbox,gUploadSetting)
-	uploadfilebox.text <- gUploadFile
 	SetCheckBox(vsyncCheck,gVSyncState)
-#        SetCheckBox(demobox,gNIMHDemographics)
+        SetCheckBox(demobox,gNIMHDemographics)
         SetCheckBox(randomizechainBox,gRandomizeChain)
         SelectPullDownByText(rendererbox,gDriver)
 	title <- chainbox.header
@@ -1238,7 +1225,7 @@ define FileSelect(p,resources)
 	     }
             gConfigName<-configname
 
-	    PushOnEnd(opts,gConfigName)
+	    PushOnEnd(opts,gConfigname)
 	    UpdatePulldown(loadchain,opts)
           }else{
             gConfigName <- Nth(loadchain.list,selected)
@@ -1248,7 +1235,7 @@ define FileSelect(p,resources)
         ReadConfigFile(gConfigName)
         if(not FileExists(gConfigName))
         {
-          Saveconfig(gConfigName)
+          Saveconfig(gConfigname)
         }
 
    ##try to select gConfigName:
@@ -1269,9 +1256,8 @@ define FileSelect(p,resources)
 
 	SetCheckBox(fullscreenbox,gFullScreen)
 	SetCheckBox(uploadbox,gUploadSetting)
-	uploadfilebox.text <- gUploadFile
 	SetCheckBox(vsyncCheck,gVSyncState)
-#        SetCheckBox(demobox,gNIMHDemographics)
+        SetCheckBox(demobox,gNIMHDemographics)
         SetCheckBox(randomizechainBox,gRandomizeChain)
         SelectPullDownByText(rendererbox,gDriver)
 	UpdateScreenResPulldown(screenselection)
@@ -1288,7 +1274,7 @@ define FileSelect(p,resources)
       }elseif(tmp==25)  ##Visit wiki
       {
         PushButton(wiki,[0,0])
-
+        VisitWiki(gWinDummy,click)
 
       } elseif(tmp==26)
       {
@@ -1312,20 +1298,6 @@ define FileSelect(p,resources)
 	   Draw()
 	   gCommandLineText <- GetInput(clobox,"<return>",1)
 	   Hide(cloboxhighlight)
-	   Saveconfig(gConfigName)
-
-      } elseif(tmp==42)
-      {
-
-       ##Upload file box
-	   relx <- First(gClick) - (uploadfilebox.x )
-	   rely <- Second(gClick) - (uploadfilebox.y )
-
-	   uploadfilebox.cursorpos <-  GetTextBoxCursorFromClick(uploadfilebox,relx,rely)
-	   Draw()
-	   gUploadFile <- GetInput(uploadfilebox,"<return>",1)
-	   Hide(uploadfileboxhighlight)
-	   Saveconfig(gConfigName)
 
       } elseif(tmp==28)
       {
@@ -1348,7 +1320,7 @@ define FileSelect(p,resources)
       }elseif(tmp==29)  ##29 == donate
        {
          PushButton(donate,[0,0])
- 	 Launchfile("http://peblhub.online")
+ 	 Launchfile("http://www.superiorideas.org/projects/open-source-psychology-software")
 
 if(0)
 {
@@ -1371,7 +1343,6 @@ if(0)
 			entry <- EasyTextBox(gDefaultHostName,550,100,win,16,400,20)
                         address <- GetInput(entry,"<return>")
 			gDefaultHostName <- entry.text
-			Saveconfig(gConfigName)
 			Draw()
 
 
@@ -1495,14 +1466,12 @@ if(0)
 
    	   }
 
-       Saveconfig(gConfigName)
 
 
      }elseif(tmp==32)
       {
        ClickCheckBox(randomizechainbox,[0,0])
        gRandomizeChain <- randomizechainbox.state
-       Saveconfig(gConfigName)
 
       }elseif(tmp==33)
       {
@@ -1616,7 +1585,7 @@ desktoptext <- "[Desktop Entry]
 Version="+gPEBLVersion+"
 
 Name=Run PEBL 2 "+gConfigName+"
-Exec=bash -c 'cd "+gquote+ "$HOME/Documents/pebl-exp."+gPEBLVersion + gquote+" && "+gPEBLName+" customlauncher.pbl -v "+gConfigName+"'
+Exec=bash -c 'cd "+gquote+ "$HOME/Documents/pebl-exp."+gPEBLVersion + gquote+" && pebl2 customlauncher.pbl -v "+gConfigName+"'
 Terminal=false
 Type=Application
 Icon="+gPEBLResourcePath +"/media/images/pebl2.png
@@ -1647,14 +1616,12 @@ StartupNotify=true"
 
         ClickCheckBox(vsyncCheck,[0,0])
         gVSyncState <- vsyncCheck.state
-        Saveconfig(gConfigName)
 
      }elseif(tmp==41)
      {
 	  PullDown(rendererbox,gClick)
 	  gDriver <- Nth(rendererbox.list,rendererbox.selected)
           #Print("driver selected:" + gDriver)
-          Saveconfig(gConfigName)
 
      }
 
@@ -1716,25 +1683,19 @@ define EditTranslation(dirChain,filename,language,logfile)
              }
         }
 
-	##Launch asynchronously and monitor completion
-  if(gUseReloc)
+	##be sure to run in background, if possible.
+  callstring <- callstring + "&"  ##Run in background
+  if(0)#gUseReloc)
       {
          runfile <- FileOpenOverWrite("tmp.bat")
          FilePrint(runfile,callstring)
          FileClose(runfile)
          SystemCall("tmp.bat","")
-      } else {
-         ##Launch process asynchronously and get PID
-         Print("Launching translation editor: " + callstring)
-         pid <- SystemCallUpdate(callstring,"")
-         Print("Launched PID: " + pid)
 
-         ##Register timer event to monitor process status
-         RegisterEvent("<TIMER>", 1, GetTime(),"<GEQ>","MONITORUTILITYPROCESS", [pid])
-         ##Start event loop - will block until child process completes
-         StartEventLoop()
-         ##Clear event registrations before returning to normal launcher event loop
-         ClearEventLoop()
+      }else{
+         #PopUpMessageBox(callstring,gwin)
+         Print(callstring)
+         Print(SystemCall(callstring,""))
       }
 }
 
@@ -1788,25 +1749,19 @@ define CombineDataDialog(dirChain,filename,logfile)
              }
         }
 
-	##Launch asynchronously and monitor completion
+	##be sure to run in background, if possible.
+  callstring <- callstring + "&"  ##Run in background
   if(gUseReloc)
       {
          runfile <- FileOpenOverWrite("tmp.bat")
          FilePrint(runfile,callstring)
          FileClose(runfile)
          SystemCall("tmp.bat","")
-      } else {
-         ##Launch process asynchronously and get PID
-         Print("Launching data combiner: " + callstring)
-         pid <- SystemCallUpdate(callstring,"")
-         Print("Launched PID: " + pid)
 
-         ##Register timer event to monitor process status
-         RegisterEvent("<TIMER>", 1, GetTime(),"<GEQ>","MONITORUTILITYPROCESS", [pid])
-         ##Start event loop - will block until child process completes
-         StartEventLoop()
-         ##Clear event registrations before returning to normal launcher event loop
-         ClearEventLoop()
+      }else{
+         #PopUpMessageBox(callstring,gwin)
+         Print(callstring)
+         Print(SystemCall(callstring,""))
       }
 }
 
@@ -1853,12 +1808,6 @@ define FilterDir(inlist,path,type)
        }elseif(type=="*.par")
        {
         if(IsPARFile(i))
-	{
-          PushOnEnd(tmppbl,i)
-	}
-       }elseif(type=="*.par.json")
-       {
-        if(IsJSONParFile(i))
 	{
           PushOnEnd(tmppbl,i)
 	}
@@ -1999,11 +1948,6 @@ define RunScript(dirChain,filename,fullscreen,language,logfile,subcode,experimen
              callstring <- callstring + " --pfile " +gQuote+ pset+gQuote
            }
 
-	    if(gUploadSetting)
-           {
-             callstring <- callstring + " --upload " +gQuote+ gUploadFile+gQuote
-           }
-
 	    callstring <- callstring + " --language " + language  + " " + gCommandLineAdd
 
 
@@ -2033,80 +1977,19 @@ define RunScript(dirChain,filename,fullscreen,language,logfile,subcode,experimen
           FilePrint(runfile,callstring)
           FileClose(runfile)
           SystemCall("tmp.bat","")
-          ##For gUseReloc (Windows batch file), we still use blocking SystemCall
-          ##Log FINISHED immediately after it completes
-          FilePrint(logfile,TimeStamp() + "," + DirListToText(gDirChain)+filename+","+GetPEBLVersion() +
-		 "," + experimenter + "," + subcode + "," +"fullscreen:["+fullscreen+"],"+ language + "," + callstring+ ","+"FINISHED")
-      } else {
+      }else{
 	      #MessageBox(callstring,gWin)
-          ##Launch process asynchronously and get PID
-          pid <- SystemCallUpdate(callstring,"")
-          Print("Launched PID: " + pid)
-
-          ##Pre-construct the log line for completion (timestamp will be added when finished)
-          logline <- DirListToText(dirChain)+filename+","+GetPEBLVersion() +
-		 "," + experimenter + "," + subcode + "," +"fullscreen:["+fullscreen+"],"+ language + "," + callstring+ ","+"FINISHED"
-
-          ##Register timer event to monitor process status
-          RegisterEvent("<TIMER>", 1, GetTime(),"<GEQ>","MONITORCHILDPROCESS", [pid, logfile, logline])
-          ##Start event loop - will block until child process completes
-          StartEventLoop()
-          ##Clear event registrations before returning to normal launcher event loop
-          ClearEventLoop()
+          Print(SystemCallUpdate(callstring,""))
       }
+
+         FilePrint(logfile,TimeStamp() + "," + DirListToText(gDirChain)+filename+","+GetPEBLVersion() +
+		 "," + experimenter + "," + subcode + "," +"fullscreen:["+fullscreen+"],"+ language + "," + callstring+ ","+"FINISHED")
+
 
            Draw()
 		 }
 
-##Monitoring function for child process launched via SystemCallUpdate
-##Receives pid, logfile, and pre-constructed logline from RegisterEvent
-define MonitorChildProcess(pid,logfile,logline,evt)
-{
-   ##Extract parameters
-#   pid <- First(params)
-#   logfile <- Nth(params, 2)
-#   logline <- Nth(params, 3)
 
-   ##Check if child process is still running
-   status <- CheckProcessStatus(pid)
-
-   if(status == 0)
-   {
-      ##Child process has finished - log completion with current timestamp
-      Print("Child process " + pid + " finished")
-      FilePrint(logfile, TimeStamp() + "," + logline)
-
-      ##Exit event loop so launcher can continue
-      gKeepLooping <- 0
-   } elseif(status == -1)
-   {
-      ##Process already reaped or error - just exit quietly
-      ##(This can happen if event loop calls us after process finished and was reaped)
-      gKeepLooping <- 0
-   }
-   ##If status == 1, process still running - keep looping
-}
-
-##Monitoring function for utility processes (translation editor, data combiner)
-##Simpler than MonitorChildProcess - doesn't need to log completion
-define MonitorUtilityProcess(pid,evt)
-{
-   ##Check if utility process is still running
-   status <- CheckProcessStatus(pid)
-
-   if(status == 0)
-   {
-      ##Utility process has finished
-      Print("Utility process " + pid + " finished")
-      ##Exit event loop so launcher can continue
-      gKeepLooping <- 0
-   } elseif(status == -1)
-   {
-      Print("ERROR: Failed to monitor utility process " + pid)
-      gKeepLooping <- 0
-   }
-   ##If status == 1, process still running - keep looping
-}
 
 define IsPEBLFile(fname)
 {
@@ -2138,20 +2021,6 @@ define IsparFile(fname)
 
           }
    return returnval
-}
-
-define IsJSONParFile(fname)
-{
-  returnval <- 0
-  len <- StringLength(fname)
-  if(len>9)
-  {
-    if(SubString(fname,len-8,len)==".par.json")
-    {
-      returnval <- 1
-    }
-  }
-  return returnval
 }
 
 
@@ -2249,11 +2118,10 @@ define ReadConfigFile(configname)
 	   ##we need to set the pulldown default here.
 
 	   gfullscreen <- ToNumber(GetConfig("fullscreen",keys,config,0))
-           gUploadSetting <- ToNumber(GetConfig("upload",keys,config,0))
-           gUploadFile <- GetConfig("uploadfile",keys,config,"upload.json")
+           gUploadSetting <- ToNumber(GetConfig("uploadsetting",keys,config,0))
 
-           Print(">>>Fullscreen mode from file: " + gFullScreen)
-#	   gnimhdemographics <- ToNumber(GetConfig("nimhdemo",keys,config,0))
+           Print(">>>>>>>>>>>>>>>>>>>>>Fullscreen mode from file: " + gFullScreen)
+	   gnimhdemographics <- ToNumber(GetConfig("nimhdemo",keys,config,0))
 	   gsubcode    <- GetConfig("subcode",keys,config,"0")
 
 	   if(gAutoSubCode)
@@ -2302,7 +2170,6 @@ define ReadConfigFile(configname)
         gCommandLineText <- ""
         gfullscreen <- 0
   	gUploadSetting <- 0
-        gUploadFile <- "upload.json"
         gVSyncState <- 0
         gDriver <- ""
         gsubcode <- "1"
@@ -2310,7 +2177,7 @@ define ReadConfigFile(configname)
         glanguage <- "en"
 
         gexpchain <- []         ##sequence of experiments to run
-       # gnimhdemographics <- 0  ##no longer used in 2.2 or later
+	    gnimhdemographics <- 0
         gScreenRes <-  First(gScreenResInitial)+"x"+Second(gScreenResInitial)
 	    gRandomizeChain <- 0
       }
@@ -2319,20 +2186,20 @@ define ReadConfigFile(configname)
 
 define Saveconfig(configname)
 {
-   Print("saving config")
+
     ##save settings on exit.
 	out <- [["fullscreen",gfullscreen],
                 ["subcode",gsubcode],
                 ["experimenter",gexperimenter],
 	        ["language",glanguage],
+	        ["nimhdemo",gnimhdemographics],
 	        ["commandline",gCommandLineText],
 	        ["ipaddress",gDefaultHostName],
  	        ["screenres",gScreenRes],
 		["driver",gDriver],
 		["vsync",gVSyncState],
 		["randomizechain",gRandomizeChain],
-		["upload",gUploadSetting],
-		["uploadfile",gUploadFile]
+		["upload",gUploadSetting]
                ]
 
 
@@ -2403,7 +2270,7 @@ define GetStrings(lang)
 	gLangcode  <- "Language:"
 	gFulltext <- "Fullscreen"
         gUploadText <- "Upload"
-#	gCollectDemoText <- "Collect demographics"
+	gCollectDemoText <- "Collect demographics"
     gScreenResLabel <- "Screen size:"
     gVSyncText <- "Vsync"
     gExpChainText <- "Experiment Chain:"
@@ -2451,7 +2318,7 @@ This launcher is written in PEBL itself, allowing a fairly uniform launcher on a
     gScreenResLabel <- "Screen resolution:"
     gCustomText <- "Custom:"
     gCurrent <- "Current"
-#    gCollectDemoText <- "Recoger datos demográficos?"
+    gCollectDemoText <- "Recoger datos demográficos?"
     gChooseScreenText <- "Choose screen resolution to use"
     gExpChainText <- "Experimento de la cadena:"
     gConfigNameText <- "nombre de configuración?"
@@ -2814,14 +2681,7 @@ define SetParameters(dirChain,scriptname,win,parname)
 
 ##  Print("setting praameters with:" + parname)
   path <- DirListToText(dirchain) +"params/"
-
-  ## Check for JSON schema first, then legacy format
-  if(FileExists(path+scriptname+".schema.json"))
-  {
-    schema <- path+scriptname+".schema.json"
-  } else {
-    schema <- path+scriptname+".schema"
-  }
+  schema <- path+scriptname+".schema"
 
   ##this is what will be used for the default param file:
   if(parname=="default")
@@ -2832,21 +2692,10 @@ define SetParameters(dirChain,scriptname,win,parname)
     paramsfile <- path + parname
   }
 
-   ## Add .par extension if not already present (.par or .par.json)
-   hasParExtension <- 0
-   if(SubString(paramsfile,StringLength(paramsfile)-3,4)==".par")
+   if(not SubString(paramsfile,StringLength(paramsfile)-3,4)==".par")
    {
-     hasParExtension <- 1
-   }
-   if(EndsWith(paramsfile, ".par.json"))
-   {
-     hasParExtension <- 1
-   }
-
-   if(not hasParExtension)
-   {
-     parname <- parname + ".par.json"
-     paramsfile <- paramsfile + ".par.json"
+     parname <- parname + ".par"
+     paramsfile <- paramsfile + ".par"
    }
 
   fail <- 0
@@ -2960,37 +2809,23 @@ index <- 1
 
       pfile <- FileOpenOverwrite(paramsfile)
 
-      ## Detect format based on file extension
-      if(EndsWith(paramsfile, ".json"))
+      loop(i,schemas)
       {
-        ## Write JSON format
-        jsonObj <- MakeCustomObject("parameters")
 
-        loop(i,schemas)
-        {
-          value <- GetProperty(parameters,First(i))
-          SetProperty(jsonObj, First(i), value)
-        }
+       value <- GetProperty(parameters,First(i))
+       if(IsList(value))
+       {
+        ##Multi-parameter property:
+       loop(j,value)
+         {
 
-        ## Write formatted JSON to file
-        FilePrint_(pfile, JSONText(jsonObj))
+          FilePrint(pfile,First(i)+"*,"+j)
+         }
+       }else{
 
-      } else {
-        ## Write legacy CSV format
-        loop(i,schemas)
-        {
-          value <- GetProperty(parameters,First(i))
-          if(IsList(value))
-          {
-           ##Multi-parameter property:
-          loop(j,value)
-            {
-             FilePrint(pfile,First(i)+"*,"+j)
-            }
-          }else{
-            FilePrint(pfile,First(i)+","+value)
-          }
-        }
+         FilePrint(pfile,First(i)+","+value)
+
+       }
       }
 
       cont <- 0
@@ -3026,57 +2861,31 @@ index <- 1
 	parname <- parnamebox.text
         paramsfile <- path+parname
       }
-
-      ## Add .par extension if not already present (.par or .par.json)
-      hasParExt <- 0
-      if(SubString(paramsfile,StringLength(paramsfile)-3,4)==".par")
-      {
-        hasParExt <- 1
-      }
-      if(EndsWith(paramsfile, ".par.json"))
-      {
-        hasParExt <- 1
-      }
-
-      if(not hasParExt)
-      {
-        parname <- parname + ".par.json"
-        paramsfile <- paramsfile + ".par.json"
-      }
+	if(not SubString(paramsfile,StringLength(paramsfile)-3,4)==".par")
+	{
+  	 parname <- parname + ".par"
+	 paramsfile <- paramsfile + ".par"
+	}
 
 
       pfile <- FileOpenOverwrite(paramsfile)
 
-      ## Detect format based on file extension
-      if(EndsWith(paramsfile, ".json"))
+      loop(i,schemas)
       {
-        ## Write JSON format
-        jsonObject <- MakeCustomObject("parameters")
 
-        loop(i,schemas)
-        {
-          value <- GetProperty(parameters,First(i))
-          SetProperty(jsonObject, First(i), value)
-        }
+       value <- GetProperty(parameters,First(i))
+       if(IsList(value))
+       {
+       loop(j,value)
+         {
 
-        ## Write formatted JSON to file
-        FilePrint(pfile, JSONText(jsonObject))
+          FilePrint(pfile,First(i)+","+j)
+         }
+       }else{
 
-      } else {
-        ## Write legacy CSV format
-        loop(i,schemas)
-        {
-          value <- GetProperty(parameters,First(i))
-          if(IsList(value))
-          {
-          loop(j,value)
-            {
-             FilePrint(pfile,First(i)+","+j)
-            }
-          }else{
-            FilePrint(pfile,First(i)+","+value)
-          }
-        }
+         FilePrint(pfile,First(i)+","+value)
+
+       }
       }
 
     }elseif(resp == "parnamebox")
@@ -3270,30 +3079,13 @@ define LayoutPGrid(schemas,parameters,win)
 
 define ReadSchemaFile(filename)
 {
-   ## Auto-detect JSON format based on file extension
-   if(EndsWith(filename, ".json"))
-   {
-      ## Parse JSON schema file
-      schemaJSON <- ParseJSON(FileReadText(filename))
-
-      ## Convert JSON schema to list format expected by launcher
-      ## Format: [[name, default, description], ...]
-      list <- []
-      loop(param, schemaJSON.parameters)
-      {
-         line <- [param.name, param.default, param.description]
-         PushOnEnd(list, line)
-      }
-   } else {
-      ## Legacy pipe-delimited format
-      schemalist <- FileReadList(filename)
-      list <- []
-      loop(i,schemalist)
-       {
-          line <- SplitString(i,"|")
-          PushOnEnd(list,line)
-       }
-   }
+   schemalist <- FileReadList(filename)
+   list <- []
+   loop(i,schemalist)
+    {
+       line <- SplitString(i,"|")
+       PushOnEnd(list,line)
+    }
   return list
 }
 
@@ -3314,28 +3106,9 @@ define GetParFiles()
  paramsdir <- DirListToText(gDirChain)+"params"
  if(FileExists(paramsdir))
   {
-    ## Get .par files (legacy CSV format)
-    legacyParFiles <- Second(FilterDir(GetDirectoryListing(paramsdir),
-                              gDirChain,"*.par"))
-
-    ## Get .par.json files (JSON format)
-    jsonParFiles <- Second(FilterDir(GetDirectoryListing(paramsdir),
-                              gDirChain,"*.par.json"))
-
-    ## Remove any .par files that also have .par.json extension
-    ## (FilterDir for "*.par" will match "test.par" but not "test.par.json")
-    cleanedLegacyParFiles <- []
-    loop(f, legacyParFiles)
-    {
-      ## Only include if it doesn't end with .json
-      if(not EndsWith(f, ".json"))
-      {
-        PushOnEnd(cleanedLegacyParFiles, f)
-      }
-    }
-
-    ## Merge all parameter files together
-    parfiles <- Merge(["default"], Merge(cleanedLegacyParFiles, jsonParFiles))
+    parfiles <- Merge(["default"],
+                       Second(FilterDir(GetDirectoryListing(paramsdir),
+                              gDirChain,"*.par")))
   } else {
     parfiles <- []
   }
@@ -3453,9 +3226,9 @@ define UpdateScreenResPulldown(pd)
 define OpenManual(obj,click,extra:0)
 {
 
-         Print("working directory:  " + GetWorkingDirectory())
+     Print("working directory:  " + GetWorkingDirectory())
 	 Print("gPEBLDIr:           " + gPEBLDir)
-         Print("gExecutableName:    " + gExecutableName)
+     Print("gExecutableName:    " + gExecutableName)
 	 Print("gHome:              " + gHome)
 	 Print("gPEBLBasePath:      " + gpeblBasePath)
 	 Print("gPEBLResourcePath:  " + gPEBLResourcePath)
@@ -3463,11 +3236,11 @@ define OpenManual(obj,click,extra:0)
      #SystemCall(gManualLoc,"")
 
      #PopUpMessageBox(gManualLoc,obj.win)
-     ## gQuote+gPEBLDir+"\doc\PEBLManual"+gPEBLVersion+".pdf"+gQuote
-     LaunchFile(gQuote+gManualLoc+gQuote)  ##for linux/osx?
+## gQuote+gPEBLDir+"\doc\PEBLManual"+gPEBLVersion+".pdf"+gQuote
+    LaunchFile(gQuote+gManualLoc+gQuote)  ##for linux/osx?
 
      #For windows?
-     #LaunchFile(gQuote+gHome+"\PEBLManual"+gPEBLVersion+".pdf"+gQuote)
+ 	#LaunchFile(gQuote+gHome+"\PEBLManual"+gPEBLVersion+".pdf"+gQuote)
 	}
 
 
@@ -3541,7 +3314,7 @@ define Aboutmessage(obj,click,extra:0)
 
 define ExitPEBL(obj,click, extra:0)
 {
-     Saveconfig(gConfigName)
+     Saveconfig(gconfigname)
      gCont <- 0
 }
 
@@ -3558,6 +3331,22 @@ define SetPassword(obj,click,extra:0)
 }
 
 
+define VisitWiki(obj,click,extra:0)
+{
+       if(Length(gDirChain)>1)
+       {
+         root <- Nth(gDirChain,Length(gDirChain))+"/"
+       }  else {
+	     root <- ""
+       }
+       wikipagename <- root+Nth(gFlatFileList,gselected)
+	   if(wikipagename=="." or wikipagename=="..")
+        {
+         wikipagename <- "Main_Page"
+        }
+	   Launchfile("http://pebl.sourceforge.net/wiki/index.php?title="+wikipagename)
+
+}
 
 define Review(obj,click,extra:0)
 {
@@ -3568,8 +3357,8 @@ define Review(obj,click,extra:0)
 
 define Donate(obj,click,extra:0)
 {
-      PopUpMessageBox("We no longer take donations at the PEBL Project. To help support PEBL, consider purchasing a membership at https://peblhub.online.  This supports PEBL development, allows browser-based testing, and provides a server to upload data to from web users or your own machines.",obj.win)
-       Launchfile("https://peblhub.online")
+      PopUpMessageBox("A web browser should open to the PEBL donation page at   http://www.superiorideas.org/projects/open-source-psychology-software",obj.win)
+       Launchfile("http://www.superiorideas.org/projects/open-source-psychology-software")
 }
 
 
@@ -3641,7 +3430,7 @@ define Dummy(obj,click,extra:0)
 
 define Tutorial(obj,click,extra:0)
 {
-   Launchfile("")
+   Launchfile("http://pebl.sourceforge.net/wiki/index.php/CogSci2011_Tutorial")
 }
 ## This updates the things that change whenever the directory changes:
 ## the path, the screenshot, and the description.
@@ -3816,8 +3605,7 @@ We appreciate your support! This software is licensed with the GPLv2, and is pro
 
 Mueller, S. T., & Piper, B. J. (2014). The Psychology Experiment Building Language (PEBL) and PEBL Test Battery. Journal of neuroscience methods, 222, 250–259.
 
-The native version of PEBL is open source and free.  If you want to automatically upload subject data to a central server, or collect data on-line via web browser, consider trying PEBL Online at https://peblhub.online.
-"
+To skip this screen when you start-up, enter the password.  You can get a password by donating to the project, or by contributing in other ways to the project (translations, new tests, normative data, bug reports, writing wiki documentation, and so on)"
 
 
   boxwidth <- 651
@@ -3853,59 +3641,107 @@ The native version of PEBL is open source and free.  If you want to automaticall
 
 
 
-#   entrybox <-  EasyTextBox("",popup.width/2+15,
-#                               popup.height-70,
-#                               popup,13,180,20)
-
-   try  <- MakeButton("Try PEBL",     popup.width/2-200,box.y+box.height+10,popup,170)
-   ok    <- MakeButton("Don't show this again",try.x+try.width+10, try.y,popup,170)
-   online <- MakeButton("PEBL Online",ok.x+ok.width+10,ok.y,popup,170)
+   entrybox <-  EasyTextBox("",popup.width/2+15,
+                               popup.height-70,
+                               popup,13,180,20)
 
 
- #  thermo <- Rectangle(entrybox.x-entrybox.width/2,entrybox.y-entrybox.height/2, 0,entrybox.height,MakeColor("darkblue"),1)
- #  AddObject(thermo,popup)
+   ok    <- MakeButton("Enter/Confirm password:",entrybox.x-105,entrybox.y+10,popup,200)
+
+   try  <- MakeButton("Use without password",popup.width/2-200,entrybox.y+45,popup,170)
+
+   donate <- MakeButton("Contribute and get password",popup.width/2-10,entrybox.y+45,popup,200)
+   contribute <- MakeButton("How else can I help?",popup.width/2+200,entrybox.y+45,popup,200)
+
+   thermo <- Rectangle(entrybox.x-entrybox.width/2,entrybox.y-entrybox.height/2,
+   0,entrybox.height,MakeColor("darkblue"),1)
+   AddObject(thermo,popup)
 
    Draw()
- 
+   totaltime <- 2000
+   endtime <- GetTime()+totaltime
+   timeleft <- endtime - GetTime()
+   while( timeleft>0)
+   {
+      thermo.width <- entrybox.width* timeleft/totaltime
+      MoveCorner(thermo,entrybox.x,entrybox.y)
+      Draw()
+      Wait(5)
+      timeleft <- endtime - GetTime()
+   }
+   Hide(thermo)
+
+
+   Draw()
+
   cont <- 2
   while(cont)
   {
 
-   resp <- WaitForButtonClickOnTarget([try,ok,online],[1,2,3])
+    resp <- WaitForButtonClickOnTarget([entrybox,ok,try,donate,contribute],[1,2,3,4,5])
    id <- First(resp)
    click <- Second(resp)
    obj <- Third(resp)
 
 
 
-   if(id==1 )
+   if(id==1)    ##select and enter password
+    {
+
+	   relx <- First(click) - (entrybox.x )
+	   rely <- Second(click) - (entrybox.y )
+
+	   entrybox.cursorpos <- (GetTextBoxCursorFromClick(entrybox,relx,
+                                                                     rely))
+	   Draw()
+        pw  <- GetInput(entrybox,"<return>",1)
+        cont <- 1
+
+
+    }elseif(id==2)
     {
       PushButton(obj,click)
      ##check password here.
-      gPasswordEntered <- 1
-      cont <- 0
-    }elseif(id==2){
-    
-      PushButton(obj,click)
-     ##check password here.
-      gPasswordEntered <- 1
-      gParams.pwhash <-"2627692e567165c7a474f3ea97c07912"
-      cont <- 0
-     
+      pw <- entrybox.text
+      passwordhash <- MD5Sum(pw)
 
+      gParams.pwhash <- passwordhash
+      if(gParams.pwhash=="2627692e567165c7a474f3ea97c07912")
+      {
+        cont <- 0
+	gPasswordEntered <- 1
+      }else{
+       PopUpMessageBox("Sorry, this password in incorrect.  Enter correct password or use without password.",win)
+       entrybox.text <- ""
+       cont <- 1
+	   gPasswordEntered <- 0
+
+     }
     }elseif(id==3)
     {
-      PushButton(obj,click)
-      Launchfile("https://peblhub.online")
-      PopUpMessageBox("A web browser should open taking you to https://peblhub.online",win)
-    }
+     PushButton(obj,click)
+     ##don't check password here.
+     cont <- 0
+     PopUpMessageBox("Please help support PEBL development or if you are able",win)
 
+   }elseif(id==4){
+     PushButton(obj,click)
+     ##go to donation page
+
+     Launchfile("http://www.superiorideas.org/projects/open-source-psychology-software")
+    PopUpMessageBox("A web browser should open to the PEBL donation page at      http://www.superiorideas.org/projects/open-source-psychology-software",win)
+
+   }elseif(id==5){
+     PushButton(obj,click)
+    PopUpMessageBox("A web browser should open to the PEBL contributions page at http://pebl.sourceforge.net/wiki/index.php/How_can_I_contribute",win)
+     Launchfile("http://pebl.sourceforge.net/wiki/index.php/How_can_I_contribute")
+  }
 
 
    Draw()
 
   }
-   return "COMPLETE"
+   return entrybox.text
 }
 
 

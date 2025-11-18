@@ -49,7 +49,6 @@
 
 #include <iostream>
 #include <string>
-#include <strstream>
 #include <math.h>
 #include <algorithm>
 

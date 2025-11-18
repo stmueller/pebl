@@ -35,17 +35,14 @@ PEBLDIRNAME = "pebl2"
 EXECNAME = $(PEBLNAME)
 PEBL_VERSION = 2.2
 #USE_WAAVE=1       ##Optional; comment out to turn off waave multimedia library
-#USE_AUDIOIN=1     ##Optional; comment out to turn off  sdl_audioin library
-#USE_NETWORK=1      ##Optional; comment out to turn off sdl_net library.
-#USE_PORTS=1        ##lpt, serial port, etc.
+USE_NETWORK=1      ##Optional; comment out to turn off sdl_net library.
+USE_PORTS=1        ##lpt, serial port, etc.
 USE_HTTP=1         ##Optional; turn on/off for http get/set
 USE_MIXER=1        ##Optional; uses sdl mixer for better audio+ogg/mp3/etc.
 
 
-#USE_LIBGAZE=1    ##Optional; turn on/off eyetribe gazeapi.  Probably won't work on linux.
-USE_DEBUG = 1     ##Optional; turn on/off debugging stuff.
+USE_DEBUG = 0     ##Optional; turn on/off debugging stuff.
 
-#USE_RTL = 1       ##optional; use a RTL text layout library--currently harfbuzz (not working)
 
 GCC   = gcc
 GCXX = g++ 
@@ -97,19 +94,12 @@ CXXFLAGS_LINUX =   -DPEBL_UNIX -DPEBL_LINUX -DENABLE_BINRELOC -DPREFIX=$(PREFIX)
 ## Enable HTTP support by default
 USE_HTTP = 1
 
-ifdef USE_WAAVE
-#	@echo "Using WAAVE movie library";
-	CXXFLAGS1 = -DPEBL_MOVIES  
-	LINKOPTS1 = -lwaave
-endif
+#ifdef USE_WAAVE
+##	@echo "Using WAAVE movie library";
+#	CXXFLAGS1 = -DPEBL_MOVIES  
+#	LINKOPTS1 = -lwaave
+#endif
 
-
-# audio in now supported with baseline SDL supposedl.
-ifdef USE_AUDIOIN
-#	@echo "Using audio in library"
-	CXXFLAGS2 = -DPEBL_AUDIOIN
-#	LINKOPTS2 = -lsdl_audioin -lsndio
-endif
 
 
 ## This requires the following soundfont package:
@@ -136,15 +126,6 @@ ifdef USE_HTTP
 	LINKOPTS5 = -lcurl	
 endif
 
-ifdef USE_LIBGAZE
-	CXXFLAGS6 = -DPEBL_GAZELIB
-	LINKOPTS4 = -lGazeApiLib -lboost_system -lboost_thread
-endif
-
-ifdef USE_RTL
-	CXXFLAGS7 = -DPEBL_RTL
-	LINKOPTS7 = -lharfbuzz
-endif
 
 CXXFLAGSX = $(CXXFLAGS0) $(CXXFLAGS1) $(CXXFLAGS2) $(CXXFLAGS2B) $(CXXFLAGS3) $(CXXFLAGS4) $(CXXFLAGS5) $(CXXFLAGS6) $(CXXFLAGS7) 
 LINKOPTS = $(LINKOPTS1) $(LINKOPTS2) $(LINKOPTS2B) $(LINKOPTS3) $(LINKOPTS4) $(LINKOPTS5) $(LINKOPTS7)
@@ -297,8 +278,8 @@ EMBASE_SRCXX =	$(BASE_DIR)/Evaluator-es.cpp \
 EMBASE_OBJXX = $(patsubst %.cpp, %.o, $(EMBASE_SRCXX))
 
 
-##This just collects plain .c files, 
-PEBLBASE_SRC = lex.yy.c \
+##This just collects plain .c files,
+PEBLBASE_SRC = $(BASE_DIR)/lex.yy.c \
 		$(UTIL_DIR)/rs232.c 
 
 
@@ -471,13 +452,13 @@ DIRS = \
 #	@echo $(PEBLMAIN_OBJ)
 
 
-main-real:  $(DIRS) $(PEBLMAIN_OBJ) $(PEBLMAIN_INC)
+main-real:  $(DIRS) $(PEBLMAIN_OBJ) $(PEBLBASE_OBJ) $(PEBLMAIN_INC)
 	$(CXX) $(CXXFLAGS) -Wall -Wl,-rpath -Wl,LIBDIR $(DEBUGFLAGS) \
 	-Wno-write-strings \
 	-DPEBL_LINUX \
 	$(SDL_FLAGS) -g	\
 	-o $(BIN_DIR)/$(PEBLNAME) \
-	$(BASE_DIR)/$(PEBLBASE_SRC) \
+	$(patsubst %.o, $(OBJ_DIR)/%.o, $(PEBLBASE_OBJ)) \
 	$(patsubst %.o, $(OBJ_DIR)/%.o, $(PEBLMAIN_OBJ)) \
 	-lSDL2 -lpthread -lSDL2_image -lSDL2_net -lSDL2_ttf -lSDL2_gfx  \
 	-lpng  $(LINKOPTS)
@@ -487,7 +468,7 @@ main-real:  $(DIRS) $(PEBLMAIN_OBJ) $(PEBLMAIN_INC)
  #	-s MAXIMUM_MEMORY=2147483648 \
 ##Make emscripten target (debug):
 ##Make optimized emscripten target (production):
-em-opt-real:  $(DIRS) $(EMMAIN_OBJ) $(EMMAIN_INC)
+em-opt-real:  $(DIRS) $(EMMAIN_OBJ) $(BASE_DIR)/lex.yy.o $(EMMAIN_INC)
 	$(CXX) $(CXXFLAGS) \
 	-Oz \
 	-s WASM=1 \
@@ -512,7 +493,7 @@ em-opt-real:  $(DIRS) $(EMMAIN_OBJ) $(EMMAIN_INC)
 	-lidbfs.js \
 	-DPEBL_EMSCRIPTEN \
 	-o $(BIN_DIR)/pebl2.html \
-	$(BASE_DIR)/lex.yy.c \
+	$(OBJ_DIR)/$(BASE_DIR)/lex.yy.o \
 	$(patsubst %.o, $(OBJ_DIR)/%.o, $(EMMAIN_OBJ)) \
 	libs/SDL2_gfx-1.0.4/build-em/SDL2_gfxPrimitives.o \
 	--shell-file emscripten/shell_PEBL_debug.html \
@@ -521,7 +502,7 @@ em-opt-real:  $(DIRS) $(EMMAIN_OBJ) $(EMMAIN_INC)
 	--preload-file emscripten/media/@/usr/local/share/pebl2/media
 
 ##Make test emscripten target (for development/debugging):
-em-test-real:  $(DIRS) $(EMMAIN_OBJ) $(EMMAIN_INC)
+em-test-real:  $(DIRS) $(EMMAIN_OBJ) $(BASE_DIR)/lex.yy.o $(EMMAIN_INC)
 	$(CXX) $(CXXFLAGS) \
 	-O0 \
 	-s WASM=1 \
@@ -546,7 +527,7 @@ em-test-real:  $(DIRS) $(EMMAIN_OBJ) $(EMMAIN_INC)
 	-lidbfs.js \
 	-DPEBL_EMSCRIPTEN \
 	-o $(BIN_DIR)/pebl2-test.html \
-	$(BASE_DIR)/lex.yy.c \
+	$(OBJ_DIR)/$(BASE_DIR)/lex.yy.o \
 	$(patsubst %.o, $(OBJ_DIR)/%.o, $(EMMAIN_OBJ)) \
 	libs/SDL2_gfx-1.0.4/build-em/SDL2_gfxPrimitives.o \
 	--shell-file emscripten/shell_PEBL_test.html \
@@ -621,7 +602,15 @@ $(BASE_DIR)/Loader.o: $(BASE_DIR)/Loader.cpp $(LIBS_DIR)/Functions.h | $(DIRS)
 	$(CXX)   $(CXXFLAGS) -g -c $<  -o $(OBJ_DIR)/$@  $(SDL_FLAGS)
 
 %.o: %.cpp | $(DIRS)
-	$(CXX)   $(CXXFLAGS) -g -c $^  -o $(OBJ_DIR)/$@  $(SDL_FLAGS) 
+	$(CXX)   $(CXXFLAGS) -g -c $^  -o $(OBJ_DIR)/$@  $(SDL_FLAGS)
+
+# Compile C files - lex.yy.c needs C++ compiler due to C++ headers
+# Other .c files (like rs232.c) use pure C
+src/base/lex.yy.o: src/base/lex.yy.c | $(DIRS)
+	$(CXX) $(CXXFLAGS) -Wno-register -g -c $<  -o $(OBJ_DIR)/$@  $(SDL_FLAGS)
+
+%.o: %.c | $(DIRS)
+	$(CC) -std=gnu99 -O3 -g -c $^  -o $(OBJ_DIR)/$@  $(SDL_FLAGS) 
 
 #	-s USE_SDL=2 \   #this is for emscriten, which doesn't work.
 #	-s USE_SDL_NET=2 \

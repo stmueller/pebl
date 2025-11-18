@@ -32,12 +32,10 @@
 #define PEBL_CURL 2
 #define PEBL_FETCH 3
 
-#ifdef 	PEBL_EMSCRIPTEN
-#define HTTP_LIB PEBL_FETCH
-#else
-//#define HTTP_LIB PEBL_HAPPY //simple but not hardy
-#define HTTP_LIB PEBL_CURL
-#endif
+// HTTP_LIB is defined in the Makefile via compiler flags:
+// -DHTTP_LIB=2 (PEBL_CURL) for Linux native builds
+// -DHTTP_LIB=3 (PEBL_FETCH) for Emscripten builds
+// Do not redefine it here to avoid macro redefinition warnings
 
 
 #ifdef PEBL_HTTP

@@ -41,7 +41,7 @@ It identifies lexemes in a PEBL program.
 #include <math.h>
 
 
-void yyerror(char *);
+void yyerror(const char *);
 
 %}
 bom        \xef\xbb\xbf

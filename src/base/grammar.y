@@ -18,7 +18,7 @@
 #endif
 
   // Prototypes to keep the compiler happy
-  void yyerror (char *error);
+  void yyerror (const char *error);
   int  yylex ();
   extern FILE * yyin;
   PNode * gParseTreeHead;
@@ -526,7 +526,7 @@ newlines:	PEBL_NEWLINE          {/**/;}
 
 %%
 
-void yyerror (char *error)
+void yyerror (const char *error)
 {
 
   std::cerr << "line " << yylineno << " of "<< sourcefilename<<": " << error << std::endl;

@@ -73,7 +73,8 @@ void PComPort::Init()
         {
 
             //mode 8N1 was pre-2.0 default
-            int out = RS232_OpenComport(mPort,mBaud,mMode.c_str());
+            //flowctrl=0 means no hardware flow control (RTS/CTS disabled)
+            int out = RS232_OpenComport(mPort,mBaud,mMode.c_str(),0);
 
             mIsOpen = true;
             std::cerr << "Initiating comport ["<< mPortName<<"]  Return value :["<<out<<"]\n";

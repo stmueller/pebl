@@ -26,10 +26,8 @@
 #include "../base/PComplexData.h"
 #include "../utility/rc_ptrs.h"
 
-//#define HTTP_LIB PEBL_HAPPY
-#ifndef HTTP_LIB
-#define HTTP_LIB PEBL_CURL
-#endif
+// HTTP_LIB is defined in the Makefile via -DHTTP_LIB=2 (or 3 for Emscripten)
+// Do not redefine it here
 
 #if HTTP_LIB == PEBL_HAPPY
 

@@ -322,13 +322,5 @@ define Pairs(list)
 
 define GetStrings(lang)
 {
-  lang <- Uppercase(lang)
-  fname <- "translations/TLX.pbl-" + LowerCase(lang) + ".json"
-
-  if(FileExists(fname))
-  {
-    gStrings <- ReadTranslationJSON(fname, lang)
-  } else {
-    gStrings <- ReadTranslationJSON("translations/tlx.pbl-en.json", lang)
-  }
+  gStrings <- GetTranslations("TLX", lang)
 }

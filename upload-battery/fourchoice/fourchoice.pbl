@@ -313,19 +313,6 @@ define GetResponseKeys ()
 
 define GetStrings(lang)
 {
-
    ##Known translations: EN
-
-  lang <- Uppercase(lang)
-  fname <- "translations/fourchoice.pbl-"+LowerCase(lang)+".json"
-
-  if(FileExists(fname))
-  {
-    gStrings <- ReadTranslationJSON(fname,lang)
-  } else
-  {
-    gStrings <- ReadTranslationJSON("translations/fourchoice.pbl-en.json",lang)
-  }
-
-
+  gStrings <- GetTranslations("fourchoice", lang)
 }

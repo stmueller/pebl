@@ -828,14 +828,6 @@ define BorgRPE(win)
 
 define GetStrings(lang)
 {
-  lang <- Uppercase(lang)
-  fname <- "translations/VAScales.pbl-" + LowerCase(lang) + ".json"
-
-  if(FileExists(fname))
-  {
-    gStrings <- ReadTranslationJSON(fname, lang)
-  } else {
-    gStrings <- ReadTranslationJSON("translations/VAScales.pbl-en.json", lang)
-  }
+  gStrings <- GetTranslations("VAScales", lang)
 }
 

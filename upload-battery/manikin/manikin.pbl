@@ -245,36 +245,5 @@ define Trial(target, forback, updown, hand)
 
 define GetStrings(lang)
 {
-
-  lang <- Uppercase(lang)
-  fname <- "translations/manikin.pbl-"+LowerCase(lang)+".json"
-
-  if(FileExists(fname))
-  {
-    gStrings <- ReadTranslationJSON(fname,lang)
-  } else
-  {
-    gStrings <- ReadTranslationJSON("translations/manikin.pbl-en.json",lang)
-  }
-
- }
-
-
-define PracticeScreen(image,text,answer,imagewidth:1000)
-{
-
-   targwidth <- imagewidth
-   
-   tb <- EasyTextBox(text,gVideoWidth/2-400,50,gWin,22,800,250)
-   if(image != "")
-   {
-    img <- MakeImage("images/"+image)
-    AddObject(img,gWin)
-    img.zoomX <- targwidth/img.width
-    img.zoomY <- img.zoomX
-    Move(img,gVideoWidth/2,gVideoHeight/2)
-  }
-  
-   Draw()
-   WaitForListKeyPress(answer)
+  gStrings <- GetTranslations("manikin", lang)
 }

@@ -17,6 +17,7 @@
 
 define Start(p)
 {
+  InitializeUpload()  ## Initialize token-based hosting if upload.json exists
 
   gScriptName <- "PEBL Tower of Hanoi"
 ##  Basic translations strings are assigned in GetStrings (see bottom of file).
@@ -35,7 +36,7 @@ define Start(p)
 
    GetStrings(gLanguage)
 
-  gShowHand     <- 1  #Show the hand graphic?
+  gShowHand     <- gParams.showhand  #Show the hand graphic?
   Init()
 
   gInstructions <- MakeTextBox("",gFont,gVideoWidth-100,560)
@@ -83,10 +84,10 @@ define Start(p)
 
   InitPoles()
 
-
-  gInstructions.width <- 220
+  #the left side of the problem is at x=330.
+  gInstructions.width <- 330
   gInstructions.height <- 520
-  Move(gInstructions,gVideoWidth/2+ 200,50)
+  Move(gInstructions,10,10)
   gInstructions.text <- gContinue
 
 
@@ -98,11 +99,16 @@ define Start(p)
      gTrial <- gTrial + 1
   }
 
+   ##Upload data files
+   Print("Uploading data files...")
+   out <- UploadFile(gSubNum, gFileOut.filename); Print(out)
+   out <- UploadFile(gSubNum, gFileOutSum.filename); Print(out)
+
    gInstructions.text <- gDebriefing
 
    Show(gInstructions)
    Draw()
-   WaitForAnyKeyPress()
+   WaitForDownClick()
 }
 
 
@@ -328,7 +334,7 @@ define Init()
 
   ##  gPEBLBaseFont <- "Vera.ttf"  ##uncomment for version 0.10
   ##These may need to be changed for a particular language.
-  gFont <- MakeFont(gPEBLBaseFont,0,15,MakeColor("white"),MakeColor("black"),1)
+  gFont <- MakeFont(gPEBLBaseFont,0,13,MakeColor("white"),MakeColor("black"),1)
   gFont2 <- MakeFont(gPEBLBaseFont,0,24,MakeColor("white"),MakeColor("black"),1)
 }
 
@@ -880,18 +886,8 @@ define ListEqual(l1,l2)
 
 define GetStrings(lang)
 {
-
 ##Known trasnlations:  EN,ES
-  lang <- Uppercase(lang)
-  fname <- "translations/TOH.pbl-"+LowerCase(lang)+".json"
-
-  if(FileExists(fname))
-  {
-    gStrings <- ReadTranslationjson(fname,lang)
-  } else
-  {
-    gStrings <- ReadTranslationjson("translations/TOH.pbl-en.json",lang)
-  }
+  gStrings <- GetTranslations("TOH", lang)
 
     gSelect <- gStrings.select
     gHeaderLab <- gStrings.headerlab

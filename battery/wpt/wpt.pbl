@@ -19,6 +19,8 @@ define Start(p)
   numtrials <- gParams.numtrials
 
   gWin <- MakeWindow("white")
+  InitializeUpload()  ## Initialize token-based hosting if upload.json exists
+
   gSleepEasy <- 1
   if(gSubNum+""=="0")
   {
@@ -145,6 +147,13 @@ stimtable <- [["A", 0,0,0,1,0.14, 0.15],
    trial <- trial + 1
 
    }
+
+   FileClose(gFileOut)
+
+   ##Upload data files
+   Print("Uploading data files...")
+   out <- UploadFile(gSubNum, gFileOut.filename); Print(out)
+
    MessageBox(gStrings.debrief,gWin)
 }
 
@@ -349,16 +358,5 @@ define UpdateGraph(myGraph, value, total)
 
 define GetStrings(lang)
 {
-
-  lang <- Uppercase(lang)
-  fname <- "translations/wpt.pbl-"+LowerCase(lang)+".json"
-
-  if(FileExists(fname))
-  {
-    gStrings <- ReadTranslationjson(fname,lang)
-  } else
-  {
-    gStrings <- ReadTranslationjson("translations/wpt.pbl-en.json",lang)
-  }
-
+  gStrings <- GetTranslations("wpt", lang)
 }

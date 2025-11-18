@@ -26,7 +26,8 @@
 
 define Start(p)
 {
-
+     ## Initialize upload system (works for both online and native)
+     InitializeUpload()
 
      ##Set initial values to use if .par file does not exist.
      parpairs <- [["pskip",0.4],
@@ -187,8 +188,12 @@ define Start(p)
    FilePrint(report,text)
    FileClose(report)
 
+   ## Upload data files (works online, no-op on native)
+   UploadFile(gSubNum, "data/" + gSubNum + "/clock-" + gSubNum + ".csv")
+   UploadFile(gSubNum, "data/" + gSubNum + "/clock-report-" + gSubNum + ".txt")
+
    Draw()
-   WaitForKeyPress("X")
+   WaitForKeyAnyKeyPress()
 
 
 }
@@ -205,18 +210,6 @@ define GetXY(minute)
 
 define GetStrings(lang)
 {
-
    ##Known trasnlations: EN
-
-  lang <- Uppercase(lang)
-  fname <- "translations/clocktest.pbl-"+LowerCase(lang)+".json"
-
-  if(FileExists(fname))
-  {
-    gStrings <- ReadTranslationjson(fname,lang)
-  } else
-  {
-    gStrings <- ReadTranslationjson("translations/clocktest.pbl-en.json",lang)
-  }
-
+  gStrings <- GetTranslations("clocktest", lang)
 }

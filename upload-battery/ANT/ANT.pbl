@@ -187,13 +187,6 @@ if(0)
         FilePrint(gPooledSummaryByBLock,gSubNum+","+gBlock+","+TimeStamp()+","+ConcatenateList(datalist,","))
 	FilePrint(gLog, gSubNum + "," + gLanguage + "," +  TimeStamp()+",ANT,"+gResponseType+",EXPERIMENT COMPLETE")
 
-	FileClose(gFileOut)
-	FileClose(gPooledFileOut)
-	FileClose(gSumFileOut)
-	FileClose(gPooledSummary)
-	FileClose(gPooledSummaryByBlock)
-	FileClose(gLog)
-
 	##Upload data files
 	Print("Uploading data files...")
 	out <- UploadFile(gSubNum, gFileOut.filename); Print(out)
@@ -901,18 +894,7 @@ define WaitUntil(time)
 
 define GetStrings(lang)
 {
-
-
-  lang <- Uppercase(lang)
-  fname <- "translations/ANT.pbl-"+LowerCase(lang)+".json"
-
-  if(FileExists(fname))
-  {
-    gStrings <- ReadTranslationJSON(fname,lang)
-  } else
-  {
-    gStrings <- ReadTranslationJSON("translations/ANT.pbl-en.json",lang)
-  }
+  gStrings <- GetTranslations("ANT", lang)
 
    if(gParams.ShowNeutralFlankers)
         {

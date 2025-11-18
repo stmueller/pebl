@@ -54,6 +54,7 @@ define Start(p)
 
 
 	Initialize()
+	InitializeUpload()  ## Initialize token-based hosting if upload.json exists
 
 	## Get subject code if we need to:
 	if(gSubNum+""=="0")
@@ -185,6 +186,12 @@ if(0)
         FilePrint(gPooledSummary,gSubNum+","+TimeStamp()+","+ConcatenateList(datalist,","))
         FilePrint(gPooledSummaryByBLock,gSubNum+","+gBlock+","+TimeStamp()+","+ConcatenateList(datalist,","))
 	FilePrint(gLog, gSubNum + "," + gLanguage + "," +  TimeStamp()+",ANT,"+gResponseType+",EXPERIMENT COMPLETE")
+
+	##Upload data files
+	Print("Uploading data files...")
+	out <- UploadFile(gSubNum, gFileOut.filename); Print(out)
+	out <- UploadFile(gSubNum, gSumFileOut.filename); Print(out)
+
 	MessageKeyBox(gDebrief)
 
 }
@@ -887,18 +894,7 @@ define WaitUntil(time)
 
 define GetStrings(lang)
 {
-
-
-  lang <- Uppercase(lang)
-  fname <- "translations/ANT.pbl-"+LowerCase(lang)+".json"
-
-  if(FileExists(fname))
-  {
-    gStrings <- ReadTranslationJSON(fname,lang)
-  } else
-  {
-    gStrings <- ReadTranslationJSON("translations/ANT.pbl-en.json",lang)
-  }
+  gStrings <- GetTranslations("ANT", lang)
 
    if(gParams.ShowNeutralFlankers)
         {

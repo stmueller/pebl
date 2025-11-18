@@ -81,6 +81,8 @@ define Start(lPar)
 
   gSleepEasy <- 1
   Initialize()
+  InitializeUpload()  ## Initialize token-based hosting if upload.json exists
+
   if(gSubNum+""=="0")
    {
      gSubNum <- GetSubNum(gWin)
@@ -297,11 +299,16 @@ define Start(lPar)
    FileClose(reportfile)
    FileClose(gFileOut)
 
+  ##Upload data files
+  Print("Uploading data files...")
+  out <- UploadFile(gSubNum, gFileOut.filename); Print(out)
+  out <- UploadFile(gSubNum, reportfile.filename); Print(out)
+
   ##Now, show debriefing info.
    SetText(gInstructions, gStrings.debrief)
    Show(gInstructions)
    Draw()
-   WaitForKeyPress("X")
+   WaitForAnyKeyPress()
    ShowCursor(1)
 
 }
@@ -390,15 +397,5 @@ define AggregateRTs(rts, delays)
 
 define GetStrings(lang)
 {
-
-  lang <- Uppercase(lang)
-  fname <- "translations/SimpleRT.pbl-"+LowerCase(lang)+".json"
-
-  if(FileExists(fname))
-  {
-    gStrings <- ReadTranslationjson(fname,lang)
-  } else
-  {
-    gStrings <- ReadTranslationjson("translations/SimpleRT.pbl-en.json",lang)
-  }
+  gStrings <- GetTranslations("SimpleRT", lang)
 }

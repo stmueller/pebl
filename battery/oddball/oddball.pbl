@@ -21,6 +21,9 @@
 
 define Start(p)
 {
+  ## Initialize upload system (works for both online and native)
+  InitializeUpload()
+
   gScriptName <- "Oddball task"
   parpairs <- [["numreps",1],     ##this many reps of the 20-trial design
                ["soa",3000] ##Fix the stimulus-onset asynchrony.
@@ -194,6 +197,13 @@ define Start(p)
    FilePrint(gPooledSummary,gSubNum+","+TimeStamp()+datalist)
    FilePrint(gLog, gSubNum + "," + gLanguage + "," + TimeStamp()+",ODDBALL TASK,"+gResponseType+",EXPERIMENT COMPLETE")
 
+   ## Upload data files (works online, no-op on native)
+   UploadFile(gSubNum, "data/" + gSubNum + "/oddball-" + gSubNum + ".csv")
+   UploadFile(gSubNum, "data/" + gSubNum + "/oddball-report-" + gSubNum + ".txt")
+   UploadFile(gSubNum, "data/oddball-pooled.csv")
+   UploadFile(gSubNum, "data/oddball-log.csv")
+   UploadFile(gSubNum, "data/oddball-all.csv")
+
   MessageKeyBox(gDebrief)
 
 }
@@ -314,17 +324,7 @@ define CrossFactors(list)
 
 define GetStrings(lang)
 {
-
-  lang <- Uppercase(lang)
-  fname <- "translations/oddball.pbl-"+LowerCase(lang)+".json"
-
-  if(FileExists(fname))
-  {
-    gStrings <- ReadTranslationJSON(fname,lang)
-  } else
-  {
-    gStrings <- ReadTranslationJSON("translations/oddball.pbl-en.json",lang)
-  }
+  gStrings <- GetTranslations("oddball", lang)
 
 
    gCorrect <- gStrings.correct

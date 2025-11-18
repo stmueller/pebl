@@ -1,7 +1,7 @@
-## PEBL Cognitive Assessment Screening
-##
-##  Patterned after common cognitive screening tests, including MMSE, MOCA,
-## SLUMS, AMTS, GPAC, etc.
+##   Spatial grid (drawing) task.
+##   This incorporates a fixed 2.5 min (150 sec) deadline
+##   which is around the median time for problems 1 and 2
+##   and greater than median for problems 3-4
  
 
 define Start(p)
@@ -20,20 +20,12 @@ define Start(p)
   parpairs <- [["doTrails",0],  
                ["doCube",1],
 	       ["doClock",0],
-	       ["doMemory",0],
 	       ["doShape",0],	       
-	       ["doNaming",0],
-	       ["doSerialRecall",0],
-	       ["doGoNoGo",0],
-	       ["doSentenceVerification",0],
-	       ["doSemanticOddball",0],
-	       ["doSerialSubtraction",0],
 	       ["doStemCompletion",0],
-	       ["stemCompletionRule","f"],
-	       ["doOrientation",0],
 	       ["useRandom",0],
 	       ["savescreenshots",0],
-	       ["doAudioHelp",0]]
+	       ["doAudioHelp",0],
+	       ["useTimer",1]]
 	       
   gParams <- CreateParameters(parpairs,gParamFile)
 
@@ -41,27 +33,19 @@ define Start(p)
  startTime <- GetTime()
  
  MakeDirectory("data")
- fileOutData <- GetNewDataFile(gSubNum,gWin,"spatialdrawing","csv",
-                  "")
+ gfileOut <- GetNewDataFile(gSubNum,gWin,"spatialdrawing","csv",
+                  "subid,abstime,trial,edits,deletes,edges,drawtime,standard,drawndiagram")
 
- fileHTMLReport <- GetNewDataFile(gSubNum,gWin,"spatialdrawing","html", "")
+ #gfileHTMLReport <- GetNewDataFile(gSubNum,gWin,"spatialdrawing","html", "")
 
 
 ##pool data here.
-
- FilePrint(fileHTMLReport,PageHead())
-
-
-
-
-
 
 
 if(gParams.doCube)
 {
   cubeDat <- DrawCubeTest()
-  PushOnEnd(totalScore,["cube",First(cubeDat),1,TimeStamp()])
-  FilePrint(fileHTMLReport, HTMLCubeOutput(cubeDat))
+  MessageBox("This phase of the test is complete. Click OK to continue.",gWin)
 }
 
 
@@ -80,189 +64,16 @@ loop(i,totalscore)
  outcsv <- outcsv + ConcatenateList(line,",")+CR(1)
 }
 
-FilePrint(fileOutData,outcsv)
-FileClose(fileOutData)
+FilePrint(gFileOut,outcsv)
+#FilePrint( gFileHTMLReport,PageEnd([header,totalscore],
+#                          Sum(Second(scores)),Sum(Third(scores)),
+#                          totalTime))
 
-FilePrint( fileHTMLReport,PageEnd([header,totalscore],
-                          Sum(Second(scores)),Sum(Third(scores)),
-                          totalTime))
-
-
-  MessageBox("Thank you. You have completed the screening. Your data report is avaliable in the file" + fileHTMLReport.filename + " which will open up when you hit OK",
-   gWin)
    
-   FileClose(fileHTMLReport)
-   Launchfile(fileHTMLReport.filename)
+#   FileClose(fileHTMLReport)
+#   Launchfile(fileHTMLReport.filename)
 }
 
-
-####################################
-####################################
-## Code for trails subtest
-
-define TrailsTest()
-{
-
-
-
-  gStimColor <- MakeColor("gold")
-  gAccentColor <- MakeColor("grey35")
-  gstimFont <-  MakeFont(gPEBLBaseFontMono,0,18,MakeColor("black"),gStimColor,0)
-  gReversedFont <-  MakeFont(gPEBLBaseFontMono,0,22,gStimColor,MakeColor("black"),0)
-  gclickedFont <- MakeFont(gPEBLBaseFontMono,1,18,MakeColor("grey35"),gStimColor,0)
-
-   strings <-    ReadTranslationJSON("translations/"+Uppercase(gLanguage)+"/trails.json",gLanguage)
-
-   DoInstructions(strings.taskname,
-                  strings.longinst,
-		  "translations/"+Uppercase(gLanguage)+"/"+strings.longinstimage,
-		  "translations/"+Uppercase(gLanguage)+"/"+strings.longinstsound)
-
-
-   targets <- ["1","A","2","B","3","C","4","D","5","E"]
-
-   startTime <- GetTime()
-
-   inst1 <- MakeHeader(strings.inst1,  gVideoWidth/2,100,gWin,28)
-   inst2 <- MakeHeader(strings.inst2,  gVideoWidth/2,150,gWin,22)
-
-   xmin <- gVideoWidth/2-300
-   xmax <- gVideoWidth/2+300
-   ymin <- gVideoHeight/2-300
-   ymax <- gVideoHeight/2+300
-
-
-   
-   #pts <- NonOverlapLayout(xmin,xmax,ymin, ymax, 20,10)
-   pts <-    [[728, 519],  [731, 305],
-               [1133, 310],  [810, 342],
- 	       [968, 363],  [1044, 485],
-               [1240, 649],  [940, 530],
-	       [730, 746], [1210, 785]]
-
-   ##adjust pts to center.
-   tp <- Transpose(pts)
-   xs <- First(tp)
-   ys <- Second(tp)
-
-   xs <- VecSum(xs, Repeat(xmin-Min(xs),Length(xs)))
-   ys <- VecSum(ys, Repeat(xmin-Min(ys),Length(ys)))
-   Print(xs)
-   Print(ys)
-   pts <- Transpose([xs,ys])
-
-    pt1 <- First(pts)
-    pt2 <- Second(pts)
-    pt3 <- ThirD(pts)
-    line1 <- ThickLine(First(pt1),Second(pt1),First(pt2),Second(pt2),10,gAccentColor)
-    line2 <- ThickLine(First(pt2),Second(pt2),First(pt3),Second(pt3),10,gAccentColor)
-    AddObject(line1,gWin)
-    AddObject(line2,gWin)
-    
-    stimObjects <-  PlotTargets(pts,25,targets)
-
-   stimLines <- []
-
-   firstpt <- First(stimObjects)
-   lastpt <- Last(stimObjects)
-   startLabel <- MakeLabel(strings.begin,gReversedFont)
-   AddObject(startLabel,gWin)
-   Move(startLabel ,firstpt.x,firstpt.y+40)
-
-   endLabel <- MakeLabel(strings.end, gReversedFont)
-
-   AddObject(endLabel,gWin)
-   Move(endLabel,   lastpt.x,lastpt.y+40)
-   prev <- First(stimObjects)
-   remaining <- Rest(stimObjects)
-
-   Draw()
-
-
-
-   #force clicking on the target 1 first
-   WaitForClickOnTarget([firstpt],[1])
-   targ <-   firstpt.circle2
-   targ.color <- gAccentColor
-   Draw()   
-   startTime <- GetTime()   
-   ids <- []
-   
-
-   cont <- 1
-   while(cont)
-    {
-
-      Draw()
-      id <- WaitForClickOnTarget(remaining,Sequence(1,Length(remaining),1))
-
-
-
-
-     clickedOn <- Nth(remaining,id)
-
-     targ <-   clickedOn.circle2
-     targ.color <- gAccentColor
-     numclicked <- clickedon.value
-     
-   if(numClicked <> prev.value)
-   {
-      PushOnEnd(ids,id)
-     
-      ##draw the line
-      x0 <- prev.x
-      y0 <- prev.y
-      x1 <- clickedOn.x
-      y1 <- clickedOn.y
-
-
-
-      l <- ThickLine(x0,y0,x1,y1,5,gStimColor)
-      PushOnEnd(stimLines,l)
-      AddObject(l,gWin)
-      AddObjects(stimObjects,gWin) ##move to top.
-      prev <- clickedOn
-    }
-
-    if(clickedOn.value == "E")
-    {
-      cont <- 0
-    }
-  
-   }
-
-   inst1.text <- strings.complete
-   inst2.text <- strings.continue
-   Draw()
-
-   if(gParams.savescreenshots)
-   {
-      range <- [xmin-50,ymin-50,xmax-xmin+100,ymax-ymin+100]
-      Print(range)
-      range <- [0,0,gVideoWidth,gVideoHeight]
-      WritePNG("data/"+gSubnum+"/trails.png",gWin,range)
-             
-   }
-   WaitForDownClick()
-
-
-   corrects <- 0
-   errors <- 0
-   counter <- 1
-   loop(i,ids)
-   {
-     #Print("Scoring: " + i + " <--> " + counter)
-     corrects <- corrects + (i == counter)
-     errors <- errors + (i <> counter)
-     counter <- counter + 1
-   }
-  
-   score <- (corrects== 9) and (errors == 0)
-
-   #Print("Trails task: " + score  + " " + corrects + "  " + errors)
-   return [score,corrects,errors, (GetTime()-startTime)]
-
-}
 
 
 define PlotTargets(pts,size,labels)
@@ -313,8 +124,8 @@ define AddTarget(pos,letter,size,clicked)
 
     } else {
 
-       crc1 <- Circle(x,y,size,gStimColor,1)  ##accent in teh same color
-       crc2 <- Circle(x,y,size,gStimColor,1)
+       crc1 <- Circle(x,y,size,gStimColor,1)  ##accent in the same color
+       crc2 <- Circle(x,y,size,gStimColor,1)  ## the circle when selected
        crc1.aa <- 1
        crc2.aa <- 1
 
@@ -419,139 +230,328 @@ define HTMLTrailsOutput(dat)
 
 define DrawCubeTest ()
 {
-   strings <-    ReadTranslationJSON("translations/"+Uppercase(gLanguage)+"/cube.json",gLanguage)
+   gstrings <-    ReadTranslationJSON("translations/"+Uppercase(gLanguage)+"/cube.json",gLanguage)
 
-   DoInstructions(strings.taskname,
-                  strings.longinst,
-		  "translations/"+Uppercase(gLanguage)+"/"+strings.longinstimage,
-		  "translations/"+Uppercase(gLanguage)+"/"+strings.longinstsound)
+   DoInstructions(gstrings.taskname,
+                  gstrings.longinst,
+		  "translations/"+Uppercase(gLanguage)+"/"+gstrings.longinstimage,
+		  "translations/"+Uppercase(gLanguage)+"/"+gstrings.longinstsound)
 
-  inst1 <- MakeHeader(strings.inst1,gVideoWidth/2,100,gWin,28)
-  inst2 <- MakeHeader(strings.inst2,gVideoWidth/2,150,gWin,22)
 
+
+##Set up timer globals
+buttonColor <- MakeColor("gold")
+   deleteButton <- Rectangle(850,900,200,50,buttonColor,1)
+  timerBack <-  Rectangle(550,900,300,20,MakeColor("grey"),0)
+  timerFront <-  Rectangle(550,900,300,20, MakeColor("red"),1)
+  timerText <- EasyLabel("",550,950,gWin,24,buttonColor)
+
+  AddObject(timerFront,gWin)
+  AddObject(timerBack,gWin)
+
+ gTimer <- MakeCustomObject("timer")
+ gTimer.front <- timerFront
+ gTimer.back <- timerBack
+ gTimer.text <- timerText
+
+
+
+
+
+
+
+  ## classic cube:
+#   diagram1 <- [[3,10],[10,80],[80,73],[73,3],
+#               [21,28],[28,98],[98,91],[91,21],
+#	       [3,21],[10,28],[80,98],[73,91]]
+diagram1 <- [[101, 6], [6, 16], [16, 216], [216, 206], [206, 6], [206, 261], [261, 101], [261, 271], [271, 216], [16, 111], [111, 271], [111, 101]]
+
+
+
+  diagram2 <-  [[124, 87], [87, 90], [90, 133], [133, 273], [124, 264], [264, 273],
+[267, 127], [127, 130], [130, 270], [273, 313], [313, 304], [304, 264], [304, 366], [313, 371],
+[371, 370], [370, 331], [331, 326], [326, 367], [367, 366]]
+
+
+##widget 2:
+#diagram3 <- [[65, 67], [67, 87], [87, 93], [93, 73], [73, 75], [75, 135], [135, 125],
+#          [125, 65], [88, 128], [92, 132], [133, 313], [127, 307], [313, 352],
+#          [352, 348], [348, 307], [348, 390], [352, 390], [226, 234], [247, 253], [207, 213]]
+
+ 
+## widget 4:
+diagram4 <- [[66, 76], [76, 336], [336, 326], [326, 66], [70, 190], [228, 76], [226, 236], [256, 332], [146, 156]]
+
+diagram5 <- [[124, 64], [64, 67], [67, 150], [150, 153], [153, 74], [74, 76], [76, 136], [124, 188], [188, 308], [136, 215], [215, 335], [335, 333], [333, 233], [233, 211], [211, 310], [308, 310]]
+
+  trial <- 1
+  out <- CubeTrial(diagram1)
+  FilePrint(gFileOut,gSubNum+","+ GetTime() + "," + trial +","+ ListToString(out,","))
+  Print(out)
+  trial <- 2
+
+  out <- CubeTrial(diagram2)
+  FilePrint(gFileOut,gSubNum+","+ GetTime() + "," + trial +","+ ListToString(out,","))
+    Print(out)
+#  trial <- 3
+#  out <- CubeTrial(diagram3)
+#  FilePrint(gFileOut,gSubNum+","+ GetTime() + "," + trial +","+ ListToString(out,","))
+  Print(out)
+  trial <- 3 
+  out <- CubeTrial(diagram4)
+  FilePrint(gFileOut,gSubNum+","+ GetTime() + "," + trial +","+ ListToString(out,","))
+  Print(out)
+  trial <- 4
+  out <- CubeTrial(diagram5)
+    Print(out)
+  FilePrint(gFileOut,gSubNum+","+ GetTime() + "," + trial +","+ ListToString(out,","))
+
+}
+
+define CubeTrial(diagram,style:"orthographic")
+{
+
+
+
+  inst1 <- MakeHeader(gstrings.inst1,gVideoWidth/2,100,gWin,28)
+  inst2 <- MakeHeader(gstrings.inst2,gVideoWidth/2,150,gWin,22)
   buttonColor <- MakeColor("gold")
+
   
-  standard <- MakeGrid(gWin,10,10,200,600,200,600,"black")
-  theGrid <- MakeGrid(gWin,10,10,800,1200,200,600,"grey30")
+  standard <- MakeGrid(gWin,20,20,100,700,200,800,4,"grey30","isometric")
+  theGrid <-  MakeGrid(gWin,20,20,800,1400,200,800,9,"grey30","isometric")
 
 
-   deleteButton <- Rectangle(850,700,200,50,buttonColor,1)
+ 
+  box1 <- Rectangle(400,500,650,650,MakeColor("grey30"),0)
+  box2 <- Rectangle(1100,500,650,650,MakeColor("grey30"),0)
+  AddObject(box1,gWin)
+  AddObject(box2,gWin)
+  
+   deleteButton <- Rectangle(850,900,200,50,buttonColor,1)
    AddObject(deleteButton,gWin)
-   deleteLabel <- Easylabel(strings.delete,deleteButton.x,deleteButton.y,gWin,25,"grey20")
+   deleteLabel <- Easylabel(gstrings.delete,deleteButton.x,deleteButton.y,gWin,25,"grey20")
 
 
-   okButton <- Rectangle(1150,700,200,50,buttonColor,1)
+   okButton <- Rectangle(1150,900,200,50,buttonColor,1)
    AddObject(okButton,gWin)
-   okLabel <- Easylabel(strings.ok,okButton.x,okButton.y,gWin,25,"grey20")
-
-
-
-
-
+   okLabel <- Easylabel(gstrings.ok,okButton.x,okButton.y,gWin,25,"grey20")
 
 
   points  <- theGrid.points
   indexes <- theGrid.indexes
+
+
   ids <- Sequence(1,Length(points),1)
   startTime <- GetTime()
   Draw()
 
 
-
-  ## classic cube:
-   diagram <- [[3,10],[10,80],[80,73],[73,3],
-               [21,28],[28,98],[98,91],[91,21],
-	       [3,21],[10,28],[80,98],[73,91]]
+   newDiagram <- []
 
 
- 
-    diagram <- [[71, 93], [93, 6], [6, 20], [20, 97], [71, 6], [93, 97], [20, 85], [85, 97], [85, 71]]
+   standardSketch <-   DrawSketch(diagram,standard,MakeColor("red"))
+   out <- DrawSketch(newDiagram,theGrid,MakeColor("grey60")) ##draw initial grid
+   ##out is a list of drawn lines.
+
+   maxtime <- 15000000
+#   maxtime <- 10000
 
 
-newDiagram <- []
-
-
-   standard <-   DrawSketch(diagram,standard,MakeColor("grey40"))
+   
    Draw()
    cont <- 1
-   clickons <- Merge(thegrid.points,[okButton,deleteButton])
-   ident <- Merge(ids,["OK","DEL"])
+
+   ## some general stats.
 
    edits <- 0
+   deletes <- 0  
    startTime <- GetTime()
+
+   #At the beginning of the problem, do an OK and set the timeout time.
+   timeout <- GetTime()+maxtime
+   UpdateTimer(timeout,maxtime,gTimer)
+   OKBox(gVideoWidth/2,gVideoHeight/2,"Ready to begin problem?")
+   timeout <- GetTime()+maxtime
    
    while(cont)
    {
+
+   UpdateTimer(timeout,maxtime,gTimer)
+   RegisterEvent("<TIMER>", 1, GetTime()+500,"<GEQ>","UpdateTimer", [timeout,maxtime,gTimer])
+   RegisterEvent("<TIMER>", 1, timeout,"<GEQ>","EndTrial", [timeout])
+   
+   
+   #these are the clickons for just the grid--to be used for end-point of a line drawing
+   baseclickons <- Merge(thegrid.points,[okButton,deleteButton])
+   baseIdent <-   Merge(ids,["OK","DEL"])
+   baseIndexes <- Sequence(1,Length(baseIdent),1)
+
+   ### Make a separate list of clickons for lines as well.
+   clickons <- Merge(Merge(thegrid.points,out),[okButton,deleteButton])
+
+   lineIDs <- []
+   if(Length(out)>0)
+   {
+     lineIDs <-  Sequence(10001,10000+Length(out),1)
+   }
+
+
+   ident <- Merge(Merge(ids,lineIDs),["OK","DEL"])
+   indexes <- Sequence(1,Length(ident),1)
+
+
       ##get start of line
-      start <- WaitForClickOnTarget(clickOns,ident)
+
+      index <- WaitForClickOnTarget(Reverse(clickOns),Reverse(indexes))
+
+      
+      start <- Nth(ident,index)
       edits <- edits + 1
      if(start == "DEL")
      {
        if(Length(newDiagram) <= 1)
        {
-        newDiagram <- []
+           newDiagram <- []
        } else{
        
           newDiagram <- SubList(newDiagram,1,Max([1,Length(newDiagram)-1]))
        }
+
        out <- DrawSketch(newDiagram,theGrid,MakeColor("grey60"))
-       
+       clickons <- []
+       deletes <- deletes + 1
+       edits <- edits + 1
+       Print("drawing post-delete")
+       Draw()
+
+
      }elseif( start == "OK")
      {
-       cont <- 0
-     } else {
-       ##start is the index number
+
+      confirm <- ConfirmDelete(okbutton.x,okbutton.y,"Confirm diagram complete.")
+
+
+       if(Length(newDiagram)==0 or confirm == "no")
+       {
+         cont <- 1 ##maybe a popup messagebox here.
+       } else {
+         cont <- 0   ##exit.
+       }
+       
+     } elseif(IsNumber(start) and start <=Length(points)) {
+       edits <- edits + 1
+       ##start is the index number. highlight the circle and collect the endpoint.
 
       targ <- Nth(thegrid.points,start)
       circ1 <- Circle(targ.x,targ.y,14,MakeColor("yellow"),1)
       AddObject(circ1,gWin)
       Draw()
+      #only end at end circles.
 
-      end <- WaitForClickOnTarget(clickOns,ident)
+      UpdateTimer(timeout,maxtime,gTimer)
+      RegisterEvent("<TIMER>", 1, GetTime()+500,"<GEQ>","UpdateTimer", [timeout,maxtime,gTimer])
+      RegisterEvent("<TIMER>", 1, timeout,"<GEQ>","EndTrial", [timeout])
+
+      end <- WaitForClickOnTarget(baseclickOns,baseident)
      if(end == "DEL")
      {
       #no-op
      }elseif( end == "OK")
      {
-       cont <- 0
+       #cont <- 0
+       
      } else {
-       ##end is the index number
+       ##this is the endpoint
+       if(IsLegalSegment(start,end,"isometric"))
+       {
+
+       ##end is the index number of a point.
 
       targ2 <- Nth(thegrid.points,end)
-      circ2 <- Circle(targ2.x,targ2.y,14,MakeColor("yellow"),1)
+      circ2 <- Circle(targ2.x,targ2.y,12,MakeColor("yellow"),1)
       AddObject(circ2,gWin)
       Draw()
       Wait(50)
       RemoveObject(circ1,gWin)
       RemoveObject(circ2,gWin)
-
+      Draw()
       if(start <> end)
       {
         PushOnEnd(newDiagram,[start,end])
       }
       out <- DrawSketch(newDiagram,theGrid,MakeColor("grey60"))
      }
+     }
+   } elseif(IsNumber(start) and start>10000) {
+    edits <- edits + 1
+
+    
+
+     ##clicked on a line.
+     line <- Nth(clickons,index)
+     SetConnectorColor(line,buttonColor)
+
+     # diagram if necessary.
+     deleteline <- ConfirmDelete(First(gClick),Second(gClick))
+     Print(deleteline)
+     if(deleteline=="no")
+     {
+       SetConnectorColor(line,MakeColor("grey50"))
+
+
+
+     } else {  ##delete
+       deletes <- deletes + 1
+       sketchindex <- start-10000
+       newDiagram <- RemoveSubset(newDiagram,[sketchindex])
+       out <- DrawSketch(newDiagram,theGrid,MakeColor("grey60"))
+
+     }
+     line <- 0 #reset line variable so it can be deleted off of the
+     clickons <- [] #reset clickons because we may have deleted something, and
+                    #we don't want them standing around still.
    }
+   ClearEventLoop()
    Draw()
+
+     ##end if time is up.
+    if(GetTime()>timeout)
+    {
+     cont <- 0
+     clickons <- []
+     out <- []
+    }
   }
   time <- GetTime()
 
-   inst1.text <- strings.complete
-   inst2.text <- strings.continue
+   inst1.text <- gstrings.complete
+#   inst2.text <- gstrings.continue
    Draw()
-   WaitForDownClick()
-   if(gParams.savescreenshots)
-   {
+   Wait(100)
 
-      range <- [theGrid.xmin-100,thegrid.ymin-150,thegrid.xmax-thegrid.xmin+200,thegrid.ymax-thegrid.ymin+300]
-      WritePNG("data/"+gSubnum+"/cube.png",gWin, range)
-   }
+
+  ##recode the diagram and the solution here.
+  diagramtext <-   StringifyDiagram(diagram)
+  solutiontext <-  StringifyDiagram(newdiagram)
 
   Print(newdiagram)
-  score <- ScoreCube(diagram, newdiagram)
-
-  return Append(score,GetTime()-starttime)
+  score <- [edits,deletes,Length(newDiagram),time-starttime,diagramtext,solutiontext]
+  
+  return score
 }
+
+define StringifyDiagram(diagram)
+{
+  out <- []
+  loop(i,diagram)
+  {
+    PushOnEnd(out,ListToString(i,";"))
+  }
+  
+  return  ListToString(out,"|")
+}
+
 
 ##Add 
 define DrawSketch(sketch,bg,color)
@@ -561,17 +561,29 @@ define DrawSketch(sketch,bg,color)
   loop(i,sketch)
   {   
   
-      startindex <- Nth(bg.indexes,First(i))
-      startx <- bg.xmin + bg.xDelta * (First(startIndex)-1)
-      starty <- bg.ymin + bg.yDelta * (Second(startIndex)-1)
+
+      startPoint <- Nth(bg.points,First(i))
+      startX <- startPoint.x
+      startY <- startPoint.y
+      
+# This calculated the position, but we will take it from the points circle
+## to permit orthographic drawings.
+      startindex <- Nth(bg.indexes,First(i))      
+#      startx <- bg.xmin + bg.xDelta * (First(startIndex)-1)
+#      starty <- bg.ymin + bg.yDelta * (Second(startIndex)-1)
+
+
+      endPoint <- Nth(bg.points,Second(i))
+      endX <- endPoint.x
+      endY <- endPoint.y
       
       endindex <- Nth(bg.indexes,Second(i))
-      endx <- bg.xmin + bg.xDelta * (First(endIndex)-1)
-      endy <- bg.ymin + bg.yDelta * (Second(endIndex)-1)
+ #     endx <- bg.xmin + bg.xDelta * (First(endIndex)-1)
+ #     endy <- bg.ymin + bg.yDelta * (Second(endIndex)-1)
       
 #     Print(startindex + " to " + endindex + ": " + startx+","+starty + "-->"+  endx + "," + endy)
    
-    line <-  ThickLine(startx,starty,endx,endy,3,color)
+    line <-  MakeConnector(startx,starty,endx,endy,5,color)
     AddObject(line,bg.win)
     PushOnEnd(lines,line)
   }
@@ -581,20 +593,46 @@ define DrawSketch(sketch,bg,color)
 
 
 
-define MakeGrid(win,width,height,xmin,xmax,ymin,ymax,color:"grey")
+define MakeGrid(win,width,height,xmin,xmax,ymin,ymax,circsize:10,color:"grey",style:"orthographic")
 {
+
+
+  yminTmp <- ymin
 
   col <- MakeColor(color)
   xDelta <- (xmax - xmin)/ (width-1)
   yDelta <- (ymax - ymin)/ (height-1)
-  
+
+  odd <- 1
   points <- []
   coords <- []
-  loop(i,height)
+  Print("starting layouot")
+  loop(j,height)
   {
-    loop(j,width)
+  
+    loop(i,width)
     {
-       point <- Circle(xmin  + xDelta * (i-1),ymin + yDelta * (j-1), 15,col,0)
+
+
+    ##reset minimum x value for each column under isometric.
+   if(style=="isometric")
+   {
+
+
+    if(odd)
+     {
+
+        ymin <- yminTmp + yDelta/4
+     } else {
+
+        ymin <- yminTmp - yDelta/4
+      }
+
+   
+    odd <- 1-odd
+    }    
+
+       point <- Circle(xmin  + xDelta * (i-1),ymin + yDelta * (j-1), circsize,col,0)
        AddObject(point,win)
        PushOnEnd(points,point)
        PushOnEnd(coords,[i,j])
@@ -618,7 +656,21 @@ define MakeGrid(win,width,height,xmin,xmax,ymin,ymax,color:"grey")
   return (theGrid)
 }
 
-
+define IsLegalSegment(point1,point2,style:"orthographic")
+{
+  Print("cheicking legal")
+  Print(point1+"--->"+point2)
+  
+  if(point1 == point2)
+  {
+     ##disallow same-node clicks
+     legal <- 0
+  } else  {
+    legal <- 1
+  }
+   
+  return legal
+}
 define ScoreCube(standard,answer)
 {
 
@@ -649,7 +701,7 @@ define ScoreCube(standard,answer)
  {
    if(IsMember(i,ans2))
    {
-    PushOnEnd(matches,i)
+     PushOnEnd(matches,i)
    } else {
     PushOnEnd(nonmatches,i)
    }
@@ -670,6 +722,14 @@ define ScoreCube(standard,answer)
   return ( [score,matchscore,nonmatchscore,missing])
 }
 
+define Even(p)
+{
+  return Floor(p/2)*2==p
+}
+define Odd(p)
+{
+   return 1- (Mod(p,2)==0)
+}
 
 
 define HTMLCubeOutput(dat)
@@ -938,7 +998,7 @@ define ReadTranslationJSON(filename,lang)
   obj <- ParseJSON(FileReadText(filename))
   obj.language <- Lowercase(lang)
 
-#PrintProperties(obj)
+
 ##we need to transform using formattext now.
  proplist <- GetPropertyList(obj)
  loop(prop,proplist)
@@ -979,3 +1039,274 @@ define MakeHeader(text,x,y,window,size,maxwidth:0)
 
  return testlabel
 }
+
+define MakeConnector(startx,starty,endx,endy,width,color)
+{
+
+   
+   connector <- MakeCustomObject("connector")
+   connector.x <- (startx + endx)/2
+   connector.y <- (starty+endy)/2
+   connector.startx <- startx
+   connector.starty <- starty
+   connector.endx <- endx
+   connector.endy <- endy
+   connector.width <- width
+   connector.color <- color
+
+   connector.line <-  ThickLine(startx,starty,endx,endy,width,color)
+
+  connector.Draw   <- "DrawConnector"
+  connector.Inside <-"InsideConnector"
+  connector.addobject <- "ADDCONNECTOR"
+  connector.setcolor <-  "SETCONNECTORCOLOR"
+
+  return connector
+}
+
+define SetConnectorColor(obj,color)
+{
+  obj.color <- color
+  tl <-   obj.line
+  tl.color <- color
+}
+
+
+define AddConnector(obj,win)
+{
+  AddObject(obj.line,win)
+
+}
+
+define DrawConnector(obj)
+{
+ Draw(obj.line)
+}
+
+##Check whether xy is 'inside' obj.
+define InsideConnector(xy, obj)
+{
+
+   closest <- ClosestPoint(First(xy),Second(xy),obj.startx,obj.starty,
+                                    obj.endx,obj.endy)
+
+   dist <- Dist(xy,closest)
+   return dist < (obj.width/2+1)
+
+}
+
+
+define ClosestPoint(px,py,x1,y1,x2,y2)
+{
+
+ ##if the two points are the same, just return one of them:
+  if(x1==x2 and y1==y2)
+    {
+      ret <-  [x1,y1]
+    } else{
+  ## px,py is the point to test.
+  ## x1,y1,x2,y2 is the line to calculate distance from
+  ##
+  ## Returns distance from the line, or if the intersecting point on the line nearest
+  ## the point tested is outside the endpoints of the line, the distance to the
+  ## nearest endpoint.
+  ##
+  ## Returns 9999 on 0 denominator conditions.
+  ans <- "NA"
+  ix <-0
+  iy <- 0   # intersecting point
+  lineMag <- Dist([x1, y1],[ x2, y2])  ##length of the line measuring to.
+  
+  
+  if( lineMag < 0.00000001) {
+    ##warning("short or zero-length segment; returning first point")
+    ret <- [x1,y1]
+  } else {
+ 
+     ##calculate how far along the line segment the intersection point is:
+     u <- (((px - x1) * (x2 - x1)) + ((py - y1) * (y2 - y1)))
+     u <- u / (lineMag ^2)
+
+
+
+#  if(u<.001) u <- .001
+#  if(u>.999) u <- .999
+    
+  ##original code for using endpoint.
+  if((u < 0.00001) or (u > .99999)) {
+    ## closest point does not fall within the line segment, take the shorter distance
+    ix <- ix
+    iy <- iy
+
+    ## to an endpoint
+        l1  <- Dist([px, py], [x1, y1])
+        l2  <- Dist([px, py], [x2, y2])
+        
+        if(l1 < l2)
+          {
+            ix <- x1
+            iy <- y1
+          }else {
+            ix <- x2
+            iy <- y2
+          }
+        
+
+    
+  } else {
+    ## Intersecting point is on the line, use the formula
+    ix <- x1 + u * (x2 - x1)
+    iy <- y1 + u * (y2 - y1)
+    
+  }
+
+  ret <- [ix,iy]
+ }
+}
+return ret
+}
+
+
+##xy is the upper left of the dialog box.
+define ConfirmDelete(x,y,msg:"Delete line?")
+{
+
+  minsize <- 100
+
+  tfont <- MakeFont(gPEBLBaseFont,0,12,MakeColor("grey"),MakeColor("black"),0)
+
+
+  text <- MakeLabel(msg,tfont)
+  opt1 <- MakeLabel("Yes",tfont)
+  opt2 <- MakeLabel("No",tfont)
+  size <-  Max([minsize,text.width+6])
+
+  bg <- Rectangle(x+50,y+30,size,60,MakeColor("grey20"),1)
+  
+  AddObject(bg,gWin)  
+  AddObject(text,gWin); 
+  Move(text,x+50 ,y+10)
+
+  AddObject(opt1,gWin)
+  AddObject(opt2,gWin)
+  Move(opt1,x+30, y+40)
+  Move(opt2,x+70, y+40)
+
+
+ 
+  Draw()
+  resp <-   WaitForClickOntarget([opt1,opt2],["yes","no"])
+
+  RemoveObjects([text,opt1,opt2,bg],gWin)
+  Draw()
+
+  return resp
+}
+
+
+define OKBox(x,y,msg:"Ready to begin?")
+{
+
+  minsize <- 100
+
+  tfont <- MakeFont(gPEBLBaseFont,0,12,MakeColor("grey"),MakeColor("black"),0)
+
+
+  text <- MakeLabel(msg,tfont)
+  opt1 <- MakeLabel("Yes",tfont)
+  opt2 <- MakeLabel("No",tfont)
+  size <-  Max([minsize,text.width+6])
+
+  bg <- Rectangle(x+50,y+30,size,60,MakeColor("grey20"),1)
+  
+  AddObject(bg,gWin)  
+  AddObject(text,gWin); 
+  Move(text,x+50 ,y+10)
+
+  AddObject(opt1,gWin)
+  Move(opt1,x, y+40)
+
+
+
+ 
+  Draw()
+  resp <-   WaitForClickOntarget([opt1],["OK"])
+
+  RemoveObjects([text,opt1,bg],gWin)
+  Draw()
+
+  return resp
+}
+
+
+define UpdateTimer(endtime,maxtime,timer,evt:0)
+{
+
+   #Print("UPDATING")
+
+    prop <- Max([0,endTime - GetTime()])/maxtime
+    front <- gTimer.front
+    back <- gTimer.back
+    text <- gTimer.text
+    front.width <- back.width * prop
+    text.text <- Ceiling((endTime-GetTime())/1000)
+    Draw()
+}
+
+
+define EndTrial(p,evt:0)
+{
+ gKeeplooping <- 0
+ Draw()
+ return "<REMOVE>"
+}
+
+
+
+##redo this base function so we can implement the timer.
+
+define WaitForMouseButtonWithTimeout(timeout)
+{
+    endtime <- GetTime() + timeout
+    RegisterEvent("<MOUSE_BUTTON_PRESS>",1,1,"<EQUAL>","", [])
+
+
+   RegisterEvent("<TIMER>", 1, endtime,"<GEQ>","",[])
+   out <-   StartEventLoop()
+   ClearEventLoop()
+   
+   return(out)
+
+}
+
+
+define WaitForMouseButton()
+{
+
+   RegisterEvent("<MOUSE_BUTTON_PRESS>",1,1,"<EQUAL>","", [])
+   out <-   StartEventLoop()
+   ClearEventLoop()  
+
+   if(out=="<timeout>")
+   {
+     out <-[0,0,0,"<timeout>"]
+   }
+   return(out)
+
+}
+
+
+define Wait(time)
+{
+
+
+    ##register the timer
+    endtime <- GetTime() + time
+    RegisterEvent("<TIMER>", 1, endtime,"<GEQ>","",[])
+    StartEventLoop()
+    ClearEventLoop()
+
+    
+    return(1)
+}
+

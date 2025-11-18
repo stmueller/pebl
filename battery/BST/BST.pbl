@@ -42,7 +42,8 @@
 
 define Start(p)
 {
-
+   ## Initialize upload system (works for both online and native)
+   InitializeUpload()
 
    ##These default values are used if a .par file does not exist.
    parpairs <- [["userandom",1],
@@ -96,7 +97,7 @@ define Start(p)
    fileOut <- GetNewDataFile(gSubNum,gWin,"BST","csv",
      "subnum,type,block,congruency,trial,stim,resp,corr,rt,tooslow")
 
-   inst <- EasyTextBox("",50,50,gWin,30,gVideoWidth-100,gVideoHeight-200)
+   inst <- EasyTextBox("",50,50,gWin,28,gVideoWidth-100,gVideoHeight-200)
 
    if(gUseMouse)
     {
@@ -547,6 +548,12 @@ report <- report + Print("------------------------------------------------------
    inst.text <- gStrings.debrief
    Show(inst)
    Draw()
+
+   ## Upload data files (works online, no-op on native)
+   UploadFile(gSubNum, "data/" + gSubNum + "/BST-" + gSubNum + ".csv")
+   UploadFile(gSubNum, "data/report-" + gSubNum + ".txt")
+   UploadFile(gSubNum, "data/pooled.csv")
+
    WaitForAnyKeyPress()
 }
 
@@ -768,18 +775,6 @@ PushOnEnd(itemsequence, Repeat(Nth(items,cardtype),reps))
 
 define GetStrings(lang)
 {
-
    ##Known trasnlations: EN
-
-  lang <- Uppercase(lang)
-  fname <- "translations/BST.pbl-"+LowerCase(lang)+".json"
-
-  if(FileExists(fname))
-  {
-    gStrings <- ReadTranslationjson(fname,lang)
-  } else
-  {
-    gStrings <- ReadTranslationjson("translations/BST.pbl-en.json",lang)
-  }
-
+  gStrings <- GetTranslations("BST", lang)
 }

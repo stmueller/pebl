@@ -58,6 +58,7 @@ define Start(p)
    gWin <- MakeWindow("black")
 
    Initialize()
+   InitializeUpload()  ## Initialize token-based hosting if upload.json exists
 
    ##Get subject code if we need to:
    if(gSubNum==0)
@@ -118,19 +119,23 @@ define Start(p)
      design <- Shuffle(RepeatList([1,2,3,4],gParams.repsperblock))
      blockBaseVals <- []
      blockThresh  <- []
+     blocktrial <- 1     
      loop(type,design)
      {
 
+       statustext <-SubstituteStrings(gStrings.status,
+                                            [["<BLOCK>",gBlock],["<NBLOCKS>",gParams.numblocks],
+                                             ["<TRIAL>",blocktrial],["<NTRIALS>",Length(design)]])
       thresh <- Nth(thresholds,type)
-      newthresh <- Trial(Nth(base,type),thresh,1)
+      newthresh <- Trial(Nth(base,type),thresh,1,statustext)
       SetElement(thresholds,type,newthresh)
       PushOnEnd(blockBaseVals, Nth(base,type))
       PushOnEnd(blockThresh, thresh)
       gTrial <- gTrial + 1
-
+      blocktrial <- blocktrial + 1
      }
 
-   Print(thresholds)
+
     ##Reset threshold to average of previous threshold for each base value
    if(gParams.resetthresh)
     {
@@ -200,53 +205,113 @@ define Start(p)
 
    FilePrint(gLog, gSubNum + "," + gLanguage + "," + TimeStamp()+",dots ,"+gResponseType+",EXPERIMENT COMPLETE")
 
+   ## Upload data files to server if using online platform
+   UploadFile(gSubnum,gFileOut.filename)
+   UploadFile(gSubnum,gSumFileOut.filename)
+
     MessageKeyBox(gStrings.Debrief)
 
 }
 
-define Trial(stim,thresh,practice)
+define Trial(stim,thresh,practice,statustext)
 {
 
 
    ClearEventLoop()
    time0 <- GetTime()
    ##add the fixation right away.
-   header <- EasyLabel(gStrings.header,gVideoWidth/2,22,gWin,30)
-   footer <- EasyLabel(gStrings.FooterL+"          "+gStrings.FooterR,gVideoWidth/2,gVideoHeight-100,gWin,40)
 
    order <- Sample([1,-1])
 
+
+   #default use the given fieldsize
    fieldsize <- gParams.fieldsize
    border <- gParams.border
 
+
+   totalwidthneeded <- gParams.fieldsize*2+gParams.border*2
+   if(totalwidthneeded>gVideoWidth)
+   {
+     over <- totalwidthneeded - gVideoWidth
+     if(over>(2*border-20))
+     {
+       border <- 10
+       totalwidthneeded <- gParams.fieldsize*2+border*2
+       over <- totalwidthneeded-gVideoWidth
+     }
+
+   if(over>0)
+   {
+      fieldsize <- fieldsize - over/2
+   }
+
+   }
+
+
+
+
+    ycenter <- 50 + border/2 + fieldsize/2
+    xcenter1 <- gVideoWidth/2-border/2-fieldsize/2
+    xcenter2 <- gVideoWidth/2+border/2+fieldsize/2
+
+
+    header <- EasyLabel(gStrings.header,gVideoWidth/2,22,gWin,30)
+    fCorr <- MakeFont(gPEBLBaseFont,0,30,MakeColor("green"),MakeColor("black"),0)
+    fInc <- MakeFont(gPEBLBaseFont,0,30,MakeColor("red"),MakeColor("black"),0)
+    
+    feedback_corr <-MakeLabel(gStrings.correct,fCorr)
+    feedback_inc <- MakeLabel(gStrings.incorrect,fInc)
+    AddObject(feedback_corr,gWin)
+    AddObject(feedback_inc,gWin)
+    Move(feedback_corr,gVideoWidth/2,50)
+    Move(feedback_inc,gVideoWidth/2,50)
+    Hide(feedback_corr)
+    Hide(feedback_inc)
+    
+    footer <- EasyLabel(gStrings.FooterL+"          "+gStrings.FooterR,gVideoWidth/2,ycenter+fieldsize/2+30,gWin,40)
+    status <- EasyLabel(statustext,gVideoWidth/2,ycenter+fieldsize/2+70,gWin,16)
    if(order==1)
       {  ##higher on right
 
 
-       layoutl <- LayoutPoints(gVideoWidth/2-fieldsize-border/2,
-                                    gVideoWidth/2-border/2,
-                                    border,
-                                    fieldsize+border,Floor(stim+thresh))
+       ##backoff the size of the points  #xxyy
+       layoutl <- LayoutPoints(xcenter1-fieldsize/2+gParams.dotradius,
+                               xcenter1+fieldsize/2-gParams.dotradius,
+			       ycenter-fieldsize/2+gParams.dotradius,
+                               ycenter+fieldsize/2-gParams.dotradius,
+			       Floor(stim+thresh))
 
-       layoutr <- LayoutPoints(gVideoWidth/2+border/2,
-                                     gVideoWidth/2+fieldsize+border/2,
-                                     border,
-                                     fieldsize+border,Floor(stim))
+       layoutR <- LayoutPoints(xcenter2-fieldsize/2+gParams.dotradius,
+                               xcenter2+fieldsize/2-gParams.dotradius,
+			       ycenter-fieldsize/2+gParams.dotradius,
+                               ycenter+fieldsize/2-gParams.dotradius,
+			       Floor(stim))
+
 
 
      } else {
 
+       ##backoff the size of the points  #xxyy
+       layoutl <- LayoutPoints(xcenter1-fieldsize/2+gParams.dotradius,
+                               xcenter1+fieldsize/2-gParams.dotradius,
+			       ycenter-fieldsize/2+gParams.dotradius,
+                               ycenter+fieldsize/2-gParams.dotradius,
+			       Floor(stim))
 
-        layoutl <- LayoutPoints(gVideoWidth/2-fieldsize-border/2,gVideoWidth/2-border/2,border,fieldsize+border,stim)
-       layoutr <- LayoutPoints(gVideoWidth/2+border/2,gVideoWidth/2+fieldsize+border/2,border,fieldsize+border,Floor(stim+thresh))
+       layoutR <- LayoutPoints(xcenter2-fieldsize/2+gParams.dotradius,
+                               xcenter2+fieldsize/2-gParams.dotradius,
+			       ycenter-fieldsize/2+gParams.dotradius,
+                               ycenter+fieldsize/2-gParams.dotradius,
+			       Floor(stim+thresh))
+
+
 
      }
 
-	 back1 <-Rectangle(gVideoWidth/2-border/2-fieldsize/2,
-                           border+fieldsize/2,
-            fieldsize+gParams.dotradius*2,fieldsize+gParams.dotradius*2,MakeColor("darkgrey"),1)
-  	 back2 <-Rectangle(gVideoWidth/2+border/2+fieldsize/2,border+fieldsize/2,
-            fieldsize+gParams.dotradius*2,fieldsize+gParams.dotradius*2,MakeColor("darkgrey"),1)
+	 back1 <-Rectangle(xcenter1,ycenter, fieldsize,fieldsize,MakeColor("darkgrey"),1)
+  	 back2 <-Rectangle(xcenter2,ycenter, fieldsize, fieldsize,MakeColor("darkgrey"),1)
+
+
 
 	 AddObject(back1,gWin)
 	 AddObject(back2,gWin)
@@ -287,9 +352,18 @@ define Trial(stim,thresh,practice)
 
      if(corr)
       {
-              header.text  <- gStrings.correct +   "   ["+rt+"] "+ thresh
+            Show(feedback_corr)
+	    Draw()
+#	    Wait(500)
+#	    Hide(feedback_corr)
+#	    Draw()
             } else {
-              header.text  <- gStrings.incorrect + "   ["+rt+"] "+ thresh
+
+            Show(feedback_inc)
+	    Draw()
+#	    Wait(500)
+#	    Hide(feedback_inc)
+#           Draw()
             }
 	Show(header)
 	Draw()
@@ -317,7 +391,7 @@ define Trial(stim,thresh,practice)
    PushOnEnd(gRTs,rt)
    PushOnEnd(gCorr,corr)
 
-  RemoveObjects(dots,gWin)
+   RemoveObjects(dots,gWin)
 
    ##In this staircase, we have a probability of staying regardless of
    ##correct/incorrect.  Set to 0 if you want to ignore it.
@@ -506,19 +580,6 @@ define PairEqual(p1,p2)
 
 define GetStrings(lang)
 {
-
    ##Known translations: EN
-
-  lang <- Uppercase(lang)
-  fname <- "translations/dotjudgment.pbl-"+LowerCase(lang)+".json"
-
-  if(FileExists(fname))
-  {
-    gStrings <- ReadTranslationjson(fname,lang)
-  } else
-  {
-    gStrings <- ReadTranslationjson("translations/dotjudgment.pbl-en.json",lang)
-  }
-
-
+  gStrings <- GetTranslations("dotjudgment", lang)
 }

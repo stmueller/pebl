@@ -11,6 +11,7 @@
 
 define Start(p)
 {
+  InitializeUpload()  ## Initialize token-based hosting if upload.json exists
   ##default values to use if .par file is not found
   parpairs <- [["reps",32], ##Number of repetitions of P/R blocks (with trials shuffled)
                ["isi",1500], ##Time between stimuli
@@ -239,8 +240,22 @@ define Start(p)
  #  tmp <- Nth(Transpose(statsrt2),4)
  #  FilePrint(gPooledSummary,First(tmp)+","+Second(tmp))
 
+  settingsfile <- "/upload.json"
+  #upload the following files:
+  #gSumFileOut,gFileOut, gPooledFileOut (maybe not needed),gLog,gPooledSummary
+
+  Print("uploading data")
+  out <- UploadFile(gSubnum,gFileOut.filename,settingsfile);  Print(out)
+  out <- UploadFile(gSubnum,gSumFileOut.filename,settingsfile);  Print(out)
+  out <- UploadFile(gSubnum,gPooledFileOut.filename,settingsfile);  Print(out)
+  out <- UploadFile(gSubnum,gLog.filename,settingsfile);  Print(out)
+  out <- UploadFile(gSubnum,gPooledSummary.filename,settingsfile);  Print(out)
+
+
   ##Debrief at the end.
   MessageKeyBox(gDebrief)
+
+
 }
 
 
@@ -310,14 +325,18 @@ define DoBlock(trials,correctresponse,type,col:"blue")
      gStimOn <- 1
      ##make the stimulus disappear after 500 ms
 
-     RegisterEvent("<TIMER>", 1, starttime+gParams.stimtime,"<GEQ>","HIDEME", [stim,star])
-     if(gParams.usemouse)
-     {
+      RegisterEvent("<TIMER>", 1, starttime+gParams.stimtime,"<GEQ>","HIDEME", [stim,star])
+      
+      if(gParams.usemouse)
+       {
+ 
+       t1 <- GetTime()
        resp <- WaitForMouseButtonWithTimeout(gParams.isi-50)
-       ##this will eithe be ["<timeout>"] or [x,y,button,state]
+       ##this will eithe be "<timeout>" or [x,y,button,state]
+
      }else{
       resp <- WaitForListKeyPressWithTimeout(["<lshift>","<rshift>"],gParams.isi-50,1)
-      #this will either be [<timeout>] or <buttonname>
+      #this will either be <timeout> or maybe ["<timeout>"] or  <buttonname>
      }
 
 
@@ -406,20 +425,8 @@ define AddObjects(list,win)
 
 define GetStrings(lang)
 {
-
-
-
 ##Known trasnlations: HR, EN, PT, ES
-  lang <- Uppercase(lang)
-  fname <- "translations/gonogo.pbl-"+LowerCase(lang)+".json"
-
-  if(FileExists(fname))
-  {
-    gStrings <- ReadTranslationJSON(fname,lang)
-  } else
-  {
-    gStrings <- ReadTranslationJSON("translations/gonogo.pbl-en.json",lang)
-  }
+  gStrings <- GetTranslations("gonogo", lang)
 
 
  if(gParams.usemouse)
@@ -484,8 +491,11 @@ define WaitUntil(time)
 define HideMe(stim,star,evt:0)
 {
 
+
+
   if(gStimOn)
   {
+
      Hide(stim)
      Show(star)
      gStimOn <- 0
@@ -501,3 +511,30 @@ define CollapseList (list)
 {
   return ConcatenateList(list,"|")
 }
+
+
+
+
+
+define GetNewSubNum(server,page,port,username,pword)
+{
+   file <- page + "?user_name="+username+"&upload_password="+pword
+   out <- GetHTTPText(server,port,file)
+   if(First(out)==200)
+    {
+      subraw <- Second(out)
+      len <- StringLength(subraw)
+
+      sub <- SubString(Second(out),1,len-1)
+    } else {
+      sub <- RandomDiscrete(999999)
+
+    }
+    return sub
+}
+
+
+
+
+## UploadFile and SyncDataFile functions removed - using library versions from Utility.pbl
+## These functions are auto-loaded and support both token and username/password authentication

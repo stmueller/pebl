@@ -11,6 +11,7 @@
 
 define Start(p)
 {
+      InitializeUpload()  ## Initialize token-based hosting if upload.json exists
 
       gScriptName <- "PEBL Trailmaking Test"
         parpairs <- [["useReitan",0],  ##Whether to use Reitan's points in the mix.
@@ -44,6 +45,7 @@ define Start(p)
                      ]
 
    gParams <- CreateParameters(parpairs,gParamFile)
+#   gParams.useReitan <- 1
    gParams.pathscalethresh <- 2 ##This isn't really used.
 
 #  SeedRng(304)
@@ -245,6 +247,13 @@ define Start(p)
     }
 
 
+  Print("uploading data")
+  settingsfile <- "/upload.json"
+  out <- UploadFile(gSubnum,gFileOut.filename,settingsfile);  Print(out)
+  out <- UploadFile(gSubnum,gSumFile.filename,settingsfile);  Print(out)
+
+
+
    tb.text<- gStrings.finish
    Show(tb)
    Draw()
@@ -256,11 +265,12 @@ define ReitanPoints(type)
 {
   if(type=="A")
    {
-   pts <-  [[503,359],[393,428],[532,460],[530,238],[371,254],
+   pts <- [[503,359],[393,428],[532,460],[530,238],[371,254],
 	       [453,305],[361,359],[286,449],[308,515],[347,443],
 		   [472,530],[235,551],[284,306],[230,380],[219,81],
 		   [290,175],[427,71],[407,191],[551,122],[473,117],
 		   [589,69],[592,234],[596,548],[566,349],[547,530]]
+		   
 
    } else {
    ##Canonical points for test B
@@ -271,7 +281,7 @@ define ReitanPoints(type)
 		   [266,323],[311,110],[463,104],[575,70],[542,438],
 		   [569,555],[221,558],[220,368],[243,497],[217,80]]
    }
-  return Center( pts)
+  return Center(pts)
 }
 
 define Trial(pts,type)
@@ -996,7 +1006,6 @@ define Center(xys, centerX:"",centerY:"")
 
 
 
-
 define GetStrings(lang)
 {
 
@@ -1012,3 +1021,7 @@ define GetStrings(lang)
   }
 
  }
+
+
+
+

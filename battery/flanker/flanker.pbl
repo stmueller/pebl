@@ -26,6 +26,8 @@
 
 define Start(p)
 {
+     InitializeUpload()  ## Initialize token-based hosting if upload.json exists
+
      parpairs <- [["numreps",20],  ##20:number of repeats of the 2x3 design
                   ["practicereps",1], #2
 		  ["includedashtrials",1], ##whether -->-- and --<-- trials should be included
@@ -218,6 +220,18 @@ define Start(p)
 
    FilePrint(gPooledSummary,gSubNum+","+TimeStamp()+datalist)
    FilePrint(gLog, gSubNum + "," + gLanguage + "," + TimeStamp()+",flanker ,"+gResponseType+",EXPERIMENT COMPLETE")
+
+
+
+
+  Print("uploading data")
+  settingsfile <- "/upload.json"
+  out <- UploadFile(gSubnum,gFileOut.filename,settingsfile);  Print(out)
+  out <- UploadFile(gSubnum,gPooledSummary.filename,settingsfile);  Print(out)
+  out <- UploadFile(gSubnum,gLog.filename,settingsfile);  Print(out)
+  out <- UploadFile(gSubnum,gSumFileOut.filename,settingsfile);  Print(out)
+  out <- UploadFile(gSubnum,gPooledFileOut.filename,settingsfile);  Print(out)
+
 
   MessageKeyBox(gDebrief)
 
@@ -608,29 +622,23 @@ define WaitUntil(time)
 
 define GetStrings(language)
 {
+  gStrings <- GetTranslations("flanker", language)
 
-  lang <- Uppercase(language)
-  fname <- "translations/flanker.pbl-"+LowerCase(lang)+".json"
+  ## Assign to global variables for convenience
+  gInst1text <- gStrings.inst1text
+  gInst3text  <- gStrings.inst3text
+  gFooterl <- gStrings.footerL
+  gFooterr <- gStrings.footerR
+  gInterblock <- gStrings.interblock
+  gDebrief <- gStrings.debrief
 
-  if(FileExists(fname))
-  {
-    gStrings <- ReadTranslationJSON(fname,lang)
-  } else
-  {
-    gStrings <- ReadTranslationJSON("translations/flanker.pbl-en.json",lang)
-  }
-
-
-
-
-    gInst1text <- gStrings.inst1text
-    gInst3text  <- gStrings.inst3text
-    gFooterl <- gStrings.footerL
-    gFooterr <- gStrings.footerR
-    gInterblock <- gStrings.interblock
-    gDebrief <- gStrings.debrief
-
-    gCorrect <- gStrings.correct
-    gIncorrect <- gStrings.incorrect
-
+  gCorrect <- gStrings.correct
+  gIncorrect <- gStrings.incorrect
 }
+
+
+
+## UploadFile and SyncDataFile functions removed - using library versions from Utility.pbl
+## These functions are auto-loaded and support both token and username/password authentication
+
+

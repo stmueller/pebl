@@ -42,6 +42,9 @@
 
 define Start(lPar)
 {
+  ## Initialize upload system (works for both online and native)
+  InitializeUpload()
+
   gScriptName <- "Test of Attentional Vigilance"
 
   parpairs <- [["numRare",72],
@@ -403,6 +406,11 @@ define Start(lPar)
   (Press 'X' to finish experiment)")
    Show(gInstructions)
    Draw()
+
+   ## Upload data files (works online, no-op on native)
+   UploadFile(gSubNum, "data/" + gSubNum + "/toav-" + gSubNum + ".csv")
+   UploadFile(gSubNum, "data/" + gSubNum + "/toav-report-" + gSubNum + ".txt")
+
    WaitForKeyPress("X")
    ShowCursor(1)
  }
@@ -466,17 +474,6 @@ define HideAll()
 
 define GetStrings(language)
 {
-
 ##Known trasnlations:  EN
-  lang <- Uppercase(language)
-  fname <- "translations/toav.pbl-"+LowerCase(lang)+".json"
-
-  if(FileExists(fname))
-  {
-    gStrings <- ReadTranslationjson(fname,lang)
-  } else
-  {
-    gStrings <- ReadTranslationjson("translations/toav.pbl-en.json",lang)
-  }
-
+  gStrings <- GetTranslations("toav", language)
 }

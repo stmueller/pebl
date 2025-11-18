@@ -22,12 +22,12 @@ define Start(p)
   gScriptName <- "PEBL Urns Task"
 
    parpairs <- [["col1","red2"],
-                ["col2","darkgreen"],
+                ["col2","blue"],
 		["colnull","grey"],
 		["col1name","red"],
-		["col2name","green"],
+		["col2name","navy"],
 		["colnullName","grey"],
-		["urn1bias1",.8],
+		["urn1bias1",.8],  ##if these don't add to 1, null balls will appear too
 		["urn1bias2",.2],
 		["urn2bias1",.2],
 		["urn2bias2",.8],
@@ -58,6 +58,7 @@ define Start(p)
 
   gSleepEasy <- 1
   gWin <- MakeWindow("white")
+  InitializeUpload()  ## Initialize token-based hosting if upload.json exists
 
 
 
@@ -91,6 +92,12 @@ define Start(p)
      trialNum <- trialNum + 1
 
    }
+
+  FileClose(gFileOut)
+
+  ##Upload data files
+  Print("Uploading data files...")
+  out <- UploadFile(gSubNum, gFileOut.filename); Print(out)
 
   MessageBox(gStrings.debrief,gWin)
 
@@ -131,8 +138,8 @@ define Trial(urn,limit)
 
    loop(i,Sequence(1,limit,1))
    {
-
-     bin <- Square(ballMin+(i-1)*ballwidth,gVideoheight-100,gParams.ballsize*2+4,MakeColor("grey20"),0)
+     
+     bin <- Square(ballMin+(i-1)*ballwidth,gVideoheight-100,ballwidth-4,MakeColor("grey20"),0)
      AddObject(bin,gWin)
      PushOnEnd(ballLocs,bin)
    }
@@ -337,17 +344,7 @@ define DoInstructions()
 
 define GetStrings(lang)
 {
-
-  lang <- Uppercase(lang)
-  fname <- "translations/urns.pbl-"+LowerCase(lang)+".json"
-
-  if(FileExists(fname))
-  {
-    gStrings <- ReadTranslationjson(fname,lang)
-  } else
-  {
-    gStrings <- ReadTranslationjson("translations/urns.pbl-en.json",lang)
-  }
+  gStrings <- GetTranslations("urns", lang)
 
 
    PrintProperties(gParams)
@@ -421,6 +418,7 @@ define Animateball(startx,starty,endx,endy,steps,color,size)
   xdelta <- (endx-startx)/steps
   ydelta <- (endy-starty)/steps
   ball <- Circle(startx,starty,size,Nth(gParams.cols,color),1)
+  ball.aa <- 1
   AddObject(ball,gWin)
 
   loop(i,Sequence(0,steps,1))

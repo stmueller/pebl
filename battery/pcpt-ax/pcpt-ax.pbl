@@ -1,0 +1,569 @@
+#################################################################
+##  PEBL Continuous Performance Task-AX  (CPT-AX), a continuous
+##  performance task modeled after a set of classic paradigms.
+##
+##
+##
+##  For use with PEBL 0.14 or later
+##  http://pebl.sf.net
+##  Part of  The PEBL Psychological Test Battery
+##  2014-03 Released into Public Domain
+##  by Shane T. Mueller, Ph.D. (smueller at obereed dot net)
+##
+##  References: (eg:)
+##  Lee, J. & Park, S. (2006). The role of stimulus saliance in CPT-AX performane
+##       of schizophrenia patients.  Schizophrenia research, 81, 191-197.
+##  http://www.vanderbilt.edu/parklab/Lee_Park_CPT_2006.pdf
+#################################################################
+
+define Start(lPar)
+{
+  InitializeUpload()  ## Initialize token-based hosting if upload.json exists
+
+  gScriptName <- "PEBL CPT-AX Task"
+
+
+  ## Initialize global objects for use later. Defined at end of file
+  Initialize()
+
+   parpairs <- [["cycles",6],
+		["blocksize",20],
+                ["isi", 5000],
+		["prestime",250],
+		["axprob",0.7], ##probability of a AX trial.
+		["bxprob",0.1], ##probability of a BX trial
+		["ayprob",0.1], ##probability of a AY trial
+		["byprob",0.1], ##probability of a BY trial
+		["givefeedback",0],
+		["pausebetweenblocks",0]
+             ]
+
+
+
+   gParams <- CreateParameters(parpairs,gParamFile)
+
+
+
+
+      cycles   <-  gParams.cycles          ## Number of times the ISI cycle is repeated
+      blockSize <- gParams.blocksize      ## Number of trials per block
+      presTime  <- gParams.prestime       ## Presentation time in ms.
+
+
+
+      letters     <- ["B","C","D","E","F","G","H","I",
+	               "J","L","M","O","P","Q","R","S","U"]
+      cue <- "X"
+      conditional <- "A"
+
+
+      giveFeedback <- gParams.givefeedback
+      pauseBetweenBlocks <- gParams.pausebetweenblocks
+
+
+   trialsequence <- SampleDistribution(["ax","ay","bx","by"],
+                                      [gParams.axprob,gParams.ayprob,gParams.bxprob,gParams.byprob],
+				      gparams.cycles*gParams.blocksize)
+
+
+   ##give some dummy trials at the beginning.
+   trials <- SampleN(letters,2) ##by pair to start
+
+   loop(i,trialsequence)
+    {
+      if(i=="ax")
+        {
+          PushOnEnd(trials, conditional)
+          PushOnEnd(trials, cue)
+        }elseif(i=="ay")
+	{
+          PushOnEnd(trials, conditional)
+          PushOnEnd(trials, Sample(letters))
+	}elseif(i == "bx")
+	{
+          PushOnEnd(trials, Sample(letters))
+          PushOnEnd(trials, cue)
+	}else{ ##by
+
+  	  pair <- SampleN(letters,2)
+          PushOnEnd(trials, First(pair))
+          PushOnEnd(trials, Second(pair))
+        }
+
+   }
+
+   ts <- Merge(["by"],trialsequence)
+   template <- Flatten(Transpose([ts,ts]))
+   trialorder <- RepeatList([1,2],Length(ts))
+   trials2 <- Transpose([template,trials,trialorder])
+
+   datafile <- GetNewDataFile(gSubNum,gWin,"pcpt-ax","csv","sub,block,trial,cond,targ,responded,corr,time,rt")
+   masterdatafile <- FileOpenAppend("data/pooled-pcpt-ax.csv")
+   reportfile <- GetNewDataFile(gSubNum,gWin,"pcpt-ax-report","txt","")
+
+
+   log <- FileOpenAppend("data/pcpt-ax-log.txt")
+
+
+
+  ####################################################
+  ## Begin presenting and collecting data
+  ####################################################
+   ## Give instructions; wait for them to hit a key,
+   SetText(gInstructions,gInst1)
+
+
+   Show(gInstructions)
+   Draw()
+   WaitForKeyPress(" ")
+   Hide(gInstructions)
+   Draw()
+
+   gInstructions.text <- gInst2
+
+  ##############################################
+  ##############################################
+  ##
+  ## Set up the basic  environment
+  ##
+
+
+   FilePrint(log,"PCPT-AX Started:  " + gSubNum + " " + TimeStamp())
+
+
+   ## data structures which save data for analysis and
+   ## report at end of study.
+
+   rtCorr <- []
+   rtInc  <- []
+   om <- 0   # Ommission error (failure to respond to target)
+   co <- 0   # Commission error (false alarm to foil)
+
+   targAX <- 0  # Number of targets (Non-X stimuli)
+   targAY<- 0
+   targBX <- 0
+   targBY <- 0
+
+   targ <- 0
+
+   corrAX <- 0  # Number of targets (Non-X stimuli)
+   corrAY<- 0
+   corrBX <- 0
+   corrBY <- 0
+
+   corT <- 0
+   corF <- 0
+
+    Wait(1000)
+    trialNum <- 0
+
+    block <- 1
+    gHeader.text <- gHeader.text  
+    Show(gHeader2)
+    Show(gHeader)
+
+    Draw()
+    WaitForAnyKeyPress()
+    ShowCursor(0)
+    gHeader.text  <- gheadertext
+    Show(gStim)
+    gstim.text <- "-----"
+    Draw()
+    Wait(1000)
+    gstim.text <- "----"
+    Draw()
+    Wait(1000)
+    gstim.text <- "---"
+    Draw()
+    Wait(1000)
+    gstim.text <- "--"
+    Draw()
+    Wait(1000)
+    gstim.text <- "-"
+    Draw()
+    Wait(1000)
+    gstim.text <- ""
+    Draw()
+    loop(trial,trials2)
+    {
+
+
+      type <- First(trial)
+      stim <- Second(trial)
+      order <- Third(trial)
+
+      trialNum <- trialNum + 1
+
+       Hide(gFeedback)
+
+
+
+      gStim.text <- stim
+
+      ##Pre-set the feedback:
+      if(giveFeedback)
+      {
+        if(stim == gParams.cue)
+        {
+          SetFont(gFeedback, gIncFont)
+          gFeedback.text <- "-"
+        }else {
+          SetFont(gFeedback,gCorrFont)
+          gFeedback.text <- "+"
+        }
+      }
+
+      timeStart <- GetTime()
+      endTime   <- timeStart + gParams.isi
+
+
+
+
+      ########################
+      ### Present Stimulus.
+      ###
+
+      rt <- -1
+      responded <- 0
+      Show(gStim)
+      Draw()
+      time1 <- GetTime()
+
+      r1 <- WaitForListKeyPressWithTimeout([" "],gParams.isi,1)
+      Draw()
+      time2 <- GetTime()
+      Hide(gStim)
+
+
+      if(r1 == " ")  #if r1==" "  we pressed the key...
+        {
+          if(giveFeedback)
+            {
+             Show(gFeedback)
+             Draw()
+             Wait(50)
+             Hide(gFeedback)
+            }
+           Draw()
+           rt <- time2-time1
+           responded <- 1
+           Wait(endtime - GetTime())
+
+        } else {
+          ##We didn't press the key
+
+#          Draw()
+#          #if we haven't hit the key before the stimulus disappeared, do so now.
+#          r2 <- WaitForListKeyPressWithTimeout([" "],endTime - GetTime(),1)
+#         time3 <- GetTime()
+#          if(r2 == " ")  #if r2== " " we pressed the key
+#          {
+#            if(giveFeedback)
+#             {
+#               Show(gFeedback)
+#               Draw()
+#               Wait(50)
+#               Hide(gFeedback)
+#             }
+#            Draw()
+#            rt <- time3-time1
+#            responded <- 1
+#            Wait(endtime - GetTime())
+#          }
+
+       }
+
+
+
+     #Score trial as correct or incorrect.
+     #the only correct trials are order 2, type AX, stimulus X.
+     if(stim == "X" and type == "ax" and order == 2)
+     {
+       corr <- responded
+     } else {
+       corr <- 1-responded
+     }
+
+
+
+
+      ## See if we should stop at the end of the block.
+      ##
+      if(pausebetweenblocks)
+       {
+       if(Mod(trialNum, blocksize) == 1 and trialNum > 1)
+        {
+          block <- block + 1
+          Show(gInstructions)
+          Draw()
+          Wait(500)
+          WaitForKeyPress(" ")
+          Hide(gInstructions)
+          Draw()
+          Wait(1000)
+        }
+
+       }
+
+
+
+    ############################################
+    ##Update the correct targets/foils counters
+     if(stim == "X")
+       {
+         corF <- corF+corr
+
+       }else{
+         corT <- corT+corr
+         targ <- targ + 1
+       }
+
+      if(responded)
+       {
+         if(corr)
+         {
+           rtCorr <- Append(rtCorr, rt)
+         } else {
+           rtInc <- Append(rtInc, rt)
+           co <- co + 1
+         }
+
+
+       } else {
+         om <- om + (1-corr)
+       }
+
+
+     ## Print data to both the subject file and the master file.
+     FilePrint(datafile,gSubNum + "," + block + "," + trialnum + "," +
+     gParams.isi + "," + stim + ","+  responded + "," + corr + ","  +
+     timeStart + "," + rt)
+
+     FilePrint(masterdatafile,gSubNum + "," + block + "," + trialnum + "," +
+     gParams.isi + "," + stim + ","+  responded + "," + corr + ","  +
+     timeStart + "," + rt)
+
+
+    }
+
+   ##Study is complet are complete
+   FilePrint(log,"PEBL CPT-AX Finished: " + gSubNum + " " + TimeStamp())
+   FileClose(log)
+
+   trialspercond <- blockSize * cycles
+
+   ##compute foils
+   foil <- trialspercond-targ
+
+   ##Compute SDT beta and dprime for each delay condition.
+   dp <- Rnd(SDTDPrime(corT/targ,1-corF/Max([1,foil])),3)
+
+   beta <- Rnd(SDTBeta(corT/targ,1-corF/Max([1,foil])),3)
+
+
+##Print out report
+   PrintMe(reportfile,"--------------------------------------------------------")
+   PrintMe(reportfile," Report for PEBL Continuous Performance Task (PCPT-AX)")
+   PrintMe(reportfile, " http://pebl.sf.net")
+   PrintMe(reportfile, " (c) 2014 Shane T. Mueller, Ph.D.")
+   PrintMe(reportfile, " "+GetPEBLVersion())
+   PrintMe(reportfile, " "+TimeStamp())
+   PrintMe(reportfile, " Participant Code: " + gSubNum)
+   PrintMe(reportfile, " Pause between blocks: " + pausebetweenblocks)
+   PrintMe(reportfile,"--------------------------------------------------------")
+   PrintMe(reportfile,"Statistic      ")
+   PrintMe(reportfile,"--------------------------------------------------------")
+   PrintMe(reportfile,"Correct Trials   " +Tab(1)+ (corT) + "/" + trialspercond)
+
+   PrintMe(reportfile,"Correct Targets  " +Tab(1)+ corT + "/" +  targ)
+   PrintMe(reportfile,"Correct Foils    " +Tab(1)+ corF + "/" + foil)
+   PrintMe(reportfile,"Target Acc Rate  " +Tab(1)+ Rnd(corT/targ,3) )
+
+   PrintMe(reportfile,"Foil Acc Rate    " +Tab(1)+ Rnd(corF/Max([1,foil]),3))
+
+
+   PrintMe(reportfile,"Commission Errors" +Tab(1)+ co )
+   PrintMe(reportfile,"Ommission Errors " +Tab(1)+ om )
+   PrintMe(reportfile,"Correct RT Mean  " +Tab(1)+ MeanX(rtCorr))
+   PrintMe(reportfile,"Correct RT SD    " +Tab(1)+ SD(rtCorr))
+   PrintMe(reportfile,"Error RT Mean    " +Tab(1)+ MeanX(rtInc))
+   PrintMe(reportfile,"Error RT SD      " +Tab(1)+ SD(rtInc))
+   PrintMe(reportfile,"Sensitivity (d') " +Tab(1)+ dp)
+   PrintMe(reportfile,"Bias (beta)      " +Tab(1)+ beta)
+
+##
+   PrintMe(reportfile,"--------------------------------------------------------")
+
+   mastersum <- FileOpenAppend("pcpt-master-summary.csv")
+   ##Print out basic statistics into a master summary file.
+   FilePrint(mastersum,gSubNum + "," + TimeStamp()+"," +
+          Rnd(corT/targ,4) +  "," +    Rnd(corF/Max([1,foil]),3)+ "," +
+          MeanX(rtCorr))
+
+   ##Upload data files
+   Print("Uploading data files...")
+   out <- UploadFile(gSubNum, datafile.filename); Print(out)
+   out <- UploadFile(gSubNum, reportfile.filename); Print(out)
+
+   ##Now, show debriefing info.
+   SetText(gInstructions, gInstFinal)
+   Show(gInstructions)
+   Draw()
+   WaitForAnyKeyPress()
+   ShowCursor(1)
+ }
+
+
+##  This is a standard initializer function that sets up typical
+##  objects used in experiments.
+define Initialize()
+{
+  ##Initialize Window, etc.
+  gWin <- MakeWindow("black")
+  gSleepEasy <- 1
+
+  ##Initialize Font and colors
+  if(gSubNum+""=="0")
+   {
+     gSubNum <- GetSubNum(gWin)
+   }
+
+   GetStrings(gLanguage)
+
+   black <- MakeColor("black")
+   white <- MakeColor("white")
+
+
+   gInstructionsFont <- MakeFont(gPEBLBaseFont,0,16, black,white,1)
+   gStimFont <- MakeFont(gPEBLBaseFontMono,0,54, white, black,0)
+   gCorrFont <-  MakeFont(gPEBLBaseFontMono,0,30, MakeColor("green"), black,0)
+   gIncFont <-  MakeFont(gPEBLBaseFontMono,0,30, MakeColor("red"), black,0)
+   gHeadFont <- MakeFont(gPEBLBaseFont,0,22,white,black,0)
+
+   ## Make and place the instruction box, then hide it
+   gInstructions <- MakeTextBox("", gInstructionsFont, 600,300)
+   AddObject(gInstructions, gWin)
+   Move(gInstructions, gVideoWidth/2-300, gVideoHeight/2-150)
+   Hide(gInstructions)
+
+   gStim <- MakeLabel("",gStimFont)
+   AddObject(gStim, gWin)
+   Move(gStim, gVideoWidth/2, gVideoHeight/2)
+   Hide(gStim)
+
+   gHeader <- MakeLabel(gHeaderText,gHeadFont)
+   AddObject(gHeader,gWin)
+   Move(gheader,gvideowidth/2,100)
+   Hide(gHeader)
+   gHeader2 <- MakeLabel(gStrings.press,gHeadFont)
+   AddObject(gHeader2,gWin)
+   Move(gheader2,gvideowidth/2,130)
+   Hide(gHeader2)
+
+   gFeedback <- MakeLabel("-",gStimFont)
+   AddObject(gFeedback, gWin)
+   Move(gFeedback, gVideoWidth/2, gVideoHeight/2)
+   Hide(gFeedback)
+   ShowCursor(0)
+ }
+
+
+
+define PrintMe(file,text)
+{
+  FilePrint(file,text)
+  Print(text)
+}
+
+define SD(list)
+{
+  if(Length(list)==0)
+  {
+    ret <- "NA"
+  } else {
+    ret <- Round(StdDev(list)*100)/100
+  }
+
+  return ret
+}
+
+
+define MeanX(list)
+{
+  if(Length(list)==0)
+  {
+   ret <- "NA"
+  } else {
+   ret <- Round(Mean(list)*100)/100
+  }
+  return ret
+}
+
+define Rnd(num,sig)
+{
+   x <-    Round( num *(10 ^ sig))/(10^sig)
+  return x
+}
+
+
+
+define GetStrings(lang)
+{
+
+  lang <- Uppercase(lang)
+  fname <- "translations/pcpt-ax.pbl-"+LowerCase(lang)+".json"
+
+  if(FileExists(fname))
+  {
+    gStrings <- ReadTranslationJSON(fname,lang)
+  } else
+  {
+    gStrings <- ReadTranslationJSON("translations/pcpt-ax.pbl-en.json",lang)
+  }
+
+   gInst1 <- gStrings.inst1
+   gInst2 <- gStrings.ready
+   gINstFinal <- gStrings.debrief
+   gHeaderText <- gStrings.header
+
+}
+
+
+
+
+define SampleDistribution(elements, probabilities, number)
+{
+##the probabilities need to add up to 1.0.
+
+
+  cumdist <- []
+  sum <- 0
+  loop(i,probabilities)
+   {
+   sum <- sum + i
+    PushOnEnd(cumdist,sum)
+   }
+
+    out <- []
+    length <- 0
+    while(length < number)
+    {
+      PushOnEnd(out, Nth(elements,SampleDist(cumdist)))
+      length <- length + 1
+    }
+
+ return out
+}
+
+define SampleDist(cumdist)
+{
+   prob <- RandomUniform(1)
+   i <- 1
+   while( prob >= Nth(cumdist,i))
+    {
+
+      i <- i + 1
+    }
+
+  return i
+}

@@ -886,18 +886,8 @@ define ListEqual(l1,l2)
 
 define GetStrings(lang)
 {
-
 ##Known trasnlations:  EN,ES
-  lang <- Uppercase(lang)
-  fname <- "translations/TOH.pbl-"+LowerCase(lang)+".json"
-
-  if(FileExists(fname))
-  {
-    gStrings <- ReadTranslationjson(fname,lang)
-  } else
-  {
-    gStrings <- ReadTranslationjson("translations/TOH.pbl-en.json",lang)
-  }
+  gStrings <- GetTranslations("TOH", lang)
 
     gSelect <- gStrings.select
     gHeaderLab <- gStrings.headerlab

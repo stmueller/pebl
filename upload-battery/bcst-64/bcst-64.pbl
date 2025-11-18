@@ -847,18 +847,8 @@ return cards
 
 define GetStrings(lang)
 {
-
-  lang <- Uppercase(lang)
-  fname <- "translations/bcst-64.pbl-"+LowerCase(lang)+".json"
-
-  if(FileExists(fname))
-  {
-    gStrings <- ReadTranslationJSON(fname,lang)
-  } else
-  {
-
-    gStrings <- ReadTranslationJSON("translations/bcst-64.pbl-en.json",lang)
-  }
+  ##use cardsort.pbl translations here:
+  gStrings <- GetTranslations("cardsort", lang)
 
 
   #compose alternate strings for mouse and keyboard:

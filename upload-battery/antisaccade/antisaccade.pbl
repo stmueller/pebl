@@ -550,20 +550,6 @@ define DoScreenCalibration(eyedistance:18)
 
 define GetStrings(lang)
 {
-
-
-
    ##Known trasnlations: EN
-
-  lang <- Uppercase(lang)
-  fname <- "translations/antisaccade.pbl-"+LowerCase(lang)+".json"
-
-  if(FileExists(fname))
-  {
-    gStrings <- ReadTranslationJSON(fname,lang)
-  } else
-  {
-    gStrings <- ReadTranslationJSON("translations/antisaccade.pbl-en.json",lang)
-  }
-
+  gStrings <- GetTranslations("antisaccade", lang)
 }

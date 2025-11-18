@@ -605,6 +605,7 @@ define DrawCubeTest ()
 
       targ <- Nth(thegrid.points,start)
       circ1 <- Circle(targ.x,targ.y,14,MakeColor("yellow"),1)
+      circ1.aa <- 1
       AddObject(circ1,gWin)
       Draw()
 
@@ -620,6 +621,7 @@ define DrawCubeTest ()
 
       targ2 <- Nth(thegrid.points,end)
       circ2 <- Circle(targ2.x,targ2.y,14,MakeColor("yellow"),1)
+      circ2.aa <- 1
       AddObject(circ2,gWin)
       Draw()
       Wait(50)
@@ -695,6 +697,7 @@ define MakeGrid(win,width,height,xmin,xmax,ymin,ymax,color:"grey")
     loop(j,width)
     {
        point <- Circle(xmin  + xDelta * (i-1),ymin + yDelta * (j-1), 15,col,0)
+       point.aa <- 1
        AddObject(point,win)
        PushOnEnd(points,point)
        PushOnEnd(coords,[i,j])
@@ -1066,6 +1069,7 @@ define MakeClockLayout(win,xcenter,ycenter,radius,colorfg:"grey",colorBG: "black
       y <- ycenter + Sin(2*gPI/12*(i-3))*radius
       
       point <- Circle(x,y, 25,col,0)
+      point.aa <- 1
       AddObject(point,win)
       PushOnEnd(points,point)
       PushOnEnd(coords,i)

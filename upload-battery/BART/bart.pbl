@@ -518,29 +518,17 @@ define GetY(radius)
 
 define GetStrings(lang)
 {
+  ##Known translations: HR, EN, PT, ES
+  gStrings <- GetTranslations("bart", lang)
 
-
-
-##Known trasnlations: HR, EN, PT, ES
-  lang <- Uppercase(lang)
-  fname <- "translations/bart.pbl-"+LowerCase(lang)+".json"
-
-  if(FileExists(fname))
-  {
-    gStrings <- ReadTranslationJSON(fname,lang)
-  } else
-  {
-    gStrings <- ReadTranslationJSON("translations/bart.pbl-en.json",lang)
-  }
-
-      gInstructions   <- gStrings.instructions
-      gMoney          <- gStrings.money
-      gCollectMessage <- gStrings.collect
-      gPumpMessage    <- gStrings.pump
-      gTotalMessage   <- gStrings.total
-      gLastMessage    <- gStrings.last
-      gDebrief       <-  gStrings.debrief
-
+  ## Assign to global variables for convenience
+  gInstructions   <- gStrings.instructions
+  gMoney          <- gStrings.money
+  gCollectMessage <- gStrings.collect
+  gPumpMessage    <- gStrings.pump
+  gTotalMessage   <- gStrings.total
+  gLastMessage    <- gStrings.last
+  gDebrief       <-  gStrings.debrief
 }
 
 

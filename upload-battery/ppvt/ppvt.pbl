@@ -529,17 +529,7 @@ define GetResponse(isi)
 
 define GetStrings(lang)
 {
-
-  lang <- Uppercase(lang)
-  fname <- "translations/ppvt.pbl-"+LowerCase(lang)+".json"
-
-  if(FileExists(fname))
-  {
-    gStrings <- ReadTranslationJSON(fname,lang)
-  } else
-  {
-    gStrings <- ReadTranslationJSON("translations/ppvt.pbl-en.json",lang)
-  }
+  gStrings <- GetTranslations("ppvt", lang)
 
 
   if(gParams.usemouse)

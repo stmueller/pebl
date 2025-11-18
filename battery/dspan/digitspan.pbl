@@ -23,6 +23,7 @@
 
 define Start(lPar)
 {
+  InitializeUpload()  ## Initialize token-based hosting if upload.json exists
 
 
 
@@ -354,6 +355,17 @@ if(gAllowBackspace)
    }
    feedback <- feedback + CR(2) + gStrings.exit
 
+
+
+
+
+  Print("uploading data")
+  settingsfile <- "/upload.json"
+  out <- UploadFile(gSubnum,gFileOut.filename,settingsfile);  Print(out)
+  out <- UploadFile(gSubnum,gReportFile.filename,settingsfile);  Print(out)
+  out <- UploadFile(gSubnum,gPooledFile.filename,settingsfile);  Print(out)
+
+
    SetText(gInstructions, feedback)
    Show(gInstructions)
    Draw()
@@ -675,20 +687,14 @@ define WaitForIt()
 
 define GetStrings(lang)
 {
-
-   ##Known translations: EN
-
-  lang <- Uppercase(lang)
-  fname <- "translations/digitspan.pbl-"+LowerCase(lang)+".json"
-
-  if(FileExists(fname))
-  {
-    gStrings <- ReadTranslationjson(fname,lang)
-  } else
-  {
-    gStrings <- ReadTranslationJSON("translations/digitspan.pbl-en.json",lang)
-  }
-
-
+  ##Known translations: EN
+  gStrings <- GetTranslations("digitspan", lang)
   PrintProperties(gStrings)
 }
+
+
+
+
+
+## UploadFile and SyncDataFile functions removed - using library versions from Utility.pbl
+## These functions are auto-loaded and support both token and username/password authentication

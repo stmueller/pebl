@@ -1,0 +1,213 @@
+## Dr. Brandon S. Perelman
+## U.S. Army Research Laboratory
+## 9 MAY 2017
+
+define Start(p)
+{
+   parpairs <- [["doIntro",1],
+                ["doOutro",1]] 
+   gParams <- CreateParameters(parpairs,gParamFile)
+
+  gDoIntro <- gParams.dointro
+  gDoOutro <- gParams.dooutro
+
+  gWin <- MakeWindow("black")
+
+  if(gSubNum+""=="0")
+  {
+   gSubNum <- GetSubNum(gWin)
+  }
+
+  ## Initialize upload system for Emscripten
+  InitializeUpload()
+
+  ## Load translations
+  GetStrings(gLanguage)
+
+  gQuestionHead <- gStrings.question_head
+  gLikertoptions <- [gStrings.likert_1,
+                     gStrings.likert_2,
+                     gStrings.likert_3,
+                     gStrings.likert_4,
+                     gStrings.likert_5]
+
+   if(gDoIntro)
+   {
+    intro <- EasyLabel(gStrings.intro,gVideoWidth/2,(gVideoHeight/2)-200,gWin,24)
+	Draw()
+
+	WaitForDownClick()
+
+	RemoveObject(intro,gWin)
+	Draw()
+   }
+
+   ## Create data file using upload system
+   gFileOut <- GetNewDataFile(gSubNum, gWin, "SSSQ", "csv",
+                              "subnum,timestamp,q1,q2,q3,q4,q5,q6,q7,q8,q9,q10,q11,q12,q13,q14,q15,q16,q17,q18,q19,q20,q21,q22,q23,q24,t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12,t13,t14,t15,t16,t17,t18,t19,t20,t21,t22,t23,t24")
+
+
+   
+   ##  Print the question labels
+
+   
+   gQuestfont <- MakeFont(gPEBLBaseFont,0,35,MakeColor("white"),MakeColor("black"),0)
+   gSmallFont <- MakeFont(gPEBLBaseFont,0,18,MakeColor("white"),MakeColor("black"),0)
+  
+  q1 <- gStrings.q1
+  q2 <- gStrings.q2
+  q3 <- gStrings.q3
+  q4 <- gStrings.q4
+  q5 <- gStrings.q5
+  q6 <- gStrings.q6
+  q7 <- gStrings.q7
+  q8 <- gStrings.q8
+  q9 <- gStrings.q9
+  q10 <- gStrings.q10
+  q11 <- gStrings.q11
+  q12 <- gStrings.q12
+  q13 <- gStrings.q13
+  q14 <- gStrings.q14
+  q15 <- gStrings.q15
+  q16 <- gStrings.q16
+  q17 <- gStrings.q17
+  q18 <- gStrings.q18
+  q19 <- gStrings.q19
+  q20 <- gStrings.q20
+  q21 <- gStrings.q21
+  q22 <- gStrings.q22
+  q23 <- gStrings.q23
+  q24 <- gStrings.q24
+  
+  
+  
+  
+  questions <- [q1,q2,q3,q4,q5,q6,q7,q8,q9,q10,q11,q12,q13,q14,q15,q16,q17,q18,q19,q20,q21,q22,q23,q24]
+  
+   responsesout <- []
+   timesout <- []
+   
+
+  
+   ##### Instructions go here if you feel like adding them 
+   
+   startTime <- GetTime()
+  
+   
+   loop(q,questions)
+   {
+	t1 <- GetTime()
+        resp <- Likert(q)
+	t2 <- GetTime()
+	PushOnEnd(responsesout, resp )
+	PushOnEnd(timesout, t2-t1 )
+   }
+   
+   # Print the whole output file for the subject
+
+    FilePrint_(gFileOut,gSubNum+","+gQuote+TimeStamp()+gQuote+",")
+    FilePrint(gFileOut, ConcatenateList(Merge(responsesout,timesout),","))
+
+   ## Upload the data file
+   UploadFile(gSubnum, gFileOut)
+
+  if(gDoOutro)
+   {
+        outro <- EasyLabel(gStrings.outro,gVideoWidth/2,(gVideoHeight/2)-200,gWin,20)
+	Draw()
+
+	WaitForDownClick()
+
+	RemoveObject(outro,gWin)
+	Draw()
+   }
+
+
+}
+
+define GetStrings(lang)
+{
+  lang <- Uppercase(lang)
+  fname <- "translations/SSSQ.pbl-" + LowerCase(lang) + ".json"
+
+  if(FileExists(fname))
+  {
+    gStrings <- ReadTranslationJSON(fname, lang)
+  } else {
+    gStrings <- ReadTranslationJSON("translations/SSSQ.pbl-en.json", lang)
+  }
+}
+
+##These helper functions require gTextBox, gHeader, and gFooter to work.
+define Likert(question)
+{
+    ##spread should be a total of at least 640 pixels, or 80 per option
+    skip <- 150
+
+    ## Add the question heading (this describes the Likert responses)
+
+
+    questionHead <- MakeTextBox(gQuestionHead,gQuestFont,gVideoWidth-50,100)
+
+    questionHead.justify <- "CENTER"
+    AddObject(questionHead,gWin)
+    MoveCenter(questionHead,gVideoWidth/2,55)
+
+#    questionHead <- MakeLabel(gQuestionHead, gQuestFont)
+#    AddObject(questionHead,gWin)
+#    Move(questionHead,gVideoWidth/2,150)
+
+	## Add the specific question
+#    question <- MakeLabel(question, gQuestFont)
+#    AddObject(question, gWin)
+#    Move(question, gVideoWidth/2, 300)
+
+
+    tbFont <-   MakeFont(gPEBLBaseFont,0,25,MakeColor("white"),MakeColor("black"),1)  
+    questionBox <- MakeTextBox(question,tbfont,gVideoWidth-50,100)
+    questionBox.justify <- "CENTER"
+    AddObject(questionBox,gWin)
+    MoveCenter(questionBox,gVideoWidth/2,300)
+
+    left <- gVideoWidth/2-skip*3
+    yval <- gVideoHeight/2+100
+
+    backs <- []
+    nums <- []
+    texts <- []
+
+    loop(i,[1,2,3,4,5])
+     {
+
+      x <- left + skip * i
+      back <- Rectangle(x,yval+50,skip-10,180,MakeColor("white"),0)
+      num <- MakeLabel(i-1+"",gQuestFont)
+      Move(num, x,yval)
+      AddObject(num,gWin)
+      AddObject(back,gWin)
+
+     
+      optLabel  <- MakeTextBox(Nth(gLikertOptions,i),gSmallFont,skip-15,80)
+      optLabel.justify <- "CENTER"
+      AddObject(optLabel,gWin)
+      Move(optlabel,x-optLabel.width/2,yval+50)
+
+      PushOnEnd(backs,back)
+      PushOnEnd(nums,num)
+      PushOnEnd(texts,optlabel)
+       
+     }
+
+
+  Draw()
+  #t1 <- GetTime()
+  response <- WaitForClickOnTarget(backs,[1,2,3,4,5])
+  #t2 <- GetTime()
+
+  return response
+}
+
+   
+
+
+

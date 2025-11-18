@@ -36,6 +36,7 @@ define Start(p)
   isi <- gParams.isi
 
   gWin <- MakeWindow("black")
+  InitializeUpload()  ## Initialize token-based hosting if upload.json exists
   ##Get subject code if we need to:
   if(gSubNum+""=="0")
     {
@@ -59,7 +60,7 @@ define Start(p)
 
 
  if(gParams.responsetype==0)
-  {
+  {  ##let user choose:
     gRtype <-  GetResponseKeys()
   }else{
     gRtype <- gParams.responsetype
@@ -91,6 +92,9 @@ define Start(p)
   RemoveObject(inst,gWin)
   bg <-  DrawBG()
 
+   ##Do some finger-checking
+  Practice()
+   
   Draw()
   Wait(1000)
   dat <- []
@@ -139,7 +143,12 @@ define Start(p)
    FileClose(gSummary)
    FileClose(gFileOut)
 
-   inst.text <- feedback
+  ##Upload data files
+  Print("Uploading data files...")
+  out <- UploadFile(gSubNum, gFileOut.filename); Print(out)
+  out <- UploadFile(gSubNum, gSummary.filename); Print(out)
+
+   inst.text <- gStrings.debrief + CR(1)+feedback
    AddObject(inst,gWin)
    Draw()
    WaitForAnyKeyPress()
@@ -148,18 +157,49 @@ define Start(p)
 
 define DrawBG()
 {
+  ##this should take only the middle 800x600 regardless of screen size.
   col <- MakeColor("white")
-  l1 <- Line(gVideoWidth/2,0,0,gVideoHeight,col)
-  l2 <- Line(0,gVideoHeight/2,gVideoWidth,0,col)
+  box <- Rectangle(gVideoWidth/2,gVideoHeight/2,800,600,col,0)
+  l1 <- Line(gVideoWidth/2-400,gVideoHeight/2,800,0,col)
+  l2 <- Line(gVideoWidth/2,gVideoHeight/2-300,0,600,col)
   tb <- EasyTextBox(gInst,gVideoWidth/2-60,gVideoHeight/2-40,gWin,22,120,80)
   AddObject(l1,gWin)
   AddObject(l2,gWin)
   AddObject(tb,gWin)
+  AddObject(box,gWin)
   Draw()
-  return [l1,l2,tb]
+  return [l1,l2,tb,box]
 }
 
 
+##this ensures their fingers are on the right buttons.
+define Practice()
+
+{
+   header <- EasyLabel(gstrings.pressx,gVideoWidth/2,gVideoHeight/2-280,gWin,22,MakeColor("white"))
+   bg <- Rectangle(header.x,header.y,header.width,header.height,MakeColor("black"),1)
+   AddObject(bg,gWin)
+   AddObject(header,gWin)##change z-order.
+  stim <- EasyLabel("X",gVideoWidth/2,gVideoHeight/2-200,gWin,50)
+  quads <- Shuffle(RepeatList([1,2,4,3],3))
+  loop(i,quads)
+  { 
+   pos <- GetQuadPosition(i)
+   Move(stim,Nth(pos,1),Nth(pos,2))
+   Show(stim)
+   Draw()
+   WaitForKeyPress(Nth(gKeys,i))
+   Hide(stim)
+   Draw()
+   Wait(100)
+  }
+
+  header.text <- gstrings.fingers
+  Draw()
+  WaitForAnyKeyPress()
+  CountDown(gWin)
+
+}
 
 define Trial()
 {
@@ -169,7 +209,7 @@ define Trial()
   quad <- RandomDiscrete(4)
   pos <- GetQuadPosition(quad)
 
-  stim <- EasyLabel("+",Nth(pos,1),Nth(pos,2),gWin,80)
+  stim <- EasyLabel("+",Nth(pos,1),Nth(pos,2),gWin,80)  
   Draw()
   lapse <- 0
   starttime <- GetTime()
@@ -210,11 +250,11 @@ define Trial()
 
 define GetQuadPosition(quad)
 {
-
-   x1 <- gVideoWidth/4
-   x2 <- gVideoWidth-x1
-   y1 <- gVideoHeight/4
-   y2 <- gVideoHeight-y1
+  ##in-order 45 12 top then bottom left then right
+   x1 <- gVideoWidth/2 - 200
+   x2 <- gVideoWidth/2 + 200
+   y1 <- gVideoHeight/2 -150
+   y2 <- gVideoHeight/2 +150
 
    pos <- [[x1,y1],
            [x2,y1],
@@ -273,19 +313,6 @@ define GetResponseKeys ()
 
 define GetStrings(lang)
 {
-
    ##Known translations: EN
-
-  lang <- Uppercase(lang)
-  fname <- "translations/fourchoice.pbl-"+LowerCase(lang)+".json"
-
-  if(FileExists(fname))
-  {
-    gStrings <- ReadTranslationJSON(fname,lang)
-  } else
-  {
-    gStrings <- ReadTranslationJSON("translations/fourchoice.pbl-en.json",lang)
-  }
-
-
+  gStrings <- GetTranslations("fourchoice", lang)
 }

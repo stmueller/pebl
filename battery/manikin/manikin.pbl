@@ -20,6 +20,8 @@
 
 define Start(p)
 {
+  ## Initialize upload system (works for both online and native)
+  InitializeUpload()
 
   gWin <- MakeWindow("white")
    ##Get subject code if we need to:
@@ -31,9 +33,13 @@ define Start(p)
    gFileOut <- GetNewDataFile(gSubNum,gWin,"manikin","csv",
         "subnum,block,trial,target,targetname,forback,updown,hand,handname,resp,time1,rt,corr")
 
+  ## Load parameters
+  parpairs <- [["numBlocks", 3],
+               ["zoom",.6],
+	       ["iti",750]]
+  gParams <- CreateParameters(parpairs, gParamFile)
 
-
-numBlocks <- 3
+  numBlocks <- gParams.numBlocks
   conditions <- [
   [1,1,1,1],
   [1,1,-1,1],
@@ -55,7 +61,6 @@ numBlocks <- 3
 
   Draw()
   GetStrings(gLanguage)
-  PrintProperties(gStrings)
 
   gFooter <- EasyLabel(gStrings.footer,gVideoWidth/2,gVideoHeight-150,gWin,40)
   
@@ -67,10 +72,10 @@ numBlocks <- 3
   Move(gBack,gVideoWidth/2,gVideoHeight/2-100)
   Hide(gFront)
   Hide(gBack)
-  gFront.zoomX <- .6
-  gFront.zoomY <- .6
-  gBack.zoomX <- .6
-  gBack.zoomY <- .6
+  gFront.zoomX <- gParams.zoom
+  gFront.zoomY <- gParams.zoom
+  gBack.zoomX <- gParams.zoom
+  gBack.zoomY <- gParams.zoom
 
   PracticeScreen("manikin1.png",gStrings.inst1,["<LSHIFT>"],400)
   PracticeScreen("manikin-inst1.png",gStrings.prac1,["<LSHIFT>"])
@@ -79,7 +84,7 @@ numBlocks <- 3
   PracticeScreen("manikin-inst4.png",gStrings.prac4,["<LSHIFT>"])
   PracticeScreen("manikin1.png",gStrings.ready,["<rshift>","<LSHIFT>"],400)
 
-trialnum <- 1
+  trialnum <- 1
 
  gHeader <- EasyLabel("",gVideoWidth/2,100,gWin,40)
 
@@ -111,35 +116,35 @@ trialnum <- 1
      }
       Move(gHeader,gVideoWidth/2,gVideoHeight/2-200)
       Draw()
-      Wait(750)
+      Wait(gParams.iti)
       Move(gHeader,gVideoWidth/2,100)
       
       trialnum <- trialnum +1
      }
 
- numtrials <- numblocks*16
+ numtrials <- gParams.numblocks*16
  ready <- ReplaceChar(gStrings.ready2,"<N>",numtrials)
  PracticeScreen("",ready,["<rshift>","<LSHIFT>"],400)
 
 
- accs <- []
- rts <- []
-trialnum <- 1
-loop(block,numBlocks)
-{
+  accs <- []
+  rts <- []
+  trialnum <- 1
+ loop(block,gParams.numBlocks)
+  {
 
    trials <- Shuffle(conditions)
    loop(trial,trials)
     {
 
-      gHeader.text <-  ReplaceChar(ReplaceChar(gStrings.header,"<X>", trialnum),"<Y>",16*numBlocks)     
+      gHeader.text <-  ReplaceChar(ReplaceChar(gStrings.header,"<X>", trialnum),"<Y>",16*gparams.numBlocks)     
       Draw()
       Wait(200)
       Draw()
      trialTime <- GetTime()
       out <-  Trial(First(trial),Second(trial),Third(trial),Fourth(trial))
      line <- ConcatenateList(Merge([gSubnum,block,trialnum],out),",")
-     Print(line)
+
      FilePrint(gFileOut,line)
       PushOnEnd(rts,Nth(out,9))
       PushOnEnd(accs,Last(out))
@@ -156,6 +161,10 @@ loop(block,numBlocks)
   Hide(gHeader)
   PracticeScreen("manikin1.png",debrief,[" "],400)
 
+  ## Close and upload data file
+  FileClose(gFileOut)
+  datafile <- "data/" + gSubNum + "/manikin-" + gSubNum + ".csv"
+  UploadFile(gSubNum, datafile, "/upload.json")
 }
 
 
@@ -236,36 +245,5 @@ define Trial(target, forback, updown, hand)
 
 define GetStrings(lang)
 {
-
-  lang <- Uppercase(lang)
-  fname <- "translations/manikin.pbl-"+LowerCase(lang)+".json"
-
-  if(FileExists(fname))
-  {
-    gStrings <- ReadTranslationJSON(fname,lang)
-  } else
-  {
-    gStrings <- ReadTranslationJSON("translations/manikin.pbl-en.json",lang)
-  }
-
- }
-
-
-define PracticeScreen(image,text,answer,imagewidth:1000)
-{
-
-   targwidth <- imagewidth
-   
-   tb <- EasyTextBox(text,gVideoWidth/2-400,50,gWin,22,800,250)
-   if(image != "")
-   {
-    img <- MakeImage("images/"+image)
-    AddObject(img,gWin)
-    img.zoomX <- targwidth/img.width
-    img.zoomY <- img.zoomX
-    Move(img,gVideoWidth/2,gVideoHeight/2)
-  }
-  
-   Draw()
-   WaitForListKeyPress(answer)
+  gStrings <- GetTranslations("manikin", lang)
 }

@@ -687,21 +687,8 @@ define WaitForIt()
 
 define GetStrings(lang)
 {
-
-   ##Known translations: EN
-
-  lang <- Uppercase(lang)
-  fname <- "translations/digitspan.pbl-"+LowerCase(lang)+".json"
-
-  if(FileExists(fname))
-  {
-    gStrings <- ReadTranslationjson(fname,lang)
-  } else
-  {
-    gStrings <- ReadTranslationJSON("translations/digitspan.pbl-en.json",lang)
-  }
-
-
+  ##Known translations: EN
+  gStrings <- GetTranslations("digitspan", lang)
   PrintProperties(gStrings)
 }
 

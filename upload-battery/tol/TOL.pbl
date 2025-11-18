@@ -1821,17 +1821,8 @@ define TOLAnderson()
 
 define GetStrings(language)
 {
-
  ##Known languages: EN
-   lang <- Uppercase(language)
-   fname <- "translations/TOL.pbl-"+Lowercase(lang)+".json"
-   if(FileExists(fname))
-   {
-      gStrings <-ReadTranslationjson(fname,lang)
-
-   }else {
-     gStrings <- ReadTranslationjson("translations/TOL.pbl-en.json",lang)
-  }
+  gStrings <- GetTranslations("TOL", language)
 
 
     gSelect <-gStrings.select

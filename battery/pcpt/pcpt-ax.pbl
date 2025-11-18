@@ -497,17 +497,7 @@ define Rnd(num,sig)
 
 define GetStrings(lang)
 {
-
-  lang <- Uppercase(lang)
-  fname <- "translations/pcpt-ax.pbl-"+LowerCase(lang)+".json"
-
-  if(FileExists(fname))
-  {
-    gStrings <- ReadTranslationJSON(fname,lang)
-  } else
-  {
-    gStrings <- ReadTranslationJSON("translations/pcpt-ax.pbl-en.json",lang)
-  }
+  gStrings <- GetTranslations("pcpt-ax", lang)
 
    gInst1 <- gStrings.inst1
    gInst2 <- gStrings.ready

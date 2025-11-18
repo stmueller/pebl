@@ -602,18 +602,8 @@ define Initialize()
 
 define GetStrings(language)
 {
-
 ##Known trasnlations:
-  lang <- Uppercase(language)
-  fname <- "translations/stroop-vic.pbl-"+LowerCase(lang)+".json"
-
-  if(FileExists(fname))
-  {
-    gStrings <- ReadTranslationJSON(fname,lang)
-  } else
-  {
-    gStrings <- ReadTranslationJSON("translations/stroop-vic.pbl-en.json",lang)
-  }
+  gStrings <- GetTranslations("stroop-vic", language)
 
    gKeys <- [gStrings.key1,gStrings.key2,gStrings.key3,gStrings.key4]
 

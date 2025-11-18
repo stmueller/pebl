@@ -104,9 +104,9 @@ stimtable <- [["A", 0,0,0,1,0.14, 0.15],
 
    ##Instructions here.
   inst <- gStrings.inst
-  inst <- EasyTextbox(inst,gVideoWidth/2-500,10,gWin,16,1000,190)
-   footer <- Easylabel(gStrings.footer,gVideoWidth/2,gVideoHeight/2+170,gWin,35)
-   footer2 <- Easylabel(gStrings.footer2,gVideoWidth/2,gVideoHeight/2+230,gWin,35)
+  inst <- EasyTextbox(inst,50,20,gWin,20,gVideoWidth-100,200)
+   footer <- Easylabel(gStrings.footer,gVideoWidth/2,gVideoHeight-150,gWin,40)
+   footer2 <- Easylabel(gStrings.footer2,gVideoWidth/2,gVideoHeight-100,gWin,40)
 
   ShowAll(gCards,1)
   Draw()
@@ -358,16 +358,5 @@ define UpdateGraph(myGraph, value, total)
 
 define GetStrings(lang)
 {
-
-  lang <- Uppercase(lang)
-  fname <- "translations/wpt.pbl-"+LowerCase(lang)+".json"
-
-  if(FileExists(fname))
-  {
-    gStrings <- ReadTranslationjson(fname,lang)
-  } else
-  {
-    gStrings <- ReadTranslationjson("translations/wpt.pbl-en.json",lang)
-  }
-
+  gStrings <- GetTranslations("wpt", lang)
 }

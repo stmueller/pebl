@@ -32,6 +32,7 @@
 
 define Start(p)
 {
+    InitializeUpload()  ## Initialize token-based hosting if upload.json exists
 
 
      ##Set initial values to use if .par file does not exist.
@@ -184,6 +185,13 @@ define Start(p)
              trial <- trial + 1
            }
 
+
+
+
+
+  Print("uploading data")
+  settingsfile <- "/upload.json"
+  out <- UploadFile(gSubnum,gFileOut.filename,settingsfile);  Print(out)
 
           Show(inst)
 	  inst.text <- gDebrief
@@ -510,27 +518,23 @@ define GetY(radius)
 
 define GetStrings(lang)
 {
+  ##Known translations: HR, EN, PT, ES
+  gStrings <- GetTranslations("bart", lang)
 
-
-
-##Known trasnlations: HR, EN, PT, ES
-  lang <- Uppercase(lang)
-  fname <- "translations/bart.pbl-"+LowerCase(lang)+".json"
-
-  if(FileExists(fname))
-  {
-    gStrings <- ReadTranslationJSON(fname,lang)
-  } else
-  {
-    gStrings <- ReadTranslationJSON("translations/bart.pbl-en.json",lang)
-  }
-
-      gInstructions   <- gStrings.instructions
-      gMoney          <- gStrings.money
-      gCollectMessage <- gStrings.collect
-      gPumpMessage    <- gStrings.pump
-      gTotalMessage   <- gStrings.total
-      gLastMessage    <- gStrings.last
-      gDebrief       <-  gStrings.debrief
-
+  ## Assign to global variables for convenience
+  gInstructions   <- gStrings.instructions
+  gMoney          <- gStrings.money
+  gCollectMessage <- gStrings.collect
+  gPumpMessage    <- gStrings.pump
+  gTotalMessage   <- gStrings.total
+  gLastMessage    <- gStrings.last
+  gDebrief       <-  gStrings.debrief
 }
+
+
+
+
+
+
+## UploadFile and SyncDataFile functions removed - using library versions from Utility.pbl
+## These functions are auto-loaded and support both token and username/password authentication

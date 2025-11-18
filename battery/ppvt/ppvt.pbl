@@ -44,6 +44,7 @@
 
 define Start(lPar)
 {
+  InitializeUpload()  ## Initialize token-based hosting if upload.json exists
 
   gScriptName <- "PEBL PVT"
 
@@ -61,7 +62,7 @@ define Start(lPar)
 
    parpairs <- [["testtype",3],
                 ["usecontinuous",1],
-		["givefeedback",1],
+	        	["givefeedback",1],
                 ["fixationtime", 400],    ## How long the fixation cross remains
                 ["numBlocks", 12],           ## Number of  repetitions of the interval set
                 ["numTrials",120],           ## Number of total trials. (120 =~ 10 minutes)
@@ -307,12 +308,16 @@ define Start(lPar)
 
    PrintMe(reportfile,"--------------------------------------------------------")
 
+   ##Upload data files
+   Print("Uploading data files...")
+   out <- UploadFile(gSubNum, datafile.filename); Print(out)
+   out <- UploadFile(gSubNum, reportfile.filename); Print(out)
 
    ##Now, show debriefing info.
    SetText(gInstructions, gFinalInst)
    Show(gInstructions)
    Draw()
-   WaitForKeyPress("X")
+   WaitForAnyKeyPress()
    ShowCursor(1)
  }
 
@@ -524,17 +529,7 @@ define GetResponse(isi)
 
 define GetStrings(lang)
 {
-
-  lang <- Uppercase(lang)
-  fname <- "translations/ppvt.pbl-"+LowerCase(lang)+".json"
-
-  if(FileExists(fname))
-  {
-    gStrings <- ReadTranslationJSON(fname,lang)
-  } else
-  {
-    gStrings <- ReadTranslationJSON("translations/ppvt.pbl-en.json",lang)
-  }
+  gStrings <- GetTranslations("ppvt", lang)
 
 
   if(gParams.usemouse)

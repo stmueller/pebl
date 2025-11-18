@@ -29,8 +29,7 @@
 
 define Start(p)
 {
-
-
+    InitializeUpload()  ## Initialize token-based hosting if upload.json exists
 
     ##See params/corsi.pbl.schema file for parameter definitions:
     ##these are fallback parameters in case .schema file is lost.
@@ -44,9 +43,10 @@ define Start(p)
 		     ["iti",1000],
 		     ["usebeep",1]
                      ]
-
+   Print("creating parameters from: " + gParamFile)
+   
    gParams <- CreateParameters(parpairs,gParamFile)
-
+   PrintProperties(gParams)
 ##parameters:
 #  doPractice <- 1           ##Turn on/off practice trials (useful for multi-session
 #  gDirection <- 1            ##Change 1 to -1 to set forward to backward.
@@ -334,7 +334,18 @@ FilePrint(gPooledSummary,gSubNum+","+TimeStamp()+","+dirlabel+","+
 
 
 
-  WaitForAnyKeyPress()
+  Print("uploading data")
+  settingsfile <- "/upload.json"
+  out <- UploadFile(gSubnum,gPooledSummary.filename,settingsfile);  Print(out)
+  out <- UploadFile(gSubnum,gPooled.filename,settingsfile);  Print(out)
+  out <- UploadFile(gSubnum,gSumFile.filename,settingsfile);  Print(out)
+  out <- UploadFile(gSubnum,gFileOutClick.filename,settingsfile);  Print(out)
+  out <- UploadFile(gSubnum,gFileOutTrial.filename,settingsfile);  Print(out)
+
+
+
+
+WaitForAnyKeyPress()
 
 }
 
@@ -931,3 +942,6 @@ define GetSTrings(language)
     gDone  <- gStrings.done
 
 }
+
+## UploadFile and SyncDataFile functions removed - using library versions from Utility.pbl
+## These functions are auto-loaded and support both token and username/password authentication

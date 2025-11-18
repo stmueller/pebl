@@ -58,8 +58,9 @@ define Start(p)
  } else{
     SeedRNG(gParams.randomseed)
  }
- 
+
   gWin <- MakeWindow("black")
+  InitializeUpload()  ## Initialize token-based hosting if upload.json exists
 
 
    if(gSubNum+""=="0")
@@ -111,7 +112,7 @@ define Start(p)
 
   notch <-Square(gVideoWidth/2,gVideoHeight/2+gSpaceHeight/2-4,8,bgcol,1)
 
-  gFeedback <- EasyLabel("",gVideoWidth/2,gVideoHeight/2-gSpaceheight/2+50,gWin,28)
+  gFeedback <- EasyLabel("",gVideoWidth/2,gVideoHeight/2-gSpaceheight/2+20,gWin,22,"black")
   Hide(gFeedback)
 
   AddObject(gTarg,gWin)
@@ -140,7 +141,9 @@ if(gParams.generaterandom == 1)
   while(trial <= numtrials)
    {
 
-
+    gFeedback.text <- gStrings.intrial
+    Show(gFeedback)
+    Draw()
     res <-   Trial(Nth(traveltimes,trial))
     targ <- First(res)
     resp <- Nth(res,2)
@@ -178,11 +181,20 @@ if(gParams.generaterandom == 1)
   trial <- trial + 1
   }
 
+  FileClose(gFileOut)
+
+  ##Upload data files
+  Print("Uploading data files...")
+  out <- UploadFile(gSubNum, gFileOut.filename); Print(out)
+  ###
+  Hide(bg)
+  Hide(wall)
+  Hide(notch)
+  
   instruct.text <- gStrings.thanks
   Show(instruct)
   Draw()
   WaitForAnyKeyPress()
-  FileClose(gFileOut)
 }
 
 
@@ -224,17 +236,6 @@ define Trial(traveltime)
 
 define GetStrings(language)
 {
-
 ##Known trasnlations:  EN
-  lang <- Uppercase(language)
-  fname <- "translations/timewall.pbl-"+LowerCase(lang)+".json"
-
-  if(FileExists(fname))
-  {
-    gStrings <- ReadTranslationjson(fname,lang)
-  } else
-  {
-    gStrings <- ReadTranslationjson("translations/timewall.pbl-en.json",lang)
-  }
-
+  gStrings <- GetTranslations("timewall", language)
 }

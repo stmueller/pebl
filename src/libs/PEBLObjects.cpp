@@ -1303,6 +1303,11 @@ Variant PEBLObjects::GetVocalResponseTime(Variant v)
      myAudio->Initialize(1);
 
      Variant out = myAudio->VoiceKey((pDouble)v2,(int)v3);
+
+     // Update the PlatformAudioOut's recorded position from the shared AudioInfo
+     // This is critical for SaveAudioToWaveFile() to save the correct amount of data
+     po->SetRecordPos(tmp->recordpos);
+
      delete myAudio;  // Clean up PlatformAudioIn (AudioInfo is reference counted)
 
      return out;
@@ -1375,10 +1380,10 @@ Variant PEBLObjects::RecordToBuffer(Variant v)
     // Wait for the specified/calculated duration
     SDL_Delay(durationMs);
 
-    // Stop recording
-    myAudio->Stop();
+    // Pause recording (device remains open until myAudio is deleted)
+    myAudio->PauseAudioMonitor();
 
-    std::cout << "Recording stopped.\n";
+    std::cout << "Recording paused.\n";
     std::cout << "Buffer recordpos: " << tmp->recordpos << "\n";
 
     // Check if buffer actually contains data
@@ -1411,6 +1416,113 @@ Variant PEBLObjects::RecordToBuffer(Variant v)
     return Variant(false);
 #endif
 }
+
+
+// Start audio monitoring in ring buffer mode for real-time calibration/visualization
+// Returns an audio monitor object that can be used with GetAudioStats
+Variant PEBLObjects::StartAudioMonitor(Variant v)
+{
+#ifdef PEBL_AUDIOIN
+    PList * plist = v.GetComplexData()->GetList();
+    Variant v1 = plist->First();
+    PError::AssertType(v1, PEAT_NUMBER, "Argument error in function [StartAudioMonitor(<buffer-size-ms>)]: ");
+
+    int bufferSizeMs = (int)v1;
+
+    // Create audio input device with ring buffer
+    PlatformAudioIn * myAudio = new PlatformAudioIn();
+    myAudio->CreateBuffer(bufferSizeMs);
+    myAudio->Initialize(2);  // Type 2 = ring buffer callback (AudioInCallbackLoop)
+    myAudio->RecordToBuffer();  // Start recording
+
+    std::cout << "Audio monitor started with " << bufferSizeMs << "ms ring buffer\n";
+
+    // Wrap in counted_ptr and return as PEBL object
+    counted_ptr<PEBLObjectBase> audio2 = counted_ptr<PEBLObjectBase>(myAudio);
+    PComplexData * pcd = new PComplexData(audio2);
+    Variant tmp = Variant(pcd);
+    delete pcd;
+    pcd=NULL;
+    return tmp;
+
+#else
+    PError::SignalFatalError("Audio Input not available on this version of PEBL.");
+    return Variant(false);
+#endif
+}
+
+
+// Stop audio monitoring
+Variant PEBLObjects::StopAudioMonitor(Variant v)
+{
+#ifdef PEBL_AUDIOIN
+    PList * plist = v.GetComplexData()->GetList();
+    Variant v1 = plist->First();
+    // Note: We can't use PEAT_AUDIOIN type check since PlatformAudioIn doesn't have that type
+    // Instead check for generic object type
+    PError::AssertType(v1, PEAT_OBJECT, "Argument error in function [StopAudioMonitor(<monitor>)]: ");
+
+    PlatformAudioIn * myAudio = dynamic_cast<PlatformAudioIn*>(v1.GetComplexData()->GetObject().get());
+    if(!myAudio) {
+        PError::SignalFatalError("Invalid audio monitor object in StopAudioMonitor()");
+        return Variant(false);
+    }
+
+    // CloseAudio() does full cleanup: pause + close SDL device + clear globals
+    // This is critical to free the audio hardware for subsequent GetVocalResponseTime() calls
+    myAudio->CloseAudio();
+    std::cout << "Audio monitor stopped and closed\n";
+    return Variant(true);
+
+#else
+    PError::SignalFatalError("Audio Input not available on this version of PEBL.");
+    return Variant(false);
+#endif
+}
+
+
+// Get audio statistics for the most recent N milliseconds
+// Returns [energy, power, rmssd] as a list
+Variant PEBLObjects::GetAudioStats(Variant v)
+{
+#ifdef PEBL_AUDIOIN
+    PList * plist = v.GetComplexData()->GetList();
+
+    Variant v1 = plist->First();
+    PError::AssertType(v1, PEAT_OBJECT, "Argument error in first parameter of function [GetAudioStats(<monitor>, <window-ms>)]: ");
+
+    PlatformAudioIn * myAudio = dynamic_cast<PlatformAudioIn*>(v1.GetComplexData()->GetObject().get());
+    if(!myAudio) {
+        PError::SignalFatalError("Invalid audio monitor object in GetAudioStats()");
+        // Return [0, 0, 0]
+        PList * result = new PList();
+        result->PushBack(Variant(0.0));
+        result->PushBack(Variant(0.0));
+        result->PushBack(Variant(0.0));
+        counted_ptr<PEBLObjectBase> baseresult = counted_ptr<PEBLObjectBase>(result);
+        return Variant(new PComplexData(baseresult));
+    }
+
+    Variant v2 = plist->Nth(2);
+    PError::AssertType(v2, PEAT_NUMBER, "Argument error in second parameter of function [GetAudioStats(<monitor>, <window-ms>)]: ");
+
+    int windowMs = (int)v2;
+
+    // Call the PlatformAudioIn method to get stats
+    return myAudio->GetRecentAudioStats(windowMs);
+
+#else
+    PError::SignalFatalError("Audio Input not available on this version of PEBL.");
+    // Return [0, 0, 0]
+    PList * result = new PList();
+    result->PushBack(Variant(0.0));
+    result->PushBack(Variant(0.0));
+    result->PushBack(Variant(0.0));
+    counted_ptr<PEBLObjectBase> baseresult = counted_ptr<PEBLObjectBase>(result);
+    return Variant(new PComplexData(baseresult));
+#endif
+}
+
 
 Variant PEBLObjects::MakeSquareWave(Variant v)
 {

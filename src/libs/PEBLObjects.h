@@ -98,6 +98,9 @@ namespace PEBLObjects
     Variant SaveAudioToWaveFile(Variant v);
     Variant GetVocalResponseTime(Variant v);
     Variant RecordToBuffer(Variant v);
+    Variant StartAudioMonitor(Variant v);  // Real-time audio monitoring
+    Variant StopAudioMonitor(Variant v);
+    Variant GetAudioStats(Variant v);
 
     //Functions to draw things.
     Variant Line(Variant v);

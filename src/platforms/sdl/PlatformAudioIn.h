@@ -42,6 +42,7 @@
 #include "PlatformAudioOut.h"
 
 #include <string>
+#include <iostream>
 
 
 #ifdef PEBL_MIXER
@@ -67,6 +68,23 @@ struct AudioInfo{
 
     int   volume;           /* Relative volume. 0-100*/
     const char*    name;
+
+    // Constructor - initialize audio pointer to NULL
+    AudioInfo() : audio(NULL), audiolen(0), audiopos(0), recordpos(0), counter(0), volume(100), name(NULL), bytesPerSample(0) {
+    }
+
+    // Destructor - WARNING: We intentionally DO NOT free the audio buffer here
+    // because SDL_mixer may still be using it for playback. Freeing it would
+    // cause heap corruption when SDL_mixer accesses the freed memory.
+    // This causes a small memory leak (~264KB per voice key call), but that's
+    // acceptable for calibration that runs once per session.
+    // TODO: Implement proper reference counting or notification when SDL_mixer
+    // is done with the buffer.
+    ~AudioInfo() {
+        std::cout << "~AudioInfo: Destructor called, audio=" << (void*)audio
+                  << " (" << audiolen << " bytes) - NOT freeing (SDL_mixer may be using it)\n";
+        // INTENTIONALLY NOT FREEING: free(audio);
+    }
 };
 
 #endif
@@ -106,7 +124,8 @@ class PlatformAudioIn: public PEBLObjectBase
     bool CreateBuffer(int size);
     bool RecordToBuffer();
     bool Record();
-    bool Stop();
+    bool PauseAudioMonitor();  // Pause recording (does NOT close device)
+    bool CloseAudio();  // Explicitly close and cleanup audio device
 
 
     Variant VoiceKey(double thresh, unsigned int sustain);
@@ -115,6 +134,9 @@ class PlatformAudioIn: public PEBLObjectBase
 
     double Power(Sint16 * data, int length);
 
+    // Get audio statistics for the most recent N milliseconds from ring buffer
+    // Returns: [energy, power, rmssd] as a PEBL list
+    Variant GetRecentAudioStats(int milliseconds);
 
     void ComputeStats(Sint16 * data, int length,
                double&,double&,

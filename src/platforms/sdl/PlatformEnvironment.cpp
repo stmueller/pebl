@@ -110,6 +110,12 @@ void PlatformEnvironment::Initialize()
     else{
 
         std::cerr << "SDL INITIALIZED\n";
+        const char* audioDriver = SDL_GetCurrentAudioDriver();
+        if(audioDriver) {
+            std::cerr << "SDL Audio Driver: " << audioDriver << "\n";
+        } else {
+            std::cerr << "SDL Audio Driver: NONE\n";
+        }
 
 #ifdef PEBL_EMSCRIPTEN
         if (TTF_Init() < 0 )

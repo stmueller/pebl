@@ -1,6 +1,8 @@
 define Start(p)
 {
 
+    MakeDirectory("output")
+
    win <- MakeWindow()
    Print("here")
    lab <- Easylabel("Test Voice Key.  Say word on screen as soon as you see it",gVideoWidth/2,50,win,22)
@@ -8,7 +10,7 @@ define Start(p)
    stimlab <- EasyLabel("Press any key to begin" ,gVideoWidth/2,gVideoHeight/2,win,44)
    Draw()
    Print("here")
-   words <- ["one","peanut", "wisconsin","butterfinger"]
+   words <- ["one","peanut", "wisconsin"]
    Print("here")
    stim <- Shuffle(RepeatList(words,1))
    Draw()
@@ -26,13 +28,14 @@ define Start(p)
     {
 
      stimlab.text <- "+"
-	 Draw()
-	 Wait(300 + Random()*500)
+      Draw()
+     Wait(500)
      stimlab.text <- word
 	 Draw()
      time1 <- GetTime()
      rt <- GetVocalResponseTime(buffer,.25,200)
      time2 <- GetTime()
+#     PlayForeground(buffer)
 
 	 Print("======================")
 	 Print(rt)
@@ -40,9 +43,9 @@ define Start(p)
 	 wavebase <- "output/"+gSubNum+"-"+trial+"-" + word +".wav"
 	 Print(wavebase)
 #     SaveAudioToWaveFile("output/"+gSubNum+"-"+trial+"-" + word +".wav",buffer)
-     SaveAudioToWaveFile(wavebase,buffer)
-	 SystemCall("oggenc "+ wavebase)
-	 SystemCall("rm "+wavebase)
+       SaveAudioToWaveFile(wavebase,buffer)
+#	 SystemCall("oggenc "+ wavebase)
+#	 SystemCall("rm "+wavebase)
 
 	 Print(trial + "," + word + "," + First(rt) + "," + Second(rt) +
 	 "," + Third(rt) + "," + (Second(rt)-First(rt))+","+time1 + "," + (time2-time1))

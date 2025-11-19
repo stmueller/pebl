@@ -251,6 +251,7 @@ namespace PEBLObjects
             {(char*)"MAKEAUDIOINPUTBUFFER", MakeAudioInputBuffer, 1,1},
             {(char*)"SAVEAUDIOTOWAVEFILE",   SaveAudioToWaveFile, 2,2},
             {(char*)"GETVOCALRESPONSETIME", GetVocalResponseTime, 3,3},
+            {(char*)"RECORDTOBUFFER",       RecordToBuffer,      1,2},
 
             {(char*)"LINE",              Line,            5, 5},
             {(char*)"THICKLINE",         ThickLine,       6, 6},

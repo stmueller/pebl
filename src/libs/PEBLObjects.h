@@ -97,6 +97,7 @@ namespace PEBLObjects
     Variant MakeAudioInputBuffer(Variant v);
     Variant SaveAudioToWaveFile(Variant v);
     Variant GetVocalResponseTime(Variant v);
+    Variant RecordToBuffer(Variant v);
 
     //Functions to draw things.
     Variant Line(Variant v);

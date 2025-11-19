@@ -38,23 +38,52 @@
 
 #include <string>
 
-#ifndef PEBL_MIXER
-struct AudioInfo{
+// AudioInfo is needed for audio input even when PEBL_MIXER is enabled
+// Now inherits from PEBLObjectBase to use counted_ptr reference counting
+#if !defined(PEBL_MIXER) || defined(PEBL_AUDIOIN)
+class AudioInfo : public PEBLObjectBase
+{
+public:
+    AudioInfo() : PEBLObjectBase(CDT_AUDIOBUFFER),
+                  audio(NULL),
+                  audiolen(0),
+                  audiopos(0),
+                  bytesPerSample(2),
+                  recordpos(0),
+                  counter(0),
+                  volume(100),
+                  name(NULL),
+                  ownsBuffer(true)  // By default, AudioInfo owns the buffer
+    {
+        SDL_zero(spec);
+    }
 
+    virtual ~AudioInfo()
+    {
+        // Clean up the audio buffer only if we own it
+        // Note: We use free() instead of delete[] because the buffer is allocated with malloc()
+        // When shared with Mix_Chunk, ownsBuffer will be false
+        if(audio && ownsBuffer)
+        {
+            free(audio);
+            audio = NULL;
+        }
+    }
+
+    // Data members (kept public for backward compatibility)
     SDL_AudioSpec spec;
     Uint8   *audio;			/* Pointer to wave data */
     Uint32  audiolen;		/* Length of wave data */
     Uint32  audiopos;		/* Current play position */
-
 
     unsigned int bytesPerSample;  //size of a sample
 	Uint32 recordpos;      //current index in the buffer (in bytes)
     Uint32 counter;        //A counter to use that keeps track of samples
                            //since the beginning of recording.
 
-
     int   volume;           /* Relative volume. 0-100*/
     const char*    name;
+    bool ownsBuffer;       /* Whether AudioInfo should free the buffer in destructor */
 };
 
 #endif
@@ -67,7 +96,7 @@ class PlatformAudioOut: virtual public PAudioOut, public PEBLObjectBase
     virtual ~PlatformAudioOut();
   
     virtual bool LoadSoundFile(const std::string & filename);
-    bool LoadSoundFromData( Uint8 *buffer, long unsigned int size, SDL_AudioSpec *spec);
+    bool LoadSoundFromData( Uint8 *buffer, long unsigned int size, SDL_AudioSpec *spec, Uint32 recordpos = 0);
 
 
     virtual bool CreateSineWave(float freq, long unsigned int length,long double volume);
@@ -81,24 +110,25 @@ class PlatformAudioOut: virtual public PAudioOut, public PEBLObjectBase
     void SaveBufferToWave(Variant filename);
 
 #ifdef PEBL_MIXER
-    virtual bool SetPanning(pDouble left, pDouble right);    
+    virtual bool SetPanning(pDouble left, pDouble right);
     void SetRepeats(int num){mRepeats=num;};
+    void SetRecordPos(Uint32 pos){mRecordPos=pos;};  // Update recorded position
+#endif
 
-#else
-    bool ConvertAudio(AudioInfo & info);    
-
-    AudioInfo * GetAudioInfo();
+#if !defined(PEBL_MIXER) || defined(PEBL_AUDIOIN)
+    bool ConvertAudio(AudioInfo & info);
+    counted_ptr<AudioInfo> GetAudioInfo();
     void PrintAudioInfo();
 #endif
     virtual bool Initialize();
 
 
 private:
-  
+
 
     //    void PlayCallBack(void * dummy, Uint8 * stream, int len);
-    
-   static  bool mLoaded;               //This will be true when a file 
+
+   static  bool mLoaded;               //This will be true when a file
                                 //has been loaded or a buffer has been
                                 //generated.
     int mRepeats;
@@ -107,6 +137,7 @@ private:
 
 #ifdef PEBL_MIXER
     Mix_Chunk * mMixerSample;
+    Uint32 mRecordPos;           // Actual recorded size (for audio input buffers)
 #else
     AudioInfo mWave;
 #endif

@@ -73,143 +73,165 @@ using namespace std;
 PlatformAudioIn::PlatformAudioIn()
     //    PEBLObjectBase(CDT_AUDIOIN)
 {
-    //This are hard-coded for now.
+    //Initialize audio device to 0 (uninitialized)
+    mAudioDevice = 0;
 
+    //Default audio settings
     mSampleRate = 44100;
-    mAudioFormat = AUDIO_S16; //replace with the spec???
+    mAudioFormat = AUDIO_S16;
     mBytesPerSample = 2;
     mSamples = 256;
-    mWave =NULL;
-
-
-    
+    // mWave is automatically initialized to NULL by counted_ptr constructor
 }
 
 
 
 PlatformAudioIn::~PlatformAudioIn()
 {
+    // Close SDL2 audio device
+    if(mAudioDevice > 0)
+    {
+        SDL_CloseAudioDevice(mAudioDevice);
+        mAudioDevice = 0;
+    }
 
+    // Clear the global buffer pointer if it points to our buffer
+    if(mWave.get() && mWave.get() == gAudioBuffer)
+    {
+        gAudioBuffer = NULL;
+    }
 
-    //    SDL_FreeWAV(mWave.audio);
-    if(mWave)
-        {
-            if(mWave == gAudioBuffer)
-                {
-                    gAudioBuffer = NULL;
-                }
-            if(mWave->audio)
-                {
-                    delete mWave->audio;
-                }
-            delete mWave;
-        }
-
-    SDL_CloseAudioIn();
-
+    // counted_ptr will automatically handle reference counting and deletion
+    // No manual memory management needed!
 }
 
 
 
 
 //This must be called after the audio is initialized but before it can
-//be played.  It actually opens the audio device for playing.
+//be used for recording. It opens the audio device for capture.
 bool PlatformAudioIn::Initialize(int type)
 {
+    // SDL2 audio already initialized in main PEBL startup (SDL_Init(SDL_INIT_AUDIO))
 
-    //std::cout <<"Initializing audioout["<<type<<"]\n";
-	if(SDL_InitAudioIn()<0)
-        {
-            PError::SignalWarning("Cannot initialize audio input subsystem"+Variant(SDL_GetError()));
-        }
+    SDL_AudioSpec want, have;
+    SDL_zero(want);
+
+    want.freq = mSampleRate;        // 44100
+    want.format = mAudioFormat;     // AUDIO_S16
+    want.channels = 1;              // Mono
+    want.samples = mSamples;        // 256
+    want.userdata = &have;
+
+    // Select which callback should be used
+    if(type == 1)
+    {
+        want.callback = AudioInCallbackFill;
+    }
     else
-        {
+    {
+        want.callback = AudioInCallbackLoop;
+    }
 
-            SDL_AudioSpec expected,result;
+    // List all available recording devices
+    int numDevices = SDL_GetNumAudioDevices(SDL_TRUE);
+    std::cout << "====================================\n";
+    std::cout << "Available audio recording devices: " << numDevices << "\n";
+    for(int i = 0; i < numDevices; i++) {
+        const char* name = SDL_GetAudioDeviceName(i, SDL_TRUE);
+        std::cout << "  Device " << i << ": " << (name ? name : "NULL") << "\n";
+    }
 
-            expected.format = mAudioFormat;
-            expected.freq    = mSampleRate;
-
-
-            //select which callback should be used.
-            if(type==1)
-                {
-                    expected.callback=AudioInCallbackFill;
-                }
-            else
-                {
-                    expected.callback=AudioInCallbackLoop;
-                }
-
-            expected.samples=mSamples;
-            expected.channels=1;
-            expected.userdata=&result;
-
-
-            if (SDL_OpenAudioIn(&expected,&result) < 0 )
-                {
-                    fprintf(stderr, "Couldn't open audio for input: %s\n", SDL_GetError());
-                    return false;
-                }
+    // Try to find the built-in digital microphone (avoid headphone jack)
+    // Look for "Digital Microphone" in the device name
+    int deviceIndex = 0;  // Default to first device
+    for(int i = 0; i < numDevices; i++) {
+        const char* name = SDL_GetAudioDeviceName(i, SDL_TRUE);
+        if(name && strstr(name, "Digital Microphone")) {
+            deviceIndex = i;
+            std::cout << "Found Digital Microphone at index " << i << "\n";
+            break;
         }
+    }
+
+    // Get the selected recording device
+    const char* deviceName = SDL_GetAudioDeviceName(deviceIndex, SDL_TRUE);
+    if(!deviceName)
+    {
+        PError::SignalWarning("No audio recording device found");
+        return false;
+    }
+
+    std::cout << "Opening device " << deviceIndex << ": " << deviceName << "\n";
+
+    // Open capture device (SDL_TRUE = recording)
+    mAudioDevice = SDL_OpenAudioDevice(deviceName, SDL_TRUE, &want, &have, 0);
+    if(mAudioDevice == 0)
+    {
+        PError::SignalWarning("Cannot open audio input device: " + Variant(SDL_GetError()));
+        return false;
+    }
+
+    std::cout << "Device opened successfully!\n";
+    std::cout << "  Requested: " << want.freq << "Hz, " << (int)want.channels << " channels, format=" << want.format << "\n";
+    std::cout << "  Got:       " << have.freq << "Hz, " << (int)have.channels << " channels, format=" << have.format << "\n";
+    std::cout << "  Samples:   " << have.samples << "\n";
+    std::cout << "====================================\n";
+
+    // Update actual specs if they differ from requested
+    mSampleRate = have.freq;
+    mAudioFormat = have.format;
 
     return true;
 }
 
 
-AudioInfo * PlatformAudioIn::GetAudioOutBuffer()
+counted_ptr<AudioInfo> PlatformAudioIn::GetAudioOutBuffer()
 {
-
-    return mWave;
-
+    return mWave;  // Return copy of counted_ptr (increments reference count)
 }
 
 
 
 
-AudioInfo * PlatformAudioIn::ReleaseAudioOutBuffer()
+counted_ptr<AudioInfo> PlatformAudioIn::ReleaseAudioOutBuffer()
 {
-    AudioInfo * tmp = mWave;
-    mWave = NULL;
+    counted_ptr<AudioInfo> tmp = mWave;  // Copy the counted_ptr
+    mWave = counted_ptr<AudioInfo>();  // Reset to NULL, releasing our reference
 
-    return tmp;
-
+    return tmp;  // Return the counted_ptr
 }
 
 //
 //  This attaches a buffer within the PlatformAudioOut to use
 
-bool PlatformAudioIn::UseBuffer( AudioInfo * buffer )
+bool PlatformAudioIn::UseBuffer( counted_ptr<AudioInfo> buffer )
 {
-
-
-    if(mWave)
-        {
-            PError::SignalFatalError("Attempting to add a buffer to an input stream that already has one.\n");
-        }
+    if(mWave.get())
+    {
+        PError::SignalFatalError("Attempting to add a buffer to an input stream that already has one.\n");
+    }
     else
+    {
+        // Store the counted_ptr - this increments the reference count
+        mWave = buffer;
+        gAudioBuffer = mWave.get();
+
+        mSampleRate= mWave->spec.freq;
+        mAudioFormat=mWave->spec.format;
+        if((buffer->spec.format == AUDIO_U8) |
+           (buffer->spec.format == AUDIO_S8) )
         {
-            mWave = buffer;
-            gAudioBuffer = mWave;
-
-            mSampleRate= mWave->spec.freq;
-            mAudioFormat=mWave->spec.format;
-            if((buffer->spec.format == AUDIO_U8) |
-               (buffer->spec.format == AUDIO_S8) )
-                {
-                    mBytesPerSample = 1;
-
-                }else if((buffer->spec.format == AUDIO_S16 )|
-                         (buffer->spec.format == AUDIO_U16))
-                {
-
-                    mBytesPerSample=2;
-
-                }
-            mWave->bytesPerSample = mBytesPerSample;
-            mSamples = buffer->audiolen/mBytesPerSample;
-
+            mBytesPerSample = 1;
         }
+        else if((buffer->spec.format == AUDIO_S16 )|
+                 (buffer->spec.format == AUDIO_U16))
+        {
+            mBytesPerSample=2;
+        }
+        mWave->bytesPerSample = mBytesPerSample;
+        mSamples = buffer->audiolen/mBytesPerSample;
+    }
     return true;
 }
 
@@ -219,19 +241,15 @@ bool PlatformAudioIn::UseBuffer( AudioInfo * buffer )
 //at a sampling frequency determined by the class
 bool PlatformAudioIn::CreateBuffer(int size)
 {
+    if(mWave.get())
+    {
+        PError::SignalFatalError("Attempting to add a buffer to an input stream that already has one.\n");
+    }
 
-
-    if(mWave)
-        {
-            PError::SignalFatalError("Attempting to add a buffer to an input stream that already has one.\n");
-        }
-
-
-
-    mWave = new AudioInfo();
+    // Create a new AudioInfo object wrapped in counted_ptr
+    mWave = counted_ptr<AudioInfo>(new AudioInfo());
 
     //Make a SDL_AudioSpec;
-
     SDL_AudioSpec *spec = (SDL_AudioSpec *) malloc(sizeof(SDL_AudioSpec));
     spec->freq =44100;
     spec->format=AUDIO_S16;
@@ -239,7 +257,7 @@ bool PlatformAudioIn::CreateBuffer(int size)
     spec->silence=0x80;
     spec->samples=256;  //4096
     spec->callback= NULL;  //Don't have a callback for playing here.
-    spec->userdata=NULL;//&mWave;
+    spec->userdata=NULL;
 
     Uint32 length = spec->freq * size/1000;
     mWave->spec = *spec;
@@ -247,14 +265,13 @@ bool PlatformAudioIn::CreateBuffer(int size)
     //allocate the buffer:
     mWave->audio = (Uint8*)malloc(mBytesPerSample*length);
     if(mWave->audio)
-        {
-            //            cout << "Memory allocated\n";
-        } else{
+    {
+        //            cout << "Memory allocated\n";
+    }
+    else
+    {
         PError::SignalFatalError("Unable to allocate audio input buffer\n");
     }
-
-    //check hereto make sure we could get the memory
-
 
     mWave->bytesPerSample= mBytesPerSample;
     mWave->audiolen = mBytesPerSample*length;
@@ -264,7 +281,7 @@ bool PlatformAudioIn::CreateBuffer(int size)
     mWave->name = NULL;
 
     //attach the buffer to the extern global buffer so that the callback can use it:
-    gAudioBuffer = mWave;
+    gAudioBuffer = mWave.get();
 #if 0
     cout << "---------------------------\n";
     cout << "Creating buffer: \n";
@@ -282,14 +299,32 @@ bool PlatformAudioIn::CreateBuffer(int size)
 
 bool PlatformAudioIn::RecordToBuffer()
 {
-    SDL_PauseAudioIn(0);
+    if(mAudioDevice == 0)
+    {
+        PError::SignalWarning("Audio device not initialized");
+        return false;
+    }
+
+    std::cout << "RecordToBuffer: Unpausing audio device " << mAudioDevice << "\n";
+    SDL_PauseAudioDevice(mAudioDevice, 0);  // 0 = unpause/start recording
+
+    // Check the status
+    SDL_AudioStatus status = SDL_GetAudioDeviceStatus(mAudioDevice);
+    std::cout << "Audio device status after unpause: " << status
+              << " (SDL_AUDIO_PLAYING=" << SDL_AUDIO_PLAYING << ")\n";
+
     return true;
 }
 
 
 bool PlatformAudioIn::Stop()
 {
-    SDL_PauseAudioIn(1);
+    if(mAudioDevice == 0)
+    {
+        return false;
+    }
+
+    SDL_PauseAudioDevice(mAudioDevice, 1);  // 1 = pause/stop recording
     return true;
 }
 
@@ -557,8 +592,8 @@ void PlatformAudioIn::SaveBufferToWave(Variant filename)
 
 void AudioInCallbackFill(void * udata, Uint8 * stream, int len)
 {
-
-
+    static int callbackCount = 0;
+    callbackCount++;
 
     //len is in bytes.
 
@@ -578,8 +613,19 @@ void AudioInCallbackFill(void * udata, Uint8 * stream, int len)
             //tocopy is how many bytes we can copy:
             int bytestocopy = (len< remaininbuffer ? len: remaininbuffer);
 
-            //cout << SDL_GetTicks()<< "  " << len<<" "<<  gAudioBuffer->recordpos << " remains: " <<
-            //remaininbuffer << " sum: " << (gAudioBuffer->recordpos + remaininbuffer)<<" tocopy: " << bytestocopy << endl;
+            if(callbackCount % 100 == 1) {  // Print every 100th callback
+                // Check if stream has any non-zero data
+                int nonZero = 0;
+                for(int i = 0; i < len && i < 100; i++) {
+                    if(sData[i] != 0) nonZero++;
+                }
+                std::cout << "AudioCallback #" << callbackCount
+                          << ": len=" << len
+                          << " recordpos=" << gAudioBuffer->recordpos
+                          << " tocopy=" << bytestocopy
+                          << " nonZeroInStream=" << nonZero << "/100" << std::endl;
+            }
+
             //stop copying if the buffer is full.
 
             if(bytestocopy>0)
@@ -592,6 +638,12 @@ void AudioInCallbackFill(void * udata, Uint8 * stream, int len)
                     gAudioBuffer->recordpos += bytestocopy;
 
                 }
+        }
+    else
+        {
+            if(callbackCount == 1) {
+                std::cout << "WARNING: AudioCallback called but gAudioBuffer is NULL!\n";
+            }
         }
 
 

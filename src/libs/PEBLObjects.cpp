@@ -1221,12 +1221,12 @@ Variant PEBLObjects::MakeAudioInputBuffer(Variant v)
      PlatformAudioIn * myAudio = new PlatformAudioIn();
      myAudio->CreateBuffer(v1);
 
-     AudioInfo * tmp= myAudio->ReleaseAudioOutBuffer();
+     counted_ptr<AudioInfo> tmp = myAudio->ReleaseAudioOutBuffer();
      delete myAudio;
 
      //Variant out = myAudio->VoiceKey(v,(pDouble)v1,(int)v2);
      PlatformAudioOut * myOut = new PlatformAudioOut();
-     myOut->LoadSoundFromData((tmp->audio),tmp->audiolen,&(tmp->spec));
+     myOut->LoadSoundFromData((tmp->audio),tmp->audiolen,&(tmp->spec),tmp->recordpos);
      myOut->Initialize();
 
      counted_ptr<PEBLObjectBase> audio2 = counted_ptr<PEBLObjectBase>(myOut);
@@ -1291,15 +1291,19 @@ Variant PEBLObjects::GetVocalResponseTime(Variant v)
      //v1 should be a audiout object, which has our buffer.
 
      PlatformAudioOut * po = dynamic_cast<PlatformAudioOut*>(v1.GetComplexData()->GetObject().get());
-     AudioInfo * tmp = po->GetAudioInfo();
+     counted_ptr<AudioInfo> tmp = po->GetAudioInfo();
+
+     if(!tmp.get()) {
+         PError::SignalFatalError("GetVocalResponseTime: Failed to get audio info from buffer");
+         return Variant(false);
+     }
 
      PlatformAudioIn * myAudio = new PlatformAudioIn();
-     myAudio->UseBuffer(tmp);
+     myAudio->UseBuffer(tmp);  // Pass counted_ptr to UseBuffer (increments reference count)
      myAudio->Initialize(1);
-     //delete tmp;
-     //     tmp= NULL;
 
      Variant out = myAudio->VoiceKey((pDouble)v2,(int)v3);
+     delete myAudio;  // Clean up PlatformAudioIn (AudioInfo is reference counted)
 
      return out;
 
@@ -1308,6 +1312,104 @@ Variant PEBLObjects::GetVocalResponseTime(Variant v)
      return false;
 #endif
 
+}
+
+Variant PEBLObjects::RecordToBuffer(Variant v)
+{
+#ifdef PEBL_AUDIOIN
+    PList * plist = v.GetComplexData()->GetList();
+
+    Variant v1 = plist->First();
+    PError::AssertType(v1, PEAT_AUDIOOUT, "Argument error in function [RecordToBuffer(<audio-buffer>, [<duration-ms>])]: ");
+
+    // v1 should be an audioout object, which has our buffer
+    PlatformAudioOut * po = dynamic_cast<PlatformAudioOut*>(v1.GetComplexData()->GetObject().get());
+    counted_ptr<AudioInfo> tmp = po->GetAudioInfo();
+
+    if(!tmp.get()) {
+        PError::SignalFatalError("RecordToBuffer: Failed to get audio info from buffer");
+        return Variant(false);
+    }
+
+    std::cout << "====================================\n";
+    std::cout << "RecordToBuffer() Debug Info:\n";
+    std::cout << "Buffer address: " << (void*)tmp->audio << "\n";
+    std::cout << "Buffer size: " << tmp->audiolen << " bytes\n";
+    std::cout << "Sample rate: " << tmp->spec.freq << " Hz\n";
+    std::cout << "Bytes per sample: " << tmp->bytesPerSample << "\n";
+
+    // CRITICAL: Reset recordpos to 0 before recording!
+    tmp->recordpos = 0;
+
+    // Create audio input device and attach the buffer
+    PlatformAudioIn * myAudio = new PlatformAudioIn();
+    myAudio->UseBuffer(tmp);  // Pass counted_ptr to UseBuffer (increments reference count)
+    myAudio->Initialize(1);  // Type 1 = fill callback
+
+    // Start recording
+    myAudio->RecordToBuffer();
+
+    // Check if optional duration parameter was provided
+    unsigned int durationMs;
+    if(plist->Length() >= 2) {
+        // Use provided duration
+        Variant v2 = plist->Nth(2);
+        PError::AssertType(v2, PEAT_NUMBER, "Argument error in second parameter of function [RecordToBuffer(<audio-buffer>, [<duration-ms>])]: ");
+        durationMs = (unsigned int)(int)v2;
+        std::cout << "Using specified duration: " << durationMs << " ms\n";
+    } else {
+        // Calculate duration based on buffer size and sample rate
+        // audiolen is in bytes, bytesPerSample tells us bytes per sample
+        // So total samples = audiolen / bytesPerSample
+        // Time in ms = (samples / sampleRate) * 1000
+        unsigned int totalSamples = tmp->audiolen / tmp->bytesPerSample;
+        unsigned int sampleRate = tmp->spec.freq;
+        durationMs = (totalSamples * 1000) / sampleRate;
+        std::cout << "Using buffer-based duration: " << durationMs << " ms\n";
+    }
+
+    std::cout << "Total buffer samples: " << (tmp->audiolen / tmp->bytesPerSample) << "\n";
+    std::cout << "Recording for: " << durationMs << " ms\n";
+    std::cout << "Recording started...\n";
+
+    // Wait for the specified/calculated duration
+    SDL_Delay(durationMs);
+
+    // Stop recording
+    myAudio->Stop();
+
+    std::cout << "Recording stopped.\n";
+    std::cout << "Buffer recordpos: " << tmp->recordpos << "\n";
+
+    // Check if buffer actually contains data
+    int nonZeroCount = 0;
+    for(unsigned int i = 0; i < tmp->recordpos && i < 1000; i++) {
+        if(tmp->audio[i] != 0) nonZeroCount++;
+    }
+    std::cout << "First 1000 bytes: " << nonZeroCount << " non-zero values\n";
+
+    // Print first few samples as Sint16
+    Sint16* samples = (Sint16*)tmp->audio;
+    std::cout << "First 10 samples: ";
+    for(int i = 0; i < 10; i++) {
+        std::cout << samples[i] << " ";
+    }
+    std::cout << "\n";
+
+    // CRITICAL: Update the PlatformAudioOut object with the actual recorded size
+    // so that SaveBufferToWave() will save the correct amount
+    po->SetRecordPos(tmp->recordpos);
+
+    std::cout << "====================================\n";
+
+    delete myAudio;  // Clean up PlatformAudioIn (AudioInfo is reference counted)
+
+    return Variant(true);
+
+#else
+    PError::SignalFatalError("Audio Input not available on this version of PEBL.");
+    return Variant(false);
+#endif
 }
 
 Variant PEBLObjects::MakeSquareWave(Variant v)

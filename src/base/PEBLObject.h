@@ -45,6 +45,7 @@ enum ObjectValidationError {
 enum ComplexDataType {
     CDT_UNDEFINED = 0,
     CDT_AUDIOOUT,
+    CDT_AUDIOBUFFER,
     CDT_COLOR,
     CDT_ENVIRONMENT,
     CDT_FILESTREAM,

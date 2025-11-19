@@ -39,6 +39,7 @@ USE_NETWORK=1      ##Optional; comment out to turn off sdl_net library.
 USE_PORTS=1        ##lpt, serial port, etc.
 USE_HTTP=1         ##Optional; turn on/off for http get/set
 USE_MIXER=1        ##Optional; uses sdl mixer for better audio+ogg/mp3/etc.
+USE_AUDIOIN=1      ##Optional; enables audio recording and voice key
 
 
 USE_DEBUG = 0     ##Optional; turn on/off debugging stuff.
@@ -123,7 +124,11 @@ endif
 ##hard-coding libcurl here.
 ifdef USE_HTTP
 	CXXFLAGS5 = -DPEBL_HTTP
-	LINKOPTS5 = -lcurl	
+	LINKOPTS5 = -lcurl
+endif
+
+ifdef USE_AUDIOIN
+	CXXFLAGS6 = -DPEBL_AUDIOIN
 endif
 
 
@@ -366,8 +371,8 @@ PLATFORM_SDL_SRC  =	$(SDL_DIR)/PlatformEnvironment.cpp \
 			$(SDL_DIR)/PlatformAudioOut.cpp \
 			$(SDL_DIR)/PlatformNetwork.cpp \
 			$(SDL_DIR)/PlatformJoystick.cpp\
-#			$(SDL_DIR)/PlatformMovie.cpp 
-#			$(SDL_DIR)/PlatformAudioIn.cpp \
+			$(SDL_DIR)/PlatformAudioIn.cpp
+#			$(SDL_DIR)/PlatformMovie.cpp
 
 PLATFORM_SDL_OBJ  = 	$(patsubst %.cpp, %.o, $(PLATFORM_SDL_SRC))
 PLATFORM_SDL_INC  = 	$(patsubst %.cpp, %.h, $(PLATFORM_SDL_SRC))

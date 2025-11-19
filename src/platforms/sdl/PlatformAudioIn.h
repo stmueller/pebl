@@ -100,9 +100,9 @@ class PlatformAudioIn: public PEBLObjectBase
  public:
     PlatformAudioIn();
     ~PlatformAudioIn();
-    AudioInfo * GetAudioOutBuffer()    ;
-    AudioInfo * ReleaseAudioOutBuffer();
-    bool UseBuffer(AudioInfo* buffer);
+    counted_ptr<AudioInfo> GetAudioOutBuffer();
+    counted_ptr<AudioInfo> ReleaseAudioOutBuffer();
+    bool UseBuffer(counted_ptr<AudioInfo> buffer);
     bool CreateBuffer(int size);
     bool RecordToBuffer();
     bool Record();
@@ -121,12 +121,13 @@ class PlatformAudioIn: public PEBLObjectBase
                int&,int&,double &    );
 
 private:
+    SDL_AudioDeviceID mAudioDevice;  // SDL2 audio device ID for recording
     unsigned int mSampleRate;
     Uint16 mAudioFormat;
     unsigned int mBytesPerSample;
     unsigned int mSamples;
 
-    AudioInfo *mWave;
+    counted_ptr<AudioInfo> mWave;  // Now using reference-counted pointer
 };
 
 

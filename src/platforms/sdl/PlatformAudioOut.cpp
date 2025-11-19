@@ -48,6 +48,8 @@
 #include <cmath>
 #include <fstream>
 #include <memory.h>
+#include <cerrno>
+#include <cstring>
 
 void PlayCallBack(void * dummy, Uint8 * stream, int len);
 
@@ -72,12 +74,13 @@ PlatformAudioOut::PlatformAudioOut():
 {
 
     mChannel=-1;
-    mAmplitudeLeft=1.0;   //Reality has a well-know left bias
+    mAmplitudeLeft=1.0;  
     mAmplitudeRight=1.0;
 
 #ifdef PEBL_MIXER
-    //error message should go here.
- 
+    //Initialize mMixerSample to NULL
+    mMixerSample = NULL;
+    mRecordPos = 0;  // Initialize recorded position to 0
 
     if(!mLoaded)
         {
@@ -91,7 +94,7 @@ PlatformAudioOut::PlatformAudioOut():
             mLoaded = true;
         }
 #endif
-    
+
 }
 
 
@@ -117,17 +120,23 @@ PlatformAudioOut::~PlatformAudioOut()
 
     mLoaded = false;
 #ifdef PEBL_MIXER
-    if(mMixerSample)
+    if(mMixerSample) {
+        // For audio input buffers, the buffer is owned by AudioInfo, not by us
+        // Set abuf to NULL before freeing to prevent Mix_FreeChunk from freeing shared memory
+        if(mFilename == "<INTERNALLY GENERATED>") {
+            mMixerSample->abuf = NULL;
+        }
         Mix_FreeChunk(mMixerSample);
-    
+    }
+
     Mix_CloseAudio(); //This will be called for each file
     Mix_Quit();
-    
+
 #else
-    
+
     SDL_FreeWAV(mWave.audio);
 #endif
-    
+
 }
 
 
@@ -439,11 +448,42 @@ bool PlatformAudioOut::CreateSineWave(float freq, long unsigned int mslength, lo
 //;unsigned int freq,int size)
 bool PlatformAudioOut::LoadSoundFromData( Uint8 *buffer,
                                           long unsigned int size,
-                                          SDL_AudioSpec *spec)
+                                          SDL_AudioSpec *spec,
+                                          Uint32 recordpos)
 {
 
 #ifdef PEBL_MIXER
-    return false;
+    // Create a Mix_Chunk from the raw audio buffer
+    // This is needed for audio input buffers to work with SDL_mixer
+
+    mMixerSample = (Mix_Chunk*)malloc(sizeof(Mix_Chunk));
+    if(!mMixerSample) {
+        PError::SignalWarning("Failed to allocate Mix_Chunk in LoadSoundFromData()");
+        return false;
+    }
+
+    // For audio input buffers, we DON'T copy the buffer - we share it!
+    // The recording callback will write directly to this buffer.
+    // IMPORTANT: We must NOT free this buffer in the destructor since it's owned by AudioInfo
+    mMixerSample->abuf = buffer;  // Share the buffer, don't copy
+    mMixerSample->alen = size;
+    mMixerSample->volume = MIX_MAX_VOLUME;  // Default to max volume (128)
+
+    // Store the actual recorded position
+    // If recordpos is 0 (default), use the full buffer size
+    mRecordPos = (recordpos > 0) ? recordpos : size;
+
+    mFilename = "<INTERNALLY GENERATED>";
+    mLoaded = true;
+
+    cerr << "------------------------------------\n";
+    cerr << "Loading Sound Data from buffer.\n";
+    cerr << "Buffer address: " << (void*)buffer << "\n";
+    cerr << "Buffer size: " << size << " bytes\n";
+    cerr << "Recorded size: " << mRecordPos << " bytes\n";
+    cerr << "------------------------------------\n";
+
+    return true;
 #else 
     
     /* setup audio */
@@ -519,8 +559,111 @@ bool PlatformAudioOut::LoadSoundFromData( Uint8 *buffer,
 //
 void PlatformAudioOut::SaveBufferToWave(Variant filename)
 {
-#ifndef PEBL_MIXER
+#ifdef PEBL_MIXER
+    std::cout << "=== ENTERING SaveBufferToWave ===\n";
+    std::cout << "mRecordPos at function entry: " << mRecordPos << "\n";
+    std::cout << "mMixerSample pointer: " << (void*)mMixerSample << "\n";
 
+    // SDL_mixer mode: extract audio data from Mix_Chunk and write to WAV file
+    if(!mMixerSample) {
+        PError::SignalWarning("No audio buffer to save in SaveBufferToWave()");
+        return;
+    }
+
+    std::cout << "mMixerSample->alen: " << mMixerSample->alen << "\n";
+    std::cout << "mMixerSample->abuf: " << (void*)mMixerSample->abuf << "\n";
+
+    // Get audio spec from SDL_mixer
+    int freq, channels;
+    Uint16 format;
+    Mix_QuerySpec(&freq, &format, &channels);
+
+    // Calculate bits per sample
+    int bitsPerSample = 16;  // Default to 16-bit
+    switch(format) {
+        case AUDIO_U8:
+        case AUDIO_S8:
+            bitsPerSample = 8;
+            break;
+        case AUDIO_U16LSB:
+        case AUDIO_S16LSB:
+        case AUDIO_U16MSB:
+        case AUDIO_S16MSB:
+            bitsPerSample = 16;
+            break;
+    }
+
+    int bytesPerSample = bitsPerSample / 8;
+    int subchunk1size = 16;
+    int numChannels = channels;
+    int subchunk2size = mRecordPos;  // Use actual recorded size, not full buffer
+    int chunksize = 36 + subchunk2size;
+    int audioFormat = 1;  // PCM
+    int sampleRate = freq;
+    int byteRate = freq * numChannels * bitsPerSample / 8;
+    int blockAlign = numChannels * bitsPerSample / 8;
+
+    cout << "--------------------------------------------\n";
+    cout << "saving file        [" << filename << "]\n";
+    cout << "bitspersample:      " << bitsPerSample << endl;
+    cout << "Channels:           " << numChannels << endl;
+    cout << "frequency:          " << sampleRate << endl;
+    cout << "byterate:           " << byteRate << endl;
+    cout << "buffer size:        " << mMixerSample->alen << " bytes" << endl;
+    cout << "recorded size:      " << mRecordPos << " bytes" << endl;
+
+    std::fstream myFile(filename.GetString().c_str(), ios::out | ios::binary);
+    if(!myFile.is_open()) {
+        PError::SignalWarning(Variant("Failed to open file for writing: ") + filename);
+        return;
+    }
+
+    // write the wav file per the wav file format
+    myFile.seekp(0, ios::beg);
+    myFile.write("RIFF", 4);                        // chunk id
+    myFile.write((char*)&chunksize, 4);             // chunk size (36 + SubChunk2Size)
+    myFile.write("WAVE", 4);                        // format
+    myFile.write("fmt ", 4);                        // subchunk1ID
+    myFile.write((char*)&subchunk1size, 4);         // subchunk1size (16 for PCM)
+    myFile.write((char*)&audioFormat, 2);           // AudioFormat (1 for PCM)
+    myFile.write((char*)&numChannels, 2);           // NumChannels
+    myFile.write((char*)&sampleRate, 4);            // sample rate
+    myFile.write((char*)&byteRate, 4);              // byte rate
+    myFile.write((char*)&blockAlign, 2);            // block align
+    myFile.write((char*)&bitsPerSample, 2);         // bits per sample
+    myFile.write("data", 4);                        // subchunk2ID
+
+    std::cout << "About to write data chunk header. subchunk2size = " << subchunk2size << "\n";
+    std::cout << "About to write audio data. mRecordPos = " << mRecordPos << "\n";
+
+    myFile.write((char*)&subchunk2size, 4);         // subchunk2size
+
+    std::cout << "File position before audio data write: " << myFile.tellp() << "\n";
+    std::cout << "About to write " << mRecordPos << " bytes from buffer at " << (void*)(mMixerSample->abuf) << "\n";
+
+    // Check buffer validity before writing
+    if(mMixerSample->abuf == NULL) {
+        std::cout << "ERROR: Buffer is NULL!\n";
+    } else {
+        std::cout << "Buffer appears valid, first byte value: " << (int)(mMixerSample->abuf[0]) << "\n";
+    }
+
+    myFile.write((char*)(mMixerSample->abuf), mRecordPos);  // Write only recorded data
+
+    std::cout << "File position after audio data write: " << myFile.tellp() << "\n";
+    if(myFile.fail()) {
+        std::cout << "FILE WRITE FAILED! Error state detected.\n";
+        std::cout << "errno: " << errno << " (" << strerror(errno) << ")\n";
+    }
+    std::cout << "File good state: " << myFile.good() << "\n";
+    std::cout << "File fail state: " << myFile.fail() << "\n";
+    std::cout << "File bad state: " << myFile.bad() << "\n";
+
+    myFile.close();
+    cout << "File saved successfully.\n";
+    cout << "--------------------------------------------\n";
+
+#else
     //Code here adapted from
     //http://www.codeproject.com/Messages/3208219/How-to-write-mic-data-to-wav-file.aspx
 
@@ -586,9 +729,10 @@ bool PlatformAudioOut::Initialize()
 #ifdef PEBL_MIXER
 
     //This should only get called once
-    
-    mMixerSample = NULL;
-   
+
+    // Don't reset mMixerSample to NULL here - it may have been set by LoadSoundFromData()
+    // for audio input buffers. If it hasn't been set yet, it will be NULL from constructor.
+
    //Initialize with the proper file libraries:
    // Set up the audio stream
 
@@ -819,11 +963,66 @@ bool PlatformAudioOut::Stop()
 
 
 
-#ifndef PEBL_MIXER
-AudioInfo * PlatformAudioOut::GetAudioInfo()
+#if !defined(PEBL_MIXER) || defined(PEBL_AUDIOIN)
+counted_ptr<AudioInfo> PlatformAudioOut::GetAudioInfo()
 {
+#ifdef PEBL_MIXER
+    // When using SDL_mixer, extract audio data from Mix_Chunk
+    if(!mMixerSample) {
+        PError::SignalWarning("No audio loaded in GetAudioInfo()");
+        return counted_ptr<AudioInfo>();  // Return NULL counted_ptr
+    }
 
-    
+    AudioInfo * tmp = new AudioInfo();
+
+    // Mix_Chunk contains: Uint8 *abuf, Uint32 alen, int volume
+    tmp->audio = mMixerSample->abuf;
+    tmp->audiolen = mMixerSample->alen;
+    tmp->audiopos = 0;
+    tmp->volume = mMixerSample->volume;
+
+    // Get the audio spec from SDL_mixer
+    int freq, channels;
+    Uint16 format;
+    Mix_QuerySpec(&freq, &format, &channels);
+
+    tmp->spec.freq = freq;
+    tmp->spec.format = format;
+    tmp->spec.channels = channels;
+    tmp->spec.silence = (format == AUDIO_U8) ? 0x80 : 0;
+    tmp->spec.samples = 4096;  // Standard buffer size
+    tmp->spec.callback = NULL;
+    tmp->spec.userdata = NULL;
+
+    // Calculate bytes per sample
+    switch(format) {
+        case AUDIO_U8:
+        case AUDIO_S8:
+            tmp->bytesPerSample = 1;
+            break;
+        case AUDIO_U16LSB:
+        case AUDIO_S16LSB:
+        case AUDIO_U16MSB:
+        case AUDIO_S16MSB:
+            tmp->bytesPerSample = 2;
+            break;
+        default:
+            tmp->bytesPerSample = 2;
+    }
+
+    tmp->recordpos = mRecordPos;  // Return the actual recorded position
+    tmp->counter = 0;
+    tmp->name = mFilename.c_str();
+
+    // CRITICAL: Mark that AudioInfo does NOT own this buffer
+    // The buffer is shared with mMixerSample->abuf and will be freed by Mix_FreeChunk
+    // or by PlatformAudioOut destructor (which sets abuf=NULL before freeing)
+    tmp->ownsBuffer = false;
+
+    // Wrap in counted_ptr before returning
+    return counted_ptr<AudioInfo>(tmp);
+#else
+    // Original non-mixer implementation
     AudioInfo * tmp = new AudioInfo(mWave);
 #if 0
 
@@ -834,11 +1033,14 @@ AudioInfo * PlatformAudioOut::GetAudioInfo()
     cout << "---------------------------\n";
 #endif
 
-    return tmp;
+    // Wrap in counted_ptr before returning
+    return counted_ptr<AudioInfo>(tmp);
+#endif
 };
 
+#endif  // !defined(PEBL_MIXER) || defined(PEBL_AUDIOIN)
 
-
+#ifndef PEBL_MIXER
 void PlayCallBack(void * udata, Uint8 * stream, int len)
 {
 
@@ -878,7 +1080,8 @@ void PlayCallBack(void * udata, Uint8 * stream, int len)
         }
 
 }
-#endif
+
+#endif  // PEBL_MIXER
 
 #ifndef PEBL_MIXER
 void PlatformAudioOut::PrintAudioInfo()

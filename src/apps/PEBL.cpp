@@ -1078,16 +1078,20 @@ int main(int argc,  char *argv[])
     BrInitError error;
     if (br_init (&error) == 0 && error != BR_INIT_ERROR_DISABLED)
     {
-        PError::SignalWarning("Warning: BinReloc failed to initialize.\n Will fallback to hardcoded default path.\n");
-        //basedir = "/usr/local/share/pebl/";
-        basedir = "/usr/local/share/pebl2";
+        PError::SignalWarning("Warning: BinReloc failed to initialize.\n Will fallback to current directory.\n");
+        basedir = "./";
     } else {
-        string prefix = br_find_prefix("/usr/local");
-        basedir = prefix +"/share/pebl2";
+        // Get directory containing the executable
+        char* exe_dir = br_find_exe_dir("");
+        if (exe_dir != NULL) {
+            // Go up one level from bin/ to get base directory
+            basedir = string(exe_dir) + string("/../");
+            std::cerr << "Executable directory: [" << exe_dir << "]\n";
+            free(exe_dir);
+        } else {
+            basedir = "./";
+        }
     }
-
-
-
 
     std::string resourcepath = basedir;
     std::string launch = "launcher.pbl";

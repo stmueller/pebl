@@ -20,9 +20,21 @@ PEBL is a free, open-source cross-platform system for designing and running psyc
 
 **Linux (Native):**
 ```bash
-make main
+# Build PEBL
+make -j 10 main
+
+# Install to /usr/local/pebl2/ (creates symlink at /usr/local/bin/pebl2)
 sudo make install
+
+# Or run directly from source (no installation needed)
+./bin/pebl2 battery/stroop/stroop.pbl
 ```
+
+See **[doc/INSTALLING_ON_LINUX.md](doc/INSTALLING_ON_LINUX.md)** for detailed installation options including:
+- User installations (no sudo required)
+- Custom install locations
+- AppImage portable builds
+- Development/portable mode
 
 **WebAssembly (Browser):**
 ```bash
@@ -56,11 +68,13 @@ Browse the [battery/](battery/) directory for the complete collection, or see [d
 
 ## Documentation
 
+- **[Installing on Linux](doc/INSTALLING_ON_LINUX.md)** - Comprehensive Linux installation guide
 - **[Getting Started](doc/CLAUDE.md)** - Overview of PEBL architecture and development
 - **[Dependencies](doc/DEPENDENCIES.md)** - Required libraries and build dependencies
 - **[Testing Guide](doc/TESTING.md)** - How to test PEBL and battery tasks
 - **[Token Authentication](doc/TOKEN_AUTHENTICATION.md)** - Web-based data collection setup
 - **[Deployment Guide](doc/DEPLOYMENT.md)** - Deploying PEBL experiments online
+- **[Compiling on Windows](doc/COMPILING_ON_WINDOWS.md)** - Windows build instructions
 
 For AI assistants working with PEBL code, see [Notes_for_Claude_on_Programming_PEBL.txt](Notes_for_Claude_on_Programming_PEBL.txt).
 
@@ -124,12 +138,15 @@ See [doc/DEPENDENCIES.md](doc/DEPENDENCIES.md) for detailed dependency informati
 ### Build Targets
 
 ```bash
-make main              # Build native Linux executable
+make -j 10 main        # Build native Linux executable (parallel compilation)
 make em                # Build WebAssembly version
 make doc               # Build PDF manual from LaTeX
-make install           # Install to /usr/local (or PREFIX)
+make install           # Install to /usr/local/pebl2 (or custom PREFIX)
+make appimage          # Build portable AppImage
 make clean             # Remove build artifacts
 ```
+
+For complete installation instructions and options, see **[doc/INSTALLING_ON_LINUX.md](doc/INSTALLING_ON_LINUX.md)**.
 
 ## Project Structure
 

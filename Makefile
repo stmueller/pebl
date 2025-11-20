@@ -651,53 +651,60 @@ clean:
 .PHONY: install
 
 uninstall:
-	rm -Rf $(PREFIX)/bin/$(PEBLNAME)
-	rm -Rf $(PREFIX)/share/$(PEBLNAME)
+	rm -Rf $(PREFIX)/$(PEBLNAME)
+	rm -f $(PREFIX)/bin/$(PEBLNAME)
 
 install:
 	@if [ -z "$(DESTDIR)" ]; then $(MAKE) uninstall; fi
 
-	install -d $(DESTDIR)$(PREFIX)/bin/
+	# Create self-contained directory structure
+	install -d $(DESTDIR)$(PREFIX)/$(PEBLNAME)/bin
+	install -d $(DESTDIR)$(PREFIX)/$(PEBLNAME)/media
+	install -d $(DESTDIR)$(PREFIX)/$(PEBLNAME)/pebl-lib
+	install -d $(DESTDIR)$(PREFIX)/$(PEBLNAME)/doc
+	install -d $(DESTDIR)$(PREFIX)/$(PEBLNAME)/battery
+	install -d $(DESTDIR)$(PREFIX)/$(PEBLNAME)/demo
+	install -d $(DESTDIR)$(PREFIX)/$(PEBLNAME)/tutorials
 
-	cp bin/$(PEBLNAME) $(DESTDIR)$(PREFIX)/bin/$(PEBLNAME)
-	rm -Rf $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)
-	install -d $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)
-	install -d $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/media
-	install -d $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/pebl-lib
-	install -d $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/doc
-	install -d $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/battery
-	install -d $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/demo
-	install -d $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/tutorials
+	# Install executable
+	cp bin/$(PEBLNAME) $(DESTDIR)$(PREFIX)/$(PEBLNAME)/bin/$(PEBLNAME)
 
-	cp -R tutorials/ $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/tutorials/
-	cp -R media/* $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/media/
-	cp -R demo/*  $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/demo/
-	cp -R experiments/*  $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/demo/
-	rm -rf `find $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/media -type d -name .svn`
-	cp  pebl-lib/*.pbl $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/pebl-lib/
-	cp doc/pman/PEBLManual$(PEBL_VERSION).pdf $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/doc
-	cp bin/launcher.pbl $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/pebl-lib/
-	cp pebl-lib/translatetest.pbl $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/pebl-lib/
-	chmod -R uga+r $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/
+	# Install resources
+	cp -R tutorials/ $(DESTDIR)$(PREFIX)/$(PEBLNAME)/tutorials/
+	cp -R media/* $(DESTDIR)$(PREFIX)/$(PEBLNAME)/media/
+	cp -R demo/*  $(DESTDIR)$(PREFIX)/$(PEBLNAME)/demo/
+	cp -R experiments/*  $(DESTDIR)$(PREFIX)/$(PEBLNAME)/demo/
+	rm -rf `find $(DESTDIR)$(PREFIX)/$(PEBLNAME)/media -type d -name .svn`
+	cp  pebl-lib/*.pbl $(DESTDIR)$(PREFIX)/$(PEBLNAME)/pebl-lib/
+	cp doc/pman/PEBLManual$(PEBL_VERSION).pdf $(DESTDIR)$(PREFIX)/$(PEBLNAME)/doc/
+	cp bin/launcher.pbl $(DESTDIR)$(PREFIX)/$(PEBLNAME)/pebl-lib/
+	cp pebl-lib/translatetest.pbl $(DESTDIR)$(PREFIX)/$(PEBLNAME)/pebl-lib/
+	chmod -R uga+r $(DESTDIR)$(PREFIX)/$(PEBLNAME)/
 
+	# Install battery
+	cp -R battery/* $(DESTDIR)$(PREFIX)/$(PEBLNAME)/battery/
+	cp battery/\.\.png $(DESTDIR)$(PREFIX)/$(PEBLNAME)/battery/
+	cp battery/\.\.about.txt $(DESTDIR)$(PREFIX)/$(PEBLNAME)/battery/
+	rm -rf `find $(DESTDIR)$(PREFIX)/$(PEBLNAME)/battery -type d -name .svn`
+	rm -f `find $(DESTDIR)$(PREFIX)/$(PEBLNAME)/battery | grep \~`
+	rm -Rf `find $(DESTDIR)$(PREFIX)/$(PEBLNAME)/battery | grep 'data'`
+	rm -f $(DESTDIR)$(PREFIX)/$(PEBLNAME)/battery/launch.bat
+	rm -f $(DESTDIR)$(PREFIX)/$(PEBLNAME)/battery/PEBLLaunch-log.txt
+	rm -f $(DESTDIR)$(PREFIX)/$(PEBLNAME)/battery/*.config
+	rm -f $(DESTDIR)$(PREFIX)/$(PEBLNAME)/battery/makelinks-mac.sh
+##Now, convert all the battery files to unix format.
+	find $(DESTDIR)$(PREFIX)/$(PEBLNAME)/battery -name '*pbl' -exec dos2unix {} \;
+
+	# Create desktop file
 	mkdir -p $(DESTDIR)$(PREFIX)/share/applications/
-	sed -e '$(SEDLINE)' bin/PEBL2.desktop > PEBL2.desktop
+	sed -e 's|Exec=pebl2|Exec=$(PREFIX)/$(PEBLNAME)/bin/$(PEBLNAME)|' bin/PEBL2.desktop > PEBL2.desktop.tmp
+	sed -e 's|Icon=.*|Icon=$(PREFIX)/$(PEBLNAME)/media/images/pebl2.png|' PEBL2.desktop.tmp > PEBL2.desktop
+	rm PEBL2.desktop.tmp
 	cp PEBL2.desktop $(DESTDIR)$(PREFIX)/share/applications/
 
-	cp -R battery/* $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/battery
-	cp battery/\.\.png $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/battery
-	cp battery/\.\.about.txt $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/battery
-
-
-	rm -rf `find $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/battery -type d -name .svn`
-	rm -f `find $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/battery | grep \~`
-	rm -Rf `find $(DESTDIR)$(PREFIX)/share/pebl/battery | grep 'data'`
-	rm -f $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/battery/launch.bat
-	rm -f $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/battery/PEBLLaunch-log.txt
-	rm -f $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/battery/*.config
-	rm -f $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/battery/makelinks-mac.sh
-##Now, convert all the battery files to unix format.
-	find $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/battery -name '*pbl' -exec dos2unix {} \;
+	# Optional: Create symlink in bin/ for PATH convenience
+	@mkdir -p $(DESTDIR)$(PREFIX)/bin
+	@ln -sf $(PREFIX)/$(PEBLNAME)/bin/$(PEBLNAME) $(DESTDIR)$(PREFIX)/bin/$(PEBLNAME) || true
 
 ifeq (.depend,$(wildcard .depend))
 include .depend

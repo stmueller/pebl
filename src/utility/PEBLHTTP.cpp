@@ -1,8 +1,11 @@
+#ifdef PEBL_WIN32
+#include <winsock2.h> // Must be first to avoid conflicts
+#endif
+
 #include "PEBLHTTP.h"
 
 
 #ifdef PEBL_WIN32
-#include <winsock2.h> //avoid collision
 #include <windows.h>
 #endif
 

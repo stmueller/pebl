@@ -25,6 +25,19 @@
 //    Foundation, Inc., 59 Temple Place, Suite 330,
 //    Boston, MA  02111-1307  USA
 ///////////////////////////////////////////////////////////////////////////
+
+#ifdef PEBL_WIN32
+// Prevent Windows from defining macros that conflict with our methods
+#define WIN32_LEAN_AND_MEAN  // Reduces windows.h bloat
+#define NOGDI                 // Prevents GetObject and other GDI macros
+#define NOSERVICE            // Prevents service-related macros
+#define NOMCX                 // Prevents MCX macros
+#define NOIME                 // Prevents IME macros
+// CopyFile is not preventable by NO* macros, so we'll undef it later
+// Include winsock2.h first to avoid conflicts with windows.h
+#include <winsock2.h>
+#endif
+
 #include "PEBLStream.h"
 
 #ifdef PEBL_EMSCRIPTEN
@@ -70,6 +83,20 @@
 #define BASE 0x378
 
 const static int BSIZE =4096;
+
+#ifdef PEBL_WIN32
+// Undefine Windows API macros that conflict with our method names
+// Must be done after all headers are included
+#ifdef GetObject
+#undef GetObject
+#endif
+#ifdef SetPort
+#undef SetPort
+#endif
+#ifdef CopyFile
+#undef CopyFile
+#endif
+#endif
 
 using std::cout;
 using std::flush;

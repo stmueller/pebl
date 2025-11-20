@@ -10,6 +10,7 @@ PEBL requires the following dependencies on Windows:
 - **SDL2_ttf** - TrueType font rendering
 - **SDL2_net** - Network functionality
 - **SDL2_gfx** - Graphics primitives
+- **SDL2_mixer** - Audio mixing (optional, for enhanced audio support)
 - **C++ compiler** - GCC (MinGW) or MSVC
 
 ---
@@ -47,26 +48,50 @@ MSYS2 provides a modern Unix-like environment for Windows with excellent package
    pacman -S mingw-w64-x86_64-SDL2_ttf
    pacman -S mingw-w64-x86_64-SDL2_net
    pacman -S mingw-w64-x86_64-SDL2_gfx
+   pacman -S mingw-w64-x86_64-SDL2_mixer
 
    # Git (if not already installed)
    pacman -S git
    ```
 
+### Important: Environment Variable Setup
+
+Before building, you need to ensure the compiler can write temporary files:
+
+1. **Check Windows environment variables:**
+   - Open "Edit the system environment variables" from Windows search
+   - Click "Environment Variables"
+   - Check if **System variables** (not User variables) has TMP and TEMP set to `C:\Windows\Temp`
+   - If yes, **delete these system-level TMP and TEMP variables**
+   - Your User-level variables should point to `C:\Users\YourUsername\AppData\Local\Temp` (keep these)
+
+2. **Why this matters:**
+   - The compiler tries to write temporary files during compilation
+   - If system variables point to `C:\Windows\Temp`, you'll get "Permission denied" errors
+   - User-level variables pointing to your AppData folder are writable without admin privileges
+
 ### Building PEBL
 
-1. **Clone the repository:**
+1. **Navigate to PEBL directory:**
    ```bash
-   cd /c/Users/YourUsername/Documents  # Adjust path as needed
-   git clone https://github.com/stmueller/pebl.git
-   cd pebl
+   cd /c/Users/YourUsername/Documents/pebl  # Adjust path as needed
    ```
 
-2. **Build native Windows executable:**
+2. **Important: Use MSYS2 MinGW64 terminal**
+   - Open "MSYS2 MinGW64" from Start menu (NOT "MSYS2 MSYS")
+   - This ensures the correct compiler paths and environment
+
+3. **Build native Windows executable:**
    ```bash
-   make main
+   make -j 10 -f Makefile-win.mak main
    ```
 
-3. **Test the build:**
+4. **Copy required DLLs to bin directory:**
+   ```bash
+   ldd bin/pebl2.exe | grep mingw | awk '{print $3}' | xargs -I {} cp {} bin/
+   ```
+
+5. **Test the build:**
    ```bash
    ./bin/pebl2.exe test.pbl
    ```
@@ -143,27 +168,6 @@ In Code::Blocks project settings (Project → Build Options):
 - `SDL2_gfx`
 
 ---
-
-## Option 3: Dev-C++ (Legacy)
-
-PEBL includes Dev-C++ project files in `devcpp/`.
-
-### Setup
-
-1. **Install Dev-C++:**
-   - Download from https://sourceforge.net/projects/orwelldevcpp/
-   - Install to default location
-
-2. **Install SDL2 libraries** (same as Code::Blocks section above)
-
-3. **Open and build:**
-   - Open `devcpp/pebl.dev`
-   - Execute → Compile (F9)
-
-**Note:** Dev-C++ is no longer actively maintained. Consider using MSYS2 or Code::Blocks instead.
-
----
-
 ## Option 4: Visual Studio (Professional/Advanced)
 
 For developers familiar with Visual Studio, you can create a new project:
@@ -258,7 +262,7 @@ make CC=x86_64-w64-mingw32-gcc \
 ```nsis
 ; PEBL Installer Script
 !define APP_NAME "PEBL"
-!define APP_VERSION "2.1"
+!define APP_VERSION "2.2"
 !define PUBLISHER "Shane Mueller"
 !define WEB_SITE "http://pebl.sourceforge.net"
 
@@ -304,10 +308,6 @@ SectionEnd
    ```bash
    makensis installer.nsi
    ```
-
-### Using InnoSetup (Alternative)
-
-Download from https://jrsoftware.org/isinfo.php and use the script wizard to create an installer.
 
 ---
 
@@ -358,12 +358,33 @@ For a portable version (no installer):
 - Link order matters: `-lmingw32 -lSDL2main -lSDL2`
 
 **Error: Missing DLL when running**
-- Copy DLLs to same directory as pebl2.exe
+- Copy DLLs to same directory as pebl2.exe: `ldd bin/pebl2.exe | grep mingw | awk '{print $3}' | xargs -I {} cp {} bin/`
 - Or add MinGW bin directory to PATH: `C:\msys64\mingw64\bin`
+
+**Error: Cannot create temporary file in C:\Windows\: Permission denied**
+- This occurs during compilation when system TMP/TEMP variables point to `C:\Windows\Temp`
+- Solution: Delete the **system-level** TMP and TEMP environment variables (keep user-level ones)
+- After deleting, close all terminals and open a fresh MSYS2 MinGW64 terminal
+- See "Environment Variable Setup" section above
+
+**Error: undefined reference to `mmap`**
+- The `mman.c` file should be included in `Makefile-win.mak` under `PUTILITIES_SRC`
+- Verify it's listed: `grep mman.c Makefile-win.mak`
+
+**Error: undefined reference to `WinMain`**
+- Ensure linking order is correct: `-lmingw32 -lSDL2main -lSDL2` (in that order)
+- `SDL2main` library provides the WinMain entry point wrapper
+- Do NOT compile `src/apps/SDL_win32_main.c` (it's for SDL 1.x, not SDL2)
 
 **Parser compilation fails**
 - Install bison and flex: `pacman -S bison flex`
 - Run `make parse` to regenerate parser files
+
+**Compiler fails silently with no error messages**
+- Usually indicates the compiler backend (cc1plus.exe) can't run
+- Check if MinGW64 toolchain is fully installed: `pacman -S mingw-w64-x86_64-toolchain`
+- Verify required DLLs exist: `pacman -S mingw-w64-x86_64-isl mingw-w64-x86_64-mpc mingw-w64-x86_64-mpfr`
+- Ensure `/c/msys64/mingw64/bin` is in your PATH
 
 ### Runtime Issues
 
@@ -411,6 +432,7 @@ jobs:
           mingw-w64-x86_64-SDL2_ttf
           mingw-w64-x86_64-SDL2_net
           mingw-w64-x86_64-SDL2_gfx
+          mingw-w64-x86_64-SDL2_mixer
           make
           bison
           flex

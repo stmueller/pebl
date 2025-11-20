@@ -25,6 +25,11 @@
 //    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 ////////////////////////////////////////////////////////////////////////////////
 
+#ifdef PEBL_WIN32
+// Include winsock2.h first to avoid conflicts with windows.h
+#include <winsock2.h>
+#endif
+
 #ifdef PEBL_ITERATIVE_EVAL
 #include "../base/Evaluator-es.h"
 #include "../devices/PEventLoop-es.h"

@@ -35,7 +35,7 @@
 #if defined (PEBL_WIN32)
 #include <winsock2.h> //avoid collision
 #include <windows.h>
-#include <conio.h>
+//#include <conio.h>  // Not available in MSYS2, commented out if not needed
 #include <stdio.h>
 
 //Prototype function typefed for DLL function Inp32:
@@ -132,6 +132,10 @@ void PParallelPort::Init()
 
 
 }
+
+#ifdef SetPort
+#undef SetPort  // Undefine Windows API macro that conflicts with our method
+#endif
 
 void PParallelPort::SetPort(Variant v)
 {

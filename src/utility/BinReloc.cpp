@@ -38,7 +38,8 @@ extern "C" {
 static char *
 _br_find_exe (BrInitError *error)
 {
-#ifndef ENABLE_BINRELOC
+#if !defined(ENABLE_BINRELOC) || defined(PEBL_WIN32)
+	/* BinReloc is disabled or not supported on Windows */
 	if (error)
 		*error = BR_INIT_ERROR_DISABLED;
 	return NULL;

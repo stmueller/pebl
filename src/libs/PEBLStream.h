@@ -90,6 +90,11 @@ namespace PEBLStream
 
     //Copies the contents of one file to another.
     Variant AppendFile(Variant v);
+#ifdef PEBL_WIN32
+#ifdef CopyFile
+#undef CopyFile  // Undefine Windows CopyFile macro
+#endif
+#endif
     Variant CopyFile(Variant v);
 
     // The following control TCP/IP connections and communications.

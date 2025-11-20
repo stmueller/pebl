@@ -24,6 +24,10 @@
 //    along with PEBL; if not, write to the Free Software
 //    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 ///////////////////////////////////////////////////////////////////////////
+#if defined PEBL_WIN32
+#include <winsock2.h> // Must be first to avoid conflicts
+#endif
+
 #include "PlatformEnvironment.h"
 
 #include "../../objects/PEnvironment.h"
@@ -40,7 +44,6 @@
 #include "../../utility/PError.h"
 
 #if defined PEBL_WIN32
-#include <winsock2.h> //avoid collision
 #include <windows.h>
 //#include <ddraw.h>  This may be needed for compiling with VC++
 #endif

@@ -104,16 +104,25 @@ void PEBLPath::Initialize(std::list<std::string> files)
     BrInitError error;
     if (br_init (&error) == 0 && error != BR_INIT_ERROR_DISABLED)
         {
-            PError::SignalWarning("Warning: BinReloc failed to initialize.\n Will fallback to hardcoded default path.\n");
-            basedir = "/usr/local/share/"+peblname+"/";
-
-           // basedir = prefix + string("/share/") + peblname + string("/");
+            PError::SignalWarning("Warning: BinReloc failed to initialize.\n Will fallback to current directory.\n");
+            basedir = "./";
         } else {
 
             std::cerr << "Executable file located at: [" << br_find_exe("") << "].\n";
-            string prefix = br_find_prefix("/usr/local/");
-            basedir = prefix + string("/share/") + peblname + string("/");
-            std::cerr << "Base resources found at: ["<< basedir <<"]\n";
+
+            // Get directory containing the executable
+            char* exe_dir = br_find_exe_dir("");
+            if (exe_dir != NULL) {
+                // Go up one level from bin/ to get base directory
+                basedir = string(exe_dir) + string("/../");
+                std::cerr << "Executable directory: [" << exe_dir << "]\n";
+                std::cerr << "Base resources found at: [" << basedir << "]\n";
+                free(exe_dir);
+            } else {
+                // Fallback to current directory
+                basedir = "./";
+                std::cerr << "Using current directory as base.\n";
+            }
         }
 
 

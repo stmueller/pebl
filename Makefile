@@ -677,7 +677,7 @@ install:
 	rm -rf `find $(DESTDIR)$(PREFIX)/$(PEBLNAME)/media -type d -name .svn`
 	cp  pebl-lib/*.pbl $(DESTDIR)$(PREFIX)/$(PEBLNAME)/pebl-lib/
 	cp doc/pman/PEBLManual$(PEBL_VERSION).pdf $(DESTDIR)$(PREFIX)/$(PEBLNAME)/doc/
-	cp bin/launcher.pbl $(DESTDIR)$(PREFIX)/$(PEBLNAME)/pebl-lib/
+	cp bin/launcher.pbl $(DESTDIR)$(PREFIX)/$(PEBLNAME)/bin/
 	cp pebl-lib/translatetest.pbl $(DESTDIR)$(PREFIX)/$(PEBLNAME)/pebl-lib/
 	chmod -R uga+r $(DESTDIR)$(PREFIX)/$(PEBLNAME)/
 
@@ -697,10 +697,11 @@ install:
 
 	# Create desktop file
 	mkdir -p $(DESTDIR)$(PREFIX)/share/applications/
-	sed -e 's|Exec=pebl2|Exec=$(PREFIX)/$(PEBLNAME)/bin/$(PEBLNAME)|' bin/PEBL2.desktop > PEBL2.desktop.tmp
-	sed -e 's|Icon=.*|Icon=$(PREFIX)/$(PEBLNAME)/media/images/pebl2.png|' PEBL2.desktop.tmp > PEBL2.desktop
+	sed -e 's|Exec=.*|Exec=$(PREFIX)/$(PEBLNAME)/bin/$(PEBLNAME)|' PEBL2.desktop > PEBL2.desktop.tmp
+	sed -e 's|Icon=.*|Icon=$(PREFIX)/$(PEBLNAME)/media/images/pebl2.png|' PEBL2.desktop.tmp > PEBL2.desktop.install
 	rm PEBL2.desktop.tmp
-	cp PEBL2.desktop $(DESTDIR)$(PREFIX)/share/applications/
+	cp PEBL2.desktop.install $(DESTDIR)$(PREFIX)/share/applications/PEBL2.desktop
+	rm PEBL2.desktop.install
 
 	# Optional: Create symlink in bin/ for PATH convenience
 	@mkdir -p $(DESTDIR)$(PREFIX)/bin

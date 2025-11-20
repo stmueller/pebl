@@ -361,6 +361,7 @@ namespace PEBLEnvironment
 //#ifdef PEBL_WINDOWS
             {(char*)"SYSTEMCALLUPDATE",                SystemCallUpdate,   1,2},
 //#endif
+            {(char*)"CHECKPROCESSSTATUS",              CheckProcessStatus, 1,1},
             {(char*)"COPYTOCLIPBOARD",                 CopyToClipboard,    1,1},
             {(char*)"COPYFROMCLIPBOARD",               CopyFromClipboard,    0,0},
             {(char*)"VARIABLEEXISTS",                  VariableExists,    1,1},

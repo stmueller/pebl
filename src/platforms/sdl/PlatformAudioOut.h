@@ -138,6 +138,7 @@ private:
 #ifdef PEBL_MIXER
     Mix_Chunk * mMixerSample;
     Uint32 mRecordPos;           // Actual recorded size (for audio input buffers)
+    SDL_AudioSpec mOriginalSpec; // Original audio spec from recording (for saving WAV files)
 #else
     AudioInfo mWave;
 #endif

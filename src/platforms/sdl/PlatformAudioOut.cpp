@@ -81,6 +81,7 @@ PlatformAudioOut::PlatformAudioOut():
     //Initialize mMixerSample to NULL
     mMixerSample = NULL;
     mRecordPos = 0;  // Initialize recorded position to 0
+    SDL_zero(mOriginalSpec);  // Initialize audio spec to zero
 
     if(!mLoaded)
         {
@@ -473,6 +474,12 @@ bool PlatformAudioOut::LoadSoundFromData( Uint8 *buffer,
     // If recordpos is 0 (default), use the full buffer size
     mRecordPos = (recordpos > 0) ? recordpos : size;
 
+    // Store the original audio spec from recording (contains correct channel count)
+    // This is critical for saving WAV files with the correct format
+    if(spec) {
+        mOriginalSpec = *spec;
+    }
+
     mFilename = "<INTERNALLY GENERATED>";
     mLoaded = true;
 
@@ -481,6 +488,7 @@ bool PlatformAudioOut::LoadSoundFromData( Uint8 *buffer,
     cerr << "Buffer address: " << (void*)buffer << "\n";
     cerr << "Buffer size: " << size << " bytes\n";
     cerr << "Recorded size: " << mRecordPos << " bytes\n";
+    cerr << "Original spec: " << spec->freq << "Hz, " << (int)spec->channels << " channels, format=" << spec->format << "\n";
     cerr << "------------------------------------\n";
 
     return true;
@@ -573,10 +581,14 @@ void PlatformAudioOut::SaveBufferToWave(Variant filename)
     std::cout << "mMixerSample->alen: " << mMixerSample->alen << "\n";
     std::cout << "mMixerSample->abuf: " << (void*)mMixerSample->abuf << "\n";
 
-    // Get audio spec from SDL_mixer
-    int freq, channels;
-    Uint16 format;
-    Mix_QuerySpec(&freq, &format, &channels);
+    // Use the original audio spec from recording (not Mix_QuerySpec which returns playback format)
+    // For audio input buffers, mOriginalSpec contains the correct recording format (e.g., mono)
+    // Mix_QuerySpec() returns the playback format which is stereo (2 channels)
+    int freq = mOriginalSpec.freq;
+    Uint16 format = mOriginalSpec.format;
+    int channels = mOriginalSpec.channels;
+
+    std::cout << "Using original recording spec: " << freq << "Hz, " << channels << " channels, format=" << format << "\n";
 
     // Calculate bits per sample
     int bitsPerSample = 16;  // Default to 16-bit

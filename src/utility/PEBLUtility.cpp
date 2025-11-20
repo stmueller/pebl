@@ -390,7 +390,7 @@ PEBL_Keycode  PEBLUtility::TranslateString(const std::string & let)
                 return PEBL_KEYCODE_RETURN;
             if(letters == "<esc>"|| letters == "<escape>")
                 {
-                    cout << "Translating escape code\n";
+                    //cout << "Translating escape code\n";
                     return PEBL_KEYCODE_ESCAPE;
                 }
             if(letters== "<anykey>")

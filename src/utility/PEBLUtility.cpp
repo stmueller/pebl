@@ -25,6 +25,10 @@
 //    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 ////////////////////////////////////////////////////////////////////////////////
 
+#ifdef PEBL_WIN32
+#include <winsock2.h> // Must be very first to avoid conflicts
+#endif
+
 //Include this before peblutility.h because is it a header-only library,
 //and the JSMN_HEADER macro disables loading of functions, so it must
 //first be loaded here to compile right.
@@ -64,12 +68,12 @@
 
 
 #ifdef PEBL_WIN32
-#include <direct.h>
-//#include <winsock2.h> //avoid collision
+//#include <direct.h>  // Not available in MSYS2, use POSIX headers instead
 //#include <windows.h>
 //#include <bits/types.h>
 #include <shlobj.h>
 //#include <winbase.h>
+#include <sys/stat.h>  // For mkdir on MSYS2
 #elif defined(PEBL_LINUX)
 #include <sys/stat.h>
 #include <unistd.h>
@@ -740,10 +744,10 @@ Variant PEBLUtility::MakeDirectory(std::string path)
        }
 
 #elif defined(PEBL_WIN32)
-    if (mkdir(path.c_str()) == -1)
+    if (mkdir(path.c_str()) == -1)  // Windows mkdir takes only path argument
         {
             //cerr << strerror(errno)<<endl;
-            PError::SignalFatalError("Unable to create directory: " + Variant(strerror(errno)));
+            PError::SignalFatalError("Unable to create directory: " + std::string(strerror(errno)));
         }
 
 #endif
@@ -849,9 +853,9 @@ Variant PEBLUtility::LaunchFile(std::string file)
                                    SW_SHOW);
     //cout<< "LaunchFile:{" << file <<"}{"<< hInst << endl;
 
-   if ((int)hInst == SE_ERR_NOASSOC ||
-       (int)hInst == SE_ERR_ASSOCINCOMPLETE ||
-       (int)hInst == SE_ERR_ACCESSDENIED)
+   if ((INT_PTR)hInst == SE_ERR_NOASSOC ||
+       (INT_PTR)hInst == SE_ERR_ASSOCINCOMPLETE ||
+       (INT_PTR)hInst == SE_ERR_ACCESSDENIED)
     {
       SHELLEXECUTEINFO exeInfo = {0};
       exeInfo.cbSize = sizeof(SHELLEXECUTEINFO);
@@ -867,7 +871,7 @@ Variant PEBLUtility::LaunchFile(std::string file)
       }
     } else {
 
-       x = ((int)hInst > 32);  //hInst returns an error code > 32 on success.
+       x = ((INT_PTR)hInst > 32);  //hInst returns an error code > 32 on success.
      }
 #elif defined(PEBL_LINUX)
 
@@ -1178,6 +1182,37 @@ std::string PEBLUtility::MD5File(const std::string & filename)
     if(FileExists(filename))
         {
 
+#ifdef PEBL_WIN32
+            // Windows: use standard file I/O instead of mmap
+            std::ifstream file(filename.c_str(), std::ios::binary | std::ios::ate);
+            if (!file.is_open())
+                {
+                    PError::SignalFatalError("File does not exist in MD5file\n");
+                    return "";
+                }
+
+            std::streamsize file_size = file.tellg();
+            file.seekg(0, std::ios::beg);
+
+            char* file_buffer = new char[file_size];
+            if (!file.read(file_buffer, file_size))
+                {
+                    delete[] file_buffer;
+                    PError::SignalFatalError("Failed to read file in MD5file\n");
+                    return "";
+                }
+            file.close();
+
+            MD5 *md5 = new MD5();
+            md5->update((unsigned char*)file_buffer,(unsigned int)file_size);
+            md5->finalize();
+            std::string hex = md5->hexdigest();
+            delete md5;
+            delete[] file_buffer;
+            md5=NULL;
+            return hex;
+#else
+            // Unix/Linux: use mmap
             int file_descript;
             unsigned long int file_size;
             char* file_buffer;
@@ -1206,6 +1241,7 @@ std::string PEBLUtility::MD5File(const std::string & filename)
             delete md5;
             md5=NULL;
             return hex;
+#endif
         }else{
 
         return "0";

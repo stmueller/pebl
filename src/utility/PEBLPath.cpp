@@ -25,6 +25,10 @@
 //    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 ////////////////////////////////////////////////////////////////////////////////
 
+#ifdef PEBL_WIN32
+#include <winsock2.h> // Must be first to avoid conflicts
+#endif
+
 #include "PEBLPath.h"
 #include "../base/Variant.h"
 #include "PError.h"
@@ -45,7 +49,6 @@ using std::cout;
 #include <mach-o/dyld.h>	/* _NSGetExecutablePath */
 #include <CoreFoundation/CFBundle.h>
 #elif defined(PEBL_WIN32)
-#include <winsock2.h> //avoid collision
 #include <windows.h>
 #endif
 

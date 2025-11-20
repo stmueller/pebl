@@ -36,6 +36,10 @@
 #include <sys/io.h>
 #endif
 
+// Undefine Windows API SetPort macro that conflicts with our method name
+#ifdef SetPort
+#undef SetPort
+#endif
 
 using std::ostream;
 using std::fstream;
@@ -87,6 +91,10 @@ void PComPort::Init()
         }
 
 }
+
+#ifdef SetPort
+#undef SetPort  // Undefine Windows API macro that conflicts with our method
+#endif
 
 void PComPort::SetPort(unsigned int portnum,unsigned int baud)
 {

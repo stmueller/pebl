@@ -24,6 +24,10 @@
 //    along with PEBL; if not, write to the Free Software
 //    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 ////////////////////////////////////////////////////////////////////////////////
+#if defined(PEBL_WIN32) || defined(PEBL_WINDOWS)
+#include <winsock2.h> // Must be first to avoid conflicts
+#endif
+
 #include "PlatformTimer.h"
 #include "SDL.h"
 #include <iostream>
@@ -35,9 +39,7 @@
 
 //Nothing special here
 
-#elif defined( PEBL_WINDOWS)
-#include <winsock2.h> //avoid collision
-
+#elif defined(PEBL_WIN32) || defined(PEBL_WINDOWS)
  #include <windows.h>
  #include <iostream>
  #include <iomanip>

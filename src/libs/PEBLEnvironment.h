@@ -123,6 +123,7 @@ namespace PEBLEnvironment
 //#ifdef PEBL_WINDOWS
     Variant SystemCallUpdate(Variant v);
 //#endif
+    Variant CheckProcessStatus(Variant v);
 
 
     Variant IsDirectory(Variant v);

@@ -1110,6 +1110,21 @@ define Enquote(text)
  return gQuote + text + gQuote
 }
 
+define EndsWith(string, suffix)
+{
+  stringLen <- StringLength(string)
+  suffixLen <- StringLength(suffix)
+
+  if(suffixLen > stringLen)
+  {
+    result <- 0
+  } else {
+    ending <- SubString(string, stringLen - suffixLen + 1, suffixLen)
+    result <- (Uppercase(ending) == Uppercase(suffix))
+  }
+
+  return(result)
+}
 
 define StripSpace(text)
 {

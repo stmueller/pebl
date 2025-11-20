@@ -78,6 +78,12 @@
 #include <windows.h>
 #endif
 
+#if defined(PEBL_UNIX)
+#include <unistd.h>     // for fork(), execl()
+#include <sys/types.h>  // for pid_t
+#include <sys/wait.h>   // for waitpid()
+#endif
+
 
 using std::string;
 using std::endl;
@@ -2279,7 +2285,7 @@ Variant PEBLEnvironment::GetVideoModes(Variant v)
 Variant  PEBLEnvironment::GetPEBLVersion(Variant v)
 {
 
-    return Variant("PEBL Version 2.1");
+    return Variant("PEBL Version " PEBL_VERSION);
 }
 
 
@@ -2387,11 +2393,83 @@ Variant PEBLEnvironment::SystemCallUpdate(Variant v)
 }
 #else
 
+// Unix/Linux implementation - fork and return PID
 Variant PEBLEnvironment::SystemCallUpdate(Variant v)
 {
-  return SystemCall(v);
+#if defined(PEBL_UNIX)
+    PList * plist = v.GetComplexData()->GetList();
+
+    std::string call  = plist->Nth(1).GetString();
+    std::string args;
+
+    if(plist->Length()>=2)
+    {
+        args = plist->Nth(2).GetString();
+    }
+    else
+    {
+        args = "";
+    }
+
+    // Combine command and args for shell execution
+    std::string fullcmd = call + " " + args;
+
+    // Fork a child process
+    pid_t pid = fork();
+
+    if (pid < 0) {
+        // Fork failed
+        PError::SignalWarning("SystemCallUpdate: fork() failed");
+        return Variant(-1);
+    }
+    else if (pid == 0) {
+        // Child process - execute the command
+        execl("/bin/sh", "sh", "-c", fullcmd.c_str(), (char *)NULL);
+        // If execl returns, it failed
+        _exit(127);
+    }
+    else {
+        // Parent process - return the child PID
+        return Variant((pInt)pid);
+    }
+#else
+    // Fallback for non-Unix platforms
+    return SystemCall(v);
+#endif
 }
 #endif
+
+
+// Check process status - returns 0 if finished, 1 if running, -1 if error
+Variant PEBLEnvironment::CheckProcessStatus(Variant v)
+{
+#if defined(PEBL_UNIX)
+    PList * plist = v.GetComplexData()->GetList();
+    PError::AssertType(plist->First(), PEAT_INTEGER, "Argument error in function [CheckProcessStatus(<pid>)]: ");
+
+    pid_t pid = (pid_t)(plist->First().GetInteger());
+
+    int status;
+    pid_t result = waitpid(pid, &status, WNOHANG);
+
+    if (result == 0) {
+        // Process still running
+        return Variant(1);
+    }
+    else if (result == pid) {
+        // Process has finished
+        return Variant(0);
+    }
+    else {
+        // Error or already reaped
+        return Variant(-1);
+    }
+#else
+    // Not supported on non-Unix platforms
+    PError::SignalWarning("CheckProcessStatus not supported on this platform");
+    return Variant(-1);
+#endif
+}
 
 
 Variant PEBLEnvironment::IsDirectory(Variant v)

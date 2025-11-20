@@ -1094,8 +1094,8 @@ int main(int argc,  char *argv[])
     }
 
     std::string resourcepath = basedir;
-    std::string launch = "launcher.pbl";
-    std::string script = resourcepath+"/pebl-lib/"+launch;
+    std::string launch = basedir + "bin/launcher.pbl";
+    std::string script = "";
 
 //    cout << "resources:  " << resourcepath << endl;
 //    cout << "script:     " << script<< endl;

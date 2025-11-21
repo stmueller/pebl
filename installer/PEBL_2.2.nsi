@@ -122,7 +122,7 @@ SectionEnd
 !insertmacro MUI_LANGUAGE "English"
 
 
-icon "..\devcpp\pebl2.ico"
+icon "pebl2.ico"
 Section -MainProgram
 SetShellVarContext all
 ${INSTALL_TYPE}

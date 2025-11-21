@@ -44,7 +44,11 @@ PWindow::PWindow(PEnvironment * penv):
 PWindow::~PWindow()
 {
     //this should remove itself from the environment.
-    mEnv -> RemoveWindow(this);
+    // Check if environment still exists (it may have been destroyed during program exit)
+    if(mEnv != NULL)
+    {
+        mEnv->RemoveWindow(this);
+    }
     //cout << "Deleting PWindow\n";
 
 }

@@ -26,9 +26,9 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 #ifdef PEBL_WINDOWS
-
 #include <Windows.h>
-
+#undef GetObject
+#undef DeleteFile
 #endif
 
 #include "PEBLEnvironment.h"
@@ -72,10 +72,13 @@
 #include <ctime>
 #include <string>
 
-#if defined(PEBL_WIN32x)
+#if defined(PEBL_WIN32)
 //#include <shellapi.h>
 #include <winsock2.h> //avoid collision
 #include <windows.h>
+// Undefine Windows macros that conflict with PEBL methods
+#undef GetObject
+#undef DeleteFile
 #endif
 
 #if defined(PEBL_UNIX)
@@ -2443,10 +2446,10 @@ Variant PEBLEnvironment::SystemCallUpdate(Variant v)
 // Check process status - returns 0 if finished, 1 if running, -1 if error
 Variant PEBLEnvironment::CheckProcessStatus(Variant v)
 {
-#if defined(PEBL_UNIX)
     PList * plist = v.GetComplexData()->GetList();
     PError::AssertType(plist->First(), PEAT_INTEGER, "Argument error in function [CheckProcessStatus(<pid>)]: ");
 
+#if defined(PEBL_UNIX)
     pid_t pid = (pid_t)(plist->First().GetInteger());
 
     int status;
@@ -2464,8 +2467,32 @@ Variant PEBLEnvironment::CheckProcessStatus(Variant v)
         // Error or already reaped
         return Variant(-1);
     }
+#elif defined(PEBL_WIN32)
+    DWORD pid = (DWORD)(plist->First().GetInteger());
+
+    HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, pid);
+    if (hProcess == NULL) {
+        // Process doesn't exist or already finished
+        return Variant(0);
+    }
+
+    DWORD exitCode;
+    if (GetExitCodeProcess(hProcess, &exitCode)) {
+        CloseHandle(hProcess);
+        if (exitCode == STILL_ACTIVE) {
+            // Process still running
+            return Variant(1);
+        } else {
+            // Process has finished
+            return Variant(0);
+        }
+    } else {
+        // Error querying process
+        CloseHandle(hProcess);
+        return Variant(-1);
+    }
 #else
-    // Not supported on non-Unix platforms
+    // Not supported on other platforms
     PError::SignalWarning("CheckProcessStatus not supported on this platform");
     return Variant(-1);
 #endif

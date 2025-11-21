@@ -1701,20 +1701,30 @@ define EditTranslation(dirChain,filename,language,logfile)
    if(gUseReloc)
      {
 
-        ## Build relative path based on directory depth
-         depth <- Length(dirchain)
-         uppath <- ""
-         loop(i, Sequence(1, depth, 1))
-         {
-           if(i > 1)
-           {
-             uppath <- uppath + "\"
-           }
-           uppath <- uppath + ".."
-         }
-         callstring <- "cd " + DirListToText(dirchain) + sep + uppath + "\PEBL\bin\pebl2.exe
-  translatetest.pbl -v " + filename
 
+         ## Build relative path based on directory depth
+          ## Special case: if in root directory, no need to go up
+           dirtext <- DirListToText(dirchain)
+           if(dirtext == "." or dirtext == ".\" or Length(dirchain) == 0)
+           {
+             ## Already in root directory, use direct path
+             callstring <- "cd " + dirtext + sep + "PEBL\bin\pebl2.exe translatetest.pbl -v " +
+  filename
+           } else {
+             ## In subdirectory, need to go up
+             depth <- Length(dirchain)
+             uppath <- ""
+             loop(i, Sequence(1, depth, 1))
+             {
+               if(i > 1)
+               {
+                 uppath <- uppath + "\"
+               }
+               uppath <- uppath + ".."
+             }
+             callstring <- "cd " + dirtext + sep + uppath + "\PEBL\bin\pebl2.exe
+  translatetest.pbl -v " + filename
+           }
 
 
 
@@ -1975,19 +1985,29 @@ define RunScript(dirChain,filename,fullscreen,language,logfile,subcode,experimen
    if(gUseReloc)
      {
 
-
-       depth <- Length(dirchain)
-        uppath <- ""
-        loop(i, Sequence(1, depth, 1))
-        {
-          if(i > 1)
+         ## Special case: if in root directory, no need to go up
+          dirtext <- DirListToText(dirchain)
+          if(dirtext == "." or dirtext == ".\" or Length(dirchain) == 0)
           {
-            uppath <- uppath + "\"
+            ## Already in root directory, use direct path
+            callstring <- "cd " + gQuote+dirtext+gQuote + sep + "PEBL\bin\pebl2.exe " +
+  gQuote+filename+gQuote + " -s " + subcode
+          } else {
+            ## In subdirectory, need to go up
+            depth <- Length(dirchain)
+            uppath <- ""
+            loop(i, Sequence(1, depth, 1))
+            {
+              if(i > 1)
+              {
+                uppath <- uppath + "\"
+              }
+              uppath <- uppath + ".."
+            }
+            callstring <- "cd " + gQuote+dirtext+gQuote + sep + uppath +
+                          "\PEBL\bin\pebl2.exe " + gQuote+filename+gQuote + " -s " + subcode
           }
-          uppath <- uppath + ".."
-        }
-        callstring <- "cd " + gQuote+DirListToText(dirchain)+gQuote + sep + uppath +
-                      "\PEBL\bin\pebl2.exe " + gQuote+filename+gQuote + " -s " + subcode
+
 
 
 

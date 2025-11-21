@@ -30,7 +30,17 @@ define Start(p)
 
 	##Print("startout workking directory" + gWorkingDirectory)
     gdebug <- 0
-    gUseReloc <- 0
+	
+	 ## Auto-detect portable vs installed mode
+  ## If we have a PEBL subdirectory in working directory, we're portable
+  if(FileExists(GetWorkingDirectory() + "\PEBL"))
+  {
+    gUseReloc <- 1  ## Portable mode
+  } else {
+    gUseReloc <- 0  ## Installed mode
+  }
+ ##hard-code here if you want to force relocatable portable branch.
+#    gUseReloc <- 0
       ## NOT from an installation in Program Files, but from
       ##A PEBL subdirectory of the current working directory.
     pvs <- GetPEBLVersion()
@@ -208,6 +218,9 @@ define FileSelect(p,resources)
     # Print(GetDirectoryListing(".\"))
 	# Print("fileexists:" + FileExists(gPEBLAppDirectory+ "\" + gExecutableName))
 
+	## Only check for Program Files installation if NOT in portable mode
+	if (gUseReloc == 0)
+	{
 	if (not FileExists(gPEBLAppDirectory+ "\" + gExecutableName))
 	 	     {
  #               Print("Not here")
@@ -231,6 +244,7 @@ define FileSelect(p,resources)
 				}
 			}
 
+	}
      gViewerCommand <- "c:\windows\notepad.exe"  ##used as a backup
 ##     gPEBLName     <- gQuote+gPEBLAppDirectory+ "\" + gExecutableName  +gQuote+ " "
      gPEBLName <- gQuote + gExecutableName + gQuote

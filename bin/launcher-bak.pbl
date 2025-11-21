@@ -1687,23 +1687,9 @@ define EditTranslation(dirChain,filename,language,logfile)
    if(gUseReloc)
      {
 
-        ## Build relative path based on directory depth
-         depth <- Length(dirchain)
-         uppath <- ""
-         loop(i, Sequence(1, depth, 1))
-         {
-           if(i > 1)
-           {
-             uppath <- uppath + "\"
-           }
-           uppath <- uppath + ".."
-         }
-         callstring <- "cd " + DirListToText(dirchain) + sep + uppath + "\PEBL\bin\pebl2.exe
-  translatetest.pbl -v " + filename
-
-
-
-
+        sep <- CR(1)
+        gPEBLName <- "\bin\pebl2.exe"  ##The relative location should be bin\pebl2.exe
+       callstring <- "cd " + DirListToText(dirchain) + sep + "..\bin\pebl2.exe translatetest.pbl -v " + filename
 
      }else {
 
@@ -1736,6 +1722,14 @@ define EditTranslation(dirChain,filename,language,logfile)
         }
 
 	##Launch asynchronously and monitor completion
+  if(gUseReloc)
+      {
+         runfile <- FileOpenOverWrite("tmp.bat")
+         FilePrint(runfile,callstring)
+         FileClose(runfile)
+         SystemCall("tmp.bat","")
+      } else {
+         ##Launch process asynchronously and get PID
          Print("Launching translation editor: " + callstring)
          pid <- SystemCallUpdate(callstring,"")
          Print("Launched PID: " + pid)
@@ -1747,6 +1741,7 @@ define EditTranslation(dirChain,filename,language,logfile)
          ##Clear event registrations before returning to normal launcher event loop
          ClearEventLoop()
       }
+}
 
 
 
@@ -1961,21 +1956,14 @@ define RunScript(dirChain,filename,fullscreen,language,logfile,subcode,experimen
    if(gUseReloc)
      {
 
+        sep <- CR(1)
+        gPEBLName <- "\bin\pebl2.exe"  ##The relative location should be bin\pebl2.exe
+		callstring <- "echo on "+sep+"set ABSPATH=%CD%"+sep+
+		              "set PEBL="+gQuote+"%ABSPATH%\PEBL\bin\pebl2.exe"+ gQuote+sep +
+					   "cd "+gQuote+"%ABSPATH%\" + DirListToText(dirchain) + gQuote+sep +
+					   "START /B /wait  "+gQuote + "PEBLTITLE" + gQuote+" %PEBL% " +filename + " -s " + subcode
 
-       depth <- Length(dirchain)
-        uppath <- ""
-        loop(i, Sequence(1, depth, 1))
-        {
-          if(i > 1)
-          {
-            uppath <- uppath + "\"
-          }
-          uppath <- uppath + ".."
-        }
-        callstring <- "cd " + gQuote+DirListToText(dirchain)+gQuote + sep + uppath +
-                      "\PEBL\bin\pebl2.exe " + gQuote+filename+gQuote + " -s " + subcode
-
-
+					   #"START /B "+gQuote + "PEBLTITLE" + gQuote+" %PEBL% " +filename + " -s " + subcode
 
      }else {
 
@@ -2049,6 +2037,21 @@ define RunScript(dirChain,filename,fullscreen,language,logfile,subcode,experimen
 
          #### Run the experiment!!!!
          Print("Executing : [" + callstring + "]")
+
+  if(gUseReloc)
+      {
+
+          runfile <- FileOpenOverWrite("tmp.bat")
+     ##     FilePrint(runfile,callstring+sep+"pause") ##Use for debugging purposes.
+          FilePrint(runfile,callstring)
+          FileClose(runfile)
+          SystemCall("tmp.bat","")
+          ##For gUseReloc (Windows batch file), we still use blocking SystemCall
+          ##Log FINISHED immediately after it completes
+          FilePrint(logfile,TimeStamp() + "," + DirListToText(gDirChain)+filename+","+GetPEBLVersion() +
+		 "," + experimenter + "," + subcode + "," +"fullscreen:["+fullscreen+"],"+ language + "," + callstring+ ","+"FINISHED")
+      } else {
+	      #MessageBox(callstring,gWin)
           ##Launch process asynchronously and get PID
           pid <- SystemCallUpdate(callstring,"")
           Print("Launched PID: " + pid)
@@ -2063,6 +2066,7 @@ define RunScript(dirChain,filename,fullscreen,language,logfile,subcode,experimen
           StartEventLoop()
           ##Clear event registrations before returning to normal launcher event loop
           ClearEventLoop()
+      }
 
            Draw()
 		 }

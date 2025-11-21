@@ -463,7 +463,7 @@ DIRS = \
 #	@echo $(PEBLMAIN_OBJ)
 
 
-resource.o: resource.rc pebl2.ico
+resource.o: resource.rc installer/pebl2.ico
 	$(WINDRES) resource.rc -O coff -o resource.o
 
 main-real:  $(DIRS) $(PEBLMAIN_OBJ) $(PEBLBASE_OBJ) $(PEBLMAIN_INC) resource.o

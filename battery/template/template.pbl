@@ -1,0 +1,527 @@
+##############################################################################
+## PEBL BATTERY TASK TEMPLATE
+##############################################################################
+##
+## This is a complete template for creating new PEBL experiments.
+## It includes all standard sections with extensive documentation.
+##
+## IMPORTANT NOTE:
+## This template demonstrates a RECOMMENDED approach for building comprehensive,
+## shareable PEBL tests suitable for inclusion in the test battery. However,
+## this is NOT the only way to write PEBL experiments!
+##
+## - The translation system is optional (you can hard-code text strings)
+## - The parameter schema system is optional (you can hard-code parameters)
+## - The data file structure is a suggestion (use whatever format you need)
+## - You can write much simpler experiments without these systems
+##
+## Use this template as a guide for best practices when creating tests you
+## plan to share or distribute, but feel free to simplify for personal use
+## or quick prototypes.
+##
+## TO USE THIS TEMPLATE:
+## 1. Copy the entire template/ directory to battery/yourtaskname/
+## 2. Rename template.pbl to yourtaskname.pbl
+## 3. Update all files to replace "template" with your task name
+## 4. Fill in the sections marked with TODO comments below
+## 5. Customize parameters in params/template.pbl.schema
+## 6. Update translations in translations/template.pbl-en.json
+## 7. Test your experiment!
+##
+## FOR AI/LLM ASSISTANCE:
+## When prompting an LLM to create an experiment, provide:
+## - This template file
+## - Notes_for_Claude_on_Programming_PEBL.txt
+## - A clear description of your experimental paradigm
+## The LLM should be able to fill in most sections automatically.
+##
+##############################################################################
+
+##############################################################################
+## MAIN ENTRY POINT
+##############################################################################
+##
+## Every PEBL program starts with the Start() function.
+## The parameter p is passed from command line but rarely used.
+##
+define Start(p)
+{
+  ##--------------------------------------------------------------------------
+  ## 1. SCRIPT IDENTIFICATION
+  ##--------------------------------------------------------------------------
+  ## Set the script name - appears in window title and data files
+  gScriptname <- "Template Task"  ## TODO: Change to your task name
+
+  ##--------------------------------------------------------------------------
+  ## 2. PARAMETER DEFINITION
+  ##--------------------------------------------------------------------------
+  ## Define all configurable parameters with default values
+  ## Format: [["parameterName", defaultValue], ...]
+  ## These can be overridden by editing params/template.pbl.schema
+  ##
+  parpairs <- [
+    ## Experiment structure
+    ["numPracticeTrials", 5],      ## Number of practice trials
+    ["numTestTrials", 20],          ## Number of test trials
+    ["blockSize", 10],              ## Trials per block (0 = no blocks)
+
+    ## Timing parameters (milliseconds)
+    ["fixationDuration", 500],      ## How long to show fixation cross
+    ["stimulusDuration", 2000],     ## How long to show stimulus
+    ["responseTimeout", 5000],      ## Maximum time to wait for response
+    ["feedbackDuration", 1000],     ## How long to show feedback
+    ["interTrialInterval", 500],    ## Delay between trials
+
+    ## Task behavior
+    ["showFeedback", 1],            ## Show feedback? (0=no, 1=yes)
+    ["practiceWithFeedback", 1],    ## Show feedback in practice? (0=no, 1=yes)
+
+    ## Stimulus properties
+    ["stimulusSize", 100],          ## Size of stimulus in pixels
+    ["numStimuli", 4],              ## Number of stimuli per trial
+
+    ## Response options
+    ["responseKeys", "<lshift>,<rshift>"],  ## Keys for responses (comma-separated)
+    ["correctKey", "<lshift>"]      ## Which key is "correct" response
+  ]
+
+  ## Create parameter object - reads from schema file if it exists
+  gParams <- CreateParameters(parpairs, gParamFile)
+
+  ##--------------------------------------------------------------------------
+  ## 3. WINDOW AND DISPLAY SETUP
+  ##--------------------------------------------------------------------------
+  ## Create main experiment window
+  ## gSleepEasy reduces CPU usage (slight timing cost ~1-2ms)
+  gSleepEasy <- 1
+
+  ## Create window with black background
+  ## Common colors: "black", "white", "grey", "gray"
+  gWin <- MakeWindow("black")
+
+  ## Calculate common screen positions for centering
+  gCenterX <- gVideoWidth / 2
+  gCenterY <- gVideoHeight / 2
+
+  ## Hide mouse cursor (optional - uncomment if needed)
+  ## ShowCursor(0)
+
+  ##--------------------------------------------------------------------------
+  ## 4. SUBJECT NUMBER
+  ##--------------------------------------------------------------------------
+  ## Get subject number if not provided via launcher or command line
+  ## Subject number determines random seed and data file names
+  if(gSubNum+"" == "0")
+  {
+    gSubNum <- GetSubNum(gWin)
+  }
+
+  ##--------------------------------------------------------------------------
+  ## 5. LOAD TRANSLATIONS
+  ##--------------------------------------------------------------------------
+  ## Load language-specific text strings from translations/
+  ## Falls back to English if requested language not found
+  GetStrings(gLanguage)
+
+  ##--------------------------------------------------------------------------
+  ## 6. CREATE DATA FILE
+  ##--------------------------------------------------------------------------
+  ## Create CSV file for data output
+  ## Format: GetNewDataFile(subnum, window, basename, extension, header)
+  ## File will be saved to data/[subnum]/template-[subnum].csv
+  ##
+  ## TODO: Customize the header row to match your data columns
+  gFileOut <- GetNewDataFile(gSubNum, gWin, "template", "csv",
+    "subnum,trial,block,phase,condition,stimulus,response,correct,rt,timestamp")
+
+  ## Optional: Create summary data file for aggregate statistics
+  ## gFileSummary <- FileOpenWrite("data/" + gSubNum + "/template-" + gSubNum + "-summary.csv")
+  ## FilePrint(gFileSummary, "subnum,phase,accuracy,meanRT,medianRT")
+
+  ##--------------------------------------------------------------------------
+  ## 7. SHOW INSTRUCTIONS
+  ##--------------------------------------------------------------------------
+  ## Display task instructions from translation file
+  ## Instructions should explain the task clearly
+  ShowInstructions(gStrings.instructions, gWin)
+
+  ##--------------------------------------------------------------------------
+  ## 8. PRACTICE TRIALS
+  ##--------------------------------------------------------------------------
+  ## Run practice trials with feedback
+  ## Practice helps participants understand the task
+  if(gParams.numPracticeTrials > 0)
+  {
+    ShowInstructions(gStrings.practiceInstructions, gWin)
+
+    ## Create practice trial design
+    ## TODO: Customize this to create your experimental conditions
+    ## Example: Simple sequence of trial numbers
+    practiceDesign <- Sequence(1, gParams.numPracticeTrials, 1)
+
+    ## Alternative: Shuffle conditions for practice
+    ## practiceConditions <- ["conditionA", "conditionB", "conditionC"]
+    ## practiceDesign <- Shuffle(RepeatList(practiceConditions, Ceiling(gParams.numPracticeTrials/Length(practiceConditions))))
+    ## practiceDesign <- SubList(practiceDesign, 1, gParams.numPracticeTrials)
+
+    ## Loop through practice trials
+    trialNum <- 1
+    loop(condition, practiceDesign)
+    {
+      ## Run one practice trial
+      ## TODO: Customize condition parameter to match your design
+      result <- RunTrial("practice", trialNum, 0, condition, gParams.practiceWithFeedback, gWin)
+
+      ## Extract results (customize based on what RunTrial returns)
+      response <- Nth(result, 1)
+      correct <- Nth(result, 2)
+      rt <- Nth(result, 3)
+      stimulus <- Nth(result, 4)
+
+      ## Write practice data to file
+      ## TODO: Customize to match your data columns
+      FilePrint(gFileOut, gSubNum + "," + trialNum + ",0,practice," +
+                condition + "," + stimulus + "," + response + "," +
+                correct + "," + rt + "," + TimeStamp())
+
+      trialNum <- trialNum + 1
+    }
+
+    ## Show transition message
+    ShowInstructions(gStrings.practiceComplete, gWin)
+  }
+
+  ##--------------------------------------------------------------------------
+  ## 9. MAIN EXPERIMENT
+  ##--------------------------------------------------------------------------
+  ## Run test trials
+  ShowInstructions(gStrings.testInstructions, gWin)
+
+  ## Create experimental design
+  ## TODO: Customize this for your experimental conditions
+  ## Examples:
+  ##
+  ## Simple repeated conditions:
+  ## testDesign <- Shuffle(RepeatList(["condA", "condB", "condC"], gParams.numTestTrials/3))
+  ##
+  ## Full factorial counterbalancing:
+  ## factor1 <- ["left", "right"]
+  ## factor2 <- ["red", "blue"]
+  ## testDesign <- Shuffle(DesignFullCounterbalance([factor1, factor2]))
+  ##
+  ## Balanced sampling (ensures each condition appears before repeating):
+  ## testDesign <- DesignBalancedSampling(["A", "B", "C", "D"], gParams.numTestTrials)
+  ##
+  testDesign <- Sequence(1, gParams.numTestTrials, 1)
+
+  ## Determine block structure
+  numBlocks <- 0
+  if(gParams.blockSize > 0)
+  {
+    numBlocks <- Ceiling(gParams.numTestTrials / gParams.blockSize)
+  }
+
+  ## Run test trials
+  trialNum <- 1
+  loop(condition, testDesign)
+  {
+    ## Calculate current block number
+    blockNum <- 0
+    if(gParams.blockSize > 0)
+    {
+      blockNum <- Ceiling(trialNum / gParams.blockSize)
+
+      ## Show break between blocks (but not before first block)
+      if(Mod(trialNum-1, gParams.blockSize) == 0 and trialNum > 1)
+      {
+        ShowInstructions(gStrings.blockBreak + " " + blockNum + " / " + numBlocks +
+                        CR(2) + gStrings.pressKeyToContinue, gWin)
+      }
+    }
+
+    ## Run one test trial
+    ## TODO: Customize condition parameter to match your design
+    result <- RunTrial("test", trialNum, blockNum, condition, gParams.showFeedback, gWin)
+
+    ## Extract results (customize based on what RunTrial returns)
+    response <- Nth(result, 1)
+    correct <- Nth(result, 2)
+    rt <- Nth(result, 3)
+    stimulus <- Nth(result, 4)
+
+    ## Write test data to file
+    ## TODO: Customize to match your data columns
+    FilePrint(gFileOut, gSubNum + "," + trialNum + "," + blockNum + ",test," +
+              condition + "," + stimulus + "," + response + "," +
+              correct + "," + rt + "," + TimeStamp())
+
+    trialNum <- trialNum + 1
+  }
+
+  ##--------------------------------------------------------------------------
+  ## 10. DEBRIEFING
+  ##--------------------------------------------------------------------------
+  ## Show completion message and thank participant
+  ## Optional: Calculate and display performance statistics
+  MessageBox(gStrings.debrief, gWin)
+
+  ## Clean up
+  FileClose(gFileOut)
+  ## if(IsDefined(gFileSummary)) { FileClose(gFileSummary) }
+}
+
+##############################################################################
+## TRIAL FUNCTION
+##############################################################################
+##
+## This function runs a single trial of the experiment.
+## Customize this extensively for your specific task!
+##
+## Parameters:
+##   phase: "practice" or "test" - affects feedback and data recording
+##   trialNum: Current trial number (for participant tracking)
+##   blockNum: Current block number (0 if no blocks)
+##   condition: Experimental condition for this trial (customize type/structure)
+##   showFeedback: Whether to show feedback (1=yes, 0=no)
+##   win: The window to draw on
+##
+## Returns:
+##   List of results: [response, correct, rt, stimulus, ...]
+##   Customize return values based on what you need to record
+##
+define RunTrial(phase, trialNum, blockNum, condition, showFeedback, win)
+{
+  ##--------------------------------------------------------------------------
+  ## TRIAL SETUP
+  ##--------------------------------------------------------------------------
+  ## TODO: Customize trial setup based on condition parameter
+  ## Example: Determine stimulus based on condition
+  stimulus <- condition  ## Placeholder - customize this!
+
+  ## TODO: Determine correct response based on condition
+  correctResponse <- gParams.correctKey  ## Placeholder - customize this!
+
+  ##--------------------------------------------------------------------------
+  ## FIXATION
+  ##--------------------------------------------------------------------------
+  ## Show fixation cross before stimulus
+  ## Common pattern: central fixation cross
+  fixation <- EasyLabel("+", gCenterX, gCenterY, win, 48)
+  Draw()
+  Wait(gParams.fixationDuration)
+  Hide(fixation)
+
+  ##--------------------------------------------------------------------------
+  ## STIMULUS PRESENTATION
+  ##--------------------------------------------------------------------------
+  ## TODO: Create and display your stimulus
+  ## Examples:
+  ##
+  ## Text stimulus:
+  ## stimLabel <- EasyLabel(stimulus, gCenterX, gCenterY, win, 32)
+  ##
+  ## Image stimulus:
+  ## stimImage <- MakeImage("stimuli/" + stimulus + ".png")
+  ## AddObject(stimImage, win)
+  ## Move(stimImage, gCenterX, gCenterY)
+  ##
+  ## Multiple objects:
+  ## objects <- CreateStimulusDisplay(condition, win)
+  ##
+  ## For this template, show placeholder text:
+  stimLabel <- EasyLabel("STIMULUS: " + stimulus, gCenterX, gCenterY, win, 32)
+  instructLabel <- EasyLabel(gStrings.responsePrompt, gCenterX, gCenterY + 100, win, 20)
+
+  Draw()
+
+  ##--------------------------------------------------------------------------
+  ## RESPONSE COLLECTION
+  ##--------------------------------------------------------------------------
+  ## Record start time for RT calculation
+  startTime <- GetTime()
+
+  ## TODO: Customize response collection based on your task
+  ## Examples:
+  ##
+  ## Keyboard response with timeout:
+  ## responseKeys <- SplitString(gParams.responseKeys, ",")
+  ## response <- WaitForListKeyPressWithTimeout(responseKeys, gParams.responseTimeout, ["<timeout>"])
+  ##
+  ## Any key press:
+  ## response <- WaitForAnyKeyPress()
+  ##
+  ## Mouse click on targets:
+  ## response <- WaitForClickOnTarget(targets, targetIds)
+  ##
+  ## For this template, wait for any key:
+  response <- WaitForAnyKeyPress()
+
+  ## Calculate reaction time
+  rt <- GetTime() - startTime
+
+  ## Clear stimulus from screen
+  Hide(stimLabel)
+  Hide(instructLabel)
+  Draw()
+
+  ##--------------------------------------------------------------------------
+  ## RESPONSE EVALUATION
+  ##--------------------------------------------------------------------------
+  ## TODO: Determine if response was correct
+  ## Customize based on your task requirements
+  correct <- 0
+  if(response == correctResponse)
+  {
+    correct <- 1
+  }
+
+  ## Handle timeout (if applicable)
+  if(response == "<timeout>")
+  {
+    correct <- -1  ## Special code for timeout
+  }
+
+  ##--------------------------------------------------------------------------
+  ## FEEDBACK
+  ##--------------------------------------------------------------------------
+  ## Show feedback if enabled
+  if(showFeedback)
+  {
+    ## TODO: Customize feedback messages
+    feedbackText <- gStrings.incorrect
+    feedbackColor <- MakeColor("red")
+
+    if(correct == 1)
+    {
+      feedbackText <- gStrings.correct
+      feedbackColor <- MakeColor("green")
+    }elseif(response == "<timeout>")
+    {
+      feedbackText <- gStrings.tooSlow
+      feedbackColor <- MakeColor("orange")
+    }
+
+    ## Display feedback
+    feedbackFont <- MakeFont(gPEBLBaseFont, 0, 28, feedbackColor, MakeColor("black"), 1)
+    feedbackLabel <- MakeLabel(feedbackText, feedbackFont)
+    AddObject(feedbackLabel, win)
+    Move(feedbackLabel, gCenterX, gCenterY)
+    Draw()
+    Wait(gParams.feedbackDuration)
+
+    ## Clean up
+    RemoveObject(feedbackLabel, win)
+  }
+
+  ##--------------------------------------------------------------------------
+  ## INTER-TRIAL INTERVAL
+  ##--------------------------------------------------------------------------
+  ## Blank screen between trials
+  Draw()
+  Wait(gParams.interTrialInterval)
+
+  ##--------------------------------------------------------------------------
+  ## RETURN RESULTS
+  ##--------------------------------------------------------------------------
+  ## Return list of values to be recorded
+  ## TODO: Customize return values based on what you need in data file
+  ## Must match the order you extract them in Start() function
+  return([response, correct, rt, stimulus])
+}
+
+##############################################################################
+## HELPER FUNCTIONS
+##############################################################################
+
+##--------------------------------------------------------------------------
+## SHOW INSTRUCTIONS
+##--------------------------------------------------------------------------
+## Display instruction text and wait for key press
+##
+define ShowInstructions(text, win)
+{
+  ## Create text box for instructions
+  ## Centered on screen, reasonable size for readability
+  inst <- EasyTextBox(text, gCenterX - 400, gCenterY - 200,
+                      win, 18, 800, 400)
+  Draw()
+  WaitForAnyKeyPress()
+  Hide(inst)
+  Draw()
+}
+
+##--------------------------------------------------------------------------
+## LOAD TRANSLATION STRINGS
+##--------------------------------------------------------------------------
+## Load language-specific text from JSON translation files
+## Falls back to English if requested language not available
+##
+define GetStrings(lang)
+{
+  ## Normalize language code to uppercase
+  lang <- Uppercase(lang)
+
+  ## Construct filename for requested language
+  fname <- "translations/template.pbl-" + Lowercase(lang) + ".json"
+
+  ## Try to load requested language, fall back to English
+  if(FileExists(fname))
+  {
+    gStrings <- ReadTranslationJSON(fname, lang)
+  }else{
+    ## Fall back to English
+    gStrings <- ReadTranslationJSON("translations/template.pbl-en.json", "EN")
+  }
+}
+
+##############################################################################
+## STIMULUS CREATION FUNCTIONS (OPTIONAL)
+##############################################################################
+##
+## TODO: Add custom functions for creating stimuli
+## Examples:
+##
+## define CreateStimulusDisplay(condition, win)
+## {
+##   ## Create and position multiple objects
+##   ## Return list of objects for cleanup
+##   return(objects)
+## }
+##
+## define CreateTargetArray(numTargets, size, win)
+## {
+##   ## Create array of targets
+##   ## Use NonOverlapLayout for positioning
+##   positions <- NonOverlapLayout(100, gVideoWidth-100, 100, gVideoHeight-100, size*2, numTargets)
+##   ## ... create objects at positions ...
+##   return(targets)
+## }
+##
+##############################################################################
+
+##############################################################################
+## DATA ANALYSIS FUNCTIONS (OPTIONAL)
+##############################################################################
+##
+## TODO: Add functions to calculate summary statistics
+## Examples:
+##
+## define CalculateAccuracy(responses, correctResponses)
+## {
+##   correct <- 0
+##   loop(i, Sequence(1, Length(responses), 1))
+##   {
+##     if(Nth(responses, i) == Nth(correctResponses, i))
+##     {
+##       correct <- correct + 1
+##     }
+##   }
+##   return(correct / Length(responses))
+## }
+##
+## define CalculateMeanRT(rtList)
+## {
+##   return(Mean(rtList))
+## }
+##
+##############################################################################

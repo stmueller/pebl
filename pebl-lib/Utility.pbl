@@ -1950,52 +1950,67 @@ define GetNewSubNum(server,page,port,username,pword)
 
 ## Initialize token-based upload configuration
 ## Call this at the start of battery tests that will be hosted online
-## Reads upload.json (written by JavaScript launcher) and sets up:
-## - gToken: Study identifier
-## - gTestName: Test name (e.g., "stroop", "flanker")
-## - gUploadURL: Server endpoint for data upload
-## - gParticipant: Participant ID
-## - gDataDirectory: Centralized data path: /data/{token}/{test}/{participant}/
-## - gUploadSettings: Full configuration object
-## - gUseUpload: Flag indicating token mode is active
+##
+## EMSCRIPTEN: Sets up centralized persistent storage in /data and redirects
+##             file writes via gDataDirectory (used by EM.pbl's GetNewDataFile)
+## NATIVE: No-op (UploadFile reads settings independently when called)
+##
+## IMPORTANT: Why participant ID is in upload.json:
+## - Emscripten uses MEMFS (in-memory filesystem) that gets reset between tests
+## - Chain-launcher runs multiple tests sequentially and can modify participant ID
+##   with suffixes (e.g., "P001" becomes "P001-stroop", "P001-flanker")
+## - upload.json is rewritten between tests with the modified participant ID
+## - Setting gSubNum from upload.json ensures each test uses the correct ID
+## - The -s command-line flag sets initial gSubNum, but this overwrites it
+##   with the potentially-suffixed version from upload.json
+## - For native platforms, this is a no-op since UploadFile() reads upload.json
+##   independently and doesn't need InitializeUpload()
 define InitializeUpload()
 {
    result <- 0
    if(gUpload)
     {
      if(not FileExists(gUploadFile))
-	 { 
+	 {
 	   ##backup load this
 	   gUploadFile <- "upload.json"
 	 }
-	 
-	 
+
     if(FileExists(gUploadFile))
     {
-        settings <- ParseJSON(FileReadText(gUploadFile))
-        gToken <- settings.token
-        gTestName <- settings.test
-        gUploadURL <- settings.uploadURL
-        gParticipant <- settings.participant
+        systemType <- GetSystemType()
 
-        ## Set gSubNum to participant ID so battery tests can use it
-        gSubNum <- gParticipant
+        if(systemType == "EMSCRIPTEN")
+        {
+            ## EMSCRIPTEN ONLY: Set up centralized persistent storage
+            settings <- ParseJSON(FileReadText(gUploadFile))
+            gToken <- settings.token
+            gTestName <- settings.test
+            gParticipant <- settings.participant
 
-        ## Set working directory to the test directory so relative paths work
-        SetWorkingDirectory("/usr/local/share/pebl2/battery/" + gTestName)
+            ## Set gSubNum from upload.json (may include suffix from chain-launcher)
+            ## This overwrites the -s command-line value, which is intentional
+            ## for multi-test chains where each test gets a different participant ID
+            gSubNum <- gParticipant
 
-        ## Set centralized data directory for token mode
-        ## Create directories one level at a time since MakeDirectory doesn't create parents
-        MakeDirectory("/data")
-        MakeDirectory("/data/" + gToken)
-        MakeDirectory("/data/" + gToken + "/" + gTestName)
-        gDataDirectory <- "/data/" + gToken + "/" + gTestName + "/" + gParticipant + "/"
-        MakeDirectory(gDataDirectory)
+            ## Set working directory to the test directory so relative paths work
+            SetWorkingDirectory("/usr/local/share/pebl2/battery/" + gTestName)
 
-        gUseUpload <- 1
-        gUploadSettings <- settings  ## Make full config available
+            ## Create centralized data directory for MEMFS persistent storage
+            ## Create directories one level at a time since MakeDirectory doesn't create parents
+            MakeDirectory("/data")
+            MakeDirectory("/data/" + gToken)
+            MakeDirectory("/data/" + gToken + "/" + gTestName)
+            gDataDirectory <- "/data/" + gToken + "/" + gTestName + "/" + gParticipant + "/"
+            MakeDirectory(gDataDirectory)
 
-        result <- 1
+            result <- 1
+        } else {
+            ## NATIVE (LINUX/WINDOWS/OSX): No initialization needed
+            ## GetNewDataFile() will create standard data/{subnum}/ directories
+            ## UploadFile() will read upload.json when called
+            result <- 1
+        }
     } else {
         result <- 0
     }

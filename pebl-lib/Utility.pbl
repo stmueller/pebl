@@ -1692,33 +1692,6 @@ define ClickOn(obj,xy)
     }
 }
 
-  define GetTranslations(scriptname, lang)
-  {
-    ## Unified translation loading with fallback to English
-    ## Usage: gStrings <- GetTranslations("taskname", lang)
-
-    lang <- Uppercase(lang)
-    fname <- "translations/" + scriptname + ".pbl-" + LowerCase(lang) +
-  ".json"
-
-    if(FileExists(fname))
-    {
-      ret <- ReadTranslationJSON(fname, lang)
-    } else {
-      ## Fallback to English
-      fname_en <- "translations/" + scriptname + ".pbl-en.json"
-      if(FileExists(fname_en))
-      {
-        ret <-  ReadTranslationJSON(fname_en, "EN")
-      } else {
-        SignalFatalError("No translation file exists for [" + scriptname +
-  "] (tried " + fname + " and " + fname_en + ")")
-      }
-    }
-	return ret
-  }
-
-
 
 define ReadTranslation(filename,lang)
 {

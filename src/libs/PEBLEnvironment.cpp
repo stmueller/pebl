@@ -2294,7 +2294,9 @@ Variant  PEBLEnvironment::GetPEBLVersion(Variant v)
 
 Variant PEBLEnvironment::GetSystemType(Variant v)
 {
-#if defined(PEBL_OSX)
+#if defined(PEBL_EMSCRIPTEN)
+    Variant type = "EMSCRIPTEN";
+#elif defined(PEBL_OSX)
     Variant type = "OSX";
 #elif defined (PEBL_UNIX)
     Variant type = "LINUX";

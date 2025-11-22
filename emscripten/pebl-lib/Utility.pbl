@@ -1762,15 +1762,18 @@ define ReadTranslationJSON(filename,lang)
 ##
 define GetTranslations(testname, lang)
 {
+  ## Normalize language code to lowercase at the start
+  ## All translation files use lowercase 2-letter codes (en, es, tr, etc.)
+  lang <- Lowercase(lang)
+
   ## Tier 1: Try explicit language if provided
   if(lang != "")
   {
-    langUpper <- Uppercase(lang)
-    fname <- "translations/" + testname + ".pbl-" + LowerCase(langUpper) + ".json"
+    fname <- "translations/" + testname + ".pbl-" + lang + ".json"
 
     if(FileExists(fname))
     {
-        ret <-  ReadTranslationJSON(fname, langUpper)
+        ret <-  ReadTranslationJSON(fname, lang)
     } else {
         ret <- ""
         lang <- ""  ##language 2-character code files not available
@@ -1784,8 +1787,9 @@ define GetTranslations(testname, lang)
 
     if(systemLocale != "")
     {
-      lang <- Uppercase(SubString(systemLocale, 1, 2))
-      fname <- "translations/" + testname + ".pbl-" + LowerCase(lang) + ".json"
+      ## Extract language code from locale (e.g., "en_US" -> "en", "zh_CN" -> "zh")
+      lang <- Lowercase(SubString(systemLocale, 1, 2))
+      fname <- "translations/" + testname + ".pbl-" + lang + ".json"
 
       if(FileExists(fname))
       {
@@ -1800,7 +1804,7 @@ define GetTranslations(testname, lang)
   {
     ## Tier 3: Fall back to English
     fname <- "translations/" + testname + ".pbl-en.json"
-    ret <-  ReadTranslationJSON(fname, "EN")
+    ret <-  ReadTranslationJSON(fname, "en")
   }
 
   return(ret)

@@ -2,7 +2,7 @@
 #//    Name:       src/pebl-lib/Utility.pbl
 #//    Purpose:    Contains PEBL functions used for various purposes
 #//    Author:     Shane T. Mueller, Ph.D.
-#//    Copyright:  (c) 2004-2020 Shane T. Mueller <smueller@obereed.net>
+#//    Copyright:  (c) 2004-2025 Shane T. Mueller <smueller@obereed.net>
 #//    License:    GPL 2
 #//
 #//
@@ -484,6 +484,7 @@ define EasyTextBox(text,x,y,win,fontsize,width,height,
 
 
 ##Make an easy-to-use getsubnum function here.
+## Enhanced with 20+ language translations and automatic locale/font detection
 define GetSubNum(win)
 {
 
@@ -496,47 +497,111 @@ define GetSubNum(win)
    Move(bg,gVideoWidth/2,90)
    AddObject(bg,win)
 
-    if(gLanguage == "PT" or gLanguage == "BR")
+    ## Translations for "Enter Participant Identifier" in 20+ languages
+    ## Ordered by number of speakers/usage
+    translations <- [
+        "Enter Participant Identifier",              ## EN - English
+        "输入参与者标识符",                           ## ZH - Chinese (Simplified)
+        "Ingrese el código del participante",        ## ES - Spanish (Thanks Ernesto Reyes Zamorano)
+        "أدخل معرّف المشارك",                        ## AR - Arabic
+        "भागीदार पहचानकर्ता दर्ज करें",              ## HI - Hindi
+        "Código Participante",                        ## PT - Portuguese (Thanks Marco Moniz)
+        "Código Participante",                        ## BR - Brazilian Portuguese
+        "Введите идентификатор участника",            ## RU - Russian
+        "参加者識別子を入力",                         ## JA - Japanese
+        "Bitte den Versuchspersonen-Code eingeben",  ## DE - German (Thanks Sven Blankenberger and Katrin Bittrich)
+        "Entrez l'identifiant du participant",       ## FR - French
+        "Inserisci l'identificatore del partecipante", ## IT - Italian
+        "참가자 식별자 입력",                         ## KO - Korean
+        "Voer de deelnemerscode in",                 ## NL - Dutch
+        "رمز شرکت کننده را وارد کنید",               ## FA - Persian (Farsi)
+        "Katılımcı Kimliğini Girin",                 ## TR - Turkish
+        "Wpisz identyfikator uczestnika",            ## PL - Polish
+        "Введіть ідентифікатор учасника",             ## UK - Ukrainian
+        "Adja meg a résztvevő kódját",               ## HU - Hungarian (Thanks Péter Juhász)
+        "הזן מזהה משתתף",                             ## HE - Hebrew
+        "Fyll i ärendekod",                          ## SE - Swedish (Thanks Kim Karlsson)
+        "Indtast deltager-id",                       ## DA - Danish
+        "Syötä osallistujan tunniste",              ## FI - Finnish
+        "Въведете идентификатор на участник"         ## BG - Bulgarian
+    ]
+
+    languages <- ["EN","ZH","ES","AR","HI","PT","BR","RU","JA","DE",
+                  "FR","IT","KO","NL","FA","TR","PL","UK","HU","HE",
+                  "SE","DA","FI","BG"]
+
+    ## Three-tier language selection:
+    ## 1. Try gLanguage if explicitly set (non-empty)
+    ## 2. If gLanguage is empty/unset, try system locale
+    ## 3. Fall back to English if neither works
+
+    match <- []  ## Initialize as empty list (no match)
+
+    ## Tier 1: Check if gLanguage is explicitly set (non-empty)
+    if(gLanguage != "")
     {
-     ##Thanks Marco Moniz
-     text <- "Código Participante"
-
-    } elseif(gLanguage == "DE")
-    {
-     ##Thanks Sven Blankenberger and Katrin Bittrich
-     text <- "Bitte den Versuchspersonen-Code eingeben"
-
-    }elseif(gLanguage == "HU")
-    {
-
-    ##Thanks Péter Juhász
-    text <- "Adja meg a résztvevő kódját"
-
-    }elseif(gLanguage == "ES")
-    {
-    ##Thanks Ernesto Reyes Zamorano
-    text <- "Ingrese el código del participante"
-
-   }elseif(gLanguage=="SE") #swedish by Kim Karlsson
-    {
-    text <- "Fyll i ärendekod"
-
-    }   else {
-   ##Default to English
-    text <- "Enter Participant Identifier"
+      match <- Lookup(gLanguage, languages, translations)
     }
 
-   query <- EasyLabel(text,225,20,bg,20)
+    ## Tier 2: If no match and gLanguage was empty, try system locale
+    if(IsList(match))
+    {
+      systemLocale <- GetSystemLocale()
+
+      if(systemLocale != "")
+      {
+        ## Extract language code from locale (e.g., "en_US" -> "EN", "zh_CN" -> "ZH")
+        systemLang <- Uppercase(SubString(systemLocale, 1, 2))
+        match <- Lookup(systemLang, languages, translations)
+      }
+
+      ## Tier 3: If still no match, default to English
+      if(IsList(match))
+      {
+        text <- First(translations)
+      } else {
+        text <- match
+      }
+    } else {
+      text <- match
+    }
+
+
+   ## Automatically detect script and select appropriate font
+   script <- DetectTextScript(text)
+   isRTL <- IsRTL(text)
+   fontname <- GetFontForText(text)
+   font <- MakeFont(fontname, 0, 20, MakeColor("white"), MakeColor("grey20"), 0)
+
+   query <- MakeLabel(text, font)
+   AddObject(query, bg)
+   Move(query, 225, 20)
    Draw(query)
- #  Hide(query) ##we don't want this re-imprinting on the canvas.
 
-   box <- EasyTextBox("",gVideoWidth/2-50,100, win,20,160,25)
+   box <- EasyTextBox("", gVideoWidth/2-50, 100, win, 20, 160, 25)
+
+   ## Set text box justification based on detected script
+   ## If text is RTL, use right justification
+   if(isRTL)
+   {
+     box.justify <- "RIGHT"
+   } else {
+     ## If text is LTR but system locale is RTL (e.g., Arabic keyboard on English text)
+     ## default to right justification for better UX
+     if(IsSystemLocaleRTL())
+     {
+       box.justify <- "RIGHT"
+     } else {
+       box.justify <- "LEFT"
+     }
+   }
+
    Draw()
-   subnum <- GetInput(box,"<return>")
+   subnum <- GetInput(box, "<return>")
 
-   RemoveObject(query,bg)
-   RemoveObject(box,win)
-   RemoveObject(bg,win)
+   RemoveObject(query, bg)
+   RemoveObject(box, win)
+   RemoveObject(bg, win)
    return subnum
 }
 
@@ -1775,15 +1840,18 @@ define ReadTranslationJSON(filename,lang)
 ##
 define GetTranslations(testname, lang)
 {
+  ## Normalize language code to lowercase at the start
+  ## All translation files use lowercase 2-letter codes (en, es, tr, etc.)
+  lang <- Lowercase(lang)
+
   ## Tier 1: Try explicit language if provided
   if(lang != "")
   {
-    langUpper <- Uppercase(lang)
-    fname <- "translations/" + testname + ".pbl-" + LowerCase(langUpper) + ".json"
+    fname <- "translations/" + testname + ".pbl-" + lang + ".json"
 
     if(FileExists(fname))
     {
-        ret <-  ReadTranslationJSON(fname, langUpper)
+        ret <-  ReadTranslationJSON(fname, lang)
     } else {
         ret <- ""
         lang <- ""  ##language 2-character code files not available, so treat it as if it was not set and we will use fallback.
@@ -1798,9 +1866,9 @@ define GetTranslations(testname, lang)
 
     if(systemLocale != "")
     {
-      ## Extract language code from locale (e.g., "en_US" -> "EN", "zh_CN" -> "ZH")
-      lang <- Uppercase(SubString(systemLocale, 1, 2))
-      fname <- "translations/" + testname + ".pbl-" + LowerCase(lang) + ".json"
+      ## Extract language code from locale (e.g., "en_US" -> "en", "zh_CN" -> "zh")
+      lang <- Lowercase(SubString(systemLocale, 1, 2))
+      fname <- "translations/" + testname + ".pbl-" + lang + ".json"
 
       if(FileExists(fname))
       {
@@ -1815,7 +1883,7 @@ define GetTranslations(testname, lang)
   {
     ## Tier 3: Fall back to English
     fname <- "translations/" + testname + ".pbl-en.json"
-    ret <-  ReadTranslationJSON(fname, "EN")
+    ret <-  ReadTranslationJSON(fname, "en")
   }
 
    return ret

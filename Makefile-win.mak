@@ -56,6 +56,7 @@ FP =  libs/emsdk/upstream/emscripten/tools/file_packager.py
 
 CL = /c/msys64/mingw64/bin/gcc
 CLXX = /c/msys64/mingw64/bin/g++
+WINDRES = /c/msys64/mingw64/bin/windres
 
 
 # Wrapper targets that set OBJ_DIR and call the real targets
@@ -94,7 +95,7 @@ CXXFLAGS_EMSCRIPTEN = -DPEBL_EMSCRIPTEN -DPEBL_HTTP -DHTTP_LIB=3 -DPREFIX=$(PREF
 CXXFLAGS_LINUX =   -DPEBL_LINUX -DPEBL_UNIX -DENABLE_BINRELOC -DPREFIX=$(PREFIX) -DEXECNAME=$(EXECNAME) -DPEBLNAME=$(PEBLNAME) -DPEBLDIRNAME=$(PEBLDIRNAME) -DPEBL_VERSION=\"$(PEBL_VERSION)\" -DHTTP_LIB=2
 
 ## http=2 is curl
-CXXFLAGS_WIN32 =   -pipe -DPEBL_WIN32 -DENABLE_BINRELOC -DPREFIX=$(PREFIX) -DEXECNAME=$(EXECNAME) -DPEBLNAME=$(PEBLNAME) -DPEBLDIRNAME=$(PEBLDIRNAME) -DPEBL_VERSION=\"$(PEBL_VERSION)\" -DHTTP_LIB=2
+CXXFLAGS_WIN32 =   -pipe -DPEBL_WIN32 -DNO_STDIO_REDIRECT -DENABLE_BINRELOC -DPREFIX=$(PREFIX) -DEXECNAME=$(EXECNAME) -DPEBLNAME=$(PEBLNAME) -DPEBLDIRNAME=$(PEBLDIRNAME) -DPEBL_VERSION=\"$(PEBL_VERSION)\" -DHTTP_LIB=2
 
 ## Enable HTTP support by default
 USE_HTTP = 1
@@ -462,14 +463,18 @@ DIRS = \
 #	@echo $(PEBLMAIN_OBJ)
 
 
-main-real:  $(DIRS) $(PEBLMAIN_OBJ) $(PEBLBASE_OBJ) $(PEBLMAIN_INC)
-	$(CXX) $(CXXFLAGS) -Wall -Wl,-rpath -Wl,LIBDIR $(DEBUGFLAGS) \
+resource.o: resource.rc installer/pebl2.ico
+	$(WINDRES) resource.rc -O coff -o resource.o
+
+main-real:  $(DIRS) $(PEBLMAIN_OBJ) $(PEBLBASE_OBJ) $(PEBLMAIN_INC) resource.o
+	$(CXX) $(CXXFLAGS) -Wall -mwindows -Wl,-rpath -Wl,LIBDIR $(DEBUGFLAGS) \
 	-Wno-write-strings \
 	-DPEBL_ARCH \
 	$(SDL_FLAGS) -g	\
 	-o $(BIN_DIR)/$(PEBLNAME) \
 	$(patsubst %.o, $(OBJ_DIR)/%.o, $(PEBLBASE_OBJ)) \
 	$(patsubst %.o, $(OBJ_DIR)/%.o, $(PEBLMAIN_OBJ)) \
+	resource.o \
 	-L/c/msys64/mingw64/lib \
 	-lmingw32 -lSDL2main -lSDL2 -lpthread -lSDL2_image -lSDL2_net -lSDL2_ttf -lSDL2_gfx  \
 	-lpng  $(LINKOPTS)
@@ -651,6 +656,7 @@ dep:
 clean:
 	@echo "Cleaning build artifacts..."
 	rm -rf obj-native obj-em obj
+	rm -f resource.o
 	@echo "✓ Build artifacts cleaned"
 
 

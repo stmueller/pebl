@@ -30,7 +30,17 @@ define Start(p)
 
 	##Print("startout workking directory" + gWorkingDirectory)
     gdebug <- 0
-    gUseReloc <- 0
+	
+	 ## Auto-detect portable vs installed mode
+  ## If we have a PEBL subdirectory in working directory, we're portable
+  if(FileExists(GetWorkingDirectory() + "\PEBL"))
+  {
+    gUseReloc <- 1  ## Portable mode
+  } else {
+    gUseReloc <- 0  ## Installed mode
+  }
+ ##hard-code here if you want to force relocatable portable branch.
+#    gUseReloc <- 0
       ## NOT from an installation in Program Files, but from
       ##A PEBL subdirectory of the current working directory.
     pvs <- GetPEBLVersion()
@@ -208,6 +218,9 @@ define FileSelect(p,resources)
     # Print(GetDirectoryListing(".\"))
 	# Print("fileexists:" + FileExists(gPEBLAppDirectory+ "\" + gExecutableName))
 
+	## Only check for Program Files installation if NOT in portable mode
+	if (gUseReloc == 0)
+	{
 	if (not FileExists(gPEBLAppDirectory+ "\" + gExecutableName))
 	 	     {
  #               Print("Not here")
@@ -231,6 +244,7 @@ define FileSelect(p,resources)
 				}
 			}
 
+	}
      gViewerCommand <- "c:\windows\notepad.exe"  ##used as a backup
 ##     gPEBLName     <- gQuote+gPEBLAppDirectory+ "\" + gExecutableName  +gQuote+ " "
      gPEBLName <- gQuote + gExecutableName + gQuote
@@ -340,8 +354,9 @@ define FileSelect(p,resources)
               ["Change launcher size","Set password","Configure upload","Enable/Disable screenshots"],
               ["ChangeLauncherSize","SetPassword","ConfigureUpload","EnableDisableScreenshots"])
 
-    menu3 <- MakeMenu("Help",180,0,win,14,120,["About","Manual","Website","Tutorial","Review PEBL","Donate","Cite"],
-          ["AboutMessage","OpenManual","GoToWeb","Tutorial","Review","Donate","CitePEBL"])
+    menu3 <- MakeMenu("Help",180,0,win,14,120,
+	            ["About","Manual","Function reference","Test library","Website","Tutorial","Review PEBL","Github","Donate","Cite"],
+                ["AboutMessage","OpenManual","FuncRef","TestLibrary","GoToWeb","Tutorial","Review","GitHub","Donate","CitePEBL"])
 
 
 
@@ -391,16 +406,15 @@ define FileSelect(p,resources)
 
 
    edit  <- MakeButton(gOpenText,gPortal.x+gPortal.width/2,  gPortal.y+portalheight+14,win,gportal.width-4)
-   wiki  <- MakeButton(gWikiText,gPortal.x+gPortal.width/2,  gPortal.y+portalheight+35,win,gportal.width-4)
-   combinedata <- MakeButton(gCombineDataText,gPortal.x+gPortal.width/2,gPortal.y+portalheight+56,win,gportal.width-4)
-   viewoutput <- MakeButton(gViewDebugText,gPortal.x+gPortal.width/2, gportal.y+portalheight+77,win,gportal.width-4)
-   viewerror  <- MakeButton(gViewErrorText,gPortal.x+gPortal.width/2, gPortal.y+portalheight+98,win,gportal.width-4)
+   combinedata <- MakeButton(gCombineDataText,gPortal.x+gPortal.width/2,gPortal.y+portalheight+35,win,gportal.width-4)
+   viewoutput <- MakeButton(gViewDebugText,gPortal.x+gPortal.width/2, gportal.y+portalheight+56,win,gportal.width-4)
+   viewerror  <- MakeButton(gViewErrorText,gPortal.x+gPortal.width/2, gPortal.y+portalheight+77,win,gportal.width-4)
 
-   makelauncher <- MakeButton(gMakeLauncherText,gPortal.x+gPortal.width/2,gPortal.y+portalheight+119,win,gPortal.width-4)
+   makelauncher <- MakeButton(gMakeLauncherText,gPortal.x+gPortal.width/2,gPortal.y+portalheight+98,win,gPortal.width-4)
 
 
    translatetest <- MakeButton(gTranslateTestText,gPortal.x+gPortal.width/2,
-                                gPortal.y+portalheight+140,win,gPortal.width-4)
+                                gPortal.y+portalheight+119,win,gPortal.width-4)
 
    ##################################################
    ##################################################
@@ -667,7 +681,7 @@ define FileSelect(p,resources)
 	   run,subjectbox,fullscreenbox,uploadbox,langbox,
 	   addtochain,clearchain,launchchain,viewoutput,viewerror,
 	   edit,gMenuStdErr,gMenuStdOut,gMenuReload,
-	   gDescription,savechain,loadchain,wiki,
+	   gDescription,savechain,loadchain,
            subplusbutton,clobox,uploadfilebox,filter,namechain,    #donate,review,
            screenselection, randomizeChainBox,params,  combinedata,psetbox,
           deletechain,menu1,menu2,menu3,makelauncher,
@@ -676,8 +690,8 @@ define FileSelect(p,resources)
       returns <- [1,2,3,4,0,
 		   6,7,8,9,10,
 		   11,12,13,14,15,
-		   16,0,0,0,21,  ##removed 22 get demographics
-		   23,24,25,
+		   16,0,0,0,
+		   21,23,24, ##removed 22 get demographics and 25 wiki
 		   26,27,42,28,39,     #29,30,
 		   31,32,33,34,35,
 		   36,0,0,0,37,
@@ -1285,10 +1299,10 @@ define FileSelect(p,resources)
          Draw(chainbox)
 
 
-      }elseif(tmp==25)  ##Visit wiki
-      {
-        PushButton(wiki,[0,0])
-
+    #  }elseif(tmp==25)  ##Visit test library.
+    #  {
+    #    PushButton(testlibrary,[0,0])
+    #    Launchfile("https://peblhub.online/public/tests/browse.php")
 
       } elseif(tmp==26)
       {
@@ -1299,7 +1313,7 @@ define FileSelect(p,resources)
                   subjectbox.text <- gSubCode
                }
 
-	    PushButton(subplusbutton,[0,0])
+	      PushButton(subplusbutton,[0,0])
 
       } elseif(tmp==27)
       {
@@ -1687,17 +1701,46 @@ define EditTranslation(dirChain,filename,language,logfile)
    if(gUseReloc)
      {
 
-        sep <- CR(1)
-        gPEBLName <- "\bin\pebl2.exe"  ##The relative location should be bin\pebl2.exe
-  	    callstring <- "set ABSPATH=%CD%"+sep+"cd " + DirListToText(dirchain) + sep + gQuote+"%ABSPATH%\PEBL" +gPEBLName +gQuote + " " +  gQuote + "translatetest.pbl"+gQuote+ "  -v " + filename
+
+         ## Build relative path based on directory depth
+          ## Special case: if in root directory, no need to go up
+           dirtext <- DirListToText(dirchain)
+           if(dirtext == "." or dirtext == ".\" or Length(dirchain) == 0)
+           {
+             ## Already in root directory, use direct path
+             callstring <- "cd " + dirtext + sep + "PEBL\bin\pebl2.exe translatetest.pbl -v " +
+  filename
+           } else {
+             ## In subdirectory, need to go up
+             depth <- Length(dirchain)
+             uppath <- ""
+             loop(i, Sequence(1, depth, 1))
+             {
+               if(i > 1)
+               {
+                 uppath <- uppath + "\"
+               }
+               uppath <- uppath + ".."
+             }
+             callstring <- "cd " + dirtext + sep + uppath + "\PEBL\bin\pebl2.exe
+  translatetest.pbl -v " + filename
+           }
+
+
+
 
      }else {
 
   	      callstring <- "cd " + DirListToText(dirChain) + sep  + gPEBLName + " translatetest.pbl -v " + filename
 
             }
+       lang <- StripSpace(glanguage)
+       if(lang != "")
+       {
+         callstring <- callstring + " --language " + lang
+       }
 
-     callstring <- callstring + " --language " + glanguage
+
 
      if(type =="LINUX" or type == "OSX" or type == "WINDOWS")
         {
@@ -1717,14 +1760,6 @@ define EditTranslation(dirChain,filename,language,logfile)
         }
 
 	##Launch asynchronously and monitor completion
-  if(gUseReloc)
-      {
-         runfile <- FileOpenOverWrite("tmp.bat")
-         FilePrint(runfile,callstring)
-         FileClose(runfile)
-         SystemCall("tmp.bat","")
-      } else {
-         ##Launch process asynchronously and get PID
          Print("Launching translation editor: " + callstring)
          pid <- SystemCallUpdate(callstring,"")
          Print("Launched PID: " + pid)
@@ -1736,7 +1771,6 @@ define EditTranslation(dirChain,filename,language,logfile)
          ##Clear event registrations before returning to normal launcher event loop
          ClearEventLoop()
       }
-}
 
 
 
@@ -1768,8 +1802,11 @@ define CombineDataDialog(dirChain,filename,logfile)
   	      callstring <- "cd " + DirListToText(dirChain) + sep  + gPEBLName + " "  +gQuote+ "combinedatafiles.pbl"+gQuote
 
       }
-
-     callstring <- callstring + " --language " + glanguage
+       lang <- StripSpace(glanguage)
+       if(lang != "")
+       {
+         callstring <- callstring + " --language " + lang
+       }
 
      if(type =="LINUX" or type == "OSX" or type == "WINDOWS")
         {
@@ -1948,14 +1985,31 @@ define RunScript(dirChain,filename,fullscreen,language,logfile,subcode,experimen
    if(gUseReloc)
      {
 
-        sep <- CR(1)
-        gPEBLName <- "\bin\pebl2.exe"  ##The relative location should be bin\pebl2.exe
-		callstring <- "echo on "+sep+"set ABSPATH=%CD%"+sep+
-		              "set PEBL="+gQuote+"%ABSPATH%\PEBL\bin\pebl2.exe"+ gQuote+sep +
-					   "cd "+gQuote+"%ABSPATH%\" + DirListToText(dirchain) + gQuote+sep +
-					   "START /B /wait  "+gQuote + "PEBLTITLE" + gQuote+" %PEBL% " +filename + " -s " + subcode
+         ## Special case: if in root directory, no need to go up
+          dirtext <- DirListToText(dirchain)
+          if(dirtext == "." or dirtext == ".\" or Length(dirchain) == 0)
+          {
+            ## Already in root directory, use direct path
+            callstring <- "cd " + gQuote+dirtext+gQuote + sep + "PEBL\bin\pebl2.exe " +
+  gQuote+filename+gQuote + " -s " + subcode
+          } else {
+            ## In subdirectory, need to go up
+            depth <- Length(dirchain)
+            uppath <- ""
+            loop(i, Sequence(1, depth, 1))
+            {
+              if(i > 1)
+              {
+                uppath <- uppath + "\"
+              }
+              uppath <- uppath + ".."
+            }
+            callstring <- "cd " + gQuote+dirtext+gQuote + sep + uppath +
+                          "\PEBL\bin\pebl2.exe " + gQuote+filename+gQuote + " -s " + subcode
+          }
 
-					   #"START /B "+gQuote + "PEBLTITLE" + gQuote+" %PEBL% " +filename + " -s " + subcode
+
+
 
      }else {
 
@@ -2004,7 +2058,12 @@ define RunScript(dirChain,filename,fullscreen,language,logfile,subcode,experimen
              callstring <- callstring + " --upload " +gQuote+ gUploadFile+gQuote
            }
 
-	    callstring <- callstring + " --language " + language  + " " + gCommandLineAdd
+          lang <- StripSpace(language)
+           if(lang != "")
+            {
+              callstring <- callstring + " --language " + lang
+            }
+            callstring <- callstring + " " + gCommandLineAdd
 
 
           if(type =="LINUX" or type == "OSX" or type == "WINDOWS")
@@ -2024,21 +2083,6 @@ define RunScript(dirChain,filename,fullscreen,language,logfile,subcode,experimen
 
          #### Run the experiment!!!!
          Print("Executing : [" + callstring + "]")
-
-  if(gUseReloc)
-      {
-
-          runfile <- FileOpenOverWrite("tmp.bat")
-     ##     FilePrint(runfile,callstring+sep+"pause") ##Use for debugging purposes.
-          FilePrint(runfile,callstring)
-          FileClose(runfile)
-          SystemCall("tmp.bat","")
-          ##For gUseReloc (Windows batch file), we still use blocking SystemCall
-          ##Log FINISHED immediately after it completes
-          FilePrint(logfile,TimeStamp() + "," + DirListToText(gDirChain)+filename+","+GetPEBLVersion() +
-		 "," + experimenter + "," + subcode + "," +"fullscreen:["+fullscreen+"],"+ language + "," + callstring+ ","+"FINISHED")
-      } else {
-	      #MessageBox(callstring,gWin)
           ##Launch process asynchronously and get PID
           pid <- SystemCallUpdate(callstring,"")
           Print("Launched PID: " + pid)
@@ -2053,7 +2097,6 @@ define RunScript(dirChain,filename,fullscreen,language,logfile,subcode,experimen
           StartEventLoop()
           ##Clear event registrations before returning to normal launcher event loop
           ClearEventLoop()
-      }
 
            Draw()
 		 }
@@ -2268,8 +2311,22 @@ define ReadConfigFile(configname)
 	   gDefaultHostName <- GetConfig("ipaddress",keys,config,"localhost")
 	   gCommandLineText <- GetConfig("commandline",keys,config,"")
 	   gexperimenter <-GetConfig("experimenter",keys,config,"default")
-	   glanguage <-GetConfig("language",keys,config,"en")
-	   gVSyncState <- ToNumber(GetConfig("vsync",keys,config,0))
+	   
+
+           glanguage <-GetConfig("language",keys,config,"")
+           ## If no language in config, detect from system locale
+           if(glanguage == "")
+           {
+             locale <- GetSystemLocale()
+             if(locale != "")
+             {
+               ## Extract 2-letter language code (e.g., "en" from "en_US")
+               glanguage <- SubString(locale, 1, 2)
+             }
+           }
+           gVSyncState <- ToNumber(GetConfig("vsync",keys,config,0))
+
+	  
            gDriver     <- GetConfig("driver",keys,config,"")
 	   gRandomizeChain <- ToNumber(GetConfig("randomizechain",keys,config,0))
 
@@ -2307,7 +2364,16 @@ define ReadConfigFile(configname)
         gDriver <- ""
         gsubcode <- "1"
         gexperimenter <- "default"
-        glanguage <- "en"
+        glanguage <- ""
+       ## Detect from system locale if empty
+        if(glanguage == "")
+          {
+            locale <- GetSystemLocale()
+            if(locale != "")
+            {
+              glanguage <- SubString(locale, 1, 2)
+            }
+          }
 
         gexpchain <- []         ##sequence of experiments to run
        # gnimhdemographics <- 0  ##no longer used in 2.2 or later
@@ -2388,7 +2454,7 @@ define GetStrings(lang)
 	gAboutLabelText <- "About"
 	gSizeText <- "Size: "
 	gwebtext <- "Visit Website"
-	gWikiText <- "Wiki"
+	gWikiText <- "Test Library"
 	gLaunchChainText <- "Launch Chain"
     gNoDesc <- "Please cite PEBL if you use it:"+CR(1)+"Mueller, S. T., & Piper, B. J. (2014). The Psychology Experiment Building Language (PEBL) and PEBL Test Battery. Journal of neuroscience methods, 222, 250–259."
     gPEBLTitle <- "PEBL Launcher for "
@@ -2438,7 +2504,7 @@ This launcher is written in PEBL itself, allowing a fairly uniform launcher on a
     gAboutLabelText <- "Acerca de"
     gSizeText <-"Size: "
     gwebtext <- "Página Web"
-    gWikiText <- "Wiki"
+    gWikiText <- "Test library"
     gLaunchChainText <- "Lanzamiento de la cadena"
     gNoDesc <- "La descripción no encontrado"
     gPEBLTitle <- "PEBL Launcher para "
@@ -2697,7 +2763,8 @@ if(1)
 
        }elseif(GetSystemType()=="WINDOWS"){
 
-
+      resources <- gPEBLResourcePath
+      Print("DEBUG: resources = " + resources)
       inst.text <- "<"; Draw()
       dest <- ghome
       if(FileExists(ghome+"\Documents"))
@@ -2713,6 +2780,7 @@ if(1)
 
             dest <- ghome+ doc + "\pebl-exp."+gPEBLVersion
  	    #SystemCall("md " + dest +" >> "gHome+"\pebl_install_log.txt","")
+         Print("DEBUG: dest = " + dest)
          inst.text <- "Creating directories."; Draw()
 
         MakeDirectory(dest)
@@ -2725,17 +2793,18 @@ if(1)
          inst.text <- "Copying battery.  This may take a while to complete. Do not close window.  "; Draw()
 
 	 ##copy test battery:
-        #  Print("xcopy "+gQuote+resources+"\battery\*"+gQuote+" "+gQuote+dest+"\battery"+gQuote+" /e")
-   	  SystemCall("xcopy "+gQuote+resources+"\battery\*"+gQuote+" "+gQuote+dest+"\battery"+gQuote+" /e","")
+        Print("BATTERY XCOPY: xcopy "+gQuote+resources+"\battery\*"+gQuote+" "+gQuote+dest+"\battery"+gQuote+" /e /i /y /h")
+   	  SystemCall("xcopy "+gQuote+resources+"\battery\*"+gQuote+" "+gQuote+dest+"\battery"+gQuote+" /e /i /y /h","")
         ##Copy demo:
 		 inst.text <- "Copying demos."; Draw()
 
-       # Print("xcopy "+gQuote+resources+"\demo\*"+gQuote+" "+gQuote+dest+"\demo"+gQuote+" /e")
-        SystemCall("xcopy "+gQuote+resources+"\demo\*"+gQuote+" "+gQuote+dest+"\demo"+gQuote+" /e","")
+        Print("DEMO XCOPY: xcopy "+gQuote+resources+"\demo\*"+gQuote+" "+gQuote+dest+"\demo"+gQuote+" /e /i /y /h")
+        SystemCall("xcopy "+gQuote+resources+"\demo\*"+gQuote+" "+gQuote+dest+"\demo"+gQuote+" /e /i /y /h","")
 
 		inst.text <- "Copying tutorials."; Draw();Draw()
 
-        SystemCall("xcopy "+gQuote+resources+"\tutorials\*"+gQuote+" "+gQuote+dest+"\tutorials"+gQuote+" /e","")
+        Print("TUTORIALS XCOPY: xcopy "+gQuote+resources+"\tutorials\*"+gQuote+" "+gQuote+dest+"\tutorials"+gQuote+" /e /i /y /h")
+        SystemCall("xcopy "+gQuote+resources+"\tutorials\*"+gQuote+" "+gQuote+dest+"\tutorials"+gQuote+" /e /i /y /h","")
 
         ##Copy doc:
         #Print("copy "+gQuote+resources+"\doc\PEBLManual"+gPEBLVersion+".pdf"+gQuote+" "+gQuote+dest+gQuote)
@@ -3453,9 +3522,9 @@ define UpdateScreenResPulldown(pd)
 define OpenManual(obj,click,extra:0)
 {
 
-         Print("working directory:  " + GetWorkingDirectory())
+     Print("working directory:  " + GetWorkingDirectory())
 	 Print("gPEBLDIr:           " + gPEBLDir)
-         Print("gExecutableName:    " + gExecutableName)
+     Print("gExecutableName:    " + gExecutableName)
 	 Print("gHome:              " + gHome)
 	 Print("gPEBLBasePath:      " + gpeblBasePath)
 	 Print("gPEBLResourcePath:  " + gPEBLResourcePath)
@@ -3551,10 +3620,14 @@ define GoToWeb(obj,click,extra:0)
 	 Launchfile("http://pebl.sourceforge.net")
 }
 
+define TestLibrary(obj,click,extra:0)
+{
+ 	 Launchfile("https://peblhub.online/public/tests/browse.php")
+}
+
 define SetPassword(obj,click,extra:0)
 {
          PopUpScreen(obj.win)
-
 }
 
 
@@ -3564,6 +3637,15 @@ define Review(obj,click,extra:0)
     PopUpMessageBox("A web browser should open to the PEBL Review page at http://sourceforge.net/projects/pebl/reviews/",obj.win)
    Launchfile("http://sourceforge.net/projects/pebl/reviews/")
 
+}
+
+define FuncRef(obj,click,extra:0)
+{
+  LaunchFile("https://pebl.sourceforge.net/function-reference/index.html")
+}
+define Github(obj,click,extra:0)
+{
+    Launchfile("https://github.com/stmueller/pebl")
 }
 
 define Donate(obj,click,extra:0)
@@ -3897,7 +3979,7 @@ The native version of PEBL is open source and free.  If you want to automaticall
     {
       PushButton(obj,click)
       Launchfile("https://peblhub.online")
-      PopUpMessageBox("A web browser should open taking you to https://peblhub.online",win)
+      #PopUpMessageBox("A web browser should open taking you to https://peblhub.online",win)
     }
 
 

@@ -1089,7 +1089,8 @@ void PlatformTextBox::DrawCursor()
     //The current position should be OK, UNLESS the character at mCursorPos is a CR.
     //Then, we actually want to render CR on the next line.
 
-    if(mText[mCursorPos-1]== 10)
+    // Check bounds before accessing mText[mCursorPos-1]
+    if(mCursorPos > 0 && mCursorPos <= (int)mText.size() && mText[mCursorPos-1]== 10)
         {
             y+=height;
             x=1;

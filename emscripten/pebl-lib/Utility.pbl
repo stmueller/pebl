@@ -1747,6 +1747,65 @@ define ReadTranslationJSON(filename,lang)
   return obj
 }
 
+## GetTranslations - Multi-tier language selection with system locale fallback
+## Loads translation JSON files for a test with intelligent fallback:
+##   Tier 1: Use explicit language code if provided
+##   Tier 2: Try system locale if no explicit language
+##   Tier 3: Fall back to English as default
+##
+## Arguments:
+##   testname - Name of the test (used to find translations/testname.pbl-lang.json)
+##   lang - Two-character language code (empty string to auto-detect from system)
+##
+## Returns:
+##   Custom object with translation strings as properties
+##
+define GetTranslations(testname, lang)
+{
+  ## Tier 1: Try explicit language if provided
+  if(lang != "")
+  {
+    langUpper <- Uppercase(lang)
+    fname <- "translations/" + testname + ".pbl-" + LowerCase(langUpper) + ".json"
+
+    if(FileExists(fname))
+    {
+        ret <-  ReadTranslationJSON(fname, langUpper)
+    } else {
+        ret <- ""
+        lang <- ""  ##language 2-character code files not available
+    }
+  }
+
+  ## Tier 2: Try system locale if lang was empty
+  if(lang == "")
+  {
+    systemLocale <- GetSystemLocale()
+
+    if(systemLocale != "")
+    {
+      lang <- Uppercase(SubString(systemLocale, 1, 2))
+      fname <- "translations/" + testname + ".pbl-" + LowerCase(lang) + ".json"
+
+      if(FileExists(fname))
+      {
+        ret <- ReadTranslationJSON(fname, lang)
+      } else {
+        ret <- ""
+      }
+    }
+  }
+
+  if(ret == "")
+  {
+    ## Tier 3: Fall back to English
+    fname <- "translations/" + testname + ".pbl-en.json"
+    ret <-  ReadTranslationJSON(fname, "EN")
+  }
+
+  return(ret)
+}
+
 ##this works at replacing carriage returns (\n) etc. from text
 define FormatText(text)
 {

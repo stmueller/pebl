@@ -15,7 +15,7 @@ define Start(par)
 	gVerde <- MakeColor("green")
     bg <- MakeColor("grey")
   
-   #gfont <- MakeFont("Vera.ttf",0,26,gBlanco , bg,0)
+   #gfont <- MakeFont(gPEBLBaseFont,0,26,gBlanco , bg,0)
    gfont <- MakeFont("Arial.ttf",0,26,gBlanco , bg,0)
    #define gLabel and gWin global so that Trial can use them.
    gLabel <- MakeLabel("Pulsa la tecla izquierda o la derecha, según el caso", gfont)
@@ -131,7 +131,7 @@ Por consiguiente, tras pulsar la tecla correcta, deberá pulsar la barra espacia
    
    datos <- FileReadTable("tablastroop.txt",";")
  
-   font <- MakeFont("Vera.ttf",0,26, gBlanco, bg,0)
+   font <- MakeFont(gPEBLBaseFont,0,26, gBlanco, bg,0)
    indicador <- MakeLabel(" F A S E   D E  P R Á C T I C A", font)
    AddObject(indicador, gWin)
    Move(indicador,400, 50)
@@ -166,7 +166,7 @@ Por consiguiente, tras pulsar la tecla correcta, deberá pulsar la barra espacia
  
 	datos <- FileReadTable("tablastroop.txt",";")
  
-   font <- MakeFont("Vera.ttf",0,26, gBlanco, bg,0)
+   font <- MakeFont(gPEBLBaseFont,0,26, gBlanco, bg,0)
    indicador <- MakeLabel(" F A S E   E X P E R I M E N T A L", font)
    AddObject(indicador, gWin)
    Move(indicador,400, 50)
@@ -277,7 +277,7 @@ define Trial (stimulus)
   
   if (response <> teclacorrecta)
   {
-	font <- MakeFont("Vera.ttf",1,26,gBlanco , bg,0)
+	font <- MakeFont(gPEBLBaseFont,1,26,gBlanco , bg,0)
 	gLabel <- MakeLabel("I N C O R R E C T O", font)
     AddObject(gLabel, gWin)
     Move(gLabel,400,375)
@@ -334,10 +334,10 @@ define Trial (stimulus)
    datos <- FileReadTable("tablastroop.txt",";")
    datos <- Shuffle(datos)
    	
-	#gfont <- MakeFont("Vera.ttf",0,26,gRojo, bg,0)
+	#gfont <- MakeFont(gPEBLBaseFont,0,26,gRojo, bg,0)
 	
     trial <- 1
-	font <- MakeFont("Vera.ttf",0,26, gBlanco, bg,0)
+	font <- MakeFont(gPEBLBaseFont,0,26, gBlanco, bg,0)
     while(trial<=10)
     {
 		s <- Nth(datos, trial)

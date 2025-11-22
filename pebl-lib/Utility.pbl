@@ -1747,6 +1747,81 @@ define ReadTranslationJSON(filename,lang)
   return obj
 }
 
+## GetTranslations() - Core translation file loading with system locale fallback
+##
+## This function provides three-tier language selection for battery tests:
+## 1. If lang is non-empty and translation file exists, use it
+## 2. If lang is empty, try system locale
+## 3. Fall back to English
+##
+## This should be called from test-specific GetStrings() functions, which can then
+## perform additional test-specific processing (pattern substitution, global variable
+## assignment, etc.)
+##
+## Arguments:
+##   testname: Base name of test (e.g., "gonogo", "flanker", "TLX")
+##   lang: Two-letter language code (typically from gLanguage, can be empty string)
+##
+## Returns:
+##   PropertyList object containing translated strings from JSON file
+##
+## Example usage in battery test GetStrings() function:
+##   define GetStrings(lang)
+##   {
+##     gStrings <- GetTranslations("gonogo", lang)
+##     ## Now do test-specific processing...
+##     gInst1 <- SubstituteStrings(gStrings.inst1, [[<VAR>, value]])
+##   }
+##
+define GetTranslations(testname, lang)
+{
+  ## Tier 1: Try explicit language if provided
+  if(lang != "")
+  {
+    langUpper <- Uppercase(lang)
+    fname <- "translations/" + testname + ".pbl-" + LowerCase(langUpper) + ".json"
+
+    if(FileExists(fname))
+    {
+        ret <-  ReadTranslationJSON(fname, langUpper)
+    } else {
+        ret <- ""
+        lang <- ""  ##language 2-character code files not available, so treat it as if it was not set and we will use fallback.
+    }
+
+  }
+
+  ## Tier 2: Try system locale if lang was empty
+  if(lang == "")
+  {
+    systemLocale <- GetSystemLocale()
+
+    if(systemLocale != "")
+    {
+      ## Extract language code from locale (e.g., "en_US" -> "EN", "zh_CN" -> "ZH")
+      lang <- Uppercase(SubString(systemLocale, 1, 2))
+      fname <- "translations/" + testname + ".pbl-" + LowerCase(lang) + ".json"
+
+      if(FileExists(fname))
+      {
+        ret <- ReadTranslationJSON(fname, lang)
+      } else {
+        ret <- ""
+      }
+    }
+  }
+
+  if(ret == "")
+  {
+    ## Tier 3: Fall back to English
+    fname <- "translations/" + testname + ".pbl-en.json"
+    ret <-  ReadTranslationJSON(fname, "EN")
+  }
+
+   return ret
+}
+
+
 ##this works at replacing carriage returns (\n) etc. from text
 define FormatText(text)
 {

@@ -64,17 +64,7 @@ WINDRES = /c/msys64/mingw64/bin/windres
 main:
 	$(MAKE) -f Makefile-win.mak OBJ_DIR=obj-native CC=$(CL) CXX=$(CLXX) main-real
 
-em-opt:
-	$(MAKE) -f Makefile-win.mak OBJ_DIR=obj-em CC=$(EMCC) CXX=$(EMCXX) em-opt-real
-
-em-test:
-	$(MAKE) -f Makefile-win.mak OBJ_DIR=obj-em CC=$(EMCC) CXX=$(EMCXX) em-test-real
-
 # Real build targets
-em-opt-real: CC=$(EMCC)
-em-opt-real: CXX=$(EMCXX)
-em-test-real: CC=$(EMCC)
-em-test-real: CXX=$(EMCXX)
 main-real: CC=$(CL)
 main-real: CXX=$(CLXX)
 
@@ -141,12 +131,6 @@ CXXFLAGSX = $(CXXFLAGS0) $(CXXFLAGS1) $(CXXFLAGS2) $(CXXFLAGS2B) $(CXXFLAGS3) $(
 LINKOPTS = $(LINKOPTS1) $(LINKOPTS2) $(LINKOPTS2B) $(LINKOPTS3) $(LINKOPTS4) $(LINKOPTS5) $(LINKOPTS7)
 
 
-em: CXXFLAGS = $(CXXFLAGSX) $(CXXFLAGS_EMSCRIPTEN) -DPEBL_ITERATIVE_EVAL
-em: SDL_FLAGS = $(EM_SDL_FLAGS)
-em-opt-real: CXXFLAGS = $(CXXFLAGSX) $(CXXFLAGS_EMSCRIPTEN) -DPEBL_ITERATIVE_EVAL
-em-opt-real: SDL_FLAGS = $(EM_SDL_FLAGS)
-em-test-real: CXXFLAGS = $(CXXFLAGSX) $(CXXFLAGS_EMSCRIPTEN) -DPEBL_ITERATIVE_EVAL
-em-test-real: SDL_FLAGS = $(EM_SDL_FLAGS)
 main-real: CXXFLAGS = $(CXXFLAGSX) $(CXXFLAGS_WIN32)
 cl: CXXFLAGS = $(CXXFLAGSX) $(CXXFLAGS_WIN32)
 
@@ -155,27 +139,8 @@ cl: CXXFLAGS = $(CXXFLAGSX) $(CXXFLAGS_WIN32)
 BASE_SDL_CONFIG = /usr/bin/sdl-config
 BASE_SDL_FLAGS = -I/c/msys64/mingw64/include/SDL2 -I/c/msys64/mingw64/include -D_REENTRANT
 
-EM_SDL_CONFIG = libs/emsdk/upstream/emscripten/system/bin/sdl-config
-EM_SDL_FLAGS = -Ilibs/SDL2_gfx-1.0.4 -D_REENTRANT
-
 SDL_FLAGS = $(BASE_SDL_FLAGS)
 
-##-L/usr/lib -L/usr/local/lib
-#TET_FLAGS =  -Ilibs/tet-cpp-client-master/include -Llibs/tet-cpp-client-master 
-#ifeq($(USE_WAAVE),1)
-#SDL_FLAGS = $(SDLFLAGS) -L/home/smueller/Projects/src/waave-1.0/src 
-#endif
-
-#SDL_LIBS = -L/usr/lib -L/usr/local/lib -Wl,-rpath,/usr/local/lib -lSDL -lpthread -lSDLmain
-
-
-#Comment/uncomment below on OSX
-#OSX_FLAGS = -framework AppKit -lSDLmain -DPEBL_OSX
-OSX_FLAGS =
-
-#SDLIMG_FLAGS =  -L/usr/lib -L/usr/local/lib -Wl,-rpath,/usr/lib
-#SDLIMG_FLAGS =  -L/usr/lib -Wl,-rpath,/usr/lib
-#SDLIMG_LIBS =   -lSDL -lSDLmain -lpthread -lSDL_image -lSDL_net 
 
 SHELL = /bin/bash
 BISON = /usr/bin/bison
@@ -231,22 +196,6 @@ PUTILITIES_INC1  = $(patsubst %.cpp, %.h, $(PUTILITIES_SRC))
 PUTILITIES_INC  = $(patsubst %.c, %.h, $(PUTILITIES_INC1))   ##Get the plain .c file
 
 
-EMUTILITIES_SRC = $(UTIL_DIR)/PEBLUtility.cpp \
-		$(UTIL_DIR)/PError.cpp \
-		$(UTIL_DIR)/BinReloc.cpp \
-		$(UTIL_DIR)/PEBLPath.cpp \
-		$(UTIL_DIR)/PEBLHTTP.cpp \
-		$(UTIL_DIR)/md5.cpp 
-##		$(UTIL_DIR)/happyhttp.cpp \
-
-EMUTILITIES_OBJ1  = $(patsubst %.cpp, %.o, $(EMUTILITIES_SRC))
-EMUTILITIES_OBJ  = $(patsubst %.c, %.o, $(EMUTILITIES_OBJ1))   ##Get the .c file
-EMUTILITIES_INC1  = $(patsubst %.cpp, %.h, $(EMUTILITIES_SRC))
-EMUTILITIES_INC  = $(patsubst %.c, %.h, $(EMUTILITIES_INC1))   ##Get the plain .c file
-
-
-
-
 
 MAN_DIR  =   doc/pman
 PEBL_DOCSRC = 		$(MAN_DIR)/main.tex \
@@ -272,21 +221,6 @@ PEBLBASE_SRCXX =	$(BASE_DIR)/Evaluator.cpp \
 
 PEBLBASE_OBJXX = $(patsubst %.cpp, %.o, $(PEBLBASE_SRCXX))
 
-
-
-EMBASE_SRCXX =	$(BASE_DIR)/Evaluator-es.cpp \
-			$(BASE_DIR)/FunctionMap.cpp \
-			$(BASE_DIR)/grammar.tab.cpp \
-			$(BASE_DIR)/PEBLObject.cpp \
-			$(BASE_DIR)/Loader.cpp \
-			$(BASE_DIR)/PComplexData.cpp \
-			$(BASE_DIR)/PList.cpp \
-			$(BASE_DIR)/PNode.cpp \
-			$(BASE_DIR)/VariableMap.cpp \
-			$(BASE_DIR)/Variant.cpp \
-			$(DEVICES_DIR)/PEventLoop-es.cpp 
-
-EMBASE_OBJXX = $(patsubst %.cpp, %.o, $(EMBASE_SRCXX))
 
 
 ##This just collects plain .c files,
@@ -343,21 +277,6 @@ PDEVICES_OBJ  = $(patsubst %.cpp, %.o, $(PDEVICES_SRC))
 PDEVICES_INC  = $(patsubst %.cpp, %.h, $(PDEVICES_SRC))
 
 
-##EMSCRIPTEN-specific devices
-EMDEVICES_SRC =   $(DEVICES_DIR)/PDevice.cpp \
-	$(DEVICES_DIR)/PEventQueue.cpp \
-	$(DEVICES_DIR)/PEvent.cpp\
-	$(DEVICES_DIR)/PKeyboard.cpp \
-	$(DEVICES_DIR)/PTimer.cpp \
-	$(DEVICES_DIR)/DeviceState.cpp \
-	$(DEVICES_DIR)/PStream.cpp \
-	$(DEVICES_DIR)/PAudioOut.cpp \
-	$(DEVICES_DIR)/PNetwork.cpp \
-	$(DEVICES_DIR)/PJoystick.cpp 
-
-
-EMDEVICES_OBJ  = $(patsubst %.cpp, %.o, $(EMDEVICES_SRC))
-EMDEVICES_INC  = $(patsubst %.cpp, %.h, $(EMDEVICES_SRC))
 
 
 
@@ -398,10 +317,6 @@ FUNCTIONLIB_INC =  $(patsubst %.cpp, %.h, $(FUNCTIONLIB_SRC))
 
 
 
-VCG_MAKER_SRC = $(BASE_DIR)/VCG.cpp  $(PEBLBASE_SRCXX)  $(POBJECT_SRC) $(FUNCTIONLIB_SRC) $(PUTILITY_SRC)
-VCG_MAKER_OBJ = $(patsubst %.cpp, %.o, $(VCG_MAKER_SRC))
-VCG_MAKER_INC = $(patsubst %.cpp, %.h, $(VCG_MAKER_SRC))
-
 
 PEBLMAIN_SRC = 		$(APPS_DIR)/PEBL.cpp \
 			$(PEBLBASE_SRCXX) \
@@ -423,17 +338,6 @@ PEBLMAIN_EXTRA = $(LIBS_DIR)/Functions.h \
 
 
 
-EMMAIN_SRC =	$(APPS_DIR)/PEBL.cpp \
-			$(EMBASE_SRCXX) \
-			$(EMDEVICES_SRC) \
-			$(FUNCTIONLIB_SRC) \
-			$(POBJECT_SRC) \
-			$(EMUTILITIES_SRC) \
-			$(PLATFORM_SDL_SRC) 
-###			$(LIB_SRC)
-
-EMMAIN_OBJ = $(patsubst %.cpp, %.o, $(EMMAIN_SRC))
-EMMAIN_INC = $(patsubst %.cpp, %.h, $(EMMAIN_SRC))
 
 
 DIRS = \
@@ -479,125 +383,13 @@ main-real:  $(DIRS) $(PEBLMAIN_OBJ) $(PEBLBASE_OBJ) $(PEBLMAIN_INC) resource.o
 	-lmingw32 -lSDL2main -lSDL2 -lpthread -lSDL2_image -lSDL2_net -lSDL2_ttf -lSDL2_gfx  \
 	-lpng  $(LINKOPTS)
 
-##  -Wl,-V #verbose linking 
-## -Wl,-rpath,/usr/lib \
- #	-s MAXIMUM_MEMORY=2147483648 \
-##Make emscripten target (debug):
-##Make optimized emscripten target (production):
-em-opt-real:  $(DIRS) $(EMMAIN_OBJ) $(BASE_DIR)/lex.yy.o $(EMMAIN_INC)
-	$(CXX) $(CXXFLAGS) \
-	-Oz \
-	-s WASM=1 \
-	-s USE_SDL=2 \
-	-s USE_SDL_NET=2 \
-	-s USE_SDL_TTF=2 \
-	-s USE_SDL_IMAGE=2 \
-	-s SDL2_IMAGE_FORMATS='["png","jpeg","gif","bmp"]' \
-	-s ALLOW_MEMORY_GROWTH=1 \
-	-s INITIAL_MEMORY=67108864 \
-	-s MAXIMUM_MEMORY=4294967296 \
-	-s EXPORTED_RUNTIME_METHODS='["ccall","cwrap","FS","callMain"]' \
-	-s MODULARIZE=1 \
-	-s EXPORT_NAME="createPEBLModule" \
-	-s FETCH=1 \
-	-s FORCE_FILESYSTEM=1 \
-	-s ASSERTIONS=1 \
-	-s ASYNCIFY=1 \
-	-s ASYNCIFY_STACK_SIZE=524288 \
-	-s ASYNCIFY_IMPORTS='["emscripten_sleep"]' \
-	--pre-js emscripten/load-idbfs.js \
-	-lidbfs.js \
-	-DPEBL_EMSCRIPTEN \
-	-o $(BIN_DIR)/pebl2.html \
-	$(OBJ_DIR)/$(BASE_DIR)/lex.yy.o \
-	$(patsubst %.o, $(OBJ_DIR)/%.o, $(EMMAIN_OBJ)) \
-	libs/SDL2_gfx-1.0.4/build-em/SDL2_gfxPrimitives.o \
-	--shell-file emscripten/shell_PEBL_debug.html \
-	--preload-file upload-battery/@/usr/local/share/pebl2/battery \
-	--preload-file emscripten/pebl-lib@/usr/local/share/pebl2/pebl-lib \
-	--preload-file emscripten/media/@/usr/local/share/pebl2/media
-
-##Make test emscripten target (for development/debugging):
-em-test-real:  $(DIRS) $(EMMAIN_OBJ) $(BASE_DIR)/lex.yy.o $(EMMAIN_INC)
-	$(CXX) $(CXXFLAGS) \
-	-O0 \
-	-s WASM=1 \
-	-s USE_SDL=2 \
-	-s USE_SDL_NET=2 \
-	-s USE_SDL_TTF=2 \
-	-s USE_SDL_IMAGE=2 \
-	-s SDL2_IMAGE_FORMATS='["png","jpeg","gif","bmp"]' \
-	-s ALLOW_MEMORY_GROWTH=1 \
-	-s INITIAL_MEMORY=67108864 \
-	-s MAXIMUM_MEMORY=4294967296 \
-	-s EXPORTED_RUNTIME_METHODS='["ccall","cwrap","FS","callMain"]' \
-	-s MODULARIZE=1 \
-	-s EXPORT_NAME="createPEBLModule" \
-	-s FETCH=1 \
-	-s FORCE_FILESYSTEM=1 \
-	-s ASSERTIONS=1 \
-	-s ASYNCIFY=1 \
-	-s ASYNCIFY_STACK_SIZE=524288 \
-	-s ASYNCIFY_IMPORTS='["emscripten_sleep"]' \
-	--pre-js emscripten/load-idbfs.js \
-	-lidbfs.js \
-	-DPEBL_EMSCRIPTEN \
-	-o $(BIN_DIR)/pebl2-test.html \
-	$(OBJ_DIR)/$(BASE_DIR)/lex.yy.o \
-	$(patsubst %.o, $(OBJ_DIR)/%.o, $(EMMAIN_OBJ)) \
-	libs/SDL2_gfx-1.0.4/build-em/SDL2_gfxPrimitives.o \
-	--shell-file emscripten/shell_PEBL_test.html \
-	--preload-file test.pbl@/test.pbl \
-	--preload-file emscripten/pebl-lib@/usr/local/share/pebl2/pebl-lib \
-	--preload-file emscripten/media/@/usr/local/share/pebl2/media
-
-
-#
-#	 --embed-file demo/getnewsubnum.pbl@test.pbl \
-#	 --embed-file pebl-lib@/usr/local/share/pebl2/pebl-lib \
-#	 --embed-file media@/usr/local/share/pebl2/media 
-#        -s TOTAL_MEMORY=52428800 \
-#	 --preload-file pebl.png \
-#	 --preload-file pebl.bmp \
-#	 --preload-file DejaVuSans.ttf \
-#	-Wno-write-strings \
-#	-Wall -Wl,-rpath -Wl,LIBDIR $(DEBUGFLAGS) \
-#	$(SDL_FLAGS) \
-#	-lSDL2 -lpthread -lSDL2_image -lSDL2_net -lSDL2_ttf -lSDL2_gfx  \
-#	-lpng \
-#	$(LINKOPTS) 
-
-##This packages the emscripten data/file/js. (NON-FUNCTIONAL - commented out)
-#fp:
-#	python $(FP) bin/pebl2.data --js-output=bin/pebl2-files.js \
-#	--preload test.pbl \
-#	--preload emscripten/pebl-lib@/usr/local/share/pebl2/pebl-lib \
-#	--preload emscripten/media@/usr/local/share/pebl2/media 
 
 doc: $(PEBL_DOCSRC)
 	cd doc/pman; pdflatex main.tex
 	cp doc/pman/main.pdf doc/pman/PEBLManual$(PEBL_VERSION).pdf
 
-deb:    main doc
-	epm -f deb $(PEBLNAME)
 
 .PHONY: appimage
-appimage: main
-	@echo "========================================="
-	@echo "Building PEBL AppImage"
-	@echo "========================================="
-	./build-appimage.sh $(PEBL_VERSION)
-
-.PHONY: appimage-clean
-appimage-clean:
-	@echo "Cleaning AppImage build artifacts..."
-	rm -rf AppDir
-	rm -f *.AppImage
-	rm -f bin/*.AppImage
-	rm -f linuxdeploy-*.AppImage
-	rm -rf squashfs-root
-	rm -f bin/pebl2-appimage
-	@echo "✓ AppImage artifacts cleaned"
 
 parse:
 	bison -d $(BASE_DIR)/grammar.y -o $(BASE_DIR)/grammar.tab.cpp
@@ -640,9 +432,6 @@ $(DIRS):
 	@mkdir -p $@
 
 
-dox: $(PEBLBASE_SRCXX)
-	doxygen pebl.dox
-
 
 remake: ready clean $(PROGS)
 ready:
@@ -662,54 +451,6 @@ clean:
 
 .PHONY: install
 
-uninstall:
-	rm -Rf $(PREFIX)/bin/$(PEBLNAME)
-	rm -Rf $(PREFIX)/share/$(PEBLNAME)
-
-install:
-	@if [ -z "$(DESTDIR)" ]; then $(MAKE) uninstall; fi
-
-	install -d $(DESTDIR)$(PREFIX)/bin/
-
-	cp bin/$(PEBLNAME) $(DESTDIR)$(PREFIX)/bin/$(PEBLNAME)
-	rm -Rf $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)
-	install -d $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)
-	install -d $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/media
-	install -d $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/pebl-lib
-	install -d $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/doc
-	install -d $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/battery
-	install -d $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/demo
-	install -d $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/tutorials
-
-	cp -R tutorials/ $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/tutorials/
-	cp -R media/* $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/media/
-	cp -R demo/*  $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/demo/
-	cp -R experiments/*  $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/demo/
-	rm -rf `find $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/media -type d -name .svn`
-	cp  pebl-lib/*.pbl $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/pebl-lib/
-	cp doc/pman/PEBLManual$(PEBL_VERSION).pdf $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/doc
-	cp bin/launcher.pbl $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/pebl-lib/
-	cp pebl-lib/translatetest.pbl $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/pebl-lib/
-	chmod -R uga+r $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/
-
-	mkdir -p $(DESTDIR)$(PREFIX)/share/applications/
-	sed -e '$(SEDLINE)' bin/PEBL2.desktop > PEBL2.desktop
-	cp PEBL2.desktop $(DESTDIR)$(PREFIX)/share/applications/
-
-	cp -R battery/* $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/battery
-	cp battery/\.\.png $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/battery
-	cp battery/\.\.about.txt $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/battery
-
-
-	rm -rf `find $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/battery -type d -name .svn`
-	rm -f `find $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/battery | grep \~`
-	rm -Rf `find $(DESTDIR)$(PREFIX)/share/pebl/battery | grep 'data'`
-	rm -f $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/battery/launch.bat
-	rm -f $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/battery/PEBLLaunch-log.txt
-	rm -f $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/battery/*.config
-	rm -f $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/battery/makelinks-mac.sh
-##Now, convert all the battery files to unix format.
-	find $(DESTDIR)$(PREFIX)/share/$(PEBLNAME)/battery -name '*pbl' -exec dos2unix {} \;
 
 ifeq (.depend,$(wildcard .depend))
 include .depend

@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+
+ GtkSourceView language specification for PEBL
+ (Psychology Experiment Building Language)
+
+ Author: Shane T. Mueller, Ph.D.
+ Copyright (C) 2025 Shane T. Mueller <smueller@obereed.net>
+
+ Based on PEBL lexer (src/base/Pebl.l) and R.lang
+
+ GtkSourceView is free software; you can redistribute it and/or
+ modify it under the terms of the GNU Lesser General Public
+ License as published by the Free Software Foundation; either
+ version 2.1 of the License, or (at your option) any later version.
+
+ GtkSourceView is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ Lesser General Public License for more details.
+
+ You should have received a copy of the GNU Lesser General Public License
+ along with this library; if not, see <http://www.gnu.org/licenses/>.
+
+  The syntax highlighting includes:
+  - Case-insensitive keywords (if, elseif, else, loop, while, return, define, and, or, not, break)
+  - Function names with uppercase start (:?[A-Z][A-Za-z0-9_]*) with lookahead for (
+  - Global variables starting with g (with property access support)
+  - Local variables starting with a-f or h-z (with property access support)
+  - Numbers (floats and integers, with floats matched first)
+  - Assignment operator <-
+  - Comments and strings using standard GtkSourceView definitions
+  - All operators and delimiters
+
+  To install it, you can copy it to the GtkSourceView language specs directory:
+
+  sudo cp /tmp/pebl.lang /usr/share/gtksourceview-3.0/language-specs/
+
+  Or for user-only installation:
+
+  mkdir -p ~/.local/share/gtksourceview-3.0/language-specs/
+  cp /tmp/pebl.lang ~/.local/share/gtksourceview-3.0/language-specs/
+
+  After installation, gedit should automatically recognize .pbl and .pebl files with proper syntax highlighting.
+   You may need to restart gedit if it's currently open.
+
+
+
+
+ 
+-->
+<language id="pebl" name="PEBL" version="2.0" _section="Scientific">
+  <metadata>
+    <property name="mimetypes">text/x-pebl</property>
+    <property name="globs">*.pbl;*.pebl</property>
+    <property name="line-comment-start">#</property>
+  </metadata>
+
+  <styles>
+    <style id="keyword"             name="Keyword"               map-to="def:keyword"/>
+    <style id="assignment-operator" name="Assignment Operator"   map-to="def:operator"/>
+    <style id="delimiter"           name="Delimiter"             map-to="def:operator"/>
+    <style id="operator"            name="Operator"              map-to="def:operator"/>
+    <style id="integer-number"      name="Integer Number"        map-to="def:base-n-integer"/>
+    <style id="floating-point"      name="Floating point number" map-to="def:floating-point"/>
+    <style id="function-name"       name="Function Name"         map-to="def:function"/>
+    <style id="global-variable"     name="Global Variable"       map-to="def:constant"/>
+    <style id="local-variable"      name="Local Variable"        map-to="def:identifier"/>
+  </styles>
+
+  <definitions>
+
+    <!-- Keywords (case-insensitive in PEBL) -->
+    <context id="keywords" style-ref="keyword">
+      <match case-sensitive="false">\b(if|elseif|else|loop|while|return|define|and|or|not|break)\b</match>
+    </context>
+
+    <!-- Assignment operator <- -->
+    <context id="assignment-operator" style-ref="assignment-operator">
+      <match>&lt;-</match>
+    </context>
+
+    <!-- Operators -->
+    <context id="operators" style-ref="operator">
+      <match>==|!=|&lt;&gt;|~=|&gt;=|&lt;=|&gt;|&lt;|\+|-|\*|/|\^|:</match>
+    </context>
+
+    <!-- Delimiters -->
+    <context id="delimiters" style-ref="delimiter">
+      <match>[\(\)]+|[\{\}]+|[][]+|,|;|\.</match>
+    </context>
+
+    <!-- Integer numbers: [0-9]+ -->
+    <context id="integer-number" style-ref="integer-number">
+      <match extended="true">
+        (?&lt;![\w\.])
+        [0-9]+
+        (?![\w\.])
+      </match>
+    </context>
+
+    <!-- Floating point numbers: [0-9]*\.[0-9]+ -->
+    <context id="floating-point" style-ref="floating-point">
+      <match extended="true">
+        (?&lt;![\w\.])
+        [0-9]*\.[0-9]+
+        (?![\w\.])
+      </match>
+    </context>
+
+    <!-- Function names: [A-Z][A-Za-z0-9_]* (optionally preceded by :) -->
+    <!-- Must be followed by ( for function call -->
+    <context id="function-name" style-ref="function-name">
+      <match case-sensitive="true">:?[A-Z][A-Za-z0-9_]*(?=\s*\()</match>
+    </context>
+
+    <!-- Global variables: g[A-Za-z0-9_]* (can have dots for properties) -->
+    <context id="global-variable" style-ref="global-variable">
+      <match case-sensitive="true">g[A-Za-z0-9_]*(\.[A-Za-z0-9_]+)?</match>
+    </context>
+
+    <!-- Local variables: [a-fh-z][A-Za-z0-9_]* (NOT starting with g, can have dots) -->
+    <context id="local-variable" style-ref="local-variable">
+      <match case-sensitive="true">[a-fh-z][A-Za-z0-9_]*(\.[A-Za-z0-9_]+)?</match>
+    </context>
+
+    <!-- Main context -->
+    <context id="pebl">
+      <include>
+        <context ref="def:shell-like-comment"/>
+        <context ref="def:string"/>
+        <context ref="keywords"/>
+        <context ref="assignment-operator"/>
+        <context ref="operators"/>
+        <context ref="delimiters"/>
+        <context ref="floating-point"/>
+        <context ref="integer-number"/>
+        <context ref="function-name"/>
+        <context ref="global-variable"/>
+        <context ref="local-variable"/>
+      </include>
+    </context>
+  </definitions>
+</language>

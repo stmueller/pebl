@@ -985,9 +985,10 @@ int main(int argc,  char *argv[])
 #endif
 
 #ifdef PEBL_WIN32
-//This needs to be done after SDL_Init() - Windows only
-  freopen( "CON", "w", stdout );
-  freopen( "CON", "w", stderr );
+// With NO_STDIO_REDIRECT defined, SDL doesn't create stdout.txt/stderr.txt
+// Don't use freopen - inherit stdout/stderr from parent process
+// This allows shell redirection (> stdout.txt 2> stderr.txt) to work
+// Note: stdout/stderr may not exist if run from GUI, but will work from terminal
 #endif // PEBL_WIN32
 
 

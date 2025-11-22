@@ -1692,6 +1692,33 @@ define ClickOn(obj,xy)
     }
 }
 
+  define GetTranslations(scriptname, lang)
+  {
+    ## Unified translation loading with fallback to English
+    ## Usage: gStrings <- GetTranslations("taskname", lang)
+
+    lang <- Uppercase(lang)
+    fname <- "translations/" + scriptname + ".pbl-" + LowerCase(lang) +
+  ".json"
+
+    if(FileExists(fname))
+    {
+      ret <- ReadTranslationJSON(fname, lang)
+    } else {
+      ## Fallback to English
+      fname_en <- "translations/" + scriptname + ".pbl-en.json"
+      if(FileExists(fname_en))
+      {
+        ret <-  ReadTranslationJSON(fname_en, "EN")
+      } else {
+        SignalFatalError("No translation file exists for [" + scriptname +
+  "] (tried " + fname + " and " + fname_en + ")")
+      }
+    }
+	return ret
+  }
+
+
 
 define ReadTranslation(filename,lang)
 {
@@ -1946,10 +1973,108 @@ define GetNewSubNum(server,page,port,username,pword)
 }
 
 
+##############################################################################
 
-
-define UploadFile(subcode,datafilename,settings:"upload.json")
+## Initialize token-based upload configuration
+## Call this at the start of battery tests that will be hosted online
+## Reads upload.json (written by JavaScript launcher) and sets up:
+## - gToken: Study identifier
+## - gTestName: Test name (e.g., "stroop", "flanker")
+## - gUploadURL: Server endpoint for data upload
+## - gParticipant: Participant ID
+## - gDataDirectory: Centralized data path: /data/{token}/{test}/{participant}/
+## - gUploadSettings: Full configuration object
+## - gUseUpload: Flag indicating token mode is active
+define InitializeUpload()
 {
+   result <- 0
+   if(gUpload)
+    {
+     if(not FileExists(gUploadFile))
+	 { 
+	   ##backup load this
+	   gUploadFile <- "upload.json"
+	 }
+	 
+	 
+    if(FileExists(gUploadFile))
+    {
+        settings <- ParseJSON(FileReadText(gUploadFile))
+        gToken <- settings.token
+        gTestName <- settings.test
+        gUploadURL <- settings.uploadURL
+        gParticipant <- settings.participant
+
+        ## Set gSubNum to participant ID so battery tests can use it
+        gSubNum <- gParticipant
+
+        ## Set working directory to the test directory so relative paths work
+        SetWorkingDirectory("/usr/local/share/pebl2/battery/" + gTestName)
+
+        ## Set centralized data directory for token mode
+        ## Create directories one level at a time since MakeDirectory doesn't create parents
+        MakeDirectory("/data")
+        MakeDirectory("/data/" + gToken)
+        MakeDirectory("/data/" + gToken + "/" + gTestName)
+        gDataDirectory <- "/data/" + gToken + "/" + gTestName + "/" + gParticipant + "/"
+        MakeDirectory(gDataDirectory)
+
+        gUseUpload <- 1
+        gUploadSettings <- settings  ## Make full config available
+
+        result <- 1
+    } else {
+        result <- 0
+    }
+	}
+    return(result)
+}
+
+
+##this will only upload if the --upload command line argument specifies a file. 
+## settingsfile will override gUploadFile.
+
+define UploadFile(subcode,datafilename,settingsfile:"")
+{
+
+  fname <- settingsfile
+
+  if(gUpload)
+  {
+  
+    #use settingsfile if it is not blank
+   if(settingsfile != "")
+    {
+	   ##..and it exists.
+	 if(not FileExists(settingsfile))
+	 {
+	   settingsfile <- ""
+	 }
+	}
+	
+	#if settingsfile is blank, then use gUploadFile:
+   if(settingsfile == "")
+   { 
+      settingsfile <- gUploadFile 
+	  ##but only if it exists:
+	  if(not FileExists(settingsfile))
+	  {
+  	     settingsfile <- ""
+	  }
+   }
+   
+   ##now, settingsfile is either blank or points to an existing file. one last fallback.
+   if(settingsfile=="")
+   {
+      if(FileExists("upload.json"))
+	  {
+	     settingsfile <- "upload.json"
+	  }
+   }
+   if(settingsfile == "")
+   {
+      Print("WARNING: UNABLE TO UPLOAD DATA BECAUSE SETTINGS FILE ["+fname+"] DOES NOT EXIST")
+   }
   settings  <- ParseJSON(FileReadText(settings))
   host <- settings.host
   page <- settings.page
@@ -1974,7 +2099,9 @@ define UploadFile(subcode,datafilename,settings:"upload.json")
   }
 
   out <-   SyncDataFile(host,page,port,username,uploadpassword,taskname,subcode,datafilename,token)
-
+ } else{
+  out <- 0
+ }
  return out
 }
 

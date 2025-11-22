@@ -573,9 +573,20 @@ deb:    main doc
 .PHONY: appimage
 appimage: main
 	@echo "========================================="
-	@echo "Building PEBL AppImage"
+	@echo "Building PEBL AppImage (full rebuild)"
 	@echo "========================================="
 	./build-appimage.sh $(PEBL_VERSION)
+
+.PHONY: appimage-fast
+appimage-fast:
+	@echo "========================================="
+	@echo "Building PEBL AppImage (using existing binary)"
+	@echo "========================================="
+	@if [ ! -f "bin/$(PEBLNAME)" ]; then \
+		echo "ERROR: bin/$(PEBLNAME) not found. Run 'make main' or 'make appimage' first."; \
+		exit 1; \
+	fi
+	./build-appimage.sh $(PEBL_VERSION) --skip-build
 
 .PHONY: appimage-clean
 appimage-clean:
@@ -630,7 +641,7 @@ $(DIRS):
 
 
 dox: $(PEBLBASE_SRCXX)
-	doxygen pebl.dox
+	cd doc && doxygen Doxyfile
 
 
 remake: ready clean $(PROGS)

@@ -28,73 +28,137 @@ obsolete.
 
 
 
-2.2:
+2.2 (November 2024):
 
-Compiler and Build System Improvements (10/2024):
+WebAssembly/Emscripten Build Improvements:
+- Full Emscripten/WebAssembly support with Asyncify for proper async/await handling
+- IDBFS persistent storage for web-based experiments with data retention
+- Token-based authentication system for secure data uploads from web experiments
+- Fixed event loop timer handling to match native behavior
+- Fixed memory leak causing visual objects to persist across experiments
+- Fixed break statement propagation in if/else control flow
+- Fixed lexer to handle PEBL files without trailing newlines
+- Fixed JPEG image loading in web builds
+- Fixed UTF-8/Unicode text rendering in web builds
+- Web launcher with fullscreen support and zoom-independent canvas sizing
+- Comprehensive upload-battery directory with web-enabled test battery tasks
+- JavaScript Fetch API integration for file uploads
+- Participant-specific directory structure for organized data collection
+- Enhanced error reporting with full call stack traces
+
+Audio Input and Voice Key Capabilities:
+- SDL2-based audio input system with reference-counted memory management
+- New audio input functions: RecordToBuffer(), StartAudioMonitor(), StopAudioMonitor(), GetAudioStats()
+- Experimental ROC-based voice key calibration system
+- Fixed WAV file format generation for audio recordings
+- Real-time audio monitoring with ring buffer support
+- Voice key response time collection with energy/power/RMSSD statistics
+
+Internationalization and Text Rendering:
+- Comprehensive RTL (right-to-left) text support for Arabic and Hebrew
+- Unicode script detection with ISO 15924 codes
+- New text/locale functions: DetectTextScript(), IsRTL(), GetFontForText(), GetSystemLocale(), IsSystemLocaleRTL()
+- Automatic font selection based on detected text script
+- Unified GetTranslations() function replacing GetStrings(), with system locale fallback
+- All battery tasks migrated to JSON translation format
+- 20+ new task translations added across multiple languages
+
+Font System Modernization:
+- Replaced Bitstream Vera, FreeSans, and SIL fonts with DejaVu 2.37 series
+- Added Noto fonts for comprehensive international character coverage
+- gPEBLBaseFont, gPEBLBaseFontMono, gPEBLBaseFontSerif now use DejaVu by default
+- Automatic fallback to Noto fonts for scripts not covered by DejaVu
+- Removed deprecated Korean (UnBatang) and Chinese (ukai) fonts in favor of Noto
+
+Compiler and Build System Improvements:
 - Fixed buffer overflow warning in lexer (Pebl.l) with larger buffer and snprintf
 - Fixed dangling pointer warning in Variant.cpp string assignment
-- Updated deprecated Emscripten canvas API to new emscripten_get_canvas_element_size
+- Updated deprecated Emscripten canvas API to new emscripten_get_canvas_element_size()
 - Replaced deprecated ostrstream with ostringstream in PEBLMath.cpp
 - Fixed extern variable initializer warnings by converting to proper definitions
-- Updated utfcpp library from old version to 4.0.5, eliminating deprecation warnings
+- Updated utfcpp library to version 4.0.8, eliminating deprecation warnings
 - Updated parser/lexer generation to Bison 3.8.2 and current Flex
 - Enabled HTTP support by default in Makefile (requires libcurl)
 - All major compiler warnings eliminated for modern C++ compilers
-- Fixed Linux launcher functionality: removed Windows-only freopen("CON") calls that broke stdout/stderr
-- Fixed launcher to run automatically when pebl2 invoked with no arguments (previously displayed help text)
-- Added stub implementations for network functions when USE_NETWORK disabled, preventing runtime errors while maintaining compatibility with scripts that reference network functions
+- Comprehensive Windows build support via MSYS2/MinGW with detailed guide
+- Refactored preprocessor macros to separate platform from evaluator concerns
+- Separate object directories (obj-native, obj-emscripten) for cleaner parallel builds
+- AppImage build support for portable Linux distribution
 
-- add Center() to Reitan points in TOL to center the points. (2/2024)
+Launcher Improvements:
+- Fixed Linux launcher functionality: removed Windows-only freopen("CON") calls
+- Launcher now runs automatically when pebl2 invoked with no arguments
+- Fixed launcher to use GetPEBLVersion() instead of hardcoded version string
+- Improved config file persistence and handling
+- Enhanced AppImage launcher compatibility
 
--updated physioscales to fix a data save bug.
+Documentation:
+- Complete Sphinx-based reference documentation system
+- Added 9 new built-in functions to official documentation
+- All historical PEBL manuals (0.09-2.2) now tracked in git
+- Comprehensive Windows compilation guide
+- Updated and reorganized documentation structure
+- LaTeX/PDF manual generation from Sphinx RST sources
+
+Network and Data Management:
+- Stub implementations for network functions when USE_NETWORK disabled
+- Minimal single-admin PEBL data server for experiment data collection
+- Enhanced file upload capabilities with UploadFile() and SyncDataFile()
+- New filesystem functions: DirToText(), AppendDirList(), Dirlisttotext()
+- Token-based authentication for secure remote data uploads
+
+Battery Tasks and Translations:
+- All battery parameter schemas converted from .schema to .json format
+- 20+ new translations across multiple battery tasks
+- Updated KSS (Karolinska Sleepiness Scale) in tiredness/fatigue measures
+- Added TLX (NASA Task Load Index) to scales/
+- Added Berlin Numeracy Test (BNT) and SUS (System Usability Scale) to scales/
+- Fixed SNARC task translation lookup
+- Updated physioscales to fix data save bug
+- Updated Manikin task with improved stimulus images
+- Added Center() function to Reitan points in ptrails to center the points
+- Updated SRT to allow mouse input as alternative to keyboard
+- Fixed gonogo to work with custom stimuli and show stimuli in instructions
+- Fixed survey task crash with missing Likert options
+- Minor scoring fixes to WFT and probedigit tasks
+- Added options for random/fixed interval generation in time wall (made this the default)
+
+New Test Battery Tasks:
+- Maze task prototype added
+- Eyechart basic discriminability test (demo, not normed)
+
+New Functions:
+- WaitForButtonClickOnTarget(): Wait for click on specific widget
+- WaitForDownClick(): Wait for mouse button press
+- GetNewSubnum(): Generate new participant ID
+- RecordToBuffer(): Record audio to pre-allocated buffer
+- StartAudioMonitor(): Create ring buffer for real-time audio monitoring
+- StopAudioMonitor(): Release audio hardware
+- GetAudioStats(): Return [energy, power, rmssd] statistics from audio buffer
+- DetectTextScript(): Detect Unicode script (returns ISO 15924 codes)
+- IsRTL(): Check if text or script code is right-to-left
+- GetFontForText(): Auto-select appropriate font for text based on script
+- GetSystemLocale(): Get operating system locale setting
+- IsSystemLocaleRTL(): Check if system locale uses RTL text
+
+Other Improvements:
+- WritePNG() screenshot capabilities restored
+- Fixed JSON parser errors on nested lists and complex structures
+- HTML formatting library for structured output
+- Improved scrolling textbox UI for non-standard font sizes
+- Added --upload command-line argument for automatic data sync
+- Multiple windows capability improvements
+- Filepicker.pbl demo showcasing multiple windows and file selection
+- Fixed bad font-height for font-size 12 impacting scrollboxes (hardcoded fix on Linux)
+- Fixed errant header line in torontonounpool.txt
+
+Translations:
+- Dutch translation to digit span from Ruth Van Hecke
+- Portuguese translation of hungry donkey task by Ana Rita Cruz
+- French translation of BST from Ilse Coolen
 
 
-- Update SRT to allow it to take mouse input.
-- Adding screenshot capabilities back in with WritePNG()
-- fixed json parser errors on nested lists and other complexities.
-- new maze task prototype
--fixed SNARC which could not find its english translation
-
-
-added functions: WaitforButtonClickonTarget,WaitForDownClick,GetNewSubnum,UploadFile,SyncDataFile,DirToText,AppendDirList,Dirlisttotext to support file selecion etc.
-
--Improved capability to make multiple windows.
--filepicker.pbl demo shows off multiple windows and provides a half-decent file picker tool.
-
-
--adding eyechart.pbl basic discriminability test (not normed) as a demo.
-
-
-
--Fixed bad font-height for font-size 12 impacting scrollboxes--hardcoded the fix on linux.
-
-added options for random/fixed interval generation in time wall (made this the default).
-Adding dutch translation to digit span from Ruth Van Hecke
-Added portuguese translation of hungry donkey task by Ana Rita Cruz
-Adding french translation of BST from Ilse Coolen
-
-fixing gonogo so you can use custom stimuli (it was previosuly broken)
-fixing gonogo instructions so it shows stimuli
-fixing survey so it won't crash if you don't give it the likert options.
-
-fixed errant header line in toronontonounpool.txt
--added HTML formatting library for formatted output.
-
--fixed some UI issues for scrollingtextboxes on unique font sizes that appear broken in sdl
--fixed JSONText so it can handle lists properly
-added --upload command-line argument to specify an upload json file to sync to PEBL data server.
-
--minor fix to scoring calculation in WFT
--fix so output data gets printed to file in probedigit.
-
-
-
-Tasks revised for large screensizes:
-aiming: no change
-
-
-
-
+================================================================================
 
 
                  RELEASE NOTES 2.1

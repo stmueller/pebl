@@ -1,0 +1,89 @@
+{
+  "version": "1.0",
+  "description": "PEBL Bundle Build Configuration - defines all data bundles to be created",
+
+  "bundles": {
+    "core": {
+      "name": "pebl2",
+      "type": "core",
+      "description": "PEBL core runtime (library and media only, NO tests)",
+      "output_dir": "bin",
+      "includes": [
+        {
+          "path": "emscripten/pebl-lib",
+          "mount": "/usr/local/share/pebl2/pebl-lib",
+          "description": "PEBL standard library functions"
+        },
+        {
+          "path": "emscripten/media",
+          "mount": "/usr/local/share/pebl2/media",
+          "description": "Media assets (images, sounds)"
+        }
+      ],
+      "excludes": [
+        "*/.git/*",
+        "*~"
+      ],
+      "options": {
+        "use_preload_cache": true,
+        "separate_metadata": true,
+        "lz4": false
+      }
+    },
+
+    "core_battery": {
+      "name": "core-battery",
+      "type": "battery_bundle",
+      "description": "Standard PEBL test battery (all tests from upload-battery)",
+      "output_dir": "bin",
+      "includes": [
+        {
+          "path": "upload-battery",
+          "mount": "/usr/local/share/pebl2/battery",
+          "description": "Standard test battery"
+        }
+      ],
+      "excludes": [
+        "*/data/*",
+        "*/.git/*",
+        "*~",
+        "*.config"
+      ],
+      "options": {
+        "use_preload_cache": true,
+        "separate_metadata": true,
+        "lz4": false
+      }
+    },
+
+    "test_bundles": [
+      {
+        "name": "pcst",
+        "type": "test_bundle",
+        "description": "PEBL Cognitive Screening Test with audio instruction files",
+        "output_dir": "bin/test-bundles",
+        "includes": [
+          {
+            "path": "battery/PCST",
+            "mount": "/usr/local/share/pebl2/battery/PCST",
+            "description": "PCST test files including audio"
+          }
+        ],
+        "excludes": [
+          "*/data/*",
+          "*~"
+        ],
+        "options": {
+          "use_preload_cache": true,
+          "separate_metadata": true,
+          "lz4": false
+        },
+        "size_mb": 5.5,
+        "catalog_entry": {
+          "base_url": "/runtime/test-bundles",
+          "tests": ["pcst"]
+        }
+      }
+    ]
+  }
+}

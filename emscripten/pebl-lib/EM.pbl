@@ -1,263 +1,209 @@
-### These are reimplementations of functions that use the event loop thrugh compiled code.
-### Using these is probably not typically slower than the compiled version, but 
-### they are untested and so should only be used for emscripten implementation.
+### Event loop function overrides - NO LONGER NEEDED with ASYNCIFY
+###
+### These were reimplementations of C++ event loop functions that had issues in WebAssembly.
+### With ASYNCIFY enabled, the native C++ implementations now work correctly in the browser.
+### Keeping these commented out as reference in case edge cases arise.
+###
+### Verified working with ASYNCIFY (2025-11-23):
+### - Wait()
+### - WaitForAnyKeyPress()
+### - WaitForMouseButton()
+### - WaitForAnyKeyPressWithTimeout()
+### - WaitForListKeyPress()
+### - WaitForKeyRelease()
+### - GetInput()
 
+##############################################################################
+## COMMENTED OUT - Native C++ event loop functions work with ASYNCIFY
+##############################################################################
 
-## Functions to reimplement:
-## *WaitForKeyRelease
-## *WaitForAnyKeyPress
-## *WaitForListKeyPress
-
-##* WAITFORANYKEYPRESSWITHTIMEOUT
-##* WAITFORLISTKEYPRESSWITHTIMEOUT
-
-
-## WAITFORMOUSEBUTTON
-## WAITFORMOUSEBUTTONWITHTIMEOUT
-
-
-##Functions that are deprecated (hopefully)
-## WaitForKeyDown
-## WaitForAnyKEyDown
-## WaitForKeyUp
-## WAITFORALLKEYSUP
-## WAITFORANYKEYDOWNWITHTIMEOUT
-## WAITFORKEYLISTDOWN
-
-
-
-
-## for emscripten, all buult-in functions that rely on the event loop need to be re-implemneted
-## in straight PEBL to restore  reentrant interactivity.
+## define Wait(time)
+## {
+##     ##register the timer
+##     endtime <- GetTime() + time
+##     RegisterEvent("<TIMER>", 1, endtime,"<GEQ>","",[])
+##     StartEventLoop()
+##     ClearEventLoop()
+##     return(1)
+## }
 ##
-define Wait(time)
-{
-
-
-    ##register the timer
-    endtime <- GetTime() + time
-    RegisterEvent("<TIMER>", 1, endtime,"<GEQ>","",[])
-    StartEventLoop()
-    ClearEventLoop()
-
-    
-    return(1)
-}
-
-
-define WaitForKeyPress(key)
-{
-
-  ##register the keypress
-
-   RegisterEvent("<KEY_PRESS>",key,0,"<EQUAL>","",[])
-   out <-   StartEventLoop()
-   ClearEventLoop()
-   
-   return(out)
-
-}
-
-
-define WaitForListKeyPressWithTimeout(keys,timeout,style:1)
-{
-
-    endtime <- GetTime() + timeout
-
-
-  ##register the keypress
- loop(key,keys)
-  {
-     RegisterEvent("<KEY_PRESS>",key,0,"<EQUAL>","",[])
-  }
-
-   RegisterEvent("<TIMER>", 1, endtime,"<GEQ>","",[])
-   out <-   StartEventLoop()
-   ClearEventLoop()
-
-   return(out)
-}
-
-
-
-define WaitForKeyPressWithTimeout(key,timeout)
-{
-
-    endtime <- GetTime() + timeout
-
-
- ##register the keypress
-  RegisterEvent("<KEY_PRESS>",key,0,"<EQUAL>","",[])
-
-   RegisterEvent("<TIMER>", 1, endtime,"<GEQ>","",[])
-   out <-   StartEventLoop()
-   ClearEventLoop()
-   
-   return(out)
-}
-
-
-
-define WaitForAnyKeyPressWithTimeout(timeout)
-{
-
-    endtime <- GetTime() + timeout
-
-
- ##register the keypress
-  RegisterEvent("<KEY_PRESS>","<ANYKEY>",0,"<EQUAL>","",[])
-
-   RegisterEvent("<TIMER>", 1, endtime,"<GEQ>","",[])
-   out <-   StartEventLoop()
-   ClearEventLoop()
-   
-   return(out)
-}
-
-
-define WaitForListKeyPress(keys)
-{
-
-  ##register the keypress
-loop(key,keys)
-  {
-     RegisterEvent("<KEY_PRESS>",key,0,"<EQUAL>","",[])
-  }
-   out <-   StartEventLoop()
-   ClearEventLoop()
-   
-   return(out)
-
-}
-
-
-
-define WaitForKeyRelease(key)
-{
-
-  ##register the keypress
-
-   RegisterEvent("<KEY_RELEASE>",key,0,"<EQUAL>","",[])
-   out <-   StartEventLoop()
-   ClearEventLoop()
-   
-   return(out)
-
-}
-
-define WaitForAnyKeyPress()
-{
-  RegisterEvent("<KEY_PRESS>","<ANYKEY>",0,"<EQUAL>","",[])
-  out <- StartEventLoop()
-  ClearEventLoop()
-  return(out)
-} 
-
-
-define WaitForAnyKeyRelease()
-{
-
-  ##register the keypress
-
-   RegisterEvent("<KEY_RELEASE>","<ANYKEY>",0,"<EQUAL>","",[])
-   out <-   StartEventLoop()
-   ClearEventLoop()
-   
-   return(out)
-
-}
-
-##This should match on either down or up click.
-##Returns [x, y, button, status] where status is "<pressed>" or "<released>"
-##Uses polling approach because StartEventLoop doesn't block properly for mouse in Emscripten
-define WaitForMouseButton()
-{
-    ## Poll mouse state until we see a button down, then wait for release
-    waiting <- 1
-    wasDown <- 0
-
-    while(waiting)
-    {
-        Wait(10)  ## Small delay to avoid busy-waiting
-        mouseState <- GetMouseState()
-
-        ## mouseState is [x, y, button1, button2, button3]
-        button1Down <- Third(mouseState)
-
-        if(button1Down == 1 and wasDown == 0)
-        {
-            ## Button just pressed
-            wasDown <- 1
-            pressX <- First(mouseState)
-            pressY <- Second(mouseState)
-        }
-
-        if(button1Down == 0 and wasDown == 1)
-        {
-            ## Button just released
-            waiting <- 0
-            releaseX <- First(mouseState)
-            releaseY <- Second(mouseState)
-        }
-    }
-
-    ## Return release position with status
-    return([releaseX, releaseY, 1, "<pressed>"])
-}
-
-
-define WaitForMouseButtonWithTimeout(timeout)
-{
-    endtime <- GetTime() + timeout
-    RegisterEvent("<MOUSE_BUTTON_PRESS>",1,1,"<EQUAL>","", [])
-
-
-   RegisterEvent("<TIMER>", 1, endtime,"<GEQ>","",[])
-   out <-   StartEventLoop()
-   ClearEventLoop()
-
-   return(out)
-
-}
-
-
-## GetInput reimplementation for emscripten
-## With Asyncify, WaitForAnyKeyPress() now blocks properly
-define GetInput(textbox, exitkey)
-{
-    SetEditable(textbox, 1)
-    SetText(textbox, "")
-    Draw()
-
-    text <- ""
-    continue <- 1
-
-    while(continue)
-    {
-        key <- WaitForAnyKeyPress()  ## This now properly blocks via Asyncify
-
-        if(Lowercase(key) == Lowercase(exitkey))
-        {
-            continue <- 0
-        }elseif(key == "<backspace>")
-        {
-            if(StringLength(text) > 0)
-            {
-                text <- SubString(text, 1, StringLength(text) - 1)
-                SetText(textbox, text)
-                Draw()
-            }
-        }elseif(StringLength(key) == 1)
-        {
-            text <- text + key
-            SetText(textbox, text)
-            Draw()
-        }
-    }
-
-    SetEditable(textbox, 0)
-    return text
-}
+##
+## define WaitForKeyPress(key)
+## {
+##   ##register the keypress
+##    RegisterEvent("<KEY_PRESS>",key,0,"<EQUAL>","",[])
+##    out <-   StartEventLoop()
+##    ClearEventLoop()
+##    return(out)
+## }
+##
+##
+## define WaitForListKeyPressWithTimeout(keys,timeout,style:1)
+## {
+##     endtime <- GetTime() + timeout
+##   ##register the keypress
+##  loop(key,keys)
+##   {
+##      RegisterEvent("<KEY_PRESS>",key,0,"<EQUAL>","",[])
+##   }
+##    RegisterEvent("<TIMER>", 1, endtime,"<GEQ>","",[])
+##    out <-   StartEventLoop()
+##    ClearEventLoop()
+##    return(out)
+## }
+##
+##
+## define WaitForKeyPressWithTimeout(key,timeout)
+## {
+##     endtime <- GetTime() + timeout
+##  ##register the keypress
+##   RegisterEvent("<KEY_PRESS>",key,0,"<EQUAL>","",[])
+##    RegisterEvent("<TIMER>", 1, endtime,"<GEQ>","",[])
+##    out <-   StartEventLoop()
+##    ClearEventLoop()
+##    return(out)
+## }
+##
+##
+## define WaitForAnyKeyPressWithTimeout(timeout)
+## {
+##     endtime <- GetTime() + timeout
+##  ##register the keypress
+##   RegisterEvent("<KEY_PRESS>","<ANYKEY>",0,"<EQUAL>","",[])
+##    RegisterEvent("<TIMER>", 1, endtime,"<GEQ>","",[])
+##    out <-   StartEventLoop()
+##    ClearEventLoop()
+##    return(out)
+## }
+##
+##
+## define WaitForListKeyPress(keys)
+## {
+##   ##register the keypress
+## loop(key,keys)
+##   {
+##      RegisterEvent("<KEY_PRESS>",key,0,"<EQUAL>","",[])
+##   }
+##    out <-   StartEventLoop()
+##    ClearEventLoop()
+##    return(out)
+## }
+##
+##
+## define WaitForKeyRelease(key)
+## {
+##   ##register the keypress
+##    RegisterEvent("<KEY_RELEASE>",key,0,"<EQUAL>","",[])
+##    out <-   StartEventLoop()
+##    ClearEventLoop()
+##    return(out)
+## }
+##
+## define WaitForAnyKeyPress()
+## {
+##   RegisterEvent("<KEY_PRESS>","<ANYKEY>",0,"<EQUAL>","",[])
+##   out <- StartEventLoop()
+##   ClearEventLoop()
+##   return(out)
+## }
+##
+##
+## define WaitForAnyKeyRelease()
+## {
+##   ##register the keypress
+##    RegisterEvent("<KEY_RELEASE>","<ANYKEY>",0,"<EQUAL>","",[])
+##    out <-   StartEventLoop()
+##    ClearEventLoop()
+##    return(out)
+## }
+##
+## ##This should match on either down or up click.
+## ##Returns [x, y, button, status] where status is "<pressed>" or "<released>"
+## ##Uses polling approach because StartEventLoop doesn't block properly for mouse in Emscripten
+## define WaitForMouseButton()
+## {
+##     ## Poll mouse state until we see a button down, then wait for release
+##     waiting <- 1
+##     wasDown <- 0
+##
+##     while(waiting)
+##     {
+##         Wait(10)  ## Small delay to avoid busy-waiting
+##         mouseState <- GetMouseState()
+##
+##         ## mouseState is [x, y, button1, button2, button3]
+##         button1Down <- Third(mouseState)
+##
+##         if(button1Down == 1 and wasDown == 0)
+##         {
+##             ## Button just pressed
+##             wasDown <- 1
+##             pressX <- First(mouseState)
+##             pressY <- Second(mouseState)
+##         }
+##
+##         if(button1Down == 0 and wasDown == 1)
+##         {
+##             ## Button just released
+##             waiting <- 0
+##             releaseX <- First(mouseState)
+##             releaseY <- Second(mouseState)
+##         }
+##     }
+##
+##     ## Return release position with status
+##     return([releaseX, releaseY, 1, "<pressed>"])
+## }
+##
+##
+## define WaitForMouseButtonWithTimeout(timeout)
+## {
+##     endtime <- GetTime() + timeout
+##     RegisterEvent("<MOUSE_BUTTON_PRESS>",1,1,"<EQUAL>","", [])
+##    RegisterEvent("<TIMER>", 1, endtime,"<GEQ>","",[])
+##    out <-   StartEventLoop()
+##    ClearEventLoop()
+##    return(out)
+## }
+##
+##
+## ## GetInput reimplementation for emscripten
+## ## With Asyncify, WaitForAnyKeyPress() now blocks properly
+## define GetInput(textbox, exitkey)
+## {
+##     SetEditable(textbox, 1)
+##     SetText(textbox, "")
+##     Draw()
+##
+##     text <- ""
+##     continue <- 1
+##
+##     while(continue)
+##     {
+##         key <- WaitForAnyKeyPress()  ## This now properly blocks via Asyncify
+##
+##         if(Lowercase(key) == Lowercase(exitkey))
+##         {
+##             continue <- 0
+##         }elseif(key == "<backspace>")
+##         {
+##             if(StringLength(text) > 0)
+##             {
+##                 text <- SubString(text, 1, StringLength(text) - 1)
+##                 SetText(textbox, text)
+##                 Draw()
+##             }
+##         }elseif(StringLength(key) == 1)
+##         {
+##             text <- text + key
+##             SetText(textbox, text)
+##             Draw()
+##         }
+##     }
+##
+##     SetEditable(textbox, 0)
+##     return text
+## }
 
 
 ##############################################################################
@@ -342,18 +288,11 @@ define GetInput(textbox, exitkey)
 ## Override GetNewDataFile to use token-based paths in Emscripten
 ## When gDataDirectory is defined (token mode), files save to centralized location
 ## Otherwise uses standard test-local data/ directory (desktop mode)
-##
-## IMPORTANT: gDataDirectory is set by InitializeUpload() reading upload.json
-## - In token mode, saves to: /data/{token}/{testname}/{participant}/
-## - The participant field from upload.json may include chain-launcher suffix
-## - This allows multi-test chains to save each test's data with modified IDs
-##   (e.g., P001-stroop, P001-flanker) while maintaining persistence via IDBFS
 define GetNewDataFile(subnum, win, basename, ext, header)
 {
     if(VariableExists("gDataDirectory"))
     {
         ## Token mode - use centralized directory with participant subdirectory
-        ## gDataDirectory format: /data/{token}/{testname}/{participant}/
         filename <- gDataDirectory + basename + "-" + subnum + "." + ext
     }    else    {
         ## Desktop mode - use test's local data/ directory

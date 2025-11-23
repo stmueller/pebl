@@ -430,17 +430,5 @@ return [resp,corr,(time2-time1)]
 
 define GetStrings(lang)
 {
-
-  lang <- Uppercase(lang)
-  fname <- "translations/SNARC.pbl-"+LowerCase(lang)+".json"
-
-  if(FileExists(fname))
-  {
-    gStrings <- ReadTranslationjson(fname,lang)
-  } else
-  {
-    gStrings <- ReadTranslationjson("translations/SNARC.pbl-en.json",lang)
-  }
-
-
+  gStrings <- GetTranslations("SNARC", lang)
 }

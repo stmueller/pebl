@@ -910,18 +910,7 @@ define TNT() {
 
 
 
-define GetStrings(language)
+define GetStrings(lang)
 {
-
-  lang <- Uppercase(language)
-  fname <- "translations/TNT.pbl-"+LowerCase(lang)+".json"
-
-  if(FileExists(fname))
-  {
-    gStrings <- ReadTranslationJSON(fname,lang)
-  } else
-  {
-    gStrings <- ReadTranslationJSON("translations/TNT.pbl-en.json",lang)
-  }
-
+  gStrings <- GetTranslations("TNT", lang)
 }

@@ -307,18 +307,5 @@ define WaitUntil(time)
 
 define GetStrings(lang)
 {
-
-   ##Known trasnlations: EN
-
-  lang <- Uppercase(lang)
-  fname <- "translations/brownpeterson.pbl-"+LowerCase(lang)+".json"
-
-  if(FileExists(fname))
-  {
-    gStrings <- ReadTranslationjson(fname,lang)
-  } else
-  {
-    gStrings <- ReadTranslationjson("translations/brownpeterson.pbl-en.json",lang)
-  }
-
+  gStrings <- GetTranslations("brownpeterson", lang)
 }

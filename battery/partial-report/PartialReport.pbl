@@ -707,16 +707,6 @@ define DataLog(subnum,round,test,ivname,value)
 
 define GetStrings(lang)
 {
-
-  lang <- Uppercase(lang)
-  fname <- "translations/PartialReport.pbl-"+LowerCase(lang)+".json"
-
-  if(FileExists(fname))
-  {
-    gStrings <- ReadTranslationJSON(fname,lang)
-  } else
-  {
-    gStrings <- ReadTranslationJSON("translations/PartialReport.pbl-en.json",lang)
-  }
-
- }
+  gStrings <- GetTranslations("PartialReport",lang)
+  
+}

@@ -408,16 +408,5 @@ define ShowTimer(p,onoff,evt:0)
 
 define GetStrings(lang)
 {
-
-
-  lang <- Uppercase(lang)
-  fname <- "translations/linejudgment.pbl-"+LowerCase(lang)+".json"
-
-  if(FileExists(fname))
-  {
-    gStrings <- ReadTranslationJSON(fname,lang)
-  } else
-  {
-    gStrings <- ReadTranslationJSON("translations/linejudgment.pbl-en.json",lang)
-  }
+  gStrings <- GetTranslations("linejudgment", lang)
 }

@@ -326,20 +326,7 @@ define ScoreResponse(stim, resp, mapping)
 
 
 
-define GetStrings(language)
+define GetStrings(lang)
 {
-
-##Known trasnlations:  EN
-  lang <- Uppercase(language)
-  fname <- "translations/SymbolCounter.pbl-"+LowerCase(lang)+".json"
-
-  if(FileExists(fname))
-  {
-    gStrings <- ReadTranslationjson(fname,lang)
-  } else
-  {
-    gStrings <- ReadTranslationjson("translations/SymbolCounter.pbl-en.json",lang)
-  }
-
-
+  gStrings <- GetTranslations("symbolcounter", lang)
 }

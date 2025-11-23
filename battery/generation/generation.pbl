@@ -204,19 +204,5 @@ define Start(p)
 
 define GetStrings(lang)
 {
-
-   ##Known translations: EN
-
-  lang <- Uppercase(lang)
-  fname <- "translations/generation.pbl-"+LowerCase(lang)+".json"
-
-  if(FileExists(fname))
-  {
-    gStrings <- ReadTranslationJSON(fname,lang)
-  } else
-  {
-    gStrings <- ReadTranslationJSON("translations/generation.pbl-en.json",lang)
-  }
-
-
+  gStrings <- GetTranslations("generation", lang)
 }

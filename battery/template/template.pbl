@@ -92,8 +92,6 @@ define Start(p)
   ## 3. WINDOW AND DISPLAY SETUP
   ##--------------------------------------------------------------------------
   ## Create main experiment window
-  ## gSleepEasy reduces CPU usage (slight timing cost ~1-2ms)
-  gSleepEasy <- 1
 
   ## Create window with black background
   ## Common colors: "black", "white", "grey", "gray"
@@ -110,7 +108,7 @@ define Start(p)
   ## 4. SUBJECT NUMBER
   ##--------------------------------------------------------------------------
   ## Get subject number if not provided via launcher or command line
-  ## Subject number determines random seed and data file names
+  ## Subject number determines data file names
   if(gSubNum+"" == "0")
   {
     gSubNum <- GetSubNum(gWin)
@@ -454,24 +452,21 @@ define ShowInstructions(text, win)
 ## LOAD TRANSLATION STRINGS
 ##--------------------------------------------------------------------------
 ## Load language-specific text from JSON translation files
-## Falls back to English if requested language not available
-##
+## Uses GetTranslations() which automatically falls back to English and
+## system locale if requested language not available
+##  You can do any additional string generation here, like pattern substitution or variable assignment
+
 define GetStrings(lang)
 {
-  ## Normalize language code to uppercase
-  lang <- Uppercase(lang)
-
-  ## Construct filename for requested language
-  fname <- "translations/template.pbl-" + Lowercase(lang) + ".json"
-
-  ## Try to load requested language, fall back to English
-  if(FileExists(fname))
-  {
-    gStrings <- ReadTranslationJSON(fname, lang)
-  }else{
-    ## Fall back to English
-    gStrings <- ReadTranslationJSON("translations/template.pbl-en.json", "EN")
-  }
+  ## GetTranslations automatically:
+  ## 1. Tries the requested language
+  ## 2. Falls back to system locale if available
+  ## 3. Falls back to English if neither found
+  ## 4. Returns custom object with translation strings
+  ##
+  ## NOTE: Just pass the test name, not the full path
+  ## GetTranslations constructs "translations/testname.pbl-lang.json"
+  gStrings <- GetTranslations("template", lang)
 }
 
 ##############################################################################

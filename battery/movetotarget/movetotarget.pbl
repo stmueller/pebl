@@ -192,50 +192,5 @@ define MoveCursor(pos)
 
 define GetStrings(lang)
 {
-
-  lang <- Uppercase(lang)
-  fname <- "translations/movetotarget.pbl-"+LowerCase(lang)+".json"
-
-  if(FileExists(fname))
-  {
-    gStrings <- ReadTranslationJSON(fname,lang)
-  } else
-  {
-    gStrings <- ReadTranslationJSON("translations/movetotarget.pbl-en.json",lang)
-  }
-
- }
-
-##this will randomly choose the next target, it must fit within fieldheight/fieldwidth, assuming centered on gVideoWidth/2,gVideoHeight/2
-
-define GetNextTarget(curx,cury,fieldwidth,fieldheight,mindist,maxdist)
-{
-
-  cont <- 1
-
-  minX <- (gVideoWidth-fieldwidth)/2
-  maxX <- (gVideoWidth+fieldwidth)/2
-  minY <- (gVideoHeight-fieldheight)/2
-  maxY <- (gVideoHeight+fieldheight)/2
-
-
-
-  while(cont)
-    {
-     angle <- Random() * 2 * gPi
-     radius <- mindist + Random()*(maxdist-mindist)
-     newX <- curX + radius * Cos(angle)
-     newY <- curY + radius * Sin(angle)
-
-   if(newX >= minX and newX <= maxX and
-       newY >= minY and newY <= maxY)
-       {
-           cont <- 0
-       }
-
-
-
-  }
-
-  return [newx,newy]
+  gStrings <- GetTranslations("movetotarget", lang)
 }

@@ -1482,46 +1482,33 @@ define GetConsistency(stimglobal, stimLocal)
 
 define GetStrings(lang)
 {
+  gStrings <- GetTranslations("globallocal", lang)
 
-   ##Known translations: EN
-
-  lang <- Uppercase(lang)
-  fname <- "translations/globallocal.pbl-"+LowerCase(lang)+".json"
-
-  if(FileExists(fname))
-  {
-    gStrings <- ReadTranslationJSON(fname,lang)
-  } else
-  {
-    gStrings <- ReadTranslationJSON("translations/globallocal.pbl-en.json",lang)
-  }
-
-    ##substitute special codes for the actual stimuli  to simplify
-    gInst1 <- gStrings.inst1
-    ginst1 <- ReplaceChar(ginst1,"<STIM1>",gParams.stim1)
-    ginst1 <- ReplaceChar(ginst1,"<STIM2>",gParams.stim2)
+  ##substitute special codes for the actual stimuli  to simplify
+  gInst1 <- gStrings.inst1
+  ginst1 <- ReplaceChar(ginst1,"<STIM1>",gParams.stim1)
+  ginst1 <- ReplaceChar(ginst1,"<STIM2>",gParams.stim2)
 
 
-    gInst2 <- ReplaceChar(gStrings.inst2,"<STIM1>",gParams.stim1)
-    gInst2 <- ReplaceChar(ginst2,"<STIM2>",gParams.stim2)
+  gInst2 <- ReplaceChar(gStrings.inst2,"<STIM1>",gParams.stim1)
+  gInst2 <- ReplaceChar(ginst2,"<STIM2>",gParams.stim2)
 
-    gInst3 <- ReplaceChar(gStrings.inst3,"<STIM1>",gParams.stim1)
-    gInst3 <- ReplaceChar(ginst3,"<STIM2>",gParams.stim2)
+  gInst3 <- ReplaceChar(gStrings.inst3,"<STIM1>",gParams.stim1)
+  gInst3 <- ReplaceChar(ginst3,"<STIM2>",gParams.stim2)
 
-    gInst4 <- ReplaceChar(gStrings.inst4,"<STIM1>",gParams.stim1)
-    gInst4 <- ReplaceChar(ginst4,"<STIM2>",gParams.stim2)
-
-
-    gInst5 <- ReplaceChar(gStrings.inst5,"<STIM1>",gParams.stim1)
-    gInst5 <- ReplaceChar(ginst5,"<STIM2>",gParams.stim2)
+  gInst4 <- ReplaceChar(gStrings.inst4,"<STIM1>",gParams.stim1)
+  gInst4 <- ReplaceChar(ginst4,"<STIM2>",gParams.stim2)
 
 
-    gInst6 <- ReplaceChar(gStrings.inst6,"<STIM1>",gParams.stim1)
-    gInst6 <- ReplaceChar(ginst6,"<STIM2>",gParams.stim2)
+  gInst5 <- ReplaceChar(gStrings.inst5,"<STIM1>",gParams.stim1)
+  gInst5 <- ReplaceChar(ginst5,"<STIM2>",gParams.stim2)
 
-    gInst7 <- ReplaceChar(gStrings.inst7,"<STIM1>",gParams.stim1)
-    gInst7 <- ReplaceChar(ginst7,"<STIM2>",gParams.stim2)
 
+  gInst6 <- ReplaceChar(gStrings.inst6,"<STIM1>",gParams.stim1)
+  gInst6 <- ReplaceChar(ginst6,"<STIM2>",gParams.stim2)
+
+  gInst7 <- ReplaceChar(gStrings.inst7,"<STIM1>",gParams.stim1)
+  gInst7 <- ReplaceChar(ginst7,"<STIM2>",gParams.stim2)
 
 }
 

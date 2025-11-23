@@ -57,8 +57,9 @@ void EvalWrapper(void * node);
 /// This class has got everything you need to evaluate stuff.
 class Evaluator
 {
+    // PEventLoop needs access to scope management internals for event callbacks
+    friend class PEventLoop;
 
-  
 public:
 
     Evaluator();

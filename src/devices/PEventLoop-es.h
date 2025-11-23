@@ -94,18 +94,21 @@ protected:
     //function nodes and parameters to execute when true.
     std::vector<DeviceState*> mStates;
     std::vector<PNode *> mNodes;
+    std::vector<Variant> mFunctionNames;  //Function names for scope setup
     int mNumStates;
 
     std::vector<Variant> mParameters;
 
 
-    //The following structure keep track of whether the 
+    //The following structure keep track of whether the
     //state is a 'normal' device query test (false) or
     //a special event-queue test (true.)
     std::vector<bool> mIsEvent;
-   
+
 private:
    bool mIsLooping;  //allows for reentrant loop.  Currently, not used because we look at gKeepLooping.
+   bool mCallbackScheduled;  //Flag indicating Loop1() scheduled a callback for Loop() to execute
+   size_t mCallbackNodeStackSize;  //Node stack size before scheduling callback (for execution tracking)
 
 };
 

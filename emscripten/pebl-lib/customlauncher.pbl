@@ -445,6 +445,8 @@ define ReadConfigFile(configname)
 	   gVSyncState <- ToNumber(GetConfig("vsync",keys,config,0))
            gDriver     <- GetConfig("driver",keys,config,"")
 	   gRandomizeChain <- ToNumber(GetConfig("randomizechain",keys,config,0))
+           gUploadSetting <- ToNumber(GetConfig("upload",keys,config,0))
+           gUploadFile <- GetConfig("uploadfile",keys,config,"upload.json")
    	   gexpchain <- []         ##sequence of experiments to run
    	   ##Get all config entries named 'expchain'
 	   chains <- Filter(config,Match(keys,"EXPCHAIN"))
@@ -474,7 +476,9 @@ define ReadConfigFile(configname)
         gsubcode <- "1"
         gexperimenter <- "default"
         glanguage <- "en"
-  
+        gUploadSetting <- 0
+        gUploadFile <- "upload.json"
+
         gexpchain <- []         ##sequence of experiments to run
 	    gnimhdemographics <- 0
         gScreenRes <-  First(gScreenResInitial)+"x"+Second(gScreenResInitial)
@@ -575,6 +579,11 @@ define RunScript(dirChain,filename,fullscreen,language,logfile,subcode,experimen
              callstring <- callstring + " --pfile " +gQuote+ pset+gQuote
            }
 
+	    if(gUploadSetting)
+           {
+             callstring <- callstring + " --upload " +gQuote+ gUploadFile+gQuote
+           }
+
 	        callstring <- callstring + " --language " + language  + " " + gCommandLineAdd
   
 
@@ -603,19 +612,55 @@ define RunScript(dirChain,filename,fullscreen,language,logfile,subcode,experimen
      ##     FilePrint(runfile,callstring+sep+"pause") ##Use for debugging purposes.
           FilePrint(runfile,callstring)
           FileClose(runfile)
-          SystemCallUpdate("tmp.bat","")
-      }else{
+          SystemCall("tmp.bat","")
+          ##For gUseReloc (Windows batch file), we use blocking SystemCall
+          ##Log FINISHED immediately after it completes
+          FilePrint(logfile,TimeStamp() + "," + DirListToText(dirChain)+filename+","+GetPEBLVersion() +
+		 "," + experimenter + "," + subcode + "," +"fullscreen:["+fullscreen+"],"+ language + "," + callstring+ ","+"FINISHED")
+      } else {
 	     #MessageBox(callstring,gWin)
 	     Print(GetWorkingDirectory())
-         Print(SystemCallUpdate(callstring,""))
-      }
+          ##Launch process asynchronously and get PID
+          pid <- SystemCallUpdate(callstring,"")
+          Print("Launched PID: " + pid)
 
-         FilePrint(logfile,TimeStamp() + "," + DirListToText(dirChain)+filename+","+GetPEBLVersion() +
-		 "," + experimenter + "," + subcode + "," +"fullscreen:["+fullscreen+"],"+ language + "," + callstring+ ","+"FINISHED")
+          ##Pre-construct the log line for completion (timestamp will be added when finished)
+          logline <- DirListToText(dirChain)+filename+","+GetPEBLVersion() +
+		 "," + experimenter + "," + subcode + "," +"fullscreen:["+fullscreen+"],"+ language + "," + callstring+ ","+"FINISHED"
+
+          ##Register timer event to monitor process status
+          RegisterEvent("<TIMER>", 1, GetTime(),"<GEQ>","MONITORCHILDPROCESS", [pid, logfile, logline])
+          ##Start event loop - will block until child process completes
+          StartEventLoop()
+          ##Clear event registrations before returning to normal launcher event loop
+          ClearEventLoop()
+      }
 
 }
 
+##Monitoring function for child process launched via SystemCallUpdate
+##Receives pid, logfile, and pre-constructed logline from RegisterEvent
+define MonitorChildProcess(pid,logfile,logline,evt)
+{
+   ##Check if child process is still running
+   status <- CheckProcessStatus(pid)
 
+   if(status == 0)
+   {
+      ##Child process has finished - log completion with current timestamp
+      Print("Child process " + pid + " finished")
+      FilePrint(logfile, TimeStamp() + "," + logline)
+
+      ##Exit event loop so launcher can continue
+      gKeepLooping <- 0
+   } elseif(status == -1)
+   {
+      ##Process already reaped or error - just exit quietly
+      ##(This can happen if event loop calls us after process finished and was reaped)
+      gKeepLooping <- 0
+   }
+   ##If status == 1, process still running - keep looping
+}
 
 define Initialize()
 {

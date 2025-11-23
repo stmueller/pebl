@@ -1139,23 +1139,19 @@ define KaniszaPolygon(points, circTF, circleradius,fg,bg,show)
 
 define MakeGraph(data,xsize,ysize,x,y)
 {
-  Print("MakeGraph: data=" + data)
   dataymax <- Max(data)
   dataymin <- Min(data)
-  Print("MakeGraph: dataymax=" + dataymax + " dataymin=" + dataymin)
   gutter <- 10
 
-
+  
   canv <- MakeCanvas(xsize,ysize,MakeColor("white"))
   Move(canv,x,y)
-  col <- MakeColor("black")
+  col <- MakeColor("black") 
   xdelta <- (xsize-2*gutter)/(Length(data)-1)
   xmin <- gutter
   ##ymin is reversed
   ymin <- ysize - gutter ##lower part, which is a bigger y value
   ymax <- gutter         ##upper part, which is a smaller y value.
-
-  Print("MakeGraph: xdelta=" + xdelta + " xmin=" + xmin + " ymin=" + ymin + " ymax=" + ymax)
 
   stuff <- []
   ##draw base line
@@ -1166,10 +1162,9 @@ define MakeGraph(data,xsize,ysize,x,y)
 
 
   yrange <- -ymax+ymin
-  Print("MakeGraph: yrange=" + yrange + " Sequence(0,dataymax,1)=" + Sequence(0,dataymax,1))
   loop(i,Sequence(0,dataymax,1))
   {
-   Print("MakeGraph tick loop: i=" + i)
+
    tick <- Line(xmin,ymin-(i-dataymin)/dataymax * yrange,
                     -5,0,MakeColor("black"))
    AddObject(tick,canv)
@@ -1179,15 +1174,14 @@ define MakeGraph(data,xsize,ysize,x,y)
  AddObject(horiz,canv)
  AddObject(vert,canv)
 
-  Print("MakeGraph: Starting data loop, Length(data)=" + Length(data))
   lines <- []
   index <- 0
   loop(i, data)
   {
-   Print("MakeGraph data loop: index=" + index + " i=" + i + " xmin+xdelta*index=" + (xmin+xdelta*index))
+
     line <- Line(xmin+xdelta*index,ymin,0, - (i-dataymin)/dataymax * yrange,
                              col)
-    Print("MakeGraph: Line created, about to AddObject")
+
     AddObject(line,canv)
 
     PushOnEnd(lines,line)

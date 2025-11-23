@@ -2,7 +2,7 @@
 #//    Name:       src/pebl-lib/Utility.pbl
 #//    Purpose:    Contains PEBL functions used for various purposes
 #//    Author:     Shane T. Mueller, Ph.D.
-#//    Copyright:  (c) 2004-2020 Shane T. Mueller <smueller@obereed.net>
+#//    Copyright:  (c) 2004-2025 Shane T. Mueller <smueller@obereed.net>
 #//    License:    GPL 2
 #//
 #//
@@ -469,7 +469,6 @@ define EasyTextBox(text,x,y,win,fontsize,width,height,
 #    SignalFatalError("EasyTextbox[text,x,y,window,fontsize] must be added to a window, not [" + parent+"]")
 #  }
 #  Print("making easytextbox")
-#  Print(gPEBLBaseFont)
   font <-  MakeFont(gPEBLBaseFont,0,fontsize,MakeColor(fgcolor),
                     MakeColor(bgcolor),1)
 #  Print(font)
@@ -485,6 +484,7 @@ define EasyTextBox(text,x,y,win,fontsize,width,height,
 
 
 ##Make an easy-to-use getsubnum function here.
+## Enhanced with 20+ language translations and automatic locale/font detection
 define GetSubNum(win)
 {
 
@@ -497,47 +497,111 @@ define GetSubNum(win)
    Move(bg,gVideoWidth/2,90)
    AddObject(bg,win)
 
-    if(gLanguage == "PT" or gLanguage == "BR")
+    ## Translations for "Enter Participant Identifier" in 20+ languages
+    ## Ordered by number of speakers/usage
+    translations <- [
+        "Enter Participant Identifier",              ## EN - English
+        "输入参与者标识符",                           ## ZH - Chinese (Simplified)
+        "Ingrese el código del participante",        ## ES - Spanish (Thanks Ernesto Reyes Zamorano)
+        "أدخل معرّف المشارك",                        ## AR - Arabic
+        "भागीदार पहचानकर्ता दर्ज करें",              ## HI - Hindi
+        "Código Participante",                        ## PT - Portuguese (Thanks Marco Moniz)
+        "Código Participante",                        ## BR - Brazilian Portuguese
+        "Введите идентификатор участника",            ## RU - Russian
+        "参加者識別子を入力",                         ## JA - Japanese
+        "Bitte den Versuchspersonen-Code eingeben",  ## DE - German (Thanks Sven Blankenberger and Katrin Bittrich)
+        "Entrez l'identifiant du participant",       ## FR - French
+        "Inserisci l'identificatore del partecipante", ## IT - Italian
+        "참가자 식별자 입력",                         ## KO - Korean
+        "Voer de deelnemerscode in",                 ## NL - Dutch
+        "رمز شرکت کننده را وارد کنید",               ## FA - Persian (Farsi)
+        "Katılımcı Kimliğini Girin",                 ## TR - Turkish
+        "Wpisz identyfikator uczestnika",            ## PL - Polish
+        "Введіть ідентифікатор учасника",             ## UK - Ukrainian
+        "Adja meg a résztvevő kódját",               ## HU - Hungarian (Thanks Péter Juhász)
+        "הזן מזהה משתתף",                             ## HE - Hebrew
+        "Fyll i ärendekod",                          ## SE - Swedish (Thanks Kim Karlsson)
+        "Indtast deltager-id",                       ## DA - Danish
+        "Syötä osallistujan tunniste",              ## FI - Finnish
+        "Въведете идентификатор на участник"         ## BG - Bulgarian
+    ]
+
+    languages <- ["EN","ZH","ES","AR","HI","PT","BR","RU","JA","DE",
+                  "FR","IT","KO","NL","FA","TR","PL","UK","HU","HE",
+                  "SE","DA","FI","BG"]
+
+    ## Three-tier language selection:
+    ## 1. Try gLanguage if explicitly set (non-empty)
+    ## 2. If gLanguage is empty/unset, try system locale
+    ## 3. Fall back to English if neither works
+
+    match <- []  ## Initialize as empty list (no match)
+
+    ## Tier 1: Check if gLanguage is explicitly set (non-empty)
+    if(gLanguage != "")
     {
-     ##Thanks Marco Moniz
-     text <- "Código Participante"
-
-    } elseif(gLanguage == "DE")
-    {
-     ##Thanks Sven Blankenberger and Katrin Bittrich
-     text <- "Bitte den Versuchspersonen-Code eingeben"
-
-    }elseif(gLanguage == "HU")
-    {
-
-    ##Thanks Péter Juhász
-    text <- "Adja meg a résztvevő kódját"
-
-    }elseif(gLanguage == "ES")
-    {
-    ##Thanks Ernesto Reyes Zamorano
-    text <- "Ingrese el código del participante"
-
-   }elseif(gLanguage=="SE") #swedish by Kim Karlsson
-    {
-    text <- "Fyll i ärendekod"
-
-    }   else {
-   ##Default to English
-    text <- "Enter Participant Identifier"
+      match <- Lookup(gLanguage, languages, translations)
     }
 
-   query <- EasyLabel(text,225,20,bg,20)
+    ## Tier 2: If no match and gLanguage was empty, try system locale
+    if(IsList(match))
+    {
+      systemLocale <- GetSystemLocale()
+
+      if(systemLocale != "")
+      {
+        ## Extract language code from locale (e.g., "en_US" -> "EN", "zh_CN" -> "ZH")
+        systemLang <- Uppercase(SubString(systemLocale, 1, 2))
+        match <- Lookup(systemLang, languages, translations)
+      }
+
+      ## Tier 3: If still no match, default to English
+      if(IsList(match))
+      {
+        text <- First(translations)
+      } else {
+        text <- match
+      }
+    } else {
+      text <- match
+    }
+
+
+   ## Automatically detect script and select appropriate font
+   script <- DetectTextScript(text)
+   isRTL <- IsRTL(text)
+   fontname <- GetFontForText(text)
+   font <- MakeFont(fontname, 0, 20, MakeColor("white"), MakeColor("grey20"), 0)
+
+   query <- MakeLabel(text, font)
+   AddObject(query, bg)
+   Move(query, 225, 20)
    Draw(query)
- #  Hide(query) ##we don't want this re-imprinting on the canvas.
 
-   box <- EasyTextBox("",gVideoWidth/2-50,100, win,20,160,25)
+   box <- EasyTextBox("", gVideoWidth/2-50, 100, win, 20, 160, 25)
+
+   ## Set text box justification based on detected script
+   ## If text is RTL, use right justification
+   if(isRTL)
+   {
+     box.justify <- "RIGHT"
+   } else {
+     ## If text is LTR but system locale is RTL (e.g., Arabic keyboard on English text)
+     ## default to right justification for better UX
+     if(IsSystemLocaleRTL())
+     {
+       box.justify <- "RIGHT"
+     } else {
+       box.justify <- "LEFT"
+     }
+   }
+
    Draw()
-   subnum <- GetInput(box,"<return>")
+   subnum <- GetInput(box, "<return>")
 
-   RemoveObject(query,bg)
-   RemoveObject(box,win)
-   RemoveObject(bg,win)
+   RemoveObject(query, bg)
+   RemoveObject(box, win)
+   RemoveObject(bg, win)
    return subnum
 }
 
@@ -572,7 +636,8 @@ define GetEasyInput(text,win)
    bg    <- Rectangle(gVideoWidth/2,gVideoHeight/2,400,400,bgcol,1)
    AddObject(bg,win)
 
-   font <- MakeFont("Caliban.ttf",0,22,fgcol,bgcol,0)
+   ## Changed from Caliban.ttf (removed) to gPEBLBaseFont
+   font <- MakeFont(gPEBLBaseFont,0,22,fgcol,bgcol,0)
    query <- MakeLabel(text,font)
    AddObject(query, win)
    Move(query, bg.x,bg.y-bg.height/2+20)
@@ -1747,18 +1812,31 @@ define ReadTranslationJSON(filename,lang)
   return obj
 }
 
-## GetTranslations - Multi-tier language selection with system locale fallback
-## Loads translation JSON files for a test with intelligent fallback:
-##   Tier 1: Use explicit language code if provided
-##   Tier 2: Try system locale if no explicit language
-##   Tier 3: Fall back to English as default
+## GetTranslations() - Core translation file loading with system locale fallback
+##
+## This function provides three-tier language selection for battery tests:
+## 1. If lang is non-empty and translation file exists, use it
+## 2. If lang is empty, try system locale
+## 3. Fall back to English
+##
+## This should be called from test-specific GetStrings() functions, which can then
+## perform additional test-specific processing (pattern substitution, global variable
+## assignment, etc.)
 ##
 ## Arguments:
-##   testname - Name of the test (used to find translations/testname.pbl-lang.json)
-##   lang - Two-character language code (empty string to auto-detect from system)
+##   testname: Base name of test (e.g., "gonogo", "flanker", "TLX")
+##   lang: Two-letter language code (typically from gLanguage, can be empty string)
 ##
 ## Returns:
-##   Custom object with translation strings as properties
+##   PropertyList object containing translated strings from JSON file
+##
+## Example usage in battery test GetStrings() function:
+##   define GetStrings(lang)
+##   {
+##     gStrings <- GetTranslations("gonogo", lang)
+##     ## Now do test-specific processing...
+##     gInst1 <- SubstituteStrings(gStrings.inst1, [[<VAR>, value]])
+##   }
 ##
 define GetTranslations(testname, lang)
 {
@@ -1776,8 +1854,9 @@ define GetTranslations(testname, lang)
         ret <-  ReadTranslationJSON(fname, lang)
     } else {
         ret <- ""
-        lang <- ""  ##language 2-character code files not available
+        lang <- ""  ##language 2-character code files not available, so treat it as if it was not set and we will use fallback.
     }
+
   }
 
   ## Tier 2: Try system locale if lang was empty
@@ -1807,8 +1886,9 @@ define GetTranslations(testname, lang)
     ret <-  ReadTranslationJSON(fname, "en")
   }
 
-  return(ret)
+   return ret
 }
+
 
 ##this works at replacing carriage returns (\n) etc. from text
 define FormatText(text)
@@ -1934,10 +2014,123 @@ define GetNewSubNum(server,page,port,username,pword)
 }
 
 
+##############################################################################
 
-
-define UploadFile(subcode,datafilename,settings:"upload.json")
+## Initialize token-based upload configuration
+## Call this at the start of battery tests that will be hosted online
+##
+## EMSCRIPTEN: Sets up centralized persistent storage in /data and redirects
+##             file writes via gDataDirectory (used by EM.pbl's GetNewDataFile)
+## NATIVE: No-op (UploadFile reads settings independently when called)
+##
+## IMPORTANT: Why participant ID is in upload.json:
+## - Emscripten uses MEMFS (in-memory filesystem) that gets reset between tests
+## - Chain-launcher runs multiple tests sequentially and can modify participant ID
+##   with suffixes (e.g., "P001" becomes "P001-stroop", "P001-flanker")
+## - upload.json is rewritten between tests with the modified participant ID
+## - Setting gSubNum from upload.json ensures each test uses the correct ID
+## - The -s command-line flag sets initial gSubNum, but this overwrites it
+##   with the potentially-suffixed version from upload.json
+## - For native platforms, this is a no-op since UploadFile() reads upload.json
+##   independently and doesn't need InitializeUpload()
+define InitializeUpload()
 {
+   result <- 0
+   if(gUpload)
+    {
+     if(not FileExists(gUploadFile))
+	 {
+	   ##backup load this
+	   gUploadFile <- "upload.json"
+	 }
+
+    if(FileExists(gUploadFile))
+    {
+        systemType <- GetSystemType()
+
+        if(systemType == "EMSCRIPTEN")
+        {
+            ## EMSCRIPTEN ONLY: Set up centralized persistent storage
+            settings <- ParseJSON(FileReadText(gUploadFile))
+            gToken <- settings.token
+            gTestName <- settings.test
+            gParticipant <- settings.participant
+
+            ## Set gSubNum from upload.json (may include suffix from chain-launcher)
+            ## This overwrites the -s command-line value, which is intentional
+            ## for multi-test chains where each test gets a different participant ID
+            gSubNum <- gParticipant
+
+            ## Set working directory to the test directory so relative paths work
+            SetWorkingDirectory("/usr/local/share/pebl2/battery/" + gTestName)
+
+            ## Create centralized data directory for MEMFS persistent storage
+            ## Create directories one level at a time since MakeDirectory doesn't create parents
+            MakeDirectory("/data")
+            MakeDirectory("/data/" + gToken)
+            MakeDirectory("/data/" + gToken + "/" + gTestName)
+            gDataDirectory <- "/data/" + gToken + "/" + gTestName + "/" + gParticipant + "/"
+            MakeDirectory(gDataDirectory)
+
+            result <- 1
+        } else {
+            ## NATIVE (LINUX/WINDOWS/OSX): No initialization needed
+            ## GetNewDataFile() will create standard data/{subnum}/ directories
+            ## UploadFile() will read upload.json when called
+            result <- 1
+        }
+    } else {
+        result <- 0
+    }
+	}
+    return(result)
+}
+
+
+##this will only upload if the --upload command line argument specifies a file. 
+## settingsfile will override gUploadFile.
+
+define UploadFile(subcode,datafilename,settingsfile:"")
+{
+
+  fname <- settingsfile
+
+  if(gUpload)
+  {
+  
+    #use settingsfile if it is not blank
+   if(settingsfile != "")
+    {
+	   ##..and it exists.
+	 if(not FileExists(settingsfile))
+	 {
+	   settingsfile <- ""
+	 }
+	}
+	
+	#if settingsfile is blank, then use gUploadFile:
+   if(settingsfile == "")
+   { 
+      settingsfile <- gUploadFile 
+	  ##but only if it exists:
+	  if(not FileExists(settingsfile))
+	  {
+  	     settingsfile <- ""
+	  }
+   }
+   
+   ##now, settingsfile is either blank or points to an existing file. one last fallback.
+   if(settingsfile=="")
+   {
+      if(FileExists("upload.json"))
+	  {
+	     settingsfile <- "upload.json"
+	  }
+   }
+   if(settingsfile == "")
+   {
+      Print("WARNING: UNABLE TO UPLOAD DATA BECAUSE SETTINGS FILE ["+fname+"] DOES NOT EXIST")
+   }
   settings  <- ParseJSON(FileReadText(settings))
   host <- settings.host
   page <- settings.page
@@ -1962,7 +2155,9 @@ define UploadFile(subcode,datafilename,settings:"upload.json")
   }
 
   out <-   SyncDataFile(host,page,port,username,uploadpassword,taskname,subcode,datafilename,token)
-
+ } else{
+  out <- 0
+ }
  return out
 }
 

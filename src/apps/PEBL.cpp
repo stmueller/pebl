@@ -810,19 +810,19 @@ int PEBLInterpret( int argc, std::vector<std::string> argv )
     else if (tmps == "ZH" || tmps == "CN" || tmps == "TW") {
         // Chinese (Simplified/Traditional)
         Evaluator::gGlobalVariableMap.AddVariable("gPEBLBaseFont",Variant("NotoSansCJK-Regular.ttc"));
-        Evaluator::gGlobalVariableMap.AddVariable("gPEBLBaseFontMono",Variant("NotoSansMono-Regular.ttf"));
+        Evaluator::gGlobalVariableMap.AddVariable("gPEBLBaseFontMono",Variant("NotoSansCJK-Regular.ttc"));
         Evaluator::gGlobalVariableMap.AddVariable("gPEBLBaseFontSerif",Variant("NotoSerif-Regular.ttf"));
     }
     else if (tmps == "JA" || tmps == "JP") {
         // Japanese
         Evaluator::gGlobalVariableMap.AddVariable("gPEBLBaseFont",Variant("NotoSansCJK-Regular.ttc"));
-        Evaluator::gGlobalVariableMap.AddVariable("gPEBLBaseFontMono",Variant("NotoSansMono-Regular.ttf"));
+        Evaluator::gGlobalVariableMap.AddVariable("gPEBLBaseFontMono",Variant("NotoSansCJK-Regular.ttc"));
         Evaluator::gGlobalVariableMap.AddVariable("gPEBLBaseFontSerif",Variant("NotoSerif-Regular.ttf"));
     }
     else if (tmps == "KO" || tmps == "KR" || tmps == "KP") {
         // Korean
         Evaluator::gGlobalVariableMap.AddVariable("gPEBLBaseFont",Variant("NotoSansCJK-Regular.ttc"));
-        Evaluator::gGlobalVariableMap.AddVariable("gPEBLBaseFontMono",Variant("NotoSansMono-Regular.ttf"));
+        Evaluator::gGlobalVariableMap.AddVariable("gPEBLBaseFontMono",Variant("NotoSansCJK-Regular.ttc"));
         Evaluator::gGlobalVariableMap.AddVariable("gPEBLBaseFontSerif",Variant("NotoSerif-Regular.ttf"));
     }
     else {

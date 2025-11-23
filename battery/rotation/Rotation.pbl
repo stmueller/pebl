@@ -354,26 +354,14 @@ define Rnd(num,sig)
 
 define GetStrings(lang)
 {
+  gStrings <- GetTranslations("Rotation", lang)
 
-  lang <- Uppercase(lang)
-  fname <- "translations/Rotation.pbl-"+LowerCase(lang)+".json"
+  gInstructions <-ReplaceChar(gStrings.instructions,"<DIFFKEY>",gParams.diffkey)
+  gInstructions <- ReplaceChar(gInstructions,"<SAMEKEY>",gParams.samekey)
+  gHeader <- ReplaceChar(gStrings.header,"<SAMEKEY>", gParams.samekey)
+  gHeader <- ReplaceChar(gHeader,"<DIFFKEY>",gParams.diffkey)
 
-  if(FileExists(fname))
-  {
-    gStrings <- ReadTranslationjson(fname,lang)
-  } else
-  {
-    gStrings <- ReadTranslationjson("translations/Rotation.pbl-en.json",lang)
-  }
-
-
-   gInstructions <-ReplaceChar(gStrings.instructions,"<DIFFKEY>",gParams.diffkey)
-   gInstructions <- ReplaceChar(gInstructions,"<SAMEKEY>",gParams.samekey)
-   gHeader <- ReplaceChar(gStrings.header,"<SAMEKEY>", gParams.samekey)
-   gHeader <- ReplaceChar(gHeader,"<DIFFKEY>",gParams.diffkey)
-
-   gCorrect <-    gStrings.correct
-   gIncorrect <-  gStrings.incorrect
-
+  gCorrect <-    gStrings.correct
+  gIncorrect <-  gStrings.incorrect
 
 }

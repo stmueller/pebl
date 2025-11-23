@@ -1131,20 +1131,7 @@ define MakeTime(msecs)
 
 define GetStrings(lang)
 {
-
-   ##Known trasnlations: EN
-
-  lang <- Uppercase(lang)
-  fname <- "translations/connections.pbl-"+LowerCase(lang)+".json"
-
-  if(FileExists(fname))
-  {
-    gStrings <- ReadTranslationjson(fname,lang)
-  } else
-  {
-    gStrings <- ReadTranslationjson("translations/connections.pbl-en.json",lang)
-  }
-
+  gStrings <- GetTranslations("connections", lang)
 
 
   gTimeInst <- gStrings.timeinsta +gTimelimit+gStrings.timeinstb

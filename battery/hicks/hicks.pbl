@@ -299,19 +299,7 @@ define Trials(numTrials, stimuli)
 
 define GetStrings(lang)
 {
-
-   ##Known translations: EN
-
-  lang <- Uppercase(lang)
-  fname <- "translations/hicks.pbl-"+LowerCase(lang)+".json"
-
-  if(FileExists(fname))
-  {
-    gStrings <- ReadTranslationJSON(fname,lang)
-  } else
-  {
-    gStrings <- ReadTranslationJSON("translations/hicks.pbl-en.json",lang)
-  }
+  gStrings <- GetTranslations("hicks", lang)
 
   gInst2 <- gStrings.inst2
 }

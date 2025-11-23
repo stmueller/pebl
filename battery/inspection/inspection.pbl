@@ -357,13 +357,5 @@ define CreateLineStimuli(positions, crossPresent, win)
 
 define GetStrings(lang)
 {
-  lang <- Uppercase(lang)
-  fname <- "translations/inspection.pbl-" + LowerCase(lang) + ".json"
-
-  if(FileExists(fname))
-  {
-    gStrings <- ReadTranslationJSON(fname, lang)
-  } else {
-    gStrings <- ReadTranslationJSON("translations/inspection.pbl-en.json", lang)
-  }
+  gStrings <- GetTranslations("inspection", lang)
 }

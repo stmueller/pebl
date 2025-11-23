@@ -128,19 +128,5 @@ define Start(p)
 
 define GetStrings(lang)
 {
-
-   ##Known translations: EN
-
-  lang <- Uppercase(lang)
-  fname <- "translations/freerecall.pbl-"+LowerCase(lang)+".json"
-
-  if(FileExists(fname))
-  {
-    gStrings <- ReadTranslationJSON(fname,lang)
-  } else
-  {
-    gStrings <- ReadTranslationJSON("translations/freerecall.pbl-en.json",lang)
-  }
-
-
+  gStrings <- GetTranslations("freerecall", lang)
 }

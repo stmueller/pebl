@@ -846,18 +846,7 @@ return cards
 
 define GetStrings(lang)
 {
-
-  lang <- Uppercase(lang)
-  fname <- "translations/bcst-64.pbl-"+LowerCase(lang)+".json"
-
-  if(FileExists(fname))
-  {
-    gStrings <- ReadTranslationJSON(fname,lang)
-  } else
-  {
-
-    gStrings <- ReadTranslationJSON("translations/bcst-64.pbl-en.json",lang)
-  }
+  gStrings <- GetTranslations("bcst-64", lang)
 
 
   #compose alternate strings for mouse and keyboard:
@@ -872,6 +861,13 @@ define GetStrings(lang)
      gContinue <- gStrings.continuekey#
      gInst2 <- gStrings.inst2key#
      gPromptText <- gStrings.headerkey#
+}
+
+
+   gInst1 <- gStrings.inst1 + CR(1)+gContinue#
+   gInst3 <- gStrings.inst3 + CR(1) + gContinue#
+   gDebrief <- gStrings.debrief#
+
 }
 
 

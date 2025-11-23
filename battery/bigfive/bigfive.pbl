@@ -321,15 +321,7 @@ define Likert(question)
    
 define GetStrings(lang)
 {
-  lang <- Uppercase(lang)
-  fname <- "translations/bigfive.pbl-" + LowerCase(lang) + ".json"
-
-  if(FileExists(fname))
-  {
-    gStrings <- ReadTranslationJSON(fname, lang)
-  } else {
-    gStrings <- ReadTranslationJSON("translations/bigfive.pbl-en.json", lang)
-  }
+  gStrings <- GetTranslations("bigfive", lang)
 
   ## Set global strings from translation
   gInst <- gStrings.instructions

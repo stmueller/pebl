@@ -316,18 +316,5 @@ define MakeList(length)
 
 define GetStrings(lang)
 {
-
-   ##Known translations: EN
-
-  lang <- Uppercase(lang)
-  fname <- "translations/ebbinghaus.pbl-"+LowerCase(lang)+".json"
-
-  if(FileExists(fname))
-  {
-    gStrings <- ReadTranslationJSON(fname,lang)
-  } else
-  {
-    gStrings <- ReadTranslationJSON("translations/ebbinghaus.pbl-en.json",lang)
-  }
-
+  gStrings <- GetTranslations("ebbinghaus", lang)
 }

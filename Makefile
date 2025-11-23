@@ -36,7 +36,7 @@ EXECNAME = $(PEBLNAME)
 PEBL_VERSION = 2.2
 #USE_WAAVE=1       ##Optional; comment out to turn off waave multimedia library
 USE_NETWORK=1      ##Optional; comment out to turn off sdl_net library.
-USE_PORTS=1        ##lpt, serial port, etc.
+##USE_PORTS is set conditionally below based on target platform (native only, not emscripten)
 USE_HTTP=1         ##Optional; turn on/off for http get/set
 USE_MIXER=1        ##Optional; uses sdl mixer for better audio+ogg/mp3/etc.
 USE_AUDIOIN=1      ##Optional; enables audio recording and voice key
@@ -142,7 +142,9 @@ em-opt-real: CXXFLAGS = $(CXXFLAGSX) $(CXXFLAGS_EMSCRIPTEN) -DPEBL_ITERATIVE_EVA
 em-opt-real: SDL_FLAGS = $(EM_SDL_FLAGS)
 em-test-real: CXXFLAGS = $(CXXFLAGSX) $(CXXFLAGS_EMSCRIPTEN) -DPEBL_ITERATIVE_EVAL
 em-test-real: SDL_FLAGS = $(EM_SDL_FLAGS)
+main-real: USE_PORTS = 1
 main-real: CXXFLAGS = $(CXXFLAGSX) $(CXXFLAGS_LINUX)
+cl: USE_PORTS = 1
 cl: CXXFLAGS = $(CXXFLAGSX) $(CXXFLAGS_LINUX)
 
 
@@ -536,7 +538,7 @@ em-test-real:  $(DIRS) $(EMMAIN_OBJ) $(BASE_DIR)/lex.yy.o $(EMMAIN_INC)
 	$(patsubst %.o, $(OBJ_DIR)/%.o, $(EMMAIN_OBJ)) \
 	libs/SDL2_gfx-1.0.4/build-em/SDL2_gfxPrimitives.o \
 	--shell-file emscripten/shell_PEBL_test.html \
-	--preload-file test.pbl@/test.pbl \
+	--preload-file test-eventloop-asyncify.pbl@/test.pbl \
 	--preload-file emscripten/pebl-lib@/usr/local/share/pebl2/pebl-lib \
 	--preload-file emscripten/media/@/usr/local/share/pebl2/media
 

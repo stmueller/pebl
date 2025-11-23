@@ -35,7 +35,7 @@
 
 
 #ifdef PEBL_EMSCRIPTEN
-#include "../../base/Evaluator2.h"
+#include "../../base/Evaluator-es.h"
 #else
 #include "../../base/Evaluator.h"
 #endif

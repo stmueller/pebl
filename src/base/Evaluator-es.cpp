@@ -132,13 +132,17 @@ Evaluator::Evaluator(Variant & stacktop, string scope):
 
 Evaluator::~Evaluator()
 {
-#ifdef PEBL_DEBUG_PRINT 
+#ifdef PEBL_DEBUG_PRINT
     cout << "Deleting Evaluator: " << mScope << endl;
 #endif
 
-    //Delete all local variables now.
-    while( gCallStack.Size())
-        gCallStack.Pop();
+    //NOTE: gCallStack is a GLOBAL variable shared across all evaluator instances.
+    //We should NOT clear it in the destructor, as it may contain entries from other
+    //evaluators that are still running. Each function call properly pushes/pops
+    //its own entry via PEBL_LAMBDAFUNCTION/PEBL_FUNCTION_TAIL_LIBFUNCTION.
+    //
+    //while( gCallStack.Size())
+    //    gCallStack.Pop();
 
 
 }

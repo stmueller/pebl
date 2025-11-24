@@ -101,10 +101,11 @@ NOTO_SIZE=$(du -sh "$NOTO_DIR" | cut -f1)
 echo "  Fonts included: $NOTO_COUNT files ($NOTO_SIZE)"
 echo "  Languages: Thai, Devanagari (Hindi/Marathi/Nepali), Bengali, Arabic, Hebrew, Georgian"
 
-# Generate bundle (without LZ4 - pebl2 doesn't have LZ4 support)
+# Generate bundle (with LZ4 compression)
 python "$FP" "$OUTPUT_DIR/fonts_noto.data" \
     --preload "$TEMP_DIR/fonts_noto/media@/usr/local/share/pebl2/media" \
     --js-output="$OUTPUT_DIR/fonts_noto.js" \
+    --lz4 \
     --no-node
 
 BUNDLE_SIZE=$(ls -lh "$OUTPUT_DIR/fonts_noto.data" | awk '{print $5}')
@@ -147,10 +148,11 @@ if [[ -z "$CJK_SKIP" ]]; then
     echo "  Languages: Chinese (Simplified/Traditional), Japanese, Korean"
     echo "  Note: This bundle is large (~20MB) due to CJK character set size"
 
-    # Generate bundle (without LZ4 - pebl2 doesn't have LZ4 support)
+    # Generate bundle (with LZ4 compression)
     python "$FP" "$OUTPUT_DIR/fonts_cjk.data" \
         --preload "$TEMP_DIR/fonts_cjk/media@/usr/local/share/pebl2/media" \
         --js-output="$OUTPUT_DIR/fonts_cjk.js" \
+        --lz4 \
         --no-node
 
     BUNDLE_SIZE=$(ls -lh "$OUTPUT_DIR/fonts_cjk.data" | awk '{print $5}')

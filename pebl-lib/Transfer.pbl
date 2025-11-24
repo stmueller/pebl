@@ -15,7 +15,7 @@ define GetFiles(filelist,filebase,urlbase)
     if(not FileExists(filebase+file))
     {
        filesuccess <- GetHTTPFile(urlbase+file,filebase+file)
-       PushOnBack(success,filesuccess)
+       PushOnEnd(success,filesuccess)
        if(filesuccess)
        {
        Print("File:["+file+"] successfully downloaded." )
@@ -24,7 +24,7 @@ define GetFiles(filelist,filebase,urlbase)
         good <- 0
        }
     } else {
-       PushOnBack(success,1)
+       PushOnEnd(success,1)
        Print("File:["+file+"] previously downloaded." )
     }
 

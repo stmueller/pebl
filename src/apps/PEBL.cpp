@@ -293,8 +293,7 @@ int PEBLInterpret( int argc, std::vector<std::string> argv )
     files.push_back("Graphics.pbl");
     files.push_back("UI.pbl");
     files.push_back("HTML.pbl");
-//This contains two functions for http, but that requires libraries be compiled.
-//    files.push_back("Transfer.pbl");
+    files.push_back("Transfer.pbl");  // Network/HTTP file transfer functions
 
 #ifdef PEBL_EMSCRIPTEN
    files.push_back("EM.pbl");

@@ -1665,6 +1665,78 @@ Sets a a property of a custom object.   This works for custom or built-in object
 :func:`GetProperty()`, :func:`PropertyExists()`, :func:`GetPropertyList()`, :func:`MakeCustomObject()`, :func:`PrintProperties()`
 
 
+.. index:: SetPixel
+
+SetPixel()
+----------
+
+*Sets the color of a pixel at specified coordinates*
+
+**Description:**
+
+Sets the pixel at x,y to a particular color. SetPixel is primarily useful for images and canvases--labels and textboxes get re-rendered upon draw so any use of SetPixel will get overwritten when it gets drawn. It won't work on windows or shapes. This function can also be called using SetPoint().
+
+**Usage:**
+
+.. code-block:: pebl
+
+   SetPixel(<widget>, <x>, <y>, <color>)
+
+**Example:**
+
+.. code-block:: pebl
+
+   back <- MakeCanvas(50,50)
+   AddObject(back,gWin)
+   col <- MakeColor("green")
+   xy <- [[10,10],[10,11],[10,12],[10,13]]
+   loop(i,xy)
+   {
+      SetPixel(back, First(i), Second(i), col)
+   }
+   Draw()
+
+**See Also:**
+
+:func:`SetPoint()`, :func:`MakeGabor()`, :func:`MakeCanvas()`, :func:`GetPixelColor()`
+
+
+.. index:: SetPoint
+
+SetPoint()
+----------
+
+*Sets the color of a point at specified coordinates (alias for SetPixel)*
+
+**Description:**
+
+Sets the pixel at x,y to a particular color. SetPoint is an alias for SetPixel() and functions identically. It is primarily useful for images and canvases--labels and textboxes get re-rendered upon draw so any use of SetPoint will get overwritten when it gets drawn. It won't work on windows or shapes.
+
+**Usage:**
+
+.. code-block:: pebl
+
+   SetPoint(<widget>, <x>, <y>, <color>)
+
+**Example:**
+
+.. code-block:: pebl
+
+   back <- MakeCanvas(50,50)
+   AddObject(back,gWin)
+   col <- MakeColor("green")
+   xy <- [[10,10],[10,11],[10,12],[10,13]]
+   loop(i,xy)
+   {
+      SetPoint(back, First(i), Second(i), col)
+   }
+   Draw()
+
+**See Also:**
+
+:func:`SetPixel()`, :func:`MakeGabor()`, :func:`MakeCanvas()`, :func:`GetPixelColor()`
+
+
 .. index:: SetText
 
 SetText()

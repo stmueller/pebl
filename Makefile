@@ -496,6 +496,7 @@ em-opt-real:  $(DIRS) $(EMMAIN_OBJ) $(BASE_DIR)/lex.yy.o $(EMMAIN_INC)
 	-s ASYNCIFY=1 \
 	-s ASYNCIFY_STACK_SIZE=524288 \
 	-s ASYNCIFY_IMPORTS='["emscripten_sleep"]' \
+	-sLZ4=1 \
 	--pre-js emscripten/load-idbfs.js \
 	-lidbfs.js \
 	-DPEBL_EMSCRIPTEN \
@@ -530,6 +531,7 @@ em-test-real:  $(DIRS) $(EMMAIN_OBJ) $(BASE_DIR)/lex.yy.o $(EMMAIN_INC)
 	-s ASYNCIFY=1 \
 	-s ASYNCIFY_STACK_SIZE=524288 \
 	-s ASYNCIFY_IMPORTS='["emscripten_sleep"]' \
+	-sLZ4=1 \
 	--pre-js emscripten/load-idbfs.js \
 	-lidbfs.js \
 	-DPEBL_EMSCRIPTEN \

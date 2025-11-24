@@ -64,6 +64,39 @@ Finds a token in a string, returning the position (starting at a particular posi
 
 
 
+.. index:: Format
+
+Format()
+--------
+
+**Description:**
+
+Formats the printing of values to ensure proper spacing. It will either truncate or pad ``<value>`` with spaces so that it ends up exactly ``<length>`` characters long. Character padding is at the end.
+
+**Usage:**
+
+.. code-block:: pebl
+
+   Format(<value>, <length>)
+
+**Example:**
+
+.. code-block:: pebl
+
+   x <- 33.23425225
+   y <- 23.3
+   Print("["+Format(x,5)+"]")
+   Print("["+Format(y,5)+"]")
+   ## Output:
+   ## [33.23 ]
+   ## [23.3  ]
+
+**See Also:**
+
+:func:`CR()`, :func:`Tab()`
+
+
+
 .. index:: Lowercase
 
 Lowercase()

@@ -548,6 +548,76 @@ Reads and returns  a `word' from a file; the next 		connected stream of characte
 
 
 
+.. index:: MD5File
+
+MD5File()
+---------
+
+**Description:**
+
+Computes MD5 checksum of a file. Returns blank if file does not exist.
+
+**Usage:**
+
+.. code-block:: pebl
+
+   MD5File(<filename>)
+
+**Example:**
+
+.. code-block:: pebl
+
+   text <- FileReadText("test.pbl")
+   Print(MD5Sum(text))
+   #returns: 3396a651bd3c96f9799ce02eecb48801; see similar example next
+
+   Print(MD5File("test.pbl"))
+   # returns 3396a651bd3c96f9799ce02eecb48801
+
+   Print(MD5File("doesnotexist.txt"))
+   #returns 0
+
+**See Also:**
+
+:func:`MD5Sum()`, :func:`FileReadText()`
+
+
+
+.. index:: MD5Sum
+
+MD5Sum()
+--------
+
+**Description:**
+
+Computes MD5 checksum on text. Returns blank if no string provided.
+
+**Usage:**
+
+.. code-block:: pebl
+
+   MD5Sum(<text>)
+
+**Example:**
+
+.. code-block:: pebl
+
+   Print(MD5Sum(""))
+   #Return: d41d8cd98f00b204e9800998ecf8427e
+
+   Print(MD5Sum("bananana"))
+   #returns bb8e9af523e4aeffa88f1807fb2af9ce
+
+   text <- FileReadText("test.pbl")
+   Print(MD5Sum(text))
+   #returns: 3396a651bd3c96f9799ce02eecb48801
+
+**See Also:**
+
+:func:`MD5File()`, :func:`FileReadText()`
+
+
+
 .. index:: GetData
 
 GetData()

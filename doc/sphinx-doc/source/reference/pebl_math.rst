@@ -259,7 +259,43 @@ Natural log of ``<num>``.
 
 **See Also:**
 
-:func:`Log()`, :func:`Log2()`, :func:`LogN()`, :func:`Exp()`
+:func:`Log10()`, :func:`Log2()`, :func:`LogN()`, :func:`Exp()`
+
+
+Log10()
+-------
+
+**Description:**
+
+Log base 10 of ``<num>``.
+
+**Usage:**
+
+.. code-block:: pebl
+
+   Log10(<num>)
+
+**See Also:**
+
+:func:`Log2()`, :func:`LogN()`, :func:`Ln()`, :func:`Exp()`
+
+
+Log2()
+------
+
+**Description:**
+
+Log base 2 of ``<num>``.
+
+**Usage:**
+
+.. code-block:: pebl
+
+   Log2(<num>)
+
+**See Also:**
+
+:func:`Log10()`, :func:`LogN()`, :func:`Ln()`, :func:`Exp()`
 
 
 LogN()
@@ -760,6 +796,30 @@ Square root of ``<num>``.
    Sqrt(100)  # == 10
 
 
+StDev()
+-------
+
+**Description:**
+
+Returns the standard deviation of ``<list>``.
+
+**Usage:**
+
+.. code-block:: pebl
+
+   StDev(<list>)
+
+**Example:**
+
+.. code-block:: pebl
+
+   sd <- StDev([3,5,99,12,1.3,15])
+
+**See Also:**
+
+:func:`Min()`, :func:`Max()`, :func:`Mean()`, :func:`Median()`, :func:`Quantile()`, :func:`Sum()`
+
+
 Tan()
 -----
 
@@ -903,6 +963,3 @@ ToInteger()
 **Description:**
 
 Rounds a number to an integer, changing internal  		representation.
-
-
-================================================================================

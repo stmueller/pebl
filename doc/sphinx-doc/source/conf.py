@@ -29,7 +29,11 @@ extensions = [
 ]
 
 templates_path = ['_templates']
-exclude_patterns = []
+exclude_patterns = [
+    'syntax_test.rst',  # Test file for syntax highlighting, not part of main docs
+    'reference/index.rst',  # Duplicate index, using main index.rst instead
+    'reference/pebl_math.rst',  # Duplicate of peblmath.rst
+]
 
 # The master document
 master_doc = 'index'
@@ -45,10 +49,8 @@ html_title = "PEBL Function Reference"
 
 # Theme options
 html_theme_options = {
-    'navigation_depth': 3,
-    'collapse_navigation': False,
-    'sticky_navigation': True,
-    'includehidden': True,
+    # Note: navigation_depth, collapse_navigation, sticky_navigation, and includehidden
+    # are sphinx_rtd_theme options. Using alabaster theme instead.
     'extra_nav_links': {
         'PEBL Documentation': '../documentation.html',
         'Function Index': '../genindex.html',

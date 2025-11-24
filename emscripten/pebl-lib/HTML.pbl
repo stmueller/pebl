@@ -24,7 +24,20 @@ define HL()
   return "<hl>"
 }
 
+define B(text)
+{
+ return "<b>"+text+"</b>"+CR(1)
+}
 
+define BR()
+{
+ return "<br>"
+}
+
+define Img(filename,width)
+{
+  return "<img src='"+filename+"' width="+width+"/>"
+}
 
 define Page(text)
 {
@@ -67,6 +80,19 @@ define Table(tab,header:"")
  return out
 }
 
+define MakeDivPage(text)
+{
+  if(not VariableExists("gPage"))
+  {
+    gPage <- 1
+  }
+
+  out <- "<div class='page'><div class='subpage'><p align='right'> Page " + gPage + " </p>"+
+         text + "</div></div>"
+  gPage <- gPage + 1
+
+  return out
+}
 
 #define Start(p)
 #{

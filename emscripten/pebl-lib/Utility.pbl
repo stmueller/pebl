@@ -1494,13 +1494,147 @@ define CountDown(win,usebg:1)
 }
 
 
+## Check if a string is a URL (http:// or https://)
+define IsURL(string)
+{
+  if(not IsString(string))
+  {
+    result <- 0
+  } else {
+    stringLen <- StringLength(string)
+    if(stringLen < 7)
+    {
+      result <- 0
+    } else {
+      ## Check for http:// or https://
+      start7 <- Uppercase(SubString(string, 1, 7))
+      start8 <- Uppercase(SubString(string, 1, 8))
+      result <- (start7 == "HTTP://") or (start8 == "HTTPS://")
+    }
+  }
+  return(result)
+}
+
+
+## Helper function: Fetch text from URL or local file
+## Handles both http:// URLs and local file paths
+define FetchText(source)
+{
+  if(IsURL(source))
+  {
+    ## Parse URL to extract host, port, and path
+    ## Remove http:// or https:// prefix
+    urlUpper <- Uppercase(source)
+    if(SubString(urlUpper, 1, 8) == "HTTPS://")
+    {
+      rest <- SubString(source, 9, StringLength(source) - 8)
+      useHTTPS <- 1
+    } else {
+      rest <- SubString(source, 8, StringLength(source) - 7)
+      useHTTPS <- 0
+    }
+
+    ## Find first slash to separate host from path
+    slashPos <- 0
+    loop(i, Sequence(1, StringLength(rest), 1))
+    {
+      if(SubString(rest, i, 1) == "/" and slashPos == 0)
+      {
+        slashPos <- i
+      }
+    }
+
+    if(slashPos == 0)
+    {
+      host <- rest
+      path <- "/"
+    } else {
+      host <- SubString(rest, 1, slashPos - 1)
+      path <- SubString(rest, slashPos, StringLength(rest) - slashPos + 1)
+    }
+
+    ## Check for port in host (host:port format)
+    colonPos <- 0
+    loop(i, Sequence(1, StringLength(host), 1))
+    {
+      if(SubString(host, i, 1) == ":")
+      {
+        colonPos <- i
+      }
+    }
+
+    if(colonPos > 0)
+    {
+      portStr <- SubString(host, colonPos + 1, StringLength(host) - colonPos)
+      port <- ToNumber(portStr)
+      host <- SubString(host, 1, colonPos - 1)
+    } else {
+      if(useHTTPS)
+      {
+        port <- 443
+      } else {
+        port <- 80
+      }
+    }
+
+    ## Fetch via HTTP
+    result <- GetHTTPText(host, port, path)
+
+    ## GetHTTPText returns [status_code, text]
+    ## Check if successful (status 200)
+    if(First(result) == 200)
+    {
+      text <- Second(result)
+    } else {
+      ## Print warning but don't crash - allow fallback to defaults
+      Print("WARNING: Parameter fetch failed with HTTP status " + First(result))
+      Print("  URL: " + source)
+      Print("  Server response: " + Second(result))
+      Print("  Falling back to default parameters")
+      text <- ""
+    }
+  } else {
+    ## Local file - use FileReadText
+    text <- FileReadText(source)
+  }
+
+  return(text)
+}
+
+
+## Read JSON parameter file and convert to parameter object
+## JSON format: simple key-value pairs, e.g., {"dopractice": 1, "isi": 1000}
+## Returns a custom object with parameters as properties
+## Supports both local files and URLs (http:// or https://)
+## Returns empty parameter object if fetch/parse fails (allows fallback to defaults)
+define ReadJSONParameters(filename)
+{
+  ## Fetch content from URL or local file
+  jsonText <- FetchText(filename)
+
+  ## Create parameter object
+  parameters <- MakeCustomObject("parameters")
+
+  ## Only parse if we got valid content
+  if(StringLength(jsonText) > 0)
+  {
+    jsonData <- ParseJSON(jsonText)
+
+    ## Copy all properties from JSON object to parameter object
+    propList <- GetPropertyList(jsonData)
+    loop(key, propList)
+    {
+      SetProperty(parameters, key, GetProperty(jsonData, key))
+    }
+  }
+
+  return(parameters)
+}
 
 define CreateParameters(defaults,file)
 {
-
-
-    ##We read in the file. Now add any of the default parameter that don't already exist.
-    ##(in case the file is broken or faulty).
+    ## Create parameter object from defaults
+    ## This provides fallback values if file doesn't exist or is incomplete
 
     if(IsList(defaults))
     {
@@ -1509,30 +1643,50 @@ define CreateParameters(defaults,file)
       par1 <- MakeCustomObject("parameters")
     }
 
-
-
-
   ##############################
-  ##Now, read in values from the file
-  if(FileExists(file))
-   {
-    parampairs <- ReadCSV(file)
-    par2 <- MakeParameterObject(parampairs)
+  ## Now, read in values from the file if it exists or is a URL
+  ## Supports both legacy CSV format (.par) and modern JSON format (.par.json)
+  ## Supports local files and remote URLs (http:// or https://)
 
-  ##now, we need to merge the two parameter sets together.
-  ##we should use defaults as the base, but copy anything from
-  ## file to replace.
+  fileAvailable <- 0
+
+  if(IsURL(file))
+  {
+    ## File is a URL - attempt to fetch it
+    fileAvailable <- 1
+  } elseif(FileExists(file))
+  {
+    ## File is local and exists
+    fileAvailable <- 1
+  }
+
+  if(fileAvailable)
+   {
+    ## Auto-detect file format based on extension
+    ## URLs always use JSON format, local files can be .json or .par (CSV)
+    if(IsURL(file) or EndsWith(file, ".json"))
+    {
+      ## Modern JSON format: {"param1": value1, "param2": value2}
+      par2 <- ReadJSONParameters(file)
+    } else {
+      ## Legacy CSV format: param1,value1
+      parampairs <- ReadCSV(file)
+      par2 <- MakeParameterObject(parampairs)
+    }
+
+  ## Merge the two parameter sets together
+  ## Use defaults as the base, but copy anything from file to override
 
   props <- GetPropertyList(par2)
   loop(p,props)
   {
-     #add/overwrite anything from props
+     ## Add/overwrite with values from file
      SetProperty(par1,p,GetProperty(par2,p))
   }
  }
 #   Print("Parameters used:")
 #   PrintProperties(par1)
-  return par1
+  return(par1)
 }
 
 ## This creates an object called 'parameters' with
@@ -2053,7 +2207,7 @@ define InitializeUpload()
             ## EMSCRIPTEN ONLY: Set up centralized persistent storage
             settings <- ParseJSON(FileReadText(gUploadFile))
             gToken <- settings.token
-            gTestName <- settings.test
+            gTestName <- settings.taskname
             gParticipant <- settings.participant
 
             ## Set gSubNum from upload.json (may include suffix from chain-launcher)
@@ -2255,3 +2409,238 @@ define DirlistToText(list)
     out <- ListToString(list,sep) + sep
     return out
 }
+
+
+
+
+
+define GetDirectory(filepath)
+  {
+
+     if(GetSystemType()=="WINDOWS")
+        {
+	   sep <- "\"
+	} else {
+	   sep <- "/"
+
+	}
+    ## Find the last occurrence of the separator
+    parts <- SplitString(filepath, sep)
+
+    ## If there's only one part, there's no directory
+    if(Length(parts) <= 1)
+    {
+      directory <- sep
+      
+    } else{
+
+    ## Remove the last part (the filename) and rejoin
+    directory <- ""
+    sepX <- ""
+    loop(i, Sequence(1, Length(parts)-1, 1))
+    {
+      directory <- directory + sepX + Nth(parts, i)
+      sepX <- sep
+    }
+     directory <- directory + sepX
+    }
+    return directory
+  }
+
+
+
+
+
+## Main calibration function
+## Returns custom object with calibration data
+define CalibrateScreen(win)
+{
+
+   calStart <- "You will see a horizontal line. Use your mouse to adjust the line until it matches exactly "
+
+   calOpts <-  ["150 mm (15 cm) on your ruler.",
+                 "6 inches on your ruler.", 
+                 "the LONG SIDE of a credit card.",
+                 "the SHORT SIDE of your 8.5x11 Letter-size paper.",
+                 "the SHORT SIDE of your A4 paper."]
+
+   calEnd <-  CR(2) + "Click the mouse when RIGHT edge of the line matches."
+
+
+  scale <- [150,152.4,85.6,215.9,210] ##size of standard in mm
+  standard <- ["150 mm on ruler","6 inches on ruler","Long side of credit card","Short side of 8.5x11"+gQuote+"paper","Short side of A4 paper"]
+  methodlabels <- ["rulercm","rulerin","cc","usletter","a4"]
+
+  ## Initial instructions
+  inst <- "This test will measure your vision and eye movements, so it needs to be calibrated before we begin. We can calibrate with a tape measure that measures cm or inches, or a piece of 8.5"+gQuote+"x11"+gQuote+" or A4 paper, or a credit card. Get one of these to continue." 
+
+
+   screenbg <- Rectangle(gVideoWidth/2,gVideoHeight/2,gVideoWidth,gVideoHeight,MakeColor("black"),1)
+   AddObject(screenbg,win)
+   screenbg2 <- Rectangle(gVideoWidth/2,gVideoHeight/2,gVideoWidth,650,MakeColor("white"),1)
+   AddObject(screenbg2,win)
+   tb <- EasyTextBox(inst, gVideoWidth/2-300,gVideoHeight/2-275,win,20,600,600)
+   Draw()
+
+
+   ##########################################
+   ## Choose calibration method
+ 
+
+ opts <- ["Ruler or tape measure (cm)",
+          "Ruler or tape measure (inches)",
+          "Credit card",
+          "US Letter paper (8.5"+gquote+"+x11"+gquote+")" ,
+          "A4 paper"]
+
+  msg   <- "Click to choose your calibration method:"
+     
+   font <- MakeFont(gPEBLBaseFont, 0, 24, MakeColor("black"), MakeColor("gray"), 0)
+   title <- MakeLabel(msg,font)
+   AddObject(title,win)
+   Move(title, gVideoWidth/2,gVideoHeight/2)
+   clickons <- []
+    loop(i,5)
+    {
+       tmp <- MakeLabel(Nth(opts,i),font)
+       AddObject(tmp,win)
+       Move(tmp, gVideoWidth/2,gVideoHeight/2+20+30*i)
+       PushOnEnd(clickons,tmp)
+   
+     }
+ 
+  Draw()
+   method <- WaitForClickOnTarget(clickons,[1,2,3,4,5])
+   RemoveObjects(clickons,gWin)
+   RemoveObject(title,gWin)
+ ##Now, have different text for each method.
+  tb.text <- calStart + Nth(calOpts,method) + calEnd
+  Draw()
+
+  targetSize <- Nth(standard,method)   
+  confirmed <- 0
+
+    font <- MakeFont(gPEBLBaseFont, 0, 16, MakeColor("black"), MakeColor("white"), 1)
+
+    inst <- "Move the mouse to adjust the line to match " + targetSize +  "        Click when it matches"
+    label <- MakeLabel(inst, font)
+    AddObject(label, win)
+    Move(label, gVideoWidth/2, gVideoHeight/2+250) #should be on top of tb
+
+
+    ## Create adjustable line
+
+    centerX <- gVideoWidth/2
+    centerY <- gVideoHeight/2
+    leftX <- 100
+    rightX <- centerX 
+    lineLength <- rightX-leftX
+
+    bg <- Rectangle(centerX-linelength/2,centerY,lineLength+6,26,MakeColor("grey50"),1)
+    bg2 <- Rectangle(centerX-linelength/2,centerY,lineLength+6,26,MakeColor("black"),0)
+    line <- Line(leftX, centerY, lineLength, 0, MakeColor("red"))
+    AddObject(bg,win)
+    AddObject(bg2,win)
+    AddObject(line, win)
+
+    ## Create right drag handle
+    handle <- Circle(rightX, centerY-20, 10, MakeColor("blue"), 1)
+    handle.aa <- 1
+    AddObject(handle, win)
+   
+    rightMarker<- Line(rightX, centerY-20,  0, 40, MakeColor("black"))
+    AddObject(rightMarker, win)
+ 
+    ## Create left marker (fixed)
+    leftMarker <- Line(leftX, centerY - 20, 0, 40, MakeColor("black"))
+    AddObject(leftMarker, win)
+    confirm<-MakeLabel("",font)
+     AddOBject(confirm,win)
+     Move(confirm,gVideoWidth/2,gVideoHeight/2-100)
+
+    Draw()
+    Wait(50)
+
+
+  while(not confirmed)
+  {
+
+    ## Adjustment loop - follow mouse until click
+    done <- 0
+
+    while(not done)
+    {
+      pos <- GetMouseCursorPosition()
+      mouseX <- First(pos)
+
+
+      ## Calculate new length from left edge to mouse
+      newLength <- (mouseX - leftX)
+
+      if(newLength > 50 and newLength < gVideoWidth - 100)
+      {
+        lineLength <- newLength
+        rightX <- leftX + lineLength
+        line.width <- lineLength 
+        bg.width <- lineLength
+        bg2.width<-lineLength
+        bg.x <- (leftX + rightX)/2
+        bg2.x <- (leftX + rightX)/2
+ 
+        Move(handle,rightX,centerY)
+        Move(rightMarker,rightX,centerY-20)
+        confirm.text <- "Size: "+ lineLength + " pixels."
+        Draw()
+      }
+
+      ## Check for mouse click
+      x <- WaitForMouseButtonWithTimeout(10)
+      if(not x=="<timeout>")
+        {
+
+          done <- (Fourth(x)=="<pressed>")
+        }
+      }
+
+    Draw()
+
+    ## Ask for confirmation
+    confirmMsg <- "You set the line to " + linelength + " pixels.   Is this correct?"
+
+   ##on top of msg box so they have white background.
+    yes <- MakeLabel("YES",font)
+    AddObject(yes,win); Move(yes,gVideoWidth/2-100,gVideoHeight/2-75)
+    redo  <- MakeLabel("Redo",font)
+    AddObject(redo,win); Move(redo,gVideoWidth/2+100,gVideoHeight/2-75)
+    confirm.text <- confirmMsg
+    Draw()
+    response <- WaitForClickOnTarget([yes,redo],["Yes","Redo"])
+  
+    if(response == "Yes")
+    {
+      confirmed <- 1
+    } else {
+      ## Redo - loop will continue
+
+    }
+     
+  }
+  Print("Completing screen calibration")
+  ## lineLength pixels 
+  pixelsPerMM <- lineLength / Nth(scale,method)
+
+
+  ## Create calibration object
+  calibData <- MakeCustomObject("calibration")
+  SetProperty(calibData, "method", Nth(methodlabels,method))
+  SetProperty(calibData, "pixelsPerMM", pixelsPerMM)
+  SetProperty(calibData, "pixelsPerInch", pixelsPerMM * 25.4)
+  SetProperty(calibData, "screenWidthMM", gVideoWidth / pixelsPerMM)
+  SetProperty(calibData, "screenHeightMM", gVideoHeight / pixelsPerMM)
+  SetProperty(calibData,   "screenWidth",gVideoWidth)
+  SetProperty(calibData,   "screenHeight",gVideoHeight)
+  SetProperty(calibData, "timestamp", TimeStamp())
+
+  return(calibData)
+}
+

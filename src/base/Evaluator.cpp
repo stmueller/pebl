@@ -3,7 +3,7 @@
 //    Name:       src/base/Evaluator.cpp
 //    Purpose:    Defines an class that can evaluate PNodes (Recursive Evaluator)
 //    Author:     Shane T. Mueller, Ph.D.
-//    Copyright:  (c) 2003--2016 Shane T. Mueller <smueller@obereed.net>
+//    Copyright:  (c) 2003--2025 Shane T. Mueller <smueller@obereed.net>
 //    License:    GPL 2
 //
 //    ARCHITECTURE NOTE - Recursive vs Iterative Evaluator:
@@ -671,9 +671,14 @@ bool Evaluator::Evaluate(const OpNode * node)
                 if(p != arglist->End())
                     {
                         //Too many arguments.
-                        string message = string("Too many arguments passed to function [" + mScope + "].");
+                        string message = string("");
 
-                        if(mScope == "Start") message += " (Make sure Start function has a variable).";
+                        if(mScope == "Start")
+                            message += "Start() function must be Start(p)).";
+                        else
+                            message += "Too many arguments passed to function [" + mScope + "].";
+
+                        
                         PError::SignalFatalError(message);
                     }
 

@@ -1,9 +1,8 @@
 /* A Bison parser, made by GNU Bison 3.8.2.  */
 
-/* Bison interface for Yacc-like parsers in C
+/* Skeleton interface for Bison GLR parsers in C
 
-   Copyright (C) 1984, 1989-1990, 2000-2015, 2018-2021 Free Software Foundation,
-   Inc.
+   Copyright (C) 2002-2015, 2018-2021 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,10 +29,6 @@
 
    This special exception was added by the Free Software Foundation in
    version 2.2 of Bison.  */
-
-/* DO NOT RELY ON FEATURES THAT ARE NOT DOCUMENTED in the manual,
-   especially those whose name start with YY_ or yy_.  They are
-   private implementation details that can be changed or removed.  */
 
 #ifndef YY_YY_SRC_BASE_GRAMMAR_TAB_HPP_INCLUDED
 # define YY_YY_SRC_BASE_GRAMMAR_TAB_HPP_INCLUDED
@@ -149,7 +144,7 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 36 "src/base/grammar.y"
+#line 39 "src/base/grammar.y"
 
   
   pInt    iValue;  /* For the lexical analyser. NUMBER tokens */
@@ -159,7 +154,7 @@ union YYSTYPE
   char        *symbol; /* The name of a variable*/
   char        *function; 
 
-#line 163 "src/base/grammar.tab.hpp"
+#line 158 "src/base/grammar.tab.hpp"
 
 };
 typedef union YYSTYPE YYSTYPE;
@@ -170,8 +165,6 @@ typedef union YYSTYPE YYSTYPE;
 
 extern YYSTYPE yylval;
 
-
 int yyparse (void);
-
 
 #endif /* !YY_YY_SRC_BASE_GRAMMAR_TAB_HPP_INCLUDED  */

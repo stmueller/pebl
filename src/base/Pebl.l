@@ -31,7 +31,7 @@ It identifies lexemes in a PEBL program.
 */
 %option yylineno
 %option noinput
-%option nounput 
+%option nounput
 %{
 #include <stdlib.h>
 #include "PNode.h"            //This needed because PNode isn't defined in grammar.tab.hpp
@@ -39,7 +39,6 @@ It identifies lexemes in a PEBL program.
 #include "../utility/PEBLUtility.h"
 #include <string.h>
 #include <math.h>
-
 
 void yyerror(const char *);
 
@@ -100,7 +99,7 @@ bomF      \xff\xfe
 \<\>      return  PEBL_NE;
 \!\=      return  PEBL_NE;
 \~\=      return  PEBL_NE;
-\}        return  PEBL_RBRACE;
+\}        return PEBL_RBRACE;
 \]        return  PEBL_RBRACKET;
 \)        return  PEBL_RPAREN;
 \-        return  PEBL_SUBTRACT;
@@ -145,9 +144,9 @@ if(yylval.strValue[yyleng-2] != '"')     /*"*/
   return PEBL_STRING;
 };
 
-\r\n      {return PEBL_NEWLINE;}
-\n        {return PEBL_NEWLINE;}
-\r        {return PEBL_NEWLINE;}
+\r\n      return PEBL_NEWLINE;
+\n        return PEBL_NEWLINE;
+\r        return PEBL_NEWLINE;
 {bomF}     {
             char message[151];
             snprintf(message,150,"\n  File appears to be in UTF-16 Unicode format.\n  PEBL can only read UTF-8 or ASCII formats. Resave file as UTF-8 or ASCII and try again.");

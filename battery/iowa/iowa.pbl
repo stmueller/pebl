@@ -78,8 +78,8 @@ define Start(lPar)
 		  ["UseMouse",1],  ##Should we use the mouse or the keyboard?
 		  ["shuffledecks",0], ##whether decks should be shuffled default is off
 		  ["startvalue",2000],
-		  ["rewarddelay",2500],
-		  ["penaltydelay",2500],
+		  ["rewarddelay",2000],
+		  ["penaltydelay",2000],
 		  ["playsounds",1]
                  ]
 
@@ -106,7 +106,35 @@ define Start(lPar)
   ## Program will crash if you specify something which doesn't have a
   ## translation file.
   gLanguage <- Lowercase(gLanguage)
-  textlist <- FileReadList(Lowercase("translations/labels-" + gLanguage + tag + ".txt"))
+  
+    ## Tier 1: Check if gLanguage is explicitly set (non-empty)
+    if(gLanguage == "")
+    {
+      systemLocale <- GetSystemLocale()
+
+      if(systemLocale != "")
+      {
+        ## Extract language code from locale (e.g., "en_US" -> "EN", "zh_CN" -> "ZH")
+         gLanguage <- Lowercase(SubString(systemLocale, 1, 2))
+      }else{
+        gLanguage <- "en"
+      }
+
+    
+     ##now glanguage should be something.
+          fname <- "translations/labels-" + gLanguage + tag + ".txt"
+      if(not FileExists(fname))
+      {
+          fname <- "translations/labels-en" + tag + ".txt"
+ 
+      }
+
+    }
+
+
+
+  
+  textlist <- FileReadList(fname)
   gFontNameMono <- gPEBLBaseFont     # defaults to gPEBLBaseFontMono
   gFontNameBase <- gPEBLBaseFont     # defaults to gPEBLBaseFont
 
@@ -118,8 +146,8 @@ define Start(lPar)
   gPenaltyImageFile <- "media/Sad_Face.jpg"
 
   ## Define specific sounds for a win or loss.
-  gRewardSound  <- LoadSound("media/Sound_Win.wav")
-  gPenaltySound <- LoadSound("media/Sound_Lose.wav")
+  gRewardSound  <- LoadSound("media/Sound_Win.ogg")
+  gPenaltySound <- LoadSound("media/Sound_Lose.ogg")
 
   ## Optionally, define a range of sounds to be selected randomly.
 

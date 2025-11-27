@@ -29,6 +29,9 @@
 
 %}
 
+/* Enable GLR parsing to handle ambiguity in if-else statements */
+%glr-parser
+
 /*These are the types that are used during the parsing.
  *The numbers get transformed into pVariants during execution*/
 
@@ -139,9 +142,9 @@
 
 
 /* Lets inform Bison about the type of each terminal and non-terminal */
-%type <exp>  variable exp function functions varlist variablepair list explist arglist datum 
-%type <exp>  statement ustatement endstatement sequence block 
-%type <exp>   newlines  nlornone elseifseq
+%type <exp>  variable exp function functions varlist variablepair list explist arglist datum
+%type <exp>  statement ustatement endstatement sequence block
+%type <exp>  newlines  nlornone elseifseq elseifseq_or_nothing
 %type <exp>  functionsequence returnstatement functionblock
 
 			
@@ -283,17 +286,20 @@ ustatement: 	/*=================================================================
 		*** the test on the left and a PEBL_ELSE node on the right.  PEBL_ELSE
 		*** just pops the stack and executes left if true, right if false.*/
 
-        | 	PEBL_IF PEBL_LPAREN exp PEBL_RPAREN nlornone block  {
-		$$ = new OpNode(PEBL_IF, $3, $6, sourcefilename, yylineno); }
+        | 	PEBL_IF PEBL_LPAREN exp PEBL_RPAREN nlornone block elseifseq_or_nothing {
+		if($7 != NULL) {
+		    /*Has else/elseif - create IFELSE node*/
+		    PNode * tmpNode = new OpNode(PEBL_ELSE, $6, $7, sourcefilename, yylineno);
+		    $$ = new OpNode(PEBL_IFELSE, $3, tmpNode, sourcefilename, yylineno);
+		} else {
+		    /*No else - create simple IF node*/
+		    $$ = new OpNode(PEBL_IF, $3, $6, sourcefilename, yylineno);
+		}
+	} %dprec 2
 
-
-
-		/******************************************************************************/
-        | 	PEBL_IF PEBL_LPAREN exp PEBL_RPAREN nlornone block elseifseq {
-		/*First make the else node*/
-		PNode * tmpNode = new OpNode(PEBL_ELSE, $6, $7, sourcefilename, yylineno);
-		/*Put the else node in the IF node*/
-		$$ = new OpNode(PEBL_IFELSE, $3, tmpNode, sourcefilename, yylineno); }
+	| 	PEBL_IF PEBL_LPAREN exp PEBL_RPAREN nlornone block {
+		$$ = new OpNode(PEBL_IF, $3, $6, sourcefilename, yylineno);
+	} %dprec 1
  
 
 
@@ -313,8 +319,13 @@ ustatement: 	/*=================================================================
 ;
 
 returnstatement: PEBL_RETURN statement    {$$ = new OpNode(PEBL_RETURN, $2, NULL, sourcefilename, yylineno);}
-		
+
 	;
+
+elseifseq_or_nothing:
+	/* empty */ { $$ = NULL; }
+	| nlornone elseifseq { $$ = $2; }
+;
 
 
 elseifseq:   PEBL_ELSE nlornone block {

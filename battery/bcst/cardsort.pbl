@@ -26,6 +26,7 @@
 ##  perseveration count, absolute time, response time.
 define Start(lPar)
 {
+  InitializeUpload()  ## Initialize token-based hosting if upload.json exists
 
   ##First, let's read in/set default parameters.
 
@@ -724,6 +725,15 @@ define Start(lPar)
    Hide(gHeader)
    Show(gInstructions)
    Draw()
+
+  Print("uploading data")
+  settingsfile <- "/upload.json"
+  out <- UploadFile(gSubnum,gFileOut.filename,settingsfile);  Print(out)
+  out <- UploadFile(gSubnum,pooledfile.filename,settingsfile);  Print(out)
+  out <- UploadFile(gSubnum,report.filename,settingsfile);  Print(out)
+
+
+
    Print("Finished with the Card Sort Task")
    WaitForIt()
    ShowCursor(1)
@@ -1493,3 +1503,10 @@ define GetStrings(lang)
 
 
 }
+
+
+
+
+
+## UploadFile and SyncDataFile functions removed - using library versions from Utility.pbl
+## These functions are auto-loaded and support both token and username/password authentication

@@ -153,6 +153,18 @@ build_bundle() {
     cmd="$cmd \"$FILE_PACKAGER\""
     cmd="$cmd \"$data_file\""
 
+    # Check for manifest file
+    local manifest_file=$(echo "$bundle_json" | jq -r '.manifest // empty')
+    local manifest_tests=()
+
+    if [ -n "$manifest_file" ] && [ -f "$PEBL_DIR/$manifest_file" ]; then
+        echo -e "${CYAN}Using manifest: $manifest_file${NC}"
+        # Read test list from manifest
+        mapfile -t manifest_tests < <(jq -r '.tests[]' "$PEBL_DIR/$manifest_file")
+        echo "  Tests in manifest: ${#manifest_tests[@]}"
+        echo ""
+    fi
+
     # Process includes
     echo "Including:"
     local includes=$(echo "$bundle_json" | jq -c '.includes[]')
@@ -168,14 +180,31 @@ build_bundle() {
             continue
         fi
 
-        # Show size
-        local size=$(du -sh "$full_path" 2>/dev/null | awk '{print $1}')
-        echo -e "  ${GREEN}✓${NC} $path → $mount ${CYAN}($size)${NC}"
-        if [ -n "$inc_desc" ]; then
-            echo "    $inc_desc"
-        fi
+        # If manifest is specified and path is upload-battery, include only manifest tests
+        if [ ${#manifest_tests[@]} -gt 0 ] && [[ "$path" == *"upload-battery"* ]]; then
+            echo -e "  ${GREEN}✓${NC} $path → $mount ${CYAN}(manifest-filtered)${NC}"
+            if [ -n "$inc_desc" ]; then
+                echo "    $inc_desc"
+            fi
 
-        cmd="$cmd --preload \"$full_path@$mount\""
+            # Include each test from manifest individually
+            for test in "${manifest_tests[@]}"; do
+                local test_path="$full_path/$test"
+                if [ -e "$test_path" ]; then
+                    cmd="$cmd --preload \"$test_path@$mount/$test\""
+                else
+                    echo -e "    ${YELLOW}Warning: Test not found: $test${NC}"
+                fi
+            done
+        else
+            # Normal include - add entire path
+            local size=$(du -sh "$full_path" 2>/dev/null | awk '{print $1}')
+            echo -e "  ${GREEN}✓${NC} $path → $mount ${CYAN}($size)${NC}"
+            if [ -n "$inc_desc" ]; then
+                echo "    $inc_desc"
+            fi
+            cmd="$cmd --preload \"$full_path@$mount\""
+        fi
     done <<< "$includes"
 
     echo ""

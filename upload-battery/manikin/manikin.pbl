@@ -16,7 +16,7 @@
 ##Selection Test Battery. NAVAL AEROSPACE MEDICAL RESEARCH LAB PENSACOLA
 ##FL.
 
-
+## Optimized for 1024x768 minimum screen size.
 
 define Start(p)
 {
@@ -68,8 +68,8 @@ define Start(p)
   gBack <- MakeImage("images/back1.png")
   AddObject(gFront,gWin)
   AddObject(gBack,gWin)
-  Move(gFront,gVideoWidth/2,gVideoHeight/2-100)
-  Move(gBack,gVideoWidth/2,gVideoHeight/2-100)
+  Move(gFront,gVideoWidth/2,gVideoHeight/2)
+  Move(gBack,gVideoWidth/2,gVideoHeight/2)
   Hide(gFront)
   Hide(gBack)
   gFront.zoomX <- gParams.zoom
@@ -77,16 +77,16 @@ define Start(p)
   gBack.zoomX <- gParams.zoom
   gBack.zoomY <- gParams.zoom
 
-  PracticeScreen("manikin1.png",gStrings.inst1,["<LSHIFT>"],400)
+  PracticeScreen("manikin1.png",gStrings.inst1,["<LSHIFT>"],300)
   PracticeScreen("manikin-inst1.png",gStrings.prac1,["<LSHIFT>"])
   PracticeScreen("manikin-inst2.png",gStrings.prac2,["<RSHIFT>"])
   PracticeScreen("manikin-inst3.png",gStrings.prac3,["<RSHIFT>"])
   PracticeScreen("manikin-inst4.png",gStrings.prac4,["<LSHIFT>"])
-  PracticeScreen("manikin1.png",gStrings.ready,["<rshift>","<LSHIFT>"],400)
+  PracticeScreen("manikin1.png",gStrings.ready,["<rshift>","<LSHIFT>"],300)
 
   trialnum <- 1
 
- gHeader <- EasyLabel("",gVideoWidth/2,100,gWin,40)
+ gHeader <- EasyLabel("",gVideoWidth/2,50,gWin,40)
 
  Draw()
  Wait(1000)
@@ -109,22 +109,24 @@ define Start(p)
      FilePrint(gFileOut,line)
      if(Last(out) == 0)
      {
-       gHeader.text <- "INCORRECT! The target was in the other hand"
+       gHeader.text <- gstrings.incorrect
      
      } else{
-      gHeader.text <- "CORRECT!"
+       gHeader.text <- gstrings.correct
      }
       Move(gHeader,gVideoWidth/2,gVideoHeight/2-200)
       Draw()
       Wait(gParams.iti)
       Move(gHeader,gVideoWidth/2,100)
-      
+      gHeader.text <- ""
       trialnum <- trialnum +1
      }
+     
+      Hide(gHeader)
 
  numtrials <- gParams.numblocks*16
  ready <- ReplaceChar(gStrings.ready2,"<N>",numtrials)
- PracticeScreen("",ready,["<rshift>","<LSHIFT>"],400)
+ PracticeScreen("",ready,["<rshift>","<LSHIFT>"],300)
 
 
   accs <- []
@@ -159,12 +161,15 @@ define Start(p)
   debrief <-"Accuracy: "+ meanACC + "%" + CR() + "Mean time to respond: " + (meanRT/1000) + " secs" + CR() +  gStrings.debrief
   Hide(gFooter)
   Hide(gHeader)
-  PracticeScreen("manikin1.png",debrief,[" "],400)
 
   ## Close and upload data file
   FileClose(gFileOut)
   datafile <- "data/" + gSubNum + "/manikin-" + gSubNum + ".csv"
   UploadFile(gSubNum, datafile, "/upload.json")
+
+  ##do debriefing
+  PracticeScreen("manikin1.png",debrief,[" "],400)
+
 }
 
 
@@ -181,17 +186,17 @@ define Trial(target, forback, updown, hand)
    handname <- Lookup(hand,[-1,1],["right","left"])
 
    xx <- gVideoWidth/2
-   yy <- gVideoHeight/2-100
+   yy <- gVideoHeight/2
 
    if(target == 1)
    {
-     bg <-   Square(xx,yy,600,MakeColor("red2"),1)
+     bg <-   Square(xx,yy,400,MakeColor("red2"),1)
      targ <- Square(xx,yy,45,MakeColor("red2"),1)
      foil  <- Circle(xx,yy,25,MakeColor("darkgreen"),1)
      targname <- "redsquare"
    } else{
 
-     bg <- Circle(xx,yy,300,MakeColor("darkgreen"),1)
+     bg <- Circle(xx,yy,200,MakeColor("darkgreen"),1)
      targ  <- Circle(xx,yy,25,MakeColor("darkgreen"),1)
      foil <- Square(xx,yy,45,MakeColor("red2"),1)
      targname <- "greencircle"
@@ -217,11 +222,11 @@ define Trial(target, forback, updown, hand)
     targpos <- forback * updown * hand
     foilpos <- forback * updown * (-hand)
 
-    targ.x <- xx + targpos*60
-    targ.y <- yy + updown*30
+    targ.x <- xx + targpos*100*gParams.zoom
+    targ.y <- yy + updown*50*gParams.zoom
 
-    foil.x <- xx + foilpos*60
-    foil.y <- yy + updown*30
+    foil.x <- xx + foilpos*100*gParams.zoom
+    foil.y <- yy + updown*50*gParams.zoom
 
     AddObject(bg,gWin)
 
@@ -246,4 +251,24 @@ define Trial(target, forback, updown, hand)
 define GetStrings(lang)
 {
   gStrings <- GetTranslations("manikin", lang)
+}
+
+
+define PracticeScreen(image,text,answer,imagewidth:1000)
+{
+
+   targwidth <- imagewidth
+   
+   tb <- EasyTextBox(text,gVideoWidth/2-400,75,gWin,20,800,250)
+   if(image != "")
+   {
+    img <- MakeImage("images/"+image)
+    AddObject(img,gWin)
+    img.zoomX <- targwidth/img.width
+    img.zoomY <- img.zoomX
+    Move(img,gVideoWidth/2,gVideoHeight/2+50)
+  }
+  
+   Draw()
+   WaitForListKeyPress(answer)
 }

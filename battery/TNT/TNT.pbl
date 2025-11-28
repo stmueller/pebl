@@ -45,6 +45,9 @@
 
 define Start(p) {
 
+    ## Initialize upload system (works for both online and native)
+    InitializeUpload()
+
     gWhitecolor <- "white"
     gGreyColor <- "grey80"
     gBlackColor <- "black"
@@ -78,6 +81,12 @@ define Start(p) {
     Draw()
 
     TNT()
+
+    ## Upload data files (works online, no-op on native)
+    out <- UploadFile(gSubNum, gFileOut.filename)
+    Print(out)
+    out <- UploadFile(gSubNum, gfile1.filename)
+    Print(out)
 }
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -902,6 +911,10 @@ define TNT() {
 
         bloc <- bloc + 1
     }
+
+	header.text <- gStrings.debrief
+	Draw()
+	WaitForAnyKeyPress()
 }
 
 

@@ -60,7 +60,7 @@ define Start(p)
 
   gScriptName <- "Number Stroop Task"
 
-   parpairs <- [["responsetype","keyboard"],
+   parpairs <- [["responsetype","choose"],
                 ["scorerealtime",0],   ##for audio, set this to 1 to score real-time with keyboard.
                                         ##otherwise, you need to go back through and code responses afterward.
 
@@ -169,7 +169,7 @@ define Start(p)
   ###############################
   ## Create the basic stimuli
   ###############################
-  InstructionPractice(gParams.responsetype)
+
   ##This, by default, reads in a fixed
   block0 <- PracticeTrials(usepreset)
   block1 <- Round1Trials(usepreset)
@@ -327,67 +327,10 @@ define Start(p)
    FileClose(gSumFileOut)
    FileClose(filesum)
 
-
-   UploadFile(gSubNum, "data/" + gSubNum + "/numstroop-" + gResponseType + "-" + gSubNum + ".csv")
-   UploadFile(gSubNum, "data/" + gSubNum + "/numstroop-" + gResponseType + "-summary-" + gSubNum + ".txt")
-   UploadFile(gSubNum, "data/numstroop-sumall.csv")
-}
-
-
-##start out with some untimed practice to make sure the fingers are right.
-
-define InstructionPractice(cond)
-{
-  gFooter1.text <- "Keyboard check: practice hitting 1, 2 and 3 on the " + cond + "." 
-
-  gStimLabel.text <- "+"
-  Show(gFooter1)
-  Show(gStimLabel)
-  Show(gFooter2)
-  Draw()
-  cont <- 1
-
-  click1 <- 0
-  click2 <- 0
-  click3 <- 0
-  keys <- gKeys
-  while(cont)
-  {
-
-    resp <-  WaitForListKeyPress(keys)
-
-    gStimLabel.text <- resp
-
-    if(resp=="1")
-    {
-      click1 <- 1
-    }
-    if(resp=="2")
-    {
-     click2 <-1
-    }
-    if(resp == "3")
-    {
-     click3 <- 1
-    }
-
-  #end when all three are clicked
-  if((click1 + click2 + click3) == 3)
-  {
-    keys <- Append(gKeys,"<return>")
-    gFooter2.text <- "Hit ENTER to move on to the test."
-    Draw()
-  }
-  if(resp=="<return>")
-  {
-     cont <- 0
-  }
-   Draw()
-}
- Hide(gFooter1)
- Hide(gFooter2)
- Hide(gStimLabel)
- 
+   settingsfile <- "/upload.json"
+   UploadFile(gSubNum, "data/" + gSubNum + "/numstroop-" + gResponseType + "-" + gSubNum + ".csv", settingsfile)
+   UploadFile(gSubNum, "data/" + gSubNum + "/numstroop-" + gResponseType + "-summary-" + gSubNum + ".txt", settingsfile)
+   UploadFile(gSubNum, "data/numstroop-sumall.csv", settingsfile)
 }
 
 ###################################################
@@ -557,6 +500,7 @@ define PrintMe_(file,text)
 
 
 
+
 define PracticeTrials(usepreset)
 {
   if(usePreset)
@@ -713,9 +657,9 @@ define Initialize()
 
 define GetStrings(language)
 {
-
 ##Known trasnlations:  EN, ES, TR
- gStrings <- GetTranslations("number-stroop", language)
+  gStrings <- GetTranslations("number-stroop", language)
+
 
     n1 <- gStrings.neutral1
     n11 <- gStrings.neutral1+gStrings.neutral1

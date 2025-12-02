@@ -767,9 +767,9 @@ int PEBLInterpret( int argc, std::vector<std::string> argv )
     //Add the default 'base font' names based on language
     //Uses Noto fonts for comprehensive international coverage, DejaVu for Western scripts
     //ISO 639-1 two-letter language codes
-    if (tmps == "AR") {
-        // Arabic
-        // Use DejaVu which has Arabic support AND Latin/symbols for mixed content
+    if (tmps == "AR" || tmps == "UR") {
+        // Arabic and Urdu (both use Perso-Arabic script)
+        // Use DejaVu which has Arabic/Urdu support AND Latin/symbols for mixed content
         Evaluator::gGlobalVariableMap.AddVariable("gPEBLBaseFont",Variant("DejaVuSans.ttf"));
         Evaluator::gGlobalVariableMap.AddVariable("gPEBLBaseFontMono",Variant("DejaVuSansMono.ttf"));
         Evaluator::gGlobalVariableMap.AddVariable("gPEBLBaseFontSerif",Variant("DejaVuSerif.ttf"));

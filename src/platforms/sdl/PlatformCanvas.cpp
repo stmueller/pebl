@@ -225,11 +225,24 @@ bool  PlatformCanvas::Reset()
             SDL_SetRenderTarget(mRenderer,mTexture);
             SDL_RenderClear( mRenderer );
 
+            // Get background color from property system (in case it was modified via nested properties)
+            Variant backgroundColor = PEBLObjectBase::GetProperty("BGCOLOR");
+            PColor* bgColor = nullptr;
+            if(backgroundColor.GetComplexData())
+            {
+                bgColor = dynamic_cast<PColor*>(backgroundColor.GetComplexData()->GetObject().get());
+            }
 
-            SDL_SetRenderDrawColor(mRenderer,  (mBackgroundColor.GetRed()),
-                                   (mBackgroundColor.GetGreen()),
-                                   (mBackgroundColor.GetBlue()),
-                                   (mBackgroundColor.GetAlpha()));
+            // Use property color if available, otherwise fall back to mBackgroundColor
+            if(!bgColor)
+            {
+                bgColor = &mBackgroundColor;
+            }
+
+            SDL_SetRenderDrawColor(mRenderer, bgColor->GetRed(),
+                                   bgColor->GetGreen(),
+                                   bgColor->GetBlue(),
+                                   bgColor->GetAlpha());
 
             SDL_RenderFillRect(mRenderer,&screensize);
 

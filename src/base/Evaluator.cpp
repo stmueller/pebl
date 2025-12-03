@@ -252,12 +252,7 @@ bool Evaluator::Evaluate(const OpNode * node)
                                 //and set its property.
 
                                 Variant v3 = mLocalVariableMap.RetrieveValue(v1.GetVariableBaseName());
-
-                                PComplexData * pcd = v3.GetComplexData();
-                                if(pcd != NULL)
-                                    {
-                                        pcd->SetProperty(property, v2);
-                                    }
+                                PEBLUtility::SetPropertyChain(v3, property, v2);
                             }
 
 
@@ -274,11 +269,7 @@ bool Evaluator::Evaluate(const OpNode * node)
                                 //otherwise get the object from the variable store
                                 //and set its property.
                                 Variant v3 = gGlobalVariableMap.RetrieveValue(v1.GetVariableBaseName());
-                                PComplexData * pcd = v3.GetComplexData();
-                                if(pcd  != NULL)
-                                    {
-                                        pcd->SetProperty(property, v2);
-                                    }
+                                PEBLUtility::SetPropertyChain(v3, property, v2);
                             }
 
                     }
@@ -1332,8 +1323,7 @@ bool Evaluator::Evaluate(const DataNode * node)
 
                 if(property!="")
                     {
-                        PComplexData * pcd = v2.GetComplexData();
-                        v2 = pcd->GetProperty(property);
+                        v2 = PEBLUtility::ResolvePropertyChain(v2, property);
                     }
 
                 Push(v2);
@@ -1351,8 +1341,7 @@ bool Evaluator::Evaluate(const DataNode * node)
                 string property =v1.GetVariablePropertyName();
                 if(property!="")
                     {
-                        PComplexData * pcd = v2.GetComplexData();
-                        v2 = pcd->GetProperty(property);
+                        v2 = PEBLUtility::ResolvePropertyChain(v2, property);
                     }
 
                 Push(v2);

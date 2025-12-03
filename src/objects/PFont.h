@@ -83,8 +83,8 @@ public:
     virtual std::string GetFontFileName()     const {return mFontFileName;};
     virtual int GetFontStyle()          const {return mFontStyle;};
     virtual int GetFontSize()           const {return mFontSize;};
-    virtual PColor GetFontColor()       const {return mFontColor;};
-    virtual PColor GetBackgroundColor() const {return mBackgroundColor;};
+    virtual PColor GetFontColor()       const {return *mFontColor;};
+    virtual PColor GetBackgroundColor() const {return *mBackgroundColor;};
     virtual bool GetAntiAliased()       const {return mAntiAliased;};
 
 
@@ -101,8 +101,8 @@ protected:
     int  mFontStyle;                 // Bold, underlined, italics, normal, etc.  These use PFontStyle constants or'ed together
     int  mFontSize;                  // Size, in 'points'
 
-    PColor  mFontColor;              // Foreground color, using PColor, an RGBA value
-    PColor  mBackgroundColor;        // Background color, using PColor, an RGBA value (use (0,0,0,0) for tranparent background
+    counted_ptr<PColor>  mFontColor;              // Foreground color, using PColor, an RGBA value
+    counted_ptr<PColor>  mBackgroundColor;        // Background color, using PColor, an RGBA value (use (0,0,0,0) for tranparent background
     bool mAntiAliased;               // Whether the text is anti-aliased, alpha-blended with background (slow but nice)    
 };
 

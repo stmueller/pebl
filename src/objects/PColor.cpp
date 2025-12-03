@@ -46,7 +46,8 @@ PColor::PColor():
     mRed(0),
     mGreen(0),
     mBlue(0),
-    mAlpha(255)
+    mAlpha(255),
+    mChanged(false)
 
 {
 
@@ -59,7 +60,7 @@ PColor::PColor():
 }
 
 PColor::PColor(unsigned int color):
-    mRed(0),mGreen(0),mBlue(0),mAlpha(0)
+    mRed(0),mGreen(0),mBlue(0),mAlpha(0),mChanged(false)
     {
             SetColorByRGBA(color);
     };   ///Constructor
@@ -71,7 +72,8 @@ PColor::PColor(int red, int green, int blue, int alpha):
     mRed(To8BitColor(red)),
     mGreen(To8BitColor(green)),
     mBlue(To8BitColor(blue)),
-    mAlpha(To8BitColor(alpha))
+    mAlpha(To8BitColor(alpha)),
+    mChanged(false)
 
 {
     InitializeProperty("NAME", Variant("<COLOR>"));
@@ -88,7 +90,8 @@ PColor::PColor(const string & colorname):
         mRed(0),
     mGreen(0),
     mBlue(0),
-    mAlpha(255)
+    mAlpha(255),
+    mChanged(false)
 {
     InitializeProperty("NAME", Variant("<COLOR>"));
      InitializeProperty("RED",Variant(0));
@@ -98,6 +101,7 @@ PColor::PColor(const string & colorname):
      //    cout << "Making color by name:" << colorname << endl;
     SetColorByName(colorname);
     SetAlpha(255);
+    mChanged = false;  // Clear flag after construction
 }
 
 
@@ -110,6 +114,7 @@ PColor::PColor(const PColor & pcolor):
     mGreen = pcolor.GetGreen();
     mBlue  = pcolor.GetBlue();
     mAlpha = pcolor.GetAlpha();
+    mChanged = false;
 
      InitializeProperty("NAME", Variant("<COLOR>"));
      InitializeProperty("RED",Variant((int)mRed));
@@ -182,24 +187,28 @@ void PColor::SetRed  (int color)
 {
     mRed   = To8BitColor(color);
     PEBLObjectBase::SetProperty("RED",GetRed());
+    mChanged = true;
 }
 
 void PColor::SetGreen(int color)
 {
     mGreen = To8BitColor(color);
     PEBLObjectBase::SetProperty("GREEN",GetGreen());
+    mChanged = true;
 }
 
 void PColor::SetBlue (int color)
 {
     mBlue  = To8BitColor(color);
     PEBLObjectBase::SetProperty("BLUE",GetBlue());
+    mChanged = true;
 }
 
 void PColor::SetAlpha(int color)
 {
     mAlpha = To8BitColor(color);
     PEBLObjectBase::SetProperty("ALPHA",GetAlpha());
+    mChanged = true;
 }
 
    //These will return a single color

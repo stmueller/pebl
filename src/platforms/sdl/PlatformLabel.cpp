@@ -135,7 +135,6 @@ ostream & PlatformLabel::SendToStream(ostream& out) const
 bool  PlatformLabel::RenderText()
 {
 
-
     //free the memory if it is currently pointing at something.
 
     SDL_Surface * tmpSurface = NULL;
@@ -144,9 +143,9 @@ bool  PlatformLabel::RenderText()
             //Re-render the text using the associated font.
             tmpSurface = mFont->RenderText(mText.c_str());
         }
-    else 
+    else
         {
-         
+
             std::string rtext = PEBLUtility::strrev_utf8(mText);
             //Re-render the text using the associated font.
             tmpSurface  = mFont->RenderText(rtext.c_str());
@@ -182,6 +181,9 @@ bool  PlatformLabel::RenderText()
                 {
 
                     mTexture  = SDL_CreateTextureFromSurface(mRenderer, tmpSurface);
+                    // Enable alpha blending for transparency support
+                    SDL_SetTextureBlendMode(mTexture, SDL_BLENDMODE_BLEND);
+
                     SDL_FreeSurface(tmpSurface);
                     tmpSurface = NULL;
                 }
@@ -221,7 +223,12 @@ void PlatformLabel::SetFont(counted_ptr<PEBLObjectBase> font)
     mFontObject = font;
     mFont = dynamic_cast<PlatformFont*>(mFontObject.get());
 
-    mTextChanged =true;
+    // Update the FONT property so nested access works correctly
+    PComplexData * pcd = new PComplexData(mFontObject);
+    PEBLObjectBase::SetProperty("FONT", Variant(pcd));
+    delete pcd;
+
+    mChanged =true;
     Draw();
 
     //if(!RenderText()) cerr << "Unable to render text.\n";
@@ -233,7 +240,7 @@ void PlatformLabel::SetText(const std::string & text)
 {
     //Chain up to parent method.
     PTextObject::SetText(text);
-    mTextChanged =true;
+    mChanged =true;
     Draw();
 
     //Re-render the text onto mSurface
@@ -245,11 +252,9 @@ void PlatformLabel::SetText(const std::string & text)
 bool PlatformLabel::Draw()
 {
 
-    //cout << "PlatformLabel::Draw()\n";
-
-    if(mTextChanged)
+    // Check if label text changed OR if font properties changed
+    if(mChanged || mFont->HasChanged())
         {
-
 
             RenderText();
             //Reposition.  This just recalculates so things are centered
@@ -259,7 +264,14 @@ bool PlatformLabel::Draw()
 
             InitializeProperty("HEIGHT",mHeight);
             InitializeProperty("WIDTH",mWidth);
-            //   mTextChanged = false;
+            mFont->ClearChanged();  // Clear font changed flag after re-rendering
+
+            // Only clear mChanged if texture was successfully created
+            // If mTexture is NULL, keep mChanged=true to retry when renderer is available
+            if(mTexture)
+            {
+                mChanged = false;
+            }
         }
     return  PlatformWidget::Draw();
 

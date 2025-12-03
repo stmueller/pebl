@@ -84,7 +84,7 @@ PTextBox::PTextBox(std::string text, int width, int height):
 PTextBox::PTextBox( PTextBox & text)
 
 {
-    mTextChanged = true;
+    mChanged = true;
     mText = text.GetText();
     mEditable = false;
     mCursorPos = 0;
@@ -114,7 +114,7 @@ bool PTextBox::SetProperty(std::string name, Variant v)
     else if(name == "TEXT"){
         SetText(v.GetString());
         mCursorChanged=true;
-        mTextChanged=true;}
+        mChanged=true;}
     else if(name == "EDITABLE")SetEditable(v);
     else if(name == "CURSORPOS") SetCursorPosition(v);
     else if(name == "LINEWRAP") SetLineWrap(v);
@@ -169,7 +169,7 @@ void PTextBox::InsertText(const std::string text)
     mText.insert(mCursorPos, text);
     mCursorPos += text.length();
 
-    mTextChanged= true;
+    mChanged= true;
     mCursorChanged = true;
     SetProperty("TEXT",mText);
 
@@ -210,7 +210,7 @@ void PTextBox::DeleteText(int length)
             if(bytecount+mCursorPos<mText.length())
                 {    
                     mText.erase(mCursorPos, bytecount-1);
-                    mTextChanged= true;
+                    mChanged= true;
                 }
         }
     else if (length < 0)
@@ -248,7 +248,7 @@ void PTextBox::DeleteText(int length)
                 {
 
                     mText.erase(0,mCursorPos);
-                    mTextChanged= true;
+                    mChanged= true;
                     mCursorPos = 0;
 
                 }
@@ -256,7 +256,7 @@ void PTextBox::DeleteText(int length)
                 {
 
                     mText.erase(mCursorPos-bytecount, bytecount);
-                    mTextChanged= true;
+                    mChanged= true;
                     mCursorPos -= bytecount;
 
                 }
@@ -340,13 +340,13 @@ long unsigned int PTextBox::DecrementCursor()
 void PTextBox::SetHeight(int h)
 {
     mHeight = h;
-    mTextChanged = true;
+    mChanged = true;
 }
 
 void PTextBox::SetWidth(int w)
 {
     mWidth = w;
-    mTextChanged = true;
+    mChanged = true;
 }
 
 
@@ -360,7 +360,7 @@ void PTextBox::SetJustify(Variant j)
 {
 
     mJustify =j;
-    mTextChanged = true;
+    mChanged = true;
 }
 
 

@@ -115,7 +115,9 @@ unsigned long int readFileToMemory(const char path[], char ** buffr){
 
 ///Convenience constructor of PlatformFont:
 PlatformFont::PlatformFont(const std::string & filename, int style, int size, PColor fgcolor, PColor bgcolor, bool aa):
-    PFont(filename, style, size, fgcolor, bgcolor, aa)
+    PFont(filename, style, size, fgcolor, bgcolor, aa),
+    mChanged(false),
+    mBuffer(NULL)
 
 {
 
@@ -164,23 +166,25 @@ PlatformFont::PlatformFont(const std::string & filename, int style, int size, PC
     TTF_SetFontStyle(mTTF_Font, mFontStyle);
 
    //Translate PColor to SDLcolor for direct use in rendering.
-    mSDL_FGColor = SDLUtility::PColorToSDLColor(mFontColor);
-    mSDL_BGColor = SDLUtility::PColorToSDLColor(mBackgroundColor);
+    mSDL_FGColor = SDLUtility::PColorToSDLColor(*mFontColor);
+    mSDL_BGColor = SDLUtility::PColorToSDLColor(*mBackgroundColor);
 
 }
 
 
 
 ///Copy constructor of PlatformFont:
- PlatformFont::PlatformFont(PlatformFont & font)
+ PlatformFont::PlatformFont(PlatformFont & font):
+    mChanged(false),
+    mBuffer(NULL)
 
 {
 
     mFontFileName    = font.GetFontFileName();
     mFontStyle       = font.GetFontStyle();
     mFontSize        = font.GetFontSize();
-    mFontColor       = font.GetFontColor();
-    mBackgroundColor = font.GetBackgroundColor();
+    mFontColor       = counted_ptr<PColor>(new PColor(font.GetFontColor()));
+    mBackgroundColor = counted_ptr<PColor>(new PColor(font.GetBackgroundColor()));
     mAntiAliased     = font.GetAntiAliased();
 
 
@@ -190,8 +194,8 @@ PlatformFont::PlatformFont(const std::string & filename, int style, int size, PC
     TTF_SetFontStyle(mTTF_Font, mFontStyle);
 
     //Translate PColor to SDLcolor for direct use in rendering.
-    mSDL_FGColor = SDLUtility::PColorToSDLColor(mFontColor);
-    mSDL_BGColor = SDLUtility::PColorToSDLColor(mBackgroundColor);
+    mSDL_FGColor = SDLUtility::PColorToSDLColor(*mFontColor);
+    mSDL_BGColor = SDLUtility::PColorToSDLColor(*mBackgroundColor);
 
 }
 
@@ -218,7 +222,8 @@ void PlatformFont::SetFontColor(PColor color)
     PFont::SetFontColor(color);
 
     //Set child member data.
-    mSDL_FGColor = SDLUtility::PColorToSDLColor(mFontColor);
+    mSDL_FGColor = SDLUtility::PColorToSDLColor(*mFontColor);
+    mChanged = true;  // Mark font as changed to trigger re-rendering
 }
 
 
@@ -230,7 +235,60 @@ void PlatformFont::SetBackgroundColor(PColor color)
     PFont::SetBackgroundColor(color);
 
     //Set child member data.
-    mSDL_BGColor = SDLUtility::PColorToSDLColor(mBackgroundColor);
+    mSDL_BGColor = SDLUtility::PColorToSDLColor(*mBackgroundColor);
+    mChanged = true;  // Mark font as changed to trigger re-rendering
+}
+
+
+
+///Override SetFontSize to update TTF font and mark as changed
+void PlatformFont::SetFontSize(const int size)
+{
+    //Chain up to parent method
+    PFont::SetFontSize(size);
+
+    //Update SDL_ttf font size
+    TTF_SetFontSize(mTTF_Font, size);
+    mChanged = true;  // Mark font as changed to trigger re-rendering
+}
+
+///Check if font or its colors have changed
+bool PlatformFont::HasChanged()
+{
+    // Check if colors changed and update SDL cache if needed
+    if(mFontColor.get() && mFontColor->HasChanged())
+    {
+        UpdateSDLColors();
+        return true;
+    }
+    if(mBackgroundColor.get() && mBackgroundColor->HasChanged())
+    {
+        UpdateSDLColors();
+        return true;
+    }
+    return mChanged;
+}
+
+///Clear all changed flags
+void PlatformFont::ClearChanged()
+{
+    mChanged = false;
+    if(mFontColor.get()) mFontColor->ClearChanged();
+    if(mBackgroundColor.get()) mBackgroundColor->ClearChanged();
+}
+
+///Update SDL color cache from PColor objects
+void PlatformFont::UpdateSDLColors()
+{
+    if(mFontColor.get())
+    {
+        mSDL_FGColor = SDLUtility::PColorToSDLColor(*mFontColor);
+    }
+    if(mBackgroundColor.get())
+    {
+        mSDL_BGColor = SDLUtility::PColorToSDLColor(*mBackgroundColor);
+    }
+    mChanged = true;  // Mark font as changed so label re-renders
 }
 
 
@@ -291,14 +349,47 @@ SDL_Surface * PlatformFont::RenderText(const std::string & text)
     //Note: Modern Emscripten (2.0+) DOES support TTF_RenderUTF8 functions
     if(mAntiAliased)
         {
+            // If background alpha is < 255, we need transparency support
+            // SDL's Shaded mode doesn't support alpha properly, so use Blended + manual background
+            if(mSDL_BGColor.a < 255)
+            {
+                // Use Blended mode for text (transparent background)
+                SDL_Surface* textSurface = NULL;
+                if(PEBLUtility::is_utf8(toBeRendered))
+                {
+                    textSurface = TTF_RenderUTF8_Blended(mTTF_Font, toBeRendered.c_str(), mSDL_FGColor);
+                } else {
+                    textSurface = TTF_RenderText_Blended(mTTF_Font, toBeRendered.c_str(), mSDL_FGColor);
+                }
 
-            // toBeRendered might need to be converted to UTF8
-            if(PEBLUtility::is_utf8(toBeRendered))
-              {
-                  tmpSurface = TTF_RenderUTF8_Shaded(mTTF_Font, toBeRendered.c_str(), mSDL_FGColor, mSDL_BGColor);
-              } else {
-                  tmpSurface = TTF_RenderText_Shaded(mTTF_Font, toBeRendered.c_str(), mSDL_FGColor, mSDL_BGColor);
-              }
+                if(textSurface)
+                {
+                    // Create a new RGBA surface for compositing
+                    tmpSurface = SDL_CreateRGBSurface(0, textSurface->w, textSurface->h, 32,
+                                                      0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
+                    if(tmpSurface)
+                    {
+                        // Fill with background color INCLUDING its alpha value
+                        // This encodes transparency directly in the pixel data
+                        SDL_FillRect(tmpSurface, NULL, SDL_MapRGBA(tmpSurface->format,
+                                                                    mSDL_BGColor.r, mSDL_BGColor.g,
+                                                                    mSDL_BGColor.b, mSDL_BGColor.a));
+                        // Blit the opaque text on top (will replace background pixels)
+                        SDL_BlitSurface(textSurface, NULL, tmpSurface, NULL);
+                    }
+                    SDL_FreeSurface(textSurface);
+                }
+            }
+            else
+            {
+                // Use Shaded mode for opaque backgrounds (more efficient)
+                if(PEBLUtility::is_utf8(toBeRendered))
+                {
+                    tmpSurface = TTF_RenderUTF8_Shaded(mTTF_Font, toBeRendered.c_str(), mSDL_FGColor, mSDL_BGColor);
+                } else {
+                    tmpSurface = TTF_RenderText_Shaded(mTTF_Font, toBeRendered.c_str(), mSDL_FGColor, mSDL_BGColor);
+                }
+            }
 
         }
     else

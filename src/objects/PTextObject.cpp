@@ -36,7 +36,7 @@ using std::endl;
 
 PTextObject::PTextObject():
     PWidget(0,0,0,0,false),
-    mTextChanged(true),
+    mChanged(true),
     mText(""),
     mDirection(1)
 {
@@ -50,7 +50,7 @@ PTextObject::PTextObject():
 
 PTextObject::PTextObject(const std::string & text):
     PWidget(0,0,0,0,false),
-    mTextChanged(true),
+    mChanged(true),
     mText(std::string(text)),
     mDirection(1)
 {
@@ -63,7 +63,7 @@ PTextObject::PTextObject(const std::string & text):
 
 PTextObject::PTextObject( PTextObject &object):
     PWidget(0,0,0,0,false),
-    mTextChanged(true),
+    mChanged(true),
     mText(object.GetText()),
     mDirection(1)
 {
@@ -77,7 +77,7 @@ void PTextObject::SetText(const std::string & text)
 {
     mText = text; 
     PEBLObjectBase::SetProperty("TEXT",Variant(text));
-    mTextChanged = true;
+    mChanged = true;
 }
 
 
@@ -87,7 +87,7 @@ void PTextObject::SetDirection(int dir)
         {
             PEBLObjectBase::SetProperty("DIRECTION",Variant(dir));
             mDirection = dir;
-            mTextChanged = true;
+            mChanged = true;
         } else 
         {
             PError::SignalFatalError("Improper value for direction");
@@ -100,7 +100,7 @@ bool PTextObject::SetProperty(std::string name, Variant v)
 
     if(PWidget::SetProperty(name,v))
         {
-            mTextChanged = true;
+            mChanged = true;
             return true;
         }
     else 

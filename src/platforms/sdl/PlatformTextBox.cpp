@@ -131,7 +131,7 @@ PlatformTextBox::PlatformTextBox(string text, counted_ptr<PEBLObjectBase> font, 
     mTexture = NULL;
     SetFont(font);
     SetText(text);
-    mTextChanged = true;
+    mChanged = true;
     Draw();
     //    if(!RenderText()) cerr << "Unable to render text.\n";
 }
@@ -154,7 +154,7 @@ PlatformTextBox::PlatformTextBox(const PlatformTextBox & text):
     mTextureHeight=mHeight;
 
     SetFont(text.GetFont());
-    mTextChanged = true;
+    mChanged = true;
     Draw();
     //    if(!RenderText()) cerr << "Unable to render text.\n";
 }
@@ -227,12 +227,13 @@ bool  PlatformTextBox::RenderText()
     if(!mSurface)  PError::SignalFatalError("Surface not created in TextBox::RenderText.");
 
     //cout << "fillingbackground rec platformtextbox::rendertext\n";
-    //Fill the box with the background color of the font.
+    //Fill the box with the background color of the font (from property system in case it was modified)
+    PColor bgcolor = mFont->GetBackgroundColor();  // Gets current color from font property system
     SDL_FillRect(mSurface, NULL, SDL_MapRGBA(mSurface->format,
-                                             mBackgroundColor.GetRed(),
-                                             mBackgroundColor.GetGreen(),
-                                             mBackgroundColor.GetBlue(),
-                                             mBackgroundColor.GetAlpha()));
+                                             bgcolor.GetRed(),
+                                             bgcolor.GetGreen(),
+                                             bgcolor.GetBlue(),
+                                             bgcolor.GetAlpha()));
 
 
     //First, find the height of the text when rendered with the font.
@@ -371,13 +372,13 @@ bool  PlatformTextBox::RenderText()
     if(mTexture)
         {
 
-            mTextChanged = false;
+            mChanged = false;
             return true;
         }
     else
         {
 
-            mTextChanged = true;
+            mChanged = true;
             return false;
         }
 }
@@ -432,8 +433,14 @@ void PlatformTextBox::SetFont(counted_ptr<PEBLObjectBase> font)
 
     mFontObject = font;
     mFont = dynamic_cast<PlatformFont*>(mFontObject.get());
+
+    // Update the FONT property so nested access works correctly
+    PComplexData * pcd = new PComplexData(mFontObject);
+    PEBLObjectBase::SetProperty("FONT", Variant(pcd));
+    delete pcd;
+
     PWidget::SetBackgroundColor(mFont->GetBackgroundColor());
-    mTextChanged = true;
+    mChanged = true;
     //Re-render the text onto mSurface
     //if(!RenderText()) cerr << "Unable to render text.\n";
 
@@ -450,7 +457,7 @@ void PlatformTextBox::SetText(string text)
 
     //mCursorPos = 0;
     mCursorChanged = true;
-    mTextChanged = true;
+    mChanged = true;
 
     Draw();
 
@@ -1117,14 +1124,22 @@ void PlatformTextBox::DrawCursor()
 //things can be re-rendered if necessary.
 bool PlatformTextBox::Draw()
 {
-    if(mTextChanged)
+    // Check if font properties changed and update widget bgcolor if needed
+    if(mFont->HasChanged())
+    {
+        PWidget::SetBackgroundColor(mFont->GetBackgroundColor());
+        mChanged = true;
+        mFont->ClearChanged();
+    }
+
+    if(mChanged)
     {
         FindBreaks();
     }
 
-    if(mTextChanged || mCursorChanged)
+    if(mChanged || mCursorChanged)
     {
-        
+
         RenderText();
 
     }

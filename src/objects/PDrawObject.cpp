@@ -36,7 +36,6 @@ using std::endl;
 
 PDrawObject::PDrawObject()
 {
-
     InitializeProperty("FILLED",Variant(0));
     InitializeProperty("COLOR",Variant(0));
     InitializeProperty("OUTLINECOLOR",Variant(0));
@@ -137,16 +136,29 @@ void PDrawObject::SetAA(bool aa)
 
 void PDrawObject::SetColor(Variant col)
 {
-
     PEBLObjectBase::SetProperty("COLOR",col);
-    mColor = *dynamic_cast<PColor*>(col.GetComplexData()->GetObject().get());
-
 }
 
 void  PDrawObject::SetOutlineColor(Variant  ocol)
 {
     PEBLObjectBase::SetProperty("OUTLINECOLOR",ocol);
-    mOutlineColor = *dynamic_cast<PColor*>(ocol.GetComplexData()->GetObject().get());
+}
+
+// Helper methods to get color from property system
+PColor* PDrawObject::GetColor() const
+{
+    Variant v = PEBLObjectBase::GetProperty("COLOR");
+    if(v.GetComplexData())
+        return dynamic_cast<PColor*>(v.GetComplexData()->GetObject().get());
+    return nullptr;
+}
+
+PColor* PDrawObject::GetOutlineColor() const
+{
+    Variant v = PEBLObjectBase::GetProperty("OUTLINECOLOR");
+    if(v.GetComplexData())
+        return dynamic_cast<PColor*>(v.GetComplexData()->GetObject().get());
+    return nullptr;
 }
 
 

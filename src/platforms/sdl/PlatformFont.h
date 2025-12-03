@@ -60,28 +60,35 @@ public:
 
     virtual void SetFontColor        (PColor color);
     virtual void SetBackgroundColor  (PColor color);
+    virtual void SetFontSize         (const int size);
 //     virtual PColor GetFontColor      () const {return SDLUtility::SDLColorToPColor(mSDL_FGColor);}
 //     virtual PColor GetBackgroundColor() const {return SDLUtility::SDLColorToPColor(mSDL_BGColor);}
 
     ///This takes care of all the busy work of rendering the text.
     SDL_Surface * RenderText(const std::string & text);
-    
+
     unsigned int GetTextWidth(const std::string & text);
     unsigned int GetTextHeight(const std::string & text);
     unsigned int GetPosition(const std::string & text, unsigned int x);
     virtual std::string ObjectName() const{return "Platform Font";};
 
+    // Change detection for triggering re-renders
+    bool HasChanged();  // Checks mChanged flag AND if colors changed
+    void ClearChanged();
+    void UpdateSDLColors();  // Update SDL color cache if PColor objects changed
+
 protected:
     virtual std::ostream & SendToStream(std::ostream& out) const;
 
 private:
-    
+
     std::string StripText(const std::string & text);
 
     char* mBuffer;  //buffer to hold font cached memory.
     TTF_Font * mTTF_Font;
     SDL_Color mSDL_FGColor;
-    SDL_Color mSDL_BGColor;  
+    SDL_Color mSDL_BGColor;
+    bool mChanged;  // Flag indicating font properties have changed
 };
 
 

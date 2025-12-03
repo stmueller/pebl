@@ -31,6 +31,7 @@
 #include "../../objects/PColor.h"
 #include "../../base/Evaluator.h"
 #include "../../base/VariableMap.h"
+#include "../../base/PComplexData.h"
 #include "../../libs/PEBLEnvironment.h"
 #include "SDLUtility.h"
 
@@ -431,23 +432,35 @@ bool PlatformWindow::Draw()
     //if (SDL_MUSTLOCK(mSurface)) SDL_LockSurface(mSurface);
 
 
+    // Get background color from property system (in case it was modified via nested properties)
     Variant backgroundColor = PEBLObjectBase::GetProperty("BGCOLOR");
+    PColor* bgColor = nullptr;
+    if(backgroundColor.GetComplexData())
+    {
+        bgColor = dynamic_cast<PColor*>(backgroundColor.GetComplexData()->GetObject().get());
+    }
+
+    // Use property color if available, otherwise fall back to mBackgroundColor
+    if(!bgColor)
+    {
+        bgColor = &mBackgroundColor;
+    }
 
 #ifdef SDL2_DELETE
     //First, draw the background
     SDL_FillRect(mSurface, NULL, SDL_MapRGBA(mSurface->format,
-                                            mBackgroundColor.GetRed(),
-                                            mBackgroundColor.GetGreen(),
-                                            mBackgroundColor.GetBlue(),
-                                            mBackgroundColor.GetAlpha()));
+                                            bgColor->GetRed(),
+                                            bgColor->GetGreen(),
+                                            bgColor->GetBlue(),
+                                            bgColor->GetAlpha()));
 #endif
 
 
  int result=   SDL_SetRenderDrawColor(mRenderer,
-                           mBackgroundColor.GetRed(),
-                           mBackgroundColor.GetGreen(),
-                           mBackgroundColor.GetBlue(),
-                           mBackgroundColor.GetAlpha());
+                           bgColor->GetRed(),
+                           bgColor->GetGreen(),
+                           bgColor->GetBlue(),
+                           bgColor->GetAlpha());
 
 
     //    while(p != mSubWidgets.begin())

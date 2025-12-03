@@ -44,8 +44,8 @@ PFont::PFont():
 
 {
     mCDT = CDT_FONT;
-    mFontColor       = PColor(0,0,0,255);
-    mBackgroundColor = PColor(0,0,0,255);
+    mFontColor       = counted_ptr<PColor>(new PColor(0,0,0,255));
+    mBackgroundColor = counted_ptr<PColor>(new PColor(0,0,0,255));
 
     InitializeProperty("FILENAME", mFontFileName);
     InitializeProperty("BOLD", Variant(IsBoldFont()));
@@ -54,17 +54,18 @@ PFont::PFont():
     InitializeProperty("SIZE", mFontSize);
     InitializeProperty("NAME", Variant("<FONT>"));
 
-    
-    counted_ptr<PEBLObjectBase> pob = counted_ptr<PEBLObjectBase>(&mFontColor);
+
+    // Store the actual color object in the property system (not a copy)
+    counted_ptr<PEBLObjectBase> pob(mFontColor.get());
     PComplexData * pcd = new PComplexData(pob);
     Variant col = Variant(pcd);
     delete pcd;  //col now controls pcd
     pcd=NULL;
 
     InitializeProperty("FGCOLOR", col);
-    
 
-    pob = counted_ptr<PEBLObjectBase>(&mBackgroundColor);
+
+    pob = counted_ptr<PEBLObjectBase>(mBackgroundColor.get());
     pcd = new PComplexData(pob);
     col = Variant(pcd);
     delete pcd;  //col now controls pcd
@@ -86,9 +87,9 @@ PFont::PFont(const std::string & filename, int style, int size, PColor fgcolor, 
 
     mCDT = CDT_FONT;
 
-    mFontColor       = fgcolor;
-    mBackgroundColor = bgcolor;
-    
+    mFontColor       = counted_ptr<PColor>(new PColor(fgcolor));
+    mBackgroundColor = counted_ptr<PColor>(new PColor(bgcolor));
+
     InitializeProperty("NAME", Variant("<FONT>"));
     InitializeProperty("FILENAME", mFontFileName);
     InitializeProperty("BOLD", Variant(IsBoldFont()));
@@ -97,16 +98,17 @@ PFont::PFont(const std::string & filename, int style, int size, PColor fgcolor, 
     InitializeProperty("SIZE", mFontSize);
 
 
-     counted_ptr<PEBLObjectBase> pob = counted_ptr<PEBLObjectBase>(&mFontColor);
+     // Store the actual color object in the property system (not a copy)
+     counted_ptr<PEBLObjectBase> pob(mFontColor.get());
      PComplexData * pcd = new PComplexData(pob);
      Variant col = Variant(pcd);
      //col now contrlols pcd data, so get rid of it
-     delete pcd; 
+     delete pcd;
      pcd=NULL;
      InitializeProperty("FGCOLOR", col);
-    
 
-     pob = counted_ptr<PEBLObjectBase>(&mBackgroundColor);
+
+     pob = counted_ptr<PEBLObjectBase>(mBackgroundColor.get());
      pcd = new PComplexData(pob);
      col = Variant(pcd);
      delete pcd;
@@ -126,10 +128,10 @@ PFont::PFont(const PFont & font)
     mFontFileName    = font.GetFontFileName();
     mFontStyle       = font.GetFontStyle();
     mFontSize        = font.GetFontSize();
-    mFontColor       = font.GetFontColor();
-    mBackgroundColor = font.GetBackgroundColor();
+    mFontColor       = counted_ptr<PColor>(new PColor(font.GetFontColor()));
+    mBackgroundColor = counted_ptr<PColor>(new PColor(font.GetBackgroundColor()));
     mAntiAliased     = font.GetAntiAliased();
-    
+
     InitializeProperty("FILENAME", mFontFileName);
     InitializeProperty("BOLD", Variant(IsBoldFont()));
     InitializeProperty("UNDERLINE",Variant(IsUnderlineFont()));
@@ -137,16 +139,17 @@ PFont::PFont(const PFont & font)
     InitializeProperty("SIZE", mFontSize);
     InitializeProperty("NAME", Variant("<FONT>"));
 
-    
-    counted_ptr<PEBLObjectBase> pob = counted_ptr<PEBLObjectBase>(&mFontColor);
+
+    // Store the actual color object in the property system (not a copy)
+    counted_ptr<PEBLObjectBase> pob(mFontColor.get());
     PComplexData * pcd = new PComplexData(pob);
     Variant col = Variant(pcd);
     delete pcd;
     pcd=NULL;
     InitializeProperty("FGCOLOR", col);
-    
-    
-    pob = counted_ptr<PEBLObjectBase>(&mBackgroundColor);
+
+
+    pob = counted_ptr<PEBLObjectBase>(mBackgroundColor.get());
     pcd = new PComplexData(pob);
     col = Variant(pcd);
     delete pcd;
@@ -159,8 +162,7 @@ PFont::PFont(const PFont & font)
 ///Standard destructor of PFont
 PFont::~PFont()
 {
-    
-    cout << "Deleting pfont\n";
+
 }
 
 
@@ -217,15 +219,19 @@ bool PFont::SetProperty(std::string name, Variant v)
     
     else if (name == "FGCOLOR")
         {
-            //For colors, directly set the property to avoid 
-            //dual conversion.
-            PEBLObjectBase::SetProperty(name,v);
-            mFontColor = *(dynamic_cast<PColor*>(v.GetComplexData()->GetObject().get()));
+            // Store the variant in property map first
+            PEBLObjectBase::SetProperty(name, v);
+            // Then call virtual SetFontColor so platform-specific overrides are triggered
+            PColor newColor = *(dynamic_cast<PColor*>(v.GetComplexData()->GetObject().get()));
+            SetFontColor(newColor);
         }
-    else if (name == "BGCOLOR") 
+    else if (name == "BGCOLOR")
         {
-            PEBLObjectBase::SetProperty(name,v);
-            mBackgroundColor = *(dynamic_cast<PColor*>(v.GetComplexData()->GetObject().get()));
+            // Store the variant in property map first
+            PEBLObjectBase::SetProperty(name, v);
+            // Then call virtual SetBackgroundColor so platform-specific overrides are triggered
+            PColor newColor = *(dynamic_cast<PColor*>(v.GetComplexData()->GetObject().get()));
+            SetBackgroundColor(newColor);
         }
     else if (name == "ANTIALIASED")SetAntiAliased(v.GetInteger());
     else return false;
@@ -276,30 +282,16 @@ void PFont::SetFontSize(const int size)
     PEBLObjectBase::SetProperty("SIZE", mFontSize);
 }
 
-void PFont::SetFontColor(const PColor color) 
+void PFont::SetFontColor(const PColor color)
 {
-
-    mFontColor = color;  
-    counted_ptr<PEBLObjectBase> pob = counted_ptr<PEBLObjectBase>(&mFontColor);
-    PComplexData * pcd = new PComplexData(pob);
-    Variant col = Variant(pcd);
-    delete pcd;  //col now controls pcd
-    pcd=NULL;
-
-    InitializeProperty("FGCOLOR", col);
-
-}  
+    // Update the member variable by modifying the PColor object in place
+    *mFontColor = color;
+}
 
 void PFont::SetBackgroundColor(const PColor color)
 {
-    mBackgroundColor = color;  
-    counted_ptr<PEBLObjectBase> pob = counted_ptr<PEBLObjectBase>(&mBackgroundColor);
-    PComplexData * pcd = new PComplexData(pob);
-    Variant col = Variant(pcd);
-    delete pcd;  //col now controls pcd
-    pcd=NULL;
-
-    InitializeProperty("BGCOLOR", col);
+    // Update the member variable by modifying the PColor object in place
+    *mBackgroundColor = color;
 }
 
 void PFont::SetAntiAliased(const bool aa)  
@@ -316,8 +308,8 @@ std::ostream & PFont::SendToStream(std::ostream& out) const
     out << "<PFont: Name:        [" << mFontFileName << "]\n";
     out << "        Style:       ["<< mFontStyle<< "]\n";
     out << "        Size:        ["<< mFontSize << "]\n";
-    out << "        Color:       ["<< mFontColor << "]\n";
-    out << "        BGColor:     ["<< mBackgroundColor<< "]\n";
+    out << "        Color:       ["<< *mFontColor << "]\n";
+    out << "        BGColor:     ["<< *mBackgroundColor<< "]\n";
     out << "        Antialiased: ["<< mAntiAliased << "]>\n";
 
     return out;

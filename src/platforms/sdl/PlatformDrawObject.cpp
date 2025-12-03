@@ -175,15 +175,15 @@ bool PlatformLine::Draw()
                 {
 
                     result = aalineRGBA(mRenderer,mX,mY,mX+mDX,mY+mDY,
-                                        mColor.GetRed(), mColor.GetGreen(),
-                                        mColor.GetBlue(), mColor.GetAlpha());
+                                        GetColor()->GetRed(), GetColor()->GetGreen(),
+                                        GetColor()->GetBlue(), GetColor()->GetAlpha());
 
                 }
             else
                 {
                     result = lineRGBA(mRenderer,mX,mY,mX+mDX,mY+mDY,
-                                      mColor.GetRed(), mColor.GetGreen(),
-                                      mColor.GetBlue(), mColor.GetAlpha());
+                                      GetColor()->GetRed(), GetColor()->GetGreen(),
+                                      GetColor()->GetBlue(), GetColor()->GetAlpha());
                 }
             SDL_SetRenderTarget(mRenderer,NULL);
         }
@@ -227,8 +227,8 @@ bool PlatformThickLine::Draw()
             SDL_SetRenderTarget(mRenderer, dynamic_cast<PlatformWidget*>(mParent)->GetSDL_Texture());
 
             result = thickLineRGBA(mRenderer,mX1,mY1,mX2,mY2,mThickness,
-                                   mColor.GetRed(), mColor.GetGreen(),
-                                   mColor.GetBlue(), mColor.GetAlpha());
+                                   GetColor()->GetRed(), GetColor()->GetGreen(),
+                                   GetColor()->GetBlue(), GetColor()->GetAlpha());
             SDL_SetRenderTarget(mRenderer,NULL);
         }
     return result;
@@ -263,12 +263,12 @@ bool PlatformRectangle::Draw()
        if(mFilled)
         {
             result = boxRGBA(mRenderer,mX - mDX/2, mY - mDY/2, mX+mDX/2, mY+mDY/2,
-                             mColor.GetRed(), mColor.GetGreen(), mColor.GetBlue(), mColor.GetAlpha());
+                             GetColor()->GetRed(), GetColor()->GetGreen(), GetColor()->GetBlue(), GetColor()->GetAlpha());
         }
     else
         {
             result = rectangleRGBA(mRenderer,mX - mDX/2, mY - mDY/2, mX+mDX/2, mY+mDY/2,
-                                   mColor.GetRed(), mColor.GetGreen(), mColor.GetBlue(), mColor.GetAlpha());
+                                   GetColor()->GetRed(), GetColor()->GetGreen(), GetColor()->GetBlue(), GetColor()->GetAlpha());
         }
             SDL_SetRenderTarget(mRenderer,NULL);
         }
@@ -314,12 +314,12 @@ bool PlatformSquare::Draw()
     if(mFilled)
         {
             result = boxRGBA(mRenderer,mX - mDX/2,  mY - mDY/2, mX+mDX/2, mY+mDY/2,
-                             mColor.GetRed(), mColor.GetGreen(), mColor.GetBlue(), mColor.GetAlpha());
+                             GetColor()->GetRed(), GetColor()->GetGreen(), GetColor()->GetBlue(), GetColor()->GetAlpha());
         }
     else
         {
             result = rectangleRGBA(mRenderer,mX - mDX/2, mY - mDY/2, mX+mDX/2, mY+mDY/2,
-                                   mColor.GetRed(), mColor.GetGreen(), mColor.GetBlue(), mColor.GetAlpha());
+                                   GetColor()->GetRed(), GetColor()->GetGreen(), GetColor()->GetBlue(), GetColor()->GetAlpha());
         }
             SDL_SetRenderTarget(mRenderer,NULL);
         }
@@ -381,23 +381,23 @@ bool PlatformEllipse::Draw()
             if(mAntiAliased)
                 {
                     result = aaellipseRGBA(mRenderer,mX, mY, mRX, mRY,
-                                           mColor.GetRed(), mColor.GetGreen(), mColor.GetBlue(), mColor.GetAlpha());
+                                           GetColor()->GetRed(), GetColor()->GetGreen(), GetColor()->GetBlue(), GetColor()->GetAlpha());
                 }
 
 
             result = filledEllipseRGBA(mRenderer,mX, mY, mRX, mRY,
-                                     mColor.GetRed(), mColor.GetGreen(), mColor.GetBlue(), mColor.GetAlpha());
+                                     GetColor()->GetRed(), GetColor()->GetGreen(), GetColor()->GetBlue(), GetColor()->GetAlpha());
         }
     else
         {
             if(mAntiAliased)
                 {
                     result = aaellipseRGBA(mRenderer,mX, mY, mRX, mRY,
-                                         mColor.GetRed(), mColor.GetGreen(), mColor.GetBlue(), mColor.GetAlpha());
+                                         GetColor()->GetRed(), GetColor()->GetGreen(), GetColor()->GetBlue(), GetColor()->GetAlpha());
                 }else
                 {
                     result = ellipseRGBA(mRenderer,mX, mY, mRX, mRY,
-                                         mColor.GetRed(), mColor.GetGreen(), mColor.GetBlue(), mColor.GetAlpha());
+                                         GetColor()->GetRed(), GetColor()->GetGreen(), GetColor()->GetBlue(), GetColor()->GetAlpha());
         }
                 }
             SDL_SetRenderTarget(mRenderer,NULL);
@@ -447,10 +447,10 @@ bool PlatformCircle::Draw()
             if(mAntiAliased)
                 {
                     int result2 = aacircleRGBA(mRenderer, mX,  mY, (int)mR,
-                                                       mColor.GetRed(),
-                                                       mColor.GetGreen(),
-                                                       mColor.GetBlue(),
-                                                       mColor.GetAlpha());
+                                                       GetColor()->GetRed(),
+                                                       GetColor()->GetGreen(),
+                                                       GetColor()->GetBlue(),
+                                                       GetColor()->GetAlpha());
                             if(result2<0)
                             {
                                 PError::SignalFatalError("Failed to render aa circle component.");
@@ -459,10 +459,10 @@ bool PlatformCircle::Draw()
 
 
             result = filledCircleRGBA(mRenderer, mX,  mY, (int)mR,
-                                              mColor.GetRed(),
-                                              mColor.GetGreen(),
-                                              mColor.GetBlue(),
-                                              mColor.GetAlpha());
+                                              GetColor()->GetRed(),
+                                              GetColor()->GetGreen(),
+                                              GetColor()->GetBlue(),
+                                              GetColor()->GetAlpha());
         }
     else
         {
@@ -471,19 +471,19 @@ bool PlatformCircle::Draw()
                 {
 
                   result = aacircleRGBA(mRenderer, mX,  mY, (int)mR,
-                                                  mColor.GetRed(),
-                                                  mColor.GetGreen(),
-                                                  mColor.GetBlue(),
-                                                  mColor.GetAlpha());
+                                                  GetColor()->GetRed(),
+                                                  GetColor()->GetGreen(),
+                                                  GetColor()->GetBlue(),
+                                                  GetColor()->GetAlpha());
                 }
             else
                 {
 
                     result = circleRGBA(mRenderer,mX, mY, (int)mR,
-                                                mColor.GetRed(),
-                                                mColor.GetGreen(),
-                                                mColor.GetBlue(),
-                                                mColor.GetAlpha());
+                                                GetColor()->GetRed(),
+                                                GetColor()->GetGreen(),
+                                                GetColor()->GetBlue(),
+                                                GetColor()->GetAlpha());
 
                 }
         }
@@ -567,7 +567,7 @@ bool PlatformPolygon::Draw()
                     if(mAntiAliased)
                         {
                             result = aapolygonRGBA(mRenderer,x,y,(int)length,
-                                                   mColor.GetRed(), mColor.GetGreen(), mColor.GetBlue(), mColor.GetAlpha());
+                                                   GetColor()->GetRed(), GetColor()->GetGreen(), GetColor()->GetBlue(), GetColor()->GetAlpha());
 
 
 
@@ -584,7 +584,7 @@ bool PlatformPolygon::Draw()
 
                         }
                     result = filledPolygonRGBA(mRenderer,x,y,(int)length,
-                                               mColor.GetRed(), mColor.GetGreen(), mColor.GetBlue(), mColor.GetAlpha());
+                                               GetColor()->GetRed(), GetColor()->GetGreen(), GetColor()->GetBlue(), GetColor()->GetAlpha());
 
                     if(result < 0)
                         {
@@ -602,11 +602,11 @@ bool PlatformPolygon::Draw()
                     if(mAntiAliased)
                         {
                             result = aapolygonRGBA(mRenderer,x,y,(int)length,
-                                                   mColor.GetRed(), mColor.GetGreen(), mColor.GetBlue(), mColor.GetAlpha());
+                                                   GetColor()->GetRed(), GetColor()->GetGreen(), GetColor()->GetBlue(), GetColor()->GetAlpha());
                         }else
                         {
                             result =polygonRGBA(mRenderer,x,y,(int)length,
-                                                mColor.GetRed(), mColor.GetGreen(), mColor.GetBlue(), mColor.GetAlpha());
+                                                GetColor()->GetRed(), GetColor()->GetGreen(), GetColor()->GetBlue(), GetColor()->GetAlpha());
                         }
                     if(result < 0)
                         {
@@ -696,7 +696,7 @@ bool PlatformBezier::Draw()
 
 
     result = bezierRGBA(mRenderer,x,y,(int)length,(int)mSteps,
-                        mColor.GetRed(), mColor.GetGreen(), mColor.GetBlue(), mColor.GetAlpha());
+                        GetColor()->GetRed(), GetColor()->GetGreen(), GetColor()->GetBlue(), GetColor()->GetAlpha());
 
     delete[] x;
     delete[] y;

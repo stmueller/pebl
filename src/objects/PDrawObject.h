@@ -30,6 +30,7 @@
 #include "PWidget.h"
 #include "PColor.h"
 #include "../utility/Defs.h"
+#include "../utility/rc_ptrs.h"
 
 #include <vector>
 
@@ -59,9 +60,11 @@ protected:
 
     ///An inheritable printing class used by PEBLObjectBase::operator<<
     virtual std::ostream & SendToStream(std::ostream& out) const=0;
- 
-    PColor mColor;
-    PColor mOutlineColor;
+
+    // Helper method to get color from property system
+    PColor* GetColor() const;
+    PColor* GetOutlineColor() const;
+
     bool mFilled;
     bool mAntiAliased;
 private:

@@ -1680,3 +1680,96 @@ bool PEBLUtility::IsSystemLocaleRTL() {
     // Check if it's Arabic or Hebrew
     return (langCode == "ar" || langCode == "he" || langCode == "iw");
 }
+
+// Resolve a property chain like "HEADER.TEXT" by recursively traversing objects
+// Returns the final property value
+Variant PEBLUtility::ResolvePropertyChain(Variant obj, const std::string& propertyChain)
+{
+    // Handle empty chain (shouldn't happen, but be defensive)
+    if(propertyChain.empty())
+    {
+        PError::SignalFatalError("Internal error: empty property chain in ResolvePropertyChain");
+        return Variant(0);
+    }
+
+    // Find first dot to split chain
+    std::string::size_type dotPos = propertyChain.find(".");
+
+    if(dotPos == std::string::npos)
+    {
+        // Base case: single property, no more dots
+        PComplexData * pcd = obj.GetComplexData();
+        if(pcd == NULL)
+        {
+            PError::SignalFatalError("Attempted to access property [" +
+                propertyChain + "] of non-object");
+            return Variant(0);
+        }
+        return pcd->GetProperty(propertyChain);
+    }
+    else
+    {
+        // Recursive case: get first property, then recurse on remainder
+        std::string firstProp = propertyChain.substr(0, dotPos);
+        std::string remainingChain = propertyChain.substr(dotPos + 1);
+
+        PComplexData * pcd = obj.GetComplexData();
+        if(pcd == NULL)
+        {
+            PError::SignalFatalError("Attempted to access property [" +
+                firstProp + "] of non-object in chain [" + propertyChain + "]");
+            return Variant(0);
+        }
+
+        Variant intermediateObj = pcd->GetProperty(firstProp);
+
+        // Recursively resolve the rest of the chain
+        return ResolvePropertyChain(intermediateObj, remainingChain);
+    }
+}
+
+// Set a property chain like "HEADER.TEXT" by recursively traversing to parent and setting final property
+void PEBLUtility::SetPropertyChain(Variant obj, const std::string& propertyChain, Variant value)
+{
+    // Handle empty chain (shouldn't happen, but be defensive)
+    if(propertyChain.empty())
+    {
+        PError::SignalFatalError("Internal error: empty property chain in SetPropertyChain");
+        return;
+    }
+
+    // Find first dot to split chain
+    std::string::size_type dotPos = propertyChain.find(".");
+
+    if(dotPos == std::string::npos)
+    {
+        // Base case: single property, set it directly
+        PComplexData * pcd = obj.GetComplexData();
+        if(pcd == NULL)
+        {
+            PError::SignalFatalError("Attempted to set property [" +
+                propertyChain + "] on non-object");
+            return;
+        }
+        pcd->SetProperty(propertyChain, value);
+    }
+    else
+    {
+        // Recursive case: get intermediate object, then recurse on remainder
+        std::string firstProp = propertyChain.substr(0, dotPos);
+        std::string remainingChain = propertyChain.substr(dotPos + 1);
+
+        PComplexData * pcd = obj.GetComplexData();
+        if(pcd == NULL)
+        {
+            PError::SignalFatalError("Attempted to access property [" +
+                firstProp + "] of non-object in chain [" + propertyChain + "]");
+            return;
+        }
+
+        Variant intermediateObj = pcd->GetProperty(firstProp);
+
+        // Recursively set on the rest of the chain
+        SetPropertyChain(intermediateObj, remainingChain, value);
+    }
+}

@@ -146,6 +146,14 @@ namespace PEBLUtility
     // Useful for setting default text box justification before any input
     bool IsSystemLocaleRTL();
 
+    // Property chain resolution for nested property access (e.g., obj.prop1.prop2)
+    // Recursively traverses the property chain and returns the final value
+    Variant ResolvePropertyChain(Variant obj, const std::string& propertyChain);
+
+    // Property chain assignment for nested property access (e.g., obj.prop1.prop2 <- value)
+    // Recursively traverses to the parent object and sets the final property
+    void SetPropertyChain(Variant obj, const std::string& propertyChain, Variant value);
+
 
 }
 

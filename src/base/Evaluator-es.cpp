@@ -294,16 +294,11 @@ bool Evaluator::Evaluate1(const OpNode * node)
                                 }
                             else
                                 {
-                                    //otherwise get the object from the variable store 
+                                    //otherwise get the object from the variable store
                                     //and set its property.
 
                                     Variant v3 = mLocalVariableMap.RetrieveValue(v1.GetVariableBaseName());
-                                
-                                    PComplexData * pcd = v3.GetComplexData();
-                                    if(pcd != NULL)  
-                                        {
-                                            pcd->SetProperty(property, v2);
-                                        }
+                                    PEBLUtility::SetPropertyChain(v3, property, v2);
                                 }
 
 
@@ -317,14 +312,10 @@ bool Evaluator::Evaluate1(const OpNode * node)
                                 }
                             else
                                 {
-                                    //otherwise get the object from the variable store 
+                                    //otherwise get the object from the variable store
                                     //and set its property.
                                     Variant v3 = gGlobalVariableMap.RetrieveValue(v1.GetVariableBaseName());
-                                    PComplexData * pcd = v3.GetComplexData();
-                                    if(pcd  != NULL)
-                                        {
-                                            pcd->SetProperty(property, v2);
-                                        }
+                                    PEBLUtility::SetPropertyChain(v3, property, v2);
                                 }
 
                         }
@@ -1905,18 +1896,17 @@ bool Evaluator::Evaluate1(const DataNode * node)
         {
 
         case P_DATA_LOCALVARIABLE:
-            {      
+            {
 
                 v2  = mLocalVariableMap.RetrieveValue(v1.GetVariableBaseName());
-                //Get the name of property being 
+                //Get the name of property being
                 string property =v1.GetVariablePropertyName();
 
                 if(property!="")
                     {
-                        PComplexData * pcd = v2.GetComplexData();
-                        v2 = pcd->GetProperty(property);
+                        v2 = PEBLUtility::ResolvePropertyChain(v2, property);
                     }
-                
+
                 Push(v2);
             }
             break;
@@ -1927,15 +1917,14 @@ bool Evaluator::Evaluate1(const DataNode * node)
         case P_DATA_GLOBALVARIABLE:
             {
                 v2  = gGlobalVariableMap.RetrieveValue(v1.GetVariableBaseName());
-                
-                //Get the name of property being 
+
+                //Get the name of property being
                 string property =v1.GetVariablePropertyName();
                 if(property!="")
                     {
-                        PComplexData * pcd = v2.GetComplexData();
-                        v2 = pcd->GetProperty(property);
+                        v2 = PEBLUtility::ResolvePropertyChain(v2, property);
                     }
-                
+
                 Push(v2);
             }
             break;

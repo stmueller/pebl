@@ -1504,7 +1504,7 @@ void Evaluator::CallFunction(const OpNode * node)
 
 }
 
-void Evaluator::Push(Variant v)
+void Evaluator::Push(const Variant & v)
 {
 
 #ifdef PEBL_DEBUG_PRINT
@@ -1544,7 +1544,7 @@ Variant Evaluator::Pop()
 }
 
 
-Variant Evaluator::Peek()
+const Variant & Evaluator::Peek() const
 {
 #ifdef PEBL_DEBUG_PRINT
     cout << "Peeking at top of stack: "<< mStack.size() << endl;
@@ -1554,8 +1554,7 @@ Variant Evaluator::Peek()
             PError::SignalFatalError("Error: Tried to Peek at an empty stack.");
         }
 
-    Variant v = mStack.top();
-    return v;
+    return mStack.top();
 }
 
 

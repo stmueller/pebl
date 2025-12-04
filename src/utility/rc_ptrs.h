@@ -75,17 +75,14 @@ public:
  public:
     explicit counted_ptr(X* p=0) : ptr(p)
     {
-        //std::cout <<"INITIATING CPTR "<<std::endl;
-
-
+        // Debug: std::cout <<"[RC_PTR] INITIATING counted_ptr for " << ptr << std::endl;
         count=new size_type(1);
     }
 
 
     counted_ptr (const counted_ptr<X> &r)
     {
-        //std::cout <<"CASTING CPTR ["<< r.ptr << "]"<<std::endl;
-        //std::cout << *(r.ptr)<< std::endl;
+        // Debug: std::cout <<"[RC_PTR] COPY CONSTRUCTOR for ["<< r.ptr << "]"<<std::endl;
         ptr=r.ptr;
         count=r.count;
         acquire();
@@ -120,7 +117,7 @@ public:
 
     void PrintCounts()
     {
-        std::cout << "Object "<< ptr<<" has "<< *count << " copies" <<std::endl;
+        // Debug: std::cout << "Object "<< ptr<<" has "<< *count << " copies" <<std::endl;
     }
 
 protected:
@@ -131,26 +128,24 @@ protected:
 
     void acquire()
     {
-        //std::cout << ">>>>ACQUIRING\n";
+        // Debug: std::cout << "[RC_PTR] >>>>ACQUIRING " << ptr << "\n";
         (*count) += 1;
-        //PrintCounts();
+        // Debug: PrintCounts();
     }
 
 
     void release()
     {
-        //debugging printouts:
-
         if (count)
             {
-                //std::cout << "<<<<<RELEASING\n";
-                //std::cout << ptr <<":----:"<<  std::endl;
+                // Debug: std::cout << "[RC_PTR] <<<<<RELEASING\n";
+                // Debug: std::cout << "[RC_PTR] Object: " << ptr <<std::endl;
                 (*count)--;
-                //PrintCounts();
+                // Debug: PrintCounts();
 
                 if((*count)==0)
-                    {              
-                        //std::cout << "PTR is empti; Deleting: "<< ptr<<std::endl;
+                    {
+                        // Debug: std::cout << "[RC_PTR] *** COUNT IS ZERO; Deleting: "<< ptr<<std::endl;
                         delete ptr;
                         delete count;
                         ptr = NULL;

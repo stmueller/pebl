@@ -1,0 +1,523 @@
+\chapter{The PEBL Layout \& Response System}
+\label{sec:layout}
+
+\sect{Overview}
+
+The PEBL Layout \& Response System provides a unified interface for creating structured experimental layouts with automatic screen scaling and platform-aware response handling. This system simplifies the creation of battery tasks by providing:
+
+\begin{itemize}
+\item \textbf{Zone-based layouts} with automatic positioning and scaling
+\item \textbf{Platform-aware response modes} (keyboard, mouse, touch)
+\item \textbf{Single-function API} with intelligent defaults
+\item \textbf{Theme support} and accessibility features
+\item \textbf{Integration} with parameters, translations, and data upload
+\end{itemize}
+
+\sect{Quick Start}
+
+The simplest way to use the Layout \& Response System is with two function calls:
+
+\begin{verbatim}
+define Start(p)
+{
+  gWin <- MakeWindow("black")
+  gParams <- CreateParameters(parpairs, gParamFile)
+
+  ## Create layout with response system
+  gLayout <- CreateLayout("mytask", gWin, gParams)
+
+  ## Set zone content
+  gLayout.header.text <- "My Task - Trial 1"
+  gLayout.footer.text <- "Press a response key"
+
+  Draw()
+
+  ## Wait for response (returns "left" or "right")
+  response <- WaitForLayoutResponse(gLayout, 5000)
+
+  Print("Response: " + response)
+}
+\end{verbatim}
+
+This creates a full-screen layout with five zones (header, subheader, stimulus, response, footer) and handles both keyboard and mouse responses automatically based on the platform.
+
+\sect{Layout Zones}
+
+The layout system divides the screen into five configurable zones:
+
+\subsection{Zone Structure}
+
+\begin{itemize}
+\item \textbf{Header Zone} - Title and primary information (default: 50px height, 28pt font)
+\item \textbf{Subheader Zone} - Trial counter, status (default: 25px height, 18pt font, optional)
+\item \textbf{Stimulus Zone} - Main content area (flexible height, takes remaining space)
+\item \textbf{Response Zone} - Response key/target labels (default: 50px height, 20pt font)
+\item \textbf{Footer Zone} - Instructions, prompts (default: 50px height, 16pt font)
+\end{itemize}
+
+All zones scale proportionally based on screen resolution. The default baseline is 800x600, with all dimensions scaling up or down to match the actual screen size.
+
+\subsection{Accessing Zones}
+
+Zone labels are accessed as properties of the layout object:
+
+\begin{verbatim}
+gLayout.header.text <- "Trial " + trial
+gLayout.subheader.text <- "Block " + block
+gLayout.footer.text <- "Press LEFT or RIGHT"
+
+## Control visibility
+gLayout.header.visible <- 1  ## show
+gLayout.subheader.visible <- 0  ## hide
+\end{verbatim}
+
+\subsection{Stimulus Region}
+
+The stimulus region is the flexible area where experimental stimuli are presented:
+
+\begin{verbatim}
+## Center of stimulus region
+centerX <- gLayout.stimulusRegion.centerX
+centerY <- gLayout.stimulusRegion.centerY
+
+## Add stimuli
+stim <- Circle(centerX, centerY, 50, MakeColor("red"), 1)
+AddObject(stim, gWin)
+\end{verbatim}
+
+The stimulus region automatically adjusts its size based on which zones are visible and the current screen dimensions.
+
+\sect{Response Modes}
+
+The Layout \& Response System supports multiple response modes that can be selected via parameters:
+
+\subsection{Keyboard Modes}
+
+\textbf{keyboardShift} - Left/right shift keys (native platforms only)
+\begin{itemize}
+\item \textbf{Keys}: Left Shift, Right Shift
+\item \textbf{Labels}: "LEFT-SHIFT", "RIGHT-SHIFT"
+\item \textbf{Platform}: Native only (avoids Windows Sticky Keys dialog)
+\item \textbf{Use case}: Traditional two-alternative tasks on desktop
+\end{itemize}
+
+\textbf{keyboardSafe} - Browser-safe letter keys
+\begin{itemize}
+\item \textbf{Keys}: Z, / (slash)
+\item \textbf{Labels}: "Z", "/"
+\item \textbf{Platform}: All (default for Emscripten/browser)
+\item \textbf{Use case}: Web-based experiments, avoids modifier key issues
+\end{itemize}
+
+\subsection{Mouse Modes}
+
+\textbf{mousetarget} - Click on labeled targets
+\begin{itemize}
+\item \textbf{Target}: Clickable response zone labels
+\item \textbf{Labels}: "Click LEFT", "Click RIGHT"
+\item \textbf{Platform}: All
+\item \textbf{Use case}: Touch screens, tablets, mouse-based interfaces
+\end{itemize}
+
+\textbf{mousebutton} - Left/right mouse buttons
+\begin{itemize}
+\item \textbf{Buttons}: Left button (1), Right button (3)
+\item \textbf{Labels}: "LEFT-CLICK", "RIGHT-CLICK"
+\item \textbf{Platform}: All
+\item \textbf{Use case}: Tasks requiring fast mouse-based responses
+\end{itemize}
+
+\subsection{Platform-Aware Selection}
+
+When \texttt{responsemode} is set to \texttt{"auto"} (the default), the system automatically selects:
+\begin{itemize}
+\item \textbf{Native platforms} (Linux, macOS, Windows): keyboardShift
+\item \textbf{Emscripten/Browser}: keyboardSafe
+\end{itemize}
+
+This ensures optimal performance and user experience across platforms.
+
+\sect{Parameter Integration}
+
+The Layout \& Response System integrates with PEBL's parameter management system. The most important parameter is \texttt{responsemode}, which determines how participants respond.
+
+\subsection{Basic Usage}
+
+Pass parameters to the layout to control response mode:
+
+\begin{verbatim}
+define Start(p)
+{
+  ## Define parameters including responsemode
+  parpairs <- [
+    ["responsemode", "auto"],  ## Platform-aware by default
+    ["numTrials", 20]
+  ]
+
+  ## Load parameters
+  gParams <- CreateParameters(parpairs, gParamFile)
+
+  ## Pass to layout (reads gParams.responsemode)
+  gLayout <- CreateLayout("taskname", gWin, gParams)
+}
+\end{verbatim}
+
+\subsection{Response Mode Parameter}
+
+The \texttt{responsemode} parameter accepts:
+\begin{itemize}
+\item \texttt{"auto"} - Platform-aware (keyboardShift on native, keyboardSafe on web)
+\item \texttt{"keyboardShift"} - Left/right shift keys
+\item \texttt{"keyboardSafe"} - Z and / keys (browser-safe)
+\item \texttt{"mousetarget"} - Click on labeled targets
+\item \texttt{"mousebutton"} - Left/right mouse buttons
+\end{itemize}
+
+\textbf{For complete details on parameters, schemas, presets, and remote loading, see Chapter~\ref{sec:taskarchitecture}.}
+
+\sect{Translation Support}
+
+The Layout \& Response System integrates with PEBL's translation system for multilingual support.
+
+\subsection{Basic Usage}
+
+Load translations and use them in layout zones:
+
+\begin{verbatim}
+define Start(p)
+{
+  ## Load translations for current language
+  gStrings <- GetTranslations("taskname", gLanguage)
+
+  ## Use translated strings in layout zones
+  gLayout.header.text <- gStrings.HEADER_TITLE
+  gLayout.footer.text <- gStrings.INSTRUCTIONS
+
+  Draw()
+}
+\end{verbatim}
+
+\subsection{Running in Different Languages}
+
+\begin{verbatim}
+## English (default)
+pebl2 taskname.pbl
+
+## Spanish
+pebl2 taskname.pbl -v language=es
+
+## French
+pebl2 taskname.pbl -v language=fr
+\end{verbatim}
+
+\textbf{For complete details on translation file structure, special characters, creating translations, and best practices, see Chapter~\ref{sec:taskarchitecture}.}
+
+\sect{Data Upload Integration}
+
+Tasks using the Layout \& Response System can integrate with PEBL's data upload functionality to provide feedback during upload.
+
+\subsection{Basic Usage}
+
+Use layout zones to show upload status:
+
+\begin{verbatim}
+define Start(p)
+{
+  ## ... run experiment ...
+
+  FileClose(gFileOut)
+
+  ## Upload with status display
+  if(gParams.uploadData)
+  {
+    ## Show upload screen
+    gLayout.header.text <- "Uploading Data"
+    gLayout.footer.text <- "Please wait..."
+    Draw()
+
+    ## Upload file
+    success <- UploadFile(gSubNum, gFileOut)
+
+    ## Show result
+    if(success)
+    {
+      gLayout.footer.text <- "Upload complete!"
+    } else {
+      gLayout.footer.text <- "Upload failed. Data saved locally."
+    }
+
+    Draw()
+    Wait(2000)
+  }
+}
+\end{verbatim}
+
+The layout system provides a clean way to show upload progress and results without requiring popup dialogs.
+
+\textbf{For complete details on data upload configuration, server setup (PEBL Simple Data Server and PEBLHub), and best practices, see Chapter~\ref{sec:taskarchitecture}.}
+
+\sect{Layout Customization}
+
+The Layout \& Response System can be customized per-task or globally.
+
+\subsection{Custom Layout Configuration}
+
+Create a custom layout file \texttt{battery/taskname/layout/taskname.pbl.layout.json}:
+
+\begin{verbatim}
+{
+  "name": "Custom Task Layout",
+  "version": "1.0",
+  "baseline": {
+    "width": 800,
+    "height": 600
+  },
+  "margins": {
+    "x": 25,
+    "y": 25,
+    "bottomReserve": 25
+  },
+  "zones": {
+    "header": {
+      "height": 60,
+      "fontSize": 32,
+      "visible": true
+    },
+    "subheader": {
+      "height": 30,
+      "fontSize": 20,
+      "visible": true
+    },
+    "stimulus": {
+      "flexGrow": true,
+      "fontSize": 24
+    },
+    "response": {
+      "height": 70,
+      "fontSize": 24,
+      "visible": true
+    },
+    "footer": {
+      "height": 60,
+      "fontSize": 18,
+      "visible": true
+    }
+  },
+  "responseDefaults": {
+    "type": "auto",
+    "numAlternatives": 2
+  }
+}
+\end{verbatim}
+
+\subsection{Modifying Global Defaults}
+
+To change the default layout for all tasks, edit:
+\begin{verbatim}
+media/settings/default-layout.json
+\end{verbatim}
+
+Changes to the default layout affect all tasks that don't have a custom layout configuration.
+
+\sect{Complete Example}
+
+Here is a complete example demonstrating all features:
+
+\begin{verbatim}
+define Start(p)
+{
+  ##--------------------------------------------------------------------------
+  ## 1. SETUP
+  ##--------------------------------------------------------------------------
+  gScriptname <- "My Task"
+
+  ## Parameters
+  parpairs <- [
+    ["numPracticeTrials", 5],
+    ["numTestTrials", 20],
+    ["responsemode", "keyboardShift"],
+    ["uploadData", 0],
+    ["uploadURL", ""]
+  ]
+  gParams <- CreateParameters(parpairs, gParamFile)
+
+  ## Window and subject
+  gWin <- MakeWindow("black")
+  if(gSubNum+"" == "0") {
+    gSubNum <- GetSubNum(gWin)
+  }
+
+  ## Load translations
+  gStrings <- GetTranslations("mytask", gLanguage)
+
+  ##--------------------------------------------------------------------------
+  ## 2. CREATE LAYOUT
+  ##--------------------------------------------------------------------------
+  gLayout <- CreateLayout("mytask", gWin, gParams)
+
+  ## Configure zones
+  gLayout.header.text <- gStrings.TITLE
+  gLayout.footer.text <- gStrings.INSTRUCTIONS
+
+  ##--------------------------------------------------------------------------
+  ## 3. DATA FILE
+  ##--------------------------------------------------------------------------
+  gFileOut <- GetNewDataFile(gSubNum, gWin, "mytask", "csv",
+    "subnum,trial,phase,stimulus,response,correct,rt,timestamp")
+
+  ##--------------------------------------------------------------------------
+  ## 4. PRACTICE TRIALS
+  ##--------------------------------------------------------------------------
+  gLayout.subheader.text <- "PRACTICE"
+  Draw()
+  WaitForAnyKeyPress()
+
+  loop(trial, Sequence(1, gParams.numPracticeTrials, 1))
+  {
+    result <- RunTrial("practice", trial)
+    FilePrint(gFileOut, result)
+  }
+
+  ##--------------------------------------------------------------------------
+  ## 5. TEST TRIALS
+  ##--------------------------------------------------------------------------
+  gLayout.subheader.text <- "TEST"
+  gLayout.footer.text <- gStrings.TEST_INSTRUCTIONS
+  Draw()
+  WaitForAnyKeyPress()
+
+  loop(trial, Sequence(1, gParams.numTestTrials, 1))
+  {
+    result <- RunTrial("test", trial)
+    FilePrint(gFileOut, result)
+  }
+
+  ##--------------------------------------------------------------------------
+  ## 6. UPLOAD & DEBRIEF
+  ##--------------------------------------------------------------------------
+  FileClose(gFileOut)
+
+  if(gParams.uploadData and gParams.uploadURL != "")
+  {
+    UploadFile(gFileOut, gParams.uploadURL)
+  }
+
+  gLayout.header.text <- gStrings.COMPLETE
+  gLayout.subheader.visible <- 0
+  gLayout.footer.text <- gStrings.DEBRIEF
+  Draw()
+  Wait(3000)
+}
+
+define RunTrial(phase, trialNum)
+{
+  ## Update display
+  gLayout.header.text <- gStrings.TITLE + " - Trial " + trialNum
+
+  ## Show stimulus
+  stim <- Circle(gLayout.stimulusRegion.centerX,
+                 gLayout.stimulusRegion.centerY,
+                 50, MakeColor("red"), 1)
+  AddObject(stim, gWin)
+  Draw()
+
+  ## Collect response
+  startTime <- GetTime()
+  response <- WaitForLayoutResponse(gLayout, 5000)
+  rt <- GetTime() - startTime
+
+  ## Clean up
+  RemoveObject(stim, gWin)
+
+  ## Return data
+  return(gSubNum + "," + trialNum + "," + phase +
+         ",red_circle," + response + ",,+ rt + "," + TimeStamp())
+}
+\end{verbatim}
+
+\sect{Best Practices}
+
+\subsection{Layout Usage}
+\begin{itemize}
+\item Use \texttt{CreateLayout()} once at the start of your experiment
+\item Store the result in \texttt{gLayout} for global access
+\item Update zone text as needed, don't recreate the layout
+\item Use \texttt{Draw()} after updating zone content
+\end{itemize}
+
+\subsection{Response Handling}
+\begin{itemize}
+\item Always pass \texttt{gParams} to \texttt{CreateLayout()} for response mode support
+\item Use semantic responses ("left", "right") not raw keys in your logic
+\item Handle timeout cases (response == "<timeout>")
+\item Provide clear instructions that match the response mode
+\end{itemize}
+
+\subsection{Parameters}
+\begin{itemize}
+\item Always provide a schema file with descriptions and defaults
+\item Use descriptive parameter names (not single letters)
+\item Create preset JSON files for common configurations
+\item Document parameter options in the schema
+\end{itemize}
+
+\subsection{Translations}
+\begin{itemize}
+\item Use UPPERCASE keys by convention
+\item Include all participant-visible text
+\item Test with at least two languages
+\item Provide English (\texttt{-en.json}) as the default
+\end{itemize}
+
+\sect{Reference}
+
+\subsection{Core Functions}
+
+\textbf{CreateLayout(testName, win, params)}
+
+Creates a layout with zones, response labels, and scaling.
+\begin{itemize}
+\item \textbf{testName}: Name of your task (string)
+\item \textbf{win}: Window object from MakeWindow()
+\item \textbf{params}: Parameter object with .responsemode (optional)
+\item \textbf{Returns}: Layout object (also sets gLayout global)
+\end{itemize}
+
+\textbf{WaitForLayoutResponse(layout, timeout)}
+
+Waits for a response according to the layout's response mode.
+\begin{itemize}
+\item \textbf{layout}: Layout object from CreateLayout()
+\item \textbf{timeout}: Maximum wait in milliseconds (default: 60000)
+\item \textbf{Returns}: Semantic response ("left", "right", etc.) or "<timeout>"
+\end{itemize}
+
+\subsection{Layout Properties}
+
+\begin{itemize}
+\item \texttt{layout.header.text} - Header text
+\item \texttt{layout.header.visible} - Header visibility (0/1)
+\item \texttt{layout.subheader.text} - Subheader text
+\item \texttt{layout.subheader.visible} - Subheader visibility (0/1)
+\item \texttt{layout.footer.text} - Footer text
+\item \texttt{layout.footer.visible} - Footer visibility (0/1)
+\item \texttt{layout.stimulusRegion.centerX} - Stimulus area center X
+\item \texttt{layout.stimulusRegion.centerY} - Stimulus area center Y
+\item \texttt{layout.stimulusRegion.width} - Stimulus area width
+\item \texttt{layout.stimulusRegion.height} - Stimulus area height
+\item \texttt{layout.responseLabels} - List of response label objects
+\item \texttt{layout.responseMode.type} - Current response mode type
+\end{itemize}
+
+\subsection{Default Configuration}
+
+The default layout configuration (800x600 baseline) includes:
+\begin{itemize}
+\item Margins: 25px (x and y)
+\item Bottom reserve: 25px (no-go zone for windowed mode)
+\item Header: 50px height, 28pt font
+\item Subheader: 25px height, 18pt font (visible by default)
+\item Response: 50px height, 20pt font
+\item Footer: 50px height, 16pt font
+\item Stimulus: Flexible (takes remaining space, typically ~70\% of screen)
+\end{itemize}

@@ -71,9 +71,9 @@ public:
     bool Evaluate(const OpNode * node);
     bool Evaluate(const DataNode * node);
   
-    void Push(Variant v);
+    void Push(const Variant & v);
     Variant Pop();
-    Variant Peek();
+    const Variant & Peek() const;
 
     unsigned long int GetStackDepth(){return mStack.size();};
 

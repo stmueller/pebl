@@ -48,9 +48,9 @@ PComplexData::PComplexData()
 }
 
 
-PComplexData::PComplexData( counted_ptr <PEBLObjectBase > object )
+PComplexData::PComplexData( const counted_ptr <PEBLObjectBase > & object )
+  : mPEBLObject(object)
 {
-    mPEBLObject = object;
 }
 
 PComplexData::~PComplexData()
@@ -61,18 +61,14 @@ PComplexData::~PComplexData()
 
 ///This is a generic copy constructor
 PComplexData::PComplexData(const PComplexData & pcd )
+  : mPEBLObject(pcd.mPEBLObject)
 {
-
-    mPEBLObject = pcd.GetObject();
-
 }
 
 ///This is a generic copy constructor
 PComplexData::PComplexData(const PComplexData *pcd )
+  : mPEBLObject(pcd->mPEBLObject)
 {
-
-    mPEBLObject = pcd->GetObject();
-
 }
 
 

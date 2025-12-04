@@ -82,7 +82,7 @@ public:
 
     //Constructors
     PComplexData();
-    PComplexData(counted_ptr<PEBLObjectBase>);
+    PComplexData(const counted_ptr<PEBLObjectBase> & object);
 
     //     PComplexData(counted_ptr<PlatformEnvironment>);
 //     PComplexData(counted_ptr<PlatformWindow>);

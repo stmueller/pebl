@@ -4,8 +4,9 @@ define Start(p)
 
    parPairs <- [["reps",10],
                 ["isi",500],
-                 ["minval",100],
-				 ["maxval",999]]
+                ["minval",100],
+                ["maxval",999],
+                ["responsemode","auto"]]
 
 
    gParams <- CreateParameters(parpairs,gParamFile)
@@ -20,6 +21,14 @@ define Start(p)
 
     header <- "subnum,trial,starttime,number,isodd,resp,corr,rt"
     gFileOut <- GetNewDataFile(gSubNum,gWin,"evenodd","csv",header)
+
+   ## Create layout with response system
+   gLayout <- CreateLayout("evenodd", gWin, gParams)
+
+   ## Configure layout zones
+   gLayout.header.text <- gStrings.header
+   gLayout.subheader.visible <- 0
+   gLayout.footer.text <- gStrings.footer
 
    Draw()
 
@@ -95,22 +104,27 @@ define Start(p)
 
 define Trial(number)
 {
-
-  header <- Easylabel(gStrings.header,gVideoWidth/2,100,gWin,40)
-  stim <-   EasyLabel(number+"",gVideoWidth/2,gVideoHeight/2,gWin,80)
-  footer <- EasyLabel(gStrings.footer,gVideoWidth/2,gVideoHeight-200,gWin,30)
+  ## Header and footer are already set in layout
+  ## Just create the stimulus in the center of the stimulus region
+  stim <- EasyLabel(number+"", gLayout.centerX, gLayout.centerY, gWin, 80)
 
   Draw()
   time1 <- GetTime()
-  resp <- WaitForListKeyPress(["<lshift>","<rshift>"])
-  time2 <- GetTime()
-   rt <- (time2-time1)
-   odd <- IsOdd(number)
-   corr <- (odd and resp=="<lshift>") or ((not odd) and resp=="<rshift>")
-   Hide(stim)
 
-   Draw()
-  return [number,odd,resp,corr,rt]
+  ## Use layout response system (returns "left" or "right")
+  resp <- WaitForLayoutResponse(gLayout, 5000)
+
+  time2 <- GetTime()
+  rt <- (time2-time1)
+  odd <- IsOdd(number)
+
+  ## Semantic response mapping: left=odd, right=even
+  corr <- (odd and resp=="left") or ((not odd) and resp=="right")
+
+  Hide(stim)
+  Draw()
+
+  return [number, odd, resp, corr, rt]
 }
 
 define IsOdd(number)

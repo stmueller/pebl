@@ -1,0 +1,906 @@
+## ----------------------------------------------------------------
+## PEBL Layout & Response System
+## Part of the PEBL Standard Library
+##
+## Provides unified layout and response handling with:
+## - Zone-based layouts with automatic scaling
+## - Platform-aware response modes (keyboard/mouse/touch)
+## - Single-function API with intelligent defaults
+## - Dynamic styling via nested property access
+## - Theme support and accessibility features
+##
+## (c) 2025 Shane T. Mueller
+## ----------------------------------------------------------------
+
+
+## ================================================================
+## Main API Functions
+## ================================================================
+
+define CreateLayout(testName, win, params:0)
+{
+    ## Creates a standard layout with header, stimulus region, footer, and response labels
+    ## Returns layout object (also sets global gLayout for convenience)
+    ##
+    ## Args:
+    ##   testName: Name of the test (for loading custom config)
+    ##   win: Window object to create layout in
+    ##   params: Parameter object (optional) - must contain .responsemode if provided
+    ##
+    ## Example:
+    ##   layout <- CreateLayout("simon", gWin)
+    ##   layout.header.text <- "Simon Task"
+    ##   layout.header.visible <- 1
+
+    ## Load configuration
+    config <- LoadLayoutConfig(testName)
+    modes <- LoadResponseModes()
+
+    ## Determine response mode
+    responseMode <- DetermineResponseMode(params, config, modes)
+
+    ## Calculate screen scale
+    scale <- CalculateScreenScale(config, win)
+
+    ## Create layout object
+    layout <- MakeCustomObject("Layout")
+    layout.win <- win
+    layout.config <- config
+    layout.scale <- scale
+    layout.responseMode <- responseMode
+
+    ## Calculate zone positions
+    layout <- CalculateLayoutZones(layout)
+
+    ## Create UI elements
+    layout <- CreateLayoutElements(layout)
+
+    ## Create response labels
+    layout <- CreateResponseLabels(layout, Round(config.zones.response.fontSize * scale))
+
+    ## Set global for convenience
+    gLayout <- layout
+
+    return(layout)
+}
+
+
+define WaitForLayoutResponse(layout, timeout:60000)
+{
+    ## Waits for response according to layout's response mode
+    ## Returns semantic response: "left", "right", "up", "down", etc.
+    ## Returns "<timeout>" if timeout exceeded
+    ##
+    ## Args:
+    ##   layout: Layout object from CreateLayout()
+    ##   timeout: Maximum wait time in ms (default 60000 = 60 seconds)
+    ##
+    ## Example:
+    ##   resp <- WaitForLayoutResponse(gLayout, 5000)
+    ##   if(resp == "left") { ## Handle left response }
+
+  
+
+    mode <- layout.responseMode
+    result <- "<timeout>"
+
+    if(mode.type == "keyboard")
+    {
+
+
+        resp <- WaitForListKeyPressWithTimeout(mode.keys, timeout)
+
+
+        if(resp != "<timeout>")
+        {
+
+
+            ## Map key to semantic name
+            loop(i, Length(mode.keys))
+            {
+
+
+                if(resp == Nth(mode.keys, i))
+                {
+
+                    result <- Nth(mode.semantic, i)
+
+                }
+            }
+        }
+    }
+    elseif(mode.type == "mousebutton")
+    {
+        resp <- WaitForMouseButtonWithTimeout(timeout)
+
+        if(resp != "<timeout>")
+        {
+            ## Map button to semantic name
+            loop(i, Length(mode.buttons))
+            {
+                if(resp == Nth(mode.buttons, i))
+                {
+                    result <- Nth(mode.semantic, i)
+                }
+            }
+        }
+    } elseif(mode.type == "mousetarget")
+    {
+        ## Mouse target mode - wait for click on response labels
+        ## Create key list matching number of labels (1, 2, 3, ...)
+        numLabels <- Length(layout.responseLabels)
+        keylist <- Sequence(1, numLabels, 1)
+
+        resp <- WaitForClickOnTarget(layout.responseLabels, keylist)
+
+        if(resp != "<timeout>")
+        {
+            ## Return semantic name for clicked target
+            result <- Nth(mode.semantic, resp)
+        }
+    } else {
+        SignalFatalError("Unknown response mode: " + mode.type)
+    }
+
+    Print("DEBUG: About to return: " + result)
+    return(result)
+}
+
+
+## ================================================================
+## Theme Functions
+## ================================================================
+
+define ApplyDarkTheme(layout)
+{
+    ## Applies dark theme to layout
+    ## Black background with white text
+
+    layout.win.bgcolor.red <- 40
+    layout.win.bgcolor.green <- 40
+    layout.win.bgcolor.blue <- 40
+
+    layout.header.font.fgcolor <- MakeColor("white")
+    layout.subheader.font.fgcolor <- MakeColor("white")
+    layout.footer.font.fgcolor <- MakeColor("white")
+
+    loop(label, layout.responseLabels)
+    {
+        label.font.fgcolor <- MakeColor("white")
+        label.font.bgcolor.red <- 60
+        label.font.bgcolor.green <- 60
+        label.font.bgcolor.blue <- 60
+    }
+
+    Draw()
+}
+
+
+define ApplyHighContrastTheme(layout)
+{
+    ## Applies high contrast theme for accessibility
+    ## Black text on yellow background
+
+    layout.win.bgcolor <- MakeColor("yellow")
+
+    layout.header.font.fgcolor <- MakeColor("black")
+    layout.header.font.size <- Round(layout.header.font.size * 1.5)
+
+    layout.subheader.font.fgcolor <- MakeColor("black")
+    layout.footer.font.fgcolor <- MakeColor("black")
+
+    loop(label, layout.responseLabels)
+    {
+        label.font.fgcolor <- MakeColor("black")
+        label.font.size <- Round(label.font.size * 1.3)
+        label.font.bgcolor <- MakeColor("white")
+    }
+
+    Draw()
+}
+
+
+define ApplyAccessibilitySettings(layout, params)
+{
+    ## Applies accessibility settings based on parameters
+    ##
+    ## Supported parameters:
+    ##   params.highContrast: Enable high contrast mode
+    ##   params.largeText: Increase all font sizes by 50%
+    ##   params.colorBlind: Use black/white instead of colors
+
+    if(PropertyExists(params, "highContrast"))
+    {
+        if(params.highContrast)
+        {
+            ApplyHighContrastTheme(layout)
+        }
+    }
+
+    if(PropertyExists(params, "largeText"))
+    {
+        if(params.largeText)
+        {
+            layout.header.font.size <- Round(layout.header.font.size * 1.5)
+            layout.subheader.font.size <- Round(layout.subheader.font.size * 1.5)
+            layout.footer.font.size <- Round(layout.footer.font.size * 1.5)
+
+            loop(label, layout.responseLabels)
+            {
+                label.font.size <- Round(label.font.size * 1.5)
+            }
+
+            Draw()
+        }
+    }
+
+    if(PropertyExists(params, "colorBlind"))
+    {
+        if(params.colorBlind)
+        {
+            ## Ensure sufficient luminance contrast
+            layout.win.bgcolor <- MakeColor("white")
+            layout.header.font.fgcolor <- MakeColor("black")
+            layout.subheader.font.fgcolor <- MakeColor("black")
+            layout.footer.font.fgcolor <- MakeColor("black")
+
+            loop(label, layout.responseLabels)
+            {
+                label.font.fgcolor <- MakeColor("black")
+            }
+
+            Draw()
+        }
+    }
+}
+
+
+## ================================================================
+## Animation Functions
+## ================================================================
+
+define FlashCorrect(label, durationMs:500)
+{
+    ## Flashes label with green background to indicate correct response
+    ##
+    ## Args:
+    ##   label: Label object to flash
+    ##   durationMs: Duration of flash in milliseconds (default 500)
+
+    ## Save original colors
+    origBg <- label.font.bgcolor
+
+    ## Flash green
+    label.font.bgcolor <- MakeColor("green")
+    Draw()
+    Wait(durationMs)
+
+    ## Restore
+    label.font.bgcolor <- origBg
+    Draw()
+}
+
+
+define FlashIncorrect(label, durationMs:500)
+{
+    ## Flashes label with red background to indicate incorrect response
+
+    origBg <- label.font.bgcolor
+
+    label.font.bgcolor <- MakeColor("red")
+    Draw()
+    Wait(durationMs)
+
+    label.font.bgcolor <- origBg
+    Draw()
+}
+
+
+define FadeOut(label, durationMs:1000)
+{
+    ## Fades out a label by animating alpha from 255 to 0
+    ##
+    ## Args:
+    ##   label: Label object to fade
+    ##   durationMs: Duration of fade in milliseconds (default 1000)
+
+    steps <- 20
+    stepDelay <- durationMs / steps
+
+    loop(alpha, Sequence(255, 0, -13))
+    {
+        label.font.fgcolor.alpha <- alpha
+        label.font.bgcolor.alpha <- alpha
+        Draw()
+        Wait(stepDelay)
+    }
+}
+
+
+define FadeIn(label, durationMs:1000)
+{
+    ## Fades in a label by animating alpha from 0 to 255
+
+    steps <- 20
+    stepDelay <- durationMs / steps
+
+    loop(alpha, Sequence( 0, 255, 13))
+    {
+        label.font.fgcolor.alpha <- alpha
+        label.font.bgcolor.alpha <- alpha
+        Draw()
+        Wait(stepDelay)
+    }
+}
+
+
+define PulseLabel(label, count:3, pulseSize:10)
+{
+    ## Pulses a label by increasing/decreasing font size
+    ##
+    ## Args:
+    ##   label: Label object to pulse
+    ##   count: Number of pulses (default 3)
+    ##   pulseSize: Amount to increase size by (default 10)
+
+    originalSize <- label.font.size
+
+    loop(i,  count)
+    {
+        label.font.size <- originalSize + pulseSize
+        Draw()
+        Wait(150)
+
+        label.font.size <- originalSize
+        Draw()
+        Wait(150)
+    }
+}
+
+
+define HighlightResponse(label, durationMs:1000)
+{
+    ## Highlights a label by changing to yellow background with black text
+    ##
+    ## Args:
+    ##   label: Label object to highlight
+    ##   durationMs: Duration of highlight in milliseconds (default 1000)
+
+    ## Cache original colors
+    origBgColor <- label.font.bgcolor
+    origFgColor <- label.font.fgcolor
+
+    ## Highlight
+    label.font.bgcolor <- MakeColor("yellow")
+    label.font.fgcolor <- MakeColor("black")
+    Draw()
+    Wait(durationMs)
+
+    ## Restore
+    label.font.bgcolor <- origBgColor
+    label.font.fgcolor <- origFgColor
+    Draw()
+}
+
+
+## ================================================================
+## Styling Helper Functions
+## ================================================================
+
+define SetLabelColor(label, colorName)
+{
+    ## Sets label foreground color by name
+    ##
+    ## Args:
+    ##   label: Label object
+    ##   colorName: Color name (e.g., "red", "blue", "green")
+
+    label.font.fgcolor <- MakeColor(colorName)
+    Draw()
+}
+
+
+define SetLabelBackground(label, red, green, blue, alpha:255)
+{
+    ## Sets label background color with RGBA values
+    ##
+    ## Args:
+    ##   label: Label object
+    ##   red, green, blue: Color components (0-255)
+    ##   alpha: Alpha transparency (0-255, default 255)
+
+    label.font.bgcolor.red <- red
+    label.font.bgcolor.green <- green
+    label.font.bgcolor.blue <- blue
+    label.font.bgcolor.alpha <- alpha
+    Draw()
+}
+
+
+define ScaleFont(label, scaleFactor)
+{
+    ## Scales label font size by a factor
+    ##
+    ## Args:
+    ##   label: Label object
+    ##   scaleFactor: Multiplier for font size (e.g., 1.5 = 150%)
+
+    label.font.size <- Round(label.font.size * scaleFactor)
+    Draw()
+}
+
+
+define StyleForDifficulty(layout, difficulty)
+{
+    ## Adjusts layout appearance based on difficulty level
+    ##
+    ## Args:
+    ##   layout: Layout object
+    ##   difficulty: "easy", "medium", or "hard"
+    ##
+    ## Easy: Large text, high contrast
+    ## Medium: Normal text, slight fade
+    ## Hard: Small text, more faded
+
+    if(difficulty == "easy")
+    {
+        layout.header.font.size <- Round(60 * layout.scale)
+        layout.header.font.fgcolor <- MakeColor("black")
+
+        loop(label, layout.responseLabels)
+        {
+            label.font.size <- Round(32 * layout.scale)
+        }
+    }
+    elseif(difficulty == "medium")
+    {
+        layout.header.font.size <- Round(48 * layout.scale)
+        layout.header.font.fgcolor.alpha <- 220
+
+        loop(label, layout.responseLabels)
+        {
+            label.font.size <- Round(24 * layout.scale)
+        }
+    }    else   { ## hard
+        layout.header.font.size <- Round(36 * layout.scale)
+        layout.header.font.fgcolor.alpha <- 180
+
+        loop(label, layout.responseLabels)
+        {
+            label.font.size <- Round(18 * layout.scale)
+        }
+    }
+
+    Draw()
+}
+
+
+## ================================================================
+## Internal Helper Functions
+## ================================================================
+
+define LoadLayoutConfig(testName)
+{
+    ## Loads layout configuration from JSON file
+    ## First checks for test-specific config, then falls back to default
+    ##
+    ## Returns configuration object with zones, margins, etc.
+
+    config <- 0
+
+    ## Try test-specific config first
+    customPath <- "battery/" + testName + "/layout/" + testName + ".pbl.layout.json"
+
+    if(FileExists(customPath))
+    {
+        config <- ParseJSON(FileReadText(customPath))
+    }
+    else
+    {
+        ## Fall back to default config
+        defaultPath <- "media/settings/default-layout.json"
+
+        if(FileExists(defaultPath))
+        {
+            config <- ParseJSON(FileReadText(defaultPath))
+        }
+        else
+        {
+            ## If no config files exist, return hardcoded defaults
+            config <- GetDefaultLayoutConfig()
+        }
+    }
+
+    return(config)
+}
+
+
+define LoadResponseModes()
+{
+    ## Loads response mode definitions from JSON file
+    ## Falls back to hardcoded defaults if file not found
+
+    modesPath <- "media/settings/response-modes.json"
+    result <- 0
+
+    if(FileExists(modesPath))
+    {
+        modes <- ParseJSON(FileReadText(modesPath))
+        result <- modes.modes
+    }
+    else
+    {
+        ## Return hardcoded defaults
+        result <- GetDefaultResponseModes()
+    }
+
+    return(result)
+}
+
+
+define DetermineResponseMode(params, config, modes)
+{
+    ## Determines which response mode to use based on parameters and platform
+    ##
+    ## Priority:
+    ##   1. Parameter override (params.responsemode)
+    ##   2. Config default
+    ##   3. "auto" platform detection
+
+    ## Get requested mode name
+    modeName <- "auto"
+
+    if(params != 0)
+    {
+        if(PropertyExists(params, "responsemode"))
+        {
+            modeName <- params.responsemode
+        }
+    }
+
+    if(modeName == "auto")
+    {
+        if(PropertyExists(config, "responseDefaults"))
+        {
+            if(PropertyExists(config.responseDefaults, "type"))
+            {
+                modeName <- config.responseDefaults.type
+            }
+        }
+    }
+
+    ## If still auto, do platform detection
+    if(modeName == "auto")
+    {
+        modeName <- GetPlatformResponseMode(modes)
+    }
+
+    Print("DEBUG DetermineResponseMode: modeName = " + modeName)
+    Print("DEBUG DetermineResponseMode: PropertyExists(modes, modeName) = " + PropertyExists(modes, modeName))
+    PrintProperties(modes)
+
+    ## Get mode configuration
+    result <- 0
+    if(PropertyExists(modes, modeName))
+    {
+        Print("DEBUG: About to call GetProperty(modes, " + modeName + ")")
+        result <- GetProperty(modes, modeName)
+        Print("DEBUG: GetProperty returned")
+        Print("DEBUG: Printing properties of result:")
+        PrintProperties(result)
+    }
+    else
+    {
+        SignalFatalError("Unknown response mode: " + modeName)
+    }
+
+    return(result)
+}
+
+
+define GetPlatformResponseMode(modes)
+{
+    ## Returns appropriate response mode for current platform
+    ## Native: keyboard-shift
+    ## Emscripten: keyboard-safe
+
+    result <- "keyboardShift"
+
+    if(GetSystemType() == "EMSCRIPTEN")
+    {
+        result <- "keyboardSafe"
+    }
+
+    return(result)
+}
+
+
+define CalculateScreenScale(config, win)
+{
+    ## Calculates scale factor based on actual screen size vs baseline
+    ## Returns scale factor (1.0 = 800x600, 2.0 = 1600x1200, etc.)
+
+    baselineWidth <- config.baseline.width
+    baselineHeight <- config.baseline.height
+
+    scaleX <- win.width / baselineWidth
+    scaleY <- win.height / baselineHeight
+
+    ## Use smaller scale to ensure everything fits
+    scale <- Min([scaleX, scaleY])
+
+    return(scale)
+}
+
+
+define CalculateLayoutZones(layout)
+{
+    ## Calculates position and dimensions for all layout zones
+    ## Modifies layout object in-place
+    ##
+    ## Returns modified layout
+
+    config <- layout.config
+    scale <- layout.scale
+    margins <- config.margins
+    win <- layout.win
+
+    ## Calculate scaled margins
+    marginX <- Round(margins.x * scale)
+    marginY <- Round(margins.y * scale)
+
+    ## Calculate bottom reserve (no-go zone for windowed mode)
+    bottomReserve <- 0
+    if(PropertyExists(margins, "bottomReserve"))
+    {
+        bottomReserve <- Round(margins.bottomReserve * scale)
+    }
+
+    ## Available space (account for top margin, bottom margin, and bottom reserve)
+    availWidth <- win.width - (2 * marginX)
+    availHeight <- win.height - marginY - marginY - bottomReserve
+
+    ## Calculate zone heights
+    headerHeight <- 0
+    subheaderHeight <- 0
+    responseHeight <- 0
+    footerHeight <- 0
+
+    if(config.zones.header.visible)
+    {
+        headerHeight <- Round(config.zones.header.height * scale)
+    }
+
+    if(config.zones.subheader.visible)
+    {
+        subheaderHeight <- Round(config.zones.subheader.height * scale)
+    }
+
+    if(config.zones.response.visible)
+    {
+        responseHeight <- Round(config.zones.response.height * scale)
+    }
+
+    if(config.zones.footer.visible)
+    {
+        footerHeight <- Round(config.zones.footer.height * scale)
+    }
+
+    ## Stimulus region gets remaining space
+    stimulusHeight <- availHeight - headerHeight - subheaderHeight - responseHeight - footerHeight
+
+    ## Create stimulus region object
+    stimRegion <- MakeCustomObject("StimulusRegion")
+    stimRegion.x <- marginX
+    stimRegion.y <- marginY + headerHeight + subheaderHeight
+    stimRegion.width <- availWidth
+    stimRegion.height <- stimulusHeight
+    stimRegion.centerX <- marginX + (availWidth / 2)
+    stimRegion.centerY <- stimRegion.y + (stimulusHeight / 2)
+
+    layout.stimulusRegion <- stimRegion
+
+    ## Store zone positions for UI creation
+    layout.zones <- MakeCustomObject("Zones")
+    layout.zones.header <- MakeCustomObject("Zone")
+    layout.zones.header.y <- marginY
+    layout.zones.header.height <- headerHeight
+
+    layout.zones.subheader <- MakeCustomObject("Zone")
+    layout.zones.subheader.y <- marginY + headerHeight
+    layout.zones.subheader.height <- subheaderHeight
+
+    layout.zones.response <- MakeCustomObject("Zone")
+    layout.zones.response.y <- stimRegion.y + stimulusHeight
+    layout.zones.response.height <- responseHeight
+
+    layout.zones.footer <- MakeCustomObject("Zone")
+    layout.zones.footer.y <- layout.zones.response.y + responseHeight
+    layout.zones.footer.height <- footerHeight
+
+    return(layout)
+}
+
+
+define CreateLayoutElements(layout)
+{
+    ## Creates UI elements (labels) for layout zones
+    ## Modifies layout object in-place
+    ##
+    ## Returns modified layout
+
+    config <- layout.config
+    scale <- layout.scale
+    win <- layout.win
+    centerX <- win.width / 2
+
+    ## Auto-detect foreground color based on window background
+    ## (Same logic as EasyLabel)
+    bgcol <- win.bgcolor
+    val <- Max([bgcol.RED, bgcol.GREEN, bgcol.BLUE])
+
+    if(val <= 100)
+    {
+        fgcol <- MakeColor("white")  ## Dark background
+    } else {
+        fgcol <- MakeColor("black")  ## Light background
+    }
+
+    ## Create header
+    headerFont <- MakeFont(gPEBLBaseFont, 0,
+                           Round(config.zones.header.fontSize * scale),
+                           fgcol, MakeColor("white"), 0)
+    header <- MakeLabel("", headerFont)
+    AddObject(header, win)
+    Move(header, centerX, layout.zones.header.y + (layout.zones.header.height / 2))
+    header.visible <- config.zones.header.visible
+
+    ## Create subheader
+    subheaderFont <- MakeFont(gPEBLBaseFont, 0,
+                              Round(config.zones.subheader.fontSize * scale),
+                              fgcol, MakeColor("white"), 0)
+    subheader <- MakeLabel("", subheaderFont)
+    AddObject(subheader, win)
+    Move(subheader, centerX, layout.zones.subheader.y + (layout.zones.subheader.height / 2))
+    subheader.visible <- config.zones.subheader.visible
+
+    ## Create footer
+    footerFont <- MakeFont(gPEBLBaseFont, 0,
+                           Round(config.zones.footer.fontSize * scale),
+                           fgcol, MakeColor("white"), 0)
+    footer <- MakeLabel("", footerFont)
+    AddObject(footer, win)
+    Move(footer, centerX, layout.zones.footer.y + (layout.zones.footer.height / 2))
+    footer.visible <- config.zones.footer.visible
+
+    ## Store in layout
+    layout.header <- header
+    layout.subheader <- subheader
+    layout.footer <- footer
+    layout.fgcol <- fgcol  ## Store auto-detected color for use in response labels
+
+    return(layout)
+}
+
+
+define CreateResponseLabels(layout, fontSize)
+{
+    ## Creates response labels based on response mode
+    ## Modifies layout object in-place
+    ##
+    ## Returns modified layout
+
+    mode <- layout.responseMode
+    numLabels <- Length(mode.labels)
+    win <- layout.win
+    fgcol <- layout.fgcol  ## Use auto-detected foreground color
+
+    ## Calculate spacing
+    spacing <- win.width / (numLabels + 1)
+    centerY <- layout.zones.response.y + (layout.zones.response.height / 2)
+
+    ## Create labels
+    labels <- []
+
+    loop(i, numLabels)
+    {
+        labelFont <- MakeFont(gPEBLBaseFont, 0, fontSize,
+                              fgcol, MakeColor("lightgray"), 0)
+        label <- MakeLabel(Nth(mode.labels, i), labelFont)
+        AddObject(label, win)
+        Move(label, spacing * i, centerY)
+
+        PushOnEnd(labels, label)
+    }
+
+    layout.responseLabels <- labels
+
+    return(layout)
+}
+
+
+## ================================================================
+## Fallback Default Configurations
+## ================================================================
+
+define GetDefaultLayoutConfig()
+{
+    ## Returns hardcoded default layout configuration
+    ## Used when JSON config file is not found
+
+    config <- MakeCustomObject("LayoutConfig")
+
+    ## Baseline
+    config.baseline <- MakeCustomObject("Baseline")
+    config.baseline.width <- 800
+    config.baseline.height <- 600
+
+    ## Margins
+    config.margins <- MakeCustomObject("Margins")
+    config.margins.x <- 25
+    config.margins.y <- 25
+    config.margins.bottomReserve <- 25
+
+    ## Zones
+    config.zones <- MakeCustomObject("Zones")
+
+    config.zones.header <- MakeCustomObject("Zone")
+    config.zones.header.height <- 50
+    config.zones.header.fontSize <- 28
+    config.zones.header.visible <- 1
+
+    config.zones.subheader <- MakeCustomObject("Zone")
+    config.zones.subheader.height <- 25
+    config.zones.subheader.fontSize <- 18
+    config.zones.subheader.visible <- 1
+
+    config.zones.response <- MakeCustomObject("Zone")
+    config.zones.response.height <- 50
+    config.zones.response.fontSize <- 20
+    config.zones.response.visible <- 1
+
+    config.zones.footer <- MakeCustomObject("Zone")
+    config.zones.footer.height <- 50
+    config.zones.footer.fontSize <- 16
+    config.zones.footer.visible <- 1
+
+    return(config)
+}
+
+
+define GetDefaultResponseModes()
+{
+    ## Returns hardcoded default response modes
+    ## Used when JSON config file is not found
+
+    modes <- MakeCustomObject("ResponseModes")
+
+    ## keyboard-shift mode
+    modes.keyboardShift <- MakeCustomObject("Mode")
+    modes.keyboardShift.type <- "keyboard"
+    modes.keyboardShift.keys <- ["<lshift>", "<rshift>"]
+    modes.keyboardShift.labels <- ["LEFT-SHIFT", "RIGHT-SHIFT"]
+    modes.keyboardShift.semantic <- ["left", "right"]
+
+    ## keyboard-safe mode
+    modes.keyboardSafe <- MakeCustomObject("Mode")
+    modes.keyboardSafe.type <- "keyboard"
+    modes.keyboardSafe.keys <- ["z", "/"]
+    modes.keyboardSafe.labels <- ["Z", "/"]
+    modes.keyboardSafe.semantic <- ["left", "right"]
+
+    ## mousebutton mode
+    modes.mousebutton <- MakeCustomObject("Mode")
+    modes.mousebutton.type <- "mousebutton"
+    modes.mousebutton.buttons <- [1, 3]
+    modes.mousebutton.labels <- ["LEFT-CLICK", "RIGHT-CLICK"]
+    modes.mousebutton.semantic <- ["left", "right"]
+
+    ## mousetarget mode - click on labeled targets
+    modes.mousetarget <- MakeCustomObject("Mode")
+    modes.mousetarget.type <- "mousetarget"
+    modes.mousetarget.labels <- ["Click LEFT", "Click RIGHT"]
+    modes.mousetarget.semantic <- ["left", "right"]
+
+    return(modes)
+}

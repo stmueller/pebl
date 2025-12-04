@@ -1,180 +1,92 @@
-# PEBL Battery Task Template
+# PEBL Layout & Response System Template
 
-This template provides a complete, documented starting point for creating new PEBL experiments.
+This template demonstrates the PEBL Layout & Response System with colored visualization zones and configurable response modes.
 
-## Important Note
+## Usage
 
-This template demonstrates a **recommended approach** for building comprehensive, shareable PEBL tests suitable for the test battery. However, **this is NOT the only way to write PEBL experiments!**
+Simply run the template and choose your response mode when prompted:
 
-- **Translation system is optional** - You can hard-code text strings directly in your script
-- **Parameter schema is optional** - You can hard-code parameter values
-- **Data file structure is a suggestion** - Use whatever format suits your needs
-- **You can write much simpler experiments** - This template shows best practices, not requirements
-
-Use this template as a guide when creating tests you plan to share or distribute. For personal use or quick prototypes, feel free to simplify significantly.
-
-## Purpose
-
-This is NOT an actual psychological test - it's a template to help you create one. It includes:
-
-- Complete experiment structure (instructions, practice, test, debriefing)
-- Parameter system with schema file
-- Translation/internationalization support
-- Data file creation and recording
-- Extensive inline documentation
-- TODO markers for customization points
-
-## How to Use This Template
-
-### Manual Approach
-
-1. **Copy the directory:**
-   ```bash
-   cp -r battery/template battery/yourtaskname
-   ```
-
-2. **Rename files:**
-   ```bash
-   cd battery/yourtaskname
-   mv template.pbl yourtaskname.pbl
-   mv template.pbl.about.txt yourtaskname.pbl.about.txt
-   mv params/template.pbl.schema params/yourtaskname.pbl.schema
-   mv translations/template.pbl-en.json translations/yourtaskname.pbl-en.json
-   ```
-
-3. **Edit files:**
-   - Open `yourtaskname.pbl` and search for `TODO` comments
-   - Customize each section based on your experimental needs
-   - Update `params/yourtaskname.pbl.schema` with your parameters
-   - Update `translations/yourtaskname.pbl-en.json` with your instructions
-   - Update `yourtaskname.pbl.about.txt` with task description
-
-4. **Test:**
-   ```bash
-   bin/pebl2 battery/yourtaskname/yourtaskname.pbl
-   ```
-
-### AI/LLM-Assisted Approach
-
-Provide an LLM with:
-- This template file (`template.pbl`)
-- The PEBL programming guide (`Notes_for_Claude_on_Programming_PEBL.txt`)
-- A clear description of your experiment
-
-Example prompt:
-```
-Based on the PEBL template and programming notes, create a Stroop task where:
-- Participants see color words (RED, BLUE, GREEN, YELLOW)
-- Words are displayed in congruent or incongruent colors
-- Participants press keys to indicate the ink color (not the word)
-- Include 10 practice trials and 40 test trials
-- Record accuracy and reaction time
+```bash
+cd battery/template
+../../bin/pebl2 template.pbl -v subnum=999
 ```
 
-The LLM should be able to:
-- Fill in all TODO sections appropriately
-- Create proper experimental design and counterbalancing
-- Set up correct response collection
-- Configure data output columns
-- Write appropriate instructions
+A dialog will appear asking you to choose between:
+1. **Keyboard (Shift Keys)** - Use left/right shift keys
+2. **Mouse (Click Targets)** - Click on labeled targets
 
-## Key Sections to Customize
+## Layout Zones
 
-### In `template.pbl`:
+The layout is divided into five zones (visualized with colored rectangles):
 
-1. **Script name** (line ~31): Change to your task name
-2. **Parameters** (lines ~40-65): Define your experimental parameters
-3. **Data columns** (lines ~108-110): Match your data output needs
-4. **Practice design** (lines ~127-135): Create practice trial structure
-5. **Test design** (lines ~167-182): Create experimental conditions
-6. **RunTrial function** (lines ~230-380): Implement your trial logic
-   - Stimulus creation
-   - Response collection
-   - Feedback presentation
+- **Header** (yellow) - Test title and trial counter
+- **Subheader** (cyan) - Status information  
+- **Stimulus** (green) - Main content area for task stimuli
+- **Response** (blue) - Response key/target labels
+- **Footer** (red) - Instructions and prompts
 
-### In `params/template.pbl.schema`:
+## Response Modes
 
-Add/modify/remove parameters as needed for your task.
+### Keyboard Mode (Shift Keys)
+- Labels show: "LEFT-SHIFT" and "RIGHT-SHIFT"
+- Instructions: "Press the keys shown below"
+- Responses recorded as: "left" or "right"
 
-### In `translations/template.pbl-en.json`:
+### Mouse Target Mode (Click on Labels)
+- Labels show: "Click LEFT" and "Click RIGHT"
+- Instructions: "Click on one of the targets below"
+- Participant clicks directly on the response labels
+- Responses recorded as: "left" or "right"
 
-Update all instruction text to explain your specific task.
+## Using JSON Parameter Files (Optional)
 
-## Common Experimental Patterns
+You can also bypass the dialog and use JSON parameter files:
 
-The template includes commented examples for:
-
-- **Simple conditions:** Shuffled list of conditions
-- **Factorial designs:** Full counterbalancing
-- **Balanced sampling:** Each condition appears before repeating
-- **Keyboard responses:** Single key, multiple keys, timeout
-- **Mouse responses:** Click on targets
-- **Visual stimuli:** Text, images, shapes
-- **Timing:** Fixation, stimulus duration, feedback, ITI
-
-## File Structure
-
-```
-battery/template/
-├── template.pbl                    # Main experiment file
-├── template.pbl.about.txt          # Task description
-├── README.md                       # This file
-├── params/
-│   └── template.pbl.schema         # Parameter definitions
-├── translations/
-│   └── template.pbl-en.json        # English instructions/text
-└── data/                           # Created at runtime
+```bash
+../../bin/pebl2 template.pbl -v subnum=999 -v jsonparam=params/keyboard.json
+../../bin/pebl2 template.pbl -v subnum=999 -v jsonparam=params/mouse.json
 ```
 
-## Testing Your New Task
+Or override individual parameters via command line:
+```bash
+../../bin/pebl2 template.pbl -v subnum=999 -v responsemode=mousetarget
+../../bin/pebl2 template.pbl -v subnum=999 -v responsemode=keyboardSafe
+```
 
-1. Run with default parameters:
-   ```bash
-   bin/pebl2 battery/yourtaskname/yourtaskname.pbl
-   ```
+## Trial Structure
 
-2. Run with specific subject number:
-   ```bash
-   bin/pebl2 battery/yourtaskname/yourtaskname.pbl -v subnum=123
-   ```
+- **Practice trials**: 5 trials with feedback showing response and RT
+- **Test trials**: 20 trials without feedback
+- **Data recorded**: subnum, trial, phase, response (left/right), rt, timestamp
 
-3. Check data output in:
-   ```
-   battery/yourtaskname/data/[subnum]/yourtaskname-[subnum].csv
-   ```
+## Parameters
 
-4. Verify:
-   - All trials run without errors
-   - Data file has correct columns
-   - Instructions are clear
-   - Feedback works as expected
-   - Parameters can be modified in schema file
+Available parameters (defined in `params/template.pbl.schema.json`):
 
-## Additional Resources
+- `numPracticeTrials` - Number of practice trials (default: 5)
+- `numTestTrials` - Number of test trials (default: 20)
+- `showFeedback` - Show RT feedback during practice (1=yes, 0=no)
+- `responsemode` - Response mode options:
+  - `keyboardShift` - Left/Right shift keys (native only, avoids Sticky Keys dialog)
+  - `keyboardSafe` - Z and / keys (browser-safe)
+  - `mousetarget` - Click on labeled targets
+  - `mousebutton` - Left/right click anywhere
 
-- **PEBL Manual:** `doc/PEBLManual2.2.pdf`
-- **Programming Guide:** `Notes_for_Claude_on_Programming_PEBL.txt`
-- **Function Reference:** Online at https://pebl.sourceforge.net
-- **Example Tasks:** Browse `battery/` for similar tasks
-- **Community:** pebl-list@lists.sourceforge.net
+## Layout Configuration
 
-## Tips for Success
+The optimized default layout uses:
+- **Margins**: 25px (reduced from 50px for maximum stimulus space)
+- **Bottom reserve**: 25px (no-go zone in windowed mode)
+- **Header**: 50px height (suitable for 44pt font)
+- **Subheader**: 25px height (suitable for 22pt font)
+- **Response zone**: 50px height
+- **Footer**: 50px height (reduced from 80px)
+- **Stimulus zone**: Flexible, takes ~70% of screen height
 
-1. **Start simple:** Get basic structure working before adding complexity
-2. **Use existing tasks:** Look at similar tasks in the battery for examples
-3. **Test frequently:** Run your task after each major change
-4. **Check data:** Verify data output matches your expectations
-5. **Comment your code:** Explain non-obvious logic for future reference
-6. **Use parameters:** Make values configurable rather than hard-coded
-7. **Internationalize:** Use translation files even for English-only tasks
+## Files
 
-## Common Issues
-
-- **Syntax errors:** Check for missing parentheses in `return()` statements
-- **Missing return:** All functions must end with `return(value)`
-- **Elseif spacing:** Must be `}elseif` with no intervening text
-- **Line breaks:** Use `CR(1)` not `\n` for newlines in text
-- **NOT operator:** Use `not` keyword, not `!`
-- **Global variables:** Must start with lowercase 'g' prefix
-
-Consult `Notes_for_Claude_on_Programming_PEBL.txt` for complete list of common mistakes.
+- `template.pbl` - Main template script with response mode chooser
+- `params/template.pbl.schema.json` - Parameter schema definition
+- `params/keyboard.json` - Keyboard mode preset
+- `params/mouse.json` - Mouse target mode preset
+- `README.md` - This file

@@ -7,8 +7,6 @@
 \usepackage{longtable}
 \usepackage[english]{babel}
 \usepackage{supertabular}
-\usepackage{hyperref}
-\hypersetup{pdftex, colorlinks=true, linkcolor=blue, citecolor=blue, filecolor=blue, urlcolor=blue, pdftitle=PEBL Manual, pdfauthor=Shane Mueller, pdfsubject=, pdfkeywords=}
 % Text styles
 \newcommand\textstyleInternetlink[1]{\textcolor{blue}{#1}}
 %\let\textquotedbl="
@@ -47,6 +45,10 @@
 %\includeonly{chap6}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+% Load Sphinx package for function reference chapter
+% (Required by auto-generated reference.tex from Sphinx documentation)
+% Must be loaded BEFORE hyperref to avoid link color conflicts
+\usepackage{sphinx}
 
 \usepackage{hyperref}
 \hypersetup{pdftitle=PEBL Manual,
@@ -58,28 +60,25 @@
             linkcolor=black,
             citecolor=black,
             filecolor=black,
-            urlcolor=black  
-} 
+            urlcolor=black
+}
 
 \setlength{\parindent}{0mm}
 
 %make grey box for headers
-\definecolor{MyGray}{rgb}{0.26,0.26,0.26}
+\definecolor{MyGray}{rgb}{0.7,0.7,0.7}
 \makeatletter\newenvironment{graybox}{%
    \begin{lrbox}{\@tempboxa}\begin{minipage}{\columnwidth}}{\end{minipage}\end{lrbox}%
-   \colorbox{MyGray}{\color{white}\usebox{\@tempboxa}}
+   \colorbox{MyGray}{\color{black}\usebox{\@tempboxa}}
 }\makeatother
 %make a new section header
 \newcommand\sect[1]{{
 \vspace{10pt}
 \begin{graybox}
-\Huge\color{white}\section{#1}
+\hypersetup{hidelinks}
+\Huge\color{black}\section{#1}
 \end{graybox}
 }}
-
-% Load Sphinx package for function reference chapter
-% (Required by auto-generated reference.tex from Sphinx documentation)
-\usepackage{sphinx}
 
 \begin{document}
 
@@ -126,8 +125,10 @@ ISBN  978-0-557-65817-6\\
 \include{chap3}
 \include{chap4}
 \include{chap5}
-\include{ui}
+\include{layout}
+\include{taskarchitecture}
 \include{launcher}
+\include{ui}
 \include{testbattery}
 \include{reference}
 \include{colors}

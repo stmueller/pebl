@@ -250,16 +250,83 @@ you have specified the wrong screen size, but it should rather use one it can su
 
 \item
 \begin{verbatim}
---language
+--language <code>
 \end{verbatim}
-  Allows user to specify a language code that can get tested for
-  within a script to select proper translation.  It sets a global
-  variable gLanguage, and is ``en'' by default.
+  Specifies the language for translations. Sets the global variable gLanguage.
+  Can be a two-letter ISO 639-1 code (e.g., ``en'', ``es'', ``fr'') or any
+  custom identifier. The translation system uses a three-tier fallback:
+  (1) try the specified language, (2) try the system locale if no language
+  was specified, (3) fall back to English. If not set, defaults to empty
+  string, triggering system locale detection.
 
 \item
 \verb+--windowed+ or \verb+--fullscreen+
-Controls whether the script will run in a window or fullscreen.  
+Controls whether the script will run in a window or fullscreen.
 The screen resolution a PEBL script runs at depends on a number of things.  See the \verb+--display+ option above for more details.
+
+\item
+\begin{verbatim}
+--resizeable
+--resizable
+\end{verbatim}
+  Controls whether the window will be resizeable. Only works in windowed mode.
+  Either spelling is accepted.
+
+\item
+\begin{verbatim}
+--unicode
+\end{verbatim}
+  Turns on Unicode text handling, with slight performance overhead. Enabled by default.
+  Required for displaying non-ASCII characters in multiple languages.
+
+\item
+\begin{verbatim}
+--pfile <filename>
+\end{verbatim}
+  Specifies which parameter file to use. The filename is bound to the global variable
+  gParamFile. Can be a local filename (prepended with ``params/'') or a full URL
+  (http:// or https://) for remote parameter loading.
+
+\item
+\begin{verbatim}
+--upload <filename>
+\end{verbatim}
+  Specifies an upload.json configuration file to use for syncing data with a
+  remote data server (PEBL Simple Data Server or PEBLHub). Sets gUpload to true
+  and gUploadFile to the specified filename.
+
+\item
+\begin{verbatim}
+--vsyncon
+--vsyncoff
+\end{verbatim}
+  Controls vertical synchronization (vsync). --vsyncon enables vsync for tasks
+  requiring precise control of video refresh timing, but may be finicky on some
+  hardware. --vsyncoff disables vsync (the default). The gVSync global variable
+  is set accordingly and can be tested within scripts.
+
+\item
+\begin{verbatim}
+--softrender
+\end{verbatim}
+  Forces use of software renderer instead of hardware-accelerated rendering.
+  Automatically disables vsync. Sets the gSoftRender global variable to true.
+  Useful for debugging graphics issues or running on systems without proper
+  GPU drivers.
+
+\item
+\begin{verbatim}
+--help
+\end{verbatim}
+  Displays the command-line help screen with all available options.
+
+\item
+\begin{verbatim}
+--showtestresults
+\end{verbatim}
+  Sets the global variable gShowTestResults to 1 (instead of 0). Allows a test
+  to automatically show a screen with results at the end, useful for self-paced
+  experiments or demonstrations.
 
 
 \end{description}

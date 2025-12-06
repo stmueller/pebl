@@ -12,11 +12,40 @@
 ##   response strategy. Neuropsychologia, 42(3), 379-386.
 ##
 ##
-##
+##  Version 2.0, Released 2025 Shane T Mueller, Ph.D.
 ##  Version 1.0, Released 2011 Shane T Mueller, Ph.D.
 ##  http://pebl.sf.net
 ##  smueller@obereed.net
 ##
+## From Huettel & McCarthy methods:
+## The experimental task required subjects to classify rapidly
+##presented stimuli on the basis of their shape (see Fig. 1). On
+##each trial, a single circle or square was presented for 500 ms.
+##The shapes subtended about 3◦ of visual angle (absolute size:
+##∼2.5 cm; distance from eyes: ∼50 cm), and were presented
+##either on the left or the right side of the screen, about 8◦ from
+##fixation. Consecutive stimuli were separated by a 3000 ms
+##stimulus-onset asynchrony. Each experimental run consisted
+##of 122 stimuli (about 6 min), and subjects participated in
+##between 8 and 10 runs (mean 9.33).
+##The task required subjects to press a button with the left
+##hand when a circle was presented and to press a button
+##with the right hand when a square was presented. Subjects
+##were instructed to respond as quickly as possible while
+##maintaining a low error rate. On 90% of the experimental
+##trials, the stimuli were presented on the same side of the
+##screen as the hand of response. We refer to these trials
+##as “standard” trials. However, on 10% of the trials, the
+##stimuli were presented on the opposite side of the screen
+##as the hand of the response. We refer to these trials as
+##“strategy-change” trials, because they require subjects to
+##inhibit use of a position-based strategy and to employ a
+##shape-based strategy. Circles and squares were presented
+##equally often, and the order of stimuli was randomized
+##across trials. On average, there were 117 strategy-change tri-
+##als per subject. The mean interval between successive strat-
+##egy change trials was 9.3 stimuli (S.D. 9.0 stimuli).
+
 ########################################################################
 
 define Start(p)
@@ -25,8 +54,9 @@ define Start(p)
   InitializeUpload()
 
   gScriptName <- "Oddball task"
-  parpairs <- [["numreps",1],     ##this many reps of the 20-trial design
-               ["soa",3000] ##Fix the stimulus-onset asynchrony.
+  parpairs <- [["numreps",6],     ##this many reps of the 20-trial design
+               ["soa",3000],      ##Fix the stimulus-onset asynchrony.
+               ["responsemode","auto"]
                ]
 
    gParams <- CreateParameters(parpairs,gParamFile)
@@ -43,9 +73,15 @@ define Start(p)
 	  gSubNum <- GetSubNum(gWin)
     }
 
+   ## Create layout with response system AFTER GetSubNum
+   gLayout <- CreateLayout("oddball", gWin, gParams)
+   gLayout.header.text <- gStrings.header
+   gLayout.subheader.visible <- 1
+   gLayout.footer.text <- gStrings.footer
+
    ##Make data files
 
-   header <- "subnum,block,trial,practice,targdir,oddballcoherence,oddballdir,time0,resp,corr,rt"
+   header <- "subnum,block,time,trial,practice,targdir,oddballcoherence,oddballdir,time0,resp,corr,rt"
    gFileOut <- GetNewDataFile(gSubNum,gWin,"oddball","csv",header)
    gPooledFileOut <- FileOpenAppend("data/oddball-pooled.csv")
 
@@ -64,7 +100,7 @@ define Start(p)
       FilePrint(gPooledFileOut, header)
     }
 
-   FilePrint(gFileOut,header)
+#   FilePrint(gFileOut,header)
 
 
    FilePrint(gLog, gSubNum + "," + gLanguage + "," +  TimeStamp()+",ODDBALL TASK,"+gResponseType+",INITIATED")
@@ -96,9 +132,15 @@ define Start(p)
     gCorr       <- []
 
     ###########################################
+    ## Calculate total trials for progress display
+    gPracticeTrials <- Length(practrials)
+    gTestTrials <- Length(basetrials)
+
+    ###########################################
     ## Do the practice round
     gTrial <- 1
     gBlock <- 0
+    gLayout.header.text <- gStrings.practice_header
     CountDown(gWin)
 
     endtime <- GetTime()
@@ -106,24 +148,29 @@ define Start(p)
     loop(trial,practrials)
     {
       endtime  <- endtime+soa
-      Trial(trial,1,endtime)
+      Trial(trial,1,endtime,gPracticeTrials)
       gTrial <- gTrial + 1
     }
 
     MessageKeyBox(gInterblock)
+
+    ## Switch to test phase header and restart trial numbering
+    gLayout.header.text <- gStrings.header
+    gTrial <- 1
+
     CountDown(gWin)
 
     ###########################################
     ## Do the first test round
     FilePrint(gLog, gSubNum + "," + gLanguage + "," +   TimeStamp()+",ODDBALL TASK,"+gResponseType+",BLOCK 1 BEGIN")
-	gBlock <- 1
+    gBlock <- 1
     endtime <- GetTime()
 
     loop(trial,basetrials)
     {
       endtime  <- endtime+soa
-      Trial(trial,0,endtime)
-	  gTrial <- gTrial + 1
+      Trial(trial,0,endtime,gTestTrials)
+      gTrial <- gTrial + 1
     }
 
 
@@ -142,6 +189,7 @@ define Start(p)
    FilePrint(gSumFileOut,"Shane T. Mueller")
    FilePrint(gSumFileOut, GetPEBLVersion())
    FilePrint(gSumFileOut, GetSystemType())
+   FilePrint(gSumFileOut, "Duration:  " + (GetTime()/1000/60) + " min")
    FilePrint(gSumFileOut,"-----------------------------------------------")
    FilePrint(gSumFileOut,"Screen width x height: " +gVideoWidth+ "x"+gVideoHeight)
    FilePrint(gSumFileOut, "Subject code: "+gSubNum)
@@ -208,12 +256,15 @@ define Start(p)
 
 }
 
-define Trial (stim,practice,trialend)
+define Trial (stim,practice,trialend,totalTrials)
 {
+   ## Update subheader with trial progress
+   gLayout.subheader.text <- "Trial " + gTrial + " of " + totalTrials
+
    time0 <- GetTime()
    ##add the fixation right away.
    fixation <- EasyLabel("+",gVideoWidth/2,gVideoHeight/2,gWin,40)
-   footer <- EasyLabel(gFooterL+"                   "+gFooterR,gVideoWidth/2,gVideoHeight-100,gWin,28)
+   ## Footer already set in layout
 
    Draw()
 
@@ -239,12 +290,12 @@ define Trial (stim,practice,trialend)
     time1 <- GetTime()
     gStimOn <- 1
     RegisterEvent("<TIMER>", 1, time1+500,"<GEQ>","HIDEME", [stim])
-    resp <- WaitForListKeyPressWithTimeout(["<lshift>","<rshift>"],2500,1)
+    resp <- WaitForLayoutResponse(gLayout, 2500)
     time2 <- GetTime()
     Hide(stim)
 
-    corr <- ((targID ==2) and (resp == "<rshift>")) or
-            ((targID ==1) and (resp == "<lshift>"))
+    corr <- ((targID ==2) and (resp == "right")) or
+            ((targID ==1) and (resp == "left"))
     rt <- time2-time1
 
     if(practice)
@@ -261,9 +312,8 @@ define Trial (stim,practice,trialend)
 
      }
    Draw()
-   dataline <- gSubNum + ","+ gBlock + "," +gTrial+","+practice+","+
-               targID+","+side+","+
-			   oddball+","+time0+","+resp+","+corr+","+rt
+   dataline <- gSubNum + ","+ gBlock +","+GetTime() +"," +gTrial+","+practice+","+
+               targID+","+side+","+ oddball+","+time0+","+resp+","+corr+","+rt
 
    FilePrint(gFileOut,dataline)
    FilePrint(gPooledFileOut,dataline)
@@ -325,7 +375,6 @@ define CrossFactors(list)
 define GetStrings(lang)
 {
   gStrings <- GetTranslations("oddball", lang)
-
 
    gCorrect <- gStrings.correct
    gIncorrect <- gStrings.incorrect
@@ -393,8 +442,15 @@ define Initialize()
 
 define MessageKeyBox(message)
 {
-
-  tb <- EasyTextBox(message,100,100,gWin,28,gVideoWidth-200,gVideoHeight-200)
+  ## Use AdaptiveTextBox to fit within stimulus region
+  ## Automatically adapts if text doesn't fit
+  tb <- AdaptiveTextBox(message,
+                        gLayout.stimulusRegion.x + 20,
+                        gLayout.stimulusRegion.y + 20,
+                        gWin, 56,
+                        gLayout.stimulusRegion.width - 40,
+                        gLayout.stimulusRegion.height - 40,
+                        "scalefont")
   Draw()
   WaitForAnyKeyPress()
   RemoveObject(tb,gWin)
@@ -404,13 +460,13 @@ define MessageKeyBox(message)
 define DoInstructions()
 {
 
-   tb <- EasyTextbox(gInst1text,100,50,gWin,16,gVideoWidth-200,200)
+   tb <- EasyTextbox(gInst1text,100,50,gWin,32,gVideoWidth-200,200)
 
 
    fixation <- EasyLabel("+",gVideoWidth/2,gVideoHeight/2+100,gWin,40)
    stim1 <- Circle(gVideoWidth/2-200, gVideoHeight/2+100,75,MakeColor("red"),1)
    stim2 <- Square(gVideoWidth/2+200, gVideoHeight/2+100,150,MakeColor("red"),1)
-   footer <- EasyLabel(gFooterL+"                   "+gFooterR,gVideoWidth/2,gVideoHeight-100,gWin,28)
+#   footer <- EasyLabel(gFooterL+"                   "+gFooterR,gVideoWidth/2,gVideoHeight-100,gWin,28)
    AddObject(stim1,gWin)
    AddObject(stim2,gWin)
    Draw()
@@ -428,6 +484,7 @@ define DoInstructions()
    RemoveObject(stim1,gWin)
    RemoveObject(stim2,gWin)
    RemoveObject(fixation,gWin)
+ #  RemoveObject(footer,gWin)
    RemoveObject(tb,gWin)
 }
 

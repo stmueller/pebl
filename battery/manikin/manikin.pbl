@@ -36,7 +36,8 @@ define Start(p)
   ## Load parameters
   parpairs <- [["numBlocks", 3],
                ["zoom",.6],
-	       ["iti",750]]
+	       ["iti",750],
+               ["responsemode","auto"]]  ##Response mode for Layout & Response System
   gParams <- CreateParameters(parpairs, gParamFile)
 
   numBlocks <- gParams.numBlocks
@@ -62,31 +63,56 @@ define Start(p)
   Draw()
   GetStrings(gLanguage)
 
-  gFooter <- EasyLabel(gStrings.footer,gVideoWidth/2,gVideoHeight-150,gWin,40)
-  
+  ## Create layout with response system
+  gLayout <- CreateLayout("manikin", gWin, gParams)
+  gLayout.header.visible <- 1
+  gLayout.subheader.visible <- 0
+  gLayout.footer.text <- gStrings.footer
+
+  ## Calculate scale factor based on stimulus region
+  ## Manikin images are ~417x1024 pixels
+  ## At default zoom 0.6: width=250px, height=614px
+  ## Background shapes: square 400px, circle diameter 400px
+  ## Total composition at zoom 0.6: ~400 wide x 614 high
+
+  ## Define target dimensions at default zoom (gParams.zoom = 0.6)
+  baseWidth <- 400   ## Background square size
+  baseHeight <- 614  ## Manikin height at zoom 0.6
+
+  ## Available space (with small margins)
+  maxWidth <- gLayout.stimulusRegion.width - 10
+  maxHeight <- gLayout.stimulusRegion.height - 10
+
+  ## Constrain to available space
+  fittedWidth <- Min([baseWidth, maxWidth])
+  fittedHeight <- Min([baseHeight, maxHeight])
+
+  ## Calculate scale factor: how much we need to shrink from base size
+  gScaleFactor <- Min([fittedWidth / baseWidth, fittedHeight / baseHeight])
+
   gFront <- MakeImage("images/forward1.png")
   gBack <- MakeImage("images/back1.png")
   AddObject(gFront,gWin)
   AddObject(gBack,gWin)
-  Move(gFront,gVideoWidth/2,gVideoHeight/2)
-  Move(gBack,gVideoWidth/2,gVideoHeight/2)
+  ## Position in stimulus region center
+  Move(gFront,gLayout.centerX,gLayout.centerY)
+  Move(gBack,gLayout.centerX,gLayout.centerY)
   Hide(gFront)
   Hide(gBack)
-  gFront.zoomX <- gParams.zoom
-  gFront.zoomY <- gParams.zoom
-  gBack.zoomX <- gParams.zoom
-  gBack.zoomY <- gParams.zoom
+  ## Apply combined zoom: parameter zoom * stimulus region scale
+  gFront.zoomX <- gParams.zoom * gScaleFactor
+  gFront.zoomY <- gParams.zoom * gScaleFactor
+  gBack.zoomX <- gParams.zoom * gScaleFactor
+  gBack.zoomY <- gParams.zoom * gScaleFactor
 
-  PracticeScreen("manikin1.png",gStrings.inst1,["<LSHIFT>"],300)
-  PracticeScreen("manikin-inst1.png",gStrings.prac1,["<LSHIFT>"])
-  PracticeScreen("manikin-inst2.png",gStrings.prac2,["<RSHIFT>"])
-  PracticeScreen("manikin-inst3.png",gStrings.prac3,["<RSHIFT>"])
-  PracticeScreen("manikin-inst4.png",gStrings.prac4,["<LSHIFT>"])
-  PracticeScreen("manikin1.png",gStrings.ready,["<rshift>","<LSHIFT>"],300)
+  PracticeScreen("manikin1.png",gStrings.inst1,"any",300)
+  PracticeScreen("manikin-inst1.png",gStrings.prac1,"any")
+  PracticeScreen("manikin-inst2.png",gStrings.prac2,"right")
+  PracticeScreen("manikin-inst3.png",gStrings.prac3,"right")
+  PracticeScreen("manikin-inst4.png",gStrings.prac4,"left")
+  PracticeScreen("manikin1.png",gStrings.ready,"any",300)
 
   trialnum <- 1
-
- gHeader <- EasyLabel("",gVideoWidth/2,50,gWin,40)
 
  Draw()
  Wait(1000)
@@ -101,7 +127,7 @@ define Start(p)
       Draw()
       Wait(200)
       Draw()
-     gHeader.text <-  ReplaceChar(ReplaceChar(gStrings.pheader,"<X>", trialnum),"<Y>",Length(trials))
+     gLayout.header.text <-  ReplaceChar(ReplaceChar(gStrings.pheader,"<X>", trialnum),"<Y>",Length(trials))
      trialTime <- GetTime()
      out <-  Trial(First(trial),Second(trial),Third(trial),Fourth(trial))
      line <- ConcatenateList(Merge([gSubnum,block,trialnum],out),",")
@@ -109,24 +135,22 @@ define Start(p)
      FilePrint(gFileOut,line)
      if(Last(out) == 0)
      {
-       gHeader.text <- gstrings.incorrect
-     
+       gLayout.subheader.text <- gstrings.incorrect
+
      } else{
-       gHeader.text <- gstrings.correct
+       gLayout.subheader.text <- gstrings.correct
      }
-      Move(gHeader,gVideoWidth/2,gVideoHeight/2-200)
+      gLayout.subheader.visible <- 1
       Draw()
       Wait(gParams.iti)
-      Move(gHeader,gVideoWidth/2,100)
-      gHeader.text <- ""
+      gLayout.subheader.visible <- 0
+      gLayout.header.text <- ""
       trialnum <- trialnum +1
      }
-     
-      Hide(gHeader)
 
  numtrials <- gParams.numblocks*16
  ready <- ReplaceChar(gStrings.ready2,"<N>",numtrials)
- PracticeScreen("",ready,["<rshift>","<LSHIFT>"],300)
+ PracticeScreen("",ready,"any",300)
 
 
   accs <- []
@@ -139,7 +163,7 @@ define Start(p)
    loop(trial,trials)
     {
 
-      gHeader.text <-  ReplaceChar(ReplaceChar(gStrings.header,"<X>", trialnum),"<Y>",16*gparams.numBlocks)     
+      gLayout.header.text <-  ReplaceChar(ReplaceChar(gStrings.header,"<X>", trialnum),"<Y>",16*gparams.numBlocks)
       Draw()
       Wait(200)
       Draw()
@@ -150,7 +174,7 @@ define Start(p)
      FilePrint(gFileOut,line)
       PushOnEnd(rts,Nth(out,9))
       PushOnEnd(accs,Last(out))
-      
+
       trialnum <- trialnum+ 1
      }
 }
@@ -159,8 +183,8 @@ define Start(p)
   meanRT <- Round(Mean(rts))
   meanAcc <- Round(Mean(accs)*100)
   debrief <-"Accuracy: "+ meanACC + "%" + CR() + "Mean time to respond: " + (meanRT/1000) + " secs" + CR() +  gStrings.debrief
-  Hide(gFooter)
-  Hide(gHeader)
+  gLayout.header.visible <- 0
+  gLayout.footer.visible <- 0
 
   ## Close and upload data file
   FileClose(gFileOut)
@@ -168,7 +192,7 @@ define Start(p)
   UploadFile(gSubNum, datafile, "/upload.json")
 
   ##do debriefing
-  PracticeScreen("manikin1.png",debrief,[" "],400)
+  PracticeScreen("manikin1.png",debrief,"any",400)
 
 }
 
@@ -185,20 +209,22 @@ define Trial(target, forback, updown, hand)
 
    handname <- Lookup(hand,[-1,1],["right","left"])
 
-   xx <- gVideoWidth/2
-   yy <- gVideoHeight/2
+   ## Use layout center for positioning
+   xx <- gLayout.centerX
+   yy <- gLayout.centerY
 
+   ## Scale all sizes by gScaleFactor
    if(target == 1)
    {
-     bg <-   Square(xx,yy,400,MakeColor("red2"),1)
-     targ <- Square(xx,yy,45,MakeColor("red2"),1)
-     foil  <- Circle(xx,yy,25,MakeColor("darkgreen"),1)
+     bg <-   Square(xx,yy,400*gScaleFactor,MakeColor("red2"),1)
+     targ <- Square(xx,yy,45*gScaleFactor,MakeColor("red2"),1)
+     foil  <- Circle(xx,yy,25*gScaleFactor,MakeColor("darkgreen"),1)
      targname <- "redsquare"
    } else{
 
-     bg <- Circle(xx,yy,200,MakeColor("darkgreen"),1)
-     targ  <- Circle(xx,yy,25,MakeColor("darkgreen"),1)
-     foil <- Square(xx,yy,45,MakeColor("red2"),1)
+     bg <- Circle(xx,yy,200*gScaleFactor,MakeColor("darkgreen"),1)
+     targ  <- Circle(xx,yy,25*gScaleFactor,MakeColor("darkgreen"),1)
+     foil <- Square(xx,yy,45*gScaleFactor,MakeColor("red2"),1)
      targname <- "greencircle"
    }
 
@@ -218,15 +244,17 @@ define Trial(target, forback, updown, hand)
 
      }
 
- 
+
     targpos <- forback * updown * hand
     foilpos <- forback * updown * (-hand)
 
-    targ.x <- xx + targpos*100*gParams.zoom
-    targ.y <- yy + updown*50*gParams.zoom
+    ## Scale hand offsets by gScaleFactor (combined with zoom already applied to manikin)
+    ## Offsets are relative to the already-zoomed manikin size
+    targ.x <- xx + targpos*100*gParams.zoom*gScaleFactor
+    targ.y <- yy + updown*50*gParams.zoom*gScaleFactor
 
-    foil.x <- xx + foilpos*100*gParams.zoom
-    foil.y <- yy + updown*50*gParams.zoom
+    foil.x <- xx + foilpos*100*gParams.zoom*gScaleFactor
+    foil.y <- yy + updown*50*gParams.zoom*gScaleFactor
 
     AddObject(bg,gWin)
 
@@ -236,9 +264,9 @@ define Trial(target, forback, updown, hand)
     Show(img)
     time1 <- GetTime()
     Draw()
-    resp <-  WaitForListKeyPress(["<LSHIFT>","<RSHIFT>"])
+    resp <-  WaitForLayoutResponse(gLayout)
     time2 <- GetTime()
-    corr <- (resp=="<rshift>" and hand== -1) or (resp=="<lshift>" and hand==1)
+    corr <- (resp=="right" and hand== -1) or (resp=="left" and hand==1)
 
 
     Hide(img)
@@ -254,12 +282,12 @@ define GetStrings(lang)
 }
 
 
-define PracticeScreen(image,text,answer,imagewidth:1000)
+define PracticeScreen(image,text,correctResponse,imagewidth:1000)
 {
 
    targwidth <- imagewidth
-   
-   tb <- EasyTextBox(text,gVideoWidth/2-400,75,gWin,20,800,250)
+
+   tb <- AdaptiveTextBox(text,gVideoWidth/2-400,75,gWin,20,800,250,"scalefont")
    if(image != "")
    {
     img <- MakeImage("images/"+image)
@@ -268,7 +296,24 @@ define PracticeScreen(image,text,answer,imagewidth:1000)
     img.zoomY <- img.zoomX
     Move(img,gVideoWidth/2,gVideoHeight/2+50)
   }
-  
+
    Draw()
-   WaitForListKeyPress(answer)
+
+   ## Wait for correct response (or any key if correctResponse == "any")
+   if(correctResponse == "any")
+   {
+     WaitForAnyKeyPress()
+   } else {
+     resp <- ""
+     while(resp != correctResponse)
+     {
+       resp <- WaitForLayoutResponse(gLayout)
+     }
+   }
+
+   RemoveObject(tb,gWin)
+   if(image != "")
+   {
+     RemoveObject(img,gWin)
+   }
 }

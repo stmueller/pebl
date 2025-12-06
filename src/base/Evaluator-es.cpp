@@ -744,83 +744,68 @@ bool Evaluator::Evaluate1(const OpNode * node)
                                 //v2 is the variable name.
                                 v2 =   ((DataNode*) (  ((OpNode*)(((OpNode*)node1)->GetLeft()))->GetLeft()))->GetValue();
 
-                                if(((((OpNode*)(((OpNode*)node1)->GetLeft()))->GetRight()))->GetType()==PEBL_OP_NODE)
+                                // Get the default value node - could be DataNode or OpNode
+                                PNode* defaultNode = ((OpNode*)(((OpNode*)node1)->GetLeft()))->GetRight();
+
+                                if(defaultNode->GetType() == PEBL_OP_NODE)
                                     {
-                                        //Possible, we could parse/evaluate this node to get the value.
-                                        PError::SignalFatalError("Error in function definition: default parameter value must be a data value");
+                                        // The default value is an expression (e.g., -1, Min(data)).
+                                        // Evaluate it in the current function scope to get its value.
+                                        // This allows referencing previously-bound parameters.
+                                        mNodeStack.push(defaultNode);
+                                        while(mNodeStack.size() > 0)
+                                            {
+                                                Evaluate1();
+                                            }
+                                        vdef = Pop();
                                     }
-
-                                //It is a data node--default value.
-                                vdef =  ((DataNode*)(((OpNode*)(((OpNode*)node1)->GetLeft()))->GetRight()))->GetValue();
-
+                                else
+                                    {
+                                        //It is a data node--default value.
+                                        vdef = ((DataNode*)defaultNode)->GetValue();
+                                    }
                             }
                         else
-
                             {
                                 //it is a pure value here
                                 v2 = ((DataNode*)(((OpNode*)node1)->GetLeft()))->GetValue();
-
                             }
 
-
-
-                        if((p==tmp->End()) & (!hasdefault))   //check for too few parameters.
+                        // Now bind the parameter immediately (either from argument or default)
+                        // This allows later parameters' defaults to reference earlier parameters.
+                        if(p != tmp->End())
                             {
-
-                                //We have run out of parameters passed in, but there are more
-                                //arguments to the function.  This would be OK if the next argument
-                                //is optional (hasdefault is true), but otherwis we should have an
-                                //error message.
-
-
-                                //Too few arguments.
-                                string message =  "Too few arguments passed to function [" + mScope + "].";
-
+                                // We have an argument value - use it
+                                mLocalVariableMap.AddVariable(v2, *p);
+                                p++;
+                                node1 = ((OpNode*)node1)->GetRight();
+                            }
+                        else if(hasdefault)
+                            {
+                                // No argument provided, but we have a default value
+                                // Resolve variable references in the default value
+                                if(vdef.IsGlobalVariable())
+                                    {
+                                        vdef = gGlobalVariableMap.RetrieveValue(vdef);
+                                    }
+                                else if (vdef.IsLocalVariable())
+                                    {
+                                        // A local variable may be bound to a previously-specified parameter
+                                        vdef = mLocalVariableMap.RetrieveValue(vdef);
+                                    }
+                                mLocalVariableMap.AddVariable(v2, vdef);
+                                node1 = ((OpNode*)node1)->GetRight();
+                            }
+                        else
+                            {
+                                // No argument and no default - too few parameters
+                                string message = "Too few arguments passed to function [" + mScope + "].";
 
                                 if(mScope == "Start")
                                     message += " (Make sure Start function has only one variable).";
 
                                 PError::SignalFatalError(message);
-
                             }
-
-                        //Get the value,
-
-                        if(p != tmp->End())
-                            {
-                                //Add pair to variable map.  This should always be a local variable map.
-                                mLocalVariableMap.AddVariable(v2, *p);
-
-                                //remove it from the front of the list.
-                                p++;//arglist->PopFront();
-                                //Move to the next item.
-                                node1 = ((OpNode*)node1)->GetRight();
-                            }else{
-
-
-                            if(hasdefault)
-                                {
-                                    //p is the end of the argument list, but we may have a vdef value.
-                                    //cout << "ASsigning default value:" << v2 <<"|" << vdef << endl;
-                                    //cout << vdef.GetDataTypeName() <<endl;
-                                    if(vdef.IsGlobalVariable())
-                                        {
-                                            vdef=  gGlobalVariableMap.RetrieveValue(vdef);
-                                        }
-                                    else if (vdef.IsLocalVariable())
-                                        {
-                                            //a local variable may be bound to a previously-specified variable
-                                            vdef = mLocalVariableMap.RetrieveValue(vdef);
-                                        }
-                                    mLocalVariableMap.AddVariable(v2,vdef);  //add the default value to start.
-                                    node1 = ((OpNode*)node1)->GetRight();
-                                } else{
-
-
-                                //end the mapping
-                                node1 = NULL;
-                            }
-                        }
                     }
 
 

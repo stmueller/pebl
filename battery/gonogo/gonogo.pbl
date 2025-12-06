@@ -22,14 +22,13 @@ define Start(p)
                ["stimtime",500],
 	       ["color","blue"], ##color of stimulus.
                ["usemouse",1],     ##use mouse for response rather than keyboard
-	       ["useBJDP",1 ]]    ##use 80% targets in both rounds, as in the original BJDP paper.
+	       ["useBJDP",1 ],    ##use 80% targets in both rounds, as in the original BJDP paper.
+               ["responsemode","auto"]]  ##Response mode for Layout & Response System
 
  gParams <- CreateParameters(parpairs,gParamFile)
 
  reps <-gParams.reps   ##number of repetitions of the PPPPR design
  gisi <- gParams.isi  ##inter-stimulus interval
-
-  GetStrings(gLanguage)
 
   gWin <- MakeWindow("black")
 
@@ -43,7 +42,13 @@ define Start(p)
 	  gSubNum <- GetSubNum(gWin)
     }
 
+  GetStrings(gLanguage)
 
+  ## Create layout with response system
+  gLayout <- CreateLayout("gonogo", gWin, gParams)
+  gLayout.header.visible <- 0
+  gLayout.subheader.visible <- 0
+  gLayout.footer.visible <- 0
 
    gFileOut <- GetNewDataFile(gSubNum,gWin,"gonogo","csv",
  "subnum,block,type,correctresponse,trial,choice,x,y,stim,present,response,responded,corr,starttime,rt")
@@ -265,8 +270,9 @@ define DoBlock(trials,correctresponse,type,col:"blue")
   linecol <- MakeColor("darkgrey")
   color <- MakeColor(col)
   sizegrid <- 200
-  xhome <- gVideoWidth/2
-  yhome <- gVideoHeight/2
+  ## Use layout center for positioning
+  xhome <- gLayout.centerX
+  yhome <- gLayout.centerY
    xs <- [xhome-sizegrid/2,xhome+sizegrid/2,xhome-sizegrid/2,xhome+sizegrid/2]
    ys <-[yhome-sizegrid/2,yhome-sizegrid/2,yhome+sizegrid/2,yhome+sizegrid/2]
 
@@ -326,43 +332,25 @@ define DoBlock(trials,correctresponse,type,col:"blue")
      ##make the stimulus disappear after 500 ms
 
       RegisterEvent("<TIMER>", 1, starttime+gParams.stimtime,"<GEQ>","HIDEME", [stim,star])
-      
-      if(gParams.usemouse)
-       {
- 
-       t1 <- GetTime()
-       resp <- WaitForMouseButtonWithTimeout(gParams.isi-50)
-       ##this will eithe be "<timeout>" or [x,y,button,state]
 
-     }else{
-      resp <- WaitForListKeyPressWithTimeout(["<lshift>","<rshift>"],gParams.isi-50,1)
-      #this will either be <timeout> or maybe ["<timeout>"] or  <buttonname>
-     }
+      ## Use Layout & Response System (handles both mouse and keyboard)
+      resp <- WaitForLayoutResponse(gLayout, gParams.isi-50)
+      ## Returns "<timeout>" or "left"/"right" depending on response
 
 
      endtime <- GetTime()
      HideMe(stim,star)
      ClearEventLoop()
 
+     ## Check if response was made (not timeout)
      if(resp=="<timeout>")
         {
            resp <- "NONE"
+           responded <- 0
         } else{
-
-	   if(IsList(resp))
-	    {
-              resp <- CollapseList(resp)
-            }
+           ## Response was made (either "left" or "right")
+           responded <- 1
         }
-
-      ##RECODE Whether they responded
-      if(resp=="NONE")
-       {
-	   responded <- 0
-       } else
-       {
-          responded <- 1
-       }
 
 
       if(i == correctresponse)
@@ -428,21 +416,15 @@ define GetStrings(lang)
 ##Known trasnlations: HR, EN, PT, ES
   gStrings <- GetTranslations("gonogo", lang)
 
-
- if(gParams.usemouse)
-   {
-   method <- gStrings.methodmouse
-   } else {
-   method <- gStrings.methodKey
-   }
-
+   ## Use platform-independent method string
+   method <- gStrings.method
 
    gLab <- method
    gInst1 <- SubstituteStrings(gStrings.inst1,
                 [["<TARG>", gparams.pstim],
 		 ["<FOIL>", gParams.rstim],
 		 ["<METHOD>",method]])
-		 
+
    gInst2 <- SubstituteStrings(gStrings.inst2,
                  [["<METHOD>",method]])
 
@@ -450,11 +432,9 @@ define GetStrings(lang)
                 [["<TARG>", gParams.pstim],
 		 ["<FOIL>", gParams.rstim],
 		 ["<METHOD>", method]])
- 
+
 
    gDebrief <- gStrings.debrief
-   gMethodMouse <- gStrings.methodmouse
-   gMethodKey <- gStrings.methodkey
 
 }
 
@@ -462,17 +442,11 @@ define GetStrings(lang)
 define MessageKeyBox(message)
 {
 
-  tb <- EasyTextBox(message,100,100,gWin,28,gVideoWidth-200,gVideoHeight-200)
+  tb <- AdaptiveTextBox(message,100,100,gWin,28,gVideoWidth-200,gVideoHeight-200,"scalefont")
   Draw()
 
-  if(gParams.usemouse)
-  {
-    WaitForDownClick()
-   } else {
-    WaitForAnyKeyPress()
-
-  }
-
+  ## Use Layout & Response System (works with keyboard, mouse, and touch)
+  WaitForLayoutResponse(gLayout)
 
   RemoveObject(tb,gWin)
 

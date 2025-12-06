@@ -13,7 +13,8 @@ define Start(lPar)
                ["stimchars","adceonbgsq"],
                ["maskchars","&#@$%*|?/\"],
 	       ["breaks","50"],
-               ["timeout",1500]
+               ["timeout",1500],
+               ["responsemode","auto"]
               ]
 
   gParams <- CreateParameters(parpairs,gParamFile)
@@ -42,6 +43,12 @@ define Start(lPar)
    }
   GetStrings(gLanguage)
 
+  ## Create layout with response system AFTER GetSubNum
+  gLayout <- CreateLayout("ChoiceRT", gWindow, gParams)
+  gLayout.header.text <- gStrings.header
+  gLayout.subheader.visible <- 1
+  gLayout.footer.text <- gStrings.footer
+
   #Initialize Font and colors
   fg <- MakeColor("white")
   bg <- MakeColor("RED")
@@ -49,8 +56,6 @@ define Start(lPar)
   gFixation <- MakeLabel(gStrings.fixation,gFont)
   AddObject(gFixation,gWindow)
   Move(gFixation, gVideoWidth/2,gVideoHeight/2)
-  gFooter <- EasyLabel(gStrings.footer,
-                          gVideoWidth/2,gVideoHeight-50,gWindow,15)
   Draw()
 
   stimuli <- Shuffle(RepeatList(CrossFactorWithoutDuplicates(basestim),reps))
@@ -65,9 +70,15 @@ define Start(lPar)
 
 
 
-  breakbox <- EasyTextBox(gStrings.inst,10,50,gWindow,20,gVideoWidth-20,gVideoHeight-160)
+  breakbox <- AdaptiveTextBox(gStrings.inst,
+                              gLayout.stimulusRegion.x + 20,
+                              gLayout.stimulusRegion.y + 20,
+                              gWindow, 56,
+                              gLayout.stimulusRegion.width - 40,
+                              gLayout.stimulusRegion.height - 40,
+                              "scalefont")
   Draw()
-  WaitForListKeyPress(["<rshift>","<lshift>"])
+  WaitForAnyKeyPress()
   Hide(breakbox)
   Draw()
   Wait(1000)
@@ -80,7 +91,10 @@ define Start(lPar)
   CountDown(gWindow)
   loop(i, stimuli)
   {
-
+    ## Update subheader with trial progress using translation
+    gLayout.subheader.text <- SubstituteStrings(gStrings.trial_progress,
+                                                 [["<trial>", trial],
+                                                  ["<ntrials>", ntrials]])
     gStatus.text <- "["+trial + "/"+ntrials+ "]"
     time <- GetTime()
     out <- Trial(i)
@@ -99,7 +113,7 @@ define Start(lPar)
      Show(breakbox)
      Draw()
      Wait(250)
-     WaitForListKeyPress(["<lshift>","<rshift>"])
+     WaitForAnyKeyPress()
      Hide(breakbox)
      Draw()
      CountDown(gWindow)
@@ -165,14 +179,14 @@ define Trial(lStim)
   Show(lText)
   Draw()
   start <- GetTime()
-  ##This turns off the stimulus after 00 ms
-  resp <- WaitForListKeyPressWithTimeOut(["<lshift>","<rshift>"],gParams.timeout,1)
+  ##Wait for response with timeout
+  resp <- WaitForLayoutResponse(gLayout, gParams.timeout)
   #Get the response time.
   end <- GetTime()
 
   Draw()
 
-  corr <- (resp =="<lshift>" and order == 1) or  (resp =="<rshift>" and order == -1)
+  corr <- (resp =="left" and order == 1) or  (resp =="right" and order == -1)
   RemoveObject(lText, gWindow)
   Draw()
   return [delay,resp, corr , mask,t0,end,(t1-t0),(end - start)]

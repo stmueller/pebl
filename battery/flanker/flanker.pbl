@@ -36,7 +36,8 @@ define Start(p)
 		  ["gap",2],
 		  ["fixationtime",500],  ##time of fixatiotn cross
 		  ["timeout",800], ##how long to make response
-		  ["iti",1000]  ##time between trials
+		  ["iti",1000],  ##time between trials
+                  ["responsemode","auto"]  ##response mode for Layout & Response System
 
                  ]
 
@@ -76,6 +77,11 @@ define Start(p)
       FilePrint(gPooledFileOut, header)
     }
 
+   ## Create layout with response system
+   gLayout <- CreateLayout("flanker", gWin, gParams)
+   gLayout.header.text <- gStrings.header
+   gLayout.subheader.visible <- 0
+   gLayout.footer.text <- gStrings.footer
 
    FilePrint(gLog, gSubNum + "," + gLanguage + "," +  TimeStamp()+",FLANKER TASK,"+gResponseType+",INITIATED")
    DoInstructions()
@@ -240,9 +246,8 @@ define Start(p)
 define Trial(stimpair,practice)
 {
    time0 <- GetTime()
-   ##add the fixation right away.
+   ##add the fixation right away (footer already set in layout)
    fixation <- EasyLabel("+",gVideoWidth/2,gVideoHeight/2,gWin,40)
-   footer <- EasyLabel(gFooterL+"                   "+gFooterR,gVideoWidth/2,gVideoHeight-150,gWin,40)
 
    Draw()
 
@@ -269,11 +274,11 @@ define Trial(stimpair,practice)
 	Hide(fixation)
 	Draw()
 	time2 <- GetTime()
-	resp <- WaitForListKeyPressWithTimeout(["<lshift>","<rshift>"],gParams.timeout,1)
+	resp <- WaitForLayoutResponse(gLayout, gParams.timeout)
 	time3 <- GetTime()
         Hide(stim)
-        corr <- ((targdir ==1) and (resp == "<rshift>")) or
-            ((targdir ==-1) and (resp == "<lshift>"))
+        corr <- ((targdir ==1) and (resp == "right")) or
+            ((targdir ==-1) and (resp == "left"))
         rt <- time3-time2
 
     if(practice)
@@ -554,8 +559,15 @@ define Initialize()
 
 define MessageKeyBox(message)
 {
-
-  tb <- EasyTextBox(message,100,100,gWin,28,gVideoWidth-200,gVideoHeight-200)
+  ## Use AdaptiveTextBox to fit within stimulus region
+  ## Automatically adapts if text doesn't fit
+  tb <- AdaptiveTextBox(message,
+                        gLayout.stimulusRegion.x + 20,
+                        gLayout.stimulusRegion.y + 20,
+                        gWin, 56,
+                        gLayout.stimulusRegion.width - 40,
+                        gLayout.stimulusRegion.height - 40,
+                        "scalefont")
   Draw()
   WaitForAnyKeyPress()
   RemoveObject(tb,gWin)
@@ -627,11 +639,10 @@ define GetStrings(language)
   ## Assign to global variables for convenience
   gInst1text <- gStrings.inst1text
   gInst3text  <- gStrings.inst3text
-  gFooterl <- gStrings.footerL
-  gFooterr <- gStrings.footerR
+  gFooterL <- gStrings.footerL
+  gFooterR <- gStrings.footerR
   gInterblock <- gStrings.interblock
   gDebrief <- gStrings.debrief
-
   gCorrect <- gStrings.correct
   gIncorrect <- gStrings.incorrect
 }

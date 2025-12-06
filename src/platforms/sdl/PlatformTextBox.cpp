@@ -338,12 +338,16 @@ bool  PlatformTextBox::RenderText()
             mTexture = SDL_CreateTexture(mRenderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET,
                                          (int)mTextureWidth,
                                          (int)mTextureHeight);
+            // Enable best quality filtering (anisotropic) for zoomed textures
+            SDL_SetTextureScaleMode(mTexture, SDL_ScaleModeBest);
         }
     else
         {
 
             mTexture = SDL_CreateTexture(mRenderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET,
                                          (int)mTextureWidth,(int)mTextureHeight);
+            // Enable best quality filtering (anisotropic) for zoomed textures
+            SDL_SetTextureScaleMode(mTexture, SDL_ScaleModeBest);
 
         }
 
@@ -410,6 +414,18 @@ bool PlatformTextBox::SetProperty(std::string name, Variant v)
     else return false;
 
     return true;
+}
+
+Variant PlatformTextBox::GetProperty(std::string name)const
+{
+    if(name == "NUMTEXTLINES")
+    {
+        return Variant((int)mBreaks.size());
+    }
+    else
+    {
+        return PTextBox::GetProperty(name);
+    }
 }
 
 //These shadow higher accessors in widget, because
@@ -490,6 +506,7 @@ void PlatformTextBox::FindBreaks()
 
     //Set this directly as a property; no need to check with PTextBox, which doesn't do anything with it.
     PEBLObjectBase::SetProperty("LINEHEIGHT",Variant(height));
+
     //Now, go through the text letter by letter and word by word until
     //it won't fit on a line any longer.
 
@@ -525,6 +542,13 @@ void PlatformTextBox::FindBreaks()
             linestart=newlinestart;
 
         }
+
+    //Update NUMTEXTLINES property to reflect the number of lines
+    PEBLObjectBase::SetProperty("NUMTEXTLINES",Variant((int)mBreaks.size()));
+
+    //Set TEXTCOMPLETE property: 1 if all text rendered, 0 if truncated
+    bool textComplete = (newlinestart >= mText.size());
+    PEBLObjectBase::SetProperty("TEXTCOMPLETE",Variant(textComplete ? 1 : 0));
 }
 
 

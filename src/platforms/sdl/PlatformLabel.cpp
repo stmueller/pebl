@@ -183,6 +183,8 @@ bool  PlatformLabel::RenderText()
                     mTexture  = SDL_CreateTextureFromSurface(mRenderer, tmpSurface);
                     // Enable alpha blending for transparency support
                     SDL_SetTextureBlendMode(mTexture, SDL_BLENDMODE_BLEND);
+                    // Enable best quality filtering (anisotropic) for zoomed textures
+                    SDL_SetTextureScaleMode(mTexture, SDL_ScaleModeBest);
 
                     SDL_FreeSurface(tmpSurface);
                     tmpSurface = NULL;

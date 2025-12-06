@@ -588,6 +588,53 @@ Textbox properties:
 \end{verbatim}
  
 
+\subsect{Adaptive TextBoxes}
+
+The \texttt{AdaptiveTextBox()} function creates a textbox that automatically adapts to fit content that doesn't fit in the specified dimensions. This is particularly useful for instructions or messages that need to be displayed on smaller screens (e.g., 800x600 minimum) where overflow could be a problem.
+
+\textbf{Usage:}
+\begin{verbatim}
+   box <- AdaptiveTextBox(text, x, y, window, fontsize, 
+                          width, height, adaptive, maxlines)
+\end{verbatim}
+
+\textbf{Parameters:}
+\begin{itemize}
+\item \texttt{text}: The text content to display
+\item \texttt{x, y}: Position coordinates (upper-left corner)
+\item \texttt{window}: Parent window object
+\item \texttt{fontsize}: Initial font size in points
+\item \texttt{width, height}: Target box dimensions in pixels
+\item \texttt{adaptive}: Adaptation strategy - \texttt{0} (none), \texttt{"scalebox"}, or \texttt{"scalefont"}
+\item \texttt{maxlines}: Maximum number of lines allowed (default: 30)
+\end{itemize}
+
+\textbf{Adaptation Strategies:}
+\begin{itemize}
+\item \texttt{0} -- No adaptation; creates standard textbox (text may overflow)
+\item \texttt{"scalebox"} -- Expands box to fit all text maintaining aspect ratio, then scales down using zoom to original size. Preserves original font size and uses SDL2 anisotropic filtering for high-quality rendering.
+\item \texttt{"scalefont"} -- Iteratively reduces font size until text fits within the specified dimensions. Preserves box dimensions exactly (minimum 8pt font size).
+\end{itemize}
+
+\textbf{Example:}
+\begin{verbatim}
+   ##Create long instruction text
+   instructions <- "Welcome to the experiment. This is a " +
+                   "long text that demonstrates adaptive " +
+                   "textbox functionality..."
+   
+   ##Scale font to fit - reduces text size
+   box1 <- AdaptiveTextBox(instructions, 50, 50, win, 
+                           24, 400, 100, "scalefont")
+   
+   ##Scale box - preserves font size
+   box2 <- AdaptiveTextBox(instructions, 50, 200, win, 
+                           24, 400, 100, "scalebox")
+\end{verbatim}
+
+The function relies on the \texttt{textComplete} property (returns 1 if all text rendered, 0 if truncated) to detect when adaptation is complete.
+
+
 
 \sect{User-Editable Text Boxes}
 

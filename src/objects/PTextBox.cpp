@@ -56,6 +56,8 @@ PTextBox::PTextBox():
     InitializeProperty("NAME",Variant("<TEXTBOX>"));
     InitializeProperty("LINEWRAP",Variant(1));
     InitializeProperty("LINEHEIGHT",Variant(0));
+    InitializeProperty("NUMTEXTLINES",Variant(0));
+    InitializeProperty("TEXTCOMPLETE",Variant(0));
     InitializeProperty("JUSTIFY",Variant("LEFT"));
 }
 
@@ -77,6 +79,8 @@ PTextBox::PTextBox(std::string text, int width, int height):
     InitializeProperty("NAME",Variant("<TEXTBOX>"));
     InitializeProperty("LINEWRAP",Variant(1));
     InitializeProperty("LINEHEIGHT",Variant(0));
+    InitializeProperty("NUMTEXTLINES",Variant(0));
+    InitializeProperty("TEXTCOMPLETE",Variant(0));
     InitializeProperty("JUSTIFY",Variant("LEFT"));
 }
 
@@ -92,6 +96,8 @@ PTextBox::PTextBox( PTextBox & text)
     InitializeProperty("NAME",Variant("<TEXTBOX>"));
     InitializeProperty("LINEWRAP",Variant(1));
     InitializeProperty("LINEHEIGHT",Variant(0));
+    InitializeProperty("NUMTEXTLINES",Variant(0));
+    InitializeProperty("TEXTCOMPLETE",Variant(0));
     InitializeProperty("JUSTIFY",Variant("LEFT"));
 }
 
@@ -148,7 +154,7 @@ ObjectValidationError PTextBox::ValidateProperty(std::string name, Variant v)con
 
 ObjectValidationError PTextBox::ValidateProperty(std::string name)const
 {
-    if(name == "CURSORPOS"| name=="LINEWRAP"| name == "JUSTIFY")
+    if(name == "CURSORPOS"| name=="LINEWRAP"| name == "JUSTIFY" | name == "NUMTEXTLINES" | name == "TEXTCOMPLETE")
         return OVE_VALID;
     else
         return PTextObject::ValidateProperty(name);

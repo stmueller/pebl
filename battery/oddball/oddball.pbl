@@ -96,7 +96,6 @@ define Start(p)
 
    if(flen==0)
     {
-      Print("empty pooled data file.  Adding header")
       FilePrint(gPooledFileOut, header)
     }
 
@@ -177,9 +176,6 @@ define Start(p)
 
    aggOddballRT <-SummaryStats(gRTs,gOddball)
    aggOddballAcc <-SummaryStats(gCorr,gOddball)
-
-   Print(aggOddballRT)
-   Print(aggOddballAcc)
 
    oddballcost<- Nth(Second(aggoddballRT),4)-Nth(First(aggoddballRT),4)
 
@@ -262,8 +258,10 @@ define Trial (stim,practice,trialend,totalTrials)
    gLayout.subheader.text <- "Trial " + gTrial + " of " + totalTrials
 
    time0 <- GetTime()
-   ##add the fixation right away.
-   fixation <- EasyLabel("+",gVideoWidth/2,gVideoHeight/2,gWin,40)
+
+   ## Center stimuli in stimulus region to avoid footer overlap
+   ycenter <- gLayout.stimulusRegion.y + gLayout.stimulusRegion.height/2
+   fixation <- EasyLabel("+",gVideoWidth/2,ycenter,gWin,40)
    ## Footer already set in layout
 
    Draw()
@@ -277,9 +275,9 @@ define Trial (stim,practice,trialend,totalTrials)
 
     if(targID==1)
       {
-	     stim <- Circle(xval, gVideoHeight/2,75,MakeColor("red"),1)
+	     stim <- Circle(xval, ycenter,75,MakeColor("red"),1)
       } else {
-	     stim <- Square(xval, gVideoHeight/2,150,MakeColor("red"),1)
+	     stim <- Square(xval, ycenter,150,MakeColor("red"),1)
       }
 
     AddObject(stim,gWin)
@@ -424,7 +422,6 @@ define Initialize()
 
   ##this is the vertical offset
   gOffset <-  Round(Tan(DegToRad(1.06)) * eyepixeldistance)
-  Print("using offset of "+gOffset)
 
    if(not FileExists("data"))
     {
@@ -459,14 +456,27 @@ define MessageKeyBox(message)
 
 define DoInstructions()
 {
+   ## Hide header and footer during instructions
+   gLayout.header.visible <- 0
+   gLayout.footer.visible <- 0
+   Draw()
 
-   tb <- EasyTextbox(gInst1text,100,50,gWin,32,gVideoWidth-200,200)
+   ## Use AdaptiveTextBox at top of screen with small margin
+   ## Height of ~150 pixels for instructions, leaving room for stimuli below
+   ## Position from upper-left corner (x=20, y=20)
+   tb <- AdaptiveTextBox(gInst1text,
+                         20,
+                         20,
+                         gWin, 32,
+                         gVideoWidth - 40,
+                         150,
+                         "scalefont")
 
-
-   fixation <- EasyLabel("+",gVideoWidth/2,gVideoHeight/2+100,gWin,40)
-   stim1 <- Circle(gVideoWidth/2-200, gVideoHeight/2+100,75,MakeColor("red"),1)
-   stim2 <- Square(gVideoWidth/2+200, gVideoHeight/2+100,150,MakeColor("red"),1)
-#   footer <- EasyLabel(gFooterL+"                   "+gFooterR,gVideoWidth/2,gVideoHeight-100,gWin,28)
+   ## Position stimuli below the textbox (textbox ends at ~170, place stimuli at ~300)
+   ycenter <- 300
+   fixation <- EasyLabel("+",gVideoWidth/2,ycenter,gWin,40)
+   stim1 <- Circle(gVideoWidth/2-200, ycenter,75,MakeColor("red"),1)
+   stim2 <- Square(gVideoWidth/2+200, ycenter,150,MakeColor("red"),1)
    AddObject(stim1,gWin)
    AddObject(stim2,gWin)
    Draw()
@@ -484,8 +494,12 @@ define DoInstructions()
    RemoveObject(stim1,gWin)
    RemoveObject(stim2,gWin)
    RemoveObject(fixation,gWin)
- #  RemoveObject(footer,gWin)
    RemoveObject(tb,gWin)
+
+   ## Restore header and footer visibility
+   gLayout.header.visible <- 1
+   gLayout.footer.visible <- 1
+   Draw()
 }
 
 

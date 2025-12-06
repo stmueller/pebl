@@ -46,7 +46,7 @@ define Start(p)
 	       ["dotfilled",1],
 	       ["dotradius",10],
 	       ["useAudioFeedback",0],
-               ["responsetype","keyboard"]  ##currently, changing this has no effect.
+               ["responsemode","auto"]  ##Response mode for Layout & Response System
               ]
 
 
@@ -66,6 +66,12 @@ define Start(p)
       gSubNum <- GetSubNum(gWin)
     }
 
+   ## Create layout with response system AFTER GetSubNum
+   gLayout <- CreateLayout("dotjudgment", gWin, gParams)
+   gLayout.header.text <- gStrings.header
+   gLayout.subheader.visible <- 1
+   gLayout.footer.text <- gStrings.footer
+
    ##Make data files
 
 
@@ -81,7 +87,6 @@ define Start(p)
 
    if(flen==0)
     {
-      Print("empty pooled data file.  Adding header")
       FilePrint(gPooledFileOut, header)
     }
 
@@ -224,20 +229,24 @@ define Trial(stim,thresh,practice,statustext)
    order <- Sample([1,-1])
 
 
-   #default use the given fieldsize
+   #default use the given fieldsize, but scale to stimulus region
    fieldsize <- gParams.fieldsize
    border <- gParams.border
 
+   ## Scale field to fit within stimulus region (not full screen width)
+   ## This ensures proper display on smaller screens (e.g., 800x600)
+   availableWidth <- gLayout.stimulusRegion.width
+   availableHeight <- gLayout.stimulusRegion.height
 
    totalwidthneeded <- gParams.fieldsize*2+gParams.border*2
-   if(totalwidthneeded>gVideoWidth)
+   if(totalwidthneeded>availableWidth)
    {
-     over <- totalwidthneeded - gVideoWidth
+     over <- totalwidthneeded - availableWidth
      if(over>(2*border-20))
      {
        border <- 10
        totalwidthneeded <- gParams.fieldsize*2+border*2
-       over <- totalwidthneeded-gVideoWidth
+       over <- totalwidthneeded-availableWidth
      }
 
    if(over>0)
@@ -247,29 +256,35 @@ define Trial(stim,thresh,practice,statustext)
 
    }
 
+   ## Also check height constraint
+   if(fieldsize > availableHeight)
+   {
+      fieldsize <- availableHeight - 20
+   }
 
-
-
-    ycenter <- 50 + border/2 + fieldsize/2
+    ## Use layout center to avoid overlapping header/footer
+    ycenter <- gLayout.centerY
     xcenter1 <- gVideoWidth/2-border/2-fieldsize/2
     xcenter2 <- gVideoWidth/2+border/2+fieldsize/2
 
 
-    header <- EasyLabel(gStrings.header,gVideoWidth/2,22,gWin,30)
+    ## Header and footer are handled by layout system
+    ## Update subheader with trial status
+    gLayout.subheader.text <- statustext
+
     fCorr <- MakeFont(gPEBLBaseFont,0,30,MakeColor("green"),MakeColor("black"),0)
     fInc <- MakeFont(gPEBLBaseFont,0,30,MakeColor("red"),MakeColor("black"),0)
-    
+
     feedback_corr <-MakeLabel(gStrings.correct,fCorr)
     feedback_inc <- MakeLabel(gStrings.incorrect,fInc)
     AddObject(feedback_corr,gWin)
     AddObject(feedback_inc,gWin)
-    Move(feedback_corr,gVideoWidth/2,50)
-    Move(feedback_inc,gVideoWidth/2,50)
+    ## Position feedback at response zone level, not at header
+    feedbackY <- gLayout.zones.response.y + gLayout.zones.response.height/2
+    Move(feedback_corr,gVideoWidth/2,feedbackY)
+    Move(feedback_inc,gVideoWidth/2,feedbackY)
     Hide(feedback_corr)
     Hide(feedback_inc)
-    
-    footer <- EasyLabel(gStrings.FooterL+"          "+gStrings.FooterR,gVideoWidth/2,ycenter+fieldsize/2+30,gWin,40)
-    status <- EasyLabel(statustext,gVideoWidth/2,ycenter+fieldsize/2+70,gWin,16)
    if(order==1)
       {  ##higher on right
 
@@ -337,11 +352,11 @@ define Trial(stim,thresh,practice,statustext)
     {
       RegisterEvent("<TIMER>", 1, time2+gParams.prestime,"<GEQ>","HIDEME", [dots])
     }
-	resp <- WaitForListKeyPress(["<lshift>","<rshift>"])
+	resp <- WaitForLayoutResponse(gLayout, 5000)
 	time3 <- GetTime()
 
-    corr <- ((order ==-1) and (resp == "<rshift>")) or
-            ((order ==1) and (resp == "<lshift>"))
+    corr <- ((order ==-1) and (resp == "right")) or
+            ((order ==1) and (resp == "left"))
     rt <- time3-time2
 
    gRunningCorr <- Append(gRunningCorr,corr)
@@ -365,7 +380,6 @@ define Trial(stim,thresh,practice,statustext)
 #	    Hide(feedback_inc)
 #           Draw()
             }
-	Show(header)
 	Draw()
 
      if(gParams.UseAudioFeedback)
@@ -439,16 +453,12 @@ define CrossFactors(list)
 
 define Initialize()
 {
-
-
-  gResponseType <-gParams.responsetype  ##currently, changing this has no effect.
+  gResponseType <- gParams.responsemode
   gSleepEasy <- 1
   GetStrings(gLanguage)
   ShowCursor(0)
 
   MakeDirectory("data")
-
-
 }
 
 
@@ -456,8 +466,15 @@ define Initialize()
 
 define MessageKeyBox(message)
 {
-
-  tb <- EasyTextBox(message,100,100,gWin,28,gVideoWidth-200,gVideoHeight-200)
+  ## Use AdaptiveTextBox to fit within stimulus region
+  ## Automatically adapts if text doesn't fit
+  tb <- AdaptiveTextBox(message,
+                        gLayout.stimulusRegion.x + 20,
+                        gLayout.stimulusRegion.y + 20,
+                        gWin, 56,
+                        gLayout.stimulusRegion.width - 40,
+                        gLayout.stimulusRegion.height - 40,
+                        "scalefont")
   Draw()
   WaitForAnyKeyPress()
   RemoveObject(tb,gWin)

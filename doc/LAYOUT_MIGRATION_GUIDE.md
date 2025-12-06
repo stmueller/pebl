@@ -289,6 +289,57 @@ define Trial(stimulus)
 
 **Convenience note:** `gLayout.centerX` and `gLayout.centerY` are shorthand for `gLayout.stimulusRegion.centerX/Y`. Both work identically - use whichever you prefer. The top-level properties are provided as a convenient replacement for the common pattern of `gVideoWidth/2, gVideoHeight/2`.
 
+**Available Layout Properties:**
+
+The layout object provides these properties for positioning elements:
+
+**Stimulus region** (most commonly used):
+- `gLayout.stimulusRegion.x` - Left edge of stimulus region
+- `gLayout.stimulusRegion.y` - Top edge of stimulus region
+- `gLayout.stimulusRegion.width` - Width of stimulus region
+- `gLayout.stimulusRegion.height` - Height of stimulus region
+- `gLayout.stimulusRegion.centerX` - Horizontal center of stimulus region
+- `gLayout.stimulusRegion.centerY` - Vertical center of stimulus region
+
+**Convenience shortcuts** (same as stimulus region centers):
+- `gLayout.centerX` - Same as `gLayout.stimulusRegion.centerX`
+- `gLayout.centerY` - Same as `gLayout.stimulusRegion.centerY`
+
+**UI elements** (header, footer, etc.):
+- `gLayout.header` - Header label object (`.text`, `.visible` properties)
+- `gLayout.subheader` - Subheader label object (`.text`, `.visible` properties)
+- `gLayout.footer` - Footer label object (`.text`, `.visible` properties)
+
+**Zone boundaries** (advanced usage - for positioning feedback, status messages, etc.):
+- `gLayout.zones.header.y` - Y position of header zone
+- `gLayout.zones.header.height` - Height of header zone
+- `gLayout.zones.subheader.y` - Y position of subheader zone
+- `gLayout.zones.subheader.height` - Height of subheader zone
+- `gLayout.zones.response.y` - Y position of response zone (between stimulus and footer)
+- `gLayout.zones.response.height` - Height of response zone
+- `gLayout.zones.footer.y` - Y position of footer zone
+- `gLayout.zones.footer.height` - Height of footer zone
+
+**Example usage:**
+```pebl
+## Position stimulus in center of stimulus region
+stim <- EasyLabel("TEXT", gLayout.centerX, gLayout.centerY, gWin, 80)
+
+## Position feedback in response zone
+feedbackY <- gLayout.zones.response.y + gLayout.zones.response.height/2
+feedback <- MakeLabel("Correct!", font)
+Move(feedback, gVideoWidth/2, feedbackY)
+
+## Position textbox within stimulus region
+tb <- AdaptiveTextBox(message,
+                      gLayout.stimulusRegion.x + 20,
+                      gLayout.stimulusRegion.y + 20,
+                      gWin, 56,
+                      gLayout.stimulusRegion.width - 40,
+                      gLayout.stimulusRegion.height - 40,
+                      "scalefont")
+```
+
 ### Step 4: Replace Response Collection
 
 **BEFORE:**

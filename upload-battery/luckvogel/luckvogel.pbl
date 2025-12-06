@@ -21,7 +21,8 @@ define Start(p)
 	       ["trialsperlength",10], ##per length and same/diff condition
 	       ["givefeedback",1],
 	       ["blocksize",40],
-	       ["useAudiofeedback",1]
+	       ["useAudiofeedback",1],
+               ["responsemode","auto"]  ##Response mode for Layout & Response System
               ]
 
   gParams <- CreateParameters(parpairs,gParamFile)
@@ -63,26 +64,63 @@ define Start(p)
       gSubNum <- GetSubNum(gWin)
    }
 
-
   GetStrings(gLanguage)
 
+  ## Create layout with response system AFTER GetSubNum
+  gLayout <- CreateLayout("luckvogel", gWin, gParams)
+  gLayout.header.visible <- 1
+  gLayout.subheader.visible <- 1
+  gLayout.footer.text <- gStrings.footer
 
   gFileOut <- GetNewDataFile(gSubNum,gWin,"luckvogel","csv",
                "subnum,trial,abstime,prestime,delay,size,same,resp,corr,rt")
 
-  gHeader <- EasyLabel("",gVideoWidth/2,gVideoHeight/2-gParams.fieldheight/2-30,gWin,30)
+  ## Scale field to fit within stimulus region
+  ## Ensure it doesn't overflow on small screens (800x600)
+  ## Leave substantial margins for visibility
+  maxWidth <- gLayout.stimulusRegion.width - 60
+  maxHeight <- gLayout.stimulusRegion.height - 60
 
-  bgField <- Rectangle(gVideoWidth/2,gVideoHeight/2,
-               gParams.fieldwidth,gParams.fieldheight,
-              MakeColor("grey50"),1)
-  AddObject(bgField,gWin)
-  font <- Makefont(gPEBLBaseFont,0,50,MakeColor("black"),MakeColor("white"),0)
-  gStatus <- MakeLabel("",font)
-  Move(gStatus,gVideoWidth/2,gVideoHeight/2)
-  AddObject(gStatus,gWin)
+  gFieldWidth <- Min([gParams.fieldwidth, maxWidth])
+  gFieldHeight <- Min([gParams.fieldheight, maxHeight])
 
+  ## Make square if needed
+  minDim <- Min([gFieldWidth, gFieldHeight])
+  gFieldWidth <- minDim
+  gFieldHeight <- minDim
 
-   instbox <- EasyTextBox(gStrings.inst,20,20,gWin,18,gVideoWidth-40,120)
+  ## Calculate scale factor for square size
+  ## If we scaled down the field, we need to scale down squares too
+  gScaleFactor <- gFieldWidth / gParams.fieldwidth
+  gSquareSize <- gParams.squaresize * gScaleFactor
+
+  ## Debug: print dimensions
+  Print("Stimulus region: " + gLayout.stimulusRegion.width + "x" + gLayout.stimulusRegion.height)
+  Print("Field size: " + gFieldWidth + "x" + gFieldHeight)
+  Print("Scale factor: " + gScaleFactor)
+  Print("Square size: " + gSquareSize + " (original: " + gParams.squaresize + ")")
+  Print("Layout center: (" + gLayout.centerX + ", " + gLayout.centerY + ")")
+
+  ## Background field positioned in stimulus region center
+  bgField <- Rectangle(gLayout.centerX, gLayout.centerY,
+               gFieldWidth, gFieldHeight,
+              MakeColor("grey50"), 1)
+  AddObject(bgField, gWin)
+
+  ## Status message uses header - create fonts for correct (green) and incorrect (red) feedback
+  gFontCorrect <- Makefont(gPEBLBaseFont,0,50,MakeColor("darkgreen"),MakeColor("black"),1)
+  gFontIncorrect <- Makefont(gPEBLBaseFont,0,50,MakeColor("red"),MakeColor("black"),1)
+  gFontReady <- Makefont(gPEBLBaseFont,0,50,MakeColor("white"),MakeColor("black"),1)
+
+   ## Position instruction textbox at top of screen to avoid overlapping example stimuli
+   ## Make it smaller to leave more room for stimuli
+   instbox <- AdaptiveTextBox(gStrings.inst,
+                              20,
+                              20,
+                              gWin, 24,
+                              gVideoWidth - 40,
+                              100,
+                              "scalefont")
 
    displays <- MakeStimSet(5,"box",1)
    cont <- 1
@@ -94,7 +132,7 @@ define Start(p)
    ShowAll(First(displays),0)
    Draw()
    Wait(1000)
-   gHeader.text <- gStrings.headersame
+   gLayout.header.text <- gStrings.headersame
    while(cont)
    {
 
@@ -117,7 +155,7 @@ define Start(p)
 
   instbox.text <-gStrings.inst2
 
-   gHeader.text <-gStrings.headerdifferent
+   gLayout.header.text <-gStrings.headerdifferent
    Draw()
    WaitForAnyKeyPress()
 
@@ -145,7 +183,8 @@ define Start(p)
 
 
    instbox.text <- gStrings.inst3
-   gHeader.text <- gStrings.header
+   gLayout.header.text <- gStrings.header
+   gLayout.footer.visible <- 1
    Draw()
    WaitForAnyKeyPress()
    Hide(instbox)
@@ -153,11 +192,12 @@ define Start(p)
 
    loop(i,[1,0,1,0,0,1])
      {
-       out <-  TrialSquares(3,i)
+       out <-  TrialSquares(3,i,0,0)
      }
 
   design <- DesignFullCounterbalance(gParams.length,[0,1])
   stim <- Shuffle(RepeatList(design,gParams.trialsperlength))
+  gTotalTrials <- Length(stim)
 
    instbox.text <-gStrings.inst4
    Show(instbox)
@@ -167,13 +207,13 @@ define Start(p)
    CountDown(gWin)
 
    ##also, burn a couple trials of the test set:
-   out <-  TrialSquares(3,1)
-   out <-  TrialSquares(3,0)
+   out <-  TrialSquares(3,1,0,0)
+   out <-  TrialSquares(3,0,0,0)
 
    trial <- 1
    loop(i,stim)
     {
-      out <-  TrialSquares(First(i),Second(i))
+      out <-  TrialSquares(First(i),Second(i),trial,gTotalTrials)
       FilePrint(gfileOut,gSubNum+","+trial+","+GetTime()+","+gParams.prestime+","+gParams.delaytime+","+
                 First(i)+","+First(out)+","+Second(out)+","+Third(out)+","+Fourth(out))
 
@@ -189,8 +229,8 @@ define Start(p)
        Hide(instbox)
         WaitForAnyKeyPress()
         CountDown(gWin)
-        out <-  TrialSquares(3,1)
-        out <-  TrialSquares(3,0)
+        out <-  TrialSquares(3,1,0,0)
+        out <-  TrialSquares(3,0,0,0)
 
      }
 
@@ -208,14 +248,22 @@ define Start(p)
   Print(out)
 }
 
-define TrialSquares(number,change)
+define TrialSquares(number,change,trial,total)
 {
-    gHeader.text <- gStrings.trialheader
+    ## Update trial counter in subheader (only if trial > 0)
+    if(trial > 0)
+    {
+      trialtext <- ReplaceChar(gStrings.trial_progress,"<TRIAL>",trial+"")
+      trialtext <- ReplaceChar(trialtext,"<TOTAL>",total+"")
+      gLayout.subheader.text <- trialtext
+    }
+
     displays <- MakeStimSet(number,"box",change)
-    gStatus.text <- gStrings.ready
+    gLayout.header.text <- gStrings.ready
+    gLayout.header.font <- gFontReady
     Draw()
     Wait(500)
-    gStatus.text <- ""
+    gLayout.header.text <- ""
     Draw()
     Wait(1000)
 
@@ -230,20 +278,22 @@ define TrialSquares(number,change)
     Draw()
 
     time1 <- GetTime()
-    resp <- WaitForListKeyPress(["<lshift>","<rshift>"])
+    resp <- WaitForLayoutResponse(gLayout, 10000)
     time2 <- GetTime()
 
     if(change)
         {
-              corr <- resp=="<rshift>"
+              corr <- resp=="right"
         }else {
-              corr <- resp=="<lshift>"
+              corr <- resp=="left"
         }
 
    if(gParams.givefeedback)
    {
       ShowAll(Second(displays),0)
-      gStatus.text <- Nth([gStrings.incorrect,gStrings.Correct],corr+1)
+      gLayout.header.text <- Nth([gStrings.incorrect,gStrings.Correct],corr+1)
+      ## Change font color based on correctness
+      gLayout.header.font <- Nth([gFontIncorrect, gFontCorrect], corr+1)
       Draw()
       if(gParams.UseAudioFeedback)
        {
@@ -257,7 +307,7 @@ define TrialSquares(number,change)
 
 
       Wait(350)
-      gStatus.text <- ""
+      gLayout.header.text <- ""
       Draw()
    }
   return [change,resp,corr,(time2-time1)]
@@ -272,11 +322,13 @@ define MakeStimSet(number,type,change)
   if(type=="box")
   {
 
-  ##create the positions here:
-  gLeft <- gVideoWidth/2-gParams.fieldwidth/2 +gParams.squaresize/2+10
-  gRight <- gVideoWidth/2+gParams.fieldwidth/2-gParams.squaresize/2-10
-  gUpper <- gVideoHeight/2-gParams.fieldheight/2+gParams.squaresize/2+10
-  gLower <- gVideoHeight/2+gParams.fieldheight/2-gParams.squaresize/2-10
+  ##create the positions here using layout center instead of video center
+  ##Use global gFieldWidth/gFieldHeight which are scaled to fit stimulus region
+  ##Use global gSquareSize which is scaled proportionally
+  gLeft <- gLayout.centerX-gFieldWidth/2 +gSquareSize/2+10
+  gRight <- gLayout.centerX+gFieldWidth/2-gSquareSize/2-10
+  gUpper <- gLayout.centerY-gFieldHeight/2+gSquareSize/2+10
+  gLower <- gLayout.centerY+gFieldHeight/2-gSquareSize/2-10
 
     ##pick the colors (we have 7)
     indices <- Shuffle(Sequence(1,7,1))
@@ -298,7 +350,7 @@ define MakeStimSet(number,type,change)
     }else {
 
      positions <- NonOverlapLayout(gLeft,gRight,gUpper,glower,
-                            gParams.squaresize*2,number)
+                            gSquareSize*2,number)
 
      rest <- DesignBalancedSampling(indices,number-1)
      colors1 <- Append(rest,First(swaps))
@@ -323,10 +375,10 @@ define MakeStimSet(number,type,change)
     loop(i,Sequence(1,number,1))
     {
         xy <- Nth(positions,i)
-	sq1a <- Square(First(xy),Second(xy),gParams.squaresize+4,  MakeColor("black"),1)
-        sq1 <- Square(First(xy),Second(xy),gParams.squaresize,  Nth(col1,i),1)
-	sq2a <- Square(First(xy),Second(xy),gParams.squaresize+4,  MakeColor("black"),1)
-        sq2 <- Square(First(xy),Second(xy),gParams.squaresize,  Nth(col2,i),1)
+	sq1a <- Square(First(xy),Second(xy),gSquareSize+4,  MakeColor("black"),1)
+        sq1 <- Square(First(xy),Second(xy),gSquareSize,  Nth(col1,i),1)
+	sq2a <- Square(First(xy),Second(xy),gSquareSize+4,  MakeColor("black"),1)
+        sq2 <- Square(First(xy),Second(xy),gSquareSize,  Nth(col2,i),1)
 
         AddObject(sq1a,gWin)
         AddObject(sq1,gWin)

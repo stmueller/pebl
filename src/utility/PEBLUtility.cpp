@@ -1291,7 +1291,21 @@ Variant PEBLUtility::ExtractJSONObject(const std::string & text,int remaining,
                 //treat these as 0.  We may need to handl null in an other way.
                 out= 0;
             }else{
-            out = Variant(PEBLUtility::StringToPDouble(label.c_str()));
+            // Parse as double first
+            pDouble numVal = PEBLUtility::StringToPDouble(label.c_str());
+
+            // Check if it's actually an integer (no decimal point in string and value equals its floor)
+            if(label.find('.') == std::string::npos &&
+               label.find('e') == std::string::npos &&
+               label.find('E') == std::string::npos &&
+               numVal == floor(numVal))
+            {
+                // Store as integer
+                out = Variant((pInt)numVal);
+            } else {
+                // Store as double
+                out = Variant(numVal);
+            }
         }
 
         (*t)++;
@@ -1426,7 +1440,7 @@ Variant PEBLUtility::ParseJSON(const std::string &text)
                                                      /*There are ways to expand this, if necessary*/
     jsmntok_t ** tt = &t;
     int r;
-        std::cout <<"Parsing:" << text << endl;
+        //std::cout <<"Parsing:" << text << endl;
 
 	jsmn_init(&p);
 	r = jsmn_parse(&p, text.c_str(), text.length(),*tt,1000);

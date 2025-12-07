@@ -25,12 +25,21 @@ define CreateLayout(testName, win, params:0)
     ## Args:
     ##   testName: Name of the test (for loading custom config)
     ##   win: Window object to create layout in
-    ##   params: Parameter object (optional) - must contain .responsemode if provided
+    ##   params: Parameter object (optional) with:
+    ##     .responsemode - Response mode name (e.g., "spacebar", "auto")
+    ##     .customkeys - Override keys (e.g., ["a", "b", "c"])
+    ##     .customlabels - Override labels (e.g., ["Press A", "Press B", "Press C"])
+    ##     .customsemantic - Override semantic values (e.g., ["left", "center", "right"])
     ##
-    ## Example:
-    ##   layout <- CreateLayout("simon", gWin)
+    ## Example (basic):
+    ##   layout <- CreateLayout("simon", gWin, gParams)
     ##   layout.header.text <- "Simon Task"
-    ##   layout.header.visible <- 1
+    ##
+    ## Example (custom keys):
+    ##   gParams.responsemode <- "singlekey"
+    ##   gParams.customkeys <- ["<return>"]
+    ##   gParams.customlabels <- ["ENTER"]
+    ##   layout <- CreateLayout("mytest", gWin, gParams)
 
     ## Load configuration
     config <- LoadLayoutConfig(testName)
@@ -58,6 +67,11 @@ define CreateLayout(testName, win, params:0)
     ## Create response labels
     layout <- CreateResponseLabels(layout, Round(config.zones.response.fontSize * scale))
 
+    ## Add top-level center coordinates for convenience
+    ## (These duplicate stimulusRegion.centerX/Y for ease of use)
+    layout.centerX <- layout.stimulusRegion.centerX
+    layout.centerY <- layout.stimulusRegion.centerY
+
     ## Set global for convenience
     gLayout <- layout
 
@@ -65,7 +79,7 @@ define CreateLayout(testName, win, params:0)
 }
 
 
-define WaitForLayoutResponse(layout, timeout:60000)
+define WaitForLayoutResponse(layout, timeout: 0)
 {
     ## Waits for response according to layout's response mode
     ## Returns semantic response: "left", "right", "up", "down", etc.
@@ -78,7 +92,7 @@ define WaitForLayoutResponse(layout, timeout:60000)
     ## Example:
     ##   resp <- WaitForLayoutResponse(gLayout, 5000)
     ##   if(resp == "left") { ## Handle left response }
-
+    ##default -1 timeout indicates no timeout.
   
 
     mode <- layout.responseMode
@@ -87,9 +101,12 @@ define WaitForLayoutResponse(layout, timeout:60000)
     if(mode.type == "keyboard")
     {
 
-
-        resp <- WaitForListKeyPressWithTimeout(mode.keys, timeout)
-
+        if(timeout==0)
+	{
+	  resp <- WaitForListKeyPress(mode.keys)
+	} else{
+          resp <- WaitForListKeyPressWithTimeout(mode.keys, timeout)
+ 	}
 
         if(resp != "<timeout>")
         {
@@ -111,14 +128,24 @@ define WaitForLayoutResponse(layout, timeout:60000)
     }
     elseif(mode.type == "mousebutton")
     {
-        resp <- WaitForMouseButtonWithTimeout(timeout)
+        ## WaitForMouseButton returns [x, y, button, state, ...]
+        ## Extract button number (3rd element) and map to semantic
+        if(timeout==0)
+	{
+          resp <- WaitForMouseButton()
+	}else{
+          resp <- WaitForMouseButtonWithTimeout(timeout)
+	}
 
         if(resp != "<timeout>")
         {
+            ## Extract button number from response list
+            buttonNum <- Third(resp)
+
             ## Map button to semantic name
             loop(i, Length(mode.buttons))
             {
-                if(resp == Nth(mode.buttons, i))
+                if(buttonNum == Nth(mode.buttons, i))
                 {
                     result <- Nth(mode.semantic, i)
                 }
@@ -131,18 +158,40 @@ define WaitForLayoutResponse(layout, timeout:60000)
         numLabels <- Length(layout.responseLabels)
         keylist <- Sequence(1, numLabels, 1)
 
-        resp <- WaitForClickOnTarget(layout.responseLabels, keylist)
+        if(timeout==0)
+	{
+          resp <- WaitForClickOnTarget(layout.responseLabels, keylist)
+	}else{
+
+          resp <- WaitForClickOnTargetWithTimeout(layout.responseLabels, keylist,timeout)
+	}
 
         if(resp != "<timeout>")
         {
             ## Return semantic name for clicked target
             result <- Nth(mode.semantic, resp)
         }
+    } elseif(mode.type == "singlekey")
+    {
+        ## Single-key response mode - any key or mouse button counts as response
+        ## Used for go-nogo and continuous performance tasks
+
+        if(timeout==0)
+        {
+            resp <- WaitForListKeyPress(mode.keys)
+        } else {
+            resp <- WaitForListKeyPressWithTimeout(mode.keys, timeout)
+        }
+
+        if(resp != "<timeout>")
+        {
+            ## Return the single semantic value (e.g., "response")
+            result <- First(mode.semantic)
+        }
     } else {
         SignalFatalError("Unknown response mode: " + mode.type)
     }
 
-    Print("DEBUG: About to return: " + result)
     return(result)
 }
 
@@ -498,7 +547,7 @@ define LoadLayoutConfig(testName)
     else
     {
         ## Fall back to default config
-        defaultPath <- "media/settings/default-layout.json"
+        defaultPath <- gPEBLBasePath + "media/settings/default-layout.json"
 
         if(FileExists(defaultPath))
         {
@@ -520,16 +569,22 @@ define LoadResponseModes()
     ## Loads response mode definitions from JSON file
     ## Falls back to hardcoded defaults if file not found
 
-    modesPath <- "media/settings/response-modes.json"
+    modesPath <- gPEBLBasePath + "media/settings/response-modes.json"
     result <- 0
 
     if(FileExists(modesPath))
     {
         modes <- ParseJSON(FileReadText(modesPath))
+        Print("DEBUG: Parsed JSON from response-modes.json:")
+        PrintProperties(modes)
         result <- modes.modes
+        Print("DEBUG: Extracted modes.modes:")
+        PrintProperties(result)
     }
     else
     {
+        Print("DEBUG: response-modes.json not found at: " + modesPath)
+        Print("DEBUG: Using hardcoded defaults")
         ## Return hardcoded defaults
         result <- GetDefaultResponseModes()
     }
@@ -546,6 +601,11 @@ define DetermineResponseMode(params, config, modes)
     ##   1. Parameter override (params.responsemode)
     ##   2. Config default
     ##   3. "auto" platform detection
+    ##
+    ## Custom key override:
+    ##   If params.customkeys is provided, override mode's keys
+    ##   If params.customlabels is provided, override mode's labels
+    ##   If params.customsemantic is provided, override mode's semantic
 
     ## Get requested mode name
     modeName <- "auto"
@@ -575,23 +635,34 @@ define DetermineResponseMode(params, config, modes)
         modeName <- GetPlatformResponseMode(modes)
     }
 
-    Print("DEBUG DetermineResponseMode: modeName = " + modeName)
-    Print("DEBUG DetermineResponseMode: PropertyExists(modes, modeName) = " + PropertyExists(modes, modeName))
-    PrintProperties(modes)
-
     ## Get mode configuration
     result <- 0
     if(PropertyExists(modes, modeName))
     {
-        Print("DEBUG: About to call GetProperty(modes, " + modeName + ")")
         result <- GetProperty(modes, modeName)
-        Print("DEBUG: GetProperty returned")
-        Print("DEBUG: Printing properties of result:")
-        PrintProperties(result)
     }
     else
     {
         SignalFatalError("Unknown response mode: " + modeName)
+    }
+
+    ## Apply custom key overrides if provided
+    if(params != 0)
+    {
+        if(PropertyExists(params, "customkeys"))
+        {
+            result.keys <- params.customkeys
+        }
+
+        if(PropertyExists(params, "customlabels"))
+        {
+            result.labels <- params.customlabels
+        }
+
+        if(PropertyExists(params, "customsemantic"))
+        {
+            result.semantic <- params.customsemantic
+        }
     }
 
     return(result)

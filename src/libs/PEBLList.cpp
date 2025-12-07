@@ -93,10 +93,12 @@ Variant PEBLList::Repeat (Variant v)
     Variant v1 = plist->First(); //plist->PopFront();
 
 
-    //v[2] is the number of repeats: should be an integer.
-    PError::AssertType(plist->Nth(2), PEAT_INTEGER, "Argument error in second parameter of function [Repeat(<object>,<integer>)]:  ");
+    //v[2] is the number of repeats: should be a number (will be rounded to integer if needed).
+    PError::AssertType(plist->Nth(2), PEAT_NUMBER, "Argument error in second parameter of function [Repeat(<object>,<number>)]:  ");
 
-    int number = plist->Nth(2);// plist->PopFront();
+    Variant numVar = plist->Nth(2);
+    pDouble numDouble = numVar;  // Use pDouble type to avoid ambiguity
+    int number = (int)round(numDouble);// Round to nearest integer to handle JSON floats
 
 
     PList * returnList = new PList();
@@ -140,9 +142,11 @@ Variant PEBLList::RepeatList(Variant v)
     vector<Variant>::iterator pend   = arglist->End();
 
 
-    //v[2] is the number of repeats: should be a number.
-    PError::AssertType(plist->Nth(2), PEAT_INTEGER, "Argument error in second parameter of function [RepeatList(<list>, <int>)]:  ");
-    int number = plist->Nth(2);// plist->PopFront();
+    //v[2] is the number of repeats: should be a number (will be rounded to integer if needed).
+    PError::AssertType(plist->Nth(2), PEAT_NUMBER, "Argument error in second parameter of function [RepeatList(<list>, <number>)]:  ");
+    Variant numVar = plist->Nth(2);
+    pDouble numDouble = numVar;  // Use pDouble type to avoid ambiguity
+    int number = (int)round(numDouble);// Round to nearest integer to handle JSON floats
 
 
     //There is now an iterator p, and and end to compare it to, and

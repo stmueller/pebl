@@ -86,16 +86,16 @@ define Start(p)
 
    ## For keyboard modes, override footer to show shift keys
    ## For mouse/touch modes, show the generic footer text
-   if(gLayout.mode.type == "keyboard")
+   if(gParams.responsemode == "keyboardShift" or gParams.responsemode == "keyboardSafe")
    {
-     gLayout.footer.text <- "LEFT-SHIFT                                    RIGHT-SHIFT"
+     gLayout.footer.text <- gStrings.footer_keyboard
    } else {
      gLayout.footer.text <- gStrings.footer
    }
 
    ## Show cursor only for mousetarget mode (need to click on targets)
    ## Hide cursor for keyboard, mousebutton, and touchtarget modes
-   if(gLayout.mode.type == "mousetarget")
+   if(gParams.responsemode == "mousetarget")
    {
      ShowCursor(1)
    } else {

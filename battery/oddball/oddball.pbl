@@ -79,6 +79,19 @@ define Start(p)
    gLayout.subheader.visible <- 1
    gLayout.footer.text <- gStrings.footer
 
+   ## Override response labels to show CIRCLE/SQUARE instead of LEFT/RIGHT
+   gLayout.leftLabel.text <- gStrings.footerL
+   gLayout.rightLabel.text <- gStrings.footerR
+
+   ## Show cursor only for mousetarget mode (need to click on targets)
+   ## Hide cursor for keyboard, mousebutton, and touchtarget modes
+   if(gParams.responsemode == "mousetarget")
+   {
+     ShowCursor(1)
+   } else {
+     ShowCursor(0)
+   }
+
    ##Make data files
 
    header <- "subnum,block,time,trial,practice,targdir,oddballcoherence,oddballdir,time0,resp,corr,rt"
@@ -396,7 +409,6 @@ define Initialize()
   gResponseType <-"shiftkeys"  ##currently, changing this has no effect.
   gSleepEasy <- 1
   GetStrings(gLanguage)
-  ShowCursor(0)
 
   ##  The screen re
   ##
@@ -449,7 +461,7 @@ define MessageKeyBox(message)
                         gLayout.stimulusRegion.height - 40,
                         "scalefont")
   Draw()
-  WaitForAnyKeyPress()
+  WaitForLayoutResponse(gLayout)
   RemoveObject(tb,gWin)
 
 }
@@ -480,17 +492,17 @@ define DoInstructions()
    AddObject(stim1,gWin)
    AddObject(stim2,gWin)
    Draw()
-   WaitForAnyKeyPress()
+   WaitForLayoutResponse(gLayout)
 
    tb.text <- gInst2text
    stim1.x <- gVideoWidth/2+200
    stim2.x <- gVideoWidth/2-200
    Draw()
-   WaitForAnyKeyPress()
+   WaitForLayoutResponse(gLayout)
 
    tb.text <- gInst3text
    Draw()
-   WaitForAnyKeyPress()
+   WaitForLayoutResponse(gLayout)
    RemoveObject(stim1,gWin)
    RemoveObject(stim2,gWin)
    RemoveObject(fixation,gWin)

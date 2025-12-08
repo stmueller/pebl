@@ -84,14 +84,12 @@ define Start(p)
    rightLabel <- Nth(gLayout.responseLabels, 2)
    rightLabel.text <- gStrings.footerR
 
-   ## For keyboard modes, override footer to show shift keys
-   ## For mouse/touch modes, show the generic footer text
-   if(gParams.responsemode == "keyboardShift" or gParams.responsemode == "keyboardSafe")
-   {
-     gLayout.footer.text <- gStrings.footer_keyboard
-   } else {
-     gLayout.footer.text <- gStrings.footer
-   }
+   ## Set footer to show the actual keys being used (from response mode)
+   ## Format: "LEFT_KEY                                    RIGHT_KEY"
+   leftKey <- Nth(gLayout.responseMode.labels, 1)
+   rightKey <- Nth(gLayout.responseMode.labels, 2)
+   gLayout.footer.text <- leftKey + "                                    " + rightKey
+   Show(gLayout.footer)
 
    ## Show cursor only for mousetarget mode (need to click on targets)
    ## Hide cursor for keyboard, mousebutton, and touchtarget modes
@@ -485,20 +483,17 @@ define DoInstructions()
    ## Use AdaptiveTextBox at top of screen with small margin
    ## Height of ~150 pixels for instructions, leaving room for stimuli below
    ## Position from upper-left corner (x=20, y=20)
-   tb <- AdaptiveTextBox(gInst1text,
-                         20,
-                         20,
-                         gWin, 32,
-                         gVideoWidth - 40,
-                         150,
+   tb <- AdaptiveTextBox(gInst1text, 20,   20,
+                         gWin, 32, gVideoWidth - 40,  150,
                          "scalefont")
 
    ## Position stimuli below the textbox (textbox ends at ~170, place stimuli at ~300)
-   ycenter <- 300
-   fixation <- EasyLabel("+",gVideoWidth/2,ycenter,gWin,40)
+   ycenter <- gLayout.centerY
+   xcenter <- gLayout.centerX
+   fixation <- EasyLabel("+",xcenter,ycenter,gWin,40)
    ## First page shows typical case: circle left, square right (matching response labels)
-   stim1 <- Circle(gVideoWidth/2-200, ycenter,75,MakeColor("red"),1)
-   stim2 <- Square(gVideoWidth/2+200, ycenter,150,MakeColor("red"),1)
+   stim1 <- Circle(xcenter-200, ycenter,75,MakeColor("red"),1)
+   stim2 <- Square(xcenter+200, ycenter,150,MakeColor("red"),1)
    AddObject(stim1,gWin)
    AddObject(stim2,gWin)
    Draw()

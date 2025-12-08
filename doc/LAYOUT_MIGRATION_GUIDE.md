@@ -960,6 +960,8 @@ After migrating your task, verify:
 
 ### Response Mode Tests
 
+**CRITICAL**: All migrated tasks MUST be tested with ALL response modes, especially mousebutton and mousetarget. Mouse-based modes have different event handling than keyboard modes and require thorough testing.
+
 Run your task with each response mode:
 
 ```bash
@@ -970,7 +972,7 @@ bin/pebl2 battery/taskname/taskname.pbl -s 1
 bin/pebl2 battery/taskname/taskname.pbl -s 2 --pfile params/keyboardShift.json
 bin/pebl2 battery/taskname/taskname.pbl -s 3 --pfile params/keyboardSafe.json
 
-# Mouse modes
+# Mouse modes (REQUIRED TESTING)
 bin/pebl2 battery/taskname/taskname.pbl -s 4 --pfile params/mousetarget.json
 bin/pebl2 battery/taskname/taskname.pbl -s 5 --pfile params/mousebutton.json
 ```
@@ -980,13 +982,97 @@ bin/pebl2 battery/taskname/taskname.pbl -s 5 --pfile params/mousebutton.json
 **params/mousetarget.json:**
 ```json
 {
-  "name": "Mouse Target Mode",
-  "description": "Click on response labels (touch-friendly)",
-  "parameters": {
-    "responsemode": "mousetarget"
-  }
+  "responsemode": "mousetarget"
 }
 ```
+
+**params/mousebutton.json:**
+```json
+{
+  "responsemode": "mousebutton"
+}
+```
+
+**params/keyboardShift.json:**
+```json
+{
+  "responsemode": "keyboardShift"
+}
+```
+
+**params/keyboardSafe.json:**
+```json
+{
+  "responsemode": "keyboardSafe"
+}
+```
+
+### Mouse/Touch Mode Testing Checklist
+
+For **mousebutton** mode, verify:
+- [ ] Left mouse click registers as "left" response
+- [ ] Right mouse click registers as "right" response
+- [ ] Clicks work on instruction screens
+- [ ] Clicks work during trials
+- [ ] Timeout still functions when no click occurs
+- [ ] Response feedback displays correctly
+- [ ] Footer shows "LEFT-CLICK" and "RIGHT-CLICK" labels
+
+For **mousetarget** mode, verify:
+- [ ] Click targets appear in response zone
+- [ ] Clicking left target registers as "left" response
+- [ ] Clicking right target registers as "right" response
+- [ ] Targets are large enough (especially for touch screens)
+- [ ] Targets don't overlap with stimuli
+- [ ] Footer shows clickable target labels
+- [ ] Targets respond to both mouse and touch input
+
+### Single-Response Tasks (Go-NoGo, CPT, etc.)
+
+For tasks with single-response modes (spacebar, leftclick, touchscreen):
+
+**Test with spacebar mode:**
+```bash
+bin/pebl2 battery/taskname/taskname.pbl -s 6 --pfile params/spacebar.json
+```
+
+**params/spacebar.json:**
+```json
+{
+  "responsemode": "spacebar"
+}
+```
+
+**Test with leftclick mode:**
+```bash
+bin/pebl2 battery/taskname/taskname.pbl -s 7 --pfile params/leftclick.json
+```
+
+**params/leftclick.json:**
+```json
+{
+  "responsemode": "leftclick"
+}
+```
+
+**Test with touchscreen mode:**
+```bash
+bin/pebl2 battery/taskname/taskname.pbl -s 8 --pfile params/touchscreen.json
+```
+
+**params/touchscreen.json:**
+```json
+{
+  "responsemode": "touchscreen"
+}
+```
+
+Verify for single-response modes:
+- [ ] Instruction screens advance on response
+- [ ] Trials register responses correctly
+- [ ] No-response trials (timeouts) handled properly
+- [ ] Footer shows appropriate single-response label
+- [ ] Response feedback (if any) displays correctly
 
 ### Screen Size Tests
 

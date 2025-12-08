@@ -61,6 +61,7 @@ public:
     virtual void SetFontColor        (PColor color);
     virtual void SetBackgroundColor  (PColor color);
     virtual void SetFontSize         (const int size);
+    virtual void SetFontStyle        (const int style);
 //     virtual PColor GetFontColor      () const {return SDLUtility::SDLColorToPColor(mSDL_FGColor);}
 //     virtual PColor GetBackgroundColor() const {return SDLUtility::SDLColorToPColor(mSDL_BGColor);}
 

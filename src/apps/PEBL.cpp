@@ -284,6 +284,9 @@ int PEBLInterpret( int argc, std::vector<std::string> argv )
     //Set up the search path.
     Evaluator::gPath.Initialize(files);
 
+    //Add media/settings to search path for layout configuration files
+    Evaluator::gPath.AddToPathList("media/settings");
+
     cerr << "PATH:"  << Evaluator::gPath;
 
     //Add the built-in PEBL libraries to the files list.
@@ -294,6 +297,7 @@ int PEBLInterpret( int argc, std::vector<std::string> argv )
     files.push_back("UI.pbl");
     files.push_back("HTML.pbl");
     files.push_back("Transfer.pbl");  // Network/HTTP file transfer functions
+    files.push_back("Layout.pbl");    // Layout & response system with nested properties
 
 #ifdef PEBL_EMSCRIPTEN
    files.push_back("EM.pbl");

@@ -252,6 +252,17 @@ void PlatformFont::SetFontSize(const int size)
     mChanged = true;  // Mark font as changed to trigger re-rendering
 }
 
+///Override SetFontStyle to update TTF font and mark as changed
+void PlatformFont::SetFontStyle(const int style)
+{
+    //Chain up to parent method
+    PFont::SetFontStyle(style);
+
+    //Update SDL_ttf font style (bold, italic, underline)
+    TTF_SetFontStyle(mTTF_Font, style);
+    mChanged = true;  // Mark font as changed to trigger re-rendering
+}
+
 ///Check if font or its colors have changed
 bool PlatformFont::HasChanged()
 {

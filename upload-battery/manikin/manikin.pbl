@@ -299,10 +299,10 @@ define PracticeScreen(image,text,correctResponse,imagewidth:1000)
 
    Draw()
 
-   ## Wait for correct response (or any key if correctResponse == "any")
+   ## Wait for correct response (or any response if correctResponse == "any")
    if(correctResponse == "any")
    {
-     WaitForAnyKeyPress()
+     WaitForLayoutResponse(gLayout)  ## Use layout response system for consistency
    } else {
      resp <- ""
      while(resp != correctResponse)

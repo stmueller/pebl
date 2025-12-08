@@ -480,19 +480,9 @@ Variant PEBLObjects::MakeFont(Variant v)
     PlatformFont * tmpFont = new PlatformFont(name, style, size, fgcolor, bgcolor, aa);
     counted_ptr<PEBLObjectBase> myFont = counted_ptr<PEBLObjectBase>(tmpFont);
 
-    PComplexData *  pcd = new PComplexData(myFont);
-    Variant tmp = Variant(pcd);
-
-    //delete pcd;  //without deleting here, fonts will leak memory
-    pcd=NULL;    //But deleting causes a segfault I haven't figured out.
-    //that appears to be due to an SDL issue.  Loading font file using RWOps
-    //helps increase the number of fonts we can have, but there is
-    // still a memory leak; fonts cannot get destroyed in SDL 1.2
-
-    //delete pcd;  //without deleting here, fonts will leak memory
-    //pcd=NULL;    //But deleting causes a segfault I haven't figured out.
-    //NOTE: the crash happens when the font object is being destroyed,
-    return tmp;
+    // Directly pass new PComplexData to Variant constructor - it takes ownership
+    // This avoids double allocation and memory leak
+    return Variant(new PComplexData(myFont));
 
 }
 

@@ -67,6 +67,15 @@ define CreateLayout(testName, win, params:0)
     ## Create response labels
     layout <- CreateResponseLabels(layout, Round(config.zones.response.fontSize * scale))
 
+    ## Hide footer if response mode requests it (e.g., touchtarget mode)
+    if(PropertyExists(responseMode, "hideFooter"))
+    {
+        if(responseMode.hideFooter)
+        {
+            layout.footer.visible <- 0
+        }
+    }
+
     ## Add top-level center coordinates for convenience
     ## (These duplicate stimulusRegion.centerX/Y for ease of use)
     layout.centerX <- layout.stimulusRegion.centerX
@@ -129,26 +138,50 @@ define WaitForLayoutResponse(layout, timeout: 0)
     elseif(mode.type == "mousebutton")
     {
         ## WaitForMouseButton returns [x, y, button, state, ...]
-        ## Extract button number (3rd element) and map to semantic
-        if(timeout==0)
-	{
-          resp <- WaitForMouseButton()
-	}else{
-          resp <- WaitForMouseButtonWithTimeout(timeout)
-	}
+        ## Only accept <pressed> events, not <released>
+        ## Loop until we get a valid pressed event
 
-        if(resp != "<timeout>")
+        continue <- 1
+        while(continue)
         {
-            ## Extract button number from response list
-            buttonNum <- Third(resp)
-
-            ## Map button to semantic name
-            loop(i, Length(mode.buttons))
+            if(timeout==0)
             {
-                if(buttonNum == Nth(mode.buttons, i))
+              resp <- WaitForMouseButton()
+            }else{
+              resp <- WaitForMouseButtonWithTimeout(timeout)
+            }
+
+            if(resp != "<timeout>")
+            {
+                ## Extract button number and state
+                buttonNum <- Third(resp)
+                buttonState <- Fourth(resp)
+
+                Print("DEBUG mousebutton: button=" + buttonNum + " state=" + buttonState)
+
+                ## Only process <pressed> events, skip <released>
+                if(buttonState == "<pressed>")
                 {
-                    result <- Nth(mode.semantic, i)
+                    ## Map button to semantic name
+                    loop(i, Length(mode.buttons))
+                    {
+                        if(buttonNum == Nth(mode.buttons, i))
+                        {
+                            result <- Nth(mode.semantic, i)
+                            continue <- 0  ## Exit loop
+                        }
+                    }
+
+                    ## If button not recognized, keep waiting
+                    if(result == "<timeout>")
+                    {
+                        Print("DEBUG mousebutton: button " + buttonNum + " not in mode.buttons " + mode.buttons)
+                    }
                 }
+                ## If <released>, continue loop to wait for next event
+            } else {
+                ## Timeout occurred
+                continue <- 0
             }
         }
     } elseif(mode.type == "mousetarget")
@@ -870,13 +903,51 @@ define CreateResponseLabels(layout, fontSize)
     spacing <- win.width / (numLabels + 1)
     centerY <- layout.zones.response.y + (layout.zones.response.height / 2)
 
-    ## Create labels
+    ## Determine label styling based on mode type
+    ## For mousetarget/touchtarget: create visible button borders
+    ## For keyboard modes: use transparent background
+    bgcolor <- MakeColor("lightgray")  ## Default: transparent
+    borders <- []  ## Store border rectangles for mousetarget modes
+
+    if(mode.type == "mousetarget")
+    {
+        ## Button-like appearance for clickable targets
+        ## Create border rectangles with padding around text
+        padding <- 20  ## Padding around text in pixels
+        borderColor <- MakeColor("gray")
+        fillColor <- MakeColor("white")
+    }
+
+    ## Create labels (and borders for mousetarget)
     labels <- []
 
     loop(i, numLabels)
     {
-        labelFont <- MakeFont(gPEBLBaseFont, 0, fontSize,
-                              fgcol, MakeColor("lightgray"), 0)
+        if(mode.type == "mousetarget")
+        {
+            ## For mousetarget: create border rectangle first
+            ## Estimate label width (approximate: 10 pixels per character)
+            labelText <- Nth(mode.labels, i)
+            estimatedWidth <- Round(StringLength(labelText) * fontSize * 0.6)
+            estimatedHeight <- fontSize + 10
+
+            ## Create filled rectangle with border
+            border <- Rectangle(spacing * i, centerY,
+                               estimatedWidth + (padding * 2),
+                               estimatedHeight + (padding * 2),
+                               borderColor, 1)
+            AddObject(border, win)
+            PushOnEnd(borders, border)
+
+            ## Label with transparent background (border provides visual)
+            labelFont <- MakeFont(gPEBLBaseFont, 0, fontSize,
+                                  fgcol, MakeColor("lightgray"), 0)
+        } else {
+            ## Keyboard modes: simple transparent label
+            labelFont <- MakeFont(gPEBLBaseFont, 0, fontSize,
+                                  fgcol, bgcolor, 0)
+        }
+
         label <- MakeLabel(Nth(mode.labels, i), labelFont)
         AddObject(label, win)
         Move(label, spacing * i, centerY)
@@ -885,6 +956,7 @@ define CreateResponseLabels(layout, fontSize)
     }
 
     layout.responseLabels <- labels
+    layout.responseBorders <- borders  ## Store borders for cleanup/styling
 
     return(layout)
 }

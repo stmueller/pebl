@@ -77,15 +77,25 @@ define Start(p)
    gLayout <- CreateLayout("oddball", gWin, gParams)
    gLayout.header.text <- gStrings.header
    gLayout.subheader.visible <- 1
-   gLayout.footer.text <- gStrings.footer
 
    ## Override response labels to show CIRCLE/SQUARE instead of LEFT/RIGHT
-   gLayout.leftLabel.text <- gStrings.footerL
-   gLayout.rightLabel.text <- gStrings.footerR
+   leftLabel <- Nth(gLayout.responseLabels, 1)
+   leftLabel.text <- gStrings.footerL
+   rightLabel <- Nth(gLayout.responseLabels, 2)
+   rightLabel.text <- gStrings.footerR
+
+   ## For keyboard modes, override footer to show shift keys
+   ## For mouse/touch modes, show the generic footer text
+   if(gLayout.mode.type == "keyboard")
+   {
+     gLayout.footer.text <- "LEFT-SHIFT                                    RIGHT-SHIFT"
+   } else {
+     gLayout.footer.text <- gStrings.footer
+   }
 
    ## Show cursor only for mousetarget mode (need to click on targets)
    ## Hide cursor for keyboard, mousebutton, and touchtarget modes
-   if(gParams.responsemode == "mousetarget")
+   if(gLayout.mode.type == "mousetarget")
    {
      ShowCursor(1)
    } else {
@@ -487,6 +497,7 @@ define DoInstructions()
    ## Position stimuli below the textbox (textbox ends at ~170, place stimuli at ~300)
    ycenter <- 300
    fixation <- EasyLabel("+",gVideoWidth/2,ycenter,gWin,40)
+   ## First page shows typical case: circle left, square right (matching response labels)
    stim1 <- Circle(gVideoWidth/2-200, ycenter,75,MakeColor("red"),1)
    stim2 <- Square(gVideoWidth/2+200, ycenter,150,MakeColor("red"),1)
    AddObject(stim1,gWin)
@@ -494,6 +505,7 @@ define DoInstructions()
    Draw()
    WaitForLayoutResponse(gLayout)
 
+   ## Second page shows oddball case: circle right, square left
    tb.text <- gInst2text
    stim1.x <- gVideoWidth/2+200
    stim2.x <- gVideoWidth/2-200

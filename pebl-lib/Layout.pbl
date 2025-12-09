@@ -186,17 +186,17 @@ define WaitForLayoutResponse(layout, timeout: 0)
         }
     } elseif(mode.type == "mousetarget")
     {
-        ## Mouse target mode - wait for click on response labels
-        ## Create key list matching number of labels (1, 2, 3, ...)
-        numLabels <- Length(layout.responseLabels)
-        keylist <- Sequence(1, numLabels, 1)
+        ## Mouse target mode - wait for click on response border rectangles
+        ## Create key list matching number of borders (1, 2, 3, ...)
+        numBorders <- Length(layout.responseBorders)
+        keylist <- Sequence(1, numBorders, 1)
 
         if(timeout==0)
 	{
-          resp <- WaitForClickOnTarget(layout.responseLabels, keylist)
+          resp <- WaitForClickOnTarget(layout.responseBorders, keylist)
 	}else{
 
-          resp <- WaitForClickOnTargetWithTimeout(layout.responseLabels, keylist,timeout)
+          resp <- WaitForClickOnTargetWithTimeout(layout.responseBorders, keylist,timeout)
 	}
 
         if(resp != "<timeout>")
@@ -939,9 +939,9 @@ define CreateResponseLabels(layout, fontSize)
             AddObject(border, win)
             PushOnEnd(borders, border)
 
-            ## Label with transparent background (border provides visual)
+            ## Label with black text on light grey background (button-style)
             labelFont <- MakeFont(gPEBLBaseFont, 0, fontSize,
-                                  fgcol, MakeColor("lightgray"), 0)
+                                  MakeColor("black"), MakeColor("lightgray"), 0)
         } else {
             ## Keyboard modes: simple transparent label
             labelFont <- MakeFont(gPEBLBaseFont, 0, fontSize,

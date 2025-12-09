@@ -1,9 +1,17 @@
+## PEBL Simon Task Version 2.0
+## Migrated to Layout & Response System (2025)
+##
+## For help installing, running, or interpreting data from this test,
+## please email the pebl-list: pebl-list@lists.sourceforge.net
+
 define Start(p)
 {
+  ## Initialize upload system (works for both online and native)
+  InitializeUpload()
 
   gScriptName <- "PEBL Simon Task"
 
-   gWin <- MakeWindow("BLACK")
+  gWin <- MakeWindow("BLACK")
 
   if(gSubNum+""=="0")
    {
@@ -16,219 +24,483 @@ define Start(p)
   parpairs <- [["reps",10],  ##number of repetitions of the (10-stimulus) design
                ["targsize",50],  ##radius, in pixels, of target circles
                ["leftcolor","red"],
-	       ["rightcolor","blue"]
+	       ["rightcolor","blue"],
+	       ["responsemode","auto"],
+	       ["practicetrials",10]  ##number of practice trials before main test
                 ]
 
   gParams <- CreateParameters(parpairs,gParamFile)
 
+  ## Create Layout & Response System (initial creation to get response mode)
+  gLayout <- CreateLayout("simon", gWin, gParams)
+  gLayout.header.visible <- 0  ## Hide header initially, show during trials
+  gLayout.footer.visible <- 1  ## Footer with response labels
 
-   gInstructions <-EasyTextBox("",50,20,gWin,18,gVideoWidth-100,200)
-   gInstructions.text <-gStrings.inst1
+  ## Customize response labels to include color information
+  ## Mousetarget: "click for [color]"
+  ## Keyboard/Mousebutton: "[original label] ([color])" to preserve key/button info
+  llab <- First(gLayout.responseLabels)
+  rlab <- Second(gLayout.responseLabels)
 
+  if(gLayout.responseMode.type == "mousetarget")
+  {
+     llab.text <- "click for " + gParams.leftcolor
+     rlab.text <- "click for " + gParams.rightcolor
+  } else {
+     ## Append color info to existing label (preserves key names like "LEFT-SHIFT")
+     llab.text <- llab.text + " (" + gParams.leftcolor + ")"
+     rlab.text <- rlab.text + " (" + gParams.rightcolor + ")"
+  }
+  Draw()
 
-   ShowCursor(0)
-   gSleepEasy <- 1
+  ## Create instruction textbox with mode-specific continuation message
+  gInstructions <-EasyTextBox("",50,20,gWin,18,gVideoWidth-100,200)
 
-   MakeDirectory("data")
+  ## Determine continuation message based on response mode
+  continueMsg <- ""
+  if(gLayout.responseMode.type == "mousetarget")
+  {
+     continueMsg <- gStrings.continue_mousetarget
+  } elseif(gLayout.responseMode.type == "mousebutton") {
+     continueMsg <- gStrings.continue_mousebutton
+  } else {
+     ## Keyboard modes
+     continueMsg <- gStrings.continue_keyboard
+  }
 
-   gFileOut <- GetNewDataFile(gSubNum,gWin,"simon","csv",
-           "subnum,trial,type,pos,compatible,resp,corr,time,rt")
+  gInstructions.text <- gStrings.inst1 + " " + continueMsg
 
-   ##This controls how many times through the 10-stimulus trial set we go
-   reps <- gParams.reps
+  ## Show cursor for mousetarget mode, hide for others
+  if(gLayout.responseMode.type == "mousetarget")
+  {
+     ShowCursor(1)
+  } else {
+     ShowCursor(0)
+  }
+  gSleepEasy <- 1
 
-   ##Create the stimulus sequence:
+  MakeDirectory("data")
 
-   ##xpos is the irrelevant dimension, stim is red/blue
-   xpos <- [-200,-100,-50,0,50,100,200]
-   stim <- [1,2]
-   trialbase <- DesignFullCounterbalance(xpos,stim)
+  gFileOut <- GetNewDataFile(gSubNum,gWin,"simon","csv",
+          "subnum,trial,type,pos,compatible,resp,corr,abstime,time,rt")
 
-   ##repeat the location/stimulus pairs and shuffle:
-   stim <- Shuffle(RepeatList(trialbase,reps))
-   length <- Length(stim)
+  ##This controls how many times through the 10-stimulus trial set we go
+  reps <- gParams.reps
 
-   ##Colors and shapes of the left/right stimuli:
-   leftcol <- MakeColor(gParams.leftcolor)
-   rightcol <- MakeColor(gParams.rightcolor)
-   stimA <- Circle(0,0,gParams.targsize,leftcol,1)
-   stimB <- Circle(0,0,gParams.targsize,rightcol,1)
+  ##Create the stimulus sequence:
 
-   AddObject(stimA,gWin)
-   AddObject(stimB,gWin)
-   Move(stimA,gVideoWidth/2-200,350)
-   Move(stimB,gVideoWidth/2+200,350)
+  ##xpos is the irrelevant dimension, stim is red/blue
+  xpos <- [-200,-100,-50,0,50,100,200]
+  stim <- [1,2]
+  trialbase <- DesignFullCounterbalance(xpos,stim)
 
+  ##repeat the location/stimulus pairs and shuffle:
+  stim <- Shuffle(RepeatList(trialbase,reps))
+  length <- Length(stim)
 
+  ##Colors and shapes of the left/right stimuli:
+  leftcol <- MakeColor(gParams.leftcolor)
+  rightcol <- MakeColor(gParams.rightcolor)
+  stimA <- Circle(0,0,gParams.targsize,leftcol,1)
+  stimB <- Circle(0,0,gParams.targsize,rightcol,1)
 
-   foot1 <- EasyLabel(gStrings.footer1,gVideoWidth/2,gVideoHeight/2+200,gWin,22)
-   foot2 <- EasyLabel("   "+gParams.leftcolor+"                                                 "+gParams.rightcolor,gVideoWidth/2,gVideoHeight/2+230,gWin,22)
-   Draw()
-   Hide(stimA)
-   Hide(stimB)
-   Move(stimA,gVideoWidth/2,gVideoHeight/2)
-   Move(stimB,gVideoWidth/2,gVideoHeight/2)
+  AddObject(stimA,gWin)
+  AddObject(stimB,gWin)
+  ## Position reference stimuli at layout center vertically
+  ## Horizontally offset left and right
+  Move(stimA,gLayout.centerX-200,gLayout.centerY)
+  Move(stimB,gLayout.centerX+200,gLayout.centerY)
+
+  Draw()
+
+  ## Create a "Continue" button for mouse/touch modes
+  ## Position it below the response zone, in the footer area
+  continueY <- gLayout.zones.footer.y + (gLayout.zones.footer.height / 2)
+
+  ## Create backing rectangle for Continue button (same grey as response boxes)
+  gContinueButtonBorder <- Rectangle(gLayout.centerX, continueY, 200, 50, MakeColor("gray"), 1)
+  AddObject(gContinueButtonBorder, gWin)
+  Hide(gContinueButtonBorder)
+
+  gContinueButton <- EasyLabel(gStrings.continue_button, gLayout.centerX, continueY, gWin, 28)
+  gContinueButton.font.bgcolor <- MakeColor("lightgray")
+  gContinueButton.font.fgcolor <- MakeColor("black")
+  Hide(gContinueButton)
 
 ##Do a little initial practice.
-   resp <- ""
-   while(not resp == " ")
-    {
-       resp <- WaitForListKeyPress(["<lshift>","<rshift>"," "])
-       if(resp == "<lshift>")
-        {
-          Hide(stimB)
-          Show(stimA)
-        }else{
-
-          Hide(stimA)
-          Show(stimB)
-        }
+  ## Loop: pressing left/right (or clicking) shows corresponding stimulus
+  ## Spacebar (keyboard/mousebutton) or Continue button (mousetarget) exits practice
+  if(gLayout.responseMode.type == "mousetarget")
+  {
+     ## Mouse/touch mode: show Continue button below instructions
+     ## Both stimuli start visible, clicking response boxes shows corresponding stimulus
+     ## Instructions remain visible until Continue is clicked
+     Show(gContinueButtonBorder)
+     Show(gContinueButton)
      Draw()
-    }
-   Hide(gInstructions)
-   Hide(stimA)
-   Hide(stimB)
 
-   status <- EasyLabel("",gVideoWidth/2,20,gWin,15)
-   fixation <- EasyLabel("+",gVideoWidth/2,gVideoHeight/2,gWin,80)
-   Hide(fixation)
-
-
-  ##Loop through the stimuli.
-   fixation.text <- "+"
-   rts <- []
-   corrs <- []
-   conds <- []
-   compats <- []
-
-   Draw()
-   trial <- 1
-   loop(i,stim)
-   {
-    status.text <- "["+trial +"] of [" + length +"]"
-    type <- Second(i)
-    pos <- First(i)
-    PushonEnd(conds, type+"|"+pos)
-    if(type==1)
+     ## Practice loop: clicking left/right boxes shows stimuli, Continue button exits
+     wait1 <- 1
+     while(wait1)
      {
-      stim <- stimA
-     }else{
-      stim <- stimB
+        pos <- WaitForMouseButton()
+        if(Nth(pos,4)=="<pressed>")
+        {
+           ## Check if Continue button was clicked
+           if(Inside(pos, gContinueButtonBorder))
+           {
+              wait1 <- 0
+           }
+           ## Check if left response box was clicked
+           elseif(Inside(pos, First(gLayout.responseBorders)))
+           {
+              Hide(stimB)
+              Show(stimA)
+              Draw()
+           }
+           ## Check if right response box was clicked
+           elseif(Inside(pos, Second(gLayout.responseBorders)))
+           {
+              Hide(stimA)
+              Show(stimB)
+              Draw()
+           }
+        }
+     }
+     Hide(gContinueButtonBorder)
+     Hide(gContinueButton)
+  } elseif(gLayout.responseMode.type == "mousebutton") {
+     ## Mousebutton mode: loop until middle mouse button pressed
+     ## Left click shows red, right click shows blue, middle button exits
+     resp <- ""
+     while(resp != "continue")
+     {
+        RegisterEvent("<MOUSE_BUTTON_PRESS>", 1, 1, "<EQUAL>", "PracticeMouseHandler", [[stimA, stimB]])
+        resp <- StartEventLoop()
+        ClearEventLoop()
+     }
+  } else {
+     ## Keyboard mode: loop until spacebar pressed
+     ## Left key shows red, right key shows blue
+     resp <- ""
+     while(resp != " ")
+     {
+        resp <- WaitForListKeyPress(Merge([" "], gLayout.responseMode.keys))
+        if(IsMember(resp, gLayout.responseMode.keys))
+        {
+           ## Map to semantic response
+           loop(i, Length(gLayout.responseMode.keys))
+           {
+              if(resp == Nth(gLayout.responseMode.keys, i))
+              {
+                 semResp <- Nth(gLayout.responseMode.semantic, i)
+                 if(semResp == "left")
+                 {
+                    Hide(stimB)
+                    Show(stimA)
+                 } elseif(semResp == "right") {
+                    Hide(stimA)
+                    Show(stimB)
+                 }
+              }
+           }
+        }
+        Draw()
+     }
+  }
+
+  ## After interactive practice, hide and reposition stimuli to center for trials
+  Hide(gInstructions)
+  Hide(stimA)
+  Hide(stimB)
+  Move(stimA,gLayout.centerX,gLayout.centerY)
+  Move(stimB,gLayout.centerX,gLayout.centerY)
+
+  status <- EasyLabel("",gVideoWidth/2,20,gWin,15)
+  fixation <- EasyLabel("+",gLayout.centerX,gLayout.centerY,gWin,80)
+  Hide(fixation)
+
+  ## Practice trials message
+  if(gParams.practicetrials > 0)
+  {
+     gInstructions.text <- gStrings.practice + " " + continueMsg
+     Show(gInstructions)
+
+     ## Show Continue button for mousetarget mode
+     if(gLayout.responseMode.type == "mousetarget")
+     {
+        Show(gContinueButtonBorder)
+        Show(gContinueButton)
+        Draw()
+        WaitForClickOnTarget([gContinueButtonBorder], [1])
+        Hide(gContinueButtonBorder)
+        Hide(gContinueButton)
+     } else {
+        Draw()
+        WaitForAnyKeyPress()
+     }
+     Hide(gInstructions)
+
+     ## Create practice stimulus sequence (subset of conditions)
+     ## Use a random sample from the full trial base
+     practiceStim <- Shuffle(SampleN(trialbase, gParams.practicetrials))
+
+     ## Run practice trials
+     fixation.text <- "+"
+     Draw()
+
+     loop(i, Sequence(1, gParams.practicetrials, 1))
+     {
+        status.text <- gStrings.practice_label + " ["+i +"] " + gStrings.of + " [" + gParams.practicetrials +"]"
+        trialData <- Nth(practiceStim, i)
+        type <- Second(trialData)
+        pos <- First(trialData)
+
+        if(type==1)
+        {
+          stimX <- stimA
+        }else{
+          stimX <- stimB
+        }
+
+        Move(stimX,gLayout.centerX+pos,gLayout.centerY)
+
+        Show(fixation)
+        Draw()
+        Wait(400)
+        Hide(fixation)
+        Draw()
+        Wait(200+Random()*200)
+        Show(stimX)
+        Draw()
+        time0 <- GetTime()
+        resp <- WaitForLayoutResponse(gLayout)
+        time2 <- GetTime()
+
+        corr <- (resp=="left" and type==1 ) or (resp=="right" and type==2)
+        Hide(stimX)
+
+        side <-(Abs(Floor(pos/25)) >1) * Sign(pos)
+        compat <- ((type -1)*2-1) * side
+
+        ## Record practice trial with PRACTICE prefix
+        FilePrint(gFileOut,gSubNum+",PRACTICE"+i + "," + type + "," + pos + "," +
+                compat+ "," + resp + "," +corr + "," + GetTime() + "," + time0 +  ","  + (time2-time0))
+
+        Draw()
      }
 
-     Move(stim,gVideoWidth/2+pos,gVideoHeight/2)
+     ## Show "Practice is complete" message
+     Hide(status)
+     gInstructions.text <- gStrings.practice_complete + " " + continueMsg
+     Show(gInstructions)
 
-     Show(fixation)
-     Draw()
-     Wait(400)
-     Hide(fixation)
-     Draw()
-     Wait(200+Random()*200)
-     Show(stim)
-     Draw()
-     time0 <- GetTime()
-     resp <- WaitForListKeyPress(["<lshift>","<rshift>"])
-     time2 <- GetTime()
-
-     corr <- (resp=="<lshift>" and type==1 ) or(resp=="<rshift>" and type==2)
-     Hide(stim)
-
-    ##1 if compatible, -1 if incompatible, 0 if neutral.
-
-    side <-(Abs(Floor(pos/25)) >1) * Sign(pos)
-
-    compat <- ((type -1)*2-1) * side  ##make 0 and +/- 50 neutral
-
-    PushOnEnd(compats,compat)
-
-     if(Mod(trial,50)==0)
-      {
-
-        status.text <-gStrings.break
+     ## Show Continue button for mousetarget mode
+     if(gLayout.responseMode.type == "mousetarget")
+     {
+        Show(gContinueButtonBorder)
+        Show(gContinueButton)
         Draw()
-        WaitForKeyPress(" ")
+        WaitForClickOnTarget([gContinueButtonBorder], [1])
+        Hide(gContinueButtonBorder)
+        Hide(gContinueButton)
+     } else {
+        Draw()
+        WaitForAnyKeyPress()
+     }
+     Hide(gInstructions)
+     Show(status)
+  }
 
-      }
-     Draw()
+ ##Loop through the main test stimuli.
+  fixation.text <- "+"
+  rts <- []
+  corrs <- []
+  conds <- []
+  compats <- []
 
-     FilePrint(gFileOut,gSubNum+","+trial + "," + type + "," + pos + "," +
-             compat+ "," + resp + "," +corr + "," + time0 +  ","  + (time2-time0))
+  Draw()
+  trial <- 1
+  loop(i,stim)
+  {
+   status.text <- "["+trial +"] of [" + length +"]"
+   type <- Second(i)
+   pos <- First(i)
+   PushonEnd(conds, type+"|"+pos)
+   if(type==1)
+    {
+     stim <- stimA
+    }else{
+     stim <- stimB
+    }
 
-     rts <- Append(rts,(time2-time0))
-     corrs <- Append(corrs,corr)
-     trial <- trial +1
-   }
+    Move(stim,gLayout.centerX+pos,gLayout.centerY)
 
-    gInstructions.text <- gStrings.debrief
-    Show(gInstructions)
+    Show(fixation)
+    Draw()
+    Wait(400)
+    Hide(fixation)
+    Draw()
+    Wait(200+Random()*200)
+    Show(stim)
+    Draw()
+    time0 <- GetTime()
+    resp <- WaitForLayoutResponse(gLayout)
+    time2 <- GetTime()
 
+    corr <- (resp=="left" and type==1 ) or (resp=="right" and type==2)
+    Hide(stim)
+
+   ##1 if compatible, -1 if incompatible, 0 if neutral.
+
+   side <-(Abs(Floor(pos/25)) >1) * Sign(pos)
+
+   compat <- ((type -1)*2-1) * side  ##make 0 and +/- 50 neutral
+
+   PushOnEnd(compats,compat)
+
+    if(Mod(trial,50)==0)
+     {
+       ## Show mode-specific break message
+       if(gLayout.responseMode.type == "mousetarget")
+       {
+          status.text <- gStrings.break + " " + gStrings.break_mousetarget
+          Show(gContinueButtonBorder)
+          Show(gContinueButton)
+          Draw()
+          WaitForClickOnTarget([gContinueButtonBorder], [1])
+          Hide(gContinueButtonBorder)
+          Hide(gContinueButton)
+       } elseif(gLayout.responseMode.type == "mousebutton") {
+          status.text <- gStrings.break + " " + gStrings.break_mousebutton
+          Draw()
+          WaitForLayoutResponse(gLayout, 0)
+       } else {
+          status.text <- gStrings.break + " " + gStrings.break_keyboard
+          Draw()
+          WaitForLayoutResponse(gLayout, 0)
+       }
+     }
     Draw()
 
+    FilePrint(gFileOut,gSubNum+","+trial + "," + type + "," + pos + "," +
+            compat+ "," + resp + "," +corr + "," + GetTime() + "," + time0 +  ","  + (time2-time0))
 
-   ##Compute some summary stats.
-   rtsum  <-SummaryStats(rts,conds)
-   corrsum <-SummaryStats(corrs,conds)
-   ##reorder these so they are in the proper order.
-   rtsum<- SortBy(rtSum,[2,1,3,4,6,7,5,9,8,10,11,13,14,12])
-   corrsum<- SortBy(corrSum,[2,1,3,4,6,7,5,9,8,10,11,13,14,12])
+    rts <- Append(rts,(time2-time0))
+    corrs <- Append(corrs,corr)
+    trial <- trial +1
+  }
 
-   rtsumComp  <-SummaryStats(rts,compats)
-   corrsumComp <-SummaryStats(corrs,compats)
+   gInstructions.text <- gStrings.debrief
+   Show(gInstructions)
 
-
-
-   sumFile <- GetNewDataFile(gSubNum,gWin,"simon-summary","txt","")
-   FilePrint(sumfile,"PEBL Simon Test: Summary data")
-   FilePrint(sumfile,GetPEBLVersion())
-   FilePrint(sumfile,TimeStamp()+CR(2))
+   Draw()
 
 
+  ##Compute some summary stats.
+  rtsum  <-SummaryStats(rts,conds)
+  corrsum <-SummaryStats(corrs,conds)
+  ##reorder these so they are in the proper order.
+  rtsum<- SortBy(rtSum,[2,1,3,4,6,7,5,9,8,10,11,13,14,12])
+  corrsum<- SortBy(corrSum,[2,1,3,4,6,7,5,9,8,10,11,13,14,12])
 
-   FilePrint(sumfile,"Response times (by compatibility):")
-   FilePrint(sumfile,"condition  N   median  mean    sd")
-   FilePrint(sumfile,"---------------------------------")
-
-    loop(i,rtsumComp)
-     {
-       FilePrint(sumfile,PrintList(i))
-     }
-
-
-   FilePrint(sumfile,CR(2)+"Response times (by position/Condition):")
-   FilePrint(sumfile,"condition  N   median  mean    sd")
-   FilePrint(sumfile,"---------------------------------")
-
-    loop(i,rtsum)
-     {
-       FilePrint(sumfile,PrintList(i))
-     }
+  rtsumComp  <-SummaryStats(rts,compats)
+  corrsumComp <-SummaryStats(corrs,compats)
 
 
 
-   FilePrint(sumfile,CR(2)+"Accuracy (By compatibility):")
-   FilePrint(sumfile,"condition  N   median  mean    sd")
-   FilePrint(sumfile,"---------------------------------")
-
-    loop(i,corrsumComp)
-     {
-       FilePrint(sumfile,PrintList(i))
-     }
+  sumFile <- GetNewDataFile(gSubNum,gWin,"simon-summary","txt","")
+  FilePrint(sumfile,"PEBL Simon Test: Summary data")
+  FilePrint(sumfile,GetPEBLVersion())
+  FilePrint(sumfile,TimeStamp()+CR(2))
 
 
-   FilePrint(sumfile,CR(2)+"Accuracy (By position/condition):")
-   FilePrint(sumfile,"condition  N   median  mean    sd")
-   FilePrint(sumfile,"---------------------------------")
 
-    loop(i,corrsum)
-     {
-       FilePrint(sumfile,PrintList(i))
-     }
+  FilePrint(sumfile,"Response times (by compatibility):")
+  FilePrint(sumfile,"condition  N   median  mean    sd")
+  FilePrint(sumfile,"---------------------------------")
 
-   WaitForAnyKeyPress()
+   loop(i,rtsumComp)
+    {
+      FilePrint(sumfile,PrintList(i))
+    }
+
+
+  FilePrint(sumfile,CR(2)+"Response times (by position/Condition):")
+  FilePrint(sumfile,"condition  N   median  mean    sd")
+  FilePrint(sumfile,"---------------------------------")
+
+   loop(i,rtsum)
+    {
+      FilePrint(sumfile,PrintList(i))
+    }
+
+
+
+  FilePrint(sumfile,CR(2)+"Accuracy (By compatibility):")
+  FilePrint(sumfile,"condition  N   median  mean    sd")
+  FilePrint(sumfile,"---------------------------------")
+
+   loop(i,corrsumComp)
+    {
+      FilePrint(sumfile,PrintList(i))
+    }
+
+
+  FilePrint(sumfile,CR(2)+"Accuracy (By position/condition):")
+  FilePrint(sumfile,"condition  N   median  mean    sd")
+  FilePrint(sumfile,"---------------------------------")
+
+   loop(i,corrsum)
+    {
+      FilePrint(sumfile,PrintList(i))
+    }
+
+  ## Upload data files (works online, no-op on native)
+  UploadFile(gSubNum, "data/" + gSubNum + "/simon-" + gSubNum + ".csv")
+  UploadFile(gSubNum, "data/" + gSubNum + "/simon-summary-" + gSubNum + ".txt")
+
+  WaitForAnyKeyPress()
 
 }
 
 
+## Helper function for mousebutton mode practice - handles mouse clicks
+## Shows stimulus when clicked, middle button exits
+define PracticeMouseHandler(targets, evt:0)
+{
+   buttonNum <- Third(evt)
+   result <- "<CONTINUE>"
+
+   ## Middle mouse button (button 2) exits practice
+   if(buttonNum == 2)
+   {
+      result <- "continue"
+   }
+   ## Check if button matches our response mode buttons (left/right)
+   elseif(IsMember(buttonNum, gLayout.responseMode.buttons))
+   {
+      ## Map button to semantic response
+      loop(i, Length(gLayout.responseMode.buttons))
+      {
+         if(buttonNum == Nth(gLayout.responseMode.buttons, i))
+         {
+            semResp <- Nth(gLayout.responseMode.semantic, i)
+            if(semResp == "left")
+            {
+               Hide(Second(targets))
+               Show(First(targets))
+            } elseif(semResp == "right") {
+               Hide(First(targets))
+               Show(Second(targets))
+            }
+         }
+      }
+      Draw()
+   }
+
+   return(result)
+}
 
 
 define GetStrings(lang)

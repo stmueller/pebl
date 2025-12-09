@@ -219,17 +219,15 @@ bool PFont::SetProperty(std::string name, Variant v)
     
     else if (name == "FGCOLOR")
         {
-            // Store the variant in property map first
-            PEBLObjectBase::SetProperty(name, v);
-            // Then call virtual SetFontColor so platform-specific overrides are triggered
+            // Extract the new color and update our internal color object
+            // Don't call PEBLObjectBase::SetProperty - the property map already points to mFontColor
             PColor newColor = *(dynamic_cast<PColor*>(v.GetComplexData()->GetObject().get()));
             SetFontColor(newColor);
         }
     else if (name == "BGCOLOR")
         {
-            // Store the variant in property map first
-            PEBLObjectBase::SetProperty(name, v);
-            // Then call virtual SetBackgroundColor so platform-specific overrides are triggered
+            // Extract the new color and update our internal color object
+            // Don't call PEBLObjectBase::SetProperty - the property map already points to mBackgroundColor
             PColor newColor = *(dynamic_cast<PColor*>(v.GetComplexData()->GetObject().get()));
             SetBackgroundColor(newColor);
         }
@@ -284,14 +282,20 @@ void PFont::SetFontSize(const int size)
 
 void PFont::SetFontColor(const PColor color)
 {
-    // Update the member variable by modifying the PColor object in place
-    *mFontColor = color;
+    // Update individual color components to avoid problematic copy assignment
+    mFontColor->SetRed(color.GetRed());
+    mFontColor->SetGreen(color.GetGreen());
+    mFontColor->SetBlue(color.GetBlue());
+    mFontColor->SetAlpha(color.GetAlpha());
 }
 
 void PFont::SetBackgroundColor(const PColor color)
 {
-    // Update the member variable by modifying the PColor object in place
-    *mBackgroundColor = color;
+    // Update individual color components to avoid problematic copy assignment
+    mBackgroundColor->SetRed(color.GetRed());
+    mBackgroundColor->SetGreen(color.GetGreen());
+    mBackgroundColor->SetBlue(color.GetBlue());
+    mBackgroundColor->SetAlpha(color.GetAlpha());
 }
 
 void PFont::SetAntiAliased(const bool aa)  

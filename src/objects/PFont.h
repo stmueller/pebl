@@ -83,8 +83,8 @@ public:
     virtual std::string GetFontFileName()     const {return mFontFileName;};
     virtual int GetFontStyle()          const {return mFontStyle;};
     virtual int GetFontSize()           const {return mFontSize;};
-    virtual PColor GetFontColor()       const {return *mFontColor;};
-    virtual PColor GetBackgroundColor() const {return *mBackgroundColor;};
+    virtual PColor GetFontColor()       const;
+    virtual PColor GetBackgroundColor() const;
     virtual bool GetAntiAliased()       const {return mAntiAliased;};
 
 
@@ -95,14 +95,18 @@ public:
     virtual bool IsUnderlineFont() const;
 
 protected:
-    virtual  std::ostream & SendToStream(std::ostream& out) const;    
-    
+    virtual  std::ostream & SendToStream(std::ostream& out) const;
+
+    // Helper methods to get color pointers from property system (like PDrawObject)
+    PColor* GetFontColorPtr() const;
+    PColor* GetBackgroundColorPtr() const;
+
     std::string  mFontFileName;            // Filename of font file.
     int  mFontStyle;                 // Bold, underlined, italics, normal, etc.  These use PFontStyle constants or'ed together
     int  mFontSize;                  // Size, in 'points'
 
-    counted_ptr<PColor>  mFontColor;              // Foreground color, using PColor, an RGBA value
-    counted_ptr<PColor>  mBackgroundColor;        // Background color, using PColor, an RGBA value (use (0,0,0,0) for tranparent background
+    // Colors are stored ONLY in property map (like PDrawObject, PCanvas, PWindow)
+    // No member variables - eliminates double ownership bug
     bool mAntiAliased;               // Whether the text is anti-aliased, alpha-blended with background (slow but nice)    
 };
 

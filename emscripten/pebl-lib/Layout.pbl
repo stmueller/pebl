@@ -57,6 +57,7 @@ define CreateLayout(testName, win, params:0)
     layout.config <- config
     layout.scale <- scale
     layout.responseMode <- responseMode
+    layout.params <- params  ## Store params for access in CreateResponseLabels
 
     ## Calculate zone positions
     layout <- CalculateLayoutZones(layout)
@@ -186,17 +187,17 @@ define WaitForLayoutResponse(layout, timeout: 0)
         }
     } elseif(mode.type == "mousetarget")
     {
-        ## Mouse target mode - wait for click on response labels
-        ## Create key list matching number of labels (1, 2, 3, ...)
-        numLabels <- Length(layout.responseLabels)
-        keylist <- Sequence(1, numLabels, 1)
+        ## Mouse target mode - wait for click on response border rectangles
+        ## Create key list matching number of borders (1, 2, 3, ...)
+        numBorders <- Length(layout.responseBorders)
+        keylist <- Sequence(1, numBorders, 1)
 
         if(timeout==0)
 	{
-          resp <- WaitForClickOnTarget(layout.responseLabels, keylist)
+          resp <- WaitForClickOnTarget(layout.responseBorders, keylist)
 	}else{
 
-          resp <- WaitForClickOnTargetWithTimeout(layout.responseLabels, keylist,timeout)
+          resp <- WaitForClickOnTargetWithTimeout(layout.responseBorders, keylist,timeout)
 	}
 
         if(resp != "<timeout>")
@@ -889,15 +890,39 @@ define CreateLayoutElements(layout)
 
 define CreateResponseLabels(layout, fontSize)
 {
-    ## Creates response labels based on response mode
+    ## Creates response labels based on response mode with semantic-first architecture
     ## Modifies layout object in-place
     ##
     ## Returns modified layout
 
     mode <- layout.responseMode
-    numLabels <- Length(mode.labels)
     win <- layout.win
     fgcol <- layout.fgcol  ## Use auto-detected foreground color
+
+    ## Get semantic labels from params, or default to mode semantic values
+    semanticLabels <- []
+    if(layout.params != 0)
+    {
+        if(PropertyExists(layout.params, "responselabels"))
+        {
+            semanticLabels <- layout.params.responselabels
+        }
+    }
+
+    ## If not provided, default to capitalized semantic values
+    if(Length(semanticLabels) == 0)
+    {
+        loop(sem, mode.semantic)
+        {
+            PushOnEnd(semanticLabels, Uppercase(sem))
+        }
+    }
+
+    ## Format labels based on mode type
+    displayLabels <- FormatLabelsForMode(mode, semanticLabels)
+
+    ## Now create the actual label objects
+    numLabels <- Length(displayLabels)
 
     ## Calculate spacing
     spacing <- win.width / (numLabels + 1)
@@ -927,7 +952,7 @@ define CreateResponseLabels(layout, fontSize)
         {
             ## For mousetarget: create border rectangle first
             ## Estimate label width (approximate: 10 pixels per character)
-            labelText <- Nth(mode.labels, i)
+            labelText <- Nth(displayLabels, i)
             estimatedWidth <- Round(StringLength(labelText) * fontSize * 0.6)
             estimatedHeight <- fontSize + 10
 
@@ -939,16 +964,16 @@ define CreateResponseLabels(layout, fontSize)
             AddObject(border, win)
             PushOnEnd(borders, border)
 
-            ## Label with transparent background (border provides visual)
+            ## Label with black text on light grey background (button-style)
             labelFont <- MakeFont(gPEBLBaseFont, 0, fontSize,
-                                  fgcol, MakeColor("lightgray"), 0)
+                                  MakeColor("black"), MakeColor("lightgray"), 0)
         } else {
             ## Keyboard modes: simple transparent label
             labelFont <- MakeFont(gPEBLBaseFont, 0, fontSize,
                                   fgcol, bgcolor, 0)
         }
 
-        label <- MakeLabel(Nth(mode.labels, i), labelFont)
+        label <- MakeLabel(Nth(displayLabels, i), labelFont)
         AddObject(label, win)
         Move(label, spacing * i, centerY)
 
@@ -958,7 +983,65 @@ define CreateResponseLabels(layout, fontSize)
     layout.responseLabels <- labels
     layout.responseBorders <- borders  ## Store borders for cleanup/styling
 
+    ## Set footer to pure semantic labels
+    layout.footer.text <- JoinStrings(semanticLabels, " | ")
+
     return(layout)
+}
+
+
+define FormatLabelsForMode(mode, semanticLabels)
+{
+    ## Formats semantic labels based on response mode type
+    ## Returns list of display labels
+    ##
+    ## Args:
+    ##   mode: Response mode object
+    ##   semanticLabels: List of semantic label strings (e.g., ["SAME", "DIFFERENT"])
+    ##
+    ## Returns:
+    ##   List of formatted display labels
+
+    displayLabels <- []
+
+    if(mode.type == "keyboard")
+    {
+        ## Format: "KEY (semantic)"
+        loop(i, Length(mode.keys))
+        {
+            key <- FormatKeyName(Nth(mode.keys, i))
+            semantic <- Nth(semanticLabels, i)
+            PushOnEnd(displayLabels, key + " (" + semantic + ")")
+        }
+    }
+    elseif(mode.type == "mousebutton")
+    {
+        ## Format: "BUTTON (semantic)"
+        loop(i, Length(mode.buttons))
+        {
+            buttonNum <- Nth(mode.buttons, i)
+            buttonName <- GetButtonName(buttonNum)
+            semantic <- Nth(semanticLabels, i)
+            PushOnEnd(displayLabels, buttonName + " (" + semantic + ")")
+        }
+    }
+    elseif(mode.type == "mousetarget")
+    {
+        ## Format: Just semantic (target is self-evident)
+        displayLabels <- semanticLabels
+    }
+    elseif(mode.type == "singlekey")
+    {
+        ## Single key modes: show semantic only
+        displayLabels <- semanticLabels
+    }
+    else
+    {
+        ## Unknown mode type - default to semantic only
+        displayLabels <- semanticLabels
+    }
+
+    return(displayLabels)
 }
 
 
@@ -1046,4 +1129,88 @@ define GetDefaultResponseModes()
     modes.mousetarget.semantic <- ["left", "right"]
 
     return(modes)
+}
+
+## ================================================================
+## Semantic Label Formatting Functions
+## ================================================================
+
+define FormatKeyName(key)
+{
+    ## Convert key codes to display names
+    result <- ""
+
+    if(key == "<lshift>")
+    {
+        result <- "LEFT-SHIFT"
+    }
+    elseif(key == "<rshift>")
+    {
+        result <- "RIGHT-SHIFT"
+    }
+    elseif(key == "<space>")
+    {
+        result <- "SPACEBAR"
+    }
+    elseif(key == "<return>")
+    {
+        result <- "ENTER"
+    }
+    elseif(key == "<left>")
+    {
+        result <- "←"
+    }
+    elseif(key == "<right>")
+    {
+        result <- "→"
+    }
+    elseif(key == "<up>")
+    {
+        result <- "↑"
+    }
+    elseif(key == "<down>")
+    {
+        result <- "↓"
+    }
+    else
+    {
+        result <- Uppercase(key)
+    }
+
+    return(result)
+}
+
+define GetButtonName(buttonNum)
+{
+    ## Button numbers: 1=LEFT, 2=MIDDLE, 3=RIGHT
+    buttonNames <- ["LEFT-CLICK", "MIDDLE-CLICK", "RIGHT-CLICK"]
+    result <- ""
+
+    if(buttonNum > 0 and buttonNum <= Length(buttonNames))
+    {
+        result <- Nth(buttonNames, buttonNum)
+    } else {
+        result <- "BUTTON-" + buttonNum
+    }
+
+    return(result)
+}
+
+define JoinStrings(list, separator)
+{
+    ## Join list of strings with separator
+    result <- ""
+
+    if(Length(list) == 0)
+    {
+        result <- ""
+    } else {
+        result <- First(list)
+        loop(i, Sequence(2, Length(list), 1))
+        {
+            result <- result + separator + Nth(list, i)
+        }
+    }
+
+    return(result)
 }

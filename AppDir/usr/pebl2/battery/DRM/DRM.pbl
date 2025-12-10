@@ -1,0 +1,162 @@
+define Start(p)
+{
+
+
+  parpairs <- [["prestime",1500],
+               ["isi",250],
+	       ["numlists",24],
+	       ["samplelists",0],
+	       ["doratings",0]  ##do pleasantness ratings?
+              ]
+
+
+  gParams <- CreateParameters(parpairs,gParamFile)
+
+  gWin <- Makewindow("black")
+  gSleepEasy <- 1
+  if(gSubNum+""=="0")
+  {
+    gSubNum <- GetSubNum(gWin)
+  }
+
+
+##make data files.
+  gstudylog <- GetNewdataFile(gSubNum,gWin,"drm-study","csv","sub,block,stimorder,target,item,resp,abstime,rt")
+  gFileOut <- GetNewdataFile(gSubNum,gWin,"drm","csv","subnum,block,trial,target,resp,saidtarget,responlist,presorder,abstime,rt")
+
+
+
+  stimall <- ReadCSV("drm-words.csv")
+  ##shuffle the lists so we pick out a random subset.
+  if(gParams.samplelists)
+  {
+    stimall <- Shuffle(stimall)
+  }
+ 
+  numlist <- Bound(gParams.numlists,1,Length(stimall))
+  stim <- Shuffle(Sublist(stimall,1,numlist))
+  
+
+  instructions <- "In this test, you will be shown a set of words you will be asked to remember.  Pay attention to each word, because you will be asked to recall it later."
+
+if(gParams.doratings)
+  {
+   instructions <- instructions + " For each word, judge whether this word is pleasant or unpleasant. Press OK to begin"
+  }
+
+  Messagebox(instructions,gWin)
+ 
+  gBlock <- 1
+  loop(i, Shuffle(stim))
+  {
+     stiminorder <- PresentStim(i)
+     DoRecall(stiminorder)
+     gBlock <- gBlock + 1
+  }
+
+  MessageBox("Thank you for taking part in this study.",gWin)
+}
+  
+define DoRecall(stimuli)
+{
+ 
+   target <- First(stimuli)
+   presStim <- Second(stimuli)
+
+   header <- EasyLabel("Please type all of the list words you can remember",gVideoWidth/2,100,gWin,30)
+  entry <-  EasyTextBox("",gVideoWidth/2-200,gVideoHeight/2,gWin,36,400,50)
+
+  footer <- Easylabel("Type response and hit enter to continue. Enter empty response to finish",gVideoWidth/2,gVideoHeight/2+100,gWin,14)
+
+  Draw()
+  cont <- 1
+  order <- 1
+  resp <- 1
+  while(cont)
+  {
+
+     
+        ##filter box
+	time1 <- GetTime()
+	resp <- Lowercase(GetInput(entry,"<return>"))
+
+	if(resp=="")
+	{
+	  cont <- 0
+        } else {
+	time2 <- GetTime()
+	entry.text <- ""
+	saidtarget <- (resp==target)
+
+
+	onlist <- IsMember(resp,presStim)
+
+	if(onlist)
+	{
+	   presorder <- Lookup(resp,presstim,Sequence(1,Length(presStim),1))
+        }else{
+	   presorder <- -1
+        }
+
+	FilePrint(gFileOut,gSubNum+","+ gBlock+","+order+","+target+","+resp+","+saidtarget+","+onlist+","+presorder+","+time1+","+(time2-time1))
+
+       Draw()
+       order <- order + 1     
+        }
+     
+    }
+
+  }
+
+
+define PresentStim(stimuli)
+{
+  ##The first word is the target word and is never presented.
+  target <- First(stimuli)
+  stim <-  Shuffle(SubList(stimuli,2,Length(stimuli)-1))
+
+ if(gParams.doratings)
+  {
+    headertext <-"Judge whether this word is pleasant"
+    pleasant <- MakeButton("Pleasant",gVideoWidth/2-150,gVideoHeight/2+150,gWin,100)
+    unpleasant <- MakeButton("Unpleasant",gVideoWidth/2+150,gVideoHeight/2+150,gWin,100)
+
+  }else {
+    headertext <-"Try to remember each word"
+ }
+   header <- EasyLabel(headertext,gVideoWidth/2,100,gWin,30)
+
+   label <- Easylabel("click here to begin",gVideoWidth/2,gVideoHeight/2,gWin,44)
+
+
+
+  Draw()
+  WaitForClickOnTarget([label],[1])
+  stimid <- 1
+  loop(i, stim)
+  {
+   time1 <- GetTime()
+   label.text <- i
+   Draw()
+
+if(gParams.doratings)
+   {
+    resp <-    WaitForClickOnTarget([pleasant,unpleasant],[1,2])
+    time2 <- GetTime()
+    PushButton(Nth([pleasant,unpleasant],resp),[0,0])
+    rating <- Nth(["p","u"],resp)
+   }else{
+     Wait(gParams.prestime)
+     label.text <- ""
+     Draw()
+     Wait(gParams.isi)
+     rating <- "NA"
+     time2 <- GetTime()
+   }
+    FilePrint(gStudyLog,gSubNum+","+gBlock+","+ stimid +","+ target + ","+i+","+
+                   rating + ","+  time1+","+(time2-time1))
+   stimid <- stimid + 1
+  }
+
+ return [target,stim]
+}

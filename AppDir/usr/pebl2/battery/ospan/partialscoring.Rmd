@@ -1,0 +1,261 @@
+---
+title: "Code to read in and do partial coding on symspan or ospan data files."
+author: "Shane T. Mueller shanem@mtu.edu"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+
+```{r}
+## THe following function is modified from prepdat to handle exclusions.
+#library(prepdat)
+
+file_merge2 <-
+  function (folder_path = NULL,
+            has_header = TRUE,
+            new_header = c(),
+            raw_file_name = NULL,
+            raw_file_name_exclude = "pos"
+            raw_file_extension = NULL,
+            file_name = "dataset.txt",
+            save_table = TRUE,
+            dir_save_table = NULL,
+            notification = TRUE)
+  {
+    if (is.null(folder_path)) {
+      stop("Oops! folder_path was not found. Must enter folder_path")
+    }
+    if (!(has_header %in% c(TRUE, FALSE))) {
+      stop("Oops! has_header is not logical. has_header must be logical")
+    }
+    if (!is.null(raw_file_name) & is.null(raw_file_extension)) {
+      stop("Oops! raw_file_extension is missing.\nPlease provide raw_file_extension")
+    }
+    else if (is.null(raw_file_name) &
+             !is.null(raw_file_extension)) {
+      stop("Oops! raw_file_name is missing.\nPlease provide raw_file_name")
+    }
+    if (!is.null(raw_file_extension)) {
+      if (!(raw_file_extension %in% c("txt", "csv"))) {
+        stop(
+          "Oops! raw_file_extension is not txt or csv.\nraw_file_extension must be txt or csv"
+        )
+      }
+    }
+    extension <-
+      substr(file_name, nchar(file_name) - 3, nchar(file_name))
+    if (!(extension %in% c(".txt", ".csv"))) {
+      stop(paste("Oops!", file_name, "must include txt or csv extension"))
+    }
+    if (is.null(dir_save_table)) {
+      dir_save_table <- folder_path
+    }
+    if (is.null(raw_file_name) & is.null(raw_file_extension)) {
+      file_list <- list.files(path = folder_path, full.names = TRUE)
+    }
+    else if (!is.null(raw_file_name) &
+             !is.null(raw_file_extension)) {
+      file_list <- list.files(
+        path = folder_path,
+        recursive = TRUE,
+        full.names = TRUE,
+        pattern = paste(raw_file_name, ".*\\.", raw_file_extension, sep = "")
+      )
+    }
+    if (length(file_list) == 0) {
+      stop(
+        "Oops! 0 files were found.\nPlease check folder_path, raw_file_name and raw_file_extension"
+      )
+    }
+    if (notification) {
+      if (length(file_list) == 1) {
+        message(paste("Found", length(file_list), "file"))
+      }
+      else {
+        message(paste("Found", length(file_list), "files"))
+      }
+    }
+    
+    ##Identify file types:
+    file_type <- c()
+    f <- 1
+    for (file in file_list) {
+      type <- substr(file, nchar(file) - 3, nchar(file))
+      if (type != ".txt" & type != ".csv") {
+        stop(paste(
+          "Oops",
+          file,
+          "in folder",
+          basename(dirname(file)),
+          "is not in txt or csv format"
+        ))
+      }
+      file_type[f] <- type
+      f <- f + 1
+    }
+    
+    
+    
+    if (".txt" %in% file_type & ".csv" %in% file_type) {
+      stop(
+        "Oops! both txt and csv files were found.\nAll files to merge be should be in the same format"
+      )
+    }
+    i <- 1
+
+    filesadded <- 0
+    for (file in file_list) {
+      ##only process the file if it does not match the exclude string.
+      #print(paste("processing:" ,file))
+      if (!is.null(raw_file_name_exclude))
+      {
+        matchexclude <- grep(raw_file_name_exclude, file)
+
+        if (length(matchexclude) == 0)
+          #no match on exclusion
+        {
+          
+           message("no exclusion matched here.")
+           extension_f <- substr(file, nchar(file) - 3, nchar(file))
+          if (match(file_list[i], file_list) == 1) {
+            if (extension_f == ".txt") {
+              dataset <- read.table(file = file, header = has_header)
+            }
+            else if (extension_f == ".csv") {
+              dataset <- read.csv(file = file, header = has_header)
+            }
+          }
+          if (match(file_list[i], file_list) != 1) {
+            if (extension_f == ".txt") {
+              temp_dataset <- read.table(file = file, header = has_header)
+            }
+            else if (extension_f == ".csv") {
+              temp_dataset <- read.csv(file = file, header = has_header)
+            }
+            filesadded <- filesadded + 1
+            dataset <- rbind(dataset, temp_dataset)
+            rm(temp_dataset)
+          }
+        }else{
+          message(paste("File [",file, "] was excluded based on matching exclusions: [",raw_file_name_exclude,"]",sep=""))
+        }
+      }
+      ##end match on exclusion pattern
+        ##end if on null exclusion
+      i <- i + 1
+    }
+      if (length(new_header) > 0) {
+        if (length(new_header) != dim(dataset)[2]) {
+          stop(
+            "Oops! new_header should be the same length as the number of\ncolumns in the files to be merged"
+          )
+        }
+        else {
+          if (has_header) {
+            if (notification) {
+              message("Found new_header. Replacing existing header with new_header")
+            }
+          }
+          else {
+            if (notification) {
+              message("Adding header according to new_header")
+            }
+          }
+        }
+        colnames(dataset) <- new_header
+      }
+      else if (!has_header) {
+        if (notification) {
+          message(paste("Adding header according to v1:v",
+                        dim(dataset)[2], sep = ""))
+        }
+        colnames(dataset) <- paste("v", 1:dim(dataset)[2], sep = "")
+      }
+      if (save_table) {
+        if (extension == ".txt") {
+          write.table(
+            dataset,
+            file = paste(dir_save_table,
+                         "/", file_name, sep = ""),
+            row.names = FALSE
+          )
+        }
+        else {
+          write.csv(
+            dataset,
+            file = paste(dir_save_table, "/",
+                         file_name, sep = ""),
+            quote = FALSE,
+            row.names = FALSE
+          )
+        }
+        if (notification) {
+          message(paste(filesadded, "files were merged and saved into",
+                        file_name))
+        }
+      }
+      message("file_merge() finished!")
+      return(dataset)
+      
+      
+      
+    }
+  
+
+```
+
+
+
+```{r}
+
+partial_match<- function(string1,string2,sep="")
+{
+   l1 <- as.vector(strsplit(as.character(string1),sep)[[1]])
+   l2 <- as.vector(strsplit(as.character(string2),sep)[[1]])
+   
+   ll1 <- length(l1)
+   ll2 <- length(l2)
+   ##l1 and l2 may be of different lengths; we care about l1 as
+   ##a baseline though.
+   if(ll1 == ll2)
+     {
+     match <- l1==l2
+   }
+  if(ll2>ll1)
+    {
+     match <-  l1 ==  l2[1:length(l1)]
+    } else  { ##l2 is shorter than l1
+
+      match <- rep(F,length(l1))
+      match[1:ll2] <- l1[1:ll2] == l2
+  }
+
+   
+   return (match)
+}
+```
+
+##Ospan example:##
+
+The following processes all relevant ospan files within a 'data' directory.  For symspan, you may need to adjust the file_merge
+arguments and the names of the columns and separator to use.
+
+```{r}
+data <- file_merge2(folder_path="data",
+                   has_header=T,
+                   raw_file_name = "ospan",
+                   raw_file_name_exclude="pos",
+                   raw_file_extension = "csv")
+
+data$partial <- NA
+for(i in 1:nrow(data))
+{
+  data$partial[i] <- mean(partial_match(data$stim[i],data$resp[i]))
+}
+```
+

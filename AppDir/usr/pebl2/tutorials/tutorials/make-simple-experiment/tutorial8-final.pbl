@@ -1,0 +1,127 @@
+define Start(p)
+{
+   gWin <- MakeWindow("black")
+   
+   parPairs <- [["reps",10],
+                ["isi",500],
+                 ["minval",100],
+				 ["maxval",999]]
+				 
+				 
+   gParams <- CreateParameters(parpairs,gParamFile)
+   
+   
+   if(gSubNum+""=="0")
+    {
+      gSubNum <- GetSubNum(gWin)
+    }
+	
+    header <- "subnum,trial,starttime,number,isodd,resp,corr,rt" 
+    gFileOut <- GetNewDataFile(gSubNum,gWin,"evenodd","csv",header)
+   
+   Draw()
+
+  MessageBox("These are the instructions for the test.  In this test, you must decide whether a number is odd or even. Try to do this as quickly and accurately as possible.  For example:
+  
+  1121334141:   odd
+  1411561632:   even
+  3:            odd
+  4:            even
+  
+  When a number is odd, press the LEFT shift key.  When a number is even press the RIGHT shift key.  
+  
+  Ready? ",gWin)
+  
+  if(IsOdd(gParams.minval))
+  {
+    minOdd <- gParams.minval
+	minEven <- gParams.minval + 1
+  } else{
+    minOdd <- gParams.minval+1
+	minEven <- gParams.minval 
+  
+  }
+  
+   ##Create the stimulus sequence we will use:
+   desOdd <- Sequence(minOdd,gParams.maxval,2)
+   desEven <- Sequence(minEven,gParams.maxval,2)
+  
+   trialsOdd <- SampleN(desOdd,gParams.reps)
+   trialsEven <- SampleN(desEven,gParams.reps)
+   
+   
+
+    trials <- Shuffle(Merge(trialsOdd,trialsEven))
+   
+   
+     ##do some practice trials that aren't recorded:
+	 Trial(1)
+	 Wait(gParams.ISI)
+
+	 Trial(24)
+	 Wait(gParams.ISI)
+
+	 Trial(97)
+	 Wait(gParams.ISI)
+   
+    rts <- []
+	corrs <- []
+	
+   trial <- 1
+   loop(i,trials)
+   {
+     starttime <- GetTime()
+     out <-  Trial(i)
+	 FilePrintList(gFileout,Merge([gSubNum,trial,starttime],out),",")
+     PushOnENd(rts,Nth(out,5))
+	 PushOnEnd(corrs,Nth(out,4))
+	 
+     trial <- trial + 1
+
+	 Wait(gParams.isi)
+   }
+  
+  
+    meanRT <- Mean(rts)
+	medianRT <- Median(rts)
+	meanAcc <- Mean(corrs)
+	
+	report <- "PEBL Even-Odd Test"+CR(1)+ 
+	"Participant:     "+ gSubNum + CR(1)+
+	TimeStamp() + CR(1)+
+	"Number of trials: " + Length(corrs) + CR(1)+
+	"Mean RT:          "+ meanRT + CR(1)+
+	"Median RT:        " + medianRT + CR(1)+
+	"Accuracy:         " + (meanACC * 100) + "%" + CR(1)
+	
+	reportfile <- GetNewDataFile(gSubNum,gWin,"evenodd-report","txt","")
+	FilePrint(reportfile,report)
+	
+   MessageBox("This test is complete.  Press OK to continue."+ CR(2)+ report,gWin)
+}
+
+
+define Trial(number)
+{
+
+  header <- Easylabel("Decide whether odd or even",gVideoWidth/2,100,gWin,40)
+  stim <-   EasyLabel(number+"",gVideoWidth/2,gVideoHeight/2,gWin,80)
+  footer <- EasyLabel("<left shift> ODD                                   EVEN <right shift>",gVideoWidth/2,gVideoHeight-200,gWin,30)
+  
+  Draw()
+  time1 <- GetTime()
+  resp <- WaitForListKeyPress(["<lshift>","<rshift>"])
+  time2 <- GetTime()
+   rt <- (time2-time1)
+   odd <- IsOdd(number)
+   corr <- (odd and resp=="<lshift>") or ((not odd) and resp=="<rshift>")
+   Hide(stim)
+
+   Draw()
+  return [number,odd,resp,corr,rt] 
+}
+
+define IsOdd(number)
+{
+    return Mod(number,2)
+}

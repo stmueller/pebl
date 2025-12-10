@@ -1,0 +1,34 @@
+## Test different recursion depths to find the exact limit
+
+define Start(p)
+{
+    Print("Testing recursion depth limits...")
+
+    Print("=== Depth 1 ===")
+    result <- CountDown(1)
+    Print("CountDown(1) = " + result)
+
+    Print("=== Depth 2 ===")
+    result <- CountDown(2)
+    Print("CountDown(2) = " + result)
+
+    Print("=== Depth 3 ===")
+    result <- CountDown(3)
+    Print("CountDown(3) = " + result)
+
+    Print("All tests passed!")
+}
+
+define CountDown(n)
+{
+    Print("  CountDown(" + n + ") called")
+    result <- 0
+    if(n <= 0)
+    {
+        result <- 0
+    } else {
+        result <- CountDown(n - 1) + 1
+    }
+    Print("  CountDown(" + n + ") returning " + result)
+    return(result)
+}

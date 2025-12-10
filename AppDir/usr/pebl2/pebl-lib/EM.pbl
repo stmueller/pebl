@@ -1,0 +1,316 @@
+### Event loop function overrides - NO LONGER NEEDED with ASYNCIFY
+###
+### These were reimplementations of C++ event loop functions that had issues in WebAssembly.
+### With ASYNCIFY enabled, the native C++ implementations now work correctly in the browser.
+### Keeping these commented out as reference in case edge cases arise.
+###
+### Verified working with ASYNCIFY (2025-11-23):
+### - Wait()
+### - WaitForAnyKeyPress()
+### - WaitForMouseButton()
+### - WaitForAnyKeyPressWithTimeout()
+### - WaitForListKeyPress()
+### - WaitForKeyRelease()
+### - GetInput()
+
+##############################################################################
+## COMMENTED OUT - Native C++ event loop functions work with ASYNCIFY
+##############################################################################
+
+## define Wait(time)
+## {
+##     ##register the timer
+##     endtime <- GetTime() + time
+##     RegisterEvent("<TIMER>", 1, endtime,"<GEQ>","",[])
+##     StartEventLoop()
+##     ClearEventLoop()
+##     return(1)
+## }
+##
+##
+## define WaitForKeyPress(key)
+## {
+##   ##register the keypress
+##    RegisterEvent("<KEY_PRESS>",key,0,"<EQUAL>","",[])
+##    out <-   StartEventLoop()
+##    ClearEventLoop()
+##    return(out)
+## }
+##
+##
+## define WaitForListKeyPressWithTimeout(keys,timeout,style:1)
+## {
+##     endtime <- GetTime() + timeout
+##   ##register the keypress
+##  loop(key,keys)
+##   {
+##      RegisterEvent("<KEY_PRESS>",key,0,"<EQUAL>","",[])
+##   }
+##    RegisterEvent("<TIMER>", 1, endtime,"<GEQ>","",[])
+##    out <-   StartEventLoop()
+##    ClearEventLoop()
+##    return(out)
+## }
+##
+##
+## define WaitForKeyPressWithTimeout(key,timeout)
+## {
+##     endtime <- GetTime() + timeout
+##  ##register the keypress
+##   RegisterEvent("<KEY_PRESS>",key,0,"<EQUAL>","",[])
+##    RegisterEvent("<TIMER>", 1, endtime,"<GEQ>","",[])
+##    out <-   StartEventLoop()
+##    ClearEventLoop()
+##    return(out)
+## }
+##
+##
+## define WaitForAnyKeyPressWithTimeout(timeout)
+## {
+##     endtime <- GetTime() + timeout
+##  ##register the keypress
+##   RegisterEvent("<KEY_PRESS>","<ANYKEY>",0,"<EQUAL>","",[])
+##    RegisterEvent("<TIMER>", 1, endtime,"<GEQ>","",[])
+##    out <-   StartEventLoop()
+##    ClearEventLoop()
+##    return(out)
+## }
+##
+##
+## define WaitForListKeyPress(keys)
+## {
+##   ##register the keypress
+## loop(key,keys)
+##   {
+##      RegisterEvent("<KEY_PRESS>",key,0,"<EQUAL>","",[])
+##   }
+##    out <-   StartEventLoop()
+##    ClearEventLoop()
+##    return(out)
+## }
+##
+##
+## define WaitForKeyRelease(key)
+## {
+##   ##register the keypress
+##    RegisterEvent("<KEY_RELEASE>",key,0,"<EQUAL>","",[])
+##    out <-   StartEventLoop()
+##    ClearEventLoop()
+##    return(out)
+## }
+##
+## define WaitForAnyKeyPress()
+## {
+##   RegisterEvent("<KEY_PRESS>","<ANYKEY>",0,"<EQUAL>","",[])
+##   out <- StartEventLoop()
+##   ClearEventLoop()
+##   return(out)
+## }
+##
+##
+## define WaitForAnyKeyRelease()
+## {
+##   ##register the keypress
+##    RegisterEvent("<KEY_RELEASE>","<ANYKEY>",0,"<EQUAL>","",[])
+##    out <-   StartEventLoop()
+##    ClearEventLoop()
+##    return(out)
+## }
+##
+## ##This should match on either down or up click.
+## ##Returns [x, y, button, status] where status is "<pressed>" or "<released>"
+## ##Uses polling approach because StartEventLoop doesn't block properly for mouse in Emscripten
+## define WaitForMouseButton()
+## {
+##     ## Poll mouse state until we see a button down, then wait for release
+##     waiting <- 1
+##     wasDown <- 0
+##
+##     while(waiting)
+##     {
+##         Wait(10)  ## Small delay to avoid busy-waiting
+##         mouseState <- GetMouseState()
+##
+##         ## mouseState is [x, y, button1, button2, button3]
+##         button1Down <- Third(mouseState)
+##
+##         if(button1Down == 1 and wasDown == 0)
+##         {
+##             ## Button just pressed
+##             wasDown <- 1
+##             pressX <- First(mouseState)
+##             pressY <- Second(mouseState)
+##         }
+##
+##         if(button1Down == 0 and wasDown == 1)
+##         {
+##             ## Button just released
+##             waiting <- 0
+##             releaseX <- First(mouseState)
+##             releaseY <- Second(mouseState)
+##         }
+##     }
+##
+##     ## Return release position with status
+##     return([releaseX, releaseY, 1, "<pressed>"])
+## }
+##
+##
+## define WaitForMouseButtonWithTimeout(timeout)
+## {
+##     endtime <- GetTime() + timeout
+##     RegisterEvent("<MOUSE_BUTTON_PRESS>",1,1,"<EQUAL>","", [])
+##    RegisterEvent("<TIMER>", 1, endtime,"<GEQ>","",[])
+##    out <-   StartEventLoop()
+##    ClearEventLoop()
+##    return(out)
+## }
+##
+##
+## ## GetInput reimplementation for emscripten
+## ## With Asyncify, WaitForAnyKeyPress() now blocks properly
+## define GetInput(textbox, exitkey)
+## {
+##     SetEditable(textbox, 1)
+##     SetText(textbox, "")
+##     Draw()
+##
+##     text <- ""
+##     continue <- 1
+##
+##     while(continue)
+##     {
+##         key <- WaitForAnyKeyPress()  ## This now properly blocks via Asyncify
+##
+##         if(Lowercase(key) == Lowercase(exitkey))
+##         {
+##             continue <- 0
+##         }elseif(key == "<backspace>")
+##         {
+##             if(StringLength(text) > 0)
+##             {
+##                 text <- SubString(text, 1, StringLength(text) - 1)
+##                 SetText(textbox, text)
+##                 Draw()
+##             }
+##         }elseif(StringLength(key) == 1)
+##         {
+##             text <- text + key
+##             SetText(textbox, text)
+##             Draw()
+##         }
+##     }
+##
+##     SetEditable(textbox, 0)
+##     return text
+## }
+
+
+##############################################################################
+## File operation overrides for Emscripten
+## COMMENTED OUT: These dummy overrides are no longer needed. Emscripten's
+## virtual filesystem (MEMFS) supports file operations natively. The C++
+## implementations in PEBLStream.cpp work correctly with MEMFS.
+##############################################################################
+
+## COMMENTED OUT - Native C++ FileOpenWrite now works with Emscripten MEMFS
+## ## Override GetNewDataFile to return a dummy file handle and print header
+## define GetNewDataFile(subnum, win, basename, ext, header)
+## {
+##
+##
+##     filename <- "data/" + subnum + "/" + basename + "-" + subnum + "." + ext
+##
+##     ## Return the counter as a fake file handle
+##     return (FileOpenWrite(filename))
+## }
+##
+## ## Override FileOpenWrite
+## define FileOpenWrite(filename)
+## {
+##     Print("=== EM FILE OPENED: " + filename + " ===")
+##     file <- MakeCustomObject("FILEOBJECT")
+##     file.filename <- filename
+##     file.direction <- "WRITE"
+##
+##     return(file)
+## }
+##
+## ## Override FileOpenAppend
+## define FileOpenAppend(filename)
+## {
+##     Print("=== EM FILE OPENED (APPEND): " + filename + " ===")
+##     file <- MakeCustomObject("FILEOBJECT")
+##     file.filename <- filename
+##     file.direction <- "APPEND"
+##
+##     return(file)
+## }
+##
+## ## Override FilePrint to print to console
+## define FilePrint(filehandle, text)
+## {
+##     Print(text)
+##     return(1)
+## }
+##
+## ## Override FilePrint_ (no newline version)
+## define FilePrint_(filehandle, text)
+## {
+##     Print_(text)
+##     return(1)
+## }
+##
+## ## Override FileClose (no-op)
+## define FileClose(filehandle)
+## {
+##
+##     Print("=== EM FILE CLOSED: "+ filehandle.filename)
+##
+##     return(1)
+## }
+##
+## ## Override FileReadList - returns empty list since we can't read files in browser
+## define FileReadList(filename)
+## {
+##     Print("=== EM FILE READ (returning empty list): " + filename + " ===")
+##     return([])
+## }
+
+
+##############################################################################
+## Token-based multi-test hosting support
+##############################################################################
+
+## NOTE: InitializeUpload() is now defined in Utility.pbl with platform branching
+## It automatically handles both EMSCRIPTEN and native platforms using GetSystemType()
+
+## Override GetNewDataFile to use token-based paths in Emscripten
+## When gDataDirectory is defined (token mode), files save to centralized location
+## Otherwise uses standard test-local data/ directory (desktop mode)
+define GetNewDataFile(subnum, win, basename, ext, header)
+{
+    if(VariableExists("gDataDirectory"))
+    {
+        ## Token mode - use centralized directory with participant subdirectory
+        filename <- gDataDirectory + basename + "-" + subnum + "." + ext
+    }    else    {
+        ## Desktop mode - use test's local data/ directory
+        filename <- "data/" + basename + "-" + subnum + "." + ext
+    }
+
+    fileout <- FileOpenWrite(filename)
+    if(header != "")
+    {
+        FilePrint(fileout, header)
+    }
+    return(fileout)
+}
+
+## Note: FileOpenAppend is NOT overridden here.
+## In token mode, pooled files opened with FileOpenAppend("data/...") will create
+## files in the participant directory because the working directory is set by
+## InitializeUpload(). This means each participant gets their own pooled files,
+## which prevents conflicts during upload.
+
+

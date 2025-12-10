@@ -1,0 +1,53 @@
+## This adds response scoring to the basic 
+## experiment template.
+
+define Start(p)
+{
+  gWin <- MakeWindow()
+  Print(Trial(1))
+  Print(Trial(2))
+  Print(Trial(3))
+  Print(Trial(4))
+
+}
+
+
+### Two alternative ways to write a scoretrial function.
+define ScoreTrial(resp,cond)
+{
+   if(cond==1 or cond==2)
+    {
+      corr <-  (resp == "<lshift>")
+    } else {
+      corr <-  (resp == "<rshift>")
+    }
+ return corr
+}
+
+###You can alternately use a trick like this: 
+define ScoreTrial(resp,cond)
+{
+   map <- ["<lshift>","<lshift>","<rshift>","<rshift>"]
+   corresp  <- Nth(map, ToInteger(cond)) 
+   corr <- corresp == resp
+   return corr 
+}
+
+
+###Using a scoretrial function, the trial function would look like this: 
+define Trial(cond)
+{
+   time <- GetTime()
+#
+   stim <- MakeImage("stim/"+cond+".png")
+   Move(stim,gVideoWidth/2,gVideoHeight/2)
+   AddObject(stim,gWin)
+#
+   Draw()
+   time1 <- GetTime()
+   resp <- WaitForListKeyPress(["<lshift>","<rshift>"])
+   time2 <- GetTime()
+   corr <- ScoreTrial(resp,cond)
+   RemoveObject(stim,gWin)
+   return [cond, resp, corr, time, (time2-time1)]
+}

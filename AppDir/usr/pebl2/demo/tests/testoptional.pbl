@@ -1,0 +1,139 @@
+##This tests optional parameters.  An optional 
+##parameter should be a value (number), a parameter value,
+## but not a simple expression.
+
+define Start(p)
+{
+
+   F1(1,2,3,4)
+   F1(1,2,300)
+
+   F2(1,2,3)  ##this is fine, because 3 is used and not the default gDefault
+
+   #F2(1,2)    ##this should crash because gDump doesn't exist
+   gDefault <- "Stumper"
+   F2(101,102,103)
+   F2(101,102)
+
+##These won't work, because they don't have a data value in the default
+#   F3(1001,1002,1003)
+#   F3(1001,1002)   ##this fails, but segfaults (it should just fail)
+
+   F4("once", "twice")
+   F5("thrice", "fource","fivex")
+   F5("thrice", "fource")
+
+  #    F5(1,2,3,4)  ##Error signaled here --too many arguments
+  #    F4(1)         ##Should be error--too few arguments (not a segfault)
+
+
+
+
+  
+   Test0()    ##should work
+#  Test0(9)  ##should not work
+#  Test0(1,2) ##should not work
+
+
+  Test0Opt()    ##This should work
+  Test0Opt(99)  ##this should work
+#  Test0Opt(99,999)  #This should not work.
+
+#  Test1() ##This should not work
+   Test1(9) #This should work
+#  Test1(9,99)  ##this should not work
+
+
+#   Test1Opt() #This should not work.
+   Test1Opt(9) #This should work
+    Test1Opt(9,99) ##this  should work
+#   Test1Opt(9,99,999)  ##this should not work
+
+
+
+}
+define Test0()
+{
+  Print("-----------------------------")
+  Print("test 0")
+}
+
+
+define Test0Opt(a:44444)
+{
+  Print("-----------------------------")
+  Print(" Test0pt")
+  Print(a)
+}
+
+define Test1(out)
+{
+  Print("-----------------------------")
+  Print(" Test1")
+  Print(out)
+}
+
+define Test1Opt(out1,out2:44444)
+{
+  Print("-----------------------------")
+  Print(" Test1Opt")
+  Print(out1)
+  Print(out2)
+}
+
+
+define F1(a,b,c:10,d:11)
+{
+
+   Print("a:  "+a)
+   Print("b:  "+b)	
+   Print("c:  "+c)
+   Print("d:  "+d)
+   
+
+}
+
+
+define F2(a,b,c:gDefault)
+{
+   Print("Running F2")
+   Print("a:  "+a)
+   Print("b:  "+b)	
+   Print("c:  "+c)
+
+}
+
+
+##This will crash on parse. Maybe we can figure something out.
+define F3(a,b,c:(3+5))
+{
+   Print("Running F3")
+   Print("a:  "+a)
+   Print("b:  "+b)
+   Print("c:  "+c)
+  
+}
+
+
+##this should bind to the text string 'HOWTHORNE'
+define F4(a,b,c:"HOWTHORNE")
+{
+   Print("Running F4")
+   Print("a:  "+a)
+   Print("b:  "+b)	
+   Print("c:  "+c)
+ 
+}
+
+
+##this should by a syntax error:
+#define F5(a,b,c:HOWTHORNE) #syntax error
+#define F5(a,b,c:hothouse)  ##undefined variable
+define F5(a,b,c:b)  ##uses b as the default for c
+{
+   Print("Running F5")
+   Print("a:  "+a)
+   Print("b:  "+b)	
+   Print("c:  "+c)
+ 
+}

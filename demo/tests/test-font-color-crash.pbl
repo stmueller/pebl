@@ -1,0 +1,19 @@
+## Minimal test to reproduce the font color double-free crash
+
+define Start(p)
+{
+    Print("Creating a font...")
+    font <- MakeFont("DejaVuSans.ttf", 0, 24, MakeColor("black"), MakeColor("white"), 1)
+
+    Print("Font created successfully")
+    Print("Font fgcolor: " + font.fgcolor)
+
+    Print("Now attempting to set font.fgcolor <- MakeColor('blue')")
+    Print("This should crash with 'double free or corruption'...")
+
+    font.fgcolor <- MakeColor("blue")
+
+    Print("If you see this, the crash was fixed!")
+
+    return(0)
+}

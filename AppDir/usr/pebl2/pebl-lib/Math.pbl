@@ -1,0 +1,531 @@
+#//////////////////////////////////////////////////////////////////////////////
+#//    Name:       src/pebl-lib/Math.pbl
+#//    Purpose:    Contains PEBL functions used for math
+#//    Author:     Shane T. Mueller, Ph.D.
+#//    Copyright:  (c) 2005-2016 Shane T. Mueller <smueller@obereed.net>
+#//    License:    GPL 2
+#//
+#//
+#//
+#//     This file is part of the PEBL project.
+#//
+#//    PEBL is free software; you can redistribute it and/or modify
+#//    it under the terms of the GNU General Public License as published by
+#//    the Free Software Foundation; either version 2 of the License, or
+#//    (at your option) any later version.
+#//
+#//    PEBL is distributed in the hope that it will be useful,
+#//    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#//    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#//    GNU General Public License for more details.
+#//
+#//    You should have received a copy of the GNU General Public License
+#//    along with PEBL; if not, write to the Free Software
+#//    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
+#//////////////////////////////////////////////////////////////////////////////
+
+
+#  The functions defined here are available for use in any PEBL program.
+#  They are written in PEBL itself, and so are interpreted, but the ease of
+#  writing them in PEBL far outweighed the possible speed-up that might be
+#  gained by writing them directly in C++.
+
+define Sum(list)
+{
+	##Ensure that all arguments are actually lists
+	if(not IsList(list))
+	{
+	SignalFatalError("Argument of function [Sum(<list>)] is not a list")
+	}
+  sum <- 0
+  loop(i, list)
+  {
+    sum <- sum + i
+  }
+ return sum
+}
+
+##Mean
+##
+define Mean(list)
+{
+	##Ensure that all arguments are actually lists
+	if(not IsList(list))
+	{
+	SignalFatalError("Argument of function [Mean(<list>)] is not a list")
+	}
+  sum <- 0
+  loop(i, list)
+  {
+    sum <- sum + i
+  }
+ return sum / Length(list)
+}
+
+##StdDev
+##
+define StdDev(list)
+{
+	##Ensure that all arguments are actually lists
+	if(not IsList(list))
+	{
+	SignalFatalError("Argument of function [StdDev(<list>)] is not a list")
+	}
+  n <- Length(list)
+  if(n == 0 ) 
+  {
+    stdv <- 0.0
+ 
+  } else {
+  sumX <- 0.0
+  sumXX <- 0.0
+  loop(i, list)
+  {
+    sumX <- sumX + i
+    sumXX <- sumXX + 1.0 * i * i
+  }
+
+   stdv <- Sqrt(n * sumXX - sumX * sumX ) / n
+  }
+ return stdv
+}
+
+##Min
+##
+define Min(list)
+{
+	##Ensure that all arguments are actually lists
+	if(not IsList(list))
+	{
+	SignalFatalError("Argument of function [Min(<list>)] is not a list")
+	}
+  min <- First(list)
+  loop(i, list)
+  {
+   if(i < min)
+    {
+      min <- i
+    }
+  }
+ return min
+}
+
+##Max
+##
+define Max(list)
+{
+	##Ensure that all arguments are actually lists
+	if(not IsList(list))
+	{
+	SignalFatalError("Argument of function [Max(<list>)] is not a list")
+	}
+  max <- First(list)
+
+  loop(i, list)
+  {
+   if(i > max)
+    {
+      max <- i
+    }
+  }
+  return max
+}
+
+##Median
+## Returns the median value, or the average of the
+## medians if tied.  It is not very efficient.  Does not behave well
+## if list is empty.
+define Median(list)
+{
+	##Ensure that all arguments are actually lists
+	if(not IsList(list))
+	{
+	SignalFatalError("Argument of function [Median(<list>)] is not a list")
+	}
+
+    if(Length(list) == 0)
+      {
+      	Print("Cannot determine Median of empty list.")
+		val <- "NA"
+      } else {
+
+	    sorted <- Sort(list)
+  
+    l <- Length(sorted)
+ 	 if(Mod(l,2) == 0)
+ 	   {
+           valList <- ExtractListItems(sorted, [Round(l/2), Round(l/2+1)])
+  		   val <- (First(valList) + Nth(valList,2)) / 2
+   	    } else {
+          val <- Nth(sorted, Round(l/2))
+        }
+     }
+ return val
+}
+
+##Order
+##
+##This returns a list of indices describing the order of values by position, from min to max. For example, Order([40,50,60,30,20,10]) is [6,5,4,1,2,3].
+
+define Order(list)
+{
+	##Ensure that all arguments are actually lists
+	if(not IsList(list))
+	{
+	SignalFatalError("Argument of function [Order(<list>)] is not a list")
+	}
+
+   key <- Sequence(1,Length(list),1)
+   return SortBy(key,list)
+}
+
+
+##Rank
+##
+##A simple rank function can be found by calling Order() on the results of Order(), assuming there are no ties. Rank([40,50,60,30,20,10]) is [4,5,6,3,2,1].
+
+define Rank(list)
+{
+	##Ensure that all arguments are actually lists
+	if(not IsList(list))
+	{
+	SignalFatalError("Argument of function [Rank(<list>)] is not a list")
+	}
+  return Order(Order(list))
+}
+
+
+## Quantile
+## Returns the qth quantile, where q is expressed as a number
+## between 0 and 100.
+define Quantile(list,q)
+{
+	##Ensure that all arguments are actually lists
+	if(not IsList(list))
+	{
+	SignalFatalError("First argument of function [Quantile(<list>,<q>)] is not a list")
+	}
+  sorted <- Sort(list)
+
+   if(IsList(q))
+   {
+      elts <- []
+      loop(i,q)
+      { 
+        elts <- Append(elts,1+Round(i/100*(Length(list)-1)))
+
+      }
+
+      ret <- ExtractListItems(sorted,elts)
+
+   }else{
+      ret <- Nth(sorted,1+Round(q/100*(Length(list)-1)))
+   }
+ 
+
+ return ret
+}
+
+
+
+## This is a simple but accurate numerical approximation to 
+## the cumulative normal inverse.  Complete explanation is 
+## found:
+##  http://home.online.no/~pjacklam/notes/invnorm
+##
+## If given input that is out-of-bounds, will return the
+## text string "NA" instead of aborting.
+##give a value between 0 and 1 and get a z-score.
+
+define CumNormInv(p)
+{
+ if(not IsNumber(p))
+	{
+	SignalFatalError("Argument of function [CumNormInv(<number>)] is not a number")
+	}
+
+##   Define break-points for different approximation regions
+##
+   pLo  <- 0.02425
+   pHi <- 1 - pLo
+
+  if(p >= pLo and p <= pHi){
+
+##   Rational approximation for central region.
+      q <- p - 0.5
+      r <- q*q
+      x <- (((((-39.69683028665376*r+ 220.9460984245205)*r - 
+                275.9285104469687)*r + 
+                138.3577518672690)*r - 
+                 30.66479806614716)*r +2.506628277459239)*q /
+           (((((-54.47609879822406*r+ 161.5858368580409)*r-
+                 155.6989798598866)*r+ 66.80131188771972)*r -13.28068155288572)*r+1)
+
+
+   } else {
+
+   ##Approximation for tails is symmetric:
+   if(p > 0 and p < 1)
+    {
+     if(p < pLo)
+    {
+     ##   Rational approximation for lower region.
+      q <- Sqrt(-2*Ln(p))
+      mult <- 1
+
+    } else{        ##( p > pHi)
+    ##  Rational approximation for upper region.
+  
+      q <- Sqrt(-2*Ln(1-p))
+      mult <- -1
+    } 
+
+      x <- mult * ((((( -.007784894002430293*q-.3223964580411365)*q - 
+                  2.400758277161838)*q-2.549732539343734)*q +
+                   4.374664141464968)*q+2.938163982698783) /
+                ((((.007784695709041462*q+.322467129070039)*q+2.445134137142996)*q+3.754408661907416)*q+1)
+
+     }else{
+      ##We are outside (0,1).
+      x <- "NA"
+    }
+   }
+ return x
+}
+
+
+##returns the standard normal density function.
+define NormalDensity(x)
+{
+
+	if(not IsNumber(x))
+	{
+	SignalFatalError("Argument of function [NormalDensity(<number>)] is not a number")
+	}
+
+  return  Exp(-(x^2)/2)/Sqrt(2*3.1415967) 
+}
+
+
+
+##Compute d-prime
+define SDTDPrime(hr,far,trunc:.001)
+{
+	if(not IsNumber(hr))
+	{
+  	  SignalFatalError("First argument of function [SDTDPrime(<hr>,<far>,<trunc>)] is not a number")
+	}
+	if(not IsNumber(far))
+	{
+	  SignalFatalError("Second argument of function [SDTDPrime(<hr>,<far>,<trunc>)] is not a number")
+	}
+
+
+   ##this will fail if HR or FAR are 0 or 1.0
+   ##as a crude workaronud to prevent crashes, let's max of 1% deviation.
+   ##truncate so we don't hit the boundary.
+   low <- trunc
+   high <- 1.0-trunc
+   hr <- Bound(hr,low,high)
+   far <- Bound(far,low,high)
+
+   return CumNormInv(hr)-CumNormInv(far)
+}
+
+##Compute beta
+define SDTBeta(hr,far, trunc:.001)
+{
+	if(not IsNumber(hr))
+	{
+	SignalFatalError("First argument of function [SDTBeta(<hr>,<far>)] is not a number")
+	}
+	if(not IsNumber(far))
+	{
+	SignalFatalError("Second argument of function [SDTBeta(<hr>,<far>)] is not a number")
+	}
+
+   ##truncate so we don't hit the boundary.
+   low <- trunc
+   high <- 1.0-trunc
+
+   hr <- Bound(hr,low,high)
+   far <- Bound(far,low,high)
+  
+  beta <-  Exp(  (CumNormInv(far)^2 -  CumNormInv(hr)^2) /2)
+
+ return beta
+}
+
+
+
+
+## This finds mean and SD RT for 
+## each of the conditions specified in delays
+##
+
+define SummaryStats(data, cond)
+{
+	##Ensure that all arguments are actually lists
+	if(not IsList(data))
+	{
+	SignalFatalError("First argument of function [SummaryStats(<data>,<cond>)] is not a list")
+	}
+
+  	##Ensure that all arguments are actually lists
+	if(not IsList(cond))
+	{
+	SignalFatalError("Second argument of function [SummaryStats(<data>,<cond>)] is not a list")
+	}
+  	##Ensure that both lists are the same length
+	if(not Length(data) == Length(cond))
+	{
+    	SignalFatalError("In function [SummaryStats(<data>,<cond>)], <data> and <cond> must be of the same length.")
+	}
+  
+
+   
+  agglom <- ListBy(data,cond)
+
+
+  ## start by sorting data by condition;
+   stats <- []
+
+   loop(i, Transpose(agglom))
+   {
+      icond <- Nth(i,1)
+      ival <- Nth(i,2)
+      if(Length(ival)==0)
+       {
+	      tmp <- [icond,0,"NA","NA","NA"]  
+       } else {
+ 	      tmp <- [icond, Length(ival),
+				  Median(ival), Mean(ival), StdDev(ival)]
+
+       }
+     stats <- Append(stats,tmp)
+   }
+
+ return stats
+}
+
+
+
+## New in PEBL 0.11??? maybe not
+##
+define Dist(a,b)
+{
+  return Sqrt((First(a)- First(b))^2 + (Nth(a,2) - Nth(b,2))^2)
+}
+
+
+
+
+##This returns a list of 0/1, for each element of list that matches item.
+define Match(list,item)
+{
+  if(not IsList(list))
+  {
+     SignalFatalError("First argument of [Match(list,item)] must be a list.")
+  }
+
+   out <- []
+   loop(i,list)
+   {
+
+     out  <- Append(out, item==i)
+   }
+   return out
+}
+
+##This filters based on 0/1, returning a subset of the list.
+define Filter(list,match)
+{
+   
+  if(not IsList(list))
+  {
+     SignalFatalError("First argument of [Filter(list,match)] must be a list.")
+  }
+  if(not IsList(match))
+  {
+     SignalFatalError("Second argument of [Filter(list,match)] must be a list.")
+  }
+
+  if(not Length(list)==Length(match))
+  {
+     SignalFatalError("List and match list much be of equal length in Filter(<list>,<match>)")
+  }
+
+  tmp <- []
+  list2 <- Transpose([list,match])
+
+  loop(i,list2)
+  {
+
+    if(Second(i))
+    {
+      tmp<- Append(tmp,First(i))
+    }
+  }
+  return tmp
+}
+
+
+##This makes sure
+## number is between min and max;
+## if min>max, it will return max, soyou need to check if that
+## isn't the right behavior.
+define Bound(number,min,max)
+{
+    if(number > max)
+	{
+	 number <- max
+	}
+	if(number < min)
+	{
+	  number <- min
+	}
+   return number
+   
+}
+
+
+
+
+
+define CumSum(list)
+{
+   cum <- 0
+   out <- []    
+   loop(i,list)
+   {
+     cum <- cum + i
+     PushOnEnd(out,cum)
+   }
+
+  return out
+}
+
+
+define VecSum(a,b)
+{
+   tmp <- Transpose([a,b])
+   out <- []
+   loop(i,tmp)
+   {
+     out <- Append(out, First(i) + Nth(i,2))
+   }
+  return out
+}
+
+
+
+define VecTimes(a,b)
+{
+   tmp <- Transpose([a,b])
+   out <- []
+   loop(i,tmp)
+   {
+     out <- Append(out, First(i) * Nth(i,2))
+   }
+  return out
+}

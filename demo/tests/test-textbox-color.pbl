@@ -1,0 +1,31 @@
+## Test if textbox font colors can be changed via nested properties
+define Start(p)
+{
+    gWin <- MakeWindow()
+
+    Print("Creating textbox with WHITE text on BLUE background")
+    font <- MakeFont("DejaVuSans.ttf", 0, 24, MakeColor("white"), MakeColor("blue"), 1)
+    tb <- MakeTextBox("This is a textbox test", font, 400, 100)
+    AddObject(tb, gWin)
+    Move(tb, gVideoWidth/2, gVideoHeight/2)
+    Draw()
+
+    Print("Text color: " + tb.font.fgcolor.red + "," + tb.font.fgcolor.green + "," + tb.font.fgcolor.blue)
+    Wait(2000)
+
+    Print("Setting font.fgcolor.red <- 0 (white -> cyan)")
+    tb.font.fgcolor.red <- 0
+    Draw()
+
+    Print("Does text look CYAN? (should be 0,255,255)")
+    Print("Text color: " + tb.font.fgcolor.red + "," + tb.font.fgcolor.green + "," + tb.font.fgcolor.blue)
+    Wait(2000)
+
+    Print("Setting font.bgcolor.red <- 255 (blue -> magenta)")
+    tb.font.bgcolor.red <- 255
+    Draw()
+
+    Print("Does background look MAGENTA? (should be 255,0,255)")
+    Print("BG color: " + tb.font.bgcolor.red + "," + tb.font.bgcolor.green + "," + tb.font.bgcolor.blue)
+    Wait(2000)
+}

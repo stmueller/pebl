@@ -1,0 +1,321 @@
+##
+##
+##   Implementation of Kernigan-Li TSP Heuristic Solution
+##
+##
+##
+
+
+define Start(p)
+{
+#  SeedRNG(3100)
+  parpairs <- [["showtime",750],
+               ["waittime",750],
+  	       ["TargRadius", 150], ##Size in pixels of targets
+  	       ["MinAngle" , 5],     ##smallest angle
+  	       ["MaxAngle" , 175],   ##largest ange
+  	       ["MinLength", 10],   ##Shortest edge
+  	       ["NumTrials", 25],
+	       ["mincorners",5],
+	       ["maxcorners",8],
+	       ["shapepert", 10] #Max pixel distance of shape perturbation
+                ]   #Number of trials
+
+
+  gScriptName <- "Object Judgment Task"
+  gParams <- CreateParameters(parpairs,gParamFile)
+
+  gshowTime <- gParams.showtime
+  gwaitTime <- gParams.waittime
+
+  gTargRadius <- gParams.targradius ##Size in pixels of targets
+  gMinAngle <- gParams.minangle
+  gMaxAngle <- gParams.maxangle
+
+  gNumTrials <- gParams.numtrials   #Number of trials
+  gSleepEasy <- 1
+
+  ##Parameters controlling printable area for dots
+
+  gWin <- MakeWindow("black")
+  ShowCursor(0)
+
+  if(gSubNum+""=="0")
+   {
+     gSubNum <- GetSubNum(gWin)
+   }
+
+  GetStrings(gLanguage)
+
+  gFileOut <- GetNewDataFile(gSubNum,gWin,"objjudge","csv",
+          "subNum,abs,trial,cond,type,X,shapepert,order,resp,corr,rt")
+
+  gStimColor <- MakeColor("blue")
+  gstimFont <-  MakeFont(gPEBLBaseFontMono,0,18,MakeColor("yellow"),gStimColor,1)
+  gclickedFont <- MakeFont(gPEBLBaseFontMono,1,18,MakeColor("yellow"),gStimColor,1)
+
+
+  gHomeX <- gVideoWidth/2
+  gHomeY <- gVideoHeight/2
+  gHeader <- EasyLabel("",gHomeX, 10,gWin,12)
+
+  inst <-  EasyTextBox("",50,50,gWin,24,gVideoWidth-100,gVideoHeight-100)
+
+  inst.text <- gStrings.instabsolute
+  Draw()
+  WaitForAnyKeyPress()
+  Hide(inst)
+  Draw()
+  gFooter <- EasyLabel("",gVideoWidth/2,gVideoHeight-125,gWin,25)
+  gFeedback <- EasyLabel("",gHomeX, gHomeY,gWin,50)
+  deg <- 2*3.14159/360  #one degree in radians
+
+  ##Experimental conditions
+
+
+  minCorners <- gParams.mincorners
+  maxCorners <- gParams.maxcorners
+
+  reps <- 5
+
+  angles   <- [-20*deg,-10*deg,-5*deg,20*deg, 10*deg, 5*deg]
+  sizes    <- [.8,.9,.95,1.05,1.1,1.2]
+  shape    <- [1,2,4] ##How many edges to perturb?
+  shapepert <- 10  #up to 10 pixels
+
+
+  types <- Flatten([Repeat(1,6),Repeat(2,6),Repeat(3,3)])
+  level <- Flatten([angles,sizes,shape])
+
+  design <- Shuffle(RepeatList(Transpose([types,level]),reps))
+  ##Let's not vary multiple things at once.
+  trial <- 1
+  numTrials <- Length(design)
+ ##
+ ##  design  <- [[1,-5*deg],[2,1.5],[3,5]]
+  loop(type,design)
+   {
+
+     tmp <- ReplaceChar(gStrings.trial,"<T>",trial)
+     tmp <- ReplaceChar(tmp,"<N>",numtrials)
+     gHeader.text <- tmp
+
+     cond <- First(type)
+     #First, create the shape
+     shape <- MakeAttneave(gTargRadius,minCorners+RandomDiscrete(maxcorners-mincorners),gMinAngle,gMaxAngle)
+     pts <- Transpose(shape)
+
+     if(cond == 0)   #same
+     {
+       shape2 <- pts
+
+     } elseif(cond==1)  #angle of rotation
+     {
+
+       shape2 <- RotatePoints(pts,Second(type))
+
+     } elseif(cond==2)  #sizes
+     {
+
+       shape2 <- ZoomPoints(pts,Second(type),Second(type))
+
+     } elseif(cond==3)  #distort shapes
+     {
+       shape2 <- Transpose(DistortPoints(pts,Second(type),shapepert,gMinangle,gMaxangle))
+     }
+
+     out <-  TrialFC(pts,shape2)
+     FilePrint(gFileout, gSubNum + ",abs,"  + trial + "," + cond + ","   + Second(type) + ",-1," + shapepert +"," + First(out) + "," +   Second(out) + "," + Third(out) + "," +Fourth(out))
+   trial <- trial + 1
+   }
+
+
+}
+
+
+
+define TrialFC(shape1,shape2)
+{
+
+     poly1 <- Polygon(0,0,First(shape1),Second(shape1),gStimColor,1)
+     poly2 <- Polygon(0,0,First(shape2),Second(shape2),gStimColor,1)
+
+     #should correct be on left or on right?
+     order <- RandomDiscrete(2)
+
+
+     AddObject(poly1,gWin)
+     Move(poly1,gHomeX,gHomeY)
+     Draw()
+     Wait(gshowTime)
+     Hide(poly1)
+     Draw()
+     AddObject(poly2,gWin)
+
+     if(order==1)
+     {
+        Move(poly1,gHomeX-150,gHomeY)
+        Move(poly2,gHomeX+150,gHomeY)
+
+     }else{
+
+        Move(poly1,gHomeX+150,gHomeY)
+        Move(poly2,gHomeX-150,gHomeY)
+     }
+     Show(poly1)
+     gFooter.text <-  gStrings.footer
+
+     Wait(gwaitTime)
+     Draw()
+     time0 <- GetTime()
+     resp <-   WaitForListKeyPress(["<lshift>","<rshift>"])
+     time1 <- GetTime()
+
+     if(order==1)
+       {
+         corr <- (resp == "<lshift>")
+       }else{
+         corr <- (resp == "<rshift>")
+       }
+
+     RemoveObject(poly1,gWin)
+     RemoveObject(poly2,gWin)
+
+     if(corr)
+      {
+        gFeedback.text <-  gStrings.correct
+
+      }else{
+
+        gFeedback.text <-  gStrings.incorrect
+      }
+    Draw()
+    Wait(500)
+    gFeedback.text <- ""
+    Draw()
+
+
+  return [order, resp, corr, (time1-time0)]
+}
+
+
+##
+##
+define DistortPoints(points,num,perturb,minangle,maxangle)
+{
+
+
+
+    l <- Length(First(points))
+    good <- 0
+	while(not good)
+    {
+     doMe <- Shuffle(Merge(Repeat(1,num), Repeat(0,l-num)))
+
+    newpts <- []
+    items <- Transpose([First(points),Second(points), doMe])
+
+    loop(i,items)
+    {
+       if (Third(i))
+        {
+          x <- Round(First(i) + (RandomDiscrete(2)*2-3)  *(perturb + Random()*perturb)/2)
+          y <- Round(Second(i) + (RandomDiscrete(2)*2-3)  *(perturb + Random()*perturb)/2)
+
+          newpts <- Append(newpts,[x,y])
+        }else{
+          newpts <- Append(newpts,SubList(i,1,2))
+        }
+    }
+
+      good <- ValidateAttneaveShape(newpts,minAngle,maxAngle)
+    }
+  return newpts
+}
+
+
+
+
+##
+define MakeHull(radius,numpoints)
+{
+
+  ##First, sample numpoints xy points
+  pts <- []
+  num <- 0
+
+
+ while( num < numpoints)
+   {
+
+    #Use sampling-and-reject to get points within a circle
+    tryX <- Round((Random()-.5)*radius)
+    tryY <- Round((Random()-.5)*radius)
+
+    while(Sqrt(tryX^2 + tryY^2) > radius)
+    {
+      tryX <- Round((Random()-.5)*radius)
+      tryY <- Round((Random()-.5)*radius)
+    }
+
+   ##Add the point
+   pts <- Append(pts,[tryX,tryY])
+   ##make the hull
+   pts <- Rest(ConvexHull(pts))
+   num <- Length(pts)
+  }
+
+  return pts
+}
+
+
+define Rest(list)
+{
+  return SubList(list,2,Length(list))
+}
+
+
+
+##This is like mod, but 1-based instead of 0-based
+define Mod1(num,mod)
+{
+   tmp <- Mod(num, mod)
+   if(tmp==0)
+     {
+       tmp <- mod
+     }
+   return tmp
+}
+
+
+
+define DistMatrix(pts)
+{
+   mat <- []
+   loop(i,pts)
+   {
+
+     line <- []
+     loop(j, pts)
+     {
+       line <- Append(line, Dist(i,j))
+
+     }
+
+	 mat <- Append(mat,line)
+   }
+
+  return mat
+}
+
+
+
+
+
+
+
+define GetStrings(lang)
+{
+  gStrings <- GetTranslations("objectjudgment",lang)
+  
+}

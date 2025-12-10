@@ -1,0 +1,235 @@
+## Test Voice Key Calibration System
+##
+## Demonstrates the three calibration modes:
+##   1. Default (no calibration data)
+##   2. Noise-only (silence calibration)
+##   3. Adaptive ROC-based (noise + speech calibration)
+
+## Load calibration functions
+Start(Load("voicekey-calibration.pbl"))
+
+define Start(p)
+{
+    gWin <- MakeWindow("grey40")
+    gSleepEasy <- 1
+
+    gFont <- MakeFont(gPEBLBaseFont, 0, 20, MakeColor("white"), MakeColor("grey40"), 1)
+    gFontLarge <- MakeFont(gPEBLBaseFont, 0, 36, MakeColor("yellow"), MakeColor("grey40"), 1)
+
+    ## Instructions
+    instructions <- "Voice Key Calibration Test" + CR(2) +
+                   "This will calibrate voice key thresholds using:" + CR(1) +
+                   "  1. Silence recording (2 seconds)" + CR(1) +
+                   "  2. Speech samples (5 words)" + CR(2) +
+                   "Then it will find the optimal threshold that:" + CR(1) +
+                   "  - Rejects 95% of noise" + CR(1) +
+                   "  - Captures 75% of signal" + CR(2) +
+                   "Press any key to begin"
+
+    instrBox <- EasyTextBox(instructions, gVideoWidth/2-350, 150, gWin, 18, 700, 400)
+    Draw()
+    WaitForAnyKeyPress()
+    RemoveObject(instrBox, gWin)
+    Draw()
+
+    ## Start audio monitor
+    gMonitor <- StartAudioMonitor(2000)
+
+    ## Collect silence baseline
+    Print("=== Collecting Noise Calibration ===")
+    silenceStats <- RecordSilence(gWin)
+
+    ## Collect speech samples
+    Print("=== Collecting Speech Calibration ===")
+    words <- ["WISCONSIN", "SUSPECT", "CHRISTMAS", "HARMONY", "APARTMENT"]
+    speechResults <- []
+    loop(word, words)
+    {
+        result <- RecordWord(word, gWin)
+        speechResults <- Append(speechResults, result)
+    }
+
+    ## Stop monitoring
+    StopAudioMonitor(gMonitor)
+
+    ## Extract power data
+    Print("")
+    Print("=== Extracting Power Data ===")
+    powerData <- ExtractPowerFromRecordings(silenceStats, speechResults)
+    noisePower <- First(powerData)
+    speechPower <- Nth(powerData, 2)
+
+    Print("Noise samples: " + Length(noisePower))
+    Print("Speech samples: " + Length(speechPower))
+
+    ## Test all three calibration modes
+    Print("")
+    Print("================================================")
+    Print("=== MODE 1: Default (No Calibration) ===")
+    Print("================================================")
+    result1 <- CalibrateVoiceKeyThreshold(0, 0, 0.15)
+    threshold1 <- First(result1)
+    method1 <- Nth(result1, 2)
+
+    Print("")
+    Print("================================================")
+    Print("=== MODE 2: Noise-Only Calibration ===")
+    Print("================================================")
+    result2 <- CalibrateVoiceKeyThreshold(noisePower, 0, 0.15, 95)
+    threshold2 <- First(result2)
+    method2 <- Nth(result2, 2)
+
+    Print("")
+    Print("================================================")
+    Print("=== MODE 3: Adaptive ROC Calibration ===")
+    Print("================================================")
+    result3 <- CalibrateVoiceKeyThreshold(noisePower, speechPower, 0.15, 95, 75, 100)
+    threshold3 <- First(result3)
+    method3 <- Nth(result3, 2)
+    diagnostics3 <- Third(result3)
+
+    ## Save ROC calibration results
+    SaveCalibrationResults(diagnostics3, "voicekey_roc_calibration.csv")
+
+    ## Display comparison
+    Print("")
+    Print("================================================")
+    Print("=== CALIBRATION SUMMARY ===")
+    Print("================================================")
+    Print("Mode 1 (Default):   threshold = " + threshold1)
+    Print("Mode 2 (Noise-95%): threshold = " + Round(threshold2, 4))
+    Print("Mode 3 (ROC):       threshold = " + Round(threshold3, 4))
+
+    ## Show results on screen
+    summaryText <- "Calibration Complete!" + CR(2) +
+                  "Three Threshold Methods:" + CR(2) +
+                  "1. Default (no calibration):" + CR(1) +
+                  "   Threshold = " + threshold1 + CR(2) +
+                  "2. Noise-only (95th percentile):" + CR(1) +
+                  "   Threshold = " + Round(threshold2, 4) + CR(2) +
+                  "3. Adaptive ROC (optimal):" + CR(1) +
+                  "   Threshold = " + Round(threshold3, 4) + CR(1) +
+                  "   Noise rejection: " + Round(GetProperty(diagnostics3, "noiseReject"), 1) + "%" + CR(1) +
+                  "   Signal capture: " + Round(GetProperty(diagnostics3, "signalCapture"), 1) + "%" + CR(2) +
+                  "Recommended: Use Mode 3 threshold" + CR(2) +
+                  "Press any key to visualize thresholds"
+
+    summaryBox <- EasyTextBox(summaryText, gVideoWidth/2-350, 100, gWin, 18, 700, 500)
+    Draw()
+    WaitForAnyKeyPress()
+    RemoveObject(summaryBox, gWin)
+
+    ## Visualize each calibration method
+    Print("")
+    Print("=== Visualizing Default Threshold ===")
+    PlotCalibrationWithThreshold(silenceStats, speechResults, threshold1, gWin)
+    WaitForKeyPress("X")
+    Hide(gWin)
+
+    Print("")
+    Print("=== Visualizing Noise-Only Threshold ===")
+    PlotCalibrationWithThreshold(silenceStats, speechResults, threshold2, gWin)
+    WaitForKeyPress("X")
+    Hide(gWin)
+
+    Print("")
+    Print("=== Visualizing ROC Optimal Threshold ===")
+    PlotCalibrationWithThreshold(silenceStats, speechResults, threshold3, gWin)
+    WaitForKeyPress("X")
+}
+
+define RecordSilence(win)
+{
+    prompt <- MakeLabel("Press RETURN to record 2 seconds of SILENCE", gFont)
+    Move(prompt, gVideoWidth/2, gVideoHeight/2)
+    AddObject(prompt, win)
+    Draw()
+
+    WaitForKeyPress("<return>")
+
+    SetText(prompt, "RECORDING SILENCE...")
+    Draw()
+
+    ## Collect stats every 10ms for 2 seconds
+    energyProfile <- []
+    powerProfile <- []
+    rmseProfile <- []
+    signsProfile <- []
+    directionsProfile <- []
+
+    numSamples <- 200
+    loop(i, Sequence(1, numSamples, 1))
+    {
+        Wait(10)
+        stats <- GetAudioStats(gMonitor, 10)
+        energyProfile <- Append(energyProfile, First(stats))
+        powerProfile <- Append(powerProfile, Nth(stats, 2))
+        rmseProfile <- Append(rmseProfile, Third(stats))
+        signsProfile <- Append(signsProfile, Nth(stats, 4) * 100)
+        directionsProfile <- Append(directionsProfile, Nth(stats, 5) * 100)
+    }
+
+    SetText(prompt, "COMPLETE - Press RETURN to continue")
+    Draw()
+    WaitForKeyPress("<return>")
+
+    RemoveObject(prompt, win)
+    Draw()
+
+    return([energyProfile, powerProfile, rmseProfile, signsProfile, directionsProfile])
+}
+
+define RecordWord(word, win)
+{
+    prompt <- MakeLabel("Press RETURN to see next word", gFont)
+    Move(prompt, gVideoWidth/2, gVideoHeight/2 + 100)
+    AddObject(prompt, win)
+    Draw()
+
+    WaitForKeyPress("<return>")
+
+    wordLabel <- MakeLabel(word, gFontLarge)
+    Move(wordLabel, gVideoWidth/2, gVideoHeight/2 - 50)
+    AddObject(wordLabel, win)
+
+    SetText(prompt, "Press SPACE to START recording, then say: " + word)
+    Draw()
+
+    WaitForKeyPress(" ")
+
+    SetText(prompt, "RECORDING - Say the word, then press SPACE to STOP")
+    Draw()
+
+    energyProfile <- []
+    powerProfile <- []
+    rmseProfile <- []
+    signsProfile <- []
+    directionsProfile <- []
+
+    recording <- 1
+    while(recording)
+    {
+        stats <- GetAudioStats(gMonitor, 10)
+        energyProfile <- Append(energyProfile, First(stats))
+        powerProfile <- Append(powerProfile, Nth(stats, 2))
+        rmseProfile <- Append(rmseProfile, Third(stats))
+        signsProfile <- Append(signsProfile, Nth(stats, 4) * 100)
+        directionsProfile <- Append(directionsProfile, Nth(stats, 5) * 100)
+
+        result <- WaitForListKeyPressWithTimeout([" "], 10)
+        if(result == " ")
+        {
+            recording <- 0
+        }
+    }
+
+    SetText(prompt, "COMPLETE - Press RETURN to continue")
+    Draw()
+    WaitForKeyPress("<return>")
+
+    RemoveObject(wordLabel, win)
+    RemoveObject(prompt, win)
+    Draw()
+
+    return([word, energyProfile, powerProfile, rmseProfile, signsProfile, directionsProfile])
+}

@@ -1,0 +1,968 @@
+## Voice Key Calibration Functions
+##
+## Provides adaptive threshold calibration for voice key detection
+## using ROC-based optimization when both noise and speech samples are available.
+##
+## Three calibration modes:
+##   1. Default: No calibration - use fixed threshold
+##   2. Noise-only: Use 95th percentile of noise
+##   3. Adaptive (noise + speech): ROC-based optimization
+##
+## Can be used as a library (Load("voicekey-calibration.pbl"))
+## or run standalone for calibration
+
+define Start(p)
+{
+    ## CONTROL: Set to 1 to save audio buffers, 0 to skip saving
+    gSaveBuffers <- 1
+
+    ## CONTROL: Set to 1 to skip calibration collection, 0 to run full calibration
+    gSkipCalibration <- 0
+
+    gWin <- MakeWindow("grey40")
+    gSleepEasy <- 1
+
+    ## Set subject number if not provided
+    if(not gSubNum)
+    {
+        gSubNum <- 999
+    }
+
+    gFont <- MakeFont(gPEBLBaseFont, 0, 20, MakeColor("white"), MakeColor("grey40"), 1)
+    gFontLarge <- MakeFont(gPEBLBaseFont, 0, 36, MakeColor("yellow"), MakeColor("grey40"), 1)
+
+    if(gSkipCalibration)
+    {
+        ## SKIP CALIBRATION MODE
+        ## Use only default threshold - no audio monitor, no recording
+        Print("")
+        Print("================================================")
+        Print("=== SKIPPING CALIBRATION - USING DEFAULTS ===")
+        Print("================================================")
+
+        threshold1 <- 0.019
+        threshold2 <- 0.019
+        threshold3 <- 0.019
+
+        Print("Using default threshold: " + threshold1)
+
+        ## Simple instructions
+        instructions <- "Voice Key Test (No Calibration)" + CR(2) +
+                       "Using default threshold: 0.019" + CR(2) +
+                       "You will test the voice key with 3 words." + CR(2) +
+                       "Press any key to begin"
+
+        instrBox <- EasyTextBox(instructions, gVideoWidth/2-300, 200, gWin, 18, 600, 300)
+        Draw()
+        WaitForAnyKeyPress()
+        RemoveObject(instrBox, gWin)
+        Draw()
+
+    } else {
+        ## FULL CALIBRATION MODE
+        ## Instructions
+        instructions <- "Voice Key Calibration Test" + CR(2) +
+                       "This will calibrate voice key thresholds using:" + CR(1) +
+                       "  1. Silence recording (2 seconds)" + CR(1) +
+                       "  2. Speech samples (5 words)" + CR(2) +
+                       "Then it will calculate three thresholds:" + CR(1) +
+                       "  - Default (0.019)" + CR(1) +
+                       "  - Noise-only (95th percentile)" + CR(1) +
+                       "  - ROC optimal (95% noise reject, 75% signal capture)" + CR(2) +
+                       "Finally, it will test each threshold with 3 words." + CR(2) +
+                       "Press any key to begin"
+
+        instrBox <- EasyTextBox(instructions, gVideoWidth/2-350, 100, gWin, 18, 700, 500)
+        Draw()
+        WaitForAnyKeyPress()
+        RemoveObject(instrBox, gWin)
+        Draw()
+
+        ## Start audio monitor with LOCAL variable (not global!)
+        ## This tests that proper cleanup allows destructor to free resources
+        monitor <- StartAudioMonitor(2000)
+
+        ## Collect silence baseline
+        Print("=== Collecting Noise Calibration ===")
+        silenceStats <- RecordSilence(gWin, monitor)
+
+        ## Collect speech samples
+        Print("=== Collecting Speech Calibration ===")
+        words <- ["WISCONSIN", "SUSPECT", "CHRISTMAS", "HARMONY", "APARTMENT"]
+        speechResults <- []
+        loop(word, words)
+        {
+            result <- RecordWord(word, gWin, monitor)
+            speechResults <- Append(speechResults, result)
+        }
+
+        ## Stop monitoring for calibration phase
+        ## CloseAudio() is now called, fully freeing the SDL audio device
+        StopAudioMonitor(monitor)
+
+        ## Extract power data
+        Print("")
+        Print("=== Extracting Power Data ===")
+        powerData <- ExtractPowerFromRecordings(silenceStats, speechResults)
+        noisePower <- First(powerData)
+        speechPower <- Nth(powerData, 2)
+
+        Print("Noise samples: " + Length(noisePower))
+        Print("Speech samples: " + Length(speechPower))
+
+        ## Calculate all three calibration thresholds
+        Print("")
+        Print("================================================")
+        Print("=== MODE 1: Default (No Calibration) ===")
+        Print("================================================")
+        result1 <- CalibrateVoiceKeyThreshold(0, 0, 0.019)
+        threshold1 <- First(result1)
+        method1 <- Nth(result1, 2)
+
+        Print("")
+        Print("================================================")
+        Print("=== MODE 2: Noise-Only Calibration ===")
+        Print("================================================")
+        result2 <- CalibrateVoiceKeyThreshold(noisePower, 0, 0.019, 95)
+        threshold2 <- First(result2)
+        method2 <- Nth(result2, 2)
+
+        Print("")
+        Print("================================================")
+        Print("=== MODE 3: Adaptive ROC Calibration ===")
+        Print("================================================")
+        result3 <- CalibrateVoiceKeyThreshold(noisePower, speechPower, 0.019, 95, 75, 100)
+        threshold3 <- First(result3)
+        method3 <- Nth(result3, 2)
+        diagnostics3 <- Third(result3)
+
+        ## Save ROC calibration results
+        SaveCalibrationResults(diagnostics3, "voicekey_roc_calibration.csv")
+
+        ## Display comparison
+        Print("")
+        Print("================================================")
+        Print("=== CALIBRATION SUMMARY ===")
+        Print("================================================")
+        Print("Mode 1 (Default):   threshold = " + threshold1)
+        Print("Mode 2 (Noise-95%): threshold = " + Round(threshold2, 4))
+        Print("Mode 3 (ROC):       threshold = " + Round(threshold3, 4))
+
+        ## Show results on screen
+        summaryText <- "Calibration Complete!" + CR(2) +
+                      "Three Threshold Methods:" + CR(2) +
+                      "1. Default (no calibration):" + CR(1) +
+                      "   Threshold = " + threshold1 + CR(2) +
+                      "2. Noise-only (95th percentile):" + CR(1) +
+                      "   Threshold = " + Round(threshold2, 4) + CR(2) +
+                      "3. Adaptive ROC (optimal):" + CR(1) +
+                      "   Threshold = " + Round(threshold3, 4) + CR(1) +
+                      "   Noise rejection: " + Round(GetProperty(diagnostics3, "noiseReject"), 1) + "%" + CR(1) +
+                      "   Signal capture: " + Round(GetProperty(diagnostics3, "signalCapture"), 1) + "%" + CR(2) +
+                      "Press any key to test each threshold"
+
+        summaryBox <- EasyTextBox(summaryText, gVideoWidth/2-350, 100, gWin, 18, 700, 500)
+        Draw()
+        WaitForAnyKeyPress()
+        RemoveObject(summaryBox, gWin)
+    }
+
+    ## Now test all three thresholds with actual voice key
+    Print("")
+    Print("================================================")
+    Print("=== TESTING VOICE KEY WITH ALL THRESHOLDS ===")
+    Print("================================================")
+    TestVoiceKeyThresholds(threshold1, threshold2, threshold3, gWin)
+
+    Print("")
+    Print("=== ALL TESTING COMPLETE ===")
+}
+
+## TestSingleThreshold
+##
+## Simplified version to test just one threshold
+##
+define TestSingleThreshold(threshold, win)
+{
+    testWords <- ["APPLE", "BUTTON", "COFFEE"]
+
+    Print("Threshold value: " + Round(threshold, 4))
+
+    ## Test with each word
+    loop(word, testWords)
+    {
+        TestVoiceKeyWord(word, threshold, win)
+    }
+}
+
+## TestVoiceKeyThresholds
+##
+## Tests the actual VoiceKey function with three different thresholds
+##
+define TestVoiceKeyThresholds(threshDefault, threshNoise, threshROC, win)
+{
+    ## NOTE: Do NOT start audio monitor here!
+    ## GetVocalResponseTime() creates its own buffer internally.
+    ## Running StartAudioMonitor() and GetVocalResponseTime() simultaneously
+    ## will cause a crash because both try to use the same SDL audio device.
+
+    thresholds <- [threshDefault, threshNoise, threshROC]
+    threshNames <- ["Default (0.019)", "Noise-only (95%)", "ROC Optimal"]
+    testWords <- ["APPLE", "BUTTON", "COFFEE"]
+
+    ## Test each threshold
+    loop(i, Sequence(1, 3, 1))
+    {
+        thresh <- Nth(thresholds, i)
+        name <- Nth(threshNames, i)
+
+        Print("")
+        Print("=== Testing Threshold " + i + ": " + name + " ===")
+        Print("Threshold value: " + Round(thresh, 4))
+
+        ## Instructions
+        instrText <- "Voice Key Test - Threshold " + i + CR(2) +
+                    name + CR(1) +
+                    "Threshold = " + Round(thresh, 4) + CR(2) +
+                    "You will say 3 words." + CR(1) +
+                    "The voice key will detect when you speak." + CR(2) +
+                    "Press any key to begin"
+
+        instrBox <- EasyTextBox(instrText, gVideoWidth/2-300, 150, win, 18, 600, 350)
+        Show(win)
+        Draw()
+        WaitForAnyKeyPress()
+        RemoveObject(instrBox, win)
+        Draw()
+
+        ## Test with each word
+        loop(word, testWords)
+        {
+            TestVoiceKeyWord(word, thresh, win)
+        }
+
+        ## Show results summary
+        summaryText <- "Threshold " + i + " Testing Complete" + CR(2) +
+                      "Check console for detection times." + CR(2) +
+                      "Press any key to continue"
+
+        summaryBox <- EasyTextBox(summaryText, gVideoWidth/2-250, 200, win, 18, 500, 200)
+        Draw()
+        WaitForAnyKeyPress()
+        RemoveObject(summaryBox, win)
+        Hide(win)
+    }
+
+    ## Final message
+    Print("")
+    Print("=== Voice Key Testing Complete ===")
+    Print("All three thresholds have been tested.")
+}
+
+## TestVoiceKeyWord
+##
+## Tests voice key with a single word
+## Creates a fresh buffer for each test (buffers can only be used once)
+##
+define TestVoiceKeyWord(word, threshold, win)
+{
+    ## Show the word
+    wordLabel <- MakeLabel(word, gFontLarge)
+    Move(wordLabel, gVideoWidth/2, gVideoHeight/2 - 50)
+    AddObject(wordLabel, win)
+
+    prompt <- MakeLabel("Press SPACE when ready, then say: " + word, gFont)
+    Move(prompt, gVideoWidth/2, gVideoHeight/2 + 100)
+    AddObject(prompt, win)
+    Draw()
+
+    WaitForKeyPress(" ")
+
+    ## Give audio system time to settle after keypress
+    Wait(500)
+
+    ## Clear ready for voice key
+    SetText(prompt, "Say the word NOW!")
+    Draw()
+
+    ## CRITICAL: Must create a fresh buffer for each test
+    ## GetVocalResponseTime consumes the buffer - it can only be used once
+    Print("  Creating fresh 3-second buffer for " + word)
+    buffer <- MakeAudioInputBuffer(3000)
+
+    ## Wait for audio device to fully initialize
+    Wait(200)
+
+    result <- GetVocalResponseTime(buffer, threshold, 100)
+    rt <- First(result)
+    offset <- Nth(result, 2)
+    detected <- Third(result)
+
+    ## Save audio buffer to WAV file for analysis in Audacity (if enabled)
+    if(gSaveBuffers)
+    {
+        MakeDirectory("output")
+        waveFile <- "output/" + gSubNum + "_" + word + "_thresh" + Round(threshold*1000) + ".wav"
+        SaveAudioToWaveFile(waveFile, buffer)
+        Print("  Saved audio to: " + waveFile)
+    }
+
+    ## Display result
+    if(detected)
+    {
+        resultText <- "DETECTED! RT = " + Round(rt) + " ms"
+        Print("  " + word + ": detected in " + Round(rt) + " ms (offset: " + Round(offset) + " ms)")
+    } else {
+        resultText <- "NOT DETECTED (buffer filled without detection)"
+        Print("  " + word + ": NOT DETECTED")
+    }
+
+    SetText(prompt, resultText)
+    Draw()
+    Wait(1500)
+
+    RemoveObject(wordLabel, win)
+    RemoveObject(prompt, win)
+    Draw()
+}
+
+define RecordSilence(win, monitor)
+{
+    prompt <- MakeLabel("Press RETURN to record 2 seconds of SILENCE", gFont)
+    Move(prompt, gVideoWidth/2, gVideoHeight/2)
+    AddObject(prompt, win)
+    Draw()
+
+    WaitForKeyPress("<return>")
+
+    SetText(prompt, "RECORDING SILENCE...")
+    Draw()
+
+    ## Collect stats every 10ms for 2 seconds
+    energyProfile <- []
+    powerProfile <- []
+    rmseProfile <- []
+    signsProfile <- []
+    directionsProfile <- []
+
+    numSamples <- 200
+    loop(i, Sequence(1, numSamples, 1))
+    {
+        Wait(10)
+        stats <- GetAudioStats(monitor, 10)
+        energyProfile <- Append(energyProfile, First(stats))
+        powerProfile <- Append(powerProfile, Nth(stats, 2))
+        rmseProfile <- Append(rmseProfile, Third(stats))
+        signsProfile <- Append(signsProfile, Nth(stats, 4) * 100)
+        directionsProfile <- Append(directionsProfile, Nth(stats, 5) * 100)
+    }
+
+    SetText(prompt, "COMPLETE - Press RETURN to continue")
+    Draw()
+    WaitForKeyPress("<return>")
+
+    RemoveObject(prompt, win)
+    Draw()
+
+    return([energyProfile, powerProfile, rmseProfile, signsProfile, directionsProfile])
+}
+
+define RecordWord(word, win, monitor)
+{
+    prompt <- MakeLabel("Press RETURN to see next word", gFont)
+    Move(prompt, gVideoWidth/2, gVideoHeight/2 + 100)
+    AddObject(prompt, win)
+    Draw()
+
+    WaitForKeyPress("<return>")
+
+    wordLabel <- MakeLabel(word, gFontLarge)
+    Move(wordLabel, gVideoWidth/2, gVideoHeight/2 - 50)
+    AddObject(wordLabel, win)
+
+    SetText(prompt, "Press SPACE to START recording, then say: " + word)
+    Draw()
+
+    WaitForKeyPress(" ")
+
+    SetText(prompt, "RECORDING - Say the word, then press SPACE to STOP")
+    Draw()
+
+    energyProfile <- []
+    powerProfile <- []
+    rmseProfile <- []
+    signsProfile <- []
+    directionsProfile <- []
+
+    recording <- 1
+    while(recording)
+    {
+        stats <- GetAudioStats(monitor, 10)
+        energyProfile <- Append(energyProfile, First(stats))
+        powerProfile <- Append(powerProfile, Nth(stats, 2))
+        rmseProfile <- Append(rmseProfile, Third(stats))
+        signsProfile <- Append(signsProfile, Nth(stats, 4) * 100)
+        directionsProfile <- Append(directionsProfile, Nth(stats, 5) * 100)
+
+        result <- WaitForListKeyPressWithTimeout([" "], 10)
+        if(result == " ")
+        {
+            recording <- 0
+        }
+    }
+
+    SetText(prompt, "COMPLETE - Press RETURN to continue")
+    Draw()
+    WaitForKeyPress("<return>")
+
+    RemoveObject(wordLabel, win)
+    RemoveObject(prompt, win)
+    Draw()
+
+    return([word, energyProfile, powerProfile, rmseProfile, signsProfile, directionsProfile])
+}
+
+## CalibrateVoiceKeyThreshold
+##
+## Calculates optimal voice key threshold based on available calibration data.
+##
+## Parameters:
+##   noiseData    - List of power values from silence recording (or 0 if not available)
+##   speechData   - List of power values from speech recording (or 0 if not available)
+##   defaultThreshold - Fallback threshold if no calibration data (default: 0.019)
+##   noiseReject  - Target noise rejection rate 0-100 (default: 95)
+##   signalCapture - Target signal capture rate 0-100 (default: 75)
+##   numBins      - Number of bins for ROC analysis (default: 100)
+##
+## Returns:
+##   [threshold, method, diagnostics]
+##   - threshold: Optimal threshold value
+##   - method: "default", "noise-only", or "adaptive"
+##   - diagnostics: Property list with details
+##
+define CalibrateVoiceKeyThreshold(noiseData, speechData, defaultThreshold:0.019,
+                                   noiseReject:95, signalCapture:75, numBins:100)
+{
+    ## Determine calibration mode
+    haveNoise <- IsList(noiseData)
+    haveSpeech <- IsList(speechData)
+
+    if(haveNoise)
+    {
+        haveNoise <- Length(noiseData) > 0
+    }
+
+    if(haveSpeech)
+    {
+        haveSpeech <- Length(speechData) > 0
+    }
+
+    ## Initialize return values
+    threshold <- defaultThreshold
+    method <- "default"
+    diagnostics <- []
+
+    if(not haveNoise and not haveSpeech)
+    {
+        ## Mode 1: No calibration - use default
+        Print("VoiceKey Calibration: Using default threshold = " + defaultThreshold)
+
+        threshold <- defaultThreshold
+        method <- "default"
+
+        diagnostics <- MakeParameterObject([
+            ["method", "default"],
+            ["threshold", defaultThreshold],
+            ["noiseReject", 0],
+            ["signalCapture", 0]
+        ])
+    } elseif(haveNoise and not haveSpeech)
+    {
+        ## Mode 2: Noise-only calibration
+        threshold <- Quantile(noiseData, noiseReject)
+        method <- "noise-only"
+
+        Print("VoiceKey Calibration: Noise-only mode")
+        Print("  Noise " + noiseReject + "th percentile = " + threshold)
+
+        diagnostics <- MakeParameterObject([
+            ["method", "noise-only"],
+            ["threshold", threshold],
+            ["noiseReject", noiseReject],
+            ["noiseSamples", Length(noiseData)],
+            ["noiseMin", Min(noiseData)],
+            ["noiseMax", Max(noiseData)],
+            ["noiseMean", Mean(noiseData)]
+        ])
+    } else {
+        ## Mode 3: Adaptive calibration with ROC analysis
+        method <- "adaptive"
+        Print("VoiceKey Calibration: Adaptive ROC-based mode")
+
+        ## Find overall range across both noise and speech
+        allData <- Flatten([noiseData, speechData])
+        minVal <- Min(allData)
+        maxVal <- Max(allData)
+        binWidth <- (maxVal - minVal) / numBins
+
+        Print("  Data range: " + minVal + " to " + maxVal)
+        Print("  Bin width: " + binWidth)
+
+        ## Create bins and calculate cumulative distributions
+        bins <- []
+        noiseCDF <- []
+        speechCDF <- []
+
+        loop(i, Sequence(0, numBins-1, 1))
+        {
+            binEdge <- minVal + i * binWidth
+            bins <- Append(bins, binEdge)
+
+            ## Count samples below threshold (cumulative)
+            noiseBelowCount <- CountIf(noiseData, binEdge, "<=")
+            speechBelowCount <- CountIf(speechData, binEdge, "<=")
+
+            ## Convert to percentages
+            noiseRejectPct <- 100 * noiseBelowCount / Length(noiseData)
+            speechRejectPct <- 100 * speechBelowCount / Length(speechData)
+
+            noiseCDF <- Append(noiseCDF, noiseRejectPct)
+            ## Signal capture = 100 - rejected
+            speechCDF <- Append(speechCDF, 100 - speechRejectPct)
+        }
+
+        ## Find threshold that meets criteria
+        ## Goal: Reject >= noiseReject% of noise, Capture >= signalCapture% of signal
+        bestThreshold <- defaultThreshold
+        bestScore <- -999
+        bestNoiseReject <- 0
+        bestSignalCapture <- 0
+
+        loop(i, Sequence(1, numBins, 1))
+        {
+            threshCandidate <- Nth(bins, i)
+            noiseRejPct <- Nth(noiseCDF, i)
+            sigCapPct <- Nth(speechCDF, i)
+
+            ## Score function: maximize signal capture while meeting noise rejection
+            if(noiseRejPct >= noiseReject)
+            {
+                ## Meets noise rejection criterion - score by signal capture
+                score <- sigCapPct
+
+                if(score > bestScore)
+                {
+                    bestScore <- score
+                    bestThreshold <- threshCandidate
+                    bestNoiseReject <- noiseRejPct
+                    bestSignalCapture <- sigCapPct
+                }
+            }
+        }
+
+        threshold <- bestThreshold
+        Print("  Optimal threshold: " + threshold)
+        Print("  Noise rejection: " + Round(bestNoiseReject, 1) + "%")
+        Print("  Signal capture: " + Round(bestSignalCapture, 1) + "%")
+
+        diagnostics <- MakeParameterObject([
+            ["method", "adaptive"],
+            ["threshold", threshold],
+            ["noiseReject", bestNoiseReject],
+            ["signalCapture", bestSignalCapture],
+            ["noiseSamples", Length(noiseData)],
+            ["speechSamples", Length(speechData)],
+            ["noiseMin", Min(noiseData)],
+            ["noiseMax", Max(noiseData)],
+            ["noiseMean", Mean(noiseData)],
+            ["speechMin", Min(speechData)],
+            ["speechMax", Max(speechData)],
+            ["speechMean", Mean(speechData)],
+            ["numBins", numBins],
+            ["bins", bins],
+            ["noiseCDF", noiseCDF],
+            ["speechCDF", speechCDF]
+        ])
+    }
+
+    return([threshold, method, diagnostics])
+}
+
+
+## CountIf - Helper function to count values meeting a condition
+##
+## Parameters:
+##   list - List of values
+##   threshold - Threshold value
+##   operator - Comparison operator: "<", "<=", ">", ">="
+##
+define CountIf(list, threshold, operator)
+{
+    count <- 0
+
+    if(operator == "<=")
+    {
+        loop(val, list)
+        {
+            if(val <= threshold)
+            {
+                count <- count + 1
+            }
+        }
+    } elseif(operator == "<")
+    {
+        loop(val, list)
+        {
+            if(val < threshold)
+            {
+                count <- count + 1
+            }
+        }
+    } elseif(operator == ">=")
+    {
+        loop(val, list)
+        {
+            if(val >= threshold)
+            {
+                count <- count + 1
+            }
+        }
+    } elseif(operator == ">")
+    {
+        loop(val, list)
+        {
+            if(val > threshold)
+            {
+                count <- count + 1
+            }
+        }
+    }
+
+    return(count)
+}
+
+
+## ExtractPowerFromRecordings
+##
+## Extracts power values from calibration recordings for ROC analysis
+##
+## Parameters:
+##   silenceStats - Output from RecordSilence (5-element list)
+##   speechResults - List of outputs from RecordWord (each 6-element list)
+##
+## Returns:
+##   [noisePower, speechPower]
+##   - noisePower: List of power values from silence
+##   - speechPower: List of power values from all speech recordings combined
+##
+define ExtractPowerFromRecordings(silenceStats, speechResults)
+{
+    ## Extract noise power from silence recording
+    ## silenceStats = [energyProfile, powerProfile, rmseProfile, signsProfile, directionsProfile]
+    noisePower <- Nth(silenceStats, 2)  ## Power is 2nd element
+
+    ## Extract and combine speech power from all word recordings
+    speechPower <- []
+    loop(wordResult, speechResults)
+    {
+        ## wordResult = [word, energyProfile, powerProfile, rmseProfile, signsProfile, directionsProfile]
+        wordPower <- Nth(wordResult, 3)  ## Power is 3rd element
+        speechPower <- Flatten([speechPower, wordPower])
+    }
+
+    return([noisePower, speechPower])
+}
+
+
+## SaveCalibrationResults
+##
+## Saves calibration results to a CSV file for analysis
+##
+## Parameters:
+##   diagnostics - Diagnostics property list from CalibrateVoiceKeyThreshold
+##   filename - Output filename (default: "voicekey_calibration.csv")
+##
+define SaveCalibrationResults(diagnostics, filename:"voicekey_calibration.csv")
+{
+    fileOut <- FileOpenOverwrite(filename)
+
+    ## Write basic parameters
+    FilePrint(fileOut, "# Voice Key Calibration Results")
+    FilePrint(fileOut, "method," + GetProperty(diagnostics, "method"))
+    FilePrint(fileOut, "threshold," + GetProperty(diagnostics, "threshold"))
+    FilePrint(fileOut, "noiseReject," + GetProperty(diagnostics, "noiseReject"))
+
+    if(GetProperty(diagnostics, "method") == "adaptive")
+    {
+        FilePrint(fileOut, "signalCapture," + GetProperty(diagnostics, "signalCapture"))
+        FilePrint(fileOut, "noiseSamples," + GetProperty(diagnostics, "noiseSamples"))
+        FilePrint(fileOut, "speechSamples," + GetProperty(diagnostics, "speechSamples"))
+        FilePrint(fileOut, "")
+
+        ## Write ROC curve data
+        FilePrint(fileOut, "# ROC Curve Data")
+        FilePrint(fileOut, "threshold,noiseRejectPct,signalCapturePct")
+
+        bins <- GetProperty(diagnostics, "bins")
+        noiseCDF <- GetProperty(diagnostics, "noiseCDF")
+        speechCDF <- GetProperty(diagnostics, "speechCDF")
+
+        loop(i, Sequence(1, Length(bins), 1))
+        {
+            threshold <- Nth(bins, i)
+            noiseRej <- Nth(noiseCDF, i)
+            sigCap <- Nth(speechCDF, i)
+
+            FilePrint(fileOut, threshold + "," + noiseRej + "," + sigCap)
+        }
+    }
+
+    FileClose(fileOut)
+    Print("Saved calibration results to: " + filename)
+}
+
+
+## PlotCalibrationWithThreshold
+##
+## Visualizes noise and speech power distributions with threshold overlay
+##
+## Parameters:
+##   silenceStats - Output from RecordSilence (5-element list)
+##   speechResults - List of outputs from RecordWord (each 6-element list)
+##   threshold - Threshold value to plot as horizontal line
+##   win - Window to draw on
+##
+define PlotCalibrationWithThreshold(silenceStats, speechResults, threshold, win)
+{
+    ## Extract power profiles
+    silPower <- Nth(silenceStats, 2)
+
+    ## Collect all word power profiles
+    allWords <- []
+    allPower <- [silPower]
+
+    loop(wordResult, speechResults)
+    {
+        allWords <- Append(allWords, First(wordResult))
+        allPower <- Append(allPower, Nth(wordResult, 3))
+    }
+
+    ## Find max for scaling
+    powerMax <- Ceiling(Max(Flatten(allPower)) * 1.2)
+
+    ## Graph parameters
+    graphWidth <- 700
+    graphHeight <- 120
+    rowSpacing <- 30
+    labelWidth <- 120
+    graphX <- gVideoWidth/2
+    startY <- 150
+
+    ## Hold references
+    labels <- []
+    barplots <- []
+
+    ## Title
+    titleFont <- MakeFont(gPEBLBaseFont, 0, 20, MakeColor("white"), MakeColor("grey40"), 1)
+    titleLabel <- MakeLabel("Voice Key Calibration - Power Distribution", titleFont)
+    Move(titleLabel, gVideoWidth/2, 50)
+    AddObject(titleLabel, win)
+    PushOnEnd(labels, titleLabel)
+
+    ## Threshold info
+    threshFont <- MakeFont(gPEBLBaseFont, 0, 16, MakeColor("yellow"), MakeColor("grey40"), 1)
+    threshLabel <- MakeLabel("Threshold: " + Round(threshold, 4) + " (red line)", threshFont)
+    Move(threshLabel, gVideoWidth/2, 100)
+    AddObject(threshLabel, win)
+    PushOnEnd(labels, threshLabel)
+
+    ## Row labels
+    labelFont <- MakeFont(gPEBLBaseFont, 0, 14, MakeColor("white"), MakeColor("grey40"), 1)
+
+    ## Silence row
+    rowY <- startY
+    lab <- MakeLabel("Silence:", labelFont)
+    Move(lab, labelWidth/2 + 20, rowY)
+    AddObject(lab, win)
+    PushOnEnd(labels, lab)
+
+    plot <- BarPlotWithThreshold(silPower, "", "", "", win, graphWidth, graphHeight, powerMax, threshold)
+    AddObject(plot, win)
+    Move(plot, graphX, rowY)
+    PushOnEnd(barplots, plot)
+
+    ## Word rows
+    wordIndex <- 1
+    loop(wordResult, speechResults)
+    {
+        rowY <- startY + (graphHeight + rowSpacing) * wordIndex
+
+        word <- First(wordResult)
+        lab <- MakeLabel(word + ":", labelFont)
+        Move(lab, labelWidth/2 + 20, rowY)
+        AddObject(lab, win)
+        PushOnEnd(labels, lab)
+
+        wordPower <- Nth(wordResult, 3)
+
+        plot <- BarPlotWithThreshold(wordPower, "", "", "", win, graphWidth, graphHeight, powerMax, threshold)
+        AddObject(plot, win)
+        Move(plot, graphX, rowY)
+        PushOnEnd(barplots, plot)
+
+        wordIndex <- wordIndex + 1
+    }
+
+    ## Instructions
+    lab <- MakeLabel("Each bar = 10ms sample. Red line = threshold. Press X to exit", labelFont)
+    Move(lab, gVideoWidth/2, rowY + graphHeight + 40)
+    AddObject(lab, win)
+    PushOnEnd(labels, lab)
+
+    Draw()
+    return([labels, barplots])
+}
+
+
+## BarPlotWithThreshold
+##
+## Modified BarPlot that adds a horizontal threshold line
+##
+## Parameters:
+##   data - List of values to plot
+##   labels, title, ylab - Unused (kept for compatibility)
+##   win - Window to draw on
+##   xsize, ysize - Graph dimensions
+##   forcedMax - Fixed y-axis maximum
+##   threshold - Value for horizontal threshold line (0 = no line)
+##
+define BarPlotWithThreshold(data, labels, title, ylab, win, xsize:800, ysize:400, forcedMax:0, threshold:0)
+{
+    obj <- MakeCustomObject("bargraph")
+
+    ## Location of the min and max y in pixels
+    ybottom <- ysize*.8
+    ytop  <- ysize*.1
+    xbottom <- xsize*.2
+    xtop    <- xsize*.9
+
+    numpoints <- Length(data)
+    ## Parameters for how to draw picture
+    maxbarwidth <- Round(xsize/numpoints*.9)
+    minbarspace <- 5
+
+    ## Range of the data
+    datamin <- 0
+    datamax <- Max(data)
+
+    ## Data value max to plot
+    if(forcedMax > 0)
+    {
+        plotmax <- forcedMax
+    } else {
+        plotmax <- Ceiling(datamax * 1.2)
+    }
+    plotmin <- Min([0,datamin])
+
+    ## Numbers per pixel
+    scale <-  (ybottom-ytop)/(plotmax-plotmin)
+
+    numdat <- Length(data)
+    ## Compute 'real' plot width
+
+    barwidth <- Min([((xtop-xbottom-10) -  (numdat)*minbarspace)/numdat,maxbarwidth])
+    barspace <- ((xtop-xbottom-10) - numdat*barwidth)/(numdat)
+
+    bgcol <- MakeColor("grey90")
+    fgcol <- MakeColor("navyblue")
+    threshcol <- MakeColor("red")
+    black <- MakeColor("black")
+    objs <- []
+
+    ## Make a background field
+    bg <- MakeCanvas(xsize,ysize, bgcol)
+    obj.bg <- bg
+    objs <- Append(objs,bg)
+
+    ## Make bars
+    curx <- xbottom+barwidth/2 + barspace/2
+    jumpx <- barwidth+barspace
+    loop(val,data)
+    {
+        hght <- scale*val
+        bar <- Rectangle(curx,ybottom-hght/2,barwidth,hght,fgcol,1)
+        AddObject(bar,bg)
+        PushOnEnd(objs,bar)
+        curx <- curx + jumpx
+    }
+
+    ## Make two axes
+    xaxis <- ThickLine(xbottom,ybottom, xtop, ybottom, 3, black)
+    yaxis <- ThickLine(xbottom,ybottom,xbottom,ytop,3,black)
+    AddObject(xaxis,bg)
+    AddObject(yaxis,bg)
+    objs <- Append(objs,xaxis)
+    objs <- Append(objs,yaxis)
+
+    ## Add horizontal threshold line if specified
+    if(threshold > 0)
+    {
+        ## Calculate y position for threshold
+        threshY <- ybottom - (threshold * scale)
+
+        ## Draw thick red line across plot area
+        threshLine <- ThickLine(xbottom, threshY, xtop, threshY, 3, threshcol)
+        AddObject(threshLine, bg)
+        objs <- Append(objs, threshLine)
+    }
+
+    ## Determine the tick unit
+    tick <- 10^Floor(LogN(plotmax/2,10))
+    i <- 0
+    curtick <- ybottom - tick * scale * i
+
+    titlefontsize <- Round(ysize/12)
+    labfontsize <-Round(titlefontsize*.6)
+    titlefont <- MakeFont(gPEBLBaseFont,0,titlefontsize,black,bgcol,0)
+    labfont <- MakeFont(gPEBLBaseFont,0,labfontsize,black,bgcol,0)
+
+    while(curtick >= ytop)
+    {
+        val <- tick *i
+        lab <- MakeLabel(val+"",labfont)
+        AddObject(lab,bg)
+        Move(lab,xbottom-35,curtick)
+        objs <- Append(objs,lab)
+
+        tmp <- ThickLine(xbottom-10, curtick, xbottom, curtick, 2, black)
+        AddObject(tmp,bg)
+        objs <- Append(objs,tmp)
+
+        i <- i + 1
+        curtick <- ybottom - tick * scale * i
+    }
+
+    obj.objs <- objs
+    obj.AddObject<- "AddBarplot"
+    obj.Move<- "MoveBarplot"
+    obj.Draw<- "DrawBarplot"
+
+    Draw(bg)
+    return(obj)
+}
+
+
+define AddBarPlot(barplot,win)
+{
+    AddObject(barplot.bg,win)
+}
+
+define MoveBarPlot(barplot,x,y)
+{
+    Move(barplot.bg,x,y)
+}
+
+define DrawBarPlot(obj)
+{
+    Draw(obj)
+}

@@ -1,0 +1,37 @@
+## Test JPG image loading
+## This test verifies that JPEG format is properly supported
+
+define Start(p)
+{
+    gWin <- MakeWindow("black")
+
+    Print("Testing JPG image loading...")
+
+    # Test 1: Load launcher background JPG
+    Print("Loading launcher-bg.jpg...")
+    img1 <- MakeImage("launcher-bg.jpg")
+    AddObject(img1, gWin)
+    Move(img1, 400, 300)
+    Draw()
+
+    Print("JPG loaded successfully!")
+    Print("Image size: " + img1.width + "x" + img1.height)
+
+    WaitForAnyKeyPress()
+
+    # Test 2: Try Iowa task JPG files if available
+    if(FileExists("battery/iowa/media/Smiley_Face.jpg"))
+    {
+        Print("Loading battery/iowa/media/Smiley_Face.jpg...")
+        img2 <- MakeImage("battery/iowa/media/Smiley_Face.jpg")
+        AddObject(img2, gWin)
+        Move(img2, 200, 200)
+        Draw()
+        Print("Smiley face loaded!")
+        WaitForAnyKeyPress()
+    }
+
+    Print("All JPG tests passed!")
+    Print("Press any key to exit.")
+    WaitForAnyKeyPress()
+}

@@ -1,0 +1,34 @@
+## Minimal test case to reproduce "gCallStack is empty in PEBL_FUNCTION_TAIL_LIBFUNCTION" error
+## This reproduces the error from digitspan.pbl line 31
+##
+## Error occurs when:
+## 1. Start() has a parameter (like digitspan's Start(lPar))
+## 2. InitializeUpload() is called (from pebl-lib/Utility.pbl)
+## 3. A user-defined function is called (like Initialize())
+##
+## The error suggests the call stack push/pop is unbalanced
+
+define Start(p)
+{
+    Print("Testing call stack with Start(p) parameter...")
+
+    ## This works fine in native PEBL, but may cause issues in Emscripten
+    InitializeUpload()
+
+    Print("About to call Initialize()...")
+
+    ## This call triggers: "gCallStack is empty in PEBL_FUNCTION_TAIL_LIBFUNCTION"
+    Initialize()
+
+    Print("Test complete - if you see this, the bug is fixed!")
+}
+
+define Initialize()
+{
+    Print("Inside Initialize() function")
+
+    ## Create a simple variable
+    gTestVar <- "test"
+
+    Print("Initialize() complete")
+}

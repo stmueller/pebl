@@ -1,0 +1,76 @@
+#!/usr/bin/env pebl2
+##############################################################
+## Test script for system locale detection
+## Tests GetSystemLocale() and IsSystemLocaleRTL()
+##############################################################
+
+define Start(lPar)
+{
+    gWin <- MakeWindow("grey")
+
+    # Test GetSystemLocale()
+    Print("=== System Locale Detection Test ===")
+    locale <- GetSystemLocale()
+
+    if(locale == "")
+    {
+        Print("WARNING: Could not detect system locale (empty string returned)")
+    } else {
+        Print("System locale detected: [" + locale + "]")
+    }
+
+    # Test IsSystemLocaleRTL()
+    isRTL <- IsSystemLocaleRTL()
+    Print("Is system locale RTL? " + isRTL)
+
+    if(isRTL)
+    {
+        Print("  -> System is configured for RTL language (Arabic or Hebrew)")
+        Print("  -> Text boxes should default to right-justified")
+    } else {
+        Print("  -> System is configured for LTR language")
+        Print("  -> Text boxes should default to left-justified")
+    }
+
+    # Display on screen
+    gFont <- MakeFont(gPEBLBaseFont, 0, 24, MakeColor("black"), MakeColor("grey"), 1)
+
+    y <- 50
+    line1 <- MakeLabel("System Locale: " + locale, gFont)
+    AddObject(line1, gWin)
+    Move(line1, 250, y)
+    y <- y + 40
+
+    rtlText <- "RTL: " + isRTL
+    if(isRTL)
+    {
+        rtlText <- rtlText + " (Right-to-Left)"
+    } else {
+        rtlText <- rtlText + " (Left-to-Right)"
+    }
+
+    line2 <- MakeLabel(rtlText, gFont)
+    AddObject(line2, gWin)
+    Move(line2, 250, y)
+    y <- y + 60
+
+    # Show instructions
+    instruction <- MakeLabel("This demonstrates system locale detection", gFont)
+    AddObject(instruction, gWin)
+    Move(instruction, 250, y)
+    y <- y + 40
+
+    instruction2 <- MakeLabel("Press any key to continue", gFont)
+    AddObject(instruction2, gWin)
+    Move(instruction2, 250, y)
+
+    Draw()
+    WaitForAnyKeyPress()
+    subnum <- GetSubNum(gWin)
+    Draw()
+    Print("---")
+    Print("Test complete. Press any key to exit.")
+    WaitForAnyKeyPress()
+
+
+}

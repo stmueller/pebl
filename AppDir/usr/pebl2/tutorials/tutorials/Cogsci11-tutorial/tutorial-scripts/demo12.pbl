@@ -1,0 +1,39 @@
+define Start(p)
+{
+   win <- MakeWindow()
+   label1 <- EasyLabel("Type the letter you see.", 400,200,win,18)
+   label2 <- EasyLabel("", 400,300,win,18)
+   #Type will specify whether we use lowercase or uppercase
+   type <- [1,0, 1,1, 0,0, 0,1, 1,0]
+   stim <- ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"]
+   trials <- Transpose([type,stim])
+
+   trial <- 1
+   loop(i,trials)
+   {
+     resp <- Trial(label2,i)
+     Print(trial + "," + First(i) + "," +Second(i)+","+ resp)
+     trial <- trial + 1
+   }
+
+  label1.text <- ""
+  label2.text <- "Thank you."
+  Draw()
+  WaitForAnyKeyPress()
+}
+
+define Trial(label,stimulus)
+{
+  if(First(stimulus)==1)
+   {
+     lab <- Uppercase(Second(stimulus))
+   }else {
+     lab <- Second(stimulus)
+   }
+  label.text <- lab
+  Draw()
+  resp <- WaitForListKeyPress(["a","b","c","d","e","f","g","h","i","j"])
+  label.text <- ""
+  Draw()
+  return resp
+}

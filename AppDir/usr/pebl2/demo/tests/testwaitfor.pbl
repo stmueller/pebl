@@ -1,0 +1,294 @@
+##this tests various Withtimeout() functions to be sureofa consistent return value ontimeout
+
+define Start(p)
+{
+
+
+  gVideoWidth<-800
+  gVideoHeight <- 400
+  gWin <- MakeWindow("black")
+
+
+  label <-Easylabel("testtype:",gVideoWidth/2,100,gWin,20)
+
+
+
+
+
+
+
+  ###############################################
+  ###    WaitForKeyListdown([a,b,c])
+  label.text <- "WaitForKeyListDown([a,b,c])"
+  Draw()
+  out <- WaitForKeyListDown(["a","b","c"])
+  Print("WaitForKeyListDown([a,b,c]):  ["+out+"]")
+
+  
+
+
+
+  ###############################################
+  ###    WaitForKeyDown
+  label.text <- "WaitForKeyDown  (Hold x) until next message"
+  Draw()
+  out <- WaitForKeyDown("x")
+  Print("WaitforKeyDown:  ["+out+"]")
+
+## this Works???
+if(1)
+{
+  ###############################################
+  ###    WaitForAllKeysUp
+  label.text <- "WaitForAllKeysUp"
+  Draw()
+  out <- WaitForAllKeysUp()
+  Wait(200)
+  Print("WaitforAllKeysUp:  ["+out+"]")
+}
+
+
+###############################################
+  ###    WaitForKeyDown
+  label.text <- "WaitForKeyDown  (Hold x) until next message"
+  Draw()
+  out <- WaitForKeyDown("x")
+  Print("WaitforKeyDown:  ["+out+"]")
+
+
+##
+if(1)
+{
+  ###############################################
+  ###    WaitForKeyUp
+  label.text <- "WaitForKeyUp (release x)"
+  Draw()
+ out <- WaitForKeyUp("x")
+ Print("WaitforKeyUp:  ["+out+"]")
+}
+##broken--doesn't return
+
+
+  ###############################################
+  ###    WaitForAnyKeyDown
+  label.text <- "WaitForAnyKeyDown (press and hold)"
+  Draw()
+   out <- WaitForAnyKeyDown()
+   Print("WaitforAnyKeyDown:  ["+out+"]")
+##broken--returns 0 on no-keys-down
+
+
+
+  ###############################################
+  ###    WaitForKeyPress
+  label.text <- "WaitForKeyPress(x) 5"
+  Draw()
+  out <- WaitForKeyPress("x")
+  Print("WaitForKeyPress <5>:  ["+out+"]")
+
+  label.text <- "WaitForKeyPress(x) 4";Draw()
+  out <- WaitForKeyPress("x")
+  Print("WaitForKeyPress <4>:  ["+out+"]")
+
+  label.text <- "WaitForKeyPress(x) 3";Draw()
+  out <- WaitForKeyPress("x")
+  Print("WaitForKeyPress <3>:  ["+out+"]")
+
+ label.text <- "WaitForKeyPress(x) 2";Draw()
+  out <- WaitForKeyPress("x")
+  Print("WaitForKeyPress <2>:  ["+out+"]")
+
+ label.text <- "WaitForKeyPress(x) 1";Draw()
+  out <- WaitForKeyPress("x")
+  Print("WaitForKeyPress <1>:  ["+out+"]")
+
+  ###############################################
+  ###    WaitForKeyRelease
+  label.text <- "WaitForKeyRelease(x)"
+  Draw()
+  out <- WaitForKeyRelease("x")
+  Print("WaitForKeyRelease1:  ["+out+"]")
+  ###    WaitForKeyRelease
+  label.text <- "WaitForKeyRelease(y)"
+  Draw()
+  out <- WaitForKeyRelease("y")
+  Print("WaitForKeyRelease2:  ["+out+"]")
+
+
+
+  ###############################################
+  ###    WaitForAnyKeyPress
+  label.text <- "WaitForAnyKeyPress() (Press and hold)"
+  Draw()
+  out <- WaitForAnyKeyPress()
+  Print("WaitForAnyKeyPress:  ["+out+"]")
+
+
+if(1)
+{
+  ###############################################
+  ###    WaitForAllKeysUp
+  label.text <- "WaitForAllKeysUp()"
+  Draw()
+  out <- WaitForAllKeysUp()
+  Print("WaitForAllKeysUp:  ["+out+"]")
+}
+  ##broken
+
+
+
+
+  ###############################################
+  ###    WaitForAnyKeyPressWithTimeout(1000)
+  count <- 1
+
+  out <- "<timeout>"
+  while(out =="<timeout>")
+    {
+      label.text <- "WaitForAnyKeyPressWithTimeout(1000) (repeat until keypress) " + count
+       Draw()
+
+       out <- WaitForAnyKeyPressWithTimeout(1000)
+     
+       Print("WaitForAnyKeyPressWithTimeout(1000):  ["+out+"]" + count)
+       count <- count + 1
+    }
+
+
+
+
+
+  ###############################################
+  ###    WaitForAnyKeyDownWithTimeout(1000)
+  label.text <- "WaitForAnyKeyDownWithTimeout(1000) (repeat until keypress)"
+  Draw()
+  out <- "<timeout>"
+  while(out =="<timeout>")
+    {
+     out <- WaitForAnyKeyDownWithTimeout(1000)
+     Print("WaitForAnyKeyDownWithTimeout(1000):  ["+out+"]")
+    }
+
+
+
+
+
+
+  ###############################################
+  ###    WaitForAnyKeyPressWithTimeout(1000)
+  label.text <- "WaitForAnyKeyPressWithTimeout(1000) (repeat until keypress)"
+  Draw()
+  out <- "<timeout>"
+  while(out =="<timeout>")
+    {
+     out <- WaitForAnyKeyPressWithTimeout(1000)
+     Print("WaitForAnyKeyPressWithTimeout(1000):  ["+out+"]")
+    }
+
+
+
+
+  ###############################################
+  ###    WaitForListKeyPressWithTimeout([a,b,c],1000)
+  label.text <- "WaitForListKeyPressWithTimeout([a,b,c],1000) (repeat until keypress)"
+  Draw()
+  out <- "<timeout>"
+  while(out =="<timeout>")
+    {
+     out <- WaitForListKeyPressWithTimeout(["a","b","c"],1000)
+     Print("WaitForListKeyPressWithTimeout([a,b,c],1000):  ["+out+"]")
+    }
+
+
+
+  ###############################################
+  ###    WaitForKeyListdown([a,b,c])
+  label.text <- "WaitForKeyListDown([a,b,c])"
+  Draw()
+  out <- WaitForKeyListDown(["a","b","c"])
+  Print("WaitForKeyListDown([a,b,c]):  ["+out+"]")
+
+
+ ###############################################
+  ###    WaitForListKeyPress([a,b,c])
+  label.text <- "WaitForListKeyPress([a,b,c])"
+  Draw()
+  out <- WaitForListKeyPress(["a","b","c"])
+  Print("WaitForListKeyPress([a,b,c]):  ["+out+"]")
+ 
+
+
+
+
+ ###############################################
+ ###    WaitForMouseButton()
+  label.text <- "WaitForMouseButton()"
+  Draw()
+  out <- WaitForMouseButton()
+  Print("WaitForMouseButton() <5>:  ["+out+"]")
+  out <- WaitForMouseButton()
+  Print("WaitForMouseButton() <4>:  ["+out+"]")
+  out <- WaitForMouseButton()
+  Print("WaitForMouseButton() <3>:  ["+out+"]")
+  out <- WaitForMouseButton()
+  Print("WaitForMouseButton() <2>:  ["+out+"]")
+  Print("WaitForMouseButton() <1>:  ["+out+"]")
+ 
+
+
+
+  ###############################################
+  ###    WaitForMouseButtonWithTimeout(1000)
+  label.text <- "WaitForMouseButtonWithTimeout(1000) (repeat until keypress)"
+  Draw()
+  out <- "<timeout>"
+  while(out =="<timeout>")
+    {
+     out <- WaitForMouseButtonWithTimeout(1000)
+     Print("WaitForMouseButtonWithTimeout(1000):  ["+out+"]")
+    }
+
+
+  ###############################################
+  ###    WaitForClickOnTarget([label],[11])
+  label.text <- "WaitForClickOntarget([label],[11])"
+  Draw()
+
+  out <- WaitForclickOntarget([label],[11])
+  Print("WaitForClickOnTarget([label],[11]):  ["+out+"]")
+
+
+
+  ###############################################
+  ###    WaitForDownClick()
+  label.text <- "WaitForDownClick()"
+  Draw()
+
+  out <- WaitForDownClick()
+  Print("WaitForDownClick() <5>:  ["+out+"]")
+  out <- WaitForDownClick()
+  Print("WaitForDownClick() <4>:  ["+out+"]")
+  out <- WaitForDownClick()
+  Print("WaitForDownClick() <3>:  ["+out+"]")
+  out <- WaitForDownClick()
+  Print("WaitForDownClick() <2>:  ["+out+"]")
+  out <- WaitForDownClick()
+  Print("WaitForDownClick() <1>:  ["+out+"]")
+
+
+  ###############################################
+  ###    WaitForClickOnTargetWithTimeout([label],[11],1000)
+  label.text <- "WaitForClickOntargetWithTimeout([label],[11],1000)"
+  Draw()
+  out <- "<timeout>"
+  while(out =="<timeout>")
+    {
+     out <- WaitForClickOntargetWithTimeout([label],[11],1000)
+     Print("WaitForClickOnTargetWithTimeout([label],[11],1000):  ["+out+"]")
+    }
+
+
+
+
+
+}

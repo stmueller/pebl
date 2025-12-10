@@ -1,0 +1,73 @@
+## Test persistent storage with IDBFS
+## This script writes files to /data and they should persist across page reloads
+
+define Start(p)
+{
+    gVideoWidth <- 800
+    gVideoHeight <- 600
+    gWin <- MakeWindow()
+
+    Print("=== PEBL Persistent Storage Test ===")
+    Print("")
+
+    ## Check if data directory exists
+    dataExists <- IsDirectory("/data")
+    Print("Data directory exists: " + dataExists)
+
+    ## Check if we have a counter file from previous run
+    counterFile <- "/data/counter.txt"
+    counter <- 0
+
+    if(FileExists(counterFile))
+    {
+        Print("Found existing counter file!")
+        content <- FileReadText(counterFile)
+        counter <- ToNumber(content)
+        Print("Previous counter value: " + counter)
+    } else {
+        Print("No counter file found (first run)")
+    }
+
+    ## Increment counter
+    counter <- counter + 1
+    Print("New counter value: " + counter)
+
+    ## Write counter back
+    fileout <- FileOpenOverWrite(counterFile)
+    FilePrint_(fileout, counter)
+    FileClose(fileout)
+    Print("Counter saved to " + counterFile)
+
+    ## Also create a log file with timestamp
+    logFile <- "/data/test-log.txt"
+    logout <- FileOpenAppend(logFile)
+    FilePrint(logout, "Run #" + counter + " at " + TimeStamp())
+    FileClose(logout)
+    Print("Log entry added to " + logFile)
+
+    ## List all files in /data
+    Print("")
+    Print("Files in /data directory:")
+    listing <- GetDirectoryListing("/data")
+    loop(item, listing)
+    {
+        Print("  - " + item)
+    }
+
+    ## Display results in window
+    title <- EasyLabel("Persistent Storage Test", gVideoWidth/2, 50, gWin, 24)
+    msg1 <- EasyLabel("Run Count: " + counter, gVideoWidth/2, 150, gWin, 20)
+    msg2 <- EasyLabel("Files are saved to /data using IDBFS", gVideoWidth/2, 220, gWin, 14)
+    msg3 <- EasyLabel("Check browser console for details", gVideoWidth/2, 260, gWin, 14)
+    instr <- EasyLabel("Reload the page to see the counter increment", gVideoWidth/2, 350, gWin, 16)
+    instr2 <- EasyLabel("Press any key to exit", gVideoWidth/2, 400, gWin, 14)
+
+    Draw()
+    WaitForAnyKeyPress()
+
+    Print("")
+    Print("=== Test Complete ===")
+    Print("Reload the page to see persistent storage in action!")
+
+    return(1)
+}

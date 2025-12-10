@@ -1,0 +1,244 @@
+define Start(p)
+{
+
+  gWin <- MakeWindow("black")
+  gSleepEasy <- 1
+  trialsper <- 20
+  numblocks <- 4
+  ##compute median typing time over blocks of five trials.
+
+
+
+
+   consonants <- ["B","C","D","F","G","H","J","K","L",
+                  "M","N","P","Q","R","S","T","V","W","X","Y","Z"]
+
+
+   filler <- FileReadList("toronto8.txt")
+
+   gSubNum <- GetSubNum(gWin)
+
+   MessageBox("In this task, you will choose or provide a character string to practice typing. You should attempt to type each word as quickly as possible, and hit enter once you finish.  You may choose to edit the response using backspace if you make an error before hitting enter. The main measure that will be recorded is the time to complete typing once you start, but try to start typing as soon as you are ready. There are a total of "+(trialsper*2)+" words to type, and half of them will be your practice word.  ",gWin)
+
+   keystring <- "XXXXXXXXX"
+   while(not (StringLength(keystring)==8 or StringLength(keystring)==0))
+   {
+      keystring <- GetEasyInput("Enter 8-letter key string (leave blank for random consonant string",gWin)
+   }
+
+
+   if(keystring=="")
+   {
+ 
+#      keystrings <- [WriteLine(SubList(Shuffle(consonants),1,6),"")]
+       cont <- 1
+        lab <- Easylabel("",gVideoWidth/2,gVideoheight/2,gWin,22)
+       while(cont)
+        {
+           keystring <- Maketypeable(8)
+           lab.text <- keystring+"  Enter to accept. Space to recreate"
+           Draw()
+	   out <- WaitForListKeyPress([" ","<return>"])
+           cont <- (out==" ")
+        }
+
+      RemoveObject(lab,gWin)
+
+      keystrings <- [keystring]
+    } else{
+      keystrings <- [Uppercase(keystring)]
+   }
+  
+   
+   gFileOut <- GetNewDataFile(gSubNum,gWin,"learning","csv",
+             "subNum,trial,stim,wordlength,abstime,type,response,time1,time2,correct,keystrokes,mistakes")
+
+   CountDown(gWin)
+    blocklist <- []
+    training <- []
+    
+    loop(i,numblocks)
+     {
+       blocklist <- Merge(blocklist,Repeat(i,trialsper))
+       tmp <- Shuffle(Merge(SampleN(filler,trialsper),
+                            RepeatList(keystrings,trialsper)))
+       training <-  Merge(training,tmp)
+        
+     }
+
+
+
+
+    header <- Easylabel("Trial 1 of "+(trialsper*2),gVideoWidth/2,20,gWin,15)
+    trial <- 1
+
+    dat <- []
+    loop(i,training)
+     {
+        header.text <- "Trial "+trial+" of "+(trialsper*2*numblocks)
+        type <- IsMember(i,keystrings)
+        out <-  Trial(i)
+	datline <- Merge([gSubNum,trial,i,StringLength(i),GetTime(),type],out)
+        FilePrint(gFileout,WriteLine(datline,","))
+
+        PushOnEnd(dat,datline)
+        trial <- trial + 1
+     }
+
+
+   
+    td <- Transpose(dat)
+    noveldat <- Filter(dat,Nth(td,6))
+    wordsdat <- Filter(dat,Match(Nth(td,6),0))
+
+
+
+   
+    rtmeannovel <- SummaryStats(Nth(Transpose(noveldat),9),blocklist)
+    accmeannovel <- SummaryStats(Nth(Transpose(noveldat),10),blocklist)
+    
+    rtmeanwords <- SummaryStats(Nth(Transpose(wordsdat),9),blocklist)
+    accmeanwords <- SummaryStats(Nth(Transpose(wordsdat),10),blocklist)
+
+
+    table <- []
+
+    msg <- Timestamp()+ CR(1)+ "Time elapsed: " + (GetTime()/1000 ) + "seconds " +CR(1)+  "data code: " + gSubnum + CR(1)
+    msg <- msg+"Critical word: " +First(keystrings)+CR(1)
+    msg <- msg+"Mean typing time for blocks of "+trialsper+" words:"+CR(1)
+
+    msg <- msg + "----------------------------------------"+CR(1)
+    msg <- msg + "block   N   MedianRT    MeanRT   Accuracy"+CR(1)
+    loop(i,Sequence(1,Length(rtmeannovel),1))
+    {
+	rtrow <- Nth(rtmeannovel,i)
+	accrow <- Nth(accmeannovel,i)
+
+        rtplain <- Nth(rtmeanwords,i)
+        accplain <- Nth(accmeanwords,i)
+
+       line <- [First(rtrow),Second(rtrow),
+               Fourth(rtrow),Fourth(accrow),
+               Fourth(rtplain),Fourth(accplain)]
+	       
+	       
+        msg <- msg + First(rtrow) + "       "+Second(rtrow) + "     " +
+	            Third(rtrow) + "     "+ Fourth(rtrow) +"   " +Fourth(accrow)+ CR(1)
+
+      PushOnEnd(table,line)
+    }
+    msg <- msg + "----------------------------------------"+CR(1)
+
+
+    msg <- msg + "Overall mean:     " + Mean(Nth(Transpose(noveldat),9)) + " ms"+CR(1)
+    msg <- msg + "Ovarall accuracy: "+Mean(Nth(Transpose(noveldat),10))
+
+    reportfile <- FileOpenAppend("data/"+gSubNum+"/report-"+gSubNum+".txt")
+    FilePrint(reportfile,msg)
+
+
+    tab <- Maketable(table,["Block","N","RT", "Acc","RT-control","Acc-control"],
+            1000,400,22,MakeColor("white"),MakeColor("black"),2)
+    AddObject(tab,gWin)
+    Move(tab,gVideoWidth/2,gVideoHeight-350)
+    MessageBox(msg,gWin,20,100,100,gVideoHeight-400,0)
+    Draw()
+
+
+
+}
+
+define WriteLine(list,sep)
+{
+ sep0 <- ""
+ out <- ""
+loop(i,list)
+  {
+    out <- out + sep0 + i
+    sep0 <- sep
+  }
+ return out
+}
+
+define Trial(stimword)
+{
+
+  keys <- ["A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z",
+       "<RETURN>","<BACKSPACE>","-","1","2","3","4","5","6","7","8","9","0"]
+
+   label <- Easylabel(stimword,gVideoWidth/2, gVideoHeight/2,gWin,44)
+   entry <- EasyTextbox("",gVideoWidth/2-label.width/2, gVideoHeight/2-100,gWin,44,label.width,50)
+   word <- ""
+
+   Draw()
+   time0 <- GetTime()
+   done <- 0
+   mistakes <- 0
+   keystrokes <- 0
+    while(not done)
+     {
+      
+        resp <- Uppercase(WaitForListKeyPress(keys))
+        if(keystrokes==0)
+        {
+          time1 <- GetTime()
+         }
+
+       if(resp == "<RETURN>")
+     	 {
+          done <- 1 
+        
+
+       }elseif(resp=="<BACKSPACE>") {  ##Backspace
+           keystrokes <- keystrokes + 1
+            ##Simulate a backspace
+            mistakes <- mistakes + 1
+	    done <- 0
+            length <- StringLength(word)
+             if(length>0)
+               {
+                      word <- SubString(word,1,length-1)
+                }
+
+             Draw()
+	} else{
+
+            ##A normal response:
+
+             word <- word + resp
+
+	     keystrokes <- keystrokes + 1
+
+        }
+             entry.text <- word  
+	     Draw()
+     }
+     time2 <- GetTime()
+
+
+   corr <- Uppercase(word)==Uppercase(stimword)
+
+   return[word,time1-time0,time2-time1,corr,keystrokes,mistakes]
+}
+
+
+##make a string that is typeable on QWERTY
+define MakeTypeable(chars)
+{
+
+   if(chars>24)
+   {
+     SignalFatalError("Cannot create a word that long "+ chars)
+   
+   }
+   lefts <-  Shuffle(["Q","W","E","R","T","A","S","D","F","G","C","V","E","A"])
+   rights <- Shuffle(["Y","U","I","O","P","H","J","K","L","B","N","M","I","O"])
+
+   ##dvorak keyboard:
+   #lefts <-  Shuffle(["P","Y","A","O","E","U","I","Q","J","K","X","E","O"])
+   #rights <- Shuffle(["F","G","C","R","L","D","H","T","N","S","B","M","W"])
+   
+   pairs <- Flatten(Transpose([lefts,rights]))
+   return WriteLine(SubList(pairs,1,chars),"")
+
+}

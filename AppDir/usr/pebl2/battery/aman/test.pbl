@@ -1,0 +1,32 @@
+"
+define Start(p)
+{
+
+  gWin <- MakeWindow()
+  canv <- MakeCanvas(100,100,MakeColor("blue"))
+  AddObject(canv,gWin)
+  Move(canv,300,300)
+  lab <-  EasyLabel("test",50,50,canv,16)
+
+  Draw()
+
+  Print(GetAbsolutePosition(lab))
+  WaitForAnyKeyPress()
+}
+
+
+
+define GetAbsolutePosition(object)
+{
+   currX <- object.x 
+   currY <- object.y 
+   PrintProperties(object)
+
+   parentpos <- [0,0]
+   if(object.parent)
+   {
+      parentpos <- GetAbsolutePosition(object.parent)
+   }
+
+  return [currX+First(parentpos),currY+Second(parentpos)]
+}

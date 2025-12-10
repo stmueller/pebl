@@ -1,0 +1,234 @@
+define Start(p)
+{
+
+  gWin <- MakeWindow("white")
+  gSleepEasy <- 1
+
+  lab1 <- EasyLabel("Inner circle to change side.",260,550,gWin,20)
+  lab2 <- EasyLabel("Outer circle to rotate.",260,570,gWin,20)
+
+  done <- EasyLabel("DONE",440,560,gWin,30)
+  save <- EasyLabel("SAVE",440,580,gWin,30)
+
+  tableAngled <- 1
+if(0)
+ {
+  block11 <- MakeBlock(200,200,gWin)
+  block12 <- MakeBlock(200,300,gWin)
+  block13 <- MakeBlock(200,400,gWin)
+
+  block21 <- MakeBlock(300,200,gWin)
+  block22 <- MakeBlock(300,300,gWin)
+  block23 <- MakeBlock(300,400,gWin)
+
+
+  block31 <- MakeBlock(400,200,gWin)
+  block32 <- MakeBlock(400,300,gWin)
+  block33 <- MakeBlock(400,400,gWin)
+
+
+  blockstraight <- [block11,block12,block13,
+		block21,block22,block23,
+		block31,block32,block33]
+
+}
+
+  highlight <- MakeImage("images/highlight.png")
+#  AddObject(highlight,gWin)
+
+##Now, make a set that are rotated 45 degrees.
+  side <- Floor(100*Sqrt(2))-2
+  block11 <- MakeBlock(200,200,gWin,tableAngled)
+  block12 <- MakeBlock(200,200+1*side,gWin,tableAngled)
+  block13 <- MakeBlock(200,200+2*side,gWin,tableAngled)
+
+ ybase <- 200-side/2
+  block21 <- MakeBlock(200+side/2,ybase,gWin,tableAngled)
+  block22 <- MakeBlock(200+side/2,ybase+side,gWin,tableAngled)
+  block23 <- MakeBlock(200+side/2,ybase+2*side,gWin,tableAngled)
+
+
+  block31 <- MakeBlock(200+side,200,gWin,tableAngled)
+  block32 <- MakeBlock(200+side,200+side,gWin,tableAngled)
+  block33 <- MakeBlock(200+side,200+side*2,gWin,tableAngled)
+
+
+  block41 <- MakeBlock(200+3*side/2,ybase,gWin,tableAngled)
+  block42 <- MakeBlock(200+3*side/2,ybase+side,gWin,tableAngled)
+  block43 <- MakeBlock(200+3*side/2,ybase+2*side,gWin,tableAngled)
+
+
+  blockRotated <- [block11,block12,block13,
+                   block21,block22,block23,
+		   block31,block32,block33,
+		   block41,block42,block43]
+
+
+  blocks <- blockRotated
+  outcome <- []
+  clickon <- []
+index <- 1
+  loop(i,blocks)
+  {
+     PushOnEnd(clickon,Fifth(i))
+     PushOnEnd(clickon,Fourth(i))
+     outcome <-  Merge(outcome,[index+1,index])
+     index <- index + 2
+  }
+  
+
+   PushOnEnd(clickon, done)
+   PushOnEnd(clickon,save)
+
+   selection <- 1  
+
+   Move(highlight,200,200)
+   PushOnEnd(outcome,"done")
+   PushOnEnd(outcome,"save")
+   opts <- outcome
+
+   Print(opts)
+   cont <- 1
+
+   Print(clickon)
+   Print(opts)
+   Draw()
+   Print(clickon)
+   while(cont)	
+   {
+     Print("selcetion:" + selection)
+      resp <- WaitForClickOnTarget(clickon,opts)
+      Print("---------------")
+      Print(resp)
+      if(resp=="done")
+      {
+        cont <- 0
+      }elseif(resp=="save")
+      {
+      i <- 1
+	loop(block,blocks)
+	{
+	  center <- First(First(block))
+	  Print(i+","+center.x+","+center.y+","+Nth(block,2)+","+Nth(block,3))
+	  i <- i + 1
+	}
+
+
+      } elseif(IsNumber(resp))
+      {
+
+      newsel <-  Floor((resp+1)/2)
+      if(1)
+      {
+        selection <-newsel
+	rotate <-Even(resp)
+
+        if (rotate)
+         {
+         Print("Rotation.....")
+         ##Adjust rotation of selected block
+         block <- Nth(blocks,selection)
+	 newrotation <- Mod(Nth(block,3)+1,8)
+         block <- AdjustBlock(block,Nth(block,2),newrotation,highlight,tableAngled)
+         SetElement(blocks,selection,block)
+         }else {
+      	    
+   	   Print("selecting new block side")
+ 	   block <- Nth(blocks,selection)
+
+	   side <- Nth(block,2)
+	   newside <- side+1
+	   if(newside>7)
+	   {
+             newside <- 1
+	   }
+	   Print("Setting side to:" +newside)
+	   block <- AdjustBlock(block,newside,Nth(block,3),highlight,tableAngled)
+	   SetElement(blocks,selection,block)
+	   }
+	}else{
+	Print("Moving the highlighter")
+	##Just move the highlight box.
+	  selection <- Floor((resp+1)/2)
+	  block <- Nth(blocks,selection)
+	  dot <- First(First(block))
+	  Move(highlight,dot.x,dot.y)
+	  highlight.rotation <- Nth(block,3)*90
+       }
+
+      Draw()  
+   }
+}
+}
+
+
+
+
+## Creates a block at location x,y
+##
+define MakeBlock(x,y,win,tableAngled)
+{
+    
+  ## There are really 4 single-colored plus 2 triangular-colored sides.
+  ##
+  pointer <- Circle(x,y,18,MakeColor("grey60"),0)
+  turner <-  Circle(x,y,30,MakeColor("grey60"),0)
+  imgs <- []
+  
+  loop(i,["images/dot.png","images/red.png","images/redwhite.png",
+            "images/white.png","images/yellow.png","images/yellowblue.png",
+	    "images/blue.png"])
+
+    {
+      img <- MakeImage(i)
+      AddObject(img,win)
+      Move(img,x,y)
+      Hide(img)
+      PushOnEnd(imgs,img)
+    }
+    tmp <- First(imgs)
+    Show(tmp)
+    if(tableAngled)
+    {
+     tmp.rotation <- 45
+    }
+
+ AddObject(pointer,win)
+ AddObject(turner,win)
+
+ return [imgs,1,0,pointer,turner]
+}
+
+## side should be 1..7, with 1 the 'empty' dot
+## direction should be a cardinal angle 0...7
+define AdjustBlock(blockstack,side,direction,selection,tableAngled)
+{
+   HideAll(First(blockstack))
+   myblock <- Nth(First(blockstack),side)
+   Print("Adjusting myblock:" + myblock)
+   if(side>1)
+    {
+       Show(myblock)
+    }
+
+   myblock.rotation <- direction*90 + tableAngled*45
+#   selection.rotation <- direction * 90 + tableAngled*45
+   return [First(blockstack),side,direction]
+}
+
+define HideAll(list)
+{
+  loop(i,list)
+  {
+    Hide(i)
+  }
+}
+
+define Even(p)
+{
+  return Floor(p/2)*2==p
+}
+define Odd(p)
+{
+   return 1- (Mod(p,2)==0)
+}

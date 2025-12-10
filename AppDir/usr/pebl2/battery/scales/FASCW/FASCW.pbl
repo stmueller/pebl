@@ -1,0 +1,449 @@
+##  FASCW: Fatigue Assessment Scale for Construction Workers
+# Caban-Martinez et ale, 2015
+
+define Start(p)
+{
+
+  parpairs <- [["scaleheight",300]]
+  gParams <- CreateParameters(parpairs,gParamFile)
+               
+   ##Should you collect the pairwise weights?
+
+   gScaleHeight <- gParams.scaleheight
+   gWin <- MakeWindow("black")
+   gSleepEasy <- 1
+   if(gSubNum == 0)
+   {
+     gSubNum <- GetSubNum(gWin)
+   }
+
+   ## Load translations
+   GetStrings(gLanguage)
+
+   MakeDirectory("data")
+   gFASCWScaleOut <- FileOpenAppend("data/fascw-data.csv")
+
+   time1 <- GetTime()
+   fascwout <- FASCWScale()
+   time2 <- GetTime()
+   outdata <- Flatten([gSubNum,"FASCW",TimeStamp(),fascwout,time2-time1])
+   FilePrint(gFASCWScaleOut, MakeCSVLine(outdata))
+    
+
+}
+define MakeCSVLine(list)
+{
+  sep <- ""
+  out <- ""
+  loop(i,list)
+  {
+    out <- out + sep + i
+    sep <- ","
+  }
+ return out
+}
+
+##attempt to fit in 800x600 screen for maximum flexibility
+define  FASCWScale()
+{
+
+  labelmain <- EasyTextBox(gStrings.instructions,gVideoWidth/2-790/2,5,gWin,22,790,120)
+
+  scaleText <- [gStrings.q1, gStrings.q2, gStrings.q3, gStrings.q4, gStrings.q5,
+                gStrings.q6, gStrings.q7, gStrings.q8, gStrings.q9, gStrings.q10]
+
+  anchors <- [gStrings.anchor_1, gStrings.anchor_2, gStrings.anchor_3,
+              gStrings.anchor_4, gStrings.anchor_5]
+
+   a <- MakeRatingLine(gStrings.scale_header,anchors,gVideoWidth/2-790/2,130,790,40,15)
+   AddObject(a.back,gWin)
+
+   lines <- []
+   backs <- []
+   loop(item,Length(scaletext))
+   {
+     b <- MakeRatingLine(Nth(scaleText,item),Sequence(1,5,1),gVideoWidth/2-790/2,135+item*35,790,30,17)
+     AddObject(b.back,gWin)
+     PushOnEnd(lines,b)
+     PushOnEnd(backs,b.back)
+    }
+
+    bb <- b.back
+    Draw()
+    donetext <- Easylabel(gStrings.done, bb.x, bb.y+60,gWin,40)
+    boxwidth <- Max([40,donetext.width+6])
+    doneback <- Rectangle(donetext.x, donetext.y,donetext.width+6,donetext.height+6,MakeColor("grey30"),0)
+    AddObject(doneback,gWin)
+    AddObject(donetext,gWin)
+    Hide(doneback)
+    Hide(donetext)
+
+
+
+     #this loop continues until all targets have been rated (any order), then
+     ## it adds the done button to the click-out options.
+     outercont <- 1
+    while(outercont)
+    {
+
+     #here, we capture a click; and continue until we get a valid click
+     cont <- 1
+    while(cont)
+    {
+
+     #here, click until we actually click on a line. We later check to see
+     #if this was valid inside the line.
+     keepclicking <- 1
+     while(keepclicking)
+       {  
+         targ <-   WaitForButtonClickOnTarget(backs,Sequence(1,Length(backs),1))
+	 keepclicking <-  (First(targ) == "") # we have a valid click
+       }
+      
+      questionID <- First(targ)
+
+    
+    ##if QID is 11 or Length(scaletext)+1, we have hit the done button
+
+   if(questionID == Length(scaletext)+1)
+   {
+
+      ##quit it all! We have clicked on the DONE button.
+      outercont <- 0
+      cont <- 0
+      
+   }else {
+   
+      ##otherwise, find which response was given
+     obj <- Nth(lines,questionID)
+     xypos <- Second(targ)
+     subcanv <- Third(targ)
+
+   ##now, determine which rating was given.
+    selected <- WhichBox(xypos,obj.boxes)
+ 
+    if(not (selected==0))
+     {
+       cont <- 0
+     }   
+    }
+    
+    }  #<<--end of cont while loop
+
+    #we have selected something inside a box.
+
+
+   option <- Nth(obj.boxes,selected)
+  ##question questionID has been clicked, and the selected optiuon has been chosen.
+
+
+  obj.selectedID <- selected #update the data in the selection line to know what we are pointing to
+
+
+
+
+  selectionbox <- obj.selected
+  Show(selectionbox)
+  selectionbox.x <- option.x
+  selectionbox.y <- option.y
+  selectionbox.width <- option.width + 6
+  selectionbox.height <- option.height + 6
+
+  Draw()
+
+
+   ##calculate number of responses
+
+    resps <- []
+    numResponses <- 0
+    loop(i,lines)
+    {
+      PushOnEnd(resps,i.selectedID)
+      if(i.selectedID >0)
+      {
+        numResponses <- numResponses + 1
+      }
+
+    }
+
+     ##Ad the done button if we have clicked on everything.
+    if(numResponses == Length(lines) and Length(backs) == Length(lines))
+    {
+
+       PushOnEnd(backs,doneback) ##add the done button.
+       Show(doneback)
+       Show(donetext)
+       Draw()
+    }
+
+
+  
+}  ##end of outercont
+
+
+  return resps
+
+}
+
+define WhichBox(xypos,boxes)
+{
+
+  insideAny <- 0
+   count <- 1
+  loop(i, boxes)
+  {
+   if(Inside(xypos,i))
+   {
+      insideAny <- count
+      break
+   }
+     count <- count + 1
+  }
+ return insideAny  
+}
+
+
+
+define MakeRatingLine(text,options,x,y,width,height,fontsize:20,skip:75)
+{
+
+  obj <- MakeCustomObject("ratingline")
+  obj.back <- MakeCanvas(width, height,MakeColor("white"))
+  MoveCorner(obj.back,x,y)
+  obj.tb <- EasyTextBox(text,5,5,obj.back,15,400,40)
+
+  boxes <- []
+  opts <- []
+
+  index <- 1
+
+  #make a 'selected' box, but hide it:
+  obj.selected <- Rectangle(10,10,80,80,MakeColor("red"),1)
+  AddObject(obj.selected,obj.back)
+  obj.selectedID <- 0
+  Hide(obj.selected)
+
+  loop(i,options)
+  {
+     text <- Easylabel(i+"", 325 + index*skip,height/2,obj.back,fontsize)
+     boxwidth <- Max([40,text.width+6])
+     box <- Rectangle(325 + index*skip,height/2,boxwidth,height-2,MakeColor("grey90"),0)
+     AddObject(box,obj.back)
+     PushOnEnd(boxes,box)
+
+     AddObject(text,obj.back)
+     PushOnEnd(opts,text)
+    
+     index <- index + 1
+  }
+
+  
+  obj.boxes   <- boxes
+  obj.options <- opts
+
+  obj.inside <-"InsideTB"
+  obj.Draw <- "DrawRating"
+
+  return obj
+
+}
+
+
+define DrawRating(rating)
+{
+  Draw(rating.back)
+}
+
+##puts item into position on list
+define SpliceList(list,item,pos)
+{
+  i <- 1
+  tmp <- []
+  loop(itm,list)
+  {
+     if(i==pos)
+	  {
+	    itm <- item
+      }
+    tmp <- Append(tmp,itm)
+   i <- i + 1
+  }
+  return tmp
+}
+
+
+define PlotRow(x,y,info)
+{
+
+
+   black <- MakeColor("black")
+   font1 <-   MakeFont(gPEBLBaseFont,1,15,MakeColor("white"),black,0)
+   font <-   MakeFont(gPEBLBaseFont,0,12,MakeColor("white"),black,0)
+   title <- MakeTextBox(First(info),font1, 110,50)
+   AddObject(title,gWin)
+   Move(title,x-40,y-gscaleheight/2-170)
+
+
+   tb <- MakeTextBox(Fourth(info),font, 110,90)
+   AddObject(tb,gWin)
+   Move(tb,x-40,y-gscaleheight/2-120)
+   
+   labels <- [Second(info),Third(info)]
+   labheights <- [0,21]
+
+
+
+   nums <- Sequence(1,21,1)
+   lnums <- Length(nums)   
+
+   top <- y-gscaleheight/2
+   bottom <- y+gscaleheight/2
+   skip <- (bottom-top)/(lnums-1)
+
+   i <- bottom
+   ##add click-in box
+   box <- Rectangle(x,y,41,gscaleheight+2,MakeColor("grey60"),1)
+   AddObject(box,gwin)
+   tmp <- [box,title,tb] ##holder of graphical objects       
+   loop(n,nums)
+   {
+
+     #add tick
+	 if(n==11 or n==1 or n==21)
+     {
+     line <-  Line(x-18,i,37,0,black)
+     } else {
+
+     line <-  Line(x-12,i,25,0,black)
+     }
+     AddObject(line,gwin)
+     tmp <- Append(tmp,line)
+     i <- i- skip
+   }
+   
+
+
+   lab <- MakeLabel(First(labels),font)   
+   AddObject(lab,gWin)
+   Move(lab,x,bottom+15)
+   tmp <- Append(tmp,lab)
+
+   lab <- MakeLabel(Second(labels),font)   
+   AddObject(lab,gWin)
+   Move(lab,x,top-15)
+   tmp <- Append(tmp,lab)
+
+
+   #add vertical line
+   line <-    Line(x,top,0,(bottom-top),black)
+   AddObject(line,gwin) 
+   Draw()
+   tmp <- Append(tmp,line)
+
+
+  return tmp
+}
+
+define Pairs(list)
+{
+  tmp <- []
+  idi <- 1
+
+   loop(i,list)
+    {
+
+     idj <- 1
+	   loop(j,list)
+        {
+		
+
+		  if(idi<idj)
+           {
+
+		     tmp <- Append(tmp,[i,j])
+           }
+
+		  idj <- idj+1
+        }
+     idi <- idi + 1
+    }
+
+  return tmp
+}
+
+
+##targetlist is a set of graphical objects,
+##keylist is a set of keys whose corresponding
+##value should be returned when a graphical object is clicked upon.
+## This modifies the built-in waitforclickontarget so that it will
+## Return the button that is clicked, along with the target,
+## and the target object
+define WaitForButtonClickOnTarget(targetlist,keylist)
+{
+
+  if(not IsList(targetlist))
+  {
+    SignalFatalError("First argument of WaitForButtonClickOnTarget(targetlist,keylist) must be a list of graphical objects")
+  }
+
+  if(not IsList(keylist))
+  {
+    SignalFatalError("Second argument of WaitForButtonClickOnTarget(targetlist,keylist) must be a list")
+  }
+
+  if(Length(targetlist) <> Length(keylist))
+  {
+    SignalFatalError("Arguments of WaitForButtonClickOnTarget(targetlist,keylist) must be the same length")
+  }
+
+  obj <- ""
+  ret <- ""
+  testlist <- Reverse(Transpose([targetlist,keylist]))
+
+   wait1 <- 1
+   while(wait1)
+     {
+      wait2 <- 1
+      while(wait2)
+       {
+         pos <- WaitForMouseButton()
+         if((Nth(pos,4)=="<pressed>") or
+            (Nth(pos,4)=="<wheel>"))
+          {
+            wait2 <- 0
+            gClick <- pos
+          }
+       }
+
+      newtargs <- []
+
+      loop(i,testlist)
+          {
+
+            if(Inside(pos,First(i)))
+              {
+	        obj <- First(i)
+	        wait1 <- 0
+                ret <- Nth(i,2)
+                break
+             }
+
+          }
+	  wait1 <- 0
+     }
+  ##Print([ret,pos,obj])
+  return [ret,pos,obj]
+}
+
+define GetStrings(lang)
+{
+  lang <- Uppercase(lang)
+  fname <- "translations/FASCW.pbl-" + LowerCase(lang) + ".json"
+
+  if(FileExists(fname))
+  {
+    gStrings <- ReadTranslationJSON(fname, lang)
+  } else {
+    gStrings <- ReadTranslationJSON("translations/FASCW.pbl-en.json", lang)
+  }
+}

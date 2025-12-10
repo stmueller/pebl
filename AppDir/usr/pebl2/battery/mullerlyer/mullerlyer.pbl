@@ -1,0 +1,271 @@
+##  PEBL Test Battery: Muller-Lyer illusion
+##
+##  This test uses an adaptive design to find a point of
+##  ambivalence between the two figures in a Muller-Lyer
+##  illusion.
+##
+##  Released 2011 Shane T. Mueller, Ph.D smueller@obereed.net
+##  To cite:
+##  Mueller, S. T. (2011).  The PEBL Muller-Lyer Illusion Test.
+##      Computer Software downloaded from http://pebl.sf.net.
+##
+##
+
+define Start(p)
+{
+
+   gScriptName <- "Muller-Lyer Discrimination Test"
+
+parpairs <- [["prestime", 250],  ##how long to do the presentation, in ms
+  ["trials", 50 ],           ##Number of trials
+  ["spread",125],           ##How many pixels left and right of the
+                            ##centerline will the stimuli be
+  ["giveFeedback", 0],      ##whether feedback should be given
+  ["stepsize" , 10 ],         ##How big of a step to make after judgement?
+  ["randomstep" , 16],        ##How much randomness to include in step?
+  ["diff" , -40]]    ##start diff value.  It should be somewhat negative.
+
+ gParams <- CreateParameters(parpairs,gParamFile)
+
+  prestime <- gParams.prestime
+  trials <- gParams.trials
+  spread <- gParams.spread
+  giveFeedback <- gParams.givefeedback
+  stepsize <- gParams.stepsize
+  randomstep <- gParams.randomstep
+  diff <- gParams.diff
+
+
+
+  ##Keep track of some stats:
+  diffs <- []
+  resps <- []
+
+  gWin <- MakeWindow("black")
+
+  if(gSubNum+""=="0")
+   {
+     gSubNum <- GetSubNum(gWin)
+   }
+
+
+  GetStrings(gLanguage)
+  gSleepEasy <- 1
+  ShowCursor(0)
+
+  tmp <- ReplaceChar(gStrings.inst1,"<TRIALS>",trials+"")
+  inst <- EasyTextBox(tmp, 10,10,gWin,15,gVideoWidth-20,120)
+
+
+#    line1 <- MakeMLStim(gVideoWidth/2-spread,gVideoHeight/2+30,120,50,100)
+#    line2 <- MakeMLStim(gVideoWidth/2+spread,gVideoHeight/2+30,120,50,80)
+#     AddComplex(line2,gWin)
+#     RemoveComplex(line2,gWin)
+
+
+     line1 <- MakeMLStimHor(gVideoWidth/2,gVideoHeight/2,400,80,75,diff,1)
+     AddComplex(line1,gWin)
+     Draw()
+     WaitForAnyKEyPress()
+     RemoveComplex(line1,gWin)
+
+   Hide(inst)
+
+
+
+  fileOut <- GetNewDataFile(gSubNum,gWin,"mullerlyer","csv",
+               "subnum,trial,diff,resp,corr,abstime,rt")
+
+  header <- EasyLabel(gStrings.longer,gVideoWidth/2,100,gWin,40)
+  footer <- EasyLabel(gStrings.footer,gVideoWidth/2,gVideoHeight/2+150,gWin,40)
+
+   mid <- ThickLine(gVideoWidth/2,gVideoHeight/2+12,
+                    gVideoWidth/2,gVideoHeight/2-12,4,MakeColor("white"))
+   AddObject(mid,gWin)
+   Hide(mid)
+
+
+
+   ##Use a jittered staircase method to find point of indifference.
+   trial <- 1
+   while(trial<=trials)
+   {
+
+     diffs <- Append(diffs,diff)
+
+     ##determine difference between the two; +/-
+     line1 <- MakeMLStimHor(gVideoWidth/2,gVideoHeight/2,400,80,75,diff,1)
+     AddComplex(line1,gWin)
+
+     Draw()
+
+     HideComplex(line1)
+     Wait(prestime)
+
+
+    Show(header)
+    Show(footer)
+    Draw()
+    t1 <- GetTime()
+    resp <-  WaitForListKeyPress(["<lshift>","<rshift>"])
+    t2 <- GetTime()
+
+    corr <- ScoreResp(resp,diff)
+
+   if(giveFeedback)
+    {
+    ShowComplex(line1)
+    Show(mid)
+    Draw()
+    Wait(500)
+    }
+
+    resps <- Append(resps,resp)
+    RemoveComplex(line1,gWin)
+    Hide(mid)
+    Draw()
+    ##Determine next diff semi-randomly
+    ##if correct, move diff toward (or past) 0
+    if(corr)
+      {
+        diff <- diff - Sign(diff) *stepsize + Round((Random()-.5)*randomstep)
+      }else{
+        diff <- diff + Sign(diff) *stepsize + Round((Random()-.5)*randomstep)
+
+      }
+
+    Hide(header)
+    Hide(footer)
+    Draw()
+    Wait(500)
+    FilePrint(fileout,gsubnum+"," +trial + "," +  diff + "," +resp + "," +corr +"," + t1 + "," + (t2-t1))
+    trial <- trial + 1
+  }
+
+
+  ##Let's compute a threshold out of the last half of the trials.
+
+  meandiff <- Round(Mean(SubList(diffs,Max([1,Floor(trials/2)]),trials)),2)
+
+  inst.text <-gStrings.debrief + "["+meandiff+"]."
+  Show(inst)
+  Draw()
+  WaitForAnyKeyPress()
+
+}
+
+define ScoreResp(resp,diff)
+{
+     if((resp == "<lshift>" and diff>0) or
+         (resp == "<rshift>" and diff<0))
+       {
+          corr<- 1
+       }else{
+          corr <- 0
+       }
+ return corr
+}
+
+
+##This makes vertical M-L illusion stimuli
+define MakeMLStim(x,y,length,tailsize, tailangle)
+{
+
+   ##Compute dx and dy for tails based on size and angle
+   ## angle of 90 = straight out;
+   dx <- tailsize * Cos(tailangle-90)
+   dy <- tailsize * Sin(tailangle-90)
+
+
+   width <- 6
+   ##first, make the line
+   col <- MakeColor("white")
+   l1 <- ThickLine(x,y-length/2,x,y+length/2,width,col)
+
+   l2a <- ThickLine(x,y+length/2-1,x+dx,y+length/2+dy,width,col)
+   l2b <- ThickLine(x,y+length/2-1,x-dx,y+length/2+dy,width,col)
+
+   l3a <- ThickLine(x,y-length/2+1,x+dx,y-length/2-dy,width,col)
+   l3b <- ThickLine(x,y-length/2+1,x-dx,y-length/2-dy,width,col)
+
+   return [l1,l2a,l2b,l3a,l3b]
+}
+
+
+
+
+##This makes Horizontal M-L illusion stimuli,
+define MakeMLStimHor(x,y,length,tailsize, tailangle, offset,type)
+{
+
+   ##Compute dx and dy for tails based on size and angle
+   ## angle of 90 = straight out;
+   dx <- tailsize * Cos(tailangle-90)
+   dy <- tailsize * Sin(tailangle-90)
+
+
+   width <- 6
+   ##first, make the line
+   col <- MakeColor("white")
+   l1 <- ThickLine(x-length/2,y,x+length/2,y,width,col)
+
+   ##do the tail
+   l2a <- ThickLine(x-length/2+1,y,x-length/2+1+dx,y+dy,width,col)
+   l2b <- ThickLine(x-length/2+1,y,x-length/2+1+dx,y-dy,width,col)
+
+
+   ##do the other tail
+   l3a <- ThickLine(x+length/2-1,y,x+length/2-1+dx,y+dy,width,col)
+   l3b <- ThickLine(x+length/2-1,y,x+length/2-1+dx,y-dy,width,col)
+
+   ##do the middle tail
+   if(type==1)
+    {
+	      dx <- -dx
+    }
+
+   l4a <- ThickLine(x+offset,y,x+dx+offset,y+dy,width,col)
+   l4b <- ThickLine(x+offset,y,x+dx+offset,y-dy,width,col)
+
+
+   return [l1,l2a,l2b,l3a,l3b,l4a,l4b]
+}
+
+
+define AddComplex(comp,win)
+  {
+     loop(i,comp)
+     {
+        AddObject(i,win)
+     }
+  }
+
+
+define RemoveComplex(comp,win)
+  {
+     loop(i,comp)
+     {
+        RemoveObject(i,win)
+     }
+  }
+define ShowComplex(comp)
+  {
+     loop(i,comp)
+     {
+        Show(i)
+     }
+  }
+define HideComplex(comp)
+  {
+     loop(i,comp)
+     {
+        Hide(i)
+     }
+  }
+
+
+define GetStrings(lang)
+{
+  gStrings <- GetTranslations("mullerlyer",lang)
+  
+}

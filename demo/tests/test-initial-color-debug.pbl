@@ -1,0 +1,26 @@
+## Test if initial color is correct
+define Start(p)
+{
+    gWin <- MakeWindow()
+
+    Print("Creating BLUE background label")
+    font <- MakeFont("DejaVuSans.ttf", 0, 24, MakeColor("white"), MakeColor("blue"), 1)
+    label <- MakeLabel("BLUE BG", font)
+    AddObject(label, gWin)
+    Move(label, gVideoWidth/2, 100)
+    Draw()
+
+    Print("Check: Is the background BLUE? (should be 0,0,255)")
+    Print("Property value: " + label.font.bgcolor.red + "," + label.font.bgcolor.green + "," + label.font.bgcolor.blue)
+    Wait(2000)
+
+    Print("Creating RED background label for comparison")
+    font2 <- MakeFont("DejaVuSans.ttf", 0, 24, MakeColor("white"), MakeColor("red"), 1)
+    label2 <- MakeLabel("RED BG", font2)
+    AddObject(label2, gWin)
+    Move(label2, gVideoWidth/2, 200)
+    Draw()
+
+    Print("Check: Is second background RED?")
+    Wait(2000)
+}

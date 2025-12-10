@@ -1,0 +1,123 @@
+## Test rendering performance with different numbers of objects
+## Tests 1, 10, 100, and 1000 circles to measure Draw() time
+
+define Start(p)
+{
+    gWin <- MakeWindow("black")
+
+    ## Test configurations
+    testCounts <- [1, 10, 100, 1000]
+    testIndex <- 1
+
+    ## Instructions
+    inst <- EasyTextBox("Click to start performance test", 10, 10, gWin, 18, 780, 100)
+    Draw()
+
+     WaitForDownClick()
+
+
+    TestRenderPerformance(50)
+    TestRenderPerformance(500)
+    TestRenderPerformance(5000)
+    ## Final summary
+
+    summary <- EasyTextBox("Performance test complete! Press any key to exit.",
+                          10, 10, gWin, 18, 780, 100)
+    Draw()
+    WaitForAnyKeyPress()
+
+}
+
+define TestRenderPerformance(numCircles)
+{
+    ## Clear screen
+    ## Create status label at top
+    statusLabel <- EasyLabel("Creating " + numCircles + " circles...",
+                            gVideoWidth/2, 30, gWin, 24)
+    Draw()
+
+    ## Create circles in a grid pattern
+    circles <- []
+    colors <- [MakeColor("red"), MakeColor("green"), MakeColor("blue"),
+               MakeColor("yellow"), MakeColor("cyan"), MakeColor("magenta"),
+               MakeColor("orange"), MakeColor("purple"), MakeColor("pink"),
+               MakeColor("lightgreen")]
+
+    ## Calculate grid dimensions
+    gridSize <- Ceiling(Sqrt(numCircles))
+    spacing <- Min([Floor(gVideoWidth / (gridSize + 1)),
+                    Floor(gVideoHeight / (gridSize + 2))]) ## Leave room for text
+    radius <- Floor(spacing / 3)
+
+    startY <- 100  ## Leave room for status at top
+
+    ## Create circles
+    count <- 0
+    row <- 0
+    while(count < numCircles)
+    {
+        col <- 0
+        while(col < gridSize and count < numCircles)
+        {
+            x <- 100 + RandomUniform(1)* 600
+            y <- 100 + RandomUniform(1)* 600
+
+            ## Pick color based on circle number
+            colorIdx <- Mod(count, Length(colors)) + 1
+            circle <- Circle(x, y, radius, Nth(colors,colorIdx), 1)
+            AddObject(circle, gWin)
+            PushOnEnd(circles, circle)
+
+            count <- count + 1
+            col <- col + 1
+        }
+        row <- row + 1
+    }
+
+    ## Update status
+    SetText(statusLabel, "Created " + numCircles + " circles. Click to measure Draw() time...")
+    Draw()
+
+    ## Wait for click to start measurement
+    WaitForDownClick()
+
+    ## Measure Draw() performance
+    results <- []
+    numTests <- 10  ## Do 10 redraws to get average
+
+    loop(i, Sequence(1, numTests, 1))
+    {
+        t1 <- GetTime()
+        Draw()
+        t2 <- GetTime()
+
+        drawTime <- t2 - t1
+        PushOnEnd(results, drawTime)
+    }
+
+    ## Calculate statistics
+    avgTime <- Mean(results)
+    minTime <- Min(results)
+    maxTime <- Max(results)
+
+    ## Display results
+    SetText(statusLabel, "Results for " + numCircles + " circles:")
+
+    resultText <- "------------------------"+CR(1)+ "Number of objects:"+numCircles + CR(1)+
+                  "Average Draw() time: " + Round(avgTime, 2) + " ms" + CR(1) +
+                  "Min: " + Round(minTime, 2) + " ms, Max: " + Round(maxTime, 2) + " ms" + CR(1) +
+                  "Over " + numTests + " redraws" + CR(2) +
+                  "Click to continue to next test..."
+
+    resultLabel <- EasyTextBox(resultText, gVideoWidth/2 , 100,
+                               gWin, 18, 400, 250)
+
+    Print(resultText)
+    Draw()
+
+    ## Wait for click to continue
+    WaitForDownClick()
+
+
+
+}

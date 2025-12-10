@@ -1,0 +1,604 @@
+## This is a simple PEBL script that uses no 
+## windows but attempts to test all the syntax features
+## 
+##
+## we need to test the following:
+
+
+#   PEBL_AND *
+#   PEBL_ADD *
+#   PEBL_ARGLIST		      
+#   PEBL_ASSIGN *
+#   PEBL_BREAK *
+#   PEBL_COMMA*
+#   PEBL_DEFINE *
+#   PEBL_DIVIDE *
+#   PEBL_DOT
+#   PEBL_ELSE *
+#   PEBL_ELSEIF *
+#   PEBL_END
+#   PEBL_EOF
+#   PEBL_EQ  *
+#   PEBL_FUNCTION *
+#   PEBL_FUNCTIONS *
+#   PEBL_GE *
+#   PEBL_GT *
+#   PEBL_IF *
+#   PEBL_IFELSE *
+#   PEBL_LAMBDAFUNCTION *
+#   PEBL_LBRACE*
+#   PEBL_LBRACKET*
+#   PEBL_LE *
+#   PEBL_LIBRARYFUNCTION *
+#   PEBL_LISTHEAD *
+#   PEBL_LISTITEM *
+#   PEBL_LOOP *
+#   PEBL_LPAREN*
+#   PEBL_LT*
+#   PEBL_MULTIPLY *
+#   PEBL_NE*
+#   PEBL_NEWLINE *
+#   PEBL_NOT * 
+#   PEBL_OR *
+#   PEBL_PAUSE
+#   PEBL_POWER *
+#   PEBL_RETURN *
+#   PEBL_RBRACE*
+#   PEBL_RBRACKET*
+#   PEBL_RPAREN*
+#   PEBL_SUBTRACT *
+#   PEBL_SEMI *
+#   PEBL_STATEMENTS*
+#   PEBL_START *
+#   PEBL_VARIABLEDATUM *
+#   PEBL_VARLIST *
+#   PEBL_WHILE *
+
+define Start(p)
+{
+   Print("Test 0.      Baseline test of Print function")
+   Print("Test 0.1     Baseline consecutive test")
+   Print("Test 0.2     Baseline consecutive test 2")
+   Test1()
+   Test2("arg")
+   Test3("arg1","arg2")
+
+
+   TestSemi()
+  
+   TestAssign()
+   TestAND()
+   TestOr()
+   TestMath()
+
+   TestList()
+   TestEquals()
+   TestReturn()
+
+
+   TestIF()
+   TestWhile()
+
+
+
+   TestLoop()
+
+    Print("---------------------------------------------------------------------")	
+    Print("Testing of syntax complete")
+    Print("---------------------------------------------------------------------")	
+}
+
+
+define TestLoop()
+{
+
+   Print("---------------------------------------------------------------------")	
+   Print("Test: loop.     Testing simple loop statement")
+
+   Print("Loop test 1: simple iteration")
+   x <- 1
+   loop(i, [1,2,3,4,5])
+    {
+      Print("loop iteration: " + x +":"+  i)
+      x <- x + 1
+    }
+   Print("Loop test 1 complete")
+
+   Print("Loop test 2: simple iteration over mixed list")
+   x <- 1
+   loop(i, ["A","B",3,"99",1])
+    {
+      Print("loop iteration: " + x +":"+  i)
+      x <- x + 1
+    }
+   Print("Loop test 2 complete")
+
+
+
+
+   Print("Loop test 3: simple iteration with break")
+   x <- 1
+   loop(i, [100,200,300,400,500])
+    {
+      Print("loop iteration: " + x +":"+  i)
+      x <- x + 1
+      if(x > 2)
+      {
+        break
+      }
+    }
+   Print("Loop test 3 complete")
+
+
+  Print("Loop test 4: Iteration over implicitly-defined list loop(i,10)")
+  loop(i,10)
+    {
+      Print("loop iteration: " + i)
+    }
+   Print("Testing Loop complete")
+
+
+}
+
+
+define TestIf()
+{
+
+   Print("---------------------------------------------------------------------")	
+   Print("Test: IF.     Testing simple IF statement")
+
+    i <- 3
+    result <- 0
+    if(i == 3)
+     {
+       Print("If branch 1 (correct branch)")
+
+     } 
+
+
+     Print("If branch 2 test: (incorrect--'This should not print' should not execute below)")
+     if(i == 94)
+     {
+      Print("This should not print")
+       result <- (-1)
+     }
+
+    
+     correct <- (result <> -1)
+
+
+     Print("If test 1 branch 2 status: ["+correct+"]")
+
+
+   Print("Test: IF-ELSE.     Testing IF + ELSE construct (true)")
+
+
+    i <- 3
+    if(i < 5)
+     {
+       Print("IF-ELSE test 1 success")
+     } else {
+       SignalFatalError("IF-ELSE test 1 Failure")
+     }
+
+
+
+   Print("Test: IF-ELSE.     Testing IF + ELSE construct (false)")
+
+
+    i <- 3
+    if(i > 5)
+     {
+       SignalFatalError("IF-ELSE test 2 Failure")
+     } else {
+       Print("IF-ELSE test 2 success")
+     }
+
+
+   Print("Test: IF-ELSEIF.     Testing IF + ELSEIF construct (branch 1)")
+   i <- 3
+
+ if(i ==3)
+   {
+     Print("IFELSEIF test 1 SUCCESS")
+   } elseif(i==4)
+   {
+     Print("IFELSEIF test 1 FAILURE")
+   }elseif(i==5)
+   {
+     Print("IFELSEIF test 1 FAILURE")
+   }else{
+     Print("IFELSEIF test 1 FAILURE")
+   }
+
+
+   Print("Test: IF-ELSEIF.     Testing IF + ELSEIF construct (branch 2)")
+   i <- 4
+
+ if(i ==3)
+   {
+     Print("IFELSEIF test 2 FAILURE")
+   } elseif(i==4)
+   {
+     Print("IFELSEIF test 2 SUCCESS")
+   }elseif(i==5)
+   {
+     Print("IFELSEIF test 2 FAILURE")
+   }else{
+     Print("IFELSEIF test 2 FAILURE")
+   }
+
+   Print("Test: IF-ELSEIF.     Testing IF + ELSEIF construct (branch 3)")
+   i <- 5
+
+ if(i ==3)
+   {
+     Print("IFELSEIF test 3 FAILURE")
+   } elseif(i==4)
+   {
+     Print("IFELSEIF test 3 FAILURE")
+   }elseif(i==5)
+   {
+     Print("IFELSEIF test 3 SUCCESS")
+   }else{
+     Print("IFELSEIF test 3 FAILURE")
+   }
+
+   i <- 11
+
+   Print("Test: IF-ELSEIF.     Testing IF + ELSEIF construct (branch 4/fallback)")
+ if(i ==3)
+   {
+     Print("IFELSEIF test 4 FAILURE")
+   } elseif(i==4)
+   {
+     Print("IFELSEIF test 4 FAILURE")
+   }elseif(i==5)
+   {
+     Print("IFELSEIF test 4 FAILURE")
+   }else{
+     Print("IFELSEIF test 4 SUCCESS")
+   }
+
+  Print("Testing IF complete")
+}
+
+
+
+
+define TestWhile()
+{
+   Print("---------------------------------------------------------------------")	
+   Print("Test: WHILE.     Testing while loop")
+
+   i <- 1
+   while(i <= 5)
+   {
+      Print(i)
+      i <- i + 1
+   }
+   TestValue(i,6,"value of i after while(i<=5)")
+
+   Print("Test WHILE/BREAK")
+   i <- 1
+   while(i <= 5)
+   {
+      Print("WHile iteration: " + i)
+      i <- i + 1
+      break
+
+   }
+
+   TestValue(i,2,"value of i after while(i<=5) with immediate break")
+
+
+
+   ###This does not work yet:::
+   Print("Test WHILE/if-break")
+   i <- 1
+   while(i <= 5)
+   {
+      Print("WHile iteration: " + i)
+      i <- i + 1
+      if(i > 3)
+       {
+        break
+       }
+   }
+
+   TestValue(i,4,"value of i after while(i<=5) with IF-break")
+
+
+
+   Print("TEST WHILE COMPLETE")
+}
+
+
+define TestSemi()
+{
+   Print("---------------------------------------------------------------------")	
+   Print("Test: SEMI.     Semicolon as newline      ...")
+   ##Test semicolon as newline:
+   Print("before semicolon test");Print("after semicolon test")
+   Print("TEST SEMI COMPLETE")
+}
+
+##A function witout an argument
+define Test1()
+{
+   Print("---------------------------------------------------------------------")	
+   Print("Test 1.     Function without argument      ...")
+}
+
+define Test2(p)
+{
+   Print("---------------------------------------------------------------------")
+
+   Print("Test 2.     Function with argument ["+p+"] ...")
+}
+
+define Test3(p1,p2)
+{
+   Print("---------------------------------------------------------------------")
+   Print("Test 3.     Function with two arguments [" + p1 + "," +p2+"]")
+
+}
+
+
+define  TestAssign()
+{ 
+   Print("---------------------------------------------------------------------")
+
+   Print("Testing Assignment operator <-")
+
+   a <- 3
+   TestValue(a,3,"assigning a <- 3")
+   
+
+   b <- 4
+   TestValue(b,4,"assigning b <- 4")
+
+   c <- 5+1
+   TestValue(c,6,"assigning c <- 5 + 1")
+
+   d <- a + b
+   TestValue(d,a+b,"assigning d <- a + b")
+
+   Print("Assignment Test complete")
+}
+
+define TestAND()
+{
+  Print("---------------------------------------------------------------------")
+  Print("Test:   AND.        Testing AND Statement")
+
+  t1 <- (1 and 1)  ##Problem assigning variables?
+  Print_("1 and 1 = 1:            ["+t1+"]")
+  if(t1==1){Print(" Success")}else{Print(" Fail")}
+
+  t2 <- (2 and 1)
+  Print_("2 and 1:                ["+t2+"]")
+  if(t2==1){Print(" Success")}else{Print(" Fail")}
+
+  t3 <- (1 and 0)
+  Print_("1 and 0:                ["+t3+"]")
+  if(t3==0){Print(" Success")}else{Print(" Fail")}
+
+  t4 <- (0 and 0)
+  Print_("0 and 0:                ["+t4+"]")
+  if(t4==0){Print(" Success")}else{Print(" Fail")}
+
+  t5 <- (1 and 1 and 0)
+  Print_("1 and 1 and 0:          ["+t5+"]")
+  if(t5==0){Print(" Success")}else{Print(" Fail")}
+
+  t6 <- (1 and 1 and 1)
+  Print_("1 and 1 and 1:          ["+t6+"]")
+  if(t6==1){Print(" Success")}else{Print(" Fail")}
+
+  Print("Test AND complete")
+}
+
+
+
+define TestOR()
+{
+  Print("---------------------------------------------------------------------")
+  Print("Test:   OR.        Testing or Statement")
+
+
+  t1 <- (1 or 1)  ##Problem assigning variables?
+  Print_("1 or 1 = 1:            ["+t1+"]")
+  if(t1==1){Print(" Success")}else{Print(" Fail")}
+
+  t2 <- (2 or 1)
+  Print_("2 or 1:                ["+t2+"]")
+  if(t2==1){Print(" Success")}else{Print(" Fail")}
+
+  t3 <- (1 or 0)
+  Print_("1 or 0:                ["+t3+"]")
+  if(t3==1){Print(" Success")}else{Print(" Fail")}
+
+  t4 <- (0 or 0)
+  Print_("0 or 0:                ["+t4+"]")
+  if(t4==0){Print(" Success")}else{Print(" Fail")}
+
+  t5 <- (1 or 1 or 0)
+  Print_("1 or 1 or 0:          ["+t5+"]")
+  if(t5==1){Print(" Success")}else{Print(" Fail")}
+
+  t6 <- (1 or 1 or 1)
+  Print_("1 or 1 or 1:          ["+t6+"]")
+  if(t6==1){Print(" Success")}else{Print(" Fail")}
+
+
+  t7 <- (1 or 0 or 0)
+  Print_("1 or 0 or 0:          ["+t7+"]")
+  if(t7==1){Print(" Success")}else{Print(" Fail")}
+
+
+
+  t8 <- (0 or 0 or 0)
+  Print_("0 or 0 or 0:          ["+t8+"]")
+  if(t8==0){Print(" Success")}else{Print(" Fail")}
+
+
+
+  Print("Test OR complete")
+}
+
+define Problem()
+{
+
+        ##Error #1--involves loop()
+	testname <- "x"
+	val1 <- "dummy"
+        Print(Format(testname + ":",40) + "   Succeeded.  Value: ["+val1+"]")
+
+
+	##Error #2
+        TestValue(3>3, 0 ,"Testing 3>3")   
+}
+
+
+define TestValue(val1, val2, testname)
+{
+   same <- val1 == val2
+   if(same){
+        Print("Testing: '"+testname +"' Succeeded.  Value: ["+val1+"]")
+      }else{
+       SignalFatalError("Value test failed in "+testname + ": ["+val1+ "<>" +val2+"]")
+      }  
+}
+
+
+define TestMath()
+{
+
+  Print("---------------------------------------------------------------------")
+  Print("Test:   Math.        Testing basic math functions")
+
+  TestValue(6/2,3,"6/2")
+  TestValue(6/2.0,3.0,"6/2.0")
+
+  TestValue(6+2.0,8.0,"6+2.0")
+  TestValue(3+5+0,8,"3+5+0")
+
+  TestValue(3-5,-2,"3-5")
+  TestValue(3-5-9,-11,"3-5-9")
+  TestValue(33.001-30,3.001,"33.001-30")
+
+  TestValue(3*5,15,"3*5")
+  TestValue(3*3*2,18,"3*3*2")
+  TestValue(3*(-1),-3,"3*(-1)")
+  TestValue(3*(1.5),4.5,"3*(1.5)")
+  TestValue(3*(1.5+2.5-0),12,"3*(1.5+2.5-0)")
+  TestValue(3*1.5+2.5-0,7,"3*1.5+2.5-0")
+
+
+  TestValue(3^2,9,"3^2")
+  TestValue(2+3^2,11,"2+3^2")
+
+  Print("Test MATH complete")
+}
+
+
+
+define TestList()
+{
+  Print("---------------------------------------------------------------------")
+  Print("Test:   List.        basic list creation")
+
+  Print("List1:[1,2,3,4,5])          "+ [1,2,3,4,5])
+  Print("Length([1,2,3,4,5]))        "+Length([1,2,3,4,5]))
+  Print("List2:  Repeat(3,10)        " + Repeat(3,10))
+  Print("List3:  Sequence(1,50,2)    " + Sequence(1,50,2))
+  Print("List4:  [[1,2],[3,4],[5,[5,7],8,9,10],11]"+  [[1,2],[3,4],[5,[5,7],8,9,10],11])
+
+  Print("Test LIST complete")
+}
+
+
+
+define TestEquals()
+{
+ Print("---------------------------------------------------------------------")
+  Print("Test:   Equals.        Testing basic equality/inequality syntax.")
+    TestValue(3<3,0,"3<3")   
+    TestValue(3<=3,1,"3<=3")   
+    TestValue(3>3, 0, "3>3")   
+    TestValue(3>=3,1,"3>=3")   
+    TestValue(3==3,1,"3==3")   
+    TestValue(3<>3,0,"3<>3")   
+    TestValue(3!=3,0,"3!=3")   
+    TestValue(3~=3,0,"3~=3")   
+    TestValue(not 3==3,0,"not 3==3")   
+    TestValue(4<3,0,"4<3")   
+    TestValue(4<=3,0,"4<=3")   
+    TestValue(4>3,1,"4>3")   
+    TestValue(4>=3,1,"4>=3")   
+    TestValue(4==3,0,"4==3")   
+    TestValue(4<>3,1,"4<>3")   
+    TestValue(4!=3,1,"4!=3")   
+    TestValue(4~=3,1,"4~=3")   
+    TestValue(not 4==3,1,"not 4==3")   
+
+    TestValue(4<5,1,"4<5")   
+    TestValue(4<=5,1,"4<=5")   
+    TestValue(4>5,0,"4>5")   
+    TestValue(4>=5,0,"4>=5")   
+    TestValue(4==5,0,"4==5")   
+    TestValue(4<>5,1,"4<>5")   
+    TestValue(4!=5,1,"4!=5")   
+    TestValue(4~=5,1,"4~=5")   
+    TestValue(not 4==5,1,"not 4==5")   
+
+
+  Print("Test EQUALS complete")
+}
+
+
+
+define Format(val, size)
+{
+
+  string <- "" + val
+  Print("Format A")
+  len <- StringLength(string)
+   Print("Format B")
+  #If size is smaller than length, 
+  if(size <= len)
+  {
+  Print("Format C")
+    string <- SubString(string,1,size) 
+  }else {
+  Print("Format D")
+
+   padlist <- Repeat(" ",size-len)
+   Print("Format d2")
+
+   pad <- ListToString(padlist)
+   string <- string + pad
+  }
+  Print("Format E")
+  return string
+}
+
+
+define TestReturn()
+{
+  Print("---------------------------------------------------------------------")
+  Print("Test:   RETURN        Testing basic return values.")
+  TestValue(TestReturn1(),1,"TestReturn1()")   
+  TestValue(TestReturn2(),99,"TestReturn2()")   
+}
+
+define TestReturn1()
+{
+  3 + 3
+}
+
+define TestReturn2()
+{
+  return 99
+}

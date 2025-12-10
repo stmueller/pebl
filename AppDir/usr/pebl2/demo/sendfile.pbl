@@ -1,0 +1,78 @@
+define Start(p)
+{ 
+  #address <- "localhost"
+  address <- "mastermeese.no-ip.org"
+  gNetwork <- 0
+  time0 <- GetTime()
+  success <- 0
+  while(gNetwork==0 and GetTime()< (time0+20000) and success == 0)
+  {
+   gNetwork <- ConnectToHost(address,4444)
+   Wait(100)
+  }
+
+  PrintProperties(gNetwork)
+  if(gNetwork)
+  {
+    success <-  SendFile(gNetwork,"test0.txt","IDENTIFIER"+RandomDiscrete(1000))
+   
+    CloseNetworkConnection(gNetwork)
+    Print("File Sent with success:"+success)
+
+  } else {
+   Print("network timed out. File not sent.")
+  }
+}
+
+
+define SendFile2(network,filename,id)
+{ 
+   text <- FileReadText(filename)
+   length <- StringLength(text)+""
+   
+   if(StringLength(length)>16)
+   {
+     SignalFatalError("Cannot send a file this long:"+length)
+   }
+   message <-  Format(id,32)+Format(length,16) + text
+
+   ##Send 1024 bytes at a time.
+   chunksize <- 1024
+   bytestosend <- StringLength(message)
+   at <- 0
+   while(at<bytestosend)
+   {
+      length <- Min([chunksize,bytestosend-at+1])
+      sub <- SubString(message,at+1,length)
+  #    Print(sub)
+      Print(StringLength(sub))
+      Print("Sending chunk: " + (at+1) + "--" +(at+ length)  + " of " + bytestosend)
+      success <- 0
+      while(not success)
+      {
+        success <- SendData(network,sub)
+      }
+      at <- at+ chunksize
+
+   }
+
+   
+   return success
+}
+
+
+define SendFile(network,filename,id)
+{ 
+   text <- FileReadText(filename)
+   length <- StringLength(text)+""
+   
+   if(StringLength(length)>16)
+   {
+     SignalFatalError("Cannot send a file this long:"+length)
+   }
+
+   message <-  Format(id,32)+Format(length,16) + text
+   success <- SendData(network,message)
+  
+   return success
+}

@@ -1,0 +1,730 @@
+################################################################################
+##
+##   Dot-field classification and confidence assessment experiment used by
+##   Mueller & Weidemann (2008)
+##
+##   Mueller, S. T. & Weidemann, C. T. (2008). Decision noise: An
+##     	explanation for observed violations of Signal Detection Theory. 
+##      Psychonomic Bulletin and Review, 15, 465-494.
+##
+##   This experiment file is available as part of 
+##
+##
+##
+##    To run, download PEBL from http://pebl.sourceforge.net
+##
+##    Experiment code placed into the public domain by the authors.
+##
+
+define Start(par)
+{
+
+
+  parpairs <- [["amean",46],
+               ["asd",5],
+               ["bmean",54],
+	       ["bsd",5],
+	       ["symbol","*"],
+	       ["leftkey","<lshift>"],
+	       ["rightkey","<rshift>"],
+	       ["reps",2]
+              ]
+
+  gParams <- CreateParameters(parpairs,gParamFile)
+
+  gParams.symbol <- "*"
+  MakeDirectory("data")
+  gWin <- MakeWindow("black")
+  ShowCursor(0)
+  gSleepEasy <- 1
+
+  gSubNum <- GetSubNum(gWin)
+
+  type <- GetEasychoice("Select which test to use.",
+                    ["A-B response","Confidence rating"],
+		    [1,2],gWin)
+
+
+
+  bias <- GetEasyChoice("Select A/B base rate",
+                   ["50:50","3:1","1:3"],[1,2,3],gWin)
+
+
+  
+###############################################################################
+## Specify the number of times "stimulus only" and "stimulus plus
+##  noise" are presented.
+###############################################################################
+
+
+    aEqual <- 40
+    bEqual <- 40
+    
+    aPro   <- 60
+    bCon   <- 20
+
+    aCon   <- 20
+    bPro   <- 60
+
+
+   biases <-Nth( [[aEqual, bEqual],[aPro,bCon],[aCon,bPro]],bias)
+
+
+  
+#####################################################################
+## Create a global variable to count the number of points earned
+#####################################################################
+    gPoints <- 0
+    gLastPoints <- 0
+
+    
+######################################
+## Set up the basic  display stuff.
+######################################
+
+
+    ##Stimulus font
+    font <- MakeFont(gPEBLBaseFontMono,1,14,MakeColor("black"),MakeColor("white"),1)
+    fontLabel <- MakeFont(gPEBLBaseFont,0,30,MakeColor("white"), MakeColor("black"),0)
+    
+
+#################################################################
+## Define gLabel and gWin globally so that Trial can use them.
+#################################################################
+
+
+    gLabel <- MakeLabel("+", fontLabel)
+
+    gbg <- Square(gVideoWidth/2,gVideoheight/2,300,MakeColor("white"),1)
+    AddObject(gbg,gWin)
+    
+    gTB <- MakeTextBox("",font, 120,220)
+    AddObject(gTB,gWin)
+    Move(gTB, gVideoWidth/2-45, gVideoHeight/2-80)
+    Hide(gTB)
+
+    ##move label to the bottom?
+    AddObject(gLabel, gWin)
+    Move(gLabel,gVideoWidth/2,gBG.y + gBG.height/2+30)
+    Hide(gLabel)
+
+
+#####################################
+## Create the labels for feedback.
+#####################################
+
+
+    fonty <- MakeFont(gPEBLBaseFont, 1, 25, MakeColor("darkgreen"),
+                                         MakeColor("black"), 0)
+    fontn <- MakeFont(gPEBLBaseFont, 1, 25, MakeColor("red"),
+                                         MakeColor("black"), 0)
+
+    gYes <- MakeLabel("Correct!", fonty)
+    gNo <- MakeLabel("Incorrect", fontn)
+    gScoreLabel <- MakeLabel("Total Points [0]", fontLabel)
+    AddObject(gYes, gWin)
+    AddObject(gNo, gWin)
+    AddObject(gScoreLabel,gWin)
+    Move(gYes,gVideoWidth/2,gVideoHeight/2)
+    Move(gNo,gVideoWidth/2,gVideoHeight/2)
+    Move(gScoreLabel,gVideoWidth/2,50)
+    Hide(gYes)
+    Hide(gNo)
+    Hide(gScoreLabel)
+
+###########################################
+## Create the text box for instructions.
+###########################################
+
+    
+
+    font2 <-MakeFont(gPEBLBaseFont, 0, 20, MakeColor("black"), MakeColor("white"), 1)
+    gtb2 <- MakeTextBox("", font2, 1000, 500)
+    AddObject(gtb2, gwin)
+    Move(gtb2,gVideoWidth/2-500,50)
+    SetText(gtb2,"In the following task, you will be presented stimuli consisting of fields of stars.
+      Stimuli belong to one of two groups, one which has fewer stars (Group A) and one which has more stars (Group B).  Stimuli will be presented in a number of different rounds.  During each round, " +
+     "Stimuli from both groups will be presented, and your task is to decide which group each stimulus belongs to.  
+
+Press any key to continue.")
+    Draw()
+    WaitForAnyKeyPress()
+
+
+   SetText(gtb2, "Press any key to begin looking at some example stimuli, labeled with the group they came from.")
+   Draw()
+   WaitForAnyKeyPress()
+    Hide(gtb2)
+   Show(gTB) 
+   Show(gLabel)   
+    Draw()
+   
+   i <- 1
+   while(i <= 5)
+   {
+    SetText(gLabel, "Group A")
+    SetText(gTB,StimGen(Round(RandomNormal(gParams.amean,gParams.asd)), gParams.symbol))
+    Draw()
+    Wait(1250)
+
+
+    SetText(gLabel, "Group B")
+    SetText(gTB,StimGen(Round(RandomNormal(gParams.bmean,gParams.bsd)), gParams.symbol))
+    Draw()
+    Wait(1250)
+
+    i <- i + 1
+   }
+ 
+   Show(gtb2)
+   Hide(gTB)
+   Hide(gLabel)
+
+
+
+
+inst <-   "You will be presented with more stimuli like the ones you just saw. Note that B stimuli usually have more stars than A stimuli, but not always."
+
+
+if(type==1)
+{
+  inst <- inst + " In this test, you will  be asked to guess whether the stimulus was an A or B by pressing one of two keys, the '"+gParams.leftkey+"' or the '"+gParams.rightkey+"'." 
+
+}else{
+  inst <- inst +"you will also be asked to rate how confident
+you are about your decision, by using the number keys 1-4 for A stimuli and 7-0 for B stimuli. The different numbers for each response should correspond to "+
+"your degree of certainty about the stimulus's membership in a group. Only use 1 if you are sure that a stimulus is an 'A', " +
+"and only use 0 if you are sure it is a 'B'. When you are less certain, use numbers closer to the middle of the range (like 4 and 7).  Try to use all ratings, but only use the highest confidence ratings (1 or 0)  when you are very certain. "
+
+}
+
+inst <- inst + CR(2)+" Press any key to begin the experiment."
+
+  SetText(gtb2,inst)
+
+   Draw()
+   WaitForAnyKeyPress()
+
+
+
+    gNumCorr <- 0
+     counta <- First(biases)
+     countb <- Second(biases)
+
+
+
+########################################
+## Randomize and present the stimuli.
+########################################
+   
+
+
+    round <- 1
+    blocktype <- type  ##set the type of confidence or yes-no
+  
+      a <- Repeat("A", counta)
+      b <- Repeat("B", countb)
+      stimsequence <- Shuffle(Merge(a,b))
+      Print(stimsequence)
+      
+      if(blocktype == 2)   ##  block type 2 is confidence ratings
+      {
+
+         gFileOut <-FileOpenAppend("data/SDT-CN-" +gSubnum+ ".csv")
+         SetText(gLabel, "[A] 1 - 2 - 3 - 4       7 - 8 - 9 - 0 [B]")	
+	
+         SetText(gtb2, "This round will involve CONFIDENCE RATINGS.  Please respond with the keys 1, 2, 3, 4 for A stimuli (fewer stars) and 7, 8, 9, 0 for B stimuli (more stars).  For any response, you earn points for being correct and lose points for being incorrect.  The table below shows the point breakdown:
+Response   Correct    Incorrect
+1               +4          -7
+2               +3          -5
+3               +2          -3
+4               +1          -1
+7               +1          -1
+8               +2          -3
+9               +3          -5
+0               +4          -7
+
+You usually gain fewer points for being correct than you lose for being incorrect, so only use the extreme values (0 or 1) when you are very confident. Try to score as many points as you can.
+Remember, " +    Round(100*counta/(counta + countb)) + "% of the stimuli will be from Group A and " + Round(100*countb/(counta + countb)) + 
+      "% will be from Group B."+CR(1)+"Press any key to begin")
+
+          Show(gtb2)
+	      Draw()
+          Wait(500)
+          WaitForAnyKeyPress()
+          VerifyFingerPositions()
+          SetText(gLabel, "[A] 1 - 2 - 3 - 4       7 - 8 - 9 - 0 [B]")	
+
+    SetText(gtb2, CR(3)+"For this block, " +    Round(100*counta/(counta + countb)) + "% of the stimuli will be from Group A and " + Round(100*countb/(counta + countb)) + "% will be from group B. "+CR(2)+"Press any key to proceed")
+    Show(gtb2)
+    SetText(gLabel, "[A] 1 - 2 - 3 - 4       7 - 8 - 9 - 0 [B]")	
+    Draw()
+    WaitForAnyKeyPress()
+
+
+          Move(gLabel, gVideoWidth/2,gBG.y + gBG.height/2+30)
+          Show(gLabel)
+          Draw() 
+          Hide(gtb2)
+          Show(gScoreLabel)
+          Draw()
+    
+      } else { ##block type 1 is forced choice
+         gFileOut <-FileOpenAppend("data/SDT-FC-" +gSubnum+ ".csv")
+         SetText(gtb2, "
+
+This round will involve CATEGORICAL RESPONSES.  Please respond with the "+gparams.leftkey+" key for A stimuli (fewer stars) and the "+gparams.rightkey+"  key for B (more stars) stimuli. You will earn 2 points for each correct response and lose 2 points for each incorrect response.
+Remember, " +    Round(100*counta/(counta + countb)) + "% of the stimuli will be from Group A and " + Round(100*countb/(counta + countb)) + 
+      "% will be from Group B.
+
+Press any key to begin")
+
+          Show(gtb2)
+          
+          SetText(gLabel, "(fewer)  "+gParams.leftkey+"                 "+gparams.rightkey+"  (more)")	
+
+          Move(gLabel, gVideoWidth/2,gBG.y + gBG.height/2+30)
+
+          Draw()
+          Wait(1500)
+          WaitForAnyKeyPress()
+          Show(gScoreLabel)
+          Hide(gtb2)
+          Draw()
+      }
+
+      Wait(2000)
+
+      data <- []
+      trialnum <- 1
+      gStimACorr <- 0
+      gStimBCorr <- 0
+
+     gConfResp <- []
+     gRespClass <- []
+     gStimClass <- []
+    
+   loop(i, stimSequence)
+      {
+          FilePrint_(gFileOut,gSubnum + "," +  bias + "," + counta + "," + countb + ","  + round + ","+ blocktype + "," + trialnum + ",")
+      if(blocktype == 2)
+      {
+
+            TrialConf(i)
+
+      } else {
+
+            TrialAB(i)
+      }
+
+        
+        trialnum <- trialnum + 1
+      }
+
+
+      FileClose(gfileout)
+
+
+
+####################################
+## Create the debriefing message.
+####################################
+
+       acc <- (gStimACorr + gStimBCorr)/(countA+countB)
+       hr <- gStimBCorr/countb
+       far <-1-(gStimACorr/counta)
+
+	text <-  "Base Rate condition A/B: "+countA+ ":" +countB + CR(1)+
+	"Accuracy:              " + acc + CR(1)+
+	"Hit rate p(B|B):       " + hr + CR(1)+
+	"False alarm p(B|A):    "+ far 
+
+
+
+if(blocktype==2)  ##confidence rating procedure.
+{
+
+  filterA <- Match(gStimClass,"A")
+  filterB <- Match(gStimClass,"B")
+  aconf <- Sort(Filter(gConfResp,filterA))
+  bConf <- Sort(Filter(gConfResp,filterB))
+
+   resps <- ["1","2","3","4","7","8","9","0"]
+   tabA <- Table(aConf,resps)
+   tabB <- Table(bConf,resps)
+
+  text <- text + CR(1)+ "Response Keys:  " +   resps + CR(1) +
+                        "A stimuli:      " +   Second(taba) + CR(1)+
+			"B stimuli:      " +   Second(tabb)
+   
+}
+
+   reportFile <- FileOpenAppend("data/summary-"+gSubNum+".txt")
+   FilePrint(reportfile,text)
+
+
+    text <- text + CR(1)+"Thanks for participating in this experiment! Press 'x' to exit."
+
+    SetText(gtb2,text)
+    Show(gtb2)
+    Hide(gLabel)
+ 
+    Draw()
+    WaitForKeyPress("X")
+
+}
+
+    
+
+
+
+define TrialConf(par)
+{   
+    alength <- gParams.amean
+    blength <- gParams.bmean
+    asd <- gParams.asd
+    bsd <- gParams.bsd
+
+    symbol <- gparams.symbol
+    if(par=="A") 
+     {
+        length <- Round(RandomNormal(alength,asd))
+     }else{ 
+        length <- Round(RandomNormal(blength,bsd))
+     }
+
+
+##########################
+## Present the stimuli.
+##########################
+
+
+
+    string <- StimGen(length,symbol)
+    
+    SetText(gTB,string)
+    Show(gTB)
+    Draw()
+    start <- GetTime()
+    response <- WaitForListKeyPress(["1","2","3","4","7","8","9","0"])
+    end <- GetTime()
+    rt  <- end - start
+    
+
+   if(IsMember(response,["1","2","3","4"]))
+   {
+    respClass <- "A"
+   }else{
+    respClass <- "B"
+    }
+
+
+#################################################
+## Give immediate feedback based on response.
+#################################################
+
+
+   ##Determine whether they were correct
+   if(par==respClass)
+   {
+     corr <- 1
+    gNumCorr <- gNumCorr + 1
+   }else{
+     corr <- 0
+   }
+  if(par == "A")
+   {
+      gStimACorr <- gStimACorr + corr
+   }else{
+      gStimBCorr <- gStimBCorr + corr
+   }
+
+   if(rt > 5000)
+    {
+       SetText(gtb2, "You took too long to respond. Try not to count the stars, but just choose your response based on your impression of whether there are many or few stars in the stimulus display.  Press any key to continue.")
+	   Show(gtb2)
+	   Draw()
+       WaitForAnyKeyPress()
+       Hide(gtb2)
+       Draw()
+    }
+   if(rt < 225)
+    {
+       SetText(gtb2, "You responded more quickly than is possible.  Please examine the stimuli before making your response.")
+	   Show(gtb2)
+	   Draw()
+       Wait(3000)
+       SetText(gtb2, "You responded more quickly than is possible.  Please examine the stimuli before making your response. Press any key to continue.")
+	   Draw()
+       WaitForAnyKeyPress()
+       Hide(gtb2)
+       Draw()
+    }
+   scores <- [4,4,3,2,1,0,0,1,2,3]
+   score <- Nth(scores,Round(ToNumber(response))+1)
+   if(corr==1)
+   {
+
+    gPoints <- gPoints + score
+    SetText(gYes, "Correct! +"+score)
+    SetText(gScoreLabel," Total Points ["+ gPoints + "]")
+    Show(gYes)
+    Hide(gTB)
+
+    Draw()
+
+    Wait(300)
+
+    Hide(gYes)
+    Draw()
+
+    Wait(300)
+
+    Draw()
+   
+   }else{
+    score <- -2*score + 1
+    gPoints <- gPoints + score
+    SetText(gNo, "Incorrect.  "+score)
+    SetText(gScoreLabel," Total Points ["+ gPoints + "]")
+    Show(gNo)
+    Hide(gTB)
+
+    Draw()
+    Wait(300)
+    Hide(gNo)
+    Draw()
+    Wait(300)
+    Draw()
+    
+    }
+
+
+#########################
+# Save relevant data.
+#########################
+
+   ##We need to record stimulus class, responseclass, confidence/response.
+
+   PushOnEnd(gConfResp,response)
+   PushOnEnd(gRespClass,respclass)
+   PushOnEnd(gStimClass,par)
+
+    FilePrint(gFileOut, par + "," + length + "," + response + "," + respClass + "," + rt + "," + corr + "," + score)
+}
+    
+
+define TrialAB(par)
+{   
+    alength <- gParams.amean
+    blength <- gParams.bmean
+    asd <- gParams.asd
+    bsd <- gParams.bsd
+    symbol <- gParams.symbol
+    if(par=="A") 
+     {
+        length <- Round(RandomNormal(alength,asd))
+     }else{ 
+        length <- Round(RandomNormal(blength,bsd))
+     }
+
+
+##########################
+## Present the stimuli.
+##########################
+
+ 
+    string <- StimGen(length,symbol)
+    
+    SetText(gTB,string)
+    Show(gTB)
+    Show(gLabel)
+    Draw()
+    start <- GetTime()
+    response <- WaitForListKeyPress([gParams.leftkey,gParams.rightkey])
+    end <- GetTime()
+    rt  <- end - start
+
+   if(response == gParams.leftkey)
+   {
+     respClass <- "A"
+   }else{
+     respClass <- "B"
+   }
+
+
+#################################################
+## Give immediate feedback based on response.
+#################################################
+
+
+   ##Determine whether they were correct
+   if(par==respClass)
+   {
+    corr <- 1
+    gNumCorr <- gNumCorr + 1
+   }else{
+     corr <- 0
+   }
+
+
+  if(par == "A")
+   {
+      gStimACorr <- gStimACorr + corr
+   }else{
+      gStimBCorr <- gStimBCorr + corr
+   }
+
+
+   if(rt > 5000)
+    {
+       SetText(gtb2, "You took too long to respond. Try not to count the stars, but just choose your response based on your impression of whether there are many or few stars in the stimulus display.  Press any key to continue.")
+	   Show(gtb2)
+	   Draw()
+       WaitForAnyKeyPress()
+       Hide(gtb2)
+       Draw()
+    }
+
+   if(rt < 150)
+    {
+       SetText(gtb2, "You responded more quickly than is possible.  Please examine the stimuli before making your response.")
+	   Show(gtb2)
+	   Draw()
+       Wait(3000)
+       SetText(gtb2, "You responded more quickly than is possible.  Please examine the stimuli before making your response. Press any key to continue.")
+	   Draw()
+       WaitForAnyKeyPress()
+       Hide(gtb2)
+       Draw()
+    }
+
+   if(corr==1)
+   {
+    score <- 2
+    gPoints <- gPoints + score
+    SetText(gYes, "Correct!  +"+score)
+    SetText(gScoreLabel,"Total Points ["+ gPoints + "]")
+    ### Correct, so show the 'yes' label
+    Show(gYes)
+    Hide(gTB)
+    Draw()
+    Wait(300)
+
+
+    ### Now, hide it and wait a little while.
+    Hide(gYes)
+    Draw()
+    Wait(300)
+    Draw()
+   
+   }else{
+    score <- -2
+	gPoints <- gPoints + score
+    SetText(gNo, "Incorrect.  "+ score)
+	SetText(gScoreLabel,"Total Points ["+ gPoints + "]")
+
+	##Incorrect, so show the 'no' label.
+    Show(gNo)
+    Hide(gTB)
+    Draw()
+    Wait(300)
+
+    ##Hide it and wait a little bit.
+    Hide(gNo)
+    Draw()
+    Wait(300)
+    Draw()
+    }
+
+
+#########################
+# Save relevant data.
+#########################
+
+
+
+
+    FilePrint(gFileOut,par + "," + length + "," + response + "," + respClass + "," + rt + "," + corr + "," + score)
+}
+
+
+
+
+
+###########################
+# Generate the stimuli.
+###########################
+
+define StimGen(number, symbol)
+{
+ #this creates a string 100 long, with number * symbols, 
+  #spaced randomly, in 10 rows of 10
+  number<-Round(number)
+  stars <- Repeat(symbol,number)
+  spaces <- Repeat(".",100-number)
+
+  stimbase <- Shuffle(Merge(stars,spaces))
+
+   stim <-""
+#   "|----------|
+#|"
+   j <- 0
+  loop(i,stimbase)
+   {
+    j <- j + 1
+    
+    stim <- stim + i
+    if(j == 10)
+    {
+     stim <- stim + CR(1)
+
+     j <- 0
+    }
+
+   }
+#   stim <- stim + "----------|"
+#   Print(stim)
+
+  return stim
+}
+
+ 
+## Verify
+## 
+define VerifyFingerPositions()
+{
+
+    Move(gLabel,gVideoWidth/2,gBG.y + gBG.height/2+30)
+SetText(gtb2,"Before we begin, we want to verify that your fingers are on the correct keys.  Place your fingers on the keys 1 2 3 4  7 8 9 0.  Press each key as indicated below.")
+    
+
+    responses <- Transpose([[1,2,3,4,7,8,9,0],
+                           ["Certainly A", "Most Likely A", "Probably A", "Maybe A",
+	                        "Maybe B", "Probably B", "Most Likely B", "Certainly B"]])
+    Show(gtb2)
+    Show(gLabel)
+    loop(i, responses)
+    {
+       SetText(gLabel,"When " + Nth(i,2) + ", Press " + First(i))
+       Draw()
+       WaitForKeyPress(""+First(i))
+    }
+
+    Hide(gtb2)
+    Hide(gLabel)
+    Draw()
+}
+
+#Creates a count table based on levels
+define Table(list,levels)
+{
+out <- []
+loop(i,levels)
+{
+  PushOnEnd(out,Sum(Match(list,i)))
+}
+
+  return ([levels,out])
+
+}

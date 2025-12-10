@@ -1,0 +1,88 @@
+define Start(p)
+{
+  gWin <- MakeWindow("black")
+  ##Open a data file:
+  gFileOut <- FileOpenAppend("exp1-"+gSubNum+".csv")
+  FilePrint(gFileOut,"subnum,trial,time,cond,noresp,corr,rt")
+  gSleepEasy <- 1
+
+  #Display instructions:
+   MessageBox("In this experiment, you are to hit the left or right shift key when you see a stimulus with arrows pointing either direction. For arrows pointing in both directions, make no response.
+
+          Left Shift         Do Not Respond       Right Shift
+           <  <  <              <  +  >               > > >
+
+Press any key to continue.",gWin)
+ 
+  #Create and randomize stimuli:
+  conds <- Shuffle(RepeatList([1,2,3],5))
+
+  trialnum <- 1  ##Keep track of a trial number
+  loop(i, conds)
+  {
+    time1 <- GetTime()  #Keep track of when the trial started
+    out <- Trial(i) ##Do the trial!
+    FilePrint(gFileOut,gSubNum+","+i+","+time1+","+First(out)+","+
+              Second(out)+","+Third(out)+","+Fourth(out))
+    trialnum <- trialnum+ 1
+  }
+
+  MessageBox("Thank you for participating in the study.",gWin)
+}
+
+
+##Let's do a basic 3-alternative forced choice. stimulus 1 requires left, 
+## stimulus 2 requires right, stimulus 3 requires no response
+define Trial(cond)
+{
+   stimuli <- ["< < <","> > >","< + >"]
+   stim <- Nth(stimuli,cond)
+   
+   lab <- EasyLabel("+",gVideoWidth/2,gVideoHeight/2,gWin,50)
+   Draw()
+   Wait(500)
+   lab.text <- stim
+   Draw()
+   time0 <- GetTime()
+   resp <- WaitForListKeyPressWithTimeOut(["<lshift>","<rshift>"],1000,1)
+   time1 <- GetTime()
+
+   score <- ScoreTrial(resp,cond)
+   corr <- First(score)
+   noresp <- Second(score)
+
+   if(corr)   ##Give feedback
+    {
+       lab.text <- "CORRECT"
+    } else {
+       lab.text <- "INCORRECT"
+    }
+   Draw()
+   Wait(400)
+
+  RemoveObject(lab,gWin)
+  return [cond, noresp,corr, (time1-time0)]  
+}
+
+define ScoreTrial(resp,cond)
+{
+   #Score the trial:
+   if(IsList(resp))
+    {
+      noresp <- 1
+    } else {
+      noresp <- 0
+    }
+
+  if(cond==1)
+   {
+     corr <- (resp == "<lshift>")
+   } elseif(cond==2)
+   {
+     corr <- (resp == "<rshift>")
+   } else {
+     corr <- noresp
+   }
+
+   return [corr,noresp] 
+}

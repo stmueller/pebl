@@ -1,0 +1,370 @@
+#################################################################
+##  PEBL Probabilistic Reversal Learning Task Version 0.2,
+##  as described by Cools et al, 2002.
+##  For use with PEBL 0.09 or later
+##  http://pebl.sf.net
+##  Part of  The PEBL Psychological Test Battery
+##  2006-02 Released into Public Domain
+##  by Shane T. Mueller, Ph.D. (smueller at obereed dot net)
+##
+##  Version 0.3: Use left and right shift for responses.
+##
+##  Reference:
+##
+## Cools, R, Clark, L., Owen, A. M., Robbins, T. W. (2002) Defining the
+##    Neural Mechanisms of Probabilistic Reversal Learning Using
+##    Event-Related Functional Magnetic Resonance Imaging.
+##
+##
+##
+## Description: Task involves learning a 'rule' which determine which of
+## two abstract stimuli are selected.  The rule changes in the middle of
+## the block, and the goal is to see how quickly the participant can
+## adapt to the rule change.  Feedback is probabilistic
+##
+##
+##
+#################################################################
+
+define Start(lPar)
+{
+   gScriptName <- "Probabilistic Reversal Learning"
+   parpairs <- [["numblocks",4],   #Each block is around 150 trials.
+                ["numstages",10],
+		["stagemin",10],
+		["stagemax",15],
+		["errorMin",0],
+		["errorMax",5]]
+
+   gParams <- CreateParameters(parpairs,gParamFile)
+
+
+   numblocks <- gParams.numblocks
+   numStages <- gparams.numstages
+   stageMin  <- gParams.stagemin
+   stageMax  <- gParams.stagemax
+   pErrorMin <- gParams.errorMin
+   pErrorMax <- gParams.errorMax
+
+  ## Initialize global objects for use later. Defined at end of file
+   Initialize()
+
+
+   datafile <- GetNewDataFile(gSubNum,gWin,"probrev","csv",
+                       "sub,block,stage,totaltrial,trial,order,valid,corrfeedback,acc,corr,rt")
+
+   reportfile <- GetNewDataFile(gSubNum,gWin,"probrev-report","txt","")
+
+
+   ShowCursor(0)
+
+   ##Create lists containing the possible error and stage sizes for later sampling.
+   stageSizes <- Sequence(stageMin,stageMax,1)
+   errorSizes <- Sequence(pErrorMin,pErrormax,1)
+
+   gRT <- 0
+   stimnames <- Shuffle(["png/abstractfig1.png",
+                         "png/abstractfig2.png",
+                         "png/abstractfig3.png",
+                         "png/abstractfig4.png"])
+   stimuli <- []
+   loop(i, stimnames)
+   {
+     stimuli <- Append(stimuli, MakeImage(i))
+   }
+
+
+
+  ####################################################
+  ## Instructions
+  ####################################################
+
+
+   ## Give instructions; wait for them to hit a key,
+   SetText(gInstructions,gStrings.inst1)
+   Show(gInstructions)
+   Draw()
+   WaitForAnyKeyPress()
+   Hide(gInstructions)
+   Draw()
+
+   gInstructions.text <- gStrings.break
+
+  ##############################################
+  ##############################################
+  ##
+  ## Set up the basic  environment
+  ##
+
+   ## Global data structures which save data for analysis and
+   ## report at end of study.
+
+   ##Go through each block of the task, starting here.
+    trialNum <- 0
+    tottrials <- 0
+    totAcc <- 0
+    switch <- 0
+    blockID <- 1
+
+    while(blockID <= numblocks)
+     {
+
+    ##Determine which stimulus to use anew on each block; randomly.
+    stimuli <- Shuffle(stimuli)
+    stimA <- First(stimuli)
+    stimB <- Nth(stimuli,2)
+
+    AddObject(stimA,gWin)
+    AddObject(stimB,gWin)
+    Hide(stimA)
+    Hide(stimB)
+
+
+
+
+    gInstructions.text <-gStrings.inst2
+    gInstructions.height <- 100
+    gInstructions.visible <- 1
+
+    if(RandomBernoulli(.5))
+    {
+     Move(stimA,gVideoWidth/2-200,300)
+     Move(stimB,gVideoWidth/2+200,300)
+    } else {
+     Move(stimB,gVideoWidth/2-200,300)
+     Move(stimA,gVideoWidth/2+200,300)
+    }
+
+    Show(stimA)
+    Show(stimB)
+    Draw()
+
+    WaitForKeyPress(" ")
+    Hide(gInstructions)
+    Hide(stimA)
+    Hide(stimB)
+    Draw()
+    Wait(50)
+
+  ## each block has numStages learning stages.
+  ## each reversal occurs after 10-15 correct responses (including prob errors)
+  ## 0-4 probabilistic errors per stage
+
+  ##Generate the details for a block here.
+
+
+     ##Go through numStages stages per block. a Stage=reversal learning.
+
+     stage <- 0
+     while(stage <= numStages)
+     {
+       stage <- stage + 1
+       trialNum <- 0
+
+       ##Determine how many correct trials are needed before switch
+       scorr <-  Choose1(stageSizes)
+       #Determine how many probabilistic errors
+       numerrors <- Choose1(errorSizes)
+       if(numerrors > 0)
+       {
+         #Choose the correct trials we give this error feedback on.
+         perrors <- ChooseN(Sequence(1,scorr,1),numerrors)
+       }else {
+         perrors <- []
+       }
+
+
+      ## do multiple trials until enough correct responses occur.
+      ##
+      acc <- 0
+      while(acc < scorr)
+      {
+      trialNum <- trialNum + 1
+      tottrials <- tottrials + 1
+	  order <- (RandomBernoulli(.5)+1)+""
+	  corr <- PresentStim(stimA,stimB,order)
+      acc <- acc + corr
+
+	  ##We give incorrect feedback on correct trials
+      ##
+      valid <- 1  ## give valid by default
+      if(IsMember(acc, perrors))
+       {
+         valid <- 0
+       }
+
+
+    ### Smiley feedback :  correct && valid ==1
+	###
+ 	### frowney feedback:  correct && valid==0
+	###                    incorrect && valid==1
+      if(corr + valid == 2)
+      {
+        corrfeedback <- 1  ##We tell them they are right
+        feedback <- gCorr
+      }else{
+
+        corrfeedback <- 0 ##We tell them they are wrong
+        feedback <- gInc
+      }
+
+
+	FilePrint(datafile,gSubNum + "," + blockID + "," + stage + "," + tottrials+ "," +  trialnum +"," +  order + "," + valid + "," + corrfeedback + "," + acc + "," + corr  + "," + gRT)
+
+      Show(feedback)
+      Draw()
+      Wait(250)
+      Hide(feedback)
+      Draw()
+      Wait(250)
+      }
+      ####We are at the end of a reversal stage--swap the stimuli and accumulate accuracy.
+     tmp <-  stimA
+     stimA <- stimB
+     stimB <- tmp
+     totAcc <- totAcc + acc
+
+    }
+
+      RemoveObject(stimA,gWin)
+      RemoveObject(stimB,gWin)
+      blockID <- blockID + 1
+    }
+
+
+
+##Print out report
+   FilePrint(reportfile,"---------------------------------------------------")
+   FilePrint(reportfile," Report for PEBL Probalistic Reversal Learning Task")
+   FilePrint(reportfile, " Version 0.3")
+   FilePrint(reportfile, " "+GetPEBLVersion())
+   FilePrint(reportfile, " "+TimeStamp())
+   FilePrint(reportfile, " Participant Code: " + gSubNum)
+   FilePrint(reportfile," http://pebl.sf.net")
+   FilePrint(reportfile,"---------------------------------------------------")
+   FilePrint(reportfile,"Statistic           Value ")
+   FilePrint(reportfile,"---------------------------------------------------")
+   FilePrint(reportfile,"Number of Trials:       "+Tab(2) + totTrials)
+   FilePrint(reportfile,"Correct Trials:         "+Tab(2)+ totAcc)
+   FilePrint(reportfile,"Blocks:                 "+Tab(2)+ numBlocks)
+   FilePrint(reportfile,"Reversal stages/block   "+Tab(2) + numStages)
+   FilePrint(reportfile,"Number of reversals     "+Tab(2) +numBlocks * numStages)
+   FilePrint(reportfile,"Mean Correct Trials/stage"+Tab(2) + totAcc / (numBlocks * numStages))
+   FilePrint(reportfile,"Mean Total Trials/stage"+Tab(2) + totTrials / (numBlocks * numStages))
+   FilePrint(reportfile,"Mean Errors per reversal"+Tab(2)+(totTrials-totAcc)/(numBlocks*numStages))
+
+   FilePrint(reportfile,"---------------------------------------------------")
+
+
+   ##Now, show debriefing info.
+
+   SetText(gInstructions, gStrings.debrief+CR(1)+
+  "Report found in file: [probrev-report-" +gSubNum  + ".dat]
+  Data found in file:   [probrev-"  + gSubNum + ".dat]")
+   Show(gInstructions)
+   Draw()
+   WaitForKeyPress("X")
+   ShowCursor(1)
+
+ }
+
+
+##  This is a standard initializer function that sets up typical
+##  objects used in experiments.
+define Initialize()
+{
+
+#  gVideoWidth <- 800
+#  gVideoHeight <- 600
+
+  ##Initialize Window, etc.
+  gWin <- MakeWindow("black")
+
+
+  if(gSubNum+""=="0")
+   {
+     gSubNum <- GetSubNum(gWin)
+   }
+
+  ##Initialize Font and colors
+
+   GetStrings(gLanguage)
+
+   black <- MakeColor("black")
+   white <- MakeColor("white")
+
+
+   gInstructionsFont <- MakeFont(gPEBLBaseFont,0,16, black,white,1)
+   gStimFont <- MakeFont(gPEBLBaseFontMono,0,54, white, black,1)
+   gCorrFont <-  MakeFont(gPEBLBaseFontMono,0,54, MakeColor("green"), black,1)
+   gIncFont <-  MakeFont(gPEBLBaseFontmono,0,54, MakeColor("red"), black,1)
+
+   ## Make and place the instruction box, then hide it
+   gInstructions <- MakeTextBox("", gInstructionsFont, 600,300)
+   AddObject(gInstructions, gWin)
+   Move(gInstructions, gVideoWidth/2-300, 50)
+   Hide(gInstructions)
+
+   gStim <- MakeLabel("",gStimFont)
+   AddObject(gStim, gWin)
+   Move(gStim, gVideoWidth/2, gVideoHeight/2)
+   Hide(gStim)
+
+   gFeedback <- MakeLabel("-",gStimFont)
+   AddObject(gFeedback, gWin)
+   Move(gFeedback, gVideoWidth/2, gVideoHeight/2)
+   Hide(gFeedback)
+
+
+
+   gCorr <- MakeImage("png/happygreen.png")
+   gInc  <- MakeImage("png/sadred.png")
+   AddObject(gCorr,gWin)
+   AddObject(gInc,gWin)
+   Move(gCorr,gVideoWidth/2,300)
+   Move(gInc,gVideoWidth/2,300)
+   Hide(gCorr)
+   Hide(gInc)
+
+ }
+
+## order will be "1" or "2"
+## stimA is correct.
+define  PresentStim(stimA,stimB,order)
+{
+	if(order=="1"){
+       Move(stimA,gVideoWidth/2-200,300)
+       Move(stimB,gVideoWidth/2+200,300)
+       correct <- "<lshift>"
+
+    } else {
+       Move(stimB,gVideoWidth/2-200,300)
+       Move(stimA,gVideoWidth/2+200,300)
+       correct <- "<rshift>"
+    }
+  Show(stimA)
+  Show(stimB)
+  Draw()
+  time1 <- GetTime()
+
+  resp <- WaitForListKeyPress(["<lshift>","<rshift>"])
+  time2 <- GetTime()
+
+  gRT <- time2-time1
+  Hide(stimA)
+  Hide(stimB)
+  Draw()
+  return (resp == correct)
+}
+
+
+define Choose1(list)
+{
+ return First(Shuffle(list))
+}
+
+
+define GetStrings(lang)
+{
+  gStrings <- GetTranslations("probrev", lang)
+}

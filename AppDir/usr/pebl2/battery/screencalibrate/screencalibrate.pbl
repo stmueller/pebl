@@ -1,0 +1,446 @@
+## Screen Calibration Function
+## Measures screen size and viewing distance using physical objects
+## Returns calibration data as a custom object
+
+define Start(p)
+{
+  gScriptname <- "Screen Calibration"
+
+  ## Setup
+  gSleepEasy <- 1
+  gWin <- MakeWindow("gray")
+
+  if(gSubNum+"" == "0")
+  {
+    gSubNum <- GetSubNum(gWin)
+  }
+
+  ## Run calibration
+  calibData <- CalibrateScreen(gWin)
+
+  ## Display results
+  ShowCalibrationResults(calibData, gWin)
+
+  ## Save calibration data
+  SaveCalibrationData(calibData, gSubNum)
+}
+
+## Main calibration function
+## Returns custom object with calibration data
+define CalibrateScreen(win)
+{
+  ShowCursor(1)
+
+  ## Initial instructions
+  inst <- "This test will measure your vision and eye movements, so it needs to be calibrated before we begin. We can calibrate with a tape measure that measures cm or inches, or a piece of 8.5"+Quote()+"+x11"+Quote()+" or A4 paper, or a credit card. Get one of these to continue." + CR(2) + "Click OK to continue."
+
+  MessageBox(inst, win)
+  Draw()
+
+  ## Choose calibration method
+  method <- ChooseCalibrationMethod(win)
+
+  ## Get screen size calibration
+  pixelsPerMM <- CalibrateScreenSize(method, win)
+
+  ## Get viewing distance (optional but recommended)
+  viewDistMM <- CalibrateViewingDistance(pixelsPerMM, win)
+
+  ## Create calibration object
+  calibData <- MakeCustomObject("calibration")
+  SetProperty(calibData, "method", method)
+  SetProperty(calibData, "pixelsPerMM", pixelsPerMM)
+  SetProperty(calibData, "pixelsPerCM", pixelsPerMM * 10)
+  SetProperty(calibData, "pixelsPerInch", pixelsPerMM * 25.4)
+  SetProperty(calibData, "viewDistanceMM", viewDistMM)
+  SetProperty(calibData, "screenWidthMM", gVideoWidth / pixelsPerMM)
+  SetProperty(calibData, "screenHeightMM", gVideoHeight / pixelsPerMM)
+  SetProperty(calibData, "timestamp", TimeStamp())
+
+  return(calibData)
+}
+
+## Let user choose calibration method
+define ChooseCalibrationMethod(win)
+{
+  inst <- "Choose your calibration method:" + CR(2) +
+          "[1] Ruler or tape measure (cm)" + CR(1) +
+          "[2] Ruler or tape measure (inches)" + CR(1) +
+          "[3] Credit card" + CR(1) +
+          "[4] US Letter paper (8.5"+Quote()+"+x11"+Quote()+")" + CR(1) +
+          "[5] A4 paper" + CR(2) +
+          "Press the number key for your choice."
+
+  textbox <- EasyTextBox(inst, gVideoWidth/2-300, gVideoHeight/2-200, win, 24, 600, 400)
+  Draw()
+
+  resp <- WaitForListKeyPress(["1","2","3","4","5"])
+  Hide(textbox)
+  Draw()
+
+  return(resp)
+}
+
+## Calibrate screen size using chosen method
+define CalibrateScreenSize(method, win)
+{
+  if(method == "1")
+  {
+    result <- CalibrateWithRulerCM(win)
+  }elseif(method == "2")
+  {
+    result <- CalibrateWithRulerInches(win)
+  }elseif(method == "3")
+  {
+    result <- CalibrateWithCreditCard(win)
+  }elseif(method == "4")
+  {
+    result <- CalibrateWithPaper(85.6, 101.6, win)  ## 8.5" x 11" in mm
+  }elseif(method == "5")
+  {
+    result <- CalibrateWithPaper(210, 297, win)  ## A4 in mm
+  }
+
+  return(result)
+}
+
+## Calibrate using ruler in cm
+define CalibrateWithRulerCM(win)
+{
+  inst <- "You will see a horizontal line. Use your mouse to adjust the line until it matches exactly 10 cm on your ruler." + CR(2) +
+          "Click and drag the right edge of the line to adjust it." + CR(2) +
+          "Click OK when ready."
+
+  MessageBox(inst, win)
+  Draw()
+
+  ## Let user adjust line to match 10 cm
+  lineLength <- AdjustLineToMatch(win, "10 cm", 400)
+
+  ## lineLength pixels = 100 mm
+  pixelsPerMM <- lineLength / 100
+
+  return(pixelsPerMM)
+}
+
+## Calibrate using ruler in inches
+define CalibrateWithRulerInches(win)
+{
+  inst <- "You will see a horizontal line. Use your mouse to adjust the line until it matches exactly 4 inches on your ruler." + CR(2) +
+          "Click and drag the right edge of the line to adjust it." + CR(2) +
+          "Click OK when ready."
+
+  MessageBox(inst, win)
+  Draw()
+
+  ## Let user adjust line to match 4 inches
+  lineLength <- AdjustLineToMatch(win, "4 inches", 400)
+
+  ## lineLength pixels = 4 inches = 101.6 mm
+  pixelsPerMM <- lineLength / 101.6
+
+  return(pixelsPerMM)
+}
+
+## Calibrate using credit card
+define CalibrateWithCreditCard(win)
+{
+  inst <- "You will see a rectangle. Use your mouse to adjust the rectangle until it matches exactly the size of a credit card." + CR(2) +
+          "Click and drag the bottom-right corner to adjust it." + CR(2) +
+          "Standard credit card size: 85.6mm x 54mm" + CR(2) +
+          "Click OK when ready."
+
+  MessageBox(inst, win)
+  Draw()
+
+  ## Let user adjust rectangle to match credit card
+  dims <- AdjustRectangleToMatch(win, "Credit Card", 340, 214)  ## Approx 85.6mm x 54mm
+
+  width <- First(dims)
+  height <- Second(dims)
+
+  ## Credit card is 85.6mm x 54mm
+  ## Average the two measurements
+  pixelsPerMMWidth <- width / 85.6
+  pixelsPerMMHeight <- height / 54
+  pixelsPerMM <- (pixelsPerMMWidth + pixelsPerMMHeight) / 2
+
+  return(pixelsPerMM)
+}
+
+## Calibrate using paper
+define CalibrateWithPaper(paperWidthMM, paperHeightMM, win)
+{
+  if(paperWidthMM == 85.6)
+  {
+    paperName <- "US Letter (8.5"+Quote()+"+x11"+Quote()+")"
+  } else {
+    paperName <- "A4"
+  }
+
+  inst <- "You will see a rectangle. Use your mouse to adjust the rectangle until it matches exactly the size of your " + paperName + " paper." + CR(2) +
+          "Click and drag the bottom-right corner to adjust it." + CR(2) +
+          "Click OK when ready."
+
+  MessageBox(inst, win)
+  Draw()
+
+  ## Initial guess at size
+  initialWidth <- Round(paperWidthMM * 3)  ## Rough guess: 3 pixels/mm
+  initialHeight <- Round(paperHeightMM * 3)
+
+  ## Let user adjust rectangle to match paper
+  dims <- AdjustRectangleToMatch(win, paperName, initialWidth, initialHeight)
+
+  width <- First(dims)
+  height <- Second(dims)
+
+  ## Average the two measurements
+  pixelsPerMMWidth <- width / paperWidthMM
+  pixelsPerMMHeight <- height / paperHeightMM
+  pixelsPerMM <- (pixelsPerMMWidth + pixelsPerMMHeight) / 2
+
+  return(pixelsPerMM)
+}
+
+## Interactive line adjustment
+define AdjustLineToMatch(win, targetSize, initialLength)
+{
+  font <- MakeFont(gPEBLBaseFont, 0, 24, MakeColor("black"), MakeColor("gray"), 1)
+
+  inst <- "Drag the right edge to match " + targetSize + CR(1) + "Press SPACE when done"
+  label <- MakeLabel(inst, font)
+  AddObject(label, win)
+  Move(label, gVideoWidth/2, 100)
+
+  centerX <- gVideoWidth/2
+  centerY <- gVideoHeight/2
+
+  ## Create adjustable line
+  lineLength <- initialLength
+  line <- ThickLine(centerX - lineLength/2, centerY, lineLength, 0, 4, MakeColor("red"))
+  AddObject(line, win)
+
+  ## Create drag handle
+  handle <- Circle(centerX + lineLength/2, centerY, 8, MakeColor("blue"), 1)
+  AddObject(handle, win)
+
+  Draw()
+
+  ## Adjustment loop
+  done <- 0
+  while(not done)
+  {
+    if(IsKeyDown(" "))
+    {
+      done <- 1
+    }
+
+    mouseState <- GetMouseState()
+    mouseX <- First(mouseState)
+
+    if(Third(mouseState))  ## Mouse button pressed
+    {
+      ## Update line length based on mouse position
+      newLength <- (mouseX - (centerX - lineLength/2)) * 2
+      if(newLength > 50 and newLength < gVideoWidth - 100)
+      {
+        lineLength <- newLength
+
+        ## Update line and handle
+        RemoveObject(line, win)
+        RemoveObject(handle, win)
+
+        line <- ThickLine(centerX - lineLength/2, centerY, lineLength, 0, 4, MakeColor("red"))
+        AddObject(line, win)
+
+        handle <- Circle(centerX + lineLength/2, centerY, 8, MakeColor("blue"), 1)
+        AddObject(handle, win)
+
+        Draw()
+      }
+    }
+
+    Wait(10)
+  }
+
+  RemoveObject(line, win)
+  RemoveObject(handle, win)
+  RemoveObject(label, win)
+  Draw()
+
+  return(Round(lineLength))
+}
+
+## Interactive rectangle adjustment
+define AdjustRectangleToMatch(win, objectName, initialWidth, initialHeight)
+{
+  font <- MakeFont(gPEBLBaseFont, 0, 24, MakeColor("black"), MakeColor("gray"), 1)
+
+  inst <- "Drag the corner to match " + objectName + CR(1) + "Press SPACE when done"
+  label <- MakeLabel(inst, font)
+  AddObject(label, win)
+  Move(label, gVideoWidth/2, 100)
+
+  centerX <- gVideoWidth/2
+  centerY <- gVideoHeight/2
+
+  ## Create adjustable rectangle
+  rectWidth <- initialWidth
+  rectHeight <- initialHeight
+
+  rect <- Rectangle(centerX - rectWidth/2, centerY - rectHeight/2, rectWidth, rectHeight, MakeColor("red"), 0)
+  AddObject(rect, win)
+
+  ## Create drag handle
+  handle <- Circle(centerX + rectWidth/2, centerY + rectHeight/2, 8, MakeColor("blue"), 1)
+  AddObject(handle, win)
+
+  Draw()
+
+  ## Adjustment loop
+  done <- 0
+  while(not done)
+  {
+    if(IsKeyDown(" "))
+    {
+      done <- 1
+    }
+
+    mouseState <- GetMouseState()
+    mouseX <- First(mouseState)
+    mouseY <- Second(mouseState)
+
+    if(Third(mouseState))  ## Mouse button pressed
+    {
+      ## Update rectangle size based on mouse position
+      newWidth <- (mouseX - (centerX - rectWidth/2)) * 2
+      newHeight <- (mouseY - (centerY - rectHeight/2)) * 2
+
+      if(newWidth > 50 and newWidth < gVideoWidth - 100 and newHeight > 50 and newHeight < gVideoHeight - 100)
+      {
+        rectWidth <- newWidth
+        rectHeight <- newHeight
+
+        ## Update rectangle and handle
+        RemoveObject(rect, win)
+        RemoveObject(handle, win)
+
+        rect <- Rectangle(centerX - rectWidth/2, centerY - rectHeight/2, rectWidth, rectHeight, MakeColor("red"), 0)
+        AddObject(rect, win)
+
+        handle <- Circle(centerX + rectWidth/2, centerY + rectHeight/2, 8, MakeColor("blue"), 1)
+        AddObject(handle, win)
+
+        Draw()
+      }
+    }
+
+    Wait(10)
+  }
+
+  RemoveObject(rect, win)
+  RemoveObject(handle, win)
+  RemoveObject(label, win)
+  Draw()
+
+  return([Round(rectWidth), Round(rectHeight)])
+}
+
+## Calibrate viewing distance
+define CalibrateViewingDistance(pixelsPerMM, win)
+{
+  inst <- "Next, we will measure your viewing distance from the screen." + CR(2) +
+          "You will hold a credit card at arm's length and adjust a rectangle on screen until it appears the same size as the card." + CR(2) +
+          "This uses angular size to estimate viewing distance." + CR(2) +
+          "Click OK to continue, or click Cancel to skip this step."
+
+  response <- PopupMessageBox(inst, win, "Continue", "Skip")
+
+  if(response == "Skip")
+  {
+    return(-1)
+  }
+
+  ## Show adjustable rectangle
+  inst2 <- "Hold a credit card at arm's length (about 60cm from your eyes)." + CR(2) +
+           "Adjust the rectangle on screen until it appears the SAME SIZE as the credit card." + CR(2) +
+           "Click OK when ready."
+
+  MessageBox(inst2, win)
+  Draw()
+
+  ## Let user adjust rectangle
+  dims <- AdjustRectangleToMatch(win, "credit card at arm's length", 200, 126)
+
+  perceivedWidthPixels <- First(dims)
+
+  ## Credit card actual width: 85.6mm
+  ## Arm's length: approximately 600mm
+  ## Angular size: tan(angle/2) = (width/2) / distance
+  ## If perceived size = actual size, then:
+  ## perceivedWidthPixels / viewDistance = 85.6mm / 600mm
+
+  ## viewDistance (in mm) = perceivedWidthPixels / pixelsPerMM * 600 / 85.6
+  ## Simplified: viewDistance = perceivedWidthPixels / pixelsPerMM * 7.009
+
+  actualCardWidthMM <- 85.6
+  assumedArmLengthMM <- 600
+
+  perceivedWidthMM <- perceivedWidthPixels / pixelsPerMM
+  viewDistanceMM <- perceivedWidthMM * assumedArmLengthMM / actualCardWidthMM
+
+  return(Round(viewDistanceMM))
+}
+
+## Show calibration results
+define ShowCalibrationResults(calibData, win)
+{
+  pixelsPerMM <- GetProperty(calibData, "pixelsPerMM")
+  pixelsPerInch <- GetProperty(calibData, "pixelsPerInch")
+  screenWidthMM <- GetProperty(calibData, "screenWidthMM")
+  screenHeightMM <- GetProperty(calibData, "screenHeightMM")
+  viewDistMM <- GetProperty(calibData, "viewDistanceMM")
+
+  results <- "Calibration Complete!" + CR(2) +
+             "Screen Resolution: " + gVideoWidth + "x" + gVideoHeight + " pixels" + CR(1) +
+             "Pixels per mm: " + Format(pixelsPerMM, "%.2f") + CR(1) +
+             "Pixels per inch: " + Format(pixelsPerInch, "%.2f") + CR(1) +
+             "Screen width: " + Format(screenWidthMM, "%.1f") + " mm (" + Format(screenWidthMM/25.4, "%.1f") + " inches)" + CR(1) +
+             "Screen height: " + Format(screenHeightMM, "%.1f") + " mm (" + Format(screenHeightMM/25.4, "%.1f") + " inches)" + CR(1)
+
+  if(viewDistMM > 0)
+  {
+    results <- results + "Viewing distance: " + Format(viewDistMM, "%.0f") + " mm (" + Format(viewDistMM/25.4, "%.1f") + " inches)" + CR(1)
+  }
+
+  results <- results + CR(1) + "Click OK to continue."
+
+  MessageBox(results, win)
+  Draw()
+}
+
+## Save calibration data to file
+define SaveCalibrationData(calibData, subNum)
+{
+  filename <- "data/calibration-" + subNum + ".csv"
+
+  fileOut <- FileOpenWrite(filename)
+
+  ## Write header
+  FilePrint(fileOut, "timestamp,method,pixelsPerMM,pixelsPerCM,pixelsPerInch,viewDistanceMM,screenWidthMM,screenHeightMM,screenResWidth,screenResHeight")
+
+  ## Write data
+  FilePrint(fileOut, GetProperty(calibData, "timestamp") + "," +
+                     GetProperty(calibData, "method") + "," +
+                     GetProperty(calibData, "pixelsPerMM") + "," +
+                     GetProperty(calibData, "pixelsPerCM") + "," +
+                     GetProperty(calibData, "pixelsPerInch") + "," +
+                     GetProperty(calibData, "viewDistanceMM") + "," +
+                     GetProperty(calibData, "screenWidthMM") + "," +
+                     GetProperty(calibData, "screenHeightMM") + "," +
+                     gVideoWidth + "," +
+                     gVideoHeight)
+
+  FileClose(fileOut)
+}

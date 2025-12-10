@@ -1,0 +1,376 @@
+define Start(p)
+{
+parpairs <- [["blocktime",180],# Duration of block in sec (default should be  3 min)
+    ["uselength1",0],
+    ["uselength2",1],
+    ["uselength3",1],
+    ["uselength4",1],
+    ["uselength5",0],
+    ["deadline1",1500],
+    ["deadline2",1500],
+    ["deadline3",3000],
+    ["deadline4",4000],
+    ["deadline5",5000],
+    ["minsum",1],
+    ["maxsum",9],
+    ["givefeedback",1],
+    ["randomizeblocks",0]]
+
+  gScriptName <- "PEBL Math Processing Test"
+
+  gParams <- CreateParameters(parpairs,gParamFile)
+
+  ##make sure 5 isn't a legal response:
+  sums <-Merge(Sequence(gParams.minsum,4,1),
+               Sequence(6,gParams.maxsum,1))
+  gFeedback <- gParams.givefeedback
+
+
+  gSleepEasy <- 1
+
+  lengthfilter <- [gParams.uselength1,gparams.uselength2,
+                   gParams.uselength3,gParams.uselength4,
+		   gParams.uselength5]
+
+  lengths <-    Filter([1,2,3,4,5],lengthfilter)
+  deadlines <-  Filter([gParams.deadline1,gParams.deadline2,
+                        gParams.deadline3,gParams.deadline4,
+                         gParams.deadline5]  ,lengthfilter)
+  blocktime <- 1000 * gParams.blocktime
+
+  gWin <- MakeWindow()
+
+   ##Get subject code if we need to:
+    if(gSubNum+""=="0")
+    {
+	  gSubNum <- GetSubNum(gWin)
+    }
+
+
+   GetStrings(gLanguage)
+
+    gFileOut <- GetNewDataFile(gSubNum,gWin,"mathproc","csv",
+           "subnum,trial,feedback,val,length,stim,sum,resp,corr,tooslow,time,rt")
+
+  footer1 <- EasyLabel(gStrings.footer1,gVideoWidth/2,gVideoHeight-120,gWin,30)
+  footer2 <- EasyLabel(gStrings.footer2,gVideoWidth/2,gVideoHeight-150,gWin,30)
+
+
+    tb  <- EasyTextBox(gStrings.inst1a,50,30,gWin,22,gVideoWidth-100,gVideoHeight-250)
+    Draw()
+    WaitForAnyKeyPress()
+
+    tb.text <- gStrings.inst1b
+    Draw()
+    WaitForAnyKeyPress()
+
+    tb.text <- gStrings.inst1c
+    Draw()
+    WaitForAnyKeyPress()
+
+
+  Draw()
+  design <- DesignFullCounterBalance(sums,lengths)
+  stimuli <- Shuffle(design)
+
+
+
+  ##present in random order
+  blockdat <- (Transpose([lengths,deadlines]))
+  if(gParams.randomizeblocks)
+  {
+      blockdat <- Shuffle(blockdat)
+  }
+
+  ##Data should include condition(length), correct, time
+  gDat <- []
+
+  block <- 1
+  loop(b, blockdat)
+   {
+
+
+   length <-First(b)
+   deadline <- Nth(b,2)
+   tb.text <- "                            "+gStrings.block+" " + block + ":"+CR(1)
+
+   interblock <- ReplaceChar(gStrings.interblock,"<LENGTH>",length)
+   interblock <- ReplaceChar(interblock,"<DEADLINE>",""+(deadline/1000))
+   tb.text <- tb.text + interblock
+
+
+   Show(tb)
+   Draw()
+   WaitForAnyKeyPress()
+   Hide(tb)
+   Draw()
+
+   trial <- 1
+   starttime <- GetTime()
+   endTime <- starttime + blocktime
+
+   while(GetTime() < endtime)
+    {
+    if(Mod(trial,9)==1)
+      {
+      sums <- Shuffle(sums)
+      }
+
+     val <- First(sums)     #This is the value
+     sums <- Rotate(sums,1)  #Move to the next value
+
+     x <- MakeProblem(val,length)
+     FilePrint_(gFileOut, gSubNum + "," + trial + "," + gFeedback + "," + val + "," + length + "," +   ConcatenateList(x,"|")+",")
+
+     Trial(x,deadline)
+
+    trial <- trial + 1
+   }
+
+ }
+
+  cdat <- Transpose(gDat)
+
+  Print(gDat)
+
+  trials <-  (SummaryStats(Nth(cdat,2),First(cdat)))
+  rt <- (SummaryStats(Nth(cdat,3),First(cdat)))
+  slow <- SummaryStats(Nth(cdat,4),First(cdat))
+  ttrials <- Transpose(trials)
+  trt <- Transpose(rt)
+  tslow <- Transpose(slow)
+
+
+  ntrials <- Nth(ttrials,2)
+  ncorr <- VecTimes(Nth(ttrials,4), Nth(ttrials,2))
+  nslow <-   VecTimes(Nth(tslow,4), Nth(tslow,2))
+  nerrs  <- VecSum(ntrials, VecTimes(ncorr,[-1,-1,-1]))
+  ncomm <-  VecSum(nerrs,VecTimes(nslow,[-1,-1,-1]))
+
+   sumfile <- GetNewDataFile(gSubNum,gWin,"mathproc-report","txt","")
+
+  FilePrint(sumfile,"----------------------------------------------")
+  FilePrint(sumfile,"Summary for the PEBL Mathematical Processing Task, Version 0.1")
+  FilePrint(sumfile,"Released into public domain 2008 by Shane T. Mueller, Ph.D. (smueller at obereed dot net)")
+  FilePrint(sumfile,TimeStamp())
+  FilePrint(sumfile,GetPEBLVersion())
+  FilePrint(sumfile,"----------------------------------------------")
+  FilePrint(sumfile,"participant code: " + gSubNum)
+  FilePrint(sumfile,"Time per block: " + blocktime/1000 + " s")
+  FilePrint(sumfile,"Deadlines:")
+  FilePrintList(sumfile,lengths)
+  FilePrintList(sumfile,deadlines)
+  FilePrint(sumfile,"----------------------------------------------")
+  FilePrint(sumfile, "Statistic                     Conditions")
+  FilePrint(sumfile, "                         2         3        4")
+  FilePrint(sumfile,"----------------------------------------------")
+  FilePrint_(sumfile,"Length              ")
+  FilePrintList(sumfile,First(ttrials))
+  FilePrint_(sumfile,"Number of trials    ")
+  FilePrintList(sumfile,ntrials)
+  FilePrint_(sumfile,"Total Correct       ")
+  FilePrintList(sumfile,ncorr)
+  FilePrint_(sumfile,"Total Errors        ")
+  FilePrintList(sumfile,nerrs)
+  FilePrint_(sumfile,"Total Too slow      ")
+  FilePrintList(sumfile,nslow)
+  FilePrint_(sumfile,"Total Committed Errors ")
+  FilePrintList(sumfile,ncomm)
+  FilePrint_(sumfile,"Proportion Correct  ")
+  FilePrintList(sumfile,Nth(ttrials,4))
+  FilePrint_(sumfile,"RT Mean             ")
+  FilePrintList(sumfile,Nth(trt,4))
+  FilePrint_(sumfile,"RT Median           ")
+  FilePrintList(sumfile,Nth(trt,3))
+
+  FilePrint(sumfile,"----------------------------------------------")
+
+ FileClose(gFileOut)
+ FileClose(sumfile)
+  tb.text <- gStrings.debrief
+  Show(tb)
+  Draw()
+  WaitForAnyKeyPress()
+
+}
+
+
+define VecTimes(a,b)
+{
+   tmp <- Transpose([a,b])
+   out <- []
+   loop(i,tmp)
+   {
+     out <- Append(out, First(i) * Nth(i,2))
+   }
+  return out
+}
+
+define VecSum(a,b)
+{
+   tmp <- Transpose([a,b])
+   out <- []
+   loop(i,tmp)
+   {
+     out <- Append(out, First(i) + Nth(i,2))
+   }
+  return out
+}
+
+define Trial(list,deadline)
+{
+  string <- MakeStimString(list)
+  ans <- Sum(list)
+  lab <- EasyLabel(string,gVideoWidth/2,gVideoHeight/2,gWin,40)
+  Draw()
+  time0 <- GetTime()
+  resp <- WaitForListKeyPressWithTimeout(["<lshift>","<rshift>"],deadline,1)
+  time1 <- GetTime()
+
+  tooslow <- 0
+  sum <- Sum(list)
+  corr <- 0
+  text <- gStrings.Incorrect
+
+
+  if(resp=="<timeout>")
+    {
+     corr <- 0
+     tooslow <- 1
+     text <- gStrings.tooslow
+
+    }elseif(resp == "<lshift>")
+   {
+     if (sum < 5)
+      {
+          corr <- 1
+          text <- gStrings.correct
+     }
+   } else {
+     if (sum > 5)
+       {
+          corr <- 1
+          text <- gStrings.correct
+       }
+   }
+
+  if(gFeedback)
+   {
+     lab.text <-text
+     Draw()
+     Wait(500)
+   }
+
+  rt <- time1-time0
+  gDat <- Append(gDat, [Length(list),corr,rt,tooslow])
+  FilePrint(gFileOut, sum + "," + resp + "," + corr + "," + tooslow + "," + time1 + "," + rt )
+  RemoveObject(lab,gWin)
+  Draw()
+  Wait(200)
+}
+
+
+define MakeStimString(list)
+ {
+  string <- ""
+  start <- 1
+  loop(i,list)
+  {
+   if(start)
+    {
+      start <- 0
+    } else {
+     if(i > 0)
+    {
+       string <- string + " + "
+    } else {
+       string <- string + " - "
+    }
+
+   }
+    string <- string + Abs(i)
+
+  }
+  return string + " ="
+ }
+
+
+define MakeProblem(answer,length)
+{
+  ##Make a series of digits to add that satisfies the requirements:
+
+
+  list <- []
+  l <- 1
+   while(l < length)
+   {
+     tmp <- AddDigit(list,answer)
+
+     list <- First(tmp)
+     answer <- Nth(tmp,2)
+     l <- l + 1
+   }
+
+  return Append(list,answer)
+}
+
+
+define AddDigit(list, last)
+{
+
+  sum <- Sum(list)
+
+  ##We need to divide last into two numbers n1 and n2, so that:
+  ## n1 + n2 = last
+  ## n1, n2 are in [-9...-1,1...9]
+  ## -n1, -n2 have not been used already
+  ## intermediate sum > 0
+
+  cont <- 1
+  tries <- 0
+
+  while(cont)
+   {
+    newval <- RandomDiscrete(9)  *(RandomDiscrete(2)*2-3)
+    n2 <-  newval
+    n1 <-  last - newval
+
+
+
+    #The new intermediate number must be correct
+    if( Abs(n1) < 10 and Abs(n2) < 10 and
+       Abs(n1) > 0 and Abs(n2) > 0 and
+       sum + n1 > 0  and
+       (not IsMember(-n1,list)) and
+       (not IsMember(-n2,list)) and
+       (not n2 == -9)     )
+       {
+         cont <- 0
+       }
+
+
+
+    if(tries > 100)
+     {
+      SignalFatalError("Error")
+      cont <- 0
+     }
+     tries <- tries + 1
+  }
+  return [Append(list,n1),n2]
+}
+
+
+define Rest(list)
+{
+  return SubList(list,2,Length(list))
+}
+
+
+
+
+define GetStrings(lang)
+{
+  gStrings <- GetTranslations("mathproc",lang)
+  
+}

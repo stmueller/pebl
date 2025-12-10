@@ -1,0 +1,143 @@
+define Start(p)
+{
+
+
+   gWin <- MakeWindow("black")
+   gSleepEasy <- 1
+
+   if(gSubNum+""=="0")
+    {
+      gSubNum <-GetSubNum(gWin)
+    }
+    gFileOut<- GetNewdataFile(gSubNum,gWin,"automat","csv","subnum,type,time,trial,ltrs,target,size,frame,resp,corr,rt")
+    gReportFile <- FileOpenAppend("data/"+gsubnum+"/automat-report"+gSubNum+".txt")
+   Messagebox("This task involves demonstrating automaticity. You may need to run the task several times. Each time, the same  search targets will be given if you choose the 'consistent mapping' option. 
+
+In this task, you will be shown a list of letters.  Remember this list.  On subsequent trials, you will have to decide whether individual letters you see were ON the list or NOT ON the list.   If they were on the list, you should press the LEFT SHIFT, otherwise the RIGHT SHIFT.",gWin)
+
+
+  type <- GetEasyChoice("Choose which condition", ["Consistent mapping","Varied mapping"],[1,2],gWin)
+
+
+  trials <-2  ##trials per setsize.; trialsx4 *frames total
+  frames <- 25 #responses per letter set
+  
+  matchesCM <-    ["F","J","K","N","T"]
+  nonmatchesCM <- ["C","D","O","P","U"]
+
+  all <- Shuffle(Merge(matchesCM,nonmatchesCM))
+
+  matchesVM <- SubList(all,1,5)
+  nonmatchesVM <- SubList(all,6,10)
+
+
+  if(type==1)
+   {
+    matches <- matchesCM
+    nonmatches <- nonmatchesCM
+   }else{
+
+    matches <- matchesVM
+    nonmatches <- nonmatchesVM
+   }
+
+
+   footer<-EasyLabel("l-shift No match                                           match r-shift",gVideoWidth/2, gVideoHeight-150,gWin,30)
+
+   center <-Easylabel("+",gVideoWidth/2,gVideoHeight/2,gWin,60)
+   prompt <- Easylabel("",gVideoWidth/2,gVideoHeight-200,gWin,25)
+   ##set sizes to use
+   setsizes<- [1,2,3,4]
+    ##we will always use frame size of 1.
+
+
+   ##these are the set-size conditionsfor each trial
+   trialcond <- Shuffle(Flatten(Repeat(setsizes,trials)))
+
+
+   data <- []
+   trial <- 1
+   loop(size,trialcond)
+    {
+
+        letters<- SampleN(matches,size)
+        ltrstring <- ListToString(letters)
+       center.text <- "Remember these:  "+ltrstring
+       prompt.text <- "Press spacebar to begin"
+       Draw()
+       WaitForKeyPress(" ")
+       center.text <- "+"
+       prompt.text <- ""
+
+
+       numpos<- Ceiling(frames/2)
+       matchcond<-Shuffle(Merge(Repeat(1,numpos),Repeat(2,frames-numpos)))
+      loop(frame,matchcond)
+        {
+
+           center.text <- "+"
+	   Draw()
+	   Wait(200)
+	   
+           if(frame==1)
+	     {
+	       target <- Sample(letters)
+	     }else{
+	       target <- Sample(nonmatches)
+             }
+           
+          center.text <- target
+	  Draw()
+	  time1 <- GetTime()
+	  resp <- WaitForListKeyPress(["<lshift>","<rshift>"])
+          time2 <- GetTime()
+	  
+          if(frame==1)  ##match?
+	   {
+            corr<- resp=="<rshift>"
+
+           }else{  ##nonmatch
+
+            corr<- resp=="<lshift>"
+           }
+
+          rt<-time2-time1
+          PushOnEnd(data,[size,corr,rt])
+          FilePrint(gFileOut,gSubNum+","+type+","+GetTime()+","+trial+","+ltrstring+","+
+	   target+","+size+","+ frame+","+ resp+","+ corr + ","+rt)
+	   
+           trial<- trial + 1
+         }
+    }
+
+
+
+
+    ##we should aggregate by size.
+
+
+
+
+   out <- TimeStamp()+CR(1)
+
+
+   td <- Transpose(data)
+   sizes <-First(td)
+  out<- out+    FilePrint(gReportFile,"-----------------------------------------")+CR(1)
+  out <- out +   FilePrint(gReportFile,"size           Accuracy          RT   N")+CR(1)
+  out <- out +   FilePrint(gReportFile,"-----------------------------------------")+CR(1)
+   loop(size,Levels(sizes))
+   {
+     tmp <- Filter(data,Match(sizes,size))
+     ttmp <- Transpose(tmp)
+     
+   out <- out +  FilePrint(gReportFile,size+":    "+Mean(Second(ttmp)) + "      " + Mean(Third(ttmp))+"  " + Length(Second(ttmp)))+CR(1)
+
+     
+   }
+      out <- out + FilePrint(gReportFile,"---------------------------------------")
+
+
+
+   MessageBox(out,gWin)
+}

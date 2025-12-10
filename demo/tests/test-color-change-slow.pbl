@@ -1,0 +1,35 @@
+## Slow color change test with clear visual steps
+define Start(p)
+{
+    gWin <- MakeWindow()
+
+    Print("STEP 1: Creating label with BLUE background (0,0,255)")
+    font <- MakeFont("DejaVuSans.ttf", 0, 48, MakeColor("white"), MakeColor("blue"), 1)
+    label <- MakeLabel("BACKGROUND TEST", font)
+    AddObject(label, gWin)
+    Move(label, gVideoWidth/2, gVideoHeight/2)
+    Draw()
+
+    Print("Look at screen - is background BLUE? Waiting 3 seconds...")
+    Wait(3000)
+
+    Print("STEP 2: Changing bgcolor.red from 0 to 255 (blue -> magenta)")
+    label.font.bgcolor.red <- 255
+    Print("Color in property system: " + label.font.bgcolor.red + "," + label.font.bgcolor.green + "," + label.font.bgcolor.blue)
+
+    Print("STEP 3: Calling Draw() to re-render")
+    Draw()
+
+    Print("Look at screen - is background now MAGENTA/PINK? Waiting 3 seconds...")
+    Wait(3000)
+
+    Print("STEP 4: Changing bgcolor.green from 0 to 255 (magenta -> white)")
+    label.font.bgcolor.green <- 255
+    Draw()
+
+    Print("Look at screen - is background now WHITE? Waiting 3 seconds...")
+    Wait(3000)
+
+    Print("Test complete - press any key")
+    WaitForAnyKeyPress()
+}

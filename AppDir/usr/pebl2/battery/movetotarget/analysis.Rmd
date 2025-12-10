@@ -1,0 +1,53 @@
+---
+title: "Visualization of PEBL movetotarget task"
+author: "Shane T. Mueller shanem@mtu.edu"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: "word_document"
+---
+
+Note: This analysis script runs in RStudio, and requires the prepdat and ggplot2 libraries.
+
+
+```{r}
+library(prepdat)
+library(ggplot2)
+dat <- file_merge(folder_path = "data",
+        has_header=T,
+        raw_file_name="movetotarget-summary",
+        raw_file_extension="csv")
+dat$rate <- dat$rt/dat$dist
+dat.test <- dat[dat$trial>0,]
+
+##find log-median rate of movement per subject/trial
+dat.bysub <- aggregate(dat.test$rate,
+                       list(trial=dat.test$trial,
+                            subnum=dat.test$subnum),
+                       function(x){log(median(x))})
+
+dat.bysub$hr <-aggregate(dat.test$hit,
+                       list(trial=dat.test$trial,
+                            subnum=dat.test$subnum),
+                           mean)$x
+
+```
+This figure shows log-median movement rate (time/distance) for each trial--which involves 30 move-to-targets.  This removes the first 'practice' trial, and so the progression shows learning over the timeframe of the session.  In the figure, each participant is shown as a separate connected series.
+
+```{r Rate}
+ggplot(dat.bysub,aes(x=trial,y=x))+ 
+  geom_point()+
+  geom_line(aes(group=subnum)) +
+   geom_smooth(method='loess') +
+  scale_x_continuous(breaks=1:10)+
+  xlab("Trial") + ylab("Log-median movement rate")
+  
+```
+
+```{r}
+ggplot(dat.bysub,aes(x=trial,y=hr))+ 
+  geom_point()+
+  geom_line(aes(group=subnum)) +
+   geom_smooth(method='loess') +
+  scale_x_continuous(breaks=1:10)+
+  xlab("Trial") + ylab("Hit rate")
+  
+```

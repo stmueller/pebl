@@ -1,0 +1,95 @@
+## Simple fullscreen diagnostic test
+## This will help us understand what's happening with canvas dimensions
+
+define Start(p)
+{
+  ## Create window without any dimension override
+  gWin <- MakeWindow("navy")
+
+  ## Create labels to show current dimensions
+  titleFont <- MakeFont(gPEBLBaseFont, 0, 40, MakeColor("yellow"), MakeColor("navy"), 1)
+  infoFont <- MakeFont(gPEBLBaseFont, 0, 24, MakeColor("white"), MakeColor("navy"), 1)
+
+  title <- MakeLabel("Fullscreen Diagnostic Test", titleFont)
+  AddObject(title, gWin)
+  Move(title, gVideoWidth/2, 50)
+
+  ## Instructions
+  inst <- MakeLabel("Press 'F' to toggle fullscreen, 'R' to refresh, 'Q' to quit", infoFont)
+  AddObject(inst, gWin)
+  Move(inst, gVideoWidth/2, 120)
+
+  ## Dimension display labels
+  widthLabel <- MakeLabel("", infoFont)
+  heightLabel <- MakeLabel("", infoFont)
+  AddObject(widthLabel, gWin)
+  AddObject(heightLabel, gWin)
+  Move(widthLabel, gVideoWidth/2, 200)
+  Move(heightLabel, gVideoWidth/2, 250)
+
+  ## Visual reference objects
+  ## Top-left corner
+  tlCircle <- Circle(50, 50, 30, MakeColor("red"), 1)
+  tlLabel <- MakeLabel("TOP-LEFT", infoFont)
+  AddObject(tlCircle, gWin)
+  AddObject(tlLabel, gWin)
+  Move(tlLabel, 50, 100)
+
+  ## Center
+  centerCircle <- Circle(gVideoWidth/2, gVideoHeight/2, 50, MakeColor("green"), 1)
+  centerLabel <- MakeLabel("CENTER", infoFont)
+  AddObject(centerCircle, gWin)
+  AddObject(centerLabel, gWin)
+  Move(centerLabel, gVideoWidth/2, gVideoHeight/2 + 80)
+
+  ## Bottom-right corner marker
+  brRect <- Rectangle(gVideoWidth - 50, gVideoHeight - 50, 80, 80, MakeColor("orange"), 1)
+  brLabel <- MakeLabel("BOTTOM-RIGHT", infoFont)
+  AddObject(brRect, gWin)
+  AddObject(brLabel, gWin)
+  Move(brLabel, gVideoWidth - 50, gVideoHeight - 100)
+
+  ## Initial display
+  UpdateDisplay(widthLabel, heightLabel, centerCircle, centerLabel, brRect, brLabel, title, inst)
+
+  ## Event loop
+  continue <- 1
+  while(continue)
+  {
+    key <- WaitForKeyPress()
+    Print("Key pressed: " + key + " | Width: " + gVideoWidth + " | Height: " + gVideoHeight)
+
+    if(Uppercase(key) == "Q")
+    {
+      continue <- 0
+    } elseif(Uppercase(key) == "R" or Uppercase(key) == "F")
+    {
+      ## Refresh display to show current dimensions
+      Wait(100)  ## Give system time to process fullscreen toggle
+      UpdateDisplay(widthLabel, heightLabel, centerCircle, centerLabel, brRect, brLabel, title, inst)
+    }
+  }
+}
+
+## Function to update display with current dimensions
+define UpdateDisplay(widthLabel, heightLabel, centerCircle, centerLabel, brRect, brLabel, title, inst)
+{
+  widthLabel.text <- "Width: " + gVideoWidth
+  heightLabel.text <- "Height: " + gVideoHeight
+
+  ## Reposition center objects
+  Move(centerCircle, gVideoWidth/2, gVideoHeight/2)
+  Move(centerLabel, gVideoWidth/2, gVideoHeight/2 + 80)
+
+  ## Reposition bottom-right objects
+  Move(brRect, gVideoWidth - 50, gVideoHeight - 50)
+  Move(brLabel, gVideoWidth - 50, gVideoHeight - 100)
+
+  ## Reposition top objects
+  Move(title, gVideoWidth/2, 50)
+  Move(inst, gVideoWidth/2, 120)
+  Move(widthLabel, gVideoWidth/2, 200)
+  Move(heightLabel, gVideoWidth/2, 250)
+
+  Draw()
+}

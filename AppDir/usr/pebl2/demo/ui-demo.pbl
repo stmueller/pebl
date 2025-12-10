@@ -1,0 +1,97 @@
+define Start(p)
+{ 
+  gVideoWidth<-800
+  gVideoHeight<-600
+  gWin <- MakeWindow("grey90")
+  gSleepEasy <- 1
+
+
+  sb <- MakeScrollBox(Sequence(1,50,1),"The numbers",40,40,gWin,12,150,500,3)
+  textscroll <- MakeScrollingTextBox(FileReadText("ui-demo.pbl"), 200,50,gWin,12,300,150,0)
+
+  Draw()
+
+   done <- MakeButton("QUIT",400,250,gWin,150)
+   done.clickon <- "HandleQuit"
+
+   check <- MakeCheckBox("Click on me",400-75,275,gWin,150)
+   pulldown <- MakePulldown(["one","two","three","four"],400-75,300,gWin,12,150,1)
+   pulldown2  <- MakePulldown(Sequence(1,50,1),          400-75,325,gWin,12,150,20)
+   testentry  <- MakeButton("Test entry",400,400,gWin,150)
+   testentry.clickon <- "testpopupentry"  ##connect the button handler
+
+   testmessage  <- MakeButton("Test message box
+.",400,425,gWin,150)
+   testmessage.clickon <- "testpopupmessage"  ##connect the button handler
+
+   menubar <- Rectangle(gVideoWidth/2,8,gVideoWidth,16,MakeColor("grey20"),1)
+   AddObject(menubar,gwin)
+
+   menu1 <- MakeMenu("File",0,0,gWin,14,10,
+              ["Open","Save","Save as","Quit"],
+              ["MYMESSAGE","MYMESSAGE","MYMESSAGE","MYMESSAGE"])
+
+   menu2<- MakeMenu("Edit",70,0,gWin,14,10,    
+              ["Cut","Copy","Paste","Select"],
+              ["MYMESSAGE","MYMESSAGE","MYMESSAGE","MYMESSAGE"])
+
+   menu3 <- MakeMenu("Options",140,0,gWin,14,10,["Preferences","Options","Settings","Parameters"],
+              ["MYMESSAGE","MYMESSAGE","MYMESSAGE","MYMESSAGE"])
+
+   menu4<- MakeMenu("Help",gVideoWidth-100,0,gWin,14,120,["HELP","About","Goto Web","Donate"],
+      ["MYMESSAGE","MYMESSAGE","MYMESSAGE","MYMESSAGE"])
+
+  te <- MakeTextEntry("USER NAME",550,50,gWin,150,"USERNAME",2)
+
+
+Draw()
+  cont <- 1
+  items <- [done,sb,check,pulldown,pulldown2,testmessage,testentry,textscroll,
+            menu1,menu2,menu3,menu4,te]
+
+  while(cont)
+  {
+
+    RegisterEvent("<WINDOW_RESIZE>",1,1 ,"<TRUE>","UpdateWindow", [gWin])
+    resp <-  WaitForClickOnTarget(items,Sequence(1,Length(items),1))
+    obj <- Nth(items,resp)
+    CallFunction(obj.clickon,[obj,gClick])
+    Draw()
+ 
+    #Exit condition:
+    cont <- resp>1
+    Print(te.value)    
+  }
+
+}  
+
+
+
+
+define UpdateWindow(win)
+{
+ 
+   Print("Resizeing in updatewindow")
+##   ResizeWindow(win)
+}
+define TestPopupEntry(box,pos)
+{
+   PopUpEntryBox("Test pop-up entry box.  Enter a word here",box.win,pos)
+}
+
+
+define TestPopupMessage(box,pos)
+{
+   PopUpMessageBox("Test pop-up message box. No entry available here.",box.win)
+}
+
+define MyMessage(obj,xy,par:"")
+{
+  PopupMessageBox("You chose:" +obj.text,obj.win)
+}
+
+define HandleQuit(obj,xy)
+{
+  PushButton(obj,xy)
+  ExitQuietly("Exiting UI demo program")
+}

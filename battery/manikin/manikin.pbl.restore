@@ -1,0 +1,274 @@
+#######################################################################
+##
+##  The PEBL Manikin test
+##
+##  A test of 3-D spatial reoreientation.
+##
+##  This test is for demonstration purposes only.
+##  It does not save data and does not have a complete
+##  experimental design.
+##
+## Carter, R., & Woldstad, J. (1985). Repeated measurements of spatial
+## ability with the manikin test. Human Factors: The Journal of the
+## Human Factors and Ergonomics Society, 27(2), 209-219.
+##
+##Damos, D. L. (1986). Development of a Computer-Based Naval Aviation
+##Selection Test Battery. NAVAL AEROSPACE MEDICAL RESEARCH LAB PENSACOLA
+##FL.
+
+## Optimized for 1024x768 minimum screen size.
+
+define Start(p)
+{
+  ## Initialize upload system (works for both online and native)
+  InitializeUpload()
+
+  gWin <- MakeWindow("white")
+   ##Get subject code if we need to:
+    if(gSubNum+""=="0")
+    {
+	  gSubNum <- GetSubNum(gWin)
+    }
+
+   gFileOut <- GetNewDataFile(gSubNum,gWin,"manikin","csv",
+        "subnum,block,trial,target,targetname,forback,updown,hand,handname,resp,time1,rt,corr")
+
+  ## Load parameters
+  parpairs <- [["numBlocks", 3],
+               ["zoom",.6],
+	       ["iti",750]]
+  gParams <- CreateParameters(parpairs, gParamFile)
+
+  numBlocks <- gParams.numBlocks
+  conditions <- [
+  [1,1,1,1],
+  [1,1,-1,1],
+  [1,-1,1,1],
+  [1,-1,-1,1],
+  [-1,1,1,1],
+  [-1,1,-1,1],
+  [-1,-1,1,1],
+  [-1,-1,-1,1],
+  [1,1,1,-1],
+  [1,1,-1,-1],
+  [1,-1,1,-1],
+  [1,-1,-1,-1],
+  [-1,1,1,-1],
+  [-1,1,-1,-1],
+  [-1,-1,1,-1],
+  [-1,-1,-1,-1]]
+  
+
+  Draw()
+  GetStrings(gLanguage)
+
+  gFooter <- EasyLabel(gStrings.footer,gVideoWidth/2,gVideoHeight-150,gWin,40)
+  
+  gFront <- MakeImage("images/forward1.png")
+  gBack <- MakeImage("images/back1.png")
+  AddObject(gFront,gWin)
+  AddObject(gBack,gWin)
+  Move(gFront,gVideoWidth/2,gVideoHeight/2)
+  Move(gBack,gVideoWidth/2,gVideoHeight/2)
+  Hide(gFront)
+  Hide(gBack)
+  gFront.zoomX <- gParams.zoom
+  gFront.zoomY <- gParams.zoom
+  gBack.zoomX <- gParams.zoom
+  gBack.zoomY <- gParams.zoom
+
+  PracticeScreen("manikin1.png",gStrings.inst1,["<LSHIFT>"],300)
+  PracticeScreen("manikin-inst1.png",gStrings.prac1,["<LSHIFT>"])
+  PracticeScreen("manikin-inst2.png",gStrings.prac2,["<RSHIFT>"])
+  PracticeScreen("manikin-inst3.png",gStrings.prac3,["<RSHIFT>"])
+  PracticeScreen("manikin-inst4.png",gStrings.prac4,["<LSHIFT>"])
+  PracticeScreen("manikin1.png",gStrings.ready,["<rshift>","<LSHIFT>"],300)
+
+  trialnum <- 1
+
+ gHeader <- EasyLabel("",gVideoWidth/2,50,gWin,40)
+
+ Draw()
+ Wait(1000)
+
+
+   block <- "PRACTICE"
+   trials <- SubList(Shuffle(conditions),1,8)
+   loop(trial,trials)
+    {
+
+
+      Draw()
+      Wait(200)
+      Draw()
+     gHeader.text <-  ReplaceChar(ReplaceChar(gStrings.pheader,"<X>", trialnum),"<Y>",Length(trials))
+     trialTime <- GetTime()
+     out <-  Trial(First(trial),Second(trial),Third(trial),Fourth(trial))
+     line <- ConcatenateList(Merge([gSubnum,block,trialnum],out),",")
+     Print(line)
+     FilePrint(gFileOut,line)
+     if(Last(out) == 0)
+     {
+       gHeader.text <- gstrings.incorrect
+     
+     } else{
+       gHeader.text <- gstrings.correct
+     }
+      Move(gHeader,gVideoWidth/2,gVideoHeight/2-200)
+      Draw()
+      Wait(gParams.iti)
+      Move(gHeader,gVideoWidth/2,100)
+      gHeader.text <- ""
+      trialnum <- trialnum +1
+     }
+     
+      Hide(gHeader)
+
+ numtrials <- gParams.numblocks*16
+ ready <- ReplaceChar(gStrings.ready2,"<N>",numtrials)
+ PracticeScreen("",ready,["<rshift>","<LSHIFT>"],300)
+
+
+  accs <- []
+  rts <- []
+  trialnum <- 1
+ loop(block,gParams.numBlocks)
+  {
+
+   trials <- Shuffle(conditions)
+   loop(trial,trials)
+    {
+
+      gHeader.text <-  ReplaceChar(ReplaceChar(gStrings.header,"<X>", trialnum),"<Y>",16*gparams.numBlocks)     
+      Draw()
+      Wait(200)
+      Draw()
+     trialTime <- GetTime()
+      out <-  Trial(First(trial),Second(trial),Third(trial),Fourth(trial))
+     line <- ConcatenateList(Merge([gSubnum,block,trialnum],out),",")
+
+     FilePrint(gFileOut,line)
+      PushOnEnd(rts,Nth(out,9))
+      PushOnEnd(accs,Last(out))
+      
+      trialnum <- trialnum+ 1
+     }
+}
+
+
+  meanRT <- Round(Mean(rts))
+  meanAcc <- Round(Mean(accs)*100)
+  debrief <-"Accuracy: "+ meanACC + "%" + CR() + "Mean time to respond: " + (meanRT/1000) + " secs" + CR() +  gStrings.debrief
+  Hide(gFooter)
+  Hide(gHeader)
+
+  ## Close and upload data file
+  FileClose(gFileOut)
+  datafile <- "data/" + gSubNum + "/manikin-" + gSubNum + ".csv"
+  UploadFile(gSubNum, datafile, "/upload.json")
+
+  ##do debriefing
+  PracticeScreen("manikin1.png",debrief,[" "],400)
+
+}
+
+
+## This displays a trial in which you must specify:
+## target (green circle/red square) that surrounds image
+## dummy facing forward/backward
+## dummy oriented up/down
+## which hand the correct target is in. (1=left, 2=right)
+## 
+
+define Trial(target, forback, updown, hand)
+{
+
+   handname <- Lookup(hand,[-1,1],["right","left"])
+
+   xx <- gVideoWidth/2
+   yy <- gVideoHeight/2
+
+   if(target == 1)
+   {
+     bg <-   Square(xx,yy,400,MakeColor("red2"),1)
+     targ <- Square(xx,yy,45,MakeColor("red2"),1)
+     foil  <- Circle(xx,yy,25,MakeColor("darkgreen"),1)
+     targname <- "redsquare"
+   } else{
+
+     bg <- Circle(xx,yy,200,MakeColor("darkgreen"),1)
+     targ  <- Circle(xx,yy,25,MakeColor("darkgreen"),1)
+     foil <- Square(xx,yy,45,MakeColor("red2"),1)
+     targname <- "greencircle"
+   }
+
+   if(forback==1)
+     {
+         img <- gFront
+     }else {
+         img <- gBack
+     }
+
+   if(updown == 1)
+     {
+         #do nothing
+         img.rotation <- 0
+     }else{
+         img.rotation <- 180
+
+     }
+
+ 
+    targpos <- forback * updown * hand
+    foilpos <- forback * updown * (-hand)
+
+    targ.x <- xx + targpos*100*gParams.zoom
+    targ.y <- yy + updown*50*gParams.zoom
+
+    foil.x <- xx + foilpos*100*gParams.zoom
+    foil.y <- yy + updown*50*gParams.zoom
+
+    AddObject(bg,gWin)
+
+    AddObject(img,gWin)
+    AddObject(targ,gWin)
+    AddObject(foil,gWin)
+    Show(img)
+    time1 <- GetTime()
+    Draw()
+    resp <-  WaitForListKeyPress(["<LSHIFT>","<RSHIFT>"])
+    time2 <- GetTime()
+    corr <- (resp=="<rshift>" and hand== -1) or (resp=="<lshift>" and hand==1)
+
+
+    Hide(img)
+   out <- [target, targname, forback, updown, hand,handname,resp,time1,(time2-time1),corr]
+   return out
+}
+
+
+
+define GetStrings(lang)
+{
+  gStrings <- GetTranslations("manikin", lang)
+}
+
+
+define PracticeScreen(image,text,answer,imagewidth:1000)
+{
+
+   targwidth <- imagewidth
+   
+   tb <- EasyTextBox(text,gVideoWidth/2-400,75,gWin,20,800,250)
+   if(image != "")
+   {
+    img <- MakeImage("images/"+image)
+    AddObject(img,gWin)
+    img.zoomX <- targwidth/img.width
+    img.zoomY <- img.zoomX
+    Move(img,gVideoWidth/2,gVideoHeight/2+50)
+  }
+  
+   Draw()
+   WaitForListKeyPress(answer)
+}

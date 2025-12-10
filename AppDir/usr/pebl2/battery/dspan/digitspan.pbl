@@ -1,0 +1,700 @@
+###########################################################
+## Digit Span, Version 0.2
+## For use with PEBL 0.06 or later
+## http://pebl.sf.net
+## Part of  The PEBL Psychological Testing Battery
+## 2006-02 Released into Public Domain
+## by Shane T. Mueller, Ph.D. (smueller at obereed dot net)
+##
+##
+## This conducts a digit span task with visual presentation
+## and typed responses. Can be manipulated to start at a low
+## length and increase until two erroneous trials in a row or 10;
+## To start at length ten and decrease until two correct trials; or
+## to use a staircase for X trials.
+##
+## This saves two files, a basic data file in regular format and one
+## line per trial; and a second log file which lists stimuli, responses
+## response times, etc.
+##
+##  Version 0.2 enables both forward and backward digit span;
+##   saves as .csv.  With encouragement and help from Reid Olsen.
+###########################################################
+
+define Start(lPar)
+{
+  InitializeUpload()  ## Initialize token-based hosting if upload.json exists
+
+
+
+  ## Initialize global objects for use later. Defined at end of file
+  Initialize()
+
+  ##Get subject code if one has not been supplied
+  if(gSubNum+""=="0")
+  {
+   gSubNum <- GetSubNum(gWin)
+  }
+
+
+     parpairs <- [["direction","forward"],  ##use either forward or backward
+                  ["input","keyboard"],  ##keyboard, keypad, or mouse
+		  ["UseAudio",1], ##whether to use audio.  0 = off
+                  ["AllowBackspace", 1],   ##Allow users to backspace over responses?
+		  ["AllowSkip", 1],     ##Allow users to skip over cells?
+		  ["version",1],  ## Version  1 indicates traditional low-to-high; 2 indicates high-to-low;
+                                  ## 3 indicates a staircase.
+
+                  ["endearly",0],
+  		  ## End Early determines whether the number of trials at each length
+		   ## should continue only until the criterion, or if all the
+  		   ## lengths should be tested.  I.e., if 2/3 correct are needed to
+  		   ## pass up to the next level, we should always do 3.  Furthermore,
+  		   ## if endearly is 0, we will continue until we get 0/3 (or 3/3 if
+  		   ## using gVersion <-2
+
+  ["upperbound" , 10],            ## The longest list length
+  ["lowerbound" , 3 ],            ## The shortest list length
+  ["perlength" , 2  ],           ## The number of trials at each length
+  ["criterion", 1   ],          ## The number that must be correct to proceed
+  ["staircasestart", 4],        ## starting point for staircasestart.
+  ["staircasetrials", 16],       ## Number of staircase trials.
+  ["ISI" , 1000      ],          ## Inter-stimulus interval in ms
+  ["iti", 1500       ]          ## inter-trial interval.
+                   ]
+
+
+   gParams <- CreateParameters(parpairs,gParamFile)
+
+   gDirection <- gParams.direction
+
+
+  ## currently, three devices are supported:
+  ## keyboard, which uses the top numbers for data entry
+  ## keypad, which uses the keypad numbers
+  ## mouse, which creates a screen ala virtualkeyboard.
+  gInputDevice <- gParams.input
+
+
+
+
+  gFileOut <- GetNewDataFile(gSubNum,gWin,"dspan-"+gDirection,"csv",
+               "subnum,version,direction,endearly,trialnum,length,try,input,response,correct,resptime")
+
+  gReportFile <- GetNewDataFile(gSubNum,gWin,"dspan-report"+gDirection,"txt","")
+  gPooledFile <- FileOpenAppend("data/pooled-dspan-"+gDirection+"-" + gSubNum +".csv")
+
+  ShowCursor(1)
+  ## This determines whether audio accompanies the visual
+  ## presentation.
+  gUseAudio <- gParams.useaudio
+
+
+  gAllowBackspace <- gParams.allowbackspace
+  gAllowSkip      <- gParams.allowskip
+
+  ## Version can be hard-coded here, or entered with the -v command-line
+  ## argument. 1 indicates traditional low-to-high; 2 indicates high-to-low;
+  ## 3 indicates a staircase.
+  gVersion <- gParams.version
+
+  endearly <- gParams.endearly
+
+
+  upperbound <- gParams.upperbound             ## The longest list length
+  lowerbound <- gParams.lowerbound             ## The shortest list length
+  perlength  <- gParams.perlength              ## The number of trials at each length
+  criterion  <- gParams.criterion              ## The number that must be correct to proceed
+  staircasestart  <- gParams.staircasestart    ## starting point for staircasestart.
+  staircasetrials <- gParams.staircasetrials   ## Number of staircase trials.
+  gISI   <- gParams.isi               ## Inter-stimulus interval in ms
+  iti    <-  gParams.iti               ## inter-trial interval.
+
+  if(gVersion == 1){
+      startLength <- gParams.lowerbound
+  }elseif(gVersion == 2){
+      startLength <- gParams.upperbound
+  }elseif(gVersion == 3){
+      startLength <- gParams.staircasestart
+  }
+
+
+
+  ####################################################
+  ##  Now, generate stimuli/conditions
+  ####################################################
+
+  ## gStim <- FileReadList("DigitNames.txt")
+  gStim <- FileReadList("Digits.txt")
+
+
+  ##these get loaded from the media\ directory in the PEBL distribution
+  gSounds <- []
+  loop(i,gStim)
+   {
+     x <- LoadSound(i+".ogg")
+     gSounds <- Append(gSounds,x)
+   }
+
+  gReady <- LoadSound("ready.ogg")
+  gBeep  <- LoadSound("beep.ogg")
+  gCorrect <- LoadSound("correct.ogg")
+  gIncorrect <- LoadSound("incorrect.ogg")
+
+  stim <- Transpose([gStim,gSounds])
+  ####################################################
+  ## Begin presenting and collecting data
+  ####################################################
+
+
+   ## Give instructions; wait for them to hit a key,
+if(gDirection=="forward")
+{
+   inst <- gStrings.instforward
+
+}else{
+
+   inst <- gStrings.instbackward
+
+}
+
+if(gAllowSkip)
+  {
+    inst <- inst + gStrings.instskip
+
+}else{
+
+    inst <- inst + gStrings.instnoskip
+
+}
+
+
+if(gAllowBackspace)
+{
+  inst <- inst + gStrings.instback
+} else {
+  inst <- inst + gStrings.instnoback
+}
+
+
+   lthInst <- inst + gStrings.lth
+   htlInst <- inst + gStrings.htl
+   scsInst <- inst + gStrings.scs
+
+
+
+   SetText(gInstructions,lthInst)
+   Show(gInstructions)
+   Draw()
+   WaitForIt()
+   Hide(gInstructions)
+   Draw()
+
+
+
+
+####################################################
+####################################################
+##  Start the experimental trials.
+##
+
+
+   trialnum <- 1
+   continue <- 1
+   currcorrect <- 0
+   try <- 0
+   length <- startLength
+   lengths <- []
+   sumCorrect <- 0
+   while(continue)
+    {
+
+      Wait(iti)
+      FilePrint_(gFileOut, gSubNum + "," + gVersion + "," + gDirection+"," + endearly + "," + trialnum + "," + length + "," + try + ",")
+      stimuli <- SampleN(stim,length)
+      corr <-  Trial(stimuli)
+
+     sumCorrect <- sumcorrect + corr
+      #############################
+      ##Standard Memory Span
+
+
+    if(gVersion == 1)
+      {
+       try <- try + 1
+       currcorrect <- currcorrect + corr
+
+       if(endearly)
+       {
+         if(currcorrect >=  criterion)
+          {
+
+           length <- length + 1
+           currcorrect <- 0
+           try <- 0
+         } elseif(try >= perlength ) {
+
+           ##We did not pass the threshold; we are done.
+           continue <- 0
+         }
+
+
+      } else {
+         if(try >= perlength)
+         {
+            if(currcorrect >= criterion)
+              {
+                  length <- length + 1
+                  currcorrect <- 0
+                  try <- 0
+              } else {
+                  continue <- 0
+              }
+         }
+
+      }
+
+     if(length > upperbound)
+       {
+           continue <- 0
+       }
+
+      } elseif(gVersion == 2) {
+
+
+	  #############################
+      ## Version 2 uses from longest to short list lengths
+
+      try <- try + 1
+      currcorrect <- currcorrect + corr
+
+      if(endearly) {
+        ##In this situation, only do enough trials to pass criterion.
+        if(currcorrect >=  criterion)
+         {
+           continue <- 0
+
+         } elseif(try >= perlength ) {
+           ##We we have used all the tries, go one length lower.
+           length <- length - 1
+	       currcorrect <- 0
+           try <- 0
+         }
+      } else {
+        ##In this situation, do all the trials per length, until we get them all correct.
+         if(try >= perlength) {
+            if(currcorrect == perlength)
+            {
+               continue <- 0
+            } else {
+               length <- length -1
+               currcorrect <- 0
+               try <- 0
+            }
+         }
+
+      }
+
+	   if(length < lowerbound)
+       {
+ 	     continue <- 0
+       }
+
+
+      } else {
+	  #############################
+      ## Staircase
+        if(corr)
+        {
+         length <- Min([length + 1,upperbound])
+        } else {
+         length <- Max([lowerbound,length-1])
+        }
+        if(trialnum >= staircasetrials)
+        {
+          continue <- 0
+        }
+      }
+
+      if(trialnum > 4) {
+          lengths <- Append(lengths, length)
+       }
+
+      trialnum <- trialnum + 1
+
+
+
+    }
+   Hide(gHeader)
+   Draw()
+   FileClose(gFileOut)
+
+
+   ##Now, show debriefing info.
+   feedback <- gStrings.debrief
+
+   report <- "PEBL Digit Span Task" +CR(1)+
+   "Direction: " + gDirection + CR(1)+
+   Timestamp() + CR(1)+
+   "Memory Span:         "+ (length-1) + CR(1)+
+   "Total words correct: "+sumcorrect + CR(1)+
+   "Total time:          "+Round(GetTime()/1000/60,2)+" min"
+
+
+   FilePrint(gReportFile,report)
+   FilePrint(gPooledFile, gSubNum+","+TimeStamp()+","+ gDirection+","+
+             (length-1)+","+sumcorrect)
+
+   if(gVersion == 1) {
+        feedback <- feedback +gStrings.yourmem + (length-1) + ". "+CR(2)+report
+   } elseif(gVersion == 2) {
+        feedback <- feedback + gStrings.yourmem + (length+1) + ". "
+
+   }else{
+        feedback <- feedback + gStrings.yourmem + Mean(lengths) + ". "
+   }
+   feedback <- feedback + CR(2) + gStrings.exit
+
+
+
+
+
+  Print("uploading data")
+  settingsfile <- "/upload.json"
+  out <- UploadFile(gSubnum,gFileOut.filename,settingsfile);  Print(out)
+  out <- UploadFile(gSubnum,gReportFile.filename,settingsfile);  Print(out)
+  out <- UploadFile(gSubnum,gPooledFile.filename,settingsfile);  Print(out)
+
+
+   SetText(gInstructions, feedback)
+   Show(gInstructions)
+   Draw()
+   WaitForit()
+   ShowCursor(1)
+ }
+
+
+define Trial(stimpairs)
+{
+
+  stim <- First(Transpose(stimpairs))
+  length <- Length(stimpairs)
+  string <- ListToString(stimpairs)
+  dummy  <- Repeat("_",length)
+  responselist   <- []
+
+  gStimLabel.text <- gStrings.length + length
+  Show(gStimLabel)
+
+  Draw()
+  if(gUseAudio)
+   {
+     PlayForeground(gReady)
+   }
+  Wait(800)
+  Hide(gStimLabel)
+  Draw()
+  Show(gStimLabel)
+
+  Wait(1000)
+
+  loop(x,stimpairs)
+  {
+    digit <- First(x)
+    sound <-Nth(x,2)
+
+    FilePrint_(gFileOut,digit)
+    gStimLabel.text <- digit
+    Draw()
+    t1 <- GetTime()
+    if(gUseAudio){PlayForeground(sound)}
+    t2 <- GetTime()
+    Wait(gISI - (t2-t1))
+  }
+  FilePrint_(gFileOut, ",")
+  ##Play a response signal.
+
+
+
+  Hide(gStimLabel)
+  gStimLabel.text <- ListToString(dummy)
+  Draw()
+  if(gUseAudio){PlayForeground(gBeep)}
+
+  ##Now, collect the responses.
+  gHeader.text <- gStrings.header
+
+  Show(gHeader)
+  Show(gStimLabel)
+  Draw()
+  corr <- 0
+
+  if(gInputDevice == "keyboard")
+  {
+     responses <- ["1","2","3","4","5","6","7","8","9","0","<return>","<kp_1>","<kp_2>","<kp_3>","<kp_4>","<kp_5>","<kp_6>",
+                   "<kp_7>","<kp_8>","<kp_9>","<kp_0>","<kp_enter>"]
+
+
+  }elseif(gInputDevice == "keypad")
+  {
+     responses <- ["<kp_1>","<kp_2>","<kp_3>","<kp_4>","<kp_5>","<kp_6>",
+                   "<kp_7>","<kp_8>","<kp_9>","<kp_0>","<kp_enter>","<return>"]
+
+  } elseif (gInputDevice == "mouse"){
+
+
+   gStimLabel.y <- 120
+    ##Make response screen here.
+
+    ##basic display parameters
+     ybase <- 150
+     xbase <- 250
+     gap <- 70
+     keysize <- 90
+
+   keys <- [["1","2","3"],
+            ["4","5","6"],
+            ["7","8","9"],
+            ["BACK","0","DONE"]]
+
+	##we should automatically determine length/height of keys here.
+	height <- 4
+	width <- 3
+
+
+    font <- MakeFont(gPEBLBaseFont,2,25,MakeColor("white"),MakeColor("white"),0)
+    wordfont<-MakeFont(gPEBLBaseFont,2,15,MakeColor("lightgrey"),MakeColor("white"),0)
+
+   rownum <- 1
+    clicks <- []
+	stuff <- []
+	loop(row,keys)
+    {
+	  colnum <- 1
+	  loop(col,row)
+      {
+
+        back1 <- Square(xbase+colnum*gap,ybase+rownum*gap,keysize,MakeColor("grey"),1)
+        back2 <- Square(xbase+colnum*gap,ybase+rownum*gap,keysize-4,MakeColor("grey20"),1)
+		if(StringLength(col)>1)
+         {
+	   lab <- MakeLabel(col,wordfont)
+         } else {
+
+           lab <- MakeLabel(col,font)
+         }
+		AddObject(back1,gwin)
+		AddObject(back2,gwin)
+		AddObject(lab,gwin)
+		Move(lab,xbase+colnum*gap,ybase+rownum*gap)
+
+
+        colnum <- colnum + 1
+	clicks <- Append(clicks,back1)
+        stuff <- Append(stuff,[lab,back1,back2])
+      }
+     rownum <- rownum + 1
+
+    }
+   ##End mouse keyboard setup.
+
+     responses <- clicks
+  }
+
+ if(gInputDevice=="keyboard")
+ {
+  if(gAllowBackspace)
+  {
+    responses <- Append(responses,"<backspace>")
+  }
+
+  if(gAllowSkip)
+  {
+    responses <- Append(responses,"-")
+  }
+}
+  Draw()
+
+  position <- 1
+  resp <- ""
+
+  time1 <- GetTime()
+  while(not (resp == "<return>" or resp== "<enter>" or resp== "<kp_enter>"))
+  {
+    if(gInputDevice=="keyboard" or gInputDevice == "keypad")
+    {
+       resp <- WaitForListKeyPress(responses)
+
+    }elseif(gInputDevice == "mouse")
+    {
+
+      resp <- WaitForClickOnTarget(responses, ["1","2","3","4","5","6","7","8","9","<backspace>","0","<return>"] )
+    }
+    if(resp == "<backspace>")
+    {
+      if(Length(responseList) == 1)
+        {
+           responseList <- []
+   	       position <- 1
+        } else {
+	  if(gDirection=="forward")
+            {
+              responseList <- SubList(responselist, 1, Length(responseList)-1)
+              position <- position - 1
+  		    }else{
+
+              responseList <- SubList(responselist, 2, Length(responseList))
+              position <- position - 1
+            }
+        }
+
+
+     } elseif(resp == "<return>" or resp == "<kp_enter>") {
+         ##
+         33
+     } else {
+
+        if(position <= length)
+	    {
+              position <- position + 1
+	      if(gDirection == "forward")
+              {
+              responseList <- Append(responselist, resp)
+            } else {
+              responseList <- Merge([resp],responseList)
+            }
+        }
+    }
+	if(gDirection == "forward")
+      {
+       resptext <- ListToString(Merge(responseList,Repeat("_",(length - position + 1))))
+      }else{
+       resptext <- ListToString(Merge(Repeat("_",(length - position + 1)),responseList))
+      }
+
+    gStimLabel.text <- resptext
+    Draw()
+
+
+
+  ##See if things are correct.
+     if( ListToString(stim) == resptext)
+     {
+    	 corr <- 1
+     }else{
+	     corr <- 0
+     }
+  }
+  time2 <- GetTime()
+
+  ##finish up the data output.
+  FilePrint(gFileOut,resptext+","+corr+","+(time2-time1))
+
+
+  Wait(200)
+
+  ##Give Feedback Here
+  gFeedback.text <- ListToString(stim)
+  Show(gFeedback)
+  Draw()
+  Wait(1500)
+  if(corr)
+  {
+   gFeedback.text <- gStrings.correct
+   feedbacksound <- gCorrect
+  } else {
+  gFeedback.text <- gStrings.incorrect
+   feedbacksound <- gIncorrect
+  }
+  Draw()
+  if(gUseAudio){PlayForeground(feedbacksound)}
+  Wait(1500)
+
+  Hide(gFeedback)
+  Hide(gStimLabel)
+  Draw()
+ return corr
+}
+
+##  This is a standard initializer function that sets up typical
+##  objects used in experiments.
+define Initialize()
+{
+  ##Initialize Window, etc.
+  gWin <- MakeWindow("grey")
+
+   ##Get subject code if we need to:
+    if(gSubNum==0)
+    {
+	  gSubNum <- GetSubNum(gWin)
+    }
+
+  GetStrings(gLanguage)
+
+  ##Initialize Font and colors
+
+   bg <- MakeColor("grey")
+   bg1 <- MakeColor("lightgrey")
+   fg <- MakeColor("black")
+   bg2 <- MakeColor("white")
+
+   colGreen <- MakeColor("darkgreen")
+   colRed   <- MakeColor("red")
+
+   gStimFont         <- MakeFont(gPEBLBaseFontMono, 0, 56, fg,bg,1)
+
+   gInstructionsFont <- MakeFont(gPEBLBaseFont,0,18, fg,bg2,1)
+   gHeaderFont       <- MakeFont(gPEBLBaseFont, 0,24,fg,bg,1)
+
+   ## Make and place the instruction box, then hide it
+   gInstructions <- MakeTextBox("", gInstructionsFont, 800,500)
+   AddObject(gInstructions, gWin)
+   Move(gInstructions, gVideoWidth/2-300, gVideoHeight/2-150)
+   Hide(gInstructions)
+
+   ## Make and hide a header label
+   gHeader <- MakeTextBox("",gHeaderFont, 600,200)
+   AddObject(gHeader,gWin)
+   Move(gHeader, gVideoWidth/2-250, 50)
+   Hide(gHeader)
+
+
+   gStimLabel <- MakeLabel("",gStimFont)
+   AddObject(gStimLabel,gWin)
+   Move(gStimLabel, gVideoWidth/2, gVideoHeight/2)
+   Hide(gStimLabel)
+
+   gFeedback <- MakeLabel("",gStimFont)
+   AddObject(gFeedback,gWin)
+   Move(gFeedback, gVideoWidth/2, gVideoHeight/2+70)
+   Hide(gFeedback)
+
+
+ }
+
+
+
+define WaitForIt()
+{
+  if(gInputDevice == "keyboard" or gInputDevice == "keypad")
+   {
+     WaitForAnyKeyPress()
+   } elseif(gInputDevice=="mouse")
+   {
+     WaitForDownClick()
+   }
+}
+
+define GetStrings(lang)
+{
+  ##Known translations: EN
+  gStrings <- GetTranslations("digitspan", lang)
+  PrintProperties(gStrings)
+}
+
+
+
+
+
+## UploadFile and SyncDataFile functions removed - using library versions from Utility.pbl
+## These functions are auto-loaded and support both token and username/password authentication

@@ -1,0 +1,154 @@
+## Comprehensive file I/O diagnostic test for Emscripten
+## Tests all filesystem functions to identify what works and what doesn't
+
+define Start(p)
+{
+    gVideoWidth <- 1000
+    gVideoHeight <- 700
+    gWin <- MakeWindow()
+
+    Print("=== PEBL Emscripten File I/O Diagnostic Test ===")
+    Print("")
+
+    ## Test 1: Check working directory
+    Print("Test 1: GetWorkingDirectory()")
+    workdir <- GetWorkingDirectory()
+    Print("  Working directory: [" + workdir + "]")
+    Print("")
+
+    ## Test 2: List current directory contents
+    Print("Test 2: GetDirectoryListing(workdir)")
+    listing <- GetDirectoryListing(workdir)
+    Print("  Found " + Length(listing) + " items in working directory:")
+    maxItems <- Min([10, Length(listing)])
+    loop(i, Sequence(1, maxItems, 1))
+    {
+        Print("    - " + Nth(listing, i))
+    }
+    Print("")
+
+    ## Test 3: Check if 'data' directory exists before creation
+    Print("Test 3: Check if 'data' directory exists")
+    dataExists <- FileExists("data")
+    dataIsDir <- IsDirectory("data")
+    Print("  FileExists('data'): " + dataExists)
+    Print("  IsDirectory('data'): " + dataIsDir)
+    Print("")
+
+    ## Test 4: Try to create a file in root directory (no subdirectory needed)
+    Print("Test 4: Create file in root directory")
+    filename1 <- "test-root.txt"
+    filehandle1 <- FileOpenWrite(filename1)
+
+    if(filehandle1 == 0)
+    {
+        Print("  ERROR: FileOpenWrite returned 0 (null handle)")
+    } else {
+        Print("  SUCCESS: File handle created")
+        FilePrint(filehandle1, "Test line 1")
+        FilePrint(filehandle1, "Test line 2")
+        FileClose(filehandle1)
+
+        ## Check if file now exists
+        exists <- FileExists(filename1)
+        Print("  FileExists after write: " + exists)
+
+        ## Try to read it back
+        if(exists == 1)
+        {
+            content <- FileReadText(filename1)
+            Print("  File content length: " + StringLength(content) + " bytes")
+            maxChars <- Min([50, StringLength(content)])
+            Print("  First 50 chars: [" + SubString(content, 1, maxChars) + "]")
+        }
+    }
+    Print("")
+
+    ## Test 5: Try to create 'data' directory
+    Print("Test 5: MakeDirectory('data')")
+    MakeDirectory("data")
+
+    ## Check if it now exists
+    dataExists2 <- FileExists("data")
+    dataIsDir2 <- IsDirectory("data")
+    Print("  After MakeDirectory:")
+    Print("    FileExists('data'): " + dataExists2)
+    Print("    IsDirectory('data'): " + dataIsDir2)
+    Print("")
+
+    ## Test 6: Try to create file in subdirectory (if directory was created)
+    if(dataIsDir2 == 1)
+    {
+        Print("Test 6: Create file in 'data/' subdirectory")
+        filename2 <- "data/test-subdir.txt"
+        filehandle2 <- FileOpenWrite(filename2)
+
+        if(filehandle2 == 0)
+        {
+            Print("  ERROR: Could not create file in subdirectory")
+        } else {
+            Print("  SUCCESS: Created file in subdirectory")
+            FilePrint(filehandle2, "header,value,time")
+            loop(i, Sequence(1, 5, 1))
+            {
+                FilePrint(filehandle2, i + "," + RandomUniform( 100) + "," + GetTime())
+            }
+            FileClose(filehandle2)
+
+            ## Check if file exists
+            exists2 <- FileExists(filename2)
+            Print("  FileExists('data/test-subdir.txt'): " + exists2)
+
+            ## Try to read it back
+            if(exists2 == 1)
+            {
+                content2 <- FileReadText(filename2)
+                Print("  File content length: " + StringLength(content2) + " bytes")
+            }
+        }
+    } else {
+        Print("Test 6: SKIPPED - 'data' directory was not created")
+    }
+    Print("")
+
+    ## Test 7: Try DeleteFile
+    Print("Test 7: DeleteFile('test-root.txt')")
+    if(FileExists("test-root.txt") == 1)
+    {
+        result <- DeleteFile("test-root.txt")
+        stillExists <- FileExists("test-root.txt")
+        Print("  Delete result: " + result)
+        Print("  File still exists: " + stillExists)
+    } else {
+        Print("  File doesn't exist to delete")
+    }
+    Print("")
+
+    ## Test 8: List directory after operations
+    Print("Test 8: GetDirectoryListing after file operations")
+    listing2 <- GetDirectoryListing(workdir)
+    Print("  Found " + Length(listing2) + " items:")
+    maxItems2 <- Min([15, Length(listing2)])
+    loop(i, Sequence(1, maxItems2, 1))
+    {
+        item <- Nth(listing2, i)
+        isDir <- IsDirectory(item)
+        Print("    - " + item + " (isDir: " + isDir + ")")
+    }
+    Print("")
+
+    Print("=== Diagnostic Test Complete ===")
+    Print("Check output above for detailed results")
+
+    ## Display summary in window
+    label <- EasyLabel("File I/O Diagnostic Test Complete", gVideoWidth/2, 50, gWin, 22)
+    status1 <- EasyLabel("Check browser console (F12) for detailed output", gVideoWidth/2, 150, gWin, 16)
+    status2 <- EasyLabel("Working directory: " + workdir, gVideoWidth/2, 200, gWin, 12)
+    status3 <- EasyLabel("Items in directory: " + Length(listing2), gVideoWidth/2, 230, gWin, 12)
+    instr <- EasyLabel("Press any key to exit", gVideoWidth/2, 350, gWin, 16)
+
+    Draw()
+    WaitForAnyKeyPress()
+
+    return(1)
+}

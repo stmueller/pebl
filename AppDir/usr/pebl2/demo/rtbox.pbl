@@ -1,0 +1,380 @@
+## This code exercises the RTBox device, 
+## information available at:
+## http://lobes.usc.edu/RTbox/
+## Boxes are available for around $300/each
+##
+
+## Here are the commands supported by the matlab driver
+## ('clear', nSyncTrial):  clears buffer, prepares for receiving response.
+##                         should always be done before stimulus onset.
+##                         It also syncs the device and computer clocks
+
+## ('purge'): obsolete--equivalent to ('clear',0)
+## ('ButtonNames'): gets and sets the button names (default 1,2,3,4)
+## ('ClockRatio',seconds): performs a test of the ratio between computer
+##                         clock and device clock
+## ('secs', timeout):  returns computer time and names of events (press,
+##                       release, serial, light, external ttl, and TR)
+## ('UntilTimeout',1)
+## ('EventsAvailable')
+## ('nEventsRead', nEvents); 
+## 
+## ('UntilTimeout', newBool); 
+## ('BoxSecs', timeout);
+## 
+## [timing events] = RTBox('light', timeout); 
+## [timing events] = RTBox('sound', timeout); 
+## [timing events] = RTBox('pulse', timeout); 
+## [oldValue=] RTBox('DebounceInterval', intervalSecs); 
+## [enabledEvents =] RTBox('enable', eventsToEanble); 
+## [enabledEvents =] RTBox('disable', eventsToDisable);
+##                   'press' 'release' 'sound' 'pulse'
+##                   'light' and 'TR', or cellstr
+##                    containing any of these strings. The string
+##                  % 'all' is
+## enabledEvents = RTBox('EnableState');
+##  isDown = RTBox('ButtonDown', buttons);
+##  [timeSent timeSentUb=] RTBox('start');
+##
+##  [timeSent timeSentUb=] RTBox('TTL', eventCode);
+##  [oldValue=] RTBox('TTLWidth', widthSecs);
+##  [oldValue=] RTBox('TTLResting', newLevel); 
+#% [timing =] RTBox('WaitTR');
+#% RTBox('test');
+#% [oldPara =] RTBox('info' [, newPara]);
+#% 
+#% RTBox('reset');
+#% - Reset the device clock to zero. You rarely need this. 
+#% 
+#% RTBox('close');
+#% - Close the device.
+#% [isFake =] RTBox('fake',1);
+#%
+#% keys = RTBox('KeyNames');
+####Multiple devices:
+##RTBox('clear','device2'); % clear buffer of device 2
+##% [timing events] = RTBox('device2'); % read from device 2
+##% [ ... =] RTBox( [ ... ,] 'device2');
+## RTBox('CloseAll');  Close all devices.
+
+##  IOPort WRITE in the matlab code:
+##  'Y' 
+##
+## Reset:  'xBS', 'R', 'X'
+## 
+
+define Start(p)
+{
+    gWin <- MakeWindow("black")
+
+    gBaseX <- gVideoWidth/2
+    gBaseY <- gVideoHeight/2-100
+
+    lab <- Easylabel("RTBox Response Box Test.",gBaseX,20,gWin,18)
+
+    buttonstate <- EasyLabel("Button State: [UNKNOWN]",gBaseX, 80,gWin,18)
+
+    buttoncolor <- MakeColor("grey60")
+
+    ##Add some indicator text
+    gIndicator <- EasyLabel("",0,0,gWin,12)
+
+    gMsg <-EasyTextBox("",50,gBaseY+120,gWin,14,
+                      gVideoWidth-100,gVideoHeight-gBaseY-150)
+    gMsg.linewrap <- 0
+    Draw()
+
+
+    
+
+   ##use the following for linux:
+   PrintMe(GetSystemType())
+   if(GetSystemType()=="LINUX")
+    {
+     box <- OpenComPort(16,9600)
+#     box <- OpenComPort(16,115200)
+
+       
+
+
+    }elseif(GetSystemType()=="WINDOWS")
+    {
+     ##use the following for Windows
+     box <- OpenComPort(13,9600)
+    }else { 
+     SignalFatalError("RTBox buttonbox unavailable on " +GetSystemType())
+    }
+
+
+    PrintMe("Initializing Box")
+    RTBoxWrite(box,"Y") ##Start
+    out <- RTBoxGetString(box)
+    PrintMe("["+ out+"]")
+
+    RTBoxWrite(box,"X") ##Start
+    out <- RTBoxGetString(box)
+    PrintMe("Sending X["+ out+"]")
+
+    char <- "X"##Start
+    RTBoxWrite(box,char) 
+    out <- RTBoxGetChars(box,2)
+    PrintMe("Sending ["+char+"]["+ out+"]")
+
+
+    char <- "E" ##Enablestate???
+    RTBoxWrite(box,char) 
+    out <-  RTBoxGetChars(box,2)
+    PrintMe("Sending ["+char+"]["+ out+"]")
+   
+
+
+   
+   while(GetTime()<5000)
+    {
+      RTBoxWrite(box,"?") ##ask button state
+      out <- RTBoxGetChars(box,20)
+      PrintMe("Button state["+ out+"]")
+    }
+
+#    PrintMe(RTBoxGetChars(box,21))
+#    PrintMe(RTBoxIO(box,"X"))    
+#    PrintMe("===========================")
+
+#    PrintMe("Press any key to exit")
+#    WaitForAnyKeyPress()
+}
+
+define RTBoxWait(time)
+{
+   Wait(time)
+}
+
+define PrintMe(text)
+{
+  gMsg.text <- text + CR(1) + gMsg.text
+  Print(text)
+  Draw()
+}
+
+
+
+##This mimics the basic RTBox command in the matlab drivers
+define RTBox(box,command)
+{
+  lcom <-   LowerCase(command)
+
+   cmds <- ["close", "closeall", "clear", "start", "test", "buttondown",
+        "buttonnames", "enable", "disable", "clockratio", "ttl", "fake",
+	 "keynames", "ttlwidth", "waittr", "debounceinterval",
+        "eventsavailable",
+        "neventsread", "untiltimeout", "info", "ttlresting", "sound",
+        "enablestate", "reset", "purge"]
+
+  ##I think all is used here.
+   events <- ["press", "release","sound","light","tr","aux","all"]  
+
+   if(lcom == "close")
+     {
+       Print( RTBoxIO(box,"X"))
+     }elseif(lcom=="start")
+     {
+        RTBoxIO(box,"X")
+     }elseif(lcom=="info")
+     {
+       Print("Info not implemented")
+     }
+}
+
+
+define GetRTBoxButtonState(box)
+{
+   return RTBoxIO(box,"Y")
+}
+## Function based on the RTBox.m script
+##
+define SyncClocks()
+{
+ PrintMe("SyncClocks not implemented")
+}
+
+
+
+##Extracts bits from the timer.
+define BitsToTimer(list)
+{
+ return  Nth(list,1) + 256*Nth(list,2) + 65536*Nth(list,3) +    16777216 * Nth(list,4)
+
+}
+
+define NumToASCII(num)
+{
+
+letters <- [" ","!",gQuote,"#","$","%","&","'","(",")","*","+",",","-",
+            ".","/","0","1","2","3","4","5","6","7","8","9",":",";",
+            "<","=",">","?","@","A","B","C","D","E","F","G","H","I",
+            "J","K","L","M","N","O","P","Q","R","S","T","U","V","W",
+            "X","Y","Z","[","\","]","^","_","`","a","b","c","d","e",
+            "f","g","h","i","j","k","l","m","n","o","p","q","r","s",
+            "t","u","v","w","x","y","z","{","|","}","~"]
+
+
+   if(num==13)
+   {
+      val <-CR(1)
+   }elseif(num>=32 and num<=122)
+   {
+     val <- Nth(letters,num-31)
+   } else {
+     val <- "["+num+"]"
+   }
+   
+   return val
+}
+
+
+
+
+## This sends a command to RTBox
+## and gets back a string until it only sees 0s.
+
+define RTBoxIO(port, string)
+{
+   list <- SplitString(string,"")
+
+   loop(i,list)
+   {
+     ComPortSendByte(port,i)
+   }
+   
+   Wait(50)
+   out <- RTBoxGetString(port)
+
+   return out
+}
+
+
+define RTBoxWrite(port, string)
+{
+   list <- SplitString(string,"")
+
+   loop(i,list)
+   {
+     ComPortSendByte(port,i)
+   }
+   
+}
+
+
+
+define PurgeRTBox(box)
+{
+  ##Note: rtbox("clear") does not touch to box.
+  ##This should be equivalent to rtbox("purge") in matlab
+
+   ##Get how many bytes are in the queue on the box
+   rest <- ToInteger(RTBoxIO(box,"BytesAvailable"))
+   PrintMe("Bytes waiting in RTBOX: [" + rest+"]")
+
+   ##Try for up to 1 second to get them.
+   timeEnd <- GetTime()+1000
+   cont <- 1
+   while(cont)
+    {  
+      Wait(1)
+      remains <- ToInteger(RTBoxIO(box,"BytesAvailable"))
+      PrintMe("remains: ["+remains+"]")
+      if(remains == rest)
+       {
+         cont <- 0
+       } else { 
+         rest <- remains
+       }
+
+      tmp <-  RTBoxIO(box,"Purge")
+      PrintMe(tmp)
+
+      if(GetTime()>timeEnd)
+      {
+        SignalFatalError("RTBox Not Responding.")
+      }
+    }
+
+  out <-  RTBoxIO(box,"Purge")
+  PrintMe(out)
+}
+
+
+
+define RTBoxGetString(port)
+{
+   tmp <- ""
+ 
+   last <- GetTime()
+   cont <- 1
+   while(cont)
+   {
+     out <- ComPortGetByte(port)
+     if(out <> -1)
+	 {
+        tmp <- tmp + ""+out
+	last <- GetTime()
+     }
+
+      Wait(5) 
+	  ##Finish if you've waited at least 50 ms since last bit.
+	  ##Probably could be -1
+	  if(GetTime()-last>50)
+	  {
+	    cont <- 0
+	  }
+   }
+
+  return tmp
+}
+
+
+define RTBoxGetChars(port,num)
+{
+   tmp <- ""
+   
+   endtime <- GetTime()+1000
+   cont <- 1
+   chars <- 0
+   while(cont)
+   {
+     out <- ComPortGetByte(port)
+     if(out <> -1)
+	 {
+            tmp <- tmp + ""+out
+            chars <- chars + 1
+           if(chars >= num)
+            {
+               cont <- 0
+            }
+         }
+
+          Wait(5) 
+	  ##Finish if you've waited at least 50 ms since last bit.
+	  ##Probably could be -1
+	  if(GetTime()>endtime)
+	  {
+	    cont <- 0
+	  }
+   }
+
+  return tmp
+}
+
+
+define RTBoxReset(box)
+{
+     RTBoxWrite(box,"xBS")
+     RTBoxWrite(box,"R")
+     RTBoxWrite(box,"X")
+
+ 
+    PrintMe("Resetting box:")
+    out <- RTBoxGetString(box) 
+    PrintMe(out)
+
+}

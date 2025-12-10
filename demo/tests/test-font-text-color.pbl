@@ -1,0 +1,47 @@
+## Test foreground (text) color changes via nested properties
+define Start(p)
+{
+    gWin <- MakeWindow()
+
+    Print("STEP 1: Creating label with WHITE text on BLUE background")
+    font <- MakeFont("DejaVuSans.ttf", 0, 48, MakeColor("white"), MakeColor("blue"), 1)
+    label <- MakeLabel("TEXT COLOR TEST", font)
+    AddObject(label, gWin)
+    Move(label, gVideoWidth/2, gVideoHeight/2)
+    Draw()
+
+    Print("Visual check: WHITE text on BLUE background")
+    Print("Text color: " + label.font.fgcolor.red + "," + label.font.fgcolor.green + "," + label.font.fgcolor.blue)
+    Wait(3000)
+
+    Print("STEP 2: Setting fgcolor.red <- 0 (white -> cyan)")
+    Print("This removes red from white (255,255,255) making cyan (0,255,255)")
+    label.font.fgcolor.red <- 0
+    Draw()
+
+    Print("Visual check: CYAN text on BLUE background")
+    Print("Text color: " + label.font.fgcolor.red + "," + label.font.fgcolor.green + "," + label.font.fgcolor.blue)
+    Wait(3000)
+
+    Print("STEP 3: Setting fgcolor.green <- 0 (cyan -> blue)")
+    Print("This removes green from cyan (0,255,255) making blue (0,0,255)")
+    label.font.fgcolor.green <- 0
+    Draw()
+
+    Print("Visual check: BLUE text on BLUE background (text should disappear!)")
+    Print("Text color: " + label.font.fgcolor.red + "," + label.font.fgcolor.green + "," + label.font.fgcolor.blue)
+    Wait(3000)
+
+    Print("STEP 4: Setting fgcolor to yellow (255,255,0)")
+    label.font.fgcolor.red <- 255
+    label.font.fgcolor.green <- 255
+    label.font.fgcolor.blue <- 0
+    Draw()
+
+    Print("Visual check: YELLOW text on BLUE background")
+    Print("Text color: " + label.font.fgcolor.red + "," + label.font.fgcolor.green + "," + label.font.fgcolor.blue)
+    Wait(3000)
+
+    Print("Test complete - press any key")
+    WaitForAnyKeyPress()
+}

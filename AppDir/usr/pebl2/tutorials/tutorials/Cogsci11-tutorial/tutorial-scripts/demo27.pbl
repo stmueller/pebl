@@ -1,0 +1,60 @@
+define Start(p)
+{
+
+  gWin <- MakeWindow("black")
+
+  ##Open a data file:
+  gFileOut <- FileOpenAppend("exp1-"+gSubNum+".csv")
+  FilePrint(gFileOut,"subnum,trial,time,cond,noresp,corr,rt")
+  gSleepEasy <- 1  ##avoid busy-waits, if you want
+
+  #Display instructions:
+   MessageBox("Instructions here",gWin)
+ 
+  #Create and randomize stimuli:
+  conds <- Shuffle(RepeatList([1,2,3,4],4))
+
+  trialnum <- 1  ##Keep track of a trial number
+  loop(i, conds)
+  {
+    time1 <- GetTime()  #Keep track of when the trial started
+    out <- Trial(i) ##Do the trial!
+    FilePrint(gFileOut,gSubNum+","+i+","+time1+","+out)
+    trialnum <- trialnum+ 1
+  }
+  MessageBox("Thank you for participating in the study.",gWin)
+}
+
+
+
+
+
+###You can alternately use a trick like this: 
+define ScoreTrial(resp,cond)
+{
+   map <- ["<lshift>","<lshift>","<rshift>","<rshift>"]
+   corresp  <- Nth(map, ToInteger(cond)) 
+   corr <- corresp == resp
+   return corr 
+}
+
+
+###Using a scoretrial function, the trial function would look like this: 
+define Trial(cond)
+{
+   time <- GetTime()
+#
+   Draw()
+   Wait(200+Random()*200)
+   stim <- MakeImage("stim/"+cond+".png")
+   Move(stim,gVideoWidth/2,gVideoHeight/2)
+   AddObject(stim,gWin)
+#
+   Draw()
+   time1 <- GetTime()
+   resp <- WaitForListKeyPress(["<lshift>","<rshift>"])
+   time2 <- GetTime()
+   corr <- ScoreTrial(resp,cond)
+   RemoveObject(stim,gWin)
+   return [cond, resp, corr, time, (time2-time1)]
+}

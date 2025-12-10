@@ -1,0 +1,94 @@
+## Test screen update responsiveness during loops
+## Compares how well the UI stays responsive
+
+define Start(p)
+{
+    gWin <- MakeWindow("grey")
+
+    Print("Testing screen update responsiveness...")
+
+    ## Create a label to update
+    label <- EasyLabel("Starting test...", 100,100,gWin,24)
+
+    Draw()
+
+    Wait(500)
+
+    ## Test 1: Tight loop with frequent updates
+    Print("Test 1: 100 iterations with screen updates")
+    startTime <- GetTime()
+
+    loop(i, Sequence(1, 100, 1))
+    {
+        SetText(label, "Iteration: " + i + " / 100")
+        Draw()
+
+        ## Do some computation
+        sum <- 0
+        loop(j, Sequence(1, 100, 1))
+        {
+            sum <- sum + j
+        }
+    }
+
+    elapsed1 <- GetTime() - startTime
+    Print("Test 1 completed in " + elapsed1 + " ms")
+
+    Wait(500)
+
+    ## Test 2: Nested loops (more stack pressure)
+    Print("Test 2: Nested loops with updates")
+    startTime <- GetTime()
+
+    loop(i, Sequence(1, 20, 1))
+    {
+        SetText(label, "Outer: " + i)
+        Draw()
+
+        loop(j, Sequence(1, 50, 1))
+        {
+            sum <- i * j
+        }
+    }
+
+    elapsed2 <- GetTime() - startTime
+    Print("Test 2 completed in " + elapsed2 + " ms")
+
+    Wait(500)
+
+    ## Test 3: Function calls in a loop
+    Print("Test 3: Function calls with updates")
+    startTime <- GetTime()
+
+    loop(i, Sequence(1, 100, 1))
+    {
+        SetText(label, "Computing: " + i)
+        Draw()
+        result <- Fibonacci(10)
+    }
+
+    elapsed3 <- GetTime() - startTime
+    Print("Test 3 completed in " + elapsed3 + " ms")
+
+    SetText(label, "All tests complete!")
+    Draw()
+
+    Print("=== Performance Summary ===")
+    Print("Test 1 (simple loop): " + elapsed1 + " ms")
+    Print("Test 2 (nested loops): " + elapsed2 + " ms")
+    Print("Test 3 (function calls): " + elapsed3 + " ms")
+
+    WaitForKeyPress("<space>")
+}
+
+define Fibonacci(n)
+{
+    result <- 0
+    if(n <= 1)
+    {
+        result <- n
+    } else {
+        result <- Fibonacci(n-1) + Fibonacci(n-2)
+    }
+    return(result)
+}

@@ -1,0 +1,510 @@
+##This is a 'urns' or 'marbles' task; useful for examining impulsivity.
+
+##  Interpret columns of data file
+##
+##
+
+#sub -subject code
+#trial -trial number
+#drawlimit - the max number of draws permitted
+#type- the true stimlus (1=left; 2=right I think)
+#resp - the key pressed for response
+#corr-  whether they were correct
+#count - the number of draws before response
+#time - time to make response, in MS
+#stimseq- this is the actual evidence sequence
+#evidence - relative evidence for 1 versus 2.  Will be a number between 1 and 2; the mean of stimseq
+#totalpoints - the points earned/lost on that trial.
+
+define Start(p)
+{
+
+  gScriptName <- "PEBL Urns Task"
+
+   parpairs <- [["col1","red2"],
+                ["col2","blue"],
+		["colnull","grey"],
+		["col1name","red"],
+		["col2name","navy"],
+		["colnullName","grey"],
+		["urn1bias1",.8],  ##if these don't add to 1, null balls will appear too
+		["urn1bias2",.2],
+		["urn2bias1",.2],
+		["urn2bias2",.8],
+                ["ballsize",20],
+                ["drawlimit",12],
+                ["trialsperjar",25],
+		["drawcost",25],
+		["CorrectBonus",1000],
+		["IncorrectCost",5000],
+		["binsize",50]]
+
+
+   gParams <- CreateParameters(parpairs,gParamFile)
+
+
+  gParams.cols <- [MakeColor(gParams.col1),MakeColor(gParams.col2),MakeColor(gParams.colNull)]
+  gParams.colnames <- [gParams.col1name,gParams.col2name,gParams.colNullname]
+  gParams.bias1 <-[ gparams.urn1bias1,
+                    gParams.urn1bias2,
+                    1-gparams.urn1bias1-gParams.urn1bias2]
+
+  gParams.bias2 <-[ gparams.urn2bias1,
+                    gParams.urn2bias2,
+                    1-gparams.urn1bias1-gParams.urn1bias2]
+
+
+  PrintProperties(gParams)
+
+  gSleepEasy <- 1
+  gWin <- MakeWindow("white")
+  InitializeUpload()  ## Initialize token-based hosting if upload.json exists
+
+
+
+
+   if(gSubNum+""=="0")
+   {
+     gSubNum <- GetSubNum(gWin)
+   }
+
+   gFileOut <- GetNewDataFile(gSubNum,gWin, "urns","csv","sub,trial,drawlimit,type,resp,corr,count,time,stimseq,evidencbias,totalpoints")
+
+
+
+  gPoints <- 1000
+  GetStrings(gLanguage)
+
+  gScore <- EasyLabel(gStrings.points + gPoints,gVideoWidth/2,gVideoHeight/2+200,gWin,40)
+
+  DoInstructions()
+
+
+ gPoints <- 1000
+ gScore.text <-   gStrings.points+ gPoints
+ trials <- Shuffle(RepeatList([1,2],gParams.trialsperjar))
+ trialnum <- 1
+ loop(i,trials)
+   {
+     gScore.text <-  gStrings.points+ gPoints
+    out <- Trial(i,gParams.drawlimit)
+    FilePrint(gFileOut,gSubNum+","+trialNum + ","+ gParams.drawlimit+","+i+","+First(out)+","+Second(out)+","+Third(out)+","+Fourth(out)+","+Fifth(out)+","+Nth(out,6)+","+gPoints)
+     trialNum <- trialNum + 1
+
+   }
+
+  FileClose(gFileOut)
+
+  ##Upload data files
+  Print("Uploading data files...")
+  out <- UploadFile(gSubNum, gFileOut.filename); Print(out)
+
+  MessageBox(gStrings.debrief,gWin)
+
+}
+
+
+
+define Trial(urn,limit)
+{
+
+   urnL <-  DrawUrn(gVideoWidth/2-400,gVideoHeight/2,100,150,1,gparams.bias1,8)
+   urnR <-  DrawUrn(gVideoWidth/2+400,gVideoHeight/2,100,150,2,gparams.bias2,8)
+
+  if(urn==1)
+  {
+   bias <- gParams.bias1
+  }else{
+   bias <- gParams.bias2
+  }
+
+
+  drawSeq <- ""
+
+  box <- Rectangle(gVideoWidth/2,gVideoHeight/2-100,250,250,MakeColor("grey20"),0)
+  AddObject(box,gWin)
+  lab <- Easylabel(gSTrings.decide,gVideowidth/2,gVideoHeight/2,gWin,18)
+  footer1 <- Easylabel(gFooter1Text,gVideoWidth/2,gVideoHeight/2+100,gWin,30)
+  footer2 <- Easylabel(gFooter2Text,gVideoWidth/2,gVideoHeight/2+150,gWin,30)
+
+   cont  <- 1
+   count <- 1
+
+   ##locate the ball x locations
+   ballLocs <- []
+   ballwidth <- (gVideoWidth-400)/(limit-1)
+   ballMin <- 100
+
+
+   loop(i,Sequence(1,limit,1))
+   {
+     
+     bin <- Square(ballMin+(i-1)*ballwidth,gVideoheight-100,ballwidth-4,MakeColor("grey20"),0)
+     AddObject(bin,gWin)
+     PushOnEnd(ballLocs,bin)
+   }
+
+   ballX <- (gVideoWidth/2-400)
+
+
+   balls <- []
+   runningSum <- 0
+
+   keys <- ["<lshift>","<rshift>"," "]
+
+   Draw()
+   time1 <- GetTime()
+    while(cont )
+    {
+
+   if(count>limit)
+   {
+    keys <- ["<lshift>","<rshift>"]
+     footer1.text <- gFooter1TextB
+     footer2.text <- gFooter2TextB
+     Draw()
+   }
+    resp <-    WaitForListKeyPress(keys)
+
+    if(resp==" ")
+    {
+
+      color <- First(SampleDistribution([1,2,3],bias,1))
+      bin <- Nth(ballLocs,count)
+      ball <- AnimateBall(gVideoWidth/2,gVideoHeight/2,bin.x,bin.y,10,color,gParams.ballsize)
+      PushonEnd(balls,ball)
+
+      drawSeq <- drawSeq + color
+      runningSum <- runningSum + color
+
+     gPoints <- gPoints - gParams.drawcost
+     gScore.text <-  gSTrings.points+ gPoints
+
+     if(ballx>gVideoWidth-100)
+      {
+       ballx <- 100
+      }
+      Draw()
+      count <- count + 1
+      cont <- cont + 1
+    }else{
+      cont <- 0
+    }
+
+  }
+
+  time2 <- GetTime()
+  corr <- (resp=="<lshift>" and urn==1) or (resp=="<rshift>" and urn==2)
+
+
+#   Hide(box)
+   footer1.text <-ReplaceChar(gStrings.thejar,"<URN>",
+                              Nth(gParams.colnames,urn))
+
+  if(corr)
+   {
+      footer2.text <- gSTrings.correct+ "  +" +gParams.correctBonus
+      gPoints <- gPoints + gParams.correctbonus
+     gScore.text <-  gSTrings.points+ gPoints
+   }  else {
+      gPoints <- gPoints - gParams.incorrectCost
+      footer2.text <- gSTrings.incorrect + "  -" +gParams.incorrectcost
+       gScore.text <-  gSTrings.points+ gPoints
+   }
+
+  Draw()
+  WaitforAnyKeyPress()
+
+ return [resp,corr,count,time2-time1,drawSeq,runningSum/(count-1)]
+
+}
+
+define DoInstructions()
+{
+
+  box <- EasyTextBox("",gVideoWidth/2-400,50,gWin,22,800,200)
+  box.text <- gInstText1
+
+   urn1 <-  DrawUrn(gVideoWidth/2-300,400,200,350,1,gparams.bias1,20)
+   urn2 <-  DrawUrn(gVideoWidth/2+300,400,200,350,2,gparams.bias2,20)
+   Draw()
+   WaitForAnyKeyPress()
+
+
+   box.text <-gInstText2
+   Draw()
+   cont <-1
+   ballX <- 100
+   balls <- []
+   keys <- [" "]
+
+
+   while(cont)
+   {
+   if(cont>10)
+      {
+       keys <- ["<lshift>"," "]
+       box.text <- gInstText2 +   gInstCont1
+      }
+
+    resp <-    WaitForListKeyPress(keys)
+
+    if(resp==" ")
+    {
+      color <- First(SampleDistribution([1,2,3],gParams.bias1,1))
+
+      ball <- AnimateBall(gVideoWidth/2-300,400,ballX,gVideoHeight-100,10,color,gParams.ballsize)
+      PushonEnd(balls,ball)
+      ballX <- ballX + gParams.ballsize*2+2
+
+
+      if(ballx>gVideoWidth-100)
+      {
+         ballx <- 100
+      }
+      Draw()
+
+      cont <- cont + 1
+    }else{
+      cont <- 0
+    }
+
+  }
+
+  RemoveObjects(balls,gWin)
+  box.text <- gInstText3
+  Draw()
+
+   cont <- 1
+    balls <- []
+    ballX <- 100
+
+   keys <- [" "]
+   while(cont)
+   {
+    if(cont>10)
+    {
+      keys <- ["<rshift>"," "]
+      box.text <- gInstText3 +   gInstCont2
+    }
+
+    resp <-    WaitForListKeyPress(keys)
+
+    if(resp==" ")
+    {
+      color <- First(SampleDistribution([1,2,3],gParams.bias2,1))
+      ball <- AnimateBall(gVideoWidth/2+300,400,ballX,gVideoHeight-100,10,color,gParams.ballsize)
+
+      PushonEnd(balls,ball)
+      ballX <- ballX + gParams.ballsize*2+2
+     if(ballx>gVideoWidth-100)
+      {
+       ballx <- 100
+      }
+
+      Draw()
+      cont <- cont + 1
+    }else{
+      cont <- 0
+    }
+
+  }
+
+
+
+
+
+  box.text <- gInstText4
+
+  Draw()
+
+  WaitForAnyKeyPress()
+  box.text <- gInstText5
+  Draw()
+  WaitForAnyKeyPress()
+  Hide(box)
+  RemoveObjects(urn1,gWin)
+  RemoveObjects(urn2,gWin)
+  RemoveObjects(balls,gWin)
+
+
+  Draw()
+  Print( Trial(1,12) )
+  Print( Trial(2,15) )
+  Print( Trial(2,20) )
+  Show(box)
+  box.text <- gInstText6
+  Draw()
+
+  WaitForAnyKEyPress()
+  Hide(box)
+  Draw()
+}
+
+
+define GetStrings(lang)
+{
+  gStrings <- GetTranslations("urns", lang)
+
+
+#   PrintProperties(gParams)
+#   Print(gParams.col1name)
+
+    gInstText1 <- Substitutestrings(gStrings.insttext1,
+                [["<COL1>",gParams.col1name],
+		 ["<COL2>",gParams.col2name]])
+
+
+
+  gInstText2 <- Substitutestrings(gStrings.insttext2,
+                [["<COL1>",gParams.col1name],
+		 ["<COL2>",gParams.col2name]])
+
+
+
+
+  gInstCont1 <-  Substitutestrings(gStrings.instcont1,
+                [["<COL1>",gParams.col1name],
+		 ["<COL2>",gParams.col2name]])
+
+  gInstCont2 <-  Substitutestrings(gStrings.instcont2,
+                [["<COL1>",gParams.col1name],
+		 ["<COL2>",gParams.col2name]])
+
+  gInstText3 <-  Substitutestrings(gStrings.insttext3,
+                [["<COL1>",gParams.col1name],
+		 ["<COL2>",gParams.col2name]])
+
+
+  gInsttext4 <- gStrings.instText4
+
+
+  gInstText5 <-  SubstituteStrings(gStrings.insttext5,
+                    [["<COL1>",gParams.col1name],
+		    ["<COL2>",gParams.col2name],
+		    ["<DRAWLIMIT>",gParams.drawlimit],
+		    ["<DRAWCOST>",gParams.drawcost],
+		    ["<CORBONUS>",gParams.correctbonus],
+ 		    ["<INCOST>",gParams.incorrectcost],
+		    ["<PTS>",gPoints]]
+		    )
+
+
+  gInstText6 <- gSTrings.insttext6
+
+  gFooter1Text <- gSTrings.footer1text
+
+  gFooter2Text <-  Substitutestrings(gStrings.footer2text,
+                [["<COL1>",gParams.col1name],
+		 ["<COL2>",gParams.col2name]])
+
+
+  gFooter1TextB <- gSTrings.footer1textb
+
+  gFooter2TextB <-  SubstituteStrings(gStrings.footer2textb,
+                   [["<COL1>",gParams.col1name],
+		    ["<COL2>",gParams.col2name]])
+
+
+}
+
+
+
+
+
+define Animateball(startx,starty,endx,endy,steps,color,size)
+{
+
+  xdelta <- (endx-startx)/steps
+  ydelta <- (endy-starty)/steps
+  ball <- Circle(startx,starty,size,Nth(gParams.cols,color),1)
+  ball.aa <- 1
+  AddObject(ball,gWin)
+
+  loop(i,Sequence(0,steps,1))
+  {
+    Move(ball,startx+xdelta*i,starty+ydelta*i)
+    Wait(5)
+    Draw()
+
+
+  }
+  return ball
+}
+
+define DrawUrn(x,y,xsize,ysize,col,probs,ballsize)
+{
+
+
+   numcol1 <-   Floor(gParams.binsize*First(probs))
+   numcol2 <-  Floor(gParams.binsize*Second(probs))
+   numcol3 <- gParams.binsize-numcol1-numcol2
+
+   ballcols <- Shuffle(Flatten([Repeat(1,numcol1),
+                                Repeat(2,numcol2),
+                                Repeat(3,numcol3)]))
+
+   urn <- Rectangle(x,y,xsize+20,ysize+20,Nth(gParams.cols,col),1)
+   urninside <-  Rectangle(x,y,xsize,ysize,MakeColor("white"),1)
+   AddObject(urn,gWin)
+   AddObject(urninside,gWin)
+   balls <- [urn,urninside]
+   loop(i,ballcols)
+   {
+     xval <- x + (Random()-.5)*(xsize-ballsize)
+     yval <- y + (Random()-.5)*(ysize-ballsize)
+
+     circ <- Circle(xval,yval,ballsize,Nth(gParams.cols,i),1)
+     AddObject(circ,gWin)
+     PushOnEnd(balls,circ)
+   }
+
+return balls
+}
+
+
+define SampleDistribution(elements, probabilities,number)
+{
+##the probabilities need to add up to 1.0.
+
+
+  cumdist <- []
+  sum <- 0
+  loop(i,probabilities)
+   {
+   sum <- sum + i
+    PushOnEnd(cumdist,sum)
+   }
+
+    out <- []
+    length <- 0
+    while(length < number)
+    {
+      PushOnEnd(out, Nth(elements,SampleDist(cumdist)))
+      length <- length + 1
+    }
+
+ return out
+}
+
+
+define SampleDist(cumdist)
+{
+   prob <- RandomUniform(1)
+   i <- 1
+   while( prob >= Nth(cumdist,i))
+    {
+
+      i <- i + 1
+    }
+
+  return i
+}
+
+define RemoveObjects(objs,win)
+{
+   loop(i,objs)
+   {
+     RemoveObject(i,win)
+   }
+}

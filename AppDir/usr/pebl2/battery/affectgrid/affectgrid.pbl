@@ -1,0 +1,118 @@
+##PEBL Comfort and physiological state scales.
+## This asks four questions related to present comfort level,
+## hot/cold, wet/dry, and ambient temperature.
+
+define Start(p)
+{
+
+  parpairs <- [["fg","grey20"],
+               ["bg","white"]]
+
+  gParams <- CreateParameters(parpairs,gParamFile)
+
+  gSleepEasy <- 1
+  gWin <- MakeWindow()
+
+  if(gSubNum+""=="0")
+   {
+     gSubNum <- GetSubNum(gWin)
+   }
+
+  out <-  AffectGrid(60,5,"grey20","white")
+  MakeDirectory("data")
+  file <- FileOpenAppend("data/affectgrid-data.csv")
+  FilePrint(file,gSubNum+","+TimeStamp()+","+ ConcatenateList(out,","))
+}
+
+
+
+define AffectGrid(squaresize:60,border:5, fgcol:"red",bgcol:"white")
+{
+
+
+
+
+   fg <- MakeColor(fgcol)
+   bg <- MakeColor(bgcol)
+   hilight <- MakeColor("red")
+   squares <- []
+   affect <- []
+   
+   header <- EasyLabel("Click a square that identifies how you are feeling right now",
+                         gVideoWidth/2,100,gWin,50)
+
+    xmin <- gVideoWidth/2 - 4* (squaresize+border)
+    ymin <- gVideoHeight/2-4* (squaresize+border)
+    bgsquare <- Square(gVideoWidth/2,gVideoHeight/2,squaresize*9+border*10,bg,1)
+    AddObject(bgsquare,gWin)
+    ##make a 9x9 grid
+    count <- 1
+    loop(i,9) ##i is horizontal: pleasure
+    {
+      loop(j,9)#j is vertical (but upside down): arousal
+      {
+
+           tmp <- Square(xmin+(i-1)*(squaresize+border),
+	                 ymin+(j-1)*(squaresize+border),
+			 squaresize,fg,1) 
+	   AddObject(tmp,gWin)
+	   PushOnEnd(squares,tmp)
+	   PushOnEnd(affect,[i,10-j,count])
+           count <- count + 1
+      }
+
+    }
+
+   bottom <- EasyLabel("High Sleepiness",gVideoWidth/2,gVideoHeight/2+(squaresize+border)*5,gWin,25)
+   top <- EasyLabel("High arousal",gVideoWidth/2,gVideoHeight/2-(squaresize+border)*5,gWin,25)
+   right  <- EasyLabel("Pleasant feelings",gVideoWidth/2+(squaresize+border)*5,gVideoHeight/2,gWin,25)
+   left  <- EasyLabel("Unpleasant feelings",gVideoWidth/2-(squaresize+border)*5,gVideoHeight/2,gWin,25)
+   right.rotation <- 270
+   left.rotation <- 270
+
+    bl  <- EasyLabel("depression",gVideoWidth/2-(squaresize+border)*5,
+                                 gVideoHeight/2+(squaresize+border)*5,gWin,20)
+    br  <- EasyLabel("relaxation",gVideoWidth/2+(squaresize+border)*5,
+                                     gVideoHeight/2+(squaresize+border)*5,gWin,20)
+    tl  <- EasyLabel("stress",gVideoWidth/2-(squaresize+border)*5,
+                             gVideoHeight/2-(squaresize+border)*5,gWin,20)
+    tr  <- EasyLabel("excitement",gVideoWidth/2+(squaresize+border)*5,
+                                     gVideoHeight/2-(squaresize+border)*5,gWin,20)
+    ok <- EasyLabel("OK",gVideoWidth/2,gVideoHeight-150,gWin,40)
+   hit <-  Square(0,0, squaresize,hilight,1) 
+   AddObject(hit,gWin)
+   Hide(hit)
+   Hide(ok)
+
+   added <- 0
+   Draw()
+   lastclick <- 0
+   cont <- 1
+   while(cont == 1)
+   {
+
+      Draw()
+      resp <- WaitForClickOnTarget(squares,affect)
+      if(resp == "OK")
+      {
+        resp <- lastclick
+	cont <- 0
+      }else{
+       
+        lastclick <- resp
+	square <- Nth(squares,Third(resp))
+	Move(hit,square.x,square.y)
+	Show(hit)
+
+      }
+
+      if(not added)
+       {
+        squares <-Append(squares,ok)
+        affect <- Append(affect,"OK")
+	Show(ok)
+	added <- 1
+       }
+   }
+   return SubList(resp,1,2)
+}

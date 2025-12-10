@@ -1,0 +1,45 @@
+## Simple test script for JSON parameter loading without graphics
+
+define Start(p)
+{
+    ## Define default parameters
+    defaults <- [["dopractice", 0],
+                 ["isi", 1000],
+                 ["iti", 1000],
+                 ["testname", "Default Test"],
+                 ["trials", 5],
+                 ["usebeep", 1]]
+
+    ## Test 1: Load from JSON file
+    Print("=== Test 1: Loading from JSON file ===")
+    params1 <- CreateParameters(defaults, "test-params.pbl.par.json")
+    Print("dopractice: " + params1.dopractice + " (expected: 1)")
+    Print("isi: " + params1.isi + " (expected: 1200)")
+    Print("iti: " + params1.iti + " (expected: 800)")
+    Print("testname: " + params1.testname)
+    Print("trials: " + params1.trials + " (expected: 10)")
+    Print("usebeep: " + params1.usebeep + " (expected: 0)")
+    Print("")
+
+    ## Test 2: Use defaults when file doesn't exist
+    Print("=== Test 2: Using defaults (no file) ===")
+    params2 <- CreateParameters(defaults, "nonexistent.par.json")
+    Print("dopractice: " + params2.dopractice + " (expected: 0)")
+    Print("isi: " + params2.isi + " (expected: 1000)")
+    Print("")
+
+    ## Test 3: Legacy CSV format (using existing ANT.pbl.par)
+    Print("=== Test 3: Legacy CSV format ===")
+    if(FileExists("upload-battery/ANT.pbl.par"))
+    {
+        params3 <- CreateParameters(defaults, "upload-battery/ANT.pbl.par")
+        Print("iti from CSV: " + params3.iti)
+        Print("showfooter from CSV: " + params3.showfooter)
+    } else {
+        Print("ANT.pbl.par not found - skipping CSV test")
+    }
+    Print("")
+
+    Print("=== All tests completed successfully! ===")
+    SignalFatalError("SUCCESS - Tests completed (using SignalFatalError to exit cleanly)")
+}

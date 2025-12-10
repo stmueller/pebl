@@ -1,0 +1,132 @@
+## This is the so-called 'probe digit' task,
+## as used by Waugh & Norman, 1965, to study decay
+## and interference in short-term memory.
+
+
+define Start(p)
+{
+   gScriptName <- "PEBL Probe Digit Task"
+
+
+   gPlayAudio <- 1
+   ##Probe conditions:
+#   conds <- [3,5,7,9,10,11,12,13,14]
+   conds <- [4,6,8,10,12,14]
+   reps <- 2  ##How many repetitions per each?  W&N used 10
+   rates <- [2.1,.9]
+
+  gWin <- MakeWindow("black")
+  gSleepEasy <- 1
+
+
+  if(gSubNum+""=="0")
+  {
+    gSubNum <- GetSubNum(gWin)
+  }
+
+
+  GetStrings(gLanguage)
+
+  MakeDirectory("data")
+  gFileOut <- FileOpenWrite("data/probedigit-"+gSubNum+".csv")
+
+  ##Load audio stimili:
+   gAudio <- []
+   loop(i,Sequence(0,9,1))
+   {
+      PushonEnd(gAudio, LoadSound(i+".ogg"))
+   }
+
+  MessageBox(gStrings.inst,gWin)
+  ShowCursor(0)
+
+   Trial(14,1)
+#   Trial(10,1)
+   Trial(8,2)
+ #  Trial(5,2)
+
+
+
+  trial <- 1
+  loop(rate,rates)
+  {
+
+    MessageBox(gStrings.break, gWin)
+   stim <- Flatten(ShuffleRepeat(conds,reps))
+  ShowCursor(0)
+   loop(i,stim)
+    {
+      out <- Trial(i,rate)
+      trial <- trial + 1
+      FilePrint(gFileOut,gSubNum+","+trial+","+i+","+rate+"," + ConcatenateList(Flatten(out),","))
+
+    }
+  }
+}
+
+##position is the position of the probe.
+## rate is the number of items presented per second.
+define Trial(position, rate)
+{
+
+  ##Now, we need a target digit, and 15 other digits, but
+  ##no digit can appear twice in a row.
+
+  ##Design the list:
+  target <- RandomDiscrete(10)-1 ##will this include 0?
+  items <- Sequence(0,9,1)
+  items <-  RemoveSubset(items,[target+1])
+  list <- DesignBalancedSampling(items,15)
+  SetElement(list,position,target)
+  ##the last item is the probe:
+  PushOnEnd(list,target)
+
+  ##Now we should have a stimulus that meets the design criterion.
+  ##Present stimuli:
+  stim <- EasyLabel("+",gVideoWidth/2,gVideoheight/2,gWin,80)
+  Draw()
+  Wait(500)
+  Draw()
+  time1 <- GetTime()
+  now <- time1
+  loop(i,list)
+  {
+    nexttime <- now + 1000/rate
+    stim.text <- i
+    Draw()
+    if(gPlayAudio)
+     {
+       Playbackground(Nth(gAudio,i+1))
+     }
+    now <- nexttime
+    WaitUntil(nexttime)
+  }
+
+  inst <- EasyLabel(gStrings.query,
+         gVideoWidth/2,gVideoHeight/2+100,gWin,30)
+  stim.text <- target
+  Draw()
+  time2 <- GetTime()
+  resp <-  WaitForListKeyPress([0,1,2,3,4,5,6,7,8,9])
+  time3 <- GetTime()
+
+  correctresp  <- Nth(list,position+1)
+  corr <- resp == (correctresp+"")
+
+  return [correctresp,resp,corr,target,time2-time1, time3-time2,list]
+}
+
+
+define WaitUntil(time)
+{
+
+     RegisterEvent("<TIMER>", 1, Round(time),"<GEQ>","", [])
+     StartEventLoop()  #Start the timer
+     ClearEventLoop()  #clear it out when done.
+
+}
+
+define GetStrings(lang)
+{
+  gStrings <- GetTranslations("probedigit", lang)
+}

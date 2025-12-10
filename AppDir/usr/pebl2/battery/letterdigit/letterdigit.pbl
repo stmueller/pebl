@@ -1,0 +1,245 @@
+##
+##   This is a letter-digit substitution task, akin to one found in
+##   the PAB UTC, and the paper-and-pencil Wechsler test.
+##
+##
+##
+##
+##
+##
+##
+
+define Start(p)
+{
+
+  parpairs <- [["numtrials",30],
+               ["usefeedback",0]]
+
+
+   gParams <- CreateParameters(parpairs,gParamFile)
+
+   numtrials <- gParams.numtrials
+   gFeedback <- gParams.usefeedback
+
+  gScriptName <- "PEBL Letter Digit Task"
+  gSleepEasy <- 1
+  gWin <- MakeWindow()
+
+   ##Get subject code if we need to:
+    if(gSubNum==0)
+    {
+	  gSubNum <- GetSubNum(gWin)
+    }
+  GetStrings(gLanguage)
+
+
+  gstimFont <- MakeFont(gPEBLBaseFontMono,0,24,MakeColor("white"),MakeColor("grey"),0)
+  gProbeFont <-MakeFont(gPEBLBaseFontMono,0,80,MakeColor("white"),MakeColor("grey"),0)
+
+
+  gFileOut <- GetNewDataFile(gSubNum,gWin,"letterdigit","csv",
+                "subnum,block,trial,letter,cresp,resp,corr,rt")
+  gDatCorr <- []
+  gDatRT  <- []
+
+
+    tb  <- EasyTextBox(gStrings.inst1,20,20,gWin,18,gVideoWidth-40,300)
+    Draw()
+    WaitForAnyKeyPress()
+
+    tb.text <- gStrings.inst2
+    Draw()
+    WaitForAnykeyPress()
+
+    Hide(tb)
+    Draw()
+
+  gDigits <- ["1","2","3","4","5","6","7","8","9"]
+
+  alpha <- Sublist(Shuffle(FileReadList("Uppercase.txt")),1,9)
+  map <- Transpose([alpha,gDigits])
+  ##make 9 letter, 9 number stimuli.
+
+  stimObjects <- MakeStim(map)
+  Draw()
+
+
+  ##Add the taurget characters:
+
+
+
+
+   stimuli <- DesignBalancedSampling(map,10)
+
+   type <- 0
+   trialnum <- 1
+   loop(stim,stimuli)
+   {
+
+    FilePrint_(gFileOut,gsubnum + "," + type + "," + trialnum + "," + First(stim) +  "," + Nth(stim,2)+ ",")
+    Trial(stim,type)
+    trialnum <- trialnum +1
+  }
+
+
+  RemoveObjects(stimObjects,gWin)
+  tb.text <- gStrings.practicedone
+  Show(tb)
+  Draw()
+  WaitForAnyKeyPress()
+  Hide(tb)
+  Draw()
+
+  alpha <- Sublist(Shuffle(FileReadList("Uppercase.txt")),1,9)
+  map <- Transpose([alpha,gDigits])
+  ##make 9 letter, 9 number stimuli.
+
+  stimObjects <- MakeStim(map)
+  Draw()
+
+
+   stimuli <- DesignBalancedSampling(map,numtrials)
+   type <- 1
+   trialnum <- 1
+
+   loop(stim,stimuli)
+   {
+
+    FilePrint_(gFileOut,gsubnum + "," +type+ "," + trialnum + "," + First(stim) +  "," + Nth(stim,2)+ ",")
+    Trial(stim,type)
+    trialnum <- trialnum +1
+  }
+
+
+
+
+  numcorr <- Sum(gDatCorr)
+  propcorr <- numcorr/numtrials
+  rtmed <- Median(gDatRT)
+  rtmean <- Mean(gDatRT)
+  min <- Min(gDatRT)
+  max <- Max(gDatRT)
+  range <- max - min
+  sd <- StdDev(gDatRT)
+  var <- sd^2
+
+  sumfile <- FileOpenWrite("data/"+gSubNum+"/letterdigit-summary-"+gSubNum+".txt")
+  FilePrint(sumfile,"----------------------------------------------")
+  FilePrint(sumfile,"Summary for the PEBL letter-digit Task, Version 0.1")
+  FilePrint(sumfile,"Released into public domain 2008 by Shane T. Mueller, Ph.D. (smueller at obereed dot net)")
+  FilePrint(sumfile,TimeStamp())
+  FilePrint(sumfile,GetPEBLVersion())
+  FilePrint(sumfile,"----------------------------------------------")
+  FilePrint(sumfile,"participant code: " + gSubNum)
+  FilePrintList(sumfile,gDigits)
+  FilePrintList(sumfile,alpha)
+  FilePrint(sumfile,"----------------------------------------------")
+  FilePrint(sumfile,"Number of trials:    " + numtrials)
+  FilePrint(sumfile,"Number correct:      " + numcorr)
+  FilePrint(sumfile,"Proportion correct:  " + propcorr)
+  FilePrint(sumfile,"Mean RT:             "+rtmean)
+  FilePrint(sumfile,"Median RT:           "+rtmed)
+  FilePrint(sumfile,"Min RT:              "+min)
+  FilePrint(sumfile,"Max RT:              "+max)
+  FilePrint(sumfile,"RT Range:            "+range)
+  FilePrint(sumfile,"RT Std. Dev:         "+sd)
+  FilePrint(sumfile,"RT Variance:         "+var)
+  FilePrint(sumfile,"----------------------------------------------")
+
+
+  RemoveObjects(stimObjects,gWin)
+  tb.text <- gStrings.debrief
+  Show(tb)
+  Draw()
+  Wait(500)
+  WaitForAnyKeyPress()
+}
+
+
+define MakeStim(map)
+{
+
+   mapWidth <- 500
+
+  stimobjects <- []
+  left <- gVideoWidth/2-mapWidth/2
+  right <-gVideoWidth/2+mapWidth/2
+  jump <- mapwidth/8
+
+  loop(i,map)
+   {
+
+     letter <-First(i)
+     digit <- Nth(i,2)
+
+
+     l <- MakeLabel(letter,gstimFont)
+     AddObject(l,gWin)
+     Move(l,left,80)
+     d <- MakeLabel(digit,gstimFont)
+     AddObject(d,gWin)
+     Move(d,left,130)
+
+     left <- left + jump
+
+     stimobjects <- Append(stimobjects,l)
+     stimobjects <- Append(stimobjects,d)
+   }
+ return stimobjects
+}
+
+
+##type==0 is practice; type==1 is real
+define Trial(map,type)
+{
+   stim <- First(map)
+   corresp <- Nth(map,2)
+
+   probe <- MakeLabel(stim,gProbeFont)
+   AddObject(probe,gWin)
+   Move(probe,gVideoWidth/2,300)
+   Draw()
+   time0 <- GetTime()
+   resp <- WaitForListKeyPress(gDigits)
+   time1 <- GetTime()
+   if(resp == corresp)
+   {
+     if(gfeedback or type==0)
+     {
+       probe.text <- gStrings.correct
+       Draw()
+       Wait(500)
+     }
+     corr <- 1
+   } else {
+     if(gfeedback or type==0)
+     {
+       probe.text <- gStrings.incorrect
+       Draw()
+       Wait(500)
+    }
+
+     corr <- 0
+   }
+
+   ##Add data if we are on real trials
+   if(type== 1)
+   {
+     gDatCorr <- Append(gDatCorr,corr)
+     gDatRT <- Append(gDatRT,(time1-time0))
+   }
+
+   FilePrint(gFileOut,resp + "," + corr + ","+ (time1-time0))
+   RemoveObject(probe,gWin)
+   Draw()
+   Wait(500)
+   Draw()
+}
+
+
+
+define GetStrings(lang)
+{
+  gStrings <- GetTranslations("letterdigit",lang)
+  
+}

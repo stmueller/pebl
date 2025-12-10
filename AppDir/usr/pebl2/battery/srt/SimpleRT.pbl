@@ -1,0 +1,401 @@
+###########################################################
+##  Simple Reaction Time Task, Version 0.2
+##  For use with PEBL 0.07 or later
+##  http://pebl.sf.net
+##  Part of  The PEBL Psychological Testing Battery
+##  2006-02 Released into Public Domain
+##  by Shane T. Mueller, Ph.D. (smueller at obereed dot net)
+##
+##
+##  This is a simple reaction time task, in which a single
+##  stimulus (an 'X') appears at a specifiable delay from
+##  the previous response.  We begin with 4 blocks of 50 trials;
+##  with a break between blocks.  Report tells min, med, max,  mean and stdev
+##  of responses, number of anticipations.
+##
+##  Research has found a number of personality traits associated
+##  with simple reaction time performance.
+##
+##  Robinson, M. C. and M. Tamir. (2005). Neuroticism as
+##     mental noise: a relation between neuroticism and
+##     reaction time standard deviations. Journal of
+##     Personality and Social Psychology 89(1): 107-115.
+##  Seashore, R. H.., & Seashore, S. H. (1941). Individual
+##     differences in simple auditory reaction times of
+##     hands, feet, and jaws. Journal of Experimental
+##     Psychology, 9, 346-349.
+###########################################################
+
+define Start(lPar)
+{
+  gScriptName <- "PEBL Simple RT Task"
+  ####################################
+  ##
+  ## Parameters/Variables controlling experiment
+  ##
+
+  parpairs <- [["blocks",2],       ## The number of trial blocks
+               ["blocklength",50], ## The number of trials per block
+	       ["delayMin",250],   ## Smallest delay
+	       ["delayMax",2500],  ## longest delay
+	       ["delayStep",250],  ## Step between small and longest
+	       ["stimulus","X"],    ##Stimulus character
+	       ["toofastThresh",150], ##too fast
+	       ["tooslowThresh",3000],  ##Too slow time
+	       ["responsekey","X"]]         ##Response key to use.
+#	       ["responsekey","mousebutton"]]         ##Response key to use.
+
+  gParams <- CreateParameters(parpairs,gParamFile)
+
+
+  gUseMouse <-   gParams.responsekey == "mousebutton"
+
+
+  blocks <- gParams.blocks
+  blocklength <- gParams.blocklength
+  numtrials <- blocks * blocklength
+
+
+  delays <- Sequence(gParams.delayMin,gParams.delayMax,gParams.delayStep)
+  ##[250, 500,750, 1000,1250,1500,1750,2000,2250,2500]
+  stimulus <- gParams.stimulus        ## Character to use as stimulus.
+
+  ## These are threshold for rts considered too fast and too slow,
+  ## and are not used in the RT stats computations
+  toofastThresh <- gParams.toofastThresh
+  tooslowThresh <- gParams.tooslowThresh
+
+  ##Counters that keep track of the number of these responses
+  toofasts <- 0
+  tooslows <- 0
+
+  ## Lists storing the actual RT values, along with the presentation time.
+  rts     <- []
+  delaySucc <- []
+
+
+  ####################################
+  ##
+  ## Begin Initialization Procedures.
+  ##
+
+  gSleepEasy <- 1
+  Initialize()
+  InitializeUpload()  ## Initialize token-based hosting if upload.json exists
+
+  if(gSubNum+""=="0")
+   {
+     gSubNum <- GetSubNum(gWin)
+   }
+
+   GetStrings(gLanguage)
+
+  ShowCursor(0)
+  ## The delays are pre-generated to make it easier to control things,
+  ## like sequential dependencies, distributions, fixed delays, etc.
+  delayseq <- Shuffle(DesignBalancedSampling(delays, numtrials))
+
+  gFileOut <- GetNewDataFile(gSubNum,gWin,"srt","csv",
+    "subNum,block,trial,time0,delay,delay2,rt,resp1,resp2")
+
+  ##Update the translations.
+  if(gUseMouse){
+      tmp <- ReplaceChar(gStrings.inst,"<RESP>",gStrings.mouse)
+  }else{
+      tmp <- ReplaceChar(gStrings.inst,"<RESP>",gStrings.keyboard)
+  }
+   tmp <- ReplaceChar(tmp,"<RESPKEY>",gParams.responsekey)
+   tmp <- ReplaceChar(tmp,"<STIM>",stimulus)
+
+
+
+  tmp <- ReplaceChar(tmp,"<BLOCKS>",blocks)
+  tmp <- ReplaceChar(tmp,"<BLOCKLENGTH>",blocklength)
+  gInstructions.text <- tmp
+
+  gStim.text <- stimulus
+
+  #####################################
+  ## Begin Experiment with Instructions
+
+  Show(gInstructions)
+  Draw()
+  WaitForAnyKeyPress()
+  Hide(gInstructions)
+  Draw()
+  gInstructions.text <- gStrings.break
+
+  startstamp <- TimeStamp()
+
+  #####################################
+  ## Present stimuli
+
+  trial <- 0
+  block <- 1
+  loop(delay, delayseq)
+  {
+  trial <- trial + 1
+
+  ## Give a break every blocklength trials.
+  if(Mod(trial, blocklength) ==1 and trial > 1)
+  {
+
+     gInstructions.visible<- 1
+     Draw()
+     Wait(1000)
+     WaitForAnyKeyPress()
+     gInstructions.visible<- 0
+     Draw()
+     trial <- 1
+     block <- block +1
+  }
+
+  time0 <- GetTime()
+
+  Draw()
+
+  toofast <- 0
+
+  if(gUseMouse)
+  {
+
+      cont <- 1
+      while(cont)
+      {
+         resp1 <- WaitForMouseButtonWithTimeout(delay)
+        ##this will return a 4-part list if clicked or "<timeout>" if not.
+       if(resp1=="<timeout>")
+       {
+        cont <- 0
+       }elseif(IsList(resp1))
+       {
+        if(Fourth(resp1) == "<pressed>")
+	{
+	 cont <- 0
+	}
+       }
+      }
+      
+
+      ## So, for non-timeouts, just translate to response key so we
+      ## can use the same code below.
+       if(not (resp1=="<timeout>"))
+            {
+	        toofast <- 1
+                resp1 <- Third(resp1) + "-" + Fourth(resp1)
+            }
+
+      }else{
+      ##Keyboard entry
+      resp1 <- WaitForListKeyPressWithTimeout([gParams.responsekey], delay,1)
+      if(resp1 == LowerCase(gParams.responsekey))
+      {
+       toofast <- 1
+      }
+  }
+  time1 <- GetTime()
+
+
+
+  if(toofast)
+  {
+    ##too fast!
+    Wait(delay - (time1-time0))
+  } else {
+    resp1 <- "NO_RESPONSE"
+  }
+
+
+  ##Now the stimuli really have appeared.
+  Show(gStim)
+  Draw()
+  time2 <- GetTime()
+
+  if(gUseMouse)
+  {
+     resp2 <- WaitForDownClick()
+     resp2 <- Third(resp2) + "-" + Fourth(resp2)
+     
+  }else{
+     resp2 <- WaitForKeyPress(gParams.responsekey)
+  }
+  time3 <- GetTime()
+   Hide(gStim)
+  Draw()
+
+  FilePrint(gFileOut, gSubNum + "," + block + "," + trial + "," +  time0 +"," + delay + "," + (time1-time0) + "," + (time3-time2) + "," + resp1 + "," + resp2)
+
+
+  ####################
+  ## Record trial data in local structures so stats can
+  ## later be computed.
+  ## Only update rts if there wasn't a too-fast error,
+  ## and if they were not too slow (greater than 3 seconds)
+  if(not (resp1 == "NO_RESPONSE") or (time3 - time2) < tooFastThresh)
+  {
+    toofasts <- toofasts + 1
+  } else {
+    if(( time3 - time2 ) > tooslowThresh)
+    {
+      tooslows <- tooslows + 1
+    } else {
+      rts <- Append(rts, (time3-time2))
+	  delaySucc  <- Append(delaySucc, delay)
+    }
+
+   }
+ }
+
+  ####################
+  ##Experiment is finished; print out summary stats
+
+  reportfile <- FileOpenWrite("data/"+gSubnum+"/srt-report-" + gSubNum + ".txt")
+
+   FilePrint(reportfile,"------------------------------------------------------")
+   FilePrint(reportfile," Report for PEBL Simple Response Time Task Version 0.2")
+   FilePrint(reportfile, " "+GetPEBLVersion())
+   FilePrint(reportfile,"Started at:  " + startstamp)
+   FilePrint(reportfile,"Finished at: " +TimeStamp())
+   FilePrint(reportfile," http://pebl.sf.net")
+   FilePrint(reportfile, " Participant Code: " + gSubNum)
+   FilePrint(reportfile,"Stimulus:  " + gParams.stimulus)
+   FilePrint(reportfile,"Response:  " + gParams.responsekey) 
+   FilePrint(reportfile,"------------------------------------------------------")
+   FilePrint(reportfile,"Statistic                 Value")
+   FilePrint(reportfile,"------------------------------------------------------")
+
+   FilePrint(reportfile,Format("Number of blocks",28) +blocks)
+   FilePrint(reportfile,Format("Trials per blocks",28) +blocklength)
+   FilePrint(reportfile,Format("Stimulus",28) +stimulus)
+
+   FilePrint(reportfile,Format("Total Trials",28) +(blocks*blocklength))
+   FilePrint(reportfile,Format("Anticipations (<" + toofastThresh + ")",28)  + toofasts)
+   FilePrint(reportfile,Format("Delayed Responses (>"+tooslowThresh+")",28)  + tooSlows)
+   FilePrint(reportfile,Format("Correct RT Mean",28) + Mean(rts))
+   FilePrint(reportfile,Format("Correct RT Median",28) + Median(rts))
+   FilePrint(reportfile,Format("Correct RT Min",28)    + Min(rts))
+   FilePrint(reportfile,Format("Correct RT Max",28)    + Max(rts))
+   FilePrint(reportfile,Format("Correct RT SD",28)     + StdDev(rts))
+
+   FilePrint(reportfile,"")
+   FilePrint(reportfile,"   Delay     N         Mean      Std. Dev")
+   FilePrint(reportfile,"   --------------------------------------")
+
+   sumstats <- AggregateRTs(rts,delaySucc)
+   loop(stat,sumstats)
+   {
+
+	   FilePrint_(reportfile,"   ")
+       loop(s,stat)
+       {
+
+         FilePrint_(reportfile,Format(s,10))
+       }
+       FilePrint(reportfile,"")  ##end-of-line
+  }
+   FilePrint(reportfile,"------------------------------------------------------")
+
+
+   FileClose(reportfile)
+   FileClose(gFileOut)
+
+  ##Upload data files
+  Print("Uploading data files...")
+  out <- UploadFile(gSubNum, gFileOut.filename); Print(out)
+  out <- UploadFile(gSubNum, reportfile.filename); Print(out)
+
+  ##Now, show debriefing info.
+   SetText(gInstructions, gStrings.debrief)
+   Show(gInstructions)
+   Draw()
+   WaitForAnyKeyPress()
+   ShowCursor(1)
+
+}
+
+
+##  This is a standard initializer function that sets up typical
+##  objects used in experiments.
+define Initialize()
+{
+  ##Initialize Window, etc.
+  gWin <- MakeWindow()
+
+  ##Initialize Font and colors
+   fg <- MakeColor("white")
+   bg <- MakeColor("black")
+   bg2 <- MakeColor("grey20")
+
+
+   gInstructionsFont <- MakeFont(gPEBLBaseFont,0,18, fg,bg2,1)
+   gStimFont         <- MakeFont(gPEBLBaseFont, 0,48,fg,bg,1)
+
+   ## Make and place the instruction box, then hide it
+   gInstructions <- MakeTextBox("", gInstructionsFont, 600,300)
+   AddObject(gInstructions, gWin)
+   Move(gInstructions, gVideoWidth/2-300, gVideoHeight/2-150)
+   Hide(gInstructions)
+
+   ## Make and hide stimulus
+   gStim <- MakeLabel("",gStimFont)
+   AddObject(gStim,gWin)
+   Move(gStim, gVideoWidth/2, gVideoHeight/2)
+   Hide(gStim)
+
+   ## Make and hide fixation cross
+   gFixation <- MakeLabel("+",gStimFont)
+   AddObject(gFixation,gWin)
+   Move(gFixation, gVideoWidth/2, gVideoHeight/2)
+   Hide(gFixation)
+ }
+
+
+
+## This finds mean and SD RT for
+## each of the conditions specified in delays
+##
+define AggregateRTs(rts, delays)
+{
+
+  ## start by sorting both rts and delays by delays;
+  ## then move through them and analyze subparts.
+  rtX <- SortBy(rts,delays)
+  deX <- Sort(delays)
+  trials <- Transpose([deX,rtX])
+
+  stats <- []
+
+  lastdelay <- First(deX)
+
+  tmpRT <- []
+
+  loop(i, trials)
+  {
+
+     ## if the current delay differs from the previous delay,
+	 ## we should analyze what is in tmp right now.
+     if(First(i) != lastdelay)
+     {
+
+       stats <- Append(stats,
+                      [lastdelay, Length(tmpRT),
+	                  Mean(tmpRT), StdDev(tmpRT)])
+       tmpRT <- []
+     }
+
+    lastdelay <- First(i)
+    tmpRT <- Append(tmpRT, Nth(i, 2))
+  }
+
+ stats <- Append(stats,
+                [lastdelay, Length(tmpRT),
+                 Mean(tmpRT), StdDev(tmpRT)])
+
+ return stats
+}
+
+
+define GetStrings(lang)
+{
+  gStrings <- GetTranslations("SimpleRT", lang)
+}

@@ -1,0 +1,17 @@
+## Test reference counting for audio buffers
+
+define Start(p)
+{
+    win <- MakeWindow("BLACK")
+
+    Print("Creating buffer...")
+    buffer <- MakeAudioInputBuffer(1000)  ## 1 second buffer
+
+    Print("Buffer created successfully")
+    Print("Saving empty buffer to WAV...")
+
+    SaveAudioToWaveFile("test-refcount.wav", buffer)
+
+    Print("Test complete - check test-refcount.wav file was created")
+    ## No WaitForKeyPress - just exit cleanly to test reference counting cleanup
+}

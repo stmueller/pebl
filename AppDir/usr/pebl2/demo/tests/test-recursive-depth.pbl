@@ -1,0 +1,36 @@
+## Test recursive function call depth
+## This will help us find stack limits
+
+define Start(p)
+{
+    Print("Testing recursive call depth limits...")
+
+    ## Test 1: Simple recursion
+    Print("Test 1: Counting down from 100")
+    result <- CountDown(100)
+    Print("Result: " + result)
+
+    ## Test 2: Deeper recursion
+    Print("Test 2: Counting down from 500")
+    result <- CountDown(500)
+    Print("Result: " + result)
+
+    ## Test 3: Really deep if it survives
+    Print("Test 3: Counting down from 1000")
+    result <- CountDown(1000)
+    Print("Result: " + result)
+
+    Print("All recursion tests completed!")
+}
+
+define CountDown(n)
+{
+    result <- 0
+    if(n <= 0)
+    {
+        result <- 0
+    } else {
+        result <- CountDown(n - 1) + 1
+    }
+    return(result)
+}

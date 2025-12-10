@@ -1,0 +1,2651 @@
+## PEBL Cognitive Assessment Screening
+##
+##  Patterned after common cognitive screening tests, including MMSE, MOCA,
+## SLUMS, AMTS, GPAC, etc.
+ 
+
+define Start(p)
+{
+
+  gWin <- MakeWindow()
+  if(gSubnum +"" =="0")
+  {
+    gSubNum <-  GetSubNum(gWin)
+   }
+  gPage <- 1
+
+
+
+  ##set default parameter values, in case .par file does not exist
+  parpairs <- [["doTrails",1],  
+               ["doCube",1],
+	       ["doClock",1],
+	       ["doMemory",1],
+	       ["doShape",1],	       
+	       ["doNaming",1],
+	       ["doSerialRecall",1],
+	       ["doGoNoGo",1],
+	       ["doSentenceVerification",1],
+	       ["doSemanticOddball",1],
+	       ["doSerialSubtraction",1],
+	       ["doStemCompletion",1],
+	       ["stemCompletionRule","f"],
+	       ["doOrientation",1],
+	       ["useRandom",0],
+	       ["savescreenshots",1],
+	       ["doAudioHelp",0]]
+	       
+  gParams <- CreateParameters(parpairs,gParamFile)
+
+ totalScore <- []
+ startTime <- GetTime()
+ 
+ MakeDirectory("data")
+ fileOutData <- GetNewDataFile(gSubNum,gWin,"PCST","csv",
+                  "")
+
+ fileHTMLReport <- GetNewDataFile(gSubNum,gWin,"PCST","html", "")
+
+
+##pool data here.
+
+ FilePrint(fileHTMLReport,PageHead())
+
+
+
+
+
+
+
+if(gParams.doTrails)
+{
+ trailsDat <-  TrailsTest()
+ PushOnEnd(totalScore,["trails",First(trailsDat),1,TimeStamp()])
+ FilePrint(fileHTMLReport, HTMLTrailsOutput(trailsDat))
+}
+
+if(gParams.doCube)
+{
+  cubeDat <- DrawCubeTest()
+  PushOnEnd(totalScore,["cube",First(cubeDat),1,TimeStamp()])
+  FilePrint(fileHTMLReport, HTMLCubeOutput(cubeDat))
+}
+
+
+if(gParams.doClock)
+{
+  clockDat <- DrawClockTest(1)
+  PushOnEnd(totalScore,["clock",First(clockDat),3,TimeStamp()])
+  FilePrint(fileHTMLReport, HTMLClockOutput(clockDat))
+
+}
+
+
+
+if(gParams.doMemory)
+{
+   words <- LearnWords()
+   learningFinished <- GetTime()
+   FilePrint(fileHTMLReport,HTMLLearningOutput(words))
+}
+
+if(gParams.doShape)
+{
+   shapedat <-   ShapeTest()
+
+   PushOnEnd(totalScore,["shape",First(shapedat),2,TimeStamp()])
+   FilePrint(fileHTMLReport,HTMLShapeOutput(shapedat))
+   
+}
+
+if(gParams.doNaming)
+{
+
+ namingdat <-  DoNamingTest()
+ PushOnEnd(totalScore,["naming",First(namingdat),3,TimeStamp()])
+ FilePrint(fileHTMLReport,HTMLNamingOutput(namingdat))
+ 
+}
+
+
+if(gParams.doSerialRecall)
+{
+ forw <-  DoSerialRecall(5,"forward")
+ back <-  DoSerialRecall(3,"backward")
+
+ PushOnEnd(totalScore,["serialrecall",First(forw) + First(back),2,TimeStamp()])
+ FilePrint(fileHTMLReport,HTMLSerialRecallOutput(forw,back))
+}
+
+
+if(gParams.doGoNoGo)
+{
+ gonogoDat <-  DoGoNoGo()
+ PushOnEnd(totalScore,["gonogo",First(gonogodat),1,TimeStamp()])
+ FilePrint(fileHTMLReport,HTMLGoNoGo(gonogodat))
+ 
+}
+
+
+if(gParams.doSentenceVerification)
+{
+  verificationDat <- DoSentenceVerification()
+  PushOnEnd(totalScore,["verification",First(verificationdat),2,TimeStamp()])
+  Print(verificationDat)
+  FilePrint(fileHTMLReport,HTMLSentenceVerification(verificationdat))
+
+}
+
+if(gParams.doSerialSubtraction)
+{
+
+  subtractiondat <-  DoSerialSubtraction(90)
+  PushOnEnd(totalscore, ["serialsubtraction",
+                         First(subtractiondat),
+			 3,TimeStamp()])
+ FilePrint(fileHTMLReport,HTMLSubtractionOutput(subtractiondat))
+}
+
+if(gParams.doSemanticOddball)
+{
+ semanticOBdat <- DoSemanticOddball()
+ PushOnEnd(totalscore,["semanticoddball", First(semanticOBdat),2,TimeStamp()])
+ FilePrint(fileHTMLReport,HTMLSemanticOddballOutput(semanticOBDat))
+  
+}
+
+if(gParams.doMemory)
+  {
+   recallstart <- GetTime()
+   memData <- TestMemory(First(words),Second(words))
+   PushOnEnd(totalScore,["memory",First(memData),5,TimeStamp()])
+   FilePrint(fileHTMLReport,HTMLMemoryOutput(memData,First(words),recallStart -learningFinished))
+ }
+
+if(gParams.doStemCompletion)
+{
+  stemDat <- StemCompletion(gParams.stemcompletionrule)
+  PushOnEnd(totalScore,["Stem completion",First(stemDat),1,TimeStamp()])
+  FilePrint(fileHTMLReport,HTMLStemCompletionOutput(stemDat))
+}
+
+  if(gParams.doOrientation)
+  {
+   orientationDat <- DoOrientation()
+   PushOnEnd(totalScore,["Time orientation",First(orientationDat),4,TimeStamp()])
+   FilePrint(fileHTMLReport,HTMLOrientationOutput(orientationDat))
+  }
+
+##end it all
+ totalTime <- GetTime() - starttime
+ scores <- Transpose(totalScore)
+ header <- ["Task","Points","Max","Time completed"]
+
+  outcsv <-""
+loop(i,totalscore)
+{
+ line <- Merge([gSubnum],i)
+ outcsv <- outcsv + ConcatenateList(line,",")+CR(1)
+}
+
+FilePrint(fileOutData,outcsv)
+FileClose(fileOutData)
+
+FilePrint( fileHTMLReport,PageEnd([header,totalscore],
+                          Sum(Second(scores)),Sum(Third(scores)),
+                          totalTime))
+
+
+  MessageBox("Thank you. You have completed the screening. Your data report is avaliable in the file" + fileHTMLReport.filename + " which will open up when you hit OK",
+   gWin)
+   
+   FileClose(fileHTMLReport)
+   Launchfile(fileHTMLReport.filename)
+}
+
+
+####################################
+####################################
+## Code for trails subtest
+
+define TrailsTest()
+{
+
+
+
+  gStimColor <- MakeColor("gold")
+  gAccentColor <- MakeColor("grey35")
+  gstimFont <-  MakeFont(gPEBLBaseFontMono,0,18,MakeColor("black"),gStimColor,0)
+  gReversedFont <-  MakeFont(gPEBLBaseFontMono,0,22,gStimColor,MakeColor("black"),0)
+  gclickedFont <- MakeFont(gPEBLBaseFontMono,1,18,MakeColor("grey35"),gStimColor,0)
+
+   strings <-    ReadTranslationJSON("translations/"+Uppercase(gLanguage)+"/trails.json",gLanguage)
+
+   DoInstructions(strings.taskname,
+                  strings.longinst,
+		  "translations/"+Uppercase(gLanguage)+"/"+strings.longinstimage,
+		  "translations/"+Uppercase(gLanguage)+"/"+strings.longinstsound)
+
+
+   targets <- ["1","A","2","B","3","C","4","D","5","E"]
+
+   startTime <- GetTime()
+
+   inst1 <- MakeHeader(strings.inst1,  gVideoWidth/2,100,gWin,28)
+   inst2 <- MakeHeader(strings.inst2,  gVideoWidth/2,150,gWin,22)
+
+   xmin <- gVideoWidth/2-300
+   xmax <- gVideoWidth/2+300
+   ymin <- gVideoHeight/2-300
+   ymax <- gVideoHeight/2+300
+
+
+   
+   #pts <- NonOverlapLayout(xmin,xmax,ymin, ymax, 20,10)
+   pts <-    [[728, 519],  [731, 305],
+               [1133, 310],  [810, 342],
+ 	       [968, 363],  [1044, 485],
+               [1240, 649],  [940, 530],
+	       [730, 746], [1210, 785]]
+
+   ##adjust pts to center.
+   tp <- Transpose(pts)
+   xs <- First(tp)
+   ys <- Second(tp)
+
+   xs <- VecSum(xs, Repeat(xmin-Min(xs),Length(xs)))
+   ys <- VecSum(ys, Repeat(xmin-Min(ys),Length(ys)))
+   Print(xs)
+   Print(ys)
+   pts <- Transpose([xs,ys])
+
+    pt1 <- First(pts)
+    pt2 <- Second(pts)
+    pt3 <- ThirD(pts)
+    line1 <- ThickLine(First(pt1),Second(pt1),First(pt2),Second(pt2),10,gAccentColor)
+    line2 <- ThickLine(First(pt2),Second(pt2),First(pt3),Second(pt3),10,gAccentColor)
+    AddObject(line1,gWin)
+    AddObject(line2,gWin)
+    
+    stimObjects <-  PlotTargets(pts,25,targets)
+
+   stimLines <- []
+
+   firstpt <- First(stimObjects)
+   lastpt <- Last(stimObjects)
+   startLabel <- MakeLabel(strings.begin,gReversedFont)
+   AddObject(startLabel,gWin)
+   Move(startLabel ,firstpt.x,firstpt.y+40)
+
+   endLabel <- MakeLabel(strings.end, gReversedFont)
+
+   AddObject(endLabel,gWin)
+   Move(endLabel,   lastpt.x,lastpt.y+40)
+   prev <- First(stimObjects)
+   remaining <- Rest(stimObjects)
+
+   Draw()
+
+
+
+   #force clicking on the target 1 first
+   WaitForClickOnTarget([firstpt],[1])
+   targ <-   firstpt.circle2
+   targ.color <- gAccentColor
+   Draw()   
+   startTime <- GetTime()   
+   ids <- []
+   
+
+   cont <- 1
+   while(cont)
+    {
+
+      Draw()
+      id <- WaitForClickOnTarget(remaining,Sequence(1,Length(remaining),1))
+
+
+
+
+     clickedOn <- Nth(remaining,id)
+
+     targ <-   clickedOn.circle2
+     targ.color <- gAccentColor
+     numclicked <- clickedon.value
+     
+   if(numClicked <> prev.value)
+   {
+      PushOnEnd(ids,id)
+     
+      ##draw the line
+      x0 <- prev.x
+      y0 <- prev.y
+      x1 <- clickedOn.x
+      y1 <- clickedOn.y
+
+
+
+      l <- ThickLine(x0,y0,x1,y1,5,gStimColor)
+      PushOnEnd(stimLines,l)
+      AddObject(l,gWin)
+      AddObjects(stimObjects,gWin) ##move to top.
+      prev <- clickedOn
+    }
+
+    if(clickedOn.value == "E")
+    {
+      cont <- 0
+    }
+  
+   }
+
+   inst1.text <- strings.complete
+   inst2.text <- strings.continue
+   Draw()
+
+   if(gParams.savescreenshots)
+   {
+      range <- [xmin-50,ymin-50,xmax-xmin+100,ymax-ymin+100]
+      Print(range)
+      range <- [0,0,gVideoWidth,gVideoHeight]
+      WritePNG("data/"+gSubnum+"/trails.png",gWin,range)
+             
+   }
+   WaitForDownClick()
+
+
+   corrects <- 0
+   errors <- 0
+   counter <- 1
+   loop(i,ids)
+   {
+     #Print("Scoring: " + i + " <--> " + counter)
+     corrects <- corrects + (i == counter)
+     errors <- errors + (i <> counter)
+     counter <- counter + 1
+   }
+  
+   score <- (corrects== 9) and (errors == 0)
+
+   #Print("Trails task: " + score  + " " + corrects + "  " + errors)
+   return [score,corrects,errors, (GetTime()-startTime)]
+
+}
+
+
+define PlotTargets(pts,size,labels)
+{
+
+
+
+  comp <- []
+  highlighted <- Repeat(1,Length(pts))
+  tmp <- Transpose([pts,labels,highlighted])
+  loop(i,tmp)
+   {
+      pos <- First(i)
+      label <- Nth(i,2)
+      highlight <- Nth(i,3)
+      comp <- Append(comp,  AddTarget(pos,label,size,highlight))
+   
+   }
+ return comp
+}
+
+
+
+define AddObjects(oblist,win)
+{
+ loop(i,oblist)
+ {
+    AddObject(i,win)
+ }
+}
+
+
+
+define AddTarget(pos,letter,size,clicked)
+{
+
+    ##if type== 1, add an accented circle around the target.
+
+   x <- First(pos)
+   y <- Nth(pos,2)
+
+   if(clicked)
+    {
+       crc1 <- Circle(x,y,size+5,gAccentColor,1)
+       crc2 <- Circle(x,y,size,gStimColor,1)
+       crc1.aa <- 1
+       crc2.aa <- 1
+
+    } else {
+
+       crc1 <- Circle(x,y,size,gStimColor,1)  ##accent in teh same color
+       crc2 <- Circle(x,y,size,gStimColor,1)
+       crc1.aa <- 1
+       crc2.aa <- 1
+
+    }
+
+
+    AddObject(crc1,gWin)
+    AddObject(crc2,gWin)
+    lab <- MakeLabel(letter+"",gstimFont)
+    AddObject(lab,gWin)
+    Move(lab,x,y)
+
+   obj <- MakeCustomObject("target")
+   obj.x <- x
+   obj.y <- y
+   obj.radius <- size
+   obj.value <- letter
+   obj.circle1 <- crc1
+   obj.circle2 <- crc2
+   obj.label <- lab
+   obj.clicked <- clicked
+   obj.inside <- "INSIDECIRCLE"
+   obj.addobject <- "ADDCIRCLE"
+   return obj
+}
+
+
+define AddCircle(obj,win)
+{
+   AddObject(obj.circle1,win)
+   AddObject(obj.circle2,win)
+   AddObject(obj.label,win)
+}
+
+define InsideCircle(xy,obj)
+{
+    inside <- 0
+   if( Sqrt( (obj.x-First(xy))^2 + (obj.y - Second(xy))^2) <= obj.radius)
+   {
+     inside <- 1
+   }
+
+  return inside
+}
+
+
+define DrawPath(path,pts)
+{
+
+
+      ##Path is a sequence of targets
+      ##pts is a list of [x,y] points
+
+      pts2 <- SortBy(pts,Order(path))
+      last <- Last(pts2)
+      stimObjects <- []
+
+
+      loop(i,pts2)
+       {
+
+        x0 <- First(last)
+        y0 <- Nth(last,2)
+
+        xdiff <- First(i) - x0
+        ydiff <- Nth(i,2) - y0
+        l <- Line(First(last),Nth(last,2),xdiff,ydiff,gStimColor)
+#        l <- ThickLine(First(last),Second(last),x0,y0,4,gStimColor)
+        AddObject(l,gWin)
+        stimObjects <- Append(stimObjects,l)
+        last <- i
+       }
+
+  return stimObjects
+}
+
+define HTMLTrailsOutput(dat)
+{
+
+  out <- HL()+H("PCST Trails Test",2) +Hl()+
+        P(Timestamp())+
+        P( B("Points earned (out of 1): ")+ First(dat))+
+	P( B("Correct clicks:           ")+ Second(dat))+
+	P( B("Error clicks:             ")+ Third(dat)) +
+	P( B("Time taken:               ") +Round(Fourth(dat)/1000,2) + " sec")
+
+   if(gParams.savescreenshots)
+       {
+         out <- out + Img("trails.png",600)
+       }
+  return MakeDivPage(out )
+}
+
+
+##############################################################
+##############################################################
+## Copy-cube subtest.
+
+## The goal is to copy a 'necker' cube, but permit it to be done simply
+## with a mouse.
+
+
+define DrawCubeTest ()
+{
+   strings <-    ReadTranslationJSON("translations/"+Uppercase(gLanguage)+"/cube.json",gLanguage)
+
+   DoInstructions(strings.taskname,
+                  strings.longinst,
+		  "translations/"+Uppercase(gLanguage)+"/"+strings.longinstimage,
+		  "translations/"+Uppercase(gLanguage)+"/"+strings.longinstsound)
+
+  inst1 <- MakeHeader(strings.inst1,gVideoWidth/2,100,gWin,28)
+  inst2 <- MakeHeader(strings.inst2,gVideoWidth/2,150,gWin,22)
+
+  buttonColor <- MakeColor("gold")
+  
+  standard <- MakeGrid(gWin,10,10,200,600,200,600,"black")
+  theGrid <- MakeGrid(gWin,10,10,800,1200,200,600,"grey30")
+
+
+   deleteButton <- Rectangle(850,700,200,50,buttonColor,1)
+   AddObject(deleteButton,gWin)
+   deleteLabel <- Easylabel(strings.delete,deleteButton.x,deleteButton.y,gWin,25,"grey20")
+
+
+   okButton <- Rectangle(1150,700,200,50,buttonColor,1)
+   AddObject(okButton,gWin)
+   okLabel <- Easylabel(strings.ok,okButton.x,okButton.y,gWin,25,"grey20")
+
+
+
+
+
+
+
+  points  <- theGrid.points
+  indexes <- theGrid.indexes
+  ids <- Sequence(1,Length(points),1)
+  startTime <- GetTime()
+  Draw()
+
+
+   diagram <- [[3,10],[10,80],[80,73],[73,3],
+               [21,28],[28,98],[98,91],[91,21],
+	       [3,21],[10,28],[80,98],[73,91]]
+
+   newDiagram <- []
+
+
+   standard <-   DrawSketch(diagram,standard,MakeColor("grey40"))
+   Draw()
+   cont <- 1
+   clickons <- Merge(thegrid.points,[okButton,deleteButton])
+   ident <- Merge(ids,["OK","DEL"])
+
+   edits <- 0
+   startTime <- GetTime()
+   
+   while(cont)
+   {
+      ##get start of line
+      start <- WaitForClickOnTarget(clickOns,ident)
+      edits <- edits + 1
+     if(start == "DEL")
+     {
+       if(Length(newDiagram) <= 1)
+       {
+        newDiagram <- []
+       } else{
+       
+          newDiagram <- SubList(newDiagram,1,Max([1,Length(newDiagram)-1]))
+       }
+       out <- DrawSketch(newDiagram,theGrid,MakeColor("grey60"))
+       
+     }elseif( start == "OK")
+     {
+       cont <- 0
+     } else {
+       ##start is the index number
+
+      targ <- Nth(thegrid.points,start)
+      circ1 <- Circle(targ.x,targ.y,14,MakeColor("yellow"),1)
+      circ1.aa <- 1
+      AddObject(circ1,gWin)
+      Draw()
+
+      end <- WaitForClickOnTarget(clickOns,ident)
+     if(end == "DEL")
+     {
+      #no-op
+     }elseif( end == "OK")
+     {
+       cont <- 0
+     } else {
+       ##end is the index number
+
+      targ2 <- Nth(thegrid.points,end)
+      circ2 <- Circle(targ2.x,targ2.y,14,MakeColor("yellow"),1)
+      circ2.aa <- 1
+      AddObject(circ2,gWin)
+      Draw()
+      Wait(50)
+      RemoveObject(circ1,gWin)
+      RemoveObject(circ2,gWin)
+
+      if(start <> end)
+      {
+        PushOnEnd(newDiagram,[start,end])
+      }
+      out <- DrawSketch(newDiagram,theGrid,MakeColor("grey60"))
+     }
+   }
+   Draw()
+  }
+  time <- GetTime()
+
+   inst1.text <- strings.complete
+   inst2.text <- strings.continue
+   Draw()
+   WaitForDownClick()
+   if(gParams.savescreenshots)
+   {
+
+      range <- [theGrid.xmin-100,thegrid.ymin-150,thegrid.xmax-thegrid.xmin+200,thegrid.ymax-thegrid.ymin+300]
+      WritePNG("data/"+gSubnum+"/cube.png",gWin, range)
+   }
+
+  score <- ScoreCube(diagram, newdiagram)
+
+  return Append(score,GetTime()-starttime)
+}
+
+##Add 
+define DrawSketch(sketch,bg,color)
+{
+  lines <- []
+  
+  loop(i,sketch)
+  {   
+  
+      startindex <- Nth(bg.indexes,First(i))
+      startx <- bg.xmin + bg.xDelta * (First(startIndex)-1)
+      starty <- bg.ymin + bg.yDelta * (Second(startIndex)-1)
+      
+      endindex <- Nth(bg.indexes,Second(i))
+      endx <- bg.xmin + bg.xDelta * (First(endIndex)-1)
+      endy <- bg.ymin + bg.yDelta * (Second(endIndex)-1)
+      
+#     Print(startindex + " to " + endindex + ": " + startx+","+starty + "-->"+  endx + "," + endy)
+   
+    line <-  ThickLine(startx,starty,endx,endy,3,color)
+    AddObject(line,bg.win)
+    PushOnEnd(lines,line)
+  }
+
+  return lines
+}
+
+
+
+define MakeGrid(win,width,height,xmin,xmax,ymin,ymax,color:"grey")
+{
+
+  col <- MakeColor(color)
+  xDelta <- (xmax - xmin)/ (width-1)
+  yDelta <- (ymax - ymin)/ (height-1)
+  
+  points <- []
+  coords <- []
+  loop(i,height)
+  {
+    loop(j,width)
+    {
+       point <- Circle(xmin  + xDelta * (i-1),ymin + yDelta * (j-1), 15,col,0)
+       point.aa <- 1
+       AddObject(point,win)
+       PushOnEnd(points,point)
+       PushOnEnd(coords,[i,j])
+		       
+    }
+  }
+
+
+  theGrid <- MakeCustomObject("grid")
+  theGrid.points <- points
+  theGrid.indexes <- coords
+  theGrid.xmin <- xmin
+  theGrid.xmax <- xmax
+  theGrid.ymin <- ymin
+  theGrid.ymax <- ymax
+  theGrid.xdelta <- xDelta
+  theGrid.ydelta <- yDelta
+  theGrid.width <- width
+  theGrid.height <- height
+  theGrid.win <- win
+  return (theGrid)
+}
+
+
+define ScoreCube(standard,answer)
+{
+
+  ##first, sort each of these.
+
+  stand2 <- []
+  loop(i,standard)
+  {
+    sorted <- Sort(i)
+    PushonEnd(stand2,First(sorted) + "-" + Second(sorted))
+  }
+
+
+  ans2 <- []
+  loop(i,answer)
+  {
+    sorted <- Sort(i)
+    PushonEnd(ans2,First(sorted) + "-" + Second(sorted))
+  }
+
+
+ ## now, identify matches and mismatches.
+
+
+ matches <- []
+ nonmatches <- []
+ loop(i,stand2)
+ {
+   if(IsMember(i,ans2))
+   {
+    PushOnEnd(matches,i)
+   } else {
+    PushOnEnd(nonmatches,i)
+   }
+
+  ##filter that matches what we just found.
+  removematches <- Match(Match(ans2,i),0)  ##reverses matches
+  
+  ans2 <- Filter(ans2,removematches)
+  
+ }
+
+  matchscore <-  Length(matches)
+  nonmatchscore <- Length(nonmatches)
+  missing <- Length(ans2)
+
+
+  score <-  0+ ((matchscore - nonmatchscore - missing )==Length(standard))
+  return ( [score,matchscore,nonmatchscore,missing])
+}
+
+
+
+define HTMLCubeOutput(dat)
+{
+
+  out <- HL()+H("PCST Cube-drawing Test",2) +Hl()+
+        P(Timestamp())+
+        P( B("Points earned (out of 1): ") + First(dat))+
+	P( B("Matched lines:            ") + Second(dat))+
+	P( B("Missing lines :           ") + Third(dat)) +
+        P( B("Extra lines :             ") + Fourth(dat)) +
+	P( B("Time taken:               ") +Round(Fifth(dat)/1000,2) + " sec")
+	
+   if(gParams.savescreenshots)
+       {
+         out <- out + Img("cube.png",300)
+       }
+
+  return MakeDivPage(out)
+}
+
+
+define ShapeTest()
+{
+
+
+  strings <-    ReadTranslationJSON("translations/"+Uppercase(gLanguage)+"/shapetest.json",gLanguage)
+
+  DoInstructions(strings.taskname,
+                  strings.longinst,
+		  "translations/"+Uppercase(gLanguage)+"/"+strings.longinstimage,
+		  "translations/"+Uppercase(gLanguage)+"/"+strings.longinstsound)
+
+  startTime <- GetTime()
+  inst1 <- MakeHeader(strings.inst1,gVideoWidth/2,100,gWin,28)
+
+  col <- MakeColor("gold")
+
+  sqr <- Square(gVideoWidth/2-300,gVideoHeight/2,200,col,1)
+  tri <- Polygon(gVideoWidth/2,gVideoHeight/2,[-100,0,100],[-100,100,-100],col,1)
+  ##hidden square to act as click target--easier than making a custom object and
+  ##overloading Inside()
+  trisquare <- Square(gVideoWidth/2,gVideoHeight/2,200,col,1)
+  rect <- Rectangle(gVideoWidth/2+300,gVideoHeight/2,100,200,col,1)
+  AddObject(sqr,gWin)
+  AddObject(tri,gWin)
+  AddObject(rect,gWin)
+  Draw()
+  resp1 <- WaitForClickOnTarget([sqr,trisquare,rect],["square","triangle","rectangle"])
+  corr1 <- resp1=="triangle"
+  Hide(sqr)
+  Hide(tri)
+  Hide(rect)
+  Draw()
+  Wait(500)
+  Show(sqr)
+  Show(tri)
+  Show(rect)
+
+
+   inst1.text <- strings.inst2
+   Draw()
+   resp2 <- WaitForClickOnTarget([sqr,trisquare,rect],["square","triangle","rectangle"])
+   corr2 <- (resp2=="square")
+
+   score <- corr1 + corr2
+   inst1.text <- strings.continue
+   Hide(sqr)
+   Hide(tri)
+   Hide(rect)
+   Draw()
+   WaitForDownClick()
+  
+  return [score, corr1,corr2,  resp1,resp2,GetTime()-startTime]
+
+}
+
+define HTMLShapeOutput(dat)
+{
+  score <- First(dat)
+  
+  out <- HL()+H("PCST Shape identification Test",2) +Hl()+
+        P(Timestamp())+
+        P( B("Points earned (out of 2):  ")+ First(dat))+
+	P( B("Identify triangle:         ")+ Second(dat))+
+        P( B("Triangle response:         ")+ Fourth(dat))+
+	
+	P( B("Identify largest:          ") + Third(dat))+
+        P( B("Largest response:          ")+ Fifth(dat))+
+	P( B("Time taken:                ") +Round(Nth(dat,6)/1000,2) + " sec")
+	
+  return MakeDivPage(out)
+}
+
+
+
+
+
+##This is the clock drawing task, modified from the original.
+define DrawClockTest(showNumbers:0)
+{
+
+
+   strings <-    ReadTranslationJSON("translations/"+Uppercase(gLanguage)+"/clock.json",gLanguage)
+
+   DoInstructions(strings.taskname,
+                  strings.longinst,
+		  "translations/"+Uppercase(gLanguage)+"/"+strings.longinstimage,
+		  "translations/"+Uppercase(gLanguage)+"/"+strings.longinstsound)
+
+
+  buttonColor <- MakeColor("gold")
+ 
+  clock <- MakeClockLayout(gWin,gVideoWidth/2,gVideoHeight/2,250,"gold","black")
+
+
+
+   startTime <- GetTime()
+   inst1 <- MakeHeader(strings.inst1,gVideoWidth/2,100,gWin,28)
+   inst2 <- MakeHeader(strings.inst2,gVideoWidth/2,150,gWin,22)
+
+
+   numLabels <- ["1","2","3","4","5","6","7","8","9","10","11","12"]
+   trials <- Shuffle(Sequence(1,12,1))
+
+   nums <- []
+   placement <- Repeat(0,12)
+   corrects <- Repeat(0,12)
+   
+  loop(i,trials)
+   {
+      tmp <- EasyLabel(Nth(numlabels,i),gVideoWidth/2,gVideoHeight/2,gWin,30)
+
+      PushOnEnd(nums,tmp)
+      
+      inst1.text <- SubstituteStrings(strings.inst1b,[["<VAL>",i]])
+      
+      Draw()
+      resp <- WaitForClickOnTarget(clock.points,Sequence(1,12,1))
+      ##record where it was placed
+      SetElement(placement,i,resp)
+      corr <- (i==resp) 
+      SetElement(corrects,i,corr)
+      
+      point <- Nth(clock.points,resp)
+      Hide(point)
+      Move(tmp,point.x,point.y)
+      Draw()
+
+   if (not showNumbers)
+   {
+      Wait(500)
+      Hide(tmp)
+   }
+
+      Show(point)
+      Draw()
+   }
+   
+  numberTime <- GetTime()
+  inst1.text <- strings.inst1c
+  inst2.text <- strings.continue
+  
+  Draw()
+  if(gParams.savescreenshots)
+   {
+
+      range <- [clock.xcenter-clock.radius-50,clock.ycenter-clock.radius-50,clock.radius*2+100,clock.radius*2+100]
+      WritePNG("data/"+gSubnum+"/clock1.png",gWin, range)
+   }
+
+
+  WaitForDownClick()
+
+  ##Reset the clock face
+  loop(i,12)
+    {
+
+      targetNumber <- Nth(trials,i)
+      label <- Nth(nums,i)
+      
+      targetpoint <- Nth(clock.points,targetNumber)
+      Move(label,targetpoint.x,targetpoint.y)
+     }
+
+
+  inst1.text <- strings.inst1d
+  inst2.text <- strings.inst2d
+  Draw()
+  resp <- WaitForClickOnTarget(clock.points,Sequence(1,12,1))
+
+  point <- Nth(clock.points,resp)
+  deltax <- point.x - gVideoWidth/2
+  deltay <- point.y - gVideoHeight/2
+  endX <- gVideoWidth/2 + deltaX * .55
+  endY <- gVideoHeight/2 + deltaY * .55
+  hourhand <-  ThickLine(gVideoWidth/2, gVideoHeight/2,endX,endY,7,buttoncolor)
+  AddObject(hourhand,gWin)
+  
+
+  inst2.text <- strings.inst2e
+
+  Draw()
+  
+  resp2 <- WaitForClickOnTarget(clock.points,Sequence(1,12,1))
+  hourCorrect <- (resp==11)
+  minuteCorrect <- (resp2 == 2)
+  
+  point <- Nth(clock.points,resp2)
+  deltax <- point.x - gVideoWidth/2
+  deltay <- point.y - gVideoHeight/2
+  endX <- gVideoWidth/2 + deltaX * .8
+  endY <- gVideoHeight/2 + deltaY * .8
+  minutehand <-  ThickLine(gVideoWidth/2, gVideoHeight/2,endX,endY,3,buttoncolor)
+  AddObject(minutehand,gWin)
+
+  handTime <- GetTime()
+
+   inst1.text <- strings.complete
+   inst2.text <- strings.continue
+   Draw()
+
+  if(gParams.savescreenshots)
+   {
+
+      range <- [clock.xcenter-clock.radius-50,clock.ycenter-clock.radius-50,clock.radius*2+100,clock.radius*2+100]
+      WritePNG("data/"+gSubnum+"/clock2.png",gWin, range)
+   }
+
+
+   WaitForDownClick()
+
+
+
+
+   ##score accuracy of number placement:
+   numcorrect <- Sum(corrects)
+   numtime <- numberTime - startTime
+   handstime <- handTime - numberTime
+
+   ##allow one number mistake.
+   score <- (numCorrect >= 11) + hourCorrect+minuteCorrect
+   return [score, numCorrect,hourCorrect,minuteCorrect,numtime,handstime,[placement,corrects]]
+}
+
+
+
+
+
+
+define HTMLClockOutput(dat)
+{
+
+  dattab <- Nth(dat,7)
+  out <- HL()+H("PCST Clock-drawing Test",2) +Hl()+
+        P(Timestamp())+
+        P( B("Points earned (out of 3):     ") + First(dat))+
+	P( B("Numbers placed correctly:     ") + Second(dat))+
+	P( B("Hour hand placed correctly:   ") + Third(dat)) +
+        P( B("Minute hand placed correctly: ") + Fourth(dat)) +
+	P( B("Time to place numbers:        ") +Round(Nth(dat,5)/1000,2) + " sec")+
+	P( B("Time to place hands:          ") +Round(Nth(dat,6)/1000,2) + " sec") +
+	P(B("Clock number placement:"))+
+	Table(Transpose([Sequence(1,12,1),First(dattab),Second(dattab)]),
+            ["Number","Placed at","Correct"])
+
+     out <- MakeDivPage(out)
+   if(gParams.savescreenshots)
+       {
+         out <- out + MakeDivPage(H("Number placement",3)+Img("clock1.png",250) +
+	         H("Hand placement:",3) + Img("clock2.png",250))
+       }
+
+
+  return out
+
+}
+
+
+
+define MakeClockLayout(win,xcenter,ycenter,radius,colorfg:"grey",colorBG: "black")
+{
+
+ gPI <- 3.14159627
+
+  col <- MakeColor(colorfg)
+  
+  points <- []
+  coords <- []
+  loop(i,12)
+  {
+
+      x <- xcenter + Cos(2*gPI/12*(i-3))*radius
+      y <- ycenter + Sin(2*gPI/12*(i-3))*radius
+      
+      point <- Circle(x,y, 25,col,0)
+      point.aa <- 1
+      AddObject(point,win)
+      PushOnEnd(points,point)
+      PushOnEnd(coords,i)
+		       
+    
+  }
+
+
+  theGrid <- MakeCustomObject("clock")
+  theGrid.points <- points
+  theGrid.indexes <- coords
+  theGrid.xCenter <- xcenter
+  theGrid.yCenter <- ycenter
+  theGrid.radius <- radius
+  theGrid.win <- win
+  return (theGrid)
+}
+
+
+
+define DoNamingTest()
+{
+
+
+   strings <-    ReadTranslationJSON("translations/"+Uppercase(gLanguage)+"/naming.json",gLanguage)
+
+   DoInstructions(strings.taskname,
+                  strings.longinst,
+		  "translations/"+Uppercase(gLanguage)+"/"+strings.longinstimage,
+		  "translations/"+Uppercase(gLanguage)+"/"+strings.longinstsound)
+
+  #rhino from https://openclipart.org/detail/265706/rhinoceros-silhouette
+  #lion from https://openclipart.org/detail/216826/lion-outline
+  #camel from  https://openclipart.org/detail/257284/camel-silhouette
+
+
+   names <-strings.animalnames
+   
+   imgs <-   [MakeImage("images/rhino.png"),
+             MakeImage("images/bear.png"),
+             MakeImage("images/camel.png"),
+             MakeImage("images/deer.png"),
+             MakeImage("images/lion.png"),
+             MakeImage("images/owl.png"),
+	     MakeImage("images/rabbit.png")]
+
+   ##judge correct based on getting the first 4 characters
+   corrects <- [["rhin","rino"],
+                ["bear","griz"],
+                ["came"],
+                ["deer","buck","dear"],
+                ["lion"],
+                ["owl"],
+                ["rabb","hare"]]
+
+    bg <- Rectangle(gVideoWidth/2,gVideoHeight/4+100,800,400,MakeColor("white"),1)
+    AddObject(bg,gWin)
+    inst1 <-MakeHeader(strings.inst1,gVideoWidth/2,50,gWin,30)
+    inst2 <-MakeHeader(strings.inst2,gVideoWidth/2,70,gWin,16)
+    entry <- EasyTextBox("",gVideoWidth/2-300,gVideoheight/2+200,gWin,50,600,100)
+    startTime <- GetTime()
+   
+   total <- 0
+   scores <- []
+   answers <- []
+   loop(i,7) 
+   {
+     img<- Nth(imgs,i)
+     zoom <- Min([600/img.width, 350/img.height])
+     img.zoomX <- zoom
+     img.zoomY <-zoom
+
+     AddObject(img,gWin)
+     Move(img,bg.x,bg.y)
+     entry.text <- ""
+     Draw()
+     out <- GetInput(entry,"<return>")
+     RemoveObject(img,gWin)
+
+
+
+     scoreImage <- ScoreText(out,Nth(corrects,i))
+     PushOnEnd(scores,scoreImage)
+     PushOnEnd(answers,out)
+   }
+
+  ##MOCA gives three points, so because this is 7, let's divide map onto 3 and round up.
+  total <- Sum(scores)
+  score <- Nth([0,1,1,1,2,2,2,3],total+1)
+
+
+   inst1.text <- strings.inst1b
+   inst2.text <- strings.inst2b
+   entry.text <- ""
+   Hide(entry)
+   RemoveObject(entry,gWin)
+   Draw()
+   WaitForDownClick()
+
+  return [score,total,names,scores,answers,GetTime()-starttime]
+}
+
+define HTMLNamingOutput(dat)
+{
+  names <- Third(dat)
+  scores <- Fourth(dat)
+  answers <- Fifth(dat)
+  
+  out <- HL()+H("PCST Naming Test",2) +Hl()+
+        P(Timestamp())+
+        P( B("Points earned (out of 3):  ")+ First(dat))+
+	P( B("Correct responses:         ")+ Second(dat))+
+	P("Score for each:               ") +
+	Table(Transpose([names,answers,scores]), ["Image","Response","Correct"]) + BR()+
+	P( B("Time taken:                ") +Round(Nth(dat,6)/1000,2) + " sec")
+	
+  return MakeDivPage(out)
+
+}
+
+
+
+##this scores text entry based on just the first 4 characters
+define ScoreText(target,options,num:4)
+{
+   corr <- 0
+   if(StringLength(target)<3)
+   {
+     ##they need at least a 2-letter response to even consider accuracy.
+     corr <- 0
+     
+   }else {
+     loop(opt,options)
+      {
+       if(SubString(LowerCase(target),1,StringLength(opt))==LowerCase(opt))
+       {
+        corr <- 1
+       }
+   }
+   }
+  return corr
+}
+
+
+
+define DoSerialSubtraction(initial)
+{
+
+  inst1 <- MakeHeader("Count backward from ["+initial+"] by 7s",gVideoWidth/2,100,gWin,80)
+  inst2 <- MakeHeader("Enter response below (start with "+initial+")",gVideowidth/2,200,gWin,30)
+
+  entry <- EasyTextBox("",gVideoWidth/2-100,gVideoheight/2,gWin,50,200,100)
+
+
+  ##First entry does not count--it is '90' or whatever the start number is.
+  cont <- 1
+  while(cont)
+  {
+    entry.text <- ""
+    Draw()
+    inp <- GetInput(entry,"<return>")
+    if(inp==""+initial)
+    {
+      cont <- 0
+    }
+  }
+  
+  inst2.text <- "Continue counting and enter your NEXT response below"
+  
+  resps <- []
+  correctvalues <- []
+  accuracy <- []
+  startTime <- GetTime()
+  corr <- 0
+  loop(i,5)
+  {
+    entry.text <- ""
+    Draw()
+    inp <- GetInput(entry,"<return>")
+    corrValue <-  ((initial - (i)*7)+"")
+
+    corr <- corr + (inp ==corrValue)
+    PushOnEnd(correctValues,corrValue)
+    PushOnEnd(resps,inp)
+    PushOnEnd(accuracy, (inp == corrValue))
+    
+
+  }
+  time <- GetTime() - startTime
+
+  if(corr > 3)
+   {
+     points <- 3
+   }elseif(corr >=2)
+   {
+     points <- 2
+   } else{
+     points <- corr
+   }
+
+   inst1.text <- "Task complete."
+   inst2.text <- "Click mouse button to continue."
+   Hide(entry)
+   
+   Draw()
+   WaitForDownClick()
+
+
+  return [points,corr,time,[correctvalues,resps,accuracy],initial]
+}
+
+
+
+define HTMLSubtractionOutput(dat)
+{
+
+  out <- HL()+H("PCST Serial Subtraction Test",2) +Hl()+
+        P(Timestamp())+
+	P( B("Count backward from:       ") + Fifth(dat))+
+        P( B("Points earned (out of 3):  ") + First(dat))+
+	P( B("Total correct:             ") + Second(dat))+
+ 	P( B("Time taken:        ") +Round(Third(dat)/1000,2) + " sec")+
+	P(B("Responses:          "))+Table(Transpose(Nth(dat,4)), ["Correct value","Response","Accuracy"])
+	
+
+  return MakeDivPage(out)
+}
+
+
+
+define DoGoNoGo()
+{
+ targetLetter <- "A"
+ others <- ["B","C","D", "E","F","G","H","I","J","K","L","M","N","O",
+            "P","R","S","T","U","Z"]
+
+  inst1 <- MakeHeader("Read along with the letters you see.",gVideoWidth/2,100,gWin,50)
+  inst2 <- MakeHeader("Click the mouse whenever you read an '"+targetletter+"'.",gVideowidth/2,200,gWin,30)
+  inst3 <- MakeHeader("Click mouse to continue",gVideoWidth/2,gVideoHeight/2,gWin,40)
+  Hide(inst3)
+  stimlabel <- MakeHeader("Click to begin practice",gVideoWidth/2,gVideoHeight/2,gWin,120)
+  isi <- 2000
+  Draw()
+   WaitForDownClick()
+
+  ###################################
+   ### ###Practice trial 1 (foil)
+  ###################################
+
+
+ stimlabel.text <- Sample(others)
+  Draw()
+  t1 <- GetTime()
+  resp <- WaitForDownClickWithTimeout(isi)
+
+  if(IsList(resp))
+  {
+    stimLabel.text <- "ERROR"
+    Draw()
+    Wait(250)
+
+  } else {
+    stimLabel.text <- ""
+  }
+  Draw()
+  t2 <- GetTime()
+  Wait(isi - (t2-t1)+50)
+
+
+  ###################################
+  ### ###Practice trial 2 (foil)
+  ###################################
+
+  stimlabel.text <- Sample(others)
+  Draw()
+  t1 <- GetTime()
+  resp <- WaitForDownClickWithTimeout(isi)
+  t2 <- GetTime()
+
+  if(IsList(resp))
+  {
+    stimLabel.text <- "ERROR"
+    Draw()
+    Wait(250)
+
+  } else {
+    stimLabel.text <- ""
+  }
+  Draw()
+  Wait(isi - (t2-t1)+50)
+
+  ###################################
+  ### ###Practice trial 3 (foil)
+  ###################################
+
+  stimlabel.text <- Sample(others)
+  Draw()
+  t1 <- GetTime()
+  resp <- WaitForDownClickWithTimeout(isi)
+
+  if(IsList(resp))
+  {
+    stimLabel.text <- "ERROR"
+    Draw()
+    Wait(250)
+
+  } else {
+    stimLabel.text <- ""
+
+  }
+  Draw()
+  t2 <- GetTime()
+  Wait(isi - (t2-t1)+ 50)
+
+  ###################################
+  ### ###Practice trial 4 (foil)
+  ###################################
+
+  stimlabel.text <- targetLetter
+  Draw()
+  t1 <- GetTime()
+  resp <- WaitForDownClickWithTimeout(isi)
+  if(IsList(resp))
+  {
+    stimLabel.text <- ""
+
+  } else {
+    stimLabel.text <- "ERROR"
+    Draw()
+  }
+
+
+
+   Draw()
+   Wait(250)  
+
+  t2 <- GetTime()
+  Wait(isi - (t2-t1)+50)
+
+  Draw()
+  
+  inst2.text <- "Now you will do the task for real. Say each letter but click the mouse only for '"+targetLetter+"'"
+  stimLabel.text <- ""
+  Show(inst3)
+  Draw()
+  Hide(inst3)
+
+  stim <- Shuffle(Merge(Repeat(targetletter,10), others))
+  corrects <- 0
+  errors <- 0
+  
+  hits <- 0
+  misses <- 0
+  falsealarms <- 0
+  crs <- 0
+  
+  rts <- []
+  WaitForDownClick()
+
+  loop(i,stim)
+  {
+  stimlabel.text <-i
+  targetTrial <- (targetletter == i)
+
+
+  Draw()
+  t1 <- GetTime()
+  resp <- WaitForDownClickWithTimeout(isi)
+  t2 <- GetTime()
+  stimlabel.text <- ""
+  Draw()
+  
+  if(IsList(resp) and targetTrial)
+  {
+     PushOnEnd(rts,(t2-t1))
+  }
+  Wait(isi - (t2-t1) + 50)
+
+
+
+  hits <-        hits        + (IsList(resp) and targetTrial)
+  crs <-         crs         +   (resp=="<timeout>" and (not targetTrial))
+  misses <-      misses      + ((resp == "<timeout>")  and targetTrial)
+  falsealarms <- falseAlarms + (IsList(resp) and (not targetTrial))
+
+
+  }
+
+
+  corrects <- hits + crs
+  errors <- misses + falsealarms
+  score <- (errors<3)  ##1 point if no more than 3 errors.
+
+
+   inst1.text <- "Task complete."
+   inst2.text <- ""
+   Show(inst3)
+   Draw()
+   WaitForDownClick()
+
+  return [score,corrects,errors, hits,crs,misses, falsealarms,Mean(rts)]
+}
+
+define HTMLGoNogo(dat)
+{
+  Print(dat)
+  out <- HL()+H("PCST Go-Nogo Test",2) +Hl()+
+        P(Timestamp())+
+        P( B("Points earned (out of 1): ") + First(dat))+
+	P( B("Correct responses:        ") + Second(dat))+
+        P( B("Total Errors:        ") + Nth(dat,3)) +
+	
+	P( B("Hits:                ") + Nth(dat,4)) +
+        P( B("Correct rejections:  ") + Nth(dat,5)) +
+	P( B("Misses:              ") + Nth(dat,6)) +
+	P( B("False alarms:        ") + Nth(dat,7)) +
+	P( B("Mean response time:  ") + Nth(dat,8))
+
+	
+
+  return MakeDivPage(out)
+}
+
+
+
+###############################################
+
+define DoSerialRecall(length,direction:"forward")
+{
+
+  if(direction=="forward")
+  {
+    inst1 <- MakeHeader( "Remember the sequence of numbers IN THE ORIGINAL ORDER",gVideoWidth/2,100,gWin,50)
+  } else {
+    inst1 <- MakeHeader( "Remember the sequence of numbers IN THE REVERSE ORDER",gVideoWidth/2,100,gWin,50)
+
+  }
+  inst2 <- MakeHeader("Click mouse button when ready to begin.",gVideowidth/2,200,gWin,30)
+  stimlabel <- EasyLabel("+",gVideoWidth/2,gVideoheight/2-150,gWin,100)
+
+
+  stim <-GenSequence(length)
+  Draw()
+  WaitForDownClick()
+  inst2.text <- ""
+  stimlabel.text <- ""
+  Draw()
+  Wait(1500)
+  loop(i,stim)
+  {
+     ##do audio here too
+     stimlabel.text <- i
+     Draw()
+     Wait(1000)
+  }
+
+   stimlabel.text <- ""
+   Draw()
+   Wait(500)
+   if(direction == "forward")
+   {
+    inst2.text <- "Click on the numbers in their original order"
+   }else{
+    inst2.text <- "Click on the numbers from the last to first"
+   }
+   Draw()
+    ##basic display parameters
+     ybase <- gVideoHeight/2-100
+     xbase <- gVideoWidth/2-150
+     gap <- 90
+     keysize <- 80
+
+   keys <- [["1","2","3"],
+            ["4","5","6"],
+            ["7","8","9"],
+            ["0","Done"]]
+
+	##we should automatically determine length/height of keys here.
+	height <- 4
+	width <- 3
+
+
+    font <- MakeFont(gPEBLBaseFont,2,25,MakeColor("white"),MakeColor("white"),0)
+    wordfont<-MakeFont(gPEBLBaseFont,2,15,MakeColor("darkgrey"),MakeColor("white"),0)
+
+   rownum <- 1
+    clicks <- []
+	stuff <- []
+	loop(row,keys)
+    {
+	  colnum <- 1
+	  loop(col,row)
+      {
+
+
+
+        back1 <- Square(xbase+colnum*gap,ybase+rownum*gap,keysize,MakeColor("grey"),1)
+        back2 <- Square(xbase+colnum*gap,ybase+rownum*gap,keysize-4,MakeColor("grey20"),1)
+		if(StringLength(col)>1)
+         {
+	   lab <- MakeLabel(col,wordfont)
+         } else {
+
+           lab <- MakeLabel(col,font)
+         }
+		AddObject(back1,gwin)
+		AddObject(back2,gwin)
+		AddObject(lab,gwin)
+		Move(lab,xbase+colnum*gap,ybase+rownum*gap)
+
+
+        colnum <- colnum + 1
+	clicks <- Append(clicks,back1)
+        stuff <- Append(stuff,[lab,back1,back2])
+      }
+     rownum <- rownum + 1
+
+    }
+   ##End mouse keyboard setup.
+
+
+  responselist <- []
+  position <- 1
+  resp <- ""
+  Draw()
+  starttime <- GetTime()
+
+  items <- 1
+  while(not (resp == "<return>") and items <= length)
+  {
+ 
+      resp <- WaitForClickOnTarget(clicks,
+               ["1","2","3","4","5","6","7","8","9","0","<done>"] )
+
+       responseList <- Append(responselist, resp)
+       resptext <- ListToString(responselist)
+       stimLabel.text <- resptext
+       Draw()
+
+    items <- items + 1
+  }
+
+ if(direction == "backward")
+  {
+     responseList <- Reverse(responseList)
+  }
+ recallTime <- GetTime() - starttime
+ correct <- ListMatches(responseList,stim)
+ score <- Sum(correct) == Length(stim)
+
+   inst1.text <- "Task complete."
+   inst2.text <- "Click mouse button to continue."
+   Draw()
+   WaitForDownClick()
+
+
+ return [score,Sum(correct),correct,recallTime,[stim,responselist,correct]]
+}
+
+
+define HTMLSerialRecallOutput(forw,back)
+{
+
+  out <- HL()+H("PCST Serial Recall Test",2) +Hl()+
+        P(Timestamp())+
+        P( B("Points earned (out of 2):") + (First(forw)+First(back)))+
+	P( B("Forward number correct:  ") + Second(forw) + " of "  + Length(Third(forw)))+
+	P( B("Forward recall Time:     ") +Round(Fourth(forw)/1000,2) + " sec")+
+        P( B("Recalled sequence:       ")) + Table(Transpose(Fifth(forw)),["Stimulus","Response","Correct"]) +
+        P( B("Backward number correct: ") + Second(back) + " of "  + Length(Third(back)))+
+        P( B("Backward recall Time:    ") +Round(Fourth(back)/1000,2) + " sec")+
+        P( B("Recalled sequence:       ")) + Table(Transpose(Fifth(back)),["Stimulus","Response","Correct"])
+
+
+  return MakeDivPage(out)
+
+}
+
+
+
+
+define GenSequence(length)
+{
+  ok <- 0
+  while(not ok)
+  {
+
+   stim <- SubList(Shuffle(Sequence(0,9,1)),1,length)
+
+
+   runs <- 0
+   prev <- First(stim)
+   loop(i,Rest(stim))
+   {
+     if(Abs(prev-i)==1)
+     {
+       runs <- runs + 1
+     }
+   }
+   
+   if( runs < 1)
+   {
+     ok <- 1
+   }
+
+   #don't let there be any runs on 4 or shorter.
+   if(length<=4 and runs>0)
+   {
+      ok <- 0
+   }
+    
+  }
+
+  return stim
+}
+
+
+define  DoSentenceVerification()
+{
+
+   sentences <- ReadCSV("stimuli/sentences.csv")
+   ts <- Transpose(sentences)
+   ids <- First(ts)
+   sentencetext <- Second(ts)
+   truth <- Third(ts)
+
+
+  inst1 <- MakeHeader("Read the sentence and determine if it makes sense.",gVideoWidth/2,100,gWin,40)
+
+  inst2 <- MakeHeader("Click mouse button to begin.",gVideowidth/2,200,gWin,20)
+
+  stimlabel <- EasyLabel("+",gVideoWidth/2,gVideoheight/2-150,gWin,50)
+  
+  yes <- EasyLabel("YES", gVideoWidth/2-200,gVideoheight/2+100,gWin,100)
+  no <- EasyLabel("NO",gVideoWidth/2+200,gVideoheight/2+100,gWin,100)
+
+   Hide(yes)
+   Hide(no)
+   Draw()
+   
+   tf <- 2
+   tf2 <- ["F","T"]
+   corr <- Repeat("NA",6)
+   starttime <- GetTime()
+
+   WaitForDownClick()
+   inst2.text <- "Click yes or no"
+   tab <- []
+   loop(i, Shuffle(Sequence(1,6,1)))
+   {
+      Hide(yes)
+      Hide(no)
+
+     filter <- Match(ids,i+"")
+     thetruth <- Nth(tf2,tf)
+     sentence <-Nth(Filter(sentencetext,filter),tf)
+
+     stimlabel.text <- sentence
+
+    Draw()
+    Wait(1500)
+    Show(yes)
+    Show(no)
+    Draw()
+    out <- WaitForClickOnTarget([yes,no],["T","F"])
+   
+    correct <- out == thetruth
+    SetElement(corr,i,correct)
+    tf<- 3-tf  ##flip from T to F
+    PushOnEnd(tab,[sentence,thetruth, out,correct])
+   }
+
+   endtime <- GetTime()
+   score <- Nth([0,0,0,0,1,1,2], Sum(corr)+1)  ##score 0 points for less than 3 correct (chance).
+                                               ## 1 point for 4-5 correct
+					       ## 2 points for 6 correct
+
+   inst1.text <- "Task complete."
+   inst2.text <- "Click mouse button to continue."
+   Hide(stimlabel)
+   Hide(yes)
+   Hide(no)
+   Draw()
+   WaitForDownClick()
+
+
+   return [score,Sum(corr),(endtime-starttime),tab]
+}
+
+
+
+
+define HTMLSentenceVerification(data)
+{
+   sentences <- ReadCSV("stimuli/sentences.csv")
+   ts <- Transpose(sentences)
+   ids <- First(ts)
+   sentencetext <- Second(ts)
+   truth <- Third(ts)
+
+  out <- HL()+H("PCST Sentence Verification",2) +Hl()+
+        P(Timestamp())+
+        P( B("Points earned (out of 2):") + First(data))+
+	P( B("Number correct:          ") + Second(data))+
+        P( B("Completion time:         ") + Round(Third(data)/1000) + "s") +
+        Table(Fourth(data),["Sentence","Truth","Response","Correct"])
+	
+  return MakeDivPage(out)
+
+}
+
+
+
+define  DoSemanticOddball()
+{
+
+  stimPractice <- ["banana","apple","mango","schoolbus"]
+  stim1Items <- ["airplane","train","bicycle","bird"]
+  stim2Items <- ["watch","ruler","scale","necklace"]
+
+  corr <-  [0,0,0,1]
+
+  inst1 <- MakeHeader("Determine which word is not like the other words.",gVideoWidth/2,100,gWin,40)
+  inst2 <- MakeHeader("Practice: click on 'schoolbus' because it is not a fruit.",gVideowidth/2,200,gWin,40)
+
+  stim1 <- EasyLabel(First(stimPractice),  gVideoWidth/2-200,gVideoheight/2-150,gWin,50)
+  stim2 <- EasyLabel(Second(stimPractice), gVideoWidth/2-200,gVideoheight/2+150,gWin,50)
+  stim3 <- EasyLabel(Third(stimPractice),   gVideoWidth/2+200,gVideoheight/2-150,gWin,50)
+  stim4 <- EasyLabel(Fourth(stimPractice), gVideoWidth/2+200,gVideoheight/2+150,gWin,50)
+  
+  Draw()
+  out <- WaitForClickOnTarget([stim4],[1])
+
+
+
+
+   rotate <- Sample([0,1,2,3])
+   stim <- Rotate(stim1Items,rotate)
+   
+
+    stim1.text <- First(stim)
+    stim2.text <- Second(stim)
+    stim3.text <- Third(stim)
+    stim4.text <- Fourth(stim)
+   inst2.text <- "Click word that does not belong"
+   Draw()   
+   startTime <- GetTime()
+   
+   resp1 <- WaitForClickOnTarget([stim1,stim2,stim3,stim4],[1,2,3,4])
+   chosen1 <- Nth(stim,resp1)
+   corr1   <- Nth(Rotate(corr,rotate),resp1)
+
+
+  Draw()
+
+
+   rotate <- Sample([0,1,2,3])
+   stim <- Rotate(stim2Items,rotate)
+
+   stim1.text <- First(stim)
+   stim2.text <- Second(stim)
+   stim3.text <- Third(stim)
+   stim4.text <- Fourth(stim)
+   
+   inst2.text <- "Click word that does not belong"
+   Draw()   
+   resp2 <- WaitForClickOnTarget([stim1,stim2,stim3,stim4],[1,2,3,4])
+   chosen2 <- Nth(stim,resp2)
+   corr2   <- Nth(Rotate(corr,rotate),resp2)
+
+
+
+   endtime <- GetTime()
+
+
+   stim1.text <- ""
+   stim2.text <- ""
+   stim3.text <- ""
+   stim4.text <- ""
+   
+   inst1.text <- "Task complete."
+   inst2.text <- "Click mouse button to continue."
+   Draw()
+   WaitForDownClick()
+
+   score <- corr1 + corr2
+   return [score,[corr1,corr2],[chosen1,chosen2],(endtime-starttime)]
+}
+
+
+
+define HTMLSemanticOddballOutput(dat)
+{
+
+   tab <- [ ["Problem","choice","correct"],
+            ["transportation",First(Third(dat)),First(Second(dat))],
+            ["measurement",Second(Third(dat)),Second(Second(dat))] 
+          ]
+
+  out <- HL()+H("PCST Semantic Oddball Test",2) +Hl()+
+        P(Timestamp())+
+        P(B("Points earned (out of 2): ") + First(dat)) +
+	P( B("Time taken:               ") +Round(Fourth(dat)/1000,2) + " sec") +
+        P(B("Response summary:"))+BR() +
+	Table(Rest(tab),First(tab)) 
+
+return MakeDivPage(out)
+ 
+
+}
+
+
+
+
+
+define StemCompletion(rule)
+{
+   rulefile <- "stimuli/"+Lowercase(rule)+"words.txt"
+   words <- FileReadList(rulefile)
+   out <- CompletionTrial(rule,1,words,90,11)
+   return out
+}
+
+
+
+define HTMLStemCompletionOutput(dat)
+{
+
+
+  tab <- Merge([["Word","Legal","Novel","Count"]],Nth(dat,5))
+  Print(tab)
+  out <- HL()+H("PCST Stem completion Test",2) +Hl()+
+        P(Timestamp())+
+        P( B("Points earned (out of 1): ") + First(dat))+
+	P( B("Total Words completed:          ") + Second(dat))+
+	P( B("Legal words completed:           ") + Third(dat)) +
+	P( B("Time taken:               ") +Round(Fourth(dat)/1000,2) + " sec") +
+	P( B("List of words generated:")) + Table(tab)
+	
+   return MakeDivPage(out) 
+
+}
+
+
+
+##This function present a single probe, and collects all of the 
+## responses, scoring for presence in the dictionary and for repetition
+
+define CompletionTrial(stimulus,trialcode,dict,timelimit,criterion:11)
+{
+
+   pad <- ToInteger((gVideoWidth-500)/2)
+  MessageBox("In this task, you must come up with common words that start with the  letter "+stimulus+".  Rare words, proper nouns, and names of people or products usually don't count, unless they are also words. You only get credit for NEW words you generate, but we will show you the list of words have already created. You will have "+timelimit+" seconds to generate up to 11 words.  Click OK to begin",gWin,30,400)
+
+  time0 <- GetTime()
+  item <- 1
+
+  timer <- EasyLabel("",gVideoWidth/2-400,50,gWin,45)
+  counter <- EasyLabel("0 of 11", gVideoWidth/2-400,100,gWin,30)
+  
+  keys <- ["A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z","<RETURN>","<BACKSPACE>","-"]
+
+  responses <- []
+  wordlist <- EasyTextBox("",gVideoWidth/2-350,150,gWin,22,700,440)
+  prompt <- EasyLabel("Hit enter to accept or backspace to edit",gVideoWidth/2,50,gWin,16)
+
+  ##The center of the first square
+  xmin <- gVideoWidth/2-250
+
+
+  bg1 <- MakeColor("grey")
+  fg <- MakeColor("black")
+  bg2 <- MakeColor("white")  
+
+
+   fillin <- EasyTextBox("",gVideoWidth/2-150,100,gWin,22,300,40)
+   label <- EasyLabel("Enter words that start with:" + stimulus,gVideoWidth/2,80,gWin,22)
+   allResponses <- []
+
+
+   completecount <- 0  #How many new words were generated?  Count that here
+   legalcompletecount <- 0  #How many new words in the dictionary were generated?  Count that here
+   startTime <- GetTime()
+   endtime <- startTime + timelimit*1000
+   ##This loop gives a minute to complete stems.
+   criterionMet <- 0
+   while(GetTime() < endtime and not criterionMet)
+   {
+     time1 <- GetTime()
+
+    timer.text <- Round((endtime-GetTime())/1000)
+    ##This inner loop allows user to type.
+    
+   
+   ##Move past any letters that already exist
+   done <- 0
+   resp <- ""
+   word <- ""  ##initialize it to something good.
+
+   while(not done)
+   {
+      completed <- 0
+      timer.text <- Round((endtime-GetTime())/1000)
+    
+
+     #######################################
+      ##First, check to see if we are at the end of the word,
+      ## allow enter to verify
+
+
+       resp <-(WaitForListKeyPressWithTimeout(keys,200,1))
+       if(resp=="<timeout>")
+        {
+          ##empty--uptade timera
+          timer.text <- Round((endtime-GetTime())/1000)
+  	  Draw()
+        
+        }else {
+        resp <- Uppercase(resp)	
+
+       if(resp == "<RETURN>")
+     	 {
+          done <- 1 
+          completed <- 1
+	  
+        
+	}elseif(resp=="<BACKSPACE>") {  ##Backspace
+
+		    ##Simulate a backspace
+		    done <- 0
+                    length <- StringLength(word)
+                    if(length>0)
+                      {
+                        word <- SubString(word,1,length-1)
+                      }
+		    fillin.text <- word
+	           Draw()
+	} else{
+
+            ##A normal response:
+	    inp <- Uppercase(resp)
+             timer.text <- Round((endtime-GetTime())/1000)
+             word <- word + inp
+             fillin.text <- word
+	     Draw()
+        }
+
+
+	##What if the timer ends
+	if(GetTime()>endtime)
+		{
+                    completed <- 0
+		    done <- 1
+
+     		}
+         }
+       }
+		
+
+
+
+
+   response <- word
+   newword <- not IsMember(response,responses) and (not response=="")
+   isLegal <- IsMember(Lowercase(word), dict)
+
+
+  if(newword)
+   {
+     responses <- Append(responses,response)
+     wordlist.text <- Tabulize(responses)
+     completecount <- completecount + 1
+     legalcompletecount <-  legalcompletecount+ (isLegal )
+   }
+
+   PushOnEnd(allResponses,[word,isLegal,newWord,legalCompleteCount])  
+   Draw()
+   now<- GetTime()
+
+#   FilePrint(gFileOut,gSubNum+","+stimulus+","+word+","+completecount+","+ legalCompleteCount + ","+
+#    time0+","+time1+","+now+","  +
+#        (now-time1)+","+response+","+completed+","+newword+","+islegal)
+
+   ##clear the bottom fillin text.
+   item  <- item + 1
+   fillin.text <- ""
+   counter.text <- legalCompleteCount + " of 11"
+   Draw()
+   criterionMet <- (legalCompleteCount >= criterion)
+   }
+
+   time <- (GetTime() -startTime)
+   ##
+
+   label.text <- "Task complete. Click mouse button to continue."
+   Hide(fillin)
+   Hide(wordlist)
+   Hide(prompt)
+
+   Draw()
+   WaitForDownClick()
+
+   return [(completeCount > 10),completecount, legalCompleteCount,time,allresponses]
+  }
+
+
+
+
+
+
+define Tabulize (list)
+{
+  tmp <- ""
+   loop(i,list)
+   {
+     tmp <- tmp + i+ "    "
+   }
+   return tmp
+}
+
+
+define DoOrientation()
+{
+
+  daykey <- ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"]
+  days <- ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"]
+  monthkey <- ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+  months <- ["January","February","March","April","May","June",
+             "July","August","September","October","November","December"]
+
+
+  	     
+  timedate <- TimeStamp()
+  day <- SubString(timedate,1,3)
+  month <- SubString(timedate,5,3)
+  date <- ToNumber(SubString(timedate,8,3))
+  year <- ToNumber(Substring(timedate,20,5))
+
+#   Print("day:  [" + day+ "]")
+#   Print("Month:[" + month+"]")
+#   Print("date: [" + date+"]")
+#   Print("year: [" + year + "]")
+
+
+  inst1  <- MakeHeader("What Year is it today?",gVideoWidth/2,100,gWin,80)
+  inst2  <- MakeHeader("Answer from memory. Type answer below.",gVideowidth/2,200,gWin,20)
+
+
+   monthgrid <-   LayoutGrid(gVideoWidth/2-500, gVideoWidth/2+500,300,900,3,4,0)
+   dategrid <-   LayoutGrid(gVideoWidth/2-400,gVideoWidth/2+400,300,900,6,6,1)
+   daygrid <-   LayoutGrid(gVideoWidth/2-100,gVideoWidth/2+100,300,900,7,1,0)
+  startTime <- GetTime()
+##Assess year:
+  entry <- EasyTextBox("",gVideoWidth/2-500,gVideoHeight/2,gWin,30,1000,100)
+  yearAnswer <- GetInput(entry,"<return>")
+  correctYear <- (year == ToNumber(yearAnswer))
+
+
+ # Print("comparing year correctness: ["+year+"] == ["+yearAnswer+"]")
+  Hide(entry)
+
+
+
+  inst1.text <- "What Month is it today?"
+  inst2.text  <-"Answer from memory. Click correct answer below."
+   ##Assess month:
+   clickon <- []
+   loop(i,Sequence(1,12,1))
+    {
+      xy <- Nth(monthgrid,i)
+      
+      tmp <- EasyLabel(Nth(months,i),First(xy),Second(xy),gWin,35)
+      
+      PushOnEnd(clickon,tmp)
+    }
+    Draw()
+    monthresp <- WaitForClickOnTarget(clickon,monthkey)
+    corrMonth <- monthResp == month
+
+
+   ##Assess weekday
+
+   inst1.text <- "What day of the week is it?"
+   clickon <- []
+    loop(i,Sequence(1,7,1))
+    {
+      xy <- Nth(daygrid,i)
+      tmp <- EasyLabel(Nth(days,i),First(xy),Second(xy),gWin,50)
+      PushOnEnd(clickon,tmp)
+    }
+    Draw()
+    dayresp <- WaitForClickOnTarget(clickon,daykey)
+    corrDay <- dayResp == day
+
+
+ ##Assess monthday
+
+   monthdays <- Sequence(1,31,1)
+   inst1.text <- "What day of the month is it?"
+   clickon <- []
+    loop(i,monthdays)
+    {
+      xy <- Nth(dategrid,i)
+      tmp <- EasyLabel(i+"",First(xy),Second(xy),gWin,40)
+      PushOnEnd(clickon,tmp)
+    }
+    Draw()
+    dateresp <- WaitForClickOnTarget(clickon,monthdays)
+    corrDate <- ToNumber(dateResp) == ToNumber(date)
+    
+  points <- correctYear+corrMonth+corrday+corrDate
+  completionTime <- GetTime()-starttime
+   RemoveObjects(clickon,gWin)
+   inst1.text <- "Task complete."
+   inst2.text <- "Click mouse button to continue."
+   clickon <- []
+   
+   Draw()
+   WaitForDownClick()
+
+ return [points,correctYear, corrMonth,corrDay,corrDate,yearAnswer,monthResp,dayResp,dateResp,completionTime]
+  
+}
+
+
+define HTMLOrientationOutput(dat)
+{
+
+  tab <- [["Prompt:","Response","Correct"],
+          ["Year",   Nth(dat,6),Nth(dat,2)],
+          ["Month",  Nth(dat,7),Nth(dat,3)],
+          ["Day",    Nth(dat,8),Nth(dat,4)],
+          ["Date",   Nth(dat,9),Nth(dat,5)]]
+
+  out <- HL()+H("PCST Orientation Test",2) +Hl()+
+        P(Timestamp())+
+        P( B("Points earned (out of 4): ") + First(dat))+
+	P( B("Time taken:               ") +Round(Nth(dat,10)/1000,2) + " sec") +
+	P( B("Responses:")) + Table(tab)
+	
+  return MakeDivPage(out)
+
+}
+
+
+
+define LearnWords()
+{
+   strings <-    ReadTranslationJSON("translations/"+Uppercase(gLanguage)+"/learning.json",gLanguage)
+   DoInstructions(strings.taskname,
+                  strings.longinst,
+		  "translations/"+Uppercase(gLanguage)+"/"+strings.longinstimage,
+		  "translations/"+Uppercase(gLanguage)+"/"+strings.longinstsound)
+
+
+
+  inst1 <- MakeHeader(strings.inst1,gVideoWidth/2,100,gWin,50)
+  inst2 <- MakeHeader(strings.inst2,gVideowidth/2,200,gWin,30)
+
+  stimlabel <- EasyLabel("+",gVideoWidth/2,gVideoheight/2,gWin,100)
+  Draw()
+
+  ## These are arranged so that the first five are paired with the
+  ## second five foils starting with the same letters
+  words <- FileReadList("stimuli/learnedwords.txt")
+
+  learnedwords <- Sublist(words,1,5)
+  foils <- SubList(words,6,10)
+
+  WaitForDownClick()
+  inst2.text <- ""
+  Draw()
+  
+  loop(i,learnedwords)
+    {
+      stimlabel.text <- i
+      Draw()
+      Wait(2000)
+    }
+    
+  stimlabel.text <- "+"
+  inst2.text <- strings.inst2b
+  Draw()
+  WaitForDownClick()
+  inst2.text <- ""
+  
+  loop(i,learnedwords)
+    {
+      stimlabel.text <- i
+      Draw()
+      Wait(1500)
+    }
+
+
+   inst1 <- MakeHeader(strings.inst1c,gVideoWidth/2,100,gWin,50)
+   inst2.text <- strings.continue
+   stimlabel.text <- "+"
+   Draw()
+   WaitForDownClick()
+   inst2.text <- strings.inst2c
+   loop(i,learnedwords)
+   {
+
+     stimlabel.text <- SubString(i,1,2) + "____"
+     Draw()
+     Wait(2000)
+     stimlabel.text <- i
+     Draw()
+     Wait(1000)
+   }
+   
+
+   inst1 <- MakeHeader(strings.complete,gVideoWidth/2,100,gWin,50)
+   inst2.text <- strings.continue
+   stimlabel.text <- ""
+   Draw()
+   WaitForDownClick()
+
+  return [learnedwords,foils]
+
+}
+
+define HTMLLearningOutput(words)
+{
+
+ tab <- Transpose([Merge(["Learned word"],First(words)),
+         Merge(["Foil"],Second(words))])
+	 
+  out <- HL()+H("PCST Word Learning Phase",2) +Hl()+
+        P(Timestamp())+
+        Table(tab)
+
+  return MakeDivPage( out )
+
+
+}
+
+
+define TestMemory(learnedwords,foils)
+{
+   strings <-    ReadTranslationJSON("translations/"+Uppercase(gLanguage)+"/learning.json",gLanguage)
+   DoInstructions(strings.taskname2,
+                  strings.longinst2,
+		  "translations/"+Uppercase(gLanguage)+"/"+strings.longinst2image,
+		  "translations/"+Uppercase(gLanguage)+"/"+strings.longinst2sound)
+
+
+  inst1 <- MakeHeader(strings.testinst1,gVideoWidth/2,100,gWin,50)
+  inst2 <-MakeHeader(strings.inst2,gVideowidth/2,200,gWin,30)
+
+  stimLeft <- EasyLabel("",gVideoWidth/2-300,gVideoheight/2,gWin,65)
+  stimRight <- EasyLabel("",gVideoWidth/2+300,gVideoheight/2,gWin,65)
+
+  ord <- Shuffle(Sequence(1,5,1))
+  stim <-Transpose([learnedwords,foils])
+
+  corrects <- [0,0,0,0,0]
+  starttime <- GetTime()
+  loop(i,ord)
+   { 
+
+   row <- Nth(stim,i)
+    correctclick <- Sample([1,2])
+
+    if(correctclick==1)
+    {
+     stimLeft.text <- First(row)
+     stimRight.text <- Second(row)
+    } else{
+     stimLeft.text <-  Second(row)
+     stimRight.text <- First(row)
+    }
+
+    Draw()
+     resp <-   WaitForClickOnTarget([stimLeft,stimRight],[1,2])
+     corr <- resp == correctClick
+    SetElement(corrects,i,corr)
+   }
+  endtime <- GetTime()
+   stimleft.text <- ""
+   stimRight.text <- ""
+   inst1.text <- strings.complete
+   inst2.text <- strings.continue
+   Draw()
+   WaitForDownClick()
+
+
+  return [Sum(corrects),corrects,(endtime-starttime)]
+}
+
+
+
+define HTMLMemoryOutput(dat,words,timedelay)
+{
+
+  out <- HL()+H("PCST Word Testing Phase",2) +Hl()+
+        P(Timestamp())+
+	P(B("Time since learning: ") + Round(timedelay/1000) + " s") +
+	P(B("Score:               ") + First(dat)) +
+	P(B("Accuracy per word:   "))+Table(Transpose([words,Second(dat)]),["Word","Correct"])+
+	P(B("Retrieval time:      ")+ Round(Third(dat)/1000) + " s")
+
+	
+  return MakeDivPage( out )
+
+}
+
+
+define DoInstructions(title,text,image,soundfile)
+{
+  ##The text should be in a panel on the top.
+  ## the image should be no bigger than 800 x 600, and will be centered on the bottom.
+  ## the sound file will be optional, but will play automatically.
+
+
+  headerFont <-  MakeFont(gPEBLBaseFontMono,0,30,MakeColor("gold"),MakeColor("black"),0)
+  textFont   <- MakeFont(gPEBLBaseFontMono,0,22,MakeColor("grey90"),MakeColor("black"),0)
+
+  lab <- MakeLabel(title,headerFont)
+  Addobject(lab,gWin)
+  Move(lab,gVideoWidth/2,50)
+  text <- MakeTextBox(text,textFont,800,300)
+  AddObject(text,gWin)
+  Move(text,(gVideoWidth-800)/2,100)
+
+ if(FileExists(image))
+  {
+    imageMaxHeight <-( gVideoHeight-(text.y+text.height))-100
+    img <- MakeImage(image)
+
+  scale <-imageMaxHeight / img.height
+  if(scale<.9)
+   {
+    img.zoomX <- scale
+    img.zoomY <- scale
+    }
+  AddObject(img,gWin)
+  Move(img,gVideoWidth/2, 400 + img.height/2)
+  }
+  Draw()
+  
+  if(FileExists(soundfile) and gParams.doAudioHelp)
+  {
+
+    sound <- LoadSound(soundfile)
+    PlayForeground(sound)
+  }
+
+  WaitForDownClick()
+
+}
+
+
+## Basic HTML report creation helpers
+##
+##
+
+define OT(tag)
+{
+  return "<"+tag+">"
+}
+
+define CT(tag)
+{
+ return "</"+tag+">"
+}
+
+define H(text,level)
+{
+  tag <- "h"+level
+  return OT(tag) + text + CT(tag)
+}
+
+define P(text)
+{
+  return OT("p") + text + CT("p")
+}
+
+define B(text)
+{
+ return "<b>"+text+"</b>"+CR(1)
+}
+define BR()
+{
+ return "<br>"
+}
+define HL()
+{
+  return "<hl>"
+}
+
+define Img(filename,width)
+{
+  return "<img src='"+filename+"' width="+width+"/>"
+}
+define PageHead()
+{
+ out <-  "<html>
+<head>
+  <link rel='stylesheet' href='../../paper.css'>
+
+</head>
+<body>"+
+#<a href='#' onclick='window.print();return false;' title='Click to print this page'>Print this page</a>" +
+ MakeDivPage(" <h1>Results from PEBL Cognitive Screening Test</h1>
+   <pre>Participant/Patient Code: "+gSubNum+"</pre>
+   <em>This test intended for screening for mild cognitive impairment.  It is not intended for self-diagnosis by untrained users. This test is inspired by tests included in commercial screening tests like the Montreal Cognitive Assessment and the Mini-mental state exam, but is developed independently.</em>
+  <hl>
+  <p><b>Test began:</b>  "+TimeStamp()+"</p>")
+
+  return out
+}
+
+define PageEnd(scoretab,score,max,time)
+{
+
+
+
+   out <-H("Summary of PCST Test:",1) +
+   Table(Second(scoreTab),First(scoretab))+
+
+   P(B("Total score recorded on test: " ) +score + " of " + max )+
+   P(B("Time to complete test:        " ) +Round(time/60000,2) + " min" )
+   out <- MakeDivPage(out) + "</body></html>"
+
+
+   return  out 
+}
+define Page(text)
+{
+  return     "<html><header></header><body> " + text +"</body></html>"
+           
+}
+
+define Entag(tag,body)
+{
+  return OT(tag)+body+CT(tag)
+}
+
+define Table(tab,header:"")
+{
+
+ out <-   OT("table class='fl-table'")
+
+if(IsList(header))
+ {
+   out <- out + "<thead><tr>"
+   loop(item,header)
+   {
+     out <- out + "<th>"+item+"</th>"
+   } 
+   out <- out + "</tr></thead>"+CR(1)
+ }
+
+ loop(rowlist,tab)
+ {
+    row <- ""
+    if(IsList(rowlist))
+    {
+      loop(item,rowlist)
+      {
+        row <- row +  Entag("td",item)
+      }
+    }
+    out <- out + Entag("tr",row)
+ }
+ out <- out +   CT("table")
+
+ return out
+}
+
+
+
+define ListMatches(l1,l2)
+{
+  
+  high <- Max([Length(l1),Length(l2)])
+  low <-  Min([Length(l1),Length(l2)])
+  if(low == 0)
+  {
+    eql <- []
+  } else{
+  
+  eql <- Repeat(0,high)
+    
+   loop(i,low)
+    {
+      Print(Nth(l1,i)+"=="+Nth(l2,i)+"?  " + ((Nth(l1,i)+"")==Nth(l2,i)+""))
+      SetElement(eql,i,(Nth(l1,i)+"")==(Nth(l2,i)+""))
+      Print(eql)
+    }
+   }
+  return eql
+}
+
+define MakeDivPage(text)
+{
+  out <- "<div class='page'><div class='subpage'><p align='right'> Page " + gPage + " </p>"+
+         text + "</div></div>"
+  gPage <- gPage + 1
+
+  return out
+}
+
+
+define WaitForDownClickWithTimeout(delay)
+{
+   endTime <- GetTime()+delay
+   end <- 0
+   left <- delay
+   while(not end)
+   {
+      
+      out <- WaitForMouseButtonWithTimeout(left)
+      if(IsList(out))
+      {
+        end <- (Fourth(out)=="<pressed>")
+	left <- endTime - GetTime()
+      }else{
+        end <- 1 ##timeout!
+      }
+   }
+   return out
+}
+
+
+define ReadTranslationJSON(filename,lang)
+{
+
+  if(not FileExists(filename))
+  {
+    SignalFatalError("No translation file exists for ["+lang+"] ("+
+      filename +")")
+  }
+
+  obj <- ParseJSON(FileReadText(filename))
+  obj.language <- Lowercase(lang)
+
+#PrintProperties(obj)
+##we need to transform using formattext now.
+ proplist <- GetPropertyList(obj)
+ loop(prop,proplist)
+ {
+   if(IsText(GetProperty(obj,prop)))
+   {
+     text <- FormatText(GetProperty(obj,prop))
+     SetProperty(obj,prop,FormatText(GetProperty(obj,prop)))
+   }
+ }
+
+  return obj
+}
+
+
+##This makes a header label at the base font size, but scales down if it is too wide for the window.
+define MakeHeader(text,x,y,window,size,maxwidth:0)
+{ 
+
+  if(maxwidth==0)
+  {
+   maxwidth <- window.width-25
+  }
+
+  itfits <- 0
+  cursize <- size
+  while(not itfits)
+  {
+      testlabel <- EasyLabel(text,x,y,window,cursize)
+
+    if(testlabel.width > maxwidth)
+    {
+     cursize <- Max([5,cursize - 1])
+    }else{
+     itfits <- 1
+    } 
+  }
+
+ return testlabel
+}

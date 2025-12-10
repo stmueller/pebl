@@ -1,0 +1,1202 @@
+## Toulouse N-back Task
+##
+## Original paper : Mandrick, K., Peysakhovich, V., Rémy, F., Lepron, E., & Causse, M. (2016). 
+## Neural and psychophysiological correlates of human performance under stress and high mental workload. 
+## Biological psychology, 121, 62-73. doi:10.1016/j.biopsycho.2016.10.002
+##
+## Adapted to PEBL by Hu M., Mouratille D., Imbert J.-P. & Causse M.
+##
+## Three difficulty conditions : 0-back, 1-back and 2-back
+##
+## Task begins by an exemple of each condition then the three conditions
+## are repeated two times randomly.
+##
+## 
+## To run this test, you must first install PEBL on your computer. Then,
+## place this file in a subdirectory of the
+## PEBL experiment directory (e.g., Documents\pebl-exp-2.1\) Finally,
+## run the PEBL launcher and navigate to this file in order to run the
+## test. Data will be saved in the data\ sub-directory of the folder this
+## file was saved in, in two files named TNT-Report-XXX.csv and TNT-Details-XXX.csv, 
+## where XXX is the participant code entered in the PEBL Launcher.
+##
+## In the report file, agregated results are displayed by condition : number of misses,
+## of correct and incorrect reponses, of true positives and negatives, of false positives
+## and negatives, and response time.
+##
+##
+## For help installing, running, or interpreting data from this test,
+## please email the author : mickael.causse@isae.fr or the 
+## pebl-list: pebl-list@lists.sourceforge.net
+##
+## This program is free software: you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation, either version 3 of the License, or
+## (at your option) any later version.
+##
+## This program is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this program. If not, see <http://www.gnu.org/licenses/>.
+
+
+define Start(p) {
+
+    ## Initialize upload system (works for both online and native)
+    InitializeUpload()
+
+    gWhitecolor <- "white"
+    gGreyColor <- "grey80"
+    gBlackColor <- "black"
+
+    GetStrings(gLanguage)
+    gWin <- MakeWindow(gBlackColor)
+
+
+
+    #Parameters
+    parpairs <- [
+        ["isiTimeSecs", 1000], # Between - stimulus time(ms)
+        ["StimulusDuration", 2500], # Presentation time of stimulus(ms)
+        ["numStimsAct", 12], # Number of displayed stimulus by participant(max.12)
+        ["numStimsRest", 6], # Number of rest stimulus '00+00'(max.6)
+        ["InstructionTextSize", 60], # Text size for instructions
+        ["InstructionTextSize2", 25], # Text size for instructions
+        ["TaskTextSize", 65], # Text size  for task
+        ["InstructionDisplayTime", 5], # Display time of instructions with countdown
+        ["wrapat", 75], # Number of characters before wraping
+        [",vSpacing", 2],
+        ["escape", "<esp>"],
+        ["space", " "]] # Interligne
+
+    gParams <- CreateParameters(parpairs, gParamFile)
+
+    # #Get subject code if we need to:
+        if (gSubNum + "" == "0") {
+            gSubNum <- GetSubNum(gWin)
+        }
+    Draw()
+
+    TNT()
+
+    ## Upload data files (works online, no-op on native)
+    out <- UploadFile(gSubNum, gFileOut.filename)
+    Print(out)
+    out <- UploadFile(gSubNum, gfile1.filename)
+    Print(out)
+}
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# # # # # Main Experiment # # # # #
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+define TNT() {
+
+    fileheader <- "subnum,type,trialnum,target,resp,rT,resptype"
+    gFileOut <- GetNewDataFile(gSubNum, gWin, "TNT-Details", "csv", fileheader)
+    gfile1 <- GetNewDataFile(gSubNum, gWin, "TNT-Report", "txt", "")
+
+    #List of stimuli
+    listStim <- []
+
+    #randomize the difficulty order
+
+    backs <- [0, 1, 2, 0, 1, 2]
+    backs <- Shuffle(backs)
+
+    #n - back counter
+    num_back <- [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    num_back <- Shuffle(num_back)
+    cpteZero <- Nth(num_back, 1)
+    cpteOne <- Nth(num_back, 1)
+    cpteTwo <- Nth(num_back, 1)
+
+    conditions <- Repeat(0, Length(backs) * 2)
+    i <- 1
+    while (i <= Length(backs)) {
+        if (Nth(backs, i) == 0) {
+            cpteZero <- cpteZero + 1
+            SetElement(conditions, 2 * i - 1, gStrings.zeroback + ToString(cpteZero))
+            SetElement(conditions, 2 * i, "Rest")
+        }
+        if (Nth(backs, i) == 1) {
+            cpteOne <- cpteOne + 1
+            SetElement(conditions, 2 * i - 1, gStrings.oneback + ToString(cpteOne))
+            SetElement(conditions, 2 * i, "Rest")
+        }
+        if (Nth(backs, i) == 2) {
+            cpteTwo <- cpteTwo + 1
+            SetElement(conditions, 2 * i - 1, gStrings.twoback + ToString(cpteTwo))
+            SetElement(conditions, 2 * i, "Rest")
+        }
+        i <- i + 1
+    }
+
+    bloc <- 1
+    respMatrix <- []
+    #Loop on every condition, i.e Oneback, Rest, Twoback or Zeroback
+    first_run <- 1
+    while (bloc <= Length(conditions) - 1) {
+
+        condition <- Nth(conditions, bloc)
+
+        Print(condition)
+        if (condition == "Rest") {
+            numStims <- gParams.numStimsRest
+        }
+        if (condition != "Rest") {
+            numStims <- gParams.numStimsAct
+        }
+
+        #Create summary variables
+        type <- 0
+        targets <- 0
+        corrects <- 0
+        incorrects <- 0
+        true_pos <- 0
+        true_neg <- 0
+        false_pos <- 0
+        false_neg <- 0
+        totalRT_correct <- 0
+        totalRT_incorrect <- 0
+        miss <- 0
+
+        footer <- EasyLabel(gstrings.footer, gVideoWidth / 2, gVideoHeight - 100, gWin, 40)
+
+        zeroBackStimList <- [
+            ["20+30", "10+25", "15+35", "10+15", "95-50", "35-25", "85-35", "95-20", "70-40", "95-25", "55-50", "40+10", 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+            ["60-20", "95-65", "25+25", "30+65", "10+40", "90-20", "85-20", "15+10", "95-45", "30+45", "60-50", "70-20", 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 1],
+            ["65-20", "35+15", "20+15", "90-40", "20+75", "40+20", "45+10", "95-75", "60+20", "65-15", "75-60", "80-30", 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1],
+            ["40+15", "85-15", "75-25", "60-10", "50-40", "30+60", "70-25", "30+20", "45-30", "10+75", "15+35", "80-60", 0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 1, 0]
+        ] #Zeroback1
+        oneBackStimList <- [
+            ["95-15", "30+50", "40-35", "90-15", "85-10", "60-15", "70-50", "60+30", "50+40", "85-70", "25-10", "40+30", 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0],
+            ["40-15", "10+85", "60+35", "80-55", "75-50", "75-45", "10+80", "20+20", "10+30", "45-35", "20-10", "55+20", 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0],
+            ["30-10", "40-20", "25-20", "35-30", "90-80", "25+35", "80-20", "15+40", "40-25", "90-55", "15+20", "40+50", 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0],
+            ["25+10", "80-50", "10+20", "55+30", "50+35", "20+50", "15+55", "40+10", "10+55", "25+20", "55-10", "15+45", 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1, 0]
+        ] #Oneback1
+        twoBackStimList <- [
+            ["40-30", "50-30", "95-85", "95-90", "50+25", "90-85", "75-20", "90-50", "45+30", "50-10", "20+55", "35+30", 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0],
+            ["85-45", "55+10", "80-75", "40+25", "45+35", "30+55", "90-10", "60-40", "70+25", "10+10", "85+10", "55-25", 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 1, 0],
+            ["45-40", "20+30", "60-25", "85-35", "80-45", "80+10", "10+35", "45+45", "40+45", "90-75", "60-10", "65-50", 0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 1],
+            ["55+15", "35+45", "80-10", "15+15", "50-35", "50-20", "15+70", "90-25", "25+60", "35+10", "80-70", "80-35", 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1]
+        ] #Twoback1
+
+
+	header <- EasyLabel("", gVideoWidth/2,50,gWin,40)
+
+
+        if (first_run == 1) {
+
+            inst <- EasyTextBox(gStrings.inst1+CR(1)+gstrings.reminder+CR(1)+gStrings.ready1, gVideoWidth / 2 - 350, 50, gWin, 20, 700, 500)
+            Show(inst)
+            Draw()
+            WaitForAnyKeyPress()
+            Hide(inst)
+
+            #0-back example
+           header.text <- gstrings.headerzero
+            message <- EasyLabel(gstrings.zerobackprompt, gVideoWidth / 2, gVideoHeight / 2 - 100, gWin, gParams.InstructionTextSize)
+            restTime <- 5
+            while (restTime >= 1) {
+                countdown <- EasyLabel(ToString(restTime), gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                Draw()
+                Wait(1000)
+                restTime <- restTime - 1
+            }
+            countdown <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+            message <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2 - 100, gWin, gParams.InstructionTextSize)
+
+            listlength <- Length(zeroBackStimList)
+            stim <- RandomDiscrete(listlength)
+            zeroBackStim <- Nth(zeroBackStimList, stim)
+            #count number of targets
+            i <- gParams.numStimsAct + 1
+            while (i <= Length(zeroBackStim)) {
+                if (Nth(zeroBackStim, i) == 1) {
+                    targets <- targets + 1
+                }
+                i <- i + 1
+            }
+
+            type <- "zero"
+            i <- 1
+            target <- 0
+            reaction <- 0
+            reacted <- 0
+            rT <- 0
+            respType <- 0
+            corr <- 0
+
+	    Draw()
+
+
+            while (i <= gParams.numStimsAct) {
+                reacted <- 0
+                reaction <- 0
+                number <- EasyLabel(Nth(zeroBackStim, i), gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                Draw()
+                t0 <- GetTime()
+                resp <- WaitForListKeyPressWithTimeout(["<left>", "<right>"], gParams.StimulusDuration)
+                t1 <- GetTime()
+                target <- Nth(zeroBackStim, i + 12)
+                number <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                Draw()
+
+                if (resp != "<timeout>") {
+                    reacted <- 1
+                    rT <- t1 - t0
+                    if (resp == "<right>") {
+                        reaction <- 1
+                    }
+                }
+                if (reaction and target) {
+                    corrects <- corrects + 1
+                    true_pos <- true_pos + 1
+                    corr <- 1
+                    respType <- "true positive"
+                    totalRT_correct <- totalRT_correct + rT
+                }
+                if (reaction and not(target)) {
+                    incorrects <- incorrects + 1
+                    false_pos <- false_pos + 1
+                    corr <- 0
+                    respType <- "false positive"
+                    totalRT_incorrect <- totalRT_incorrect + rT
+                }
+                if (not(reaction) and not(target)) {
+                    corrects <- corrects + 1
+                    true_neg <- true_neg + 1
+                    corr <- 1
+                    respType <- "true negative"
+                    totalRT_correct <- totalRT_correct + rT
+                }
+                if (not(reaction) and target) {
+                    incorrects <- incorrects + 1
+                    false_neg <- false_neg + 1
+                    corr <- 0
+                    respType <- "false negative"
+                    totalRT_incorrect <- totalRT_incorrect + rT
+                }
+                if (reacted == 0) {
+                    miss <- miss + 1
+                }
+
+                if (resp != "<timeout>" and corr == 1) {
+                    message <- EasyLabel(gstrings.correct, gVideoWidth / 2, gVideoHeight / 2, gWin, 60)
+                    Draw()
+                    Wait(400)
+                    message <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, 60)
+                    Draw()
+                }
+                if (resp != "<timeout>" and corr == 0) {
+                    message <- EasyLabel(gstrings.incorrect, gVideoWidth / 2, gVideoHeight / 2, gWin, 60)
+                    Draw()
+                    Wait(400)
+                    message <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, 60)
+                    Draw()
+                }
+                if (resp == "<timeout>") {
+                    message <- EasyLabel(gstrings.tooslow, gVideoWidth / 2, gVideoHeight / 2, gWin, 60)
+                    Draw()
+                    Wait(400)
+                    message <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, 60)
+                    Draw()
+                }
+
+
+                i <- i + 1
+
+                number <- EasyLabel("+", gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                Draw()
+                Wait(gParams.isiTimeSecs)
+
+                number <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                Draw()
+
+            }
+
+            header.text <- gstrings.headerone
+            #1-back example
+            message <- EasyLabel(gstrings.onebackprompt, gVideoWidth / 2, gVideoHeight / 2 - 100, gWin, gParams.InstructionTextSize)
+            restTime <- 5
+            while (restTime >= 1) {
+                countdown <- EasyLabel(ToString(restTime), gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                Draw()
+                Wait(1000)
+                restTime <- restTime - 1
+            }
+            countdown <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+            message <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2 - 100, gWin, gParams.InstructionTextSize)
+
+            listlength <- Length(oneBackStimList)
+            stim <- RandomDiscrete(listlength)
+            oneBackStim <- Nth(oneBackStimList, stim)
+            #count number of targets
+            i <- gParams.numStimsAct + 1
+            while (i <= Length(oneBackStim)) {
+                if (Nth(oneBackStim, i) == 1) {
+                    targets <- targets + 1
+                }
+                i <- i + 1
+            }
+
+            type <- "one"
+            i <- 1
+            target <- 0
+            reaction <- 0
+            reacted <- 0
+            rT <- 0
+            respType <- 0
+            corr <- 0
+
+	    Draw()
+
+            while (i <= gParams.numStimsAct) {
+                reacted <- 0
+                reaction <- 0
+                number <- EasyLabel(Nth(oneBackStim, i), gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                Draw()
+                t0 <- GetTime()
+                resp <- WaitForListKeyPressWithTimeout(["<left>", "<right>"], gParams.StimulusDuration)
+                t1 <- GetTime()
+                target <- Nth(oneBackStim, i + 12)
+                number <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                Draw()
+
+                if (resp != "<timeout>") {
+                    reacted <- 1
+                    rT <- t1 - t0
+                    if (resp == "<right>") {
+                        reaction <- 1
+                    }
+                }
+                if (reaction and target) {
+                    corrects <- corrects + 1
+                    true_pos <- true_pos + 1
+                    corr <- 1
+                    respType <- "true positive"
+                    totalRT_correct <- totalRT_correct + rT
+                }
+                if (reaction and not(target)) {
+                    incorrects <- incorrects + 1
+                    false_pos <- false_pos + 1
+                    corr <- 0
+                    respType <- "false positive"
+                    totalRT_incorrect <- totalRT_incorrect + rT
+                }
+                if (not(reaction) and not(target)) {
+                    corrects <- corrects + 1
+                    true_neg <- true_neg + 1
+                    corr <- 1
+                    respType <- "true negative"
+                    totalRT_correct <- totalRT_correct + rT
+                }
+                if (not(reaction) and target) {
+                    incorrects <- incorrects + 1
+                    false_neg <- false_neg + 1
+                    corr <- 0
+                    respType <- "false negative"
+                    totalRT_incorrect <- totalRT_incorrect + rT
+                }
+                if (reacted == 0) {
+                    miss <- miss + 1
+                }
+
+                if (resp != "<timeout>" and corr == 1 and i != 1) {
+                    message <- EasyLabel(gstrings.correct, gVideoWidth / 2, gVideoHeight / 2, gWin, 60)
+                    Draw()
+                    Wait(400)
+                    message <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, 60)
+                    Draw()
+                }
+                if (resp != "<timeout>" and corr == 0 and i != 1) {
+                    message <- EasyLabel(gstrings.incorrect, gVideoWidth / 2, gVideoHeight / 2, gWin, 60)
+                    Draw()
+                    Wait(400)
+                    message <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, 60)
+                    Draw()
+                }
+                if (resp == "<timeout>" and i != 1) {
+                    message <- EasyLabel(gstrings.tooslow, gVideoWidth / 2, gVideoHeight / 2, gWin, 60)
+                    Draw()
+                    Wait(400)
+                    message <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, 60)
+                    Draw()
+                }
+                i <- i + 1
+
+                number <- EasyLabel("+", gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                Draw()
+                Wait(gParams.isiTimeSecs)
+
+                number <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                Draw()
+
+            }
+
+            # 2-back example
+            header.text <- gstrings.headertwo
+            message <- EasyLabel(gstrings.twobackprompt, gVideoWidth / 2, gVideoHeight / 2 - 100, gWin, gParams.InstructionTextSize)
+            restTime <- 5
+            while (restTime >= 1) {
+                countdown <- EasyLabel(ToString(restTime), gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                Draw()
+                Wait(1000)
+                restTime <- restTime - 1
+            }
+            countdown <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+            message <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2 - 100, gWin, gParams.InstructionTextSize)
+
+            listlength <- Length(twoBackStimList)
+            stim <- RandomDiscrete(listlength)
+            twoBackStim <- Nth(twoBackStimList, stim)
+            #count number of targets
+            i <- gParams.numStimsAct + 1
+            while (i <= Length(twoBackStim)) {
+                if (Nth(twoBackStim, i) == 1) {
+                    targets <- targets + 1
+                }
+                i <- i + 1
+            }
+
+            type <- "two"
+            i <- 1
+            target <- 0
+            reaction <- 0
+            reacted <- 0
+            rT <- 0
+            respType <- 0
+            corr <- 0
+
+	    Draw()
+
+            while (i <= gParams.numStimsAct) {
+                reacted <- 0
+                reaction <- 0
+                number <- EasyLabel(Nth(twoBackStim, i), gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                Draw()
+                t0 <- GetTime()
+                resp <- WaitForListKeyPressWithTimeout(["<left>", "<right>"], gParams.StimulusDuration)
+                t1 <- GetTime()
+                target <- Nth(twoBackStim, i + 12)
+                number <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                Draw()
+
+                if (resp != "<timeout>") {
+                    reacted <- 1
+                    rT <- t1 - t0
+                    if (resp == "<right>") {
+                        reaction <- 1
+                    }
+                }
+                if (reaction and target) {
+                    corrects <- corrects + 1
+                    true_pos <- true_pos + 1
+                    corr <- 1
+                    respType <- "true positive"
+                    totalRT_correct <- totalRT_correct + rT
+                }
+                if (reaction and not(target)) {
+                    incorrects <- incorrects + 1
+                    false_pos <- false_pos + 1
+                    corr <- 0
+                    respType <- "false positive"
+                    totalRT_incorrect <- totalRT_incorrect + rT
+                }
+                if (not(reaction) and not(target)) {
+                    corrects <- corrects + 1
+                    true_neg <- true_neg + 1
+                    corr <- 1
+                    respType <- "true negative"
+                    totalRT_correct <- totalRT_correct + rT
+                }
+                if (not(reaction) and target) {
+                    incorrects <- incorrects + 1
+                    false_neg <- false_neg + 1
+                    corr <- 0
+                    respType <- "false negative"
+                    totalRT_incorrect <- totalRT_incorrect + rT
+                }
+                if (reacted == 0) {
+                    miss <- miss + 1
+                }
+
+                if (resp != "<timeout>" and corr == 1 and i != 1 and i != 2) {
+                    message <- EasyLabel(gstrings.correct, gVideoWidth / 2, gVideoHeight / 2, gWin, 60)
+                    Draw()
+                    Wait(400)
+                    message <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, 60)
+                    Draw()
+                }
+                if (resp != "<timeout>" and corr == 0 and i != 1 and i != 2) {
+                    message <- EasyLabel(gstrings.incorrect, gVideoWidth / 2, gVideoHeight / 2, gWin, 60)
+                    Draw()
+                    Wait(400)
+                    message <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, 60)
+                    Draw()
+                }
+                if (resp == "<timeout>" and i != 1 and i != 2) {
+                    message <- EasyLabel(gstrings.tooslow, gVideoWidth / 2, gVideoHeight / 2, gWin, 60)
+                    Draw()
+                    Wait(400)
+                    message <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, 60)
+                    Draw()
+                }
+                i <- i + 1
+
+                number <- EasyLabel("+", gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                Draw()
+                Wait(gParams.isiTimeSecs)
+
+                number <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                Draw()
+
+            }
+
+            inst <- EasyTextBox(gstrings.inst2 +CR(1)+gstrings.reminder + CR(2)+gstrings.ready2,
+                          gVideoWidth / 2 - 350, 150, gWin, 20, 700, 500)
+            Show(inst)
+            Draw()
+            WaitForAnyKeyPress()
+            Hide(inst)
+        }
+
+        number <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+
+	
+        Draw()
+
+        #Reset summary variables
+        type <- 0
+        targets <- 0
+        corrects <- 0
+        incorrects <- 0
+        true_pos <- 0
+        true_neg <- 0
+        false_pos <- 0
+        false_neg <- 0
+        totalRT_correct <- 0
+        totalRT_incorrect <- 0
+        miss <- 0
+
+        # # # # # Experiment Initialization # # # # #
+
+        str <- Format(condition, 3)
+
+        if (str == "Zer") {
+
+            message <- EasyLabel("0-Back trial will begin in", gVideoWidth / 2, gVideoHeight / 2 - 100, gWin, gParams.InstructionTextSize)
+            restTime <- 5
+            while (restTime >= 1) {
+                countdown <- EasyLabel(ToString(restTime), gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                Draw()
+                Wait(1000)
+                restTime <- restTime - 1
+            }
+            countdown <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+            message <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2 - 100, gWin, gParams.InstructionTextSize)
+
+            listlength <- Length(zeroBackStimList)
+            stim <- RandomDiscrete(listlength)
+            zeroBackStim <- Nth(zeroBackStimList, stim)
+            #count number of targets
+            i <- gParams.numStimsAct + 1
+            while (i <= Length(zeroBackStim)) {
+                if (Nth(zeroBackStim, i) == 1) {
+                    targets <- targets + 1
+                }
+                i <- i + 1
+            }
+
+            type <- "zero"
+            i <- 1
+            target <- 0
+            reaction <- 0
+            reacted <- 0
+            rT <- 0
+            respType <- 0
+            corr <- 0
+          Print("header here")
+            header.text <- gstrings.headerzero
+	    Draw()
+	    
+            while (i <= gParams.numStimsAct) {
+                reacted <- 0
+                reaction <- 0
+                number <- EasyLabel(Nth(zeroBackStim, i), gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                Draw()
+                t0 <- GetTime()
+                resp <- WaitForListKeyPressWithTimeout(["<left>", "<right>"], gParams.StimulusDuration)
+                t1 <- GetTime()
+                target <- Nth(zeroBackStim, i + 12)
+                number <- EasyLabel("+", gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                Draw()
+                Wait(gParams.isiTimeSecs)
+
+                if (resp != "<timeout>") {
+                    reacted <- 1
+                    rT <- t1 - t0
+                    if (resp == "<right>") {
+                        reaction <- 1
+                    }
+                }
+                if (reaction and target) {
+                    corrects <- corrects + 1
+                    true_pos <- true_pos + 1
+                    corr <- 1
+                    respType <- "true positive"
+                    totalRT_correct <- totalRT_correct + rT
+                }
+                if (reaction and not(target)) {
+                    incorrects <- incorrects + 1
+                    false_pos <- false_pos + 1
+                    corr <- 0
+                    respType <- "false positive"
+                    totalRT_incorrect <- totalRT_incorrect + rT
+                }
+                if (not(reaction) and not(target)) {
+                    corrects <- corrects + 1
+                    true_neg <- true_neg + 1
+                    corr <- 1
+                    respType <- "true negative"
+                    totalRT_correct <- totalRT_correct + rT
+                }
+                if (not(reaction) and target) {
+                    incorrects <- incorrects + 1
+                    false_neg <- false_neg + 1
+                    corr <- 0
+                    respType <- "false negative"
+                    totalRT_incorrect <- totalRT_incorrect + rT
+                }
+                if (reacted == 0) {
+                    miss <- miss + 1
+                }
+                i <- i + 1
+
+                #Print to details file
+                dataline <- gSubNum + "," + type + "," + i + "," + target + "," +
+                    reaction + "," + rT + "," + respType
+                FilePrint(gFileOut, (dataline))
+            }
+        }
+        if (str == "One") {
+
+            message <- EasyLabel("1-Back trial will begin in", gVideoWidth / 2, gVideoHeight / 2 - 100, gWin, gParams.InstructionTextSize)
+            restTime <- 5
+            Print(restTime)
+            while (restTime >= 1) {
+                countdown <- EasyLabel(ToString(restTime), gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                Draw()
+                Wait(1000)
+                restTime <- restTime - 1
+            }
+            countdown <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+            message <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2 - 100, gWin, gParams.InstructionTextSize)
+
+            listlength <- Length(oneBackStimList)
+            stim <- RandomDiscrete(listlength)
+            oneBackStim <- Nth(oneBackStimList, stim)
+            #count number of targets
+            i <- gParams.numStimsAct + 1
+            while (i <= Length(oneBackStim)) {
+                if (Nth(oneBackStim, i) == 1) {
+                    targets <- targets + 1
+                }
+                i <- i + 1
+            }
+
+            type <- "one"
+            i <- 1
+            target <- 0
+            reaction <- 0
+            rT <- 0
+            respType <- 0
+            corr <- 0
+            header.text <- gstrings.headerone
+	    Draw()
+	    
+            while (i <= gParams.numStimsAct) {
+                reacted <- 0
+                reaction <- 0
+                number <- EasyLabel(Nth(oneBackStim, i), gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                Draw()
+                t0 <- GetTime()
+                resp <- WaitForListKeyPressWithTimeout(["<left>", "<right>"], gParams.StimulusDuration)
+                t1 <- GetTime()
+                target <- Nth(oneBackStim, i + 12)
+                number <- EasyLabel("+", gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                Draw()
+                Wait(gParams.isiTimeSecs)
+
+
+                if (resp != "<timeout>") {
+                    reacted <- 1
+                    rT <- t1 - t0
+                    if (resp == "<right>") {
+                        reaction <- 1
+                    }
+                }
+                if (reaction and target) {
+                    corrects <- corrects + 1
+                    true_pos <- true_pos + 1
+                    corr <- 1
+                    respType <- "true positive"
+                    totalRT_correct <- totalRT_correct + rT
+                }
+                if (reaction and not(target)) {
+                    incorrects <- incorrects + 1
+                    false_pos <- false_pos + 1
+                    corr <- 0
+                    respType <- "false positive"
+                    totalRT_incorrect <- totalRT_incorrect + rT
+                }
+                if (not(reaction) and not(target)) {
+                    corrects <- corrects + 1
+                    true_neg <- true_neg + 1
+                    corr <- 1
+                    respType <- "true negative"
+                    totalRT_correct <- totalRT_correct + rT
+                }
+                if (not(reaction) and target) {
+                    incorrects <- incorrects + 1
+                    false_neg <- false_neg + 1
+                    corr <- 0
+                    respType <- "false negative"
+                    totalRT_incorrect <- totalRT_incorrect + rT
+                }
+                if (reacted == 0) {
+                    miss <- miss + 1
+                }
+                i <- i + 1
+
+                #Print to details file
+                dataline <- gSubNum + "," + type + "," + i + "," + target + "," +
+                    reaction + "," + rT + "," + respType
+                FilePrint(gFileOut, (dataline))
+            }
+        }
+        if (str == "Two") {
+
+            message <- EasyLabel("2-Back trial will begin in", gVideoWidth / 2, gVideoHeight / 2 - 100, gWin, gParams.InstructionTextSize)
+            restTime <- 5
+            Print(restTime)
+            while (restTime >= 1) {
+                countdown <- EasyLabel(ToString(restTime), gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                Draw()
+                Wait(1000)
+                restTime <- restTime - 1
+            }
+            countdown <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+            message <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2 - 100, gWin, gParams.InstructionTextSize)
+
+            listlength <- Length(twoBackStimList)
+            stim <- RandomDiscrete(listlength)
+            twoBackStim <- Nth(twoBackStimList, stim)
+            #count number of targets
+            i <- gParams.numStimsAct + 1
+            while (i <= Length(twoBackStim)) {
+                if (Nth(twoBackStim, i) == 1) {
+                    targets <- targets + 1
+                }
+                i <- i + 1
+            }
+
+            type <- "two"
+            i <- 1
+            target <- 0
+            reaction <- 0
+            rT <- 0
+            respType <- 0
+            corr <- 0
+            header.text <- gstrings.headertwo
+	    Draw()
+	    
+            while (i <= gParams.numStimsAct) {
+                reacted <- 0
+                reaction <- 0
+                number <- EasyLabel(Nth(twoBackStim, i), gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                Draw()
+                t0 <- GetTime()
+                resp <- WaitForListKeyPressWithTimeout(["<left>", "<right>"], gParams.StimulusDuration)
+                t1 <- GetTime()
+                target <- Nth(twoBackStim, i + 12)
+                number <- EasyLabel("+", gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                Draw()
+                Wait(gParams.isiTimeSecs)
+
+
+                if (resp != "<timeout>") {
+                    reacted <- 1
+                    rT <- t1 - t0
+                    if (resp == "<right>") {
+                        reaction <- 1
+                    }
+                }
+                if (reaction and target) {
+                    corrects <- corrects + 1
+                    true_pos <- true_pos + 1
+                    corr <- 1
+                    respType <- "true positive"
+                    totalRT_correct <- totalRT_correct + rT
+                }
+                if (reaction and not(target)) {
+                    incorrects <- incorrects + 1
+                    false_pos <- false_pos + 1
+                    corr <- 0
+                    respType <- "false positive"
+                    totalRT_incorrect <- totalRT_incorrect + rT
+                }
+                if (not(reaction) and not(target)) {
+                    corrects <- corrects + 1
+                    true_neg <- true_neg + 1
+                    corr <- 1
+                    respType <- "true negative"
+                    totalRT_correct <- totalRT_correct + rT
+                }
+                if (not(reaction) and target) {
+                    incorrects <- incorrects + 1
+                    false_neg <- false_neg + 1
+                    corr <- 0
+                    respType <- "false negative"
+                    totalRT_incorrect <- totalRT_incorrect + rT
+                }
+                if (reacted == 0) {
+                    miss <- miss + 1
+                }
+                i <- i + 1
+
+                #Print to details file
+                dataline <- gSubNum + "," + type + "," + i + "," + target + "," +
+                    reaction + "," + rT + "," + respType
+                FilePrint(gFileOut, (dataline))
+            }
+        }
+
+
+        if (str == "Res") {
+            message <- EasyLabel (gstrings.rest, gVideoWidth / 2, gVideoHeight / 2 - 100, gWin, gParams.InstructionTextSize)
+            restTime <- gParams.numStimsRest * 3
+            Print(restTime)
+            while (restTime >= 1) {
+                countdown <- EasyLabel(ToString(restTime), gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                Draw()
+                Wait(1000)
+                restTime <- restTime - 1
+            }
+        }
+        meanRT_correct <- totalRT_correct / true_pos
+        meanRT_incorrect <- totalRT_incorrect / false_pos
+
+        text <- "Participant number : " + gSubNum + CR(1) + CR(1) +
+            "Type : " + type + "-back" + CR(1) +
+            "Target Amount " + targets + CR(1) +
+            "Number of misses : " + miss + CR(1) +
+            "Number of correct responses : " + corrects + CR(1) +
+            "Number of incorrect responses : " + incorrects + CR(1) + CR(1) +
+            "Number of true positives : " + true_pos + CR(1) +
+            "Number of true negatives : " + true_neg + CR(1) +
+            "Number of false positives : " + false_pos + CR(1) +
+            "Number of false negatives : " + false_neg + CR(1) + CR(1) +
+            "Mean correct answer response time : " + meanRT_correct + CR(1) +
+            "Mean incorrect answer response time : " + meanRT_incorrect + CR(1)
+
+        first_run <- 0
+
+        if (str != "Res") {
+            FilePrint(gfile1, text)
+        }
+
+        bloc <- bloc + 1
+    }
+
+	header.text <- gStrings.debrief
+	Draw()
+	WaitForAnyKeyPress()
+}
+
+
+
+
+
+
+
+define GetStrings(lang)
+{
+  gStrings <- GetTranslations("TNT", lang)
+}
+Toulouse N-back Task (Adapted to PEBL by Hu M., Mouratille D., Imbert J.-P. & Causse M.)
+Data are saved to TNT\data\TNT-Report-X.txt and TNT\data\TNT-Details-X.txt
+
+To cite: Mandrick, K., Peysakhovich, V., Rémy, F., Lepron, E., & Causse, M. (2016). Neural and psychophysiological correlates of human performance under stress and high mental workload. Biological psychology, 121, 62-73. doi:10.1016/j.biopsycho.2016.10.002
+
+{
+  "test": "TNT",
+  "version": "1.0",
+  "description": "TNT Test",
+  "parameters": [
+    {
+      "name": "isiTimeSecs",
+      "type": "integer",
+      "default": 1000,
+      "description": "Inter-stimulus time in MS"
+    },
+    {
+      "name": "StimulusDuration",
+      "type": "integer",
+      "default": 2500,
+      "description": "Presentation time of stimulus(ms)"
+    },
+    {
+      "name": "numStimsAct",
+      "type": "integer",
+      "default": 12,
+      "description": "Number of displayed stimulus by participant(max.12)"
+    },
+    {
+      "name": "numStimsRest",
+      "type": "integer",
+      "default": 6,
+      "description": "Number of rest stimulus '00+00'(max.6)"
+    },
+    {
+      "name": "InstructionTextSize",
+      "type": "integer",
+      "default": 60,
+      "description": "Text size for instructions"
+    },
+    {
+      "name": "InstructionTextSize2",
+      "type": "integer",
+      "default": 25,
+      "description": "Text size for instructions"
+    },
+    {
+      "name": "TaskTextSize",
+      "type": "integer",
+      "default": 65,
+      "description": "Text size  for task"
+    },
+    {
+      "name": "InstructionDisplayTime",
+      "type": "integer",
+      "default": 5,
+      "description": "Display time of instructions with countdown"
+    },
+    {
+      "name": "wrapa",
+      "type": "integer",
+      "default": 75,
+      "description": "Number of characters before wraping"
+    },
+    {
+      "name": "space",
+      "type": "string",
+      "default": "\" \"",
+      "description": "newline character"
+    }
+  ]
+}{
+  "version": "1.0",
+  "display": {
+    "minimum_width": 1280,
+    "minimum_height": 800,
+    "recommended_width": 1280,
+    "recommended_height": 800,
+    "fullscreen_recommended": false
+  },
+  "input": {
+    "keyboard": true,
+    "mouse_buttons": false,
+    "mouse_movement": false,
+    "touch": false,
+    "notes": "Uses left and right arrow keys only"
+  },
+  "audio": {
+    "required": false,
+    "output": false,
+    "input": false
+  },
+  "performance": {
+    "timing_critical": true,
+    "max_acceptable_latency_ms": 50,
+    "notes": "Reaction time measurement requires accurate timing"
+  },
+  "accessibility": {
+    "color_discrimination_required": false,
+    "motion_sensitivity_warning": false,
+    "keyboard_only": true
+  },
+  "device_support": {
+    "desktop": true,
+    "tablet": false,
+    "mobile": false,
+    "notes": "Large screen required for arithmetic problem display"
+  }
+}
+{
+    "inst1": "In diesem Experiment müssen Sie Ergebnisse arithmetischer Operationen berechnen, sich merken und vergleichen.",
+    "inst2": "Ihre Übung ist nun abgeschlossen. Der eigentliche Test beginnt als nächstes.",
+    "reminder":"Erinnerung:\n\n- 0-back: Vergleichen Sie das Ergebnis mit 50\n- 1-back: Vergleichen Sie das Ergebnis mit dem vorherigen Ergebnis\n- 2-back: Vergleichen Sie das Ergebnis mit dem Ergebnis von vor zwei Operationen\nDrücken Sie die rechte Pfeiltaste, wenn das Ergebnis gleich ist, und die linke Pfeiltaste, wenn es unterschiedlich ist.",
+    "ready1":"Lesen Sie die Anweisungen sorgfältig.",
+    "ready2":"Drücken Sie eine beliebige Taste, um den Test zu beginnen.",
+    "zerobackprompt":"0-Back-Übungsdurchgang beginnt in",
+    "onebackprompt": "1-Back-Übungsdurchgang beginnt in",
+    "twobackprompt":"2-Back-Übungsdurchgang beginnt in",
+    "headerzero": "Ist das Ergebnis gleich 50?",
+    "headerone":  "Ist das Ergebnis gleich dem vorherigen Ergebnis?",
+    "headertwo": "Ist das Ergebnis gleich dem Ergebnis von vor zwei Operationen?",
+    "zeroback": "Zero back",
+    "oneback": "One back",
+    "twoback": "Two back",
+    "footer": "<- Linke Pfeiltaste | NEIN                          JA | Rechte Pfeiltaste ->",
+    "correct":"Richtig",
+    "incorrect": "Falsch",
+    "tooslow":"Zu langsam",
+    "rest": "Machen Sie eine kurze Pause",
+    "debrief": "Diese Aufgabe ist nun abgeschlossen. Drücken Sie eine beliebige Taste, um fortzufahren",
+    "AUTHOR": "Automatic translation via Claude Code"
+}
+{
+    "inst1": "In this experiment, you have to calculate, memorize and compare results from arithmetic operations.",
+    "inst2": "Your practice is now complete. The real test will begin next.",
+    "reminder":"Reminder:\n\n- 0-back : compare the result to 50\n- 1-back : compare the result to the preceding result\n- 2-back : compare the result to the result calculated two operations ago\nPress the right arrow key if the result is the same, and the left arrow key if it is different.",
+    "ready1":"Read the instructions carefully.",
+    "ready2":"Press any key to begin the test.",     
+    "zerobackprompt":"0-Back practice trial will begin in",
+    "onebackprompt": "1-Back practice trial will begin in",
+    "twobackprompt":"2-Back practice trial will begin in",
+    "headerzero": "Is the result equal to 50?",
+    "headerone":  "Is the result equal to the previous result?",
+    "headertwo": "Is the result equal to the result obtained two operations ago?",
+    "zeroback": "Zero back",
+    "oneback": "One back",
+    "twoback": "Two back",
+    "footer": "<- Left Arrow | NO                          Yes | Right Arrow ->",
+    "correct":"Correct",
+    "incorrect": "Incorrect",
+    "tooslow":"Too Slow",
+    "rest": "Take a short break",
+    "debrief": "This task is now complete. Press any key to proceed"
+}
+{
+    "inst1": "En este experimento, debe calcular, memorizar y comparar resultados de operaciones aritméticas.",
+    "inst2": "Su práctica ha terminado. La prueba real comenzará a continuación.",
+    "reminder":"Recordatorio:\n\n- 0-back: compare el resultado con 50\n- 1-back: compare el resultado con el resultado anterior\n- 2-back: compare el resultado con el resultado obtenido dos operaciones antes\nPresione la flecha derecha si el resultado es igual, y la flecha izquierda si es diferente.",
+    "ready1":"Lea las instrucciones cuidadosamente.",
+    "ready2":"Presione cualquier tecla para comenzar la prueba.",
+    "zerobackprompt":"El ensayo de práctica 0-Back comenzará en",
+    "onebackprompt": "El ensayo de práctica 1-Back comenzará en",
+    "twobackprompt":"El ensayo de práctica 2-Back comenzará en",
+    "headerzero": "¿El resultado es igual a 50?",
+    "headerone":  "¿El resultado es igual al resultado anterior?",
+    "headertwo": "¿El resultado es igual al resultado obtenido dos operaciones antes?",
+    "zeroback": "Zero back",
+    "oneback": "One back",
+    "twoback": "Two back",
+    "footer": "<- Flecha Izquierda | NO                          SÍ | Flecha Derecha ->",
+    "correct":"Correcto",
+    "incorrect": "Incorrecto",
+    "tooslow":"Muy lento",
+    "rest": "Tome un breve descanso",
+    "debrief": "Esta tarea ha finalizado. Presione cualquier tecla para continuar",
+    "AUTHOR": "Automatic translation via Claude Code"
+}
+{
+
+    "inst1": "Dans cette expérience, vous devez calculer, mémoriser et comparer les résultats d'opérations arithmétiques.",
+    "inst2": "Votre entraînement est maintenant terminé. Le vrai test va commencer.",
+    "reminder":"Règles:\n- 0-back : Le résultat actuel est-il égal ou différent à 50 -> commencez à répondre à partir de l'essai 1\n- 1-back : Le résultat actuel est-il égal ou différent au résultat précédent -> commencez à répondre à partir de l'essai 2\n- 2-back : Le résultat actuel est-il égal ou différent au résultat obtenu 2 opérations plus tôt -> commencez à répondre à partir de l'essai 3\nVous utiliserez la flèche droite pour indiquer que le résultat est égal et la flèche gauche pour indiquer que le résultat est différent.",
+
+    "ready1":"Lisez attentivement les instructions.",
+    "ready2":"Appuyez sur n'importe quelle touche pour commencer le test.",
+
+    "zerobackprompt":"L'entrainement 0-Back commencera dans",
+    "onebackprompt": "L'entrainement 1-Back commencera dans",
+    "twobackprompt":"L'entrainement 2-Back commencera dans",
+    "headerzero": "Le résultat actuel est-il égal à 50?",
+    "headerone":  "Le résultat actuel est-il égal au résultat précédent?",
+    "headertwo": "Le résultat actuel est-il égal à celui obtenu deux opérations plus tôt",
+    "zeroback": "Zéro back",
+    "oneback": "Un back",
+    "twoback": "Deux back",
+    "footer": "<- Flèche Gauche | DIFFÉRENT                          ÉGAL | Flèche Droite ->",
+    "correct":"Correct",
+    "incorrect": "Incorrect",
+    "tooslow":"Trop lent",
+    "rest": "Prenez une courte pause",
+    "debrief": "Cette tâche est maintenant terminée. Appuyez sur n'importe quelle touche pour continuer",
+    "AUTHOR": "Automatic translation via Claude Code"
+
+}
+{
+    "inst1": "In questo esperimento, devi calcolare, memorizzare e confrontare i risultati di operazioni aritmetiche.",
+    "inst2": "La tua pratica è ora completa. Il test vero e proprio inizierà a breve.",
+    "reminder":"Promemoria:\n\n- 0-back: confronta il risultato con 50\n- 1-back: confronta il risultato con il risultato precedente\n- 2-back: confronta il risultato con il risultato ottenuto due operazioni fa\nPremi la freccia destra se il risultato è uguale, e la freccia sinistra se è diverso.",
+    "ready1":"Leggi attentamente le istruzioni.",
+    "ready2":"Premi un tasto qualsiasi per iniziare il test.",
+    "zerobackprompt":"La prova pratica 0-Back inizierà tra",
+    "onebackprompt": "La prova pratica 1-Back inizierà tra",
+    "twobackprompt":"La prova pratica 2-Back inizierà tra",
+    "headerzero": "Il risultato è uguale a 50?",
+    "headerone":  "Il risultato è uguale al risultato precedente?",
+    "headertwo": "Il risultato è uguale al risultato ottenuto due operazioni fa?",
+    "zeroback": "Zero back",
+    "oneback": "One back",
+    "twoback": "Two back",
+    "footer": "<- Freccia Sinistra | NO                          SÌ | Freccia Destra ->",
+    "correct":"Corretto",
+    "incorrect": "Errato",
+    "tooslow":"Troppo lento",
+    "rest": "Fai una breve pausa",
+    "debrief": "Questo compito è ora completato. Premi un tasto qualsiasi per continuare",
+    "AUTHOR": "Automatic translation via Claude Code"
+}
+{
+    "inst1": "In dit experiment moet u de resultaten van rekenkundige bewerkingen berekenen, onthouden en vergelijken.",
+    "inst2": "Uw oefening is nu voltooid. De eigenlijke test begint hierna.",
+    "reminder":"Herinnering:\n\n- 0-back: vergelijk het resultaat met 50\n- 1-back: vergelijk het resultaat met het vorige resultaat\n- 2-back: vergelijk het resultaat met het resultaat van twee bewerkingen geleden\nDruk op de rechterpijltoets als het resultaat hetzelfde is, en op de linkerpijltoets als het anders is.",
+    "ready1":"Lees de instructies zorgvuldig.",
+    "ready2":"Druk op een willekeurige toets om de test te beginnen.",
+    "zerobackprompt":"0-Back oefenronde begint over",
+    "onebackprompt": "1-Back oefenronde begint over",
+    "twobackprompt":"2-Back oefenronde begint over",
+    "headerzero": "Is het resultaat gelijk aan 50?",
+    "headerone":  "Is het resultaat gelijk aan het vorige resultaat?",
+    "headertwo": "Is het resultaat gelijk aan het resultaat van twee bewerkingen geleden?",
+    "zeroback": "Zero back",
+    "oneback": "One back",
+    "twoback": "Two back",
+    "footer": "<- Linkerpijl | NEE                          JA | Rechterpijl ->",
+    "correct":"Correct",
+    "incorrect": "Incorrect",
+    "tooslow":"Te langzaam",
+    "rest": "Neem een korte pauze",
+    "debrief": "Deze taak is nu voltooid. Druk op een willekeurige toets om door te gaan",
+    "AUTHOR": "Automatic translation via Claude Code"
+}
+{
+    "inst1": "Neste experimento, você deve calcular, memorizar e comparar resultados de operações aritméticas.",
+    "inst2": "Sua prática está completa. O teste real começará em seguida.",
+    "reminder":"Lembrete:\n\n- 0-back: compare o resultado com 50\n- 1-back: compare o resultado com o resultado anterior\n- 2-back: compare o resultado com o resultado obtido duas operações atrás\nPressione a seta direita se o resultado for igual, e a seta esquerda se for diferente.",
+    "ready1":"Leia as instruções cuidadosamente.",
+    "ready2":"Pressione qualquer tecla para começar o teste.",
+    "zerobackprompt":"O ensaio prático 0-Back começará em",
+    "onebackprompt": "O ensaio prático 1-Back começará em",
+    "twobackprompt":"O ensaio prático 2-Back começará em",
+    "headerzero": "O resultado é igual a 50?",
+    "headerone":  "O resultado é igual ao resultado anterior?",
+    "headertwo": "O resultado é igual ao resultado obtido duas operações atrás?",
+    "zeroback": "Zero back",
+    "oneback": "One back",
+    "twoback": "Two back",
+    "footer": "<- Seta Esquerda | NÃO                          SIM | Seta Direita ->",
+    "correct":"Correto",
+    "incorrect": "Incorreto",
+    "tooslow":"Muito lento",
+    "rest": "Faça uma breve pausa",
+    "debrief": "Esta tarefa está completa. Pressione qualquer tecla para continuar",
+    "AUTHOR": "Automatic translation via Claude Code"
+}

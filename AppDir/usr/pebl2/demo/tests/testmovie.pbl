@@ -1,0 +1,89 @@
+define Start(p)
+{ 
+
+  ##this tests loading a simple movie, and also various audio file formats.
+
+  gVideoWidth <- 1000
+  gVideoHeight <- 700
+
+   gWin <- MakeWindow("white")
+#   canv <- MakeCanvas(640,480,MakeColor("green"))
+#   AddObject(canv,gWin)
+
+   movie <- LoadMovie("chaplain.mp4",gWin,640,480)
+  Print(movie)
+#   PrintProperties(movie)
+##   Move(movie,50,50)
+
+   status <- EasyLabel("Demo Movie Player",300,25,gWin,22)    
+
+
+   play <-  MakeButton("PLAY",gVideoWidth/2-200,gVideoHeight-30,gWin,100)
+   pause <- MakeButton("PAUSE",gVideoWidth/2-90,gVideoHeight-30,gWin,100)
+   close <- MakeButton("Close",gVideoWidth/2+90,gVideoHeight-30,gWin,100)
+
+   playback<- Rectangle(gVideoWidth/2,gVideoHeight-15,400,10,MakeColor("green"),0)
+   playfront<- Rectangle(gVideoWidth/2,gVideoHeight-15,2,10,MakeColor("red"),1)
+   AddObject(playback,gWin)
+   AddObject(playfront,gWin)
+
+   playUI <- MakeCustomObject("playUI")
+   playUI.playback <- playback
+   playUI.playfront <- playfront
+   Draw()
+
+   cont <- 1
+
+  while(cont)
+   {
+
+     resp <- WaitForClickOntargetWithTimeout([play,pause,close,playback],
+				 ["play","pause","close","adjust"],
+				 50 )
+
+     Draw(play)
+     Draw(pause)
+     Draw(close)
+     Draw(playback)
+#     Print(resp+ " in testmovie")
+     if(resp == "play")
+      {
+         PushButton(play,[0,0])
+         StartPlayback(movie)
+         Wait(50)
+
+      } elseif(resp == "pause")
+      {
+         PushButton(pause,[0,0])
+         PausePlayback(movie)
+      }elseif(resp=="close")
+      {
+        PushButton(close,[0,0])
+        cont <- 0
+      }elseif(resp == "adjust")
+      {
+         prop <- (First(gClick)-(playback.x-playback.width/2))/playback.width
+	 playfront.x <- First(gClick)
+	 Draw()
+	 movie.playbackposition <- Round(prop*movie.Duration)
+      }
+
+    UpdateRating(movie,playUI)
+   }
+}
+
+
+
+
+
+define UpdateRating(movie,playUI)
+{
+
+  percent <- movie.playbackposition/movie.duration
+  back <-  playUI.playback
+  size <- back.width
+
+  thumb <- playUI.playfront
+  Move(thumb,back.x-back.width/2+percent*back.width,back.y)
+#  Draw()
+}

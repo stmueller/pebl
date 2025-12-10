@@ -1,0 +1,15 @@
+## Simple audio input test without UI
+define Start(p)
+{
+   Print("Creating 5-second audio buffer...")
+   buffer <- MakeAudioInputBuffer(5000)
+   Print("Buffer created successfully!")
+
+   Print("Testing GetVocalResponseTime...")
+   rt <- GetVocalResponseTime(buffer, 0.25, 200)
+   Print("VoiceKey result: " + rt)
+
+   Print("Saving buffer to WAV file...")
+   SaveAudioToWaveFile("test-output.wav", buffer)
+   Print("Done!")
+}

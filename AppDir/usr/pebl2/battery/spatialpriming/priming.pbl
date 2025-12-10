@@ -1,0 +1,345 @@
+define Start(p)
+{
+  gScriptName <- "PEBL Spatial Priming Task"
+  gWin <- MakeWindow("black")
+  gSleepEasy <- 1
+
+ if(gSubNum+""=="0")
+  {
+    gSubNum <- GetSubNum(gWin)
+  }
+
+  GetStrings(gLanguage)
+
+  parpairs <- [["reps",1],
+               ["stimsize",130],
+	       ["delta",150],
+               ["iti",800],
+               ["primedur",50],
+	       ["lag",400],
+	       ["responsetype","choose"]
+              ]
+
+  gParams <- CreateParameters(parpairs,gParamFile)
+
+  delta    <- gParams.delta    ##Space between square centers
+  stimsize <- gParams.stimsize #Size of the squares
+  iti      <- gParams.iti       ##
+  primeDur <- gParams.primedur ##prime duration
+  lag      <- gParams.lag      ##time between prime and stim
+  reps     <- gParams.reps      ## How many times through the 54-trial design
+
+  gResponseType <- gParams.responsetype
+
+
+
+  gFileOut <- GetNewDataFile(gSubNum,gWin,"priming","csv",
+    "subnum,responstype,trial,targcell,targrow,targcol,primecond,primerow,primecol,resp,corr,intrusion,abstime,rt")
+
+  report <- GetNewdataFile(gSubNum,gWin,"priming-report","txt","")
+
+  stimColor <- MakeColor("royalblue")
+  primeColor <- MakeColor("yellow2")
+  outlineCol <- MakeColor("grey")
+
+
+  if(gResponseType=="choose")
+  {
+   ##Select the test type:
+   gResponseType <- GetEasyChoice("Select test type",
+    		                [gStrings.mouse,gStrings.touch,gStrings.key],
+                                ["mouse","touchscreen","keypad"],
+                                gWin)
+  }
+
+##uncomment here to shuffle through all three types. Also replace closing quote later.
+#  loop(gResponseType, Shuffle( ["mouse","touchscreen","keypad"]))
+#   {
+    if(gResponseType=="mouse")
+    {
+      inst <- gStrings.instmouse
+      header <- gStrings.headmouse
+     }elseif(gResponseType=="touchscreen")
+     {
+      inst <- gSTrings.insttouch
+      header <- gStrings.headtouch
+
+      } else {
+        inst <-gStrings.instkey
+        header <- gStrings.headkey
+      }
+
+
+  ##keep track of some data:
+  dataConditions <- []
+  dataCorrect <- []
+  dataIntrusions <- []
+  dataRT <- []
+
+
+   keymap <- [  [1,2,3],
+                [4,5,6],
+                [7,8,9]]
+
+   keynames <- ["<KP_1>","<KP_2>","<KP_3>",
+                "<KP_4>","<KP_5>","<KP_6>",
+		"<KP_7>","<KP_8>","<KP_9>"]
+
+
+  ##center of screen:
+  xb <- gVideoWidth/2
+  yb <- gVideoHeight/2
+
+  ##Set the x and y locations of the squares
+  xs <- [xb-delta,xb,xb+delta]
+  ys <- [yb+delta,yb,yb-delta]
+
+  MessageBox(inst,gWin)
+
+ label <- EasyLabel(header,xb,yb-1.8*delta,gWin,44)
+
+ squares <- []
+ grid <- []
+ loop(j, ys)
+  {
+   line <- []
+   loop(i, xs)
+   {
+     tmp <- Square(i,j,stimSize,outlineCol,0)
+     AddObject(tmp,gWin)
+     squares <- Append(squares,tmp)
+     line <- Append(line,tmp)
+   }
+   grid <- Append(grid, line)
+  }
+
+
+
+  ##create the prime and hide it.
+  prime <- Square(i,j,stimSize, primeColor,1)
+  target <-Square(i,j,stimsize, stimColor,1)
+  AddObject(prime,gWin)
+  Hide(prime)
+  AddObject(target,gWin)
+  Hide(target)
+
+##Now, create the stimuli.
+## Each trial should have two parts: the prime location and
+## the stimulus location.  There are two sets of
+## things to be counterbalanced over:
+## Actual physical locations of the prime and target
+## relative prime condition:
+##   - share row
+##   - share column
+##   - share both
+##   - share neither
+## For start, let's do a full design in which each
+## of the nine target locations is a target, and each of them
+## is paired with:
+##  0:  neither-prime
+##  1:  a row-prime,
+##  2:  a column-prime
+##  3:  a both-prime  (actual location)
+##  4:  a neutral prime
+
+## This amounts to 9x6=54 trials per design.
+##
+## There is also the possibility that near-primes are stronger
+## than far-primes, so we should at least make sure the prime location
+## is randomized.
+
+
+  ##First, specify the target locations
+
+ targs <- DesignFullCounterbalance([1,2,3],[1,2,3])
+ primeconds <-  [0,1,2,3,4] ##select a subset of these to changed design
+
+ stim <- Shuffle(RepeatList(DesignFullCounterbalance(targs,primeconds),reps))
+
+ trial <- 1
+ loop(i,stim)
+   {
+
+    if(gResponseType=="mouse")
+     {
+       SetMouseCursorPosition(Round(xb),Round(yb))
+     } else {
+       SetMouseCursorPosition(gVideoWidth, gVideoHeight)
+     }
+    #ShowCursor(0)
+
+    targloc <- First(i)
+     primecond <- Second(i)
+
+     ##Now, let's figure out where the prime location is.
+    if(primecond == 0)
+     {
+       ## No prime
+       prow <- 0
+       pcol <- 0
+     } elseif(primecond==1)
+     {
+       ##They share a row
+       prow <- First(targloc)
+       pcol <- Sample(RemoveSubSet([1,2,3],[Second(targloc)]))
+     }elseif(primecond==2)
+     {
+       ##They share a row
+       prow <- Sample(RemoveSubSet([1,2,3],[First(targloc)]))
+       pcol <- Second(targloc)
+
+     }elseif(primecond==3)
+     {
+       ## They share both
+      prow <- First(targloc)
+      pcol <- Second(targloc)
+
+     }elseif(primecond==4)
+     {
+       prow <- Sample(RemoveSubSet([1,2,3],[First(targloc)]))
+       pcol <- Sample(RemoveSubSet([1,2,3],[Second(targloc)]))
+     }
+
+     ##Now, do the prime
+     if(prow==0)
+     {
+      Hide(prime)
+     }else {
+
+      primesquare <- Nth(Nth(grid,prow),pcol)
+      prime.x <- primesquare.x
+      prime.y <- primesquare.y
+      Show(prime)
+     }
+
+     targetsquare <- Nth(Nth(grid,First(targloc)),Second(targloc))
+     Move(target,targetsquare.x,targetsquare.y)
+
+   Wait(iti)
+   ##Now, do the priming sequence
+    Draw()
+    Wait(primeDur)
+    Hide(prime)
+    Draw()
+    Wait(lag)
+    Show(target)
+
+    ##Only show cursor on screen.
+#    if(gResponseType =="mouse" or  gResponseType =="touchscreen")
+#    {
+      #ShowCursor(1)
+      #Draw()
+#    }
+    time1 <- GetTime()
+    Draw()
+
+
+
+    targcell  <- Nth(Nth(keymap,First(targloc)),Second(targloc))
+#    Print(targcell)
+    ##Collect response.
+
+
+    if(gResponseType=="mouse" or gResponseType=="touchscreen")
+    {
+       ##resp <- WaitForClickOntarget([target],[1])
+       ##code thes as keynames, for convenience:
+
+       resp <-  WaitForClickOnTarget(squares,keynames)
+
+    } else {
+       ##
+       ##Accept only the correct keyboard response
+       resp <-  WaitForListKeyPress(keynames)
+
+    }
+    time2 <- GetTime()
+
+    ##Score whether it is correct:
+
+     correct <- (resp == Nth(keynames,targcell))
+
+	 if(prow==0)
+	   {
+	     intrusion <- 0
+	   } else {
+         intrusion <-(not correct) and (resp==Nth(keynames,Nth(Nth(keymap,prow),pcol)))
+       }
+
+    Hide(target)
+    Draw()
+
+
+     FilePrint(gfileout,gSubNum+","+gResponseType+","+trial+","+
+               targcell+","+ First(targloc) +","+ Second(targloc)+","+
+               primecond +","+ pRow + ","+pCol + "," +
+               resp+","+correct+","+intrusion+","+time2+","+(time2-time1))
+
+
+  dataConditions <- Append(dataConditions, primecond)
+  dataCorrect <- Append(dataCorrect,correct)
+  dataIntrusions <- Append(dataIntrusions,intrusion)
+  dataRT <- Append(dataRT,(time2-time1))
+
+
+
+     ##We should allow a break here: on occasion
+     if(trial>1 and Mod(trial,54)==0)
+     {
+
+        tmp <- ReplaceChar(gStrings.break,"<TRIAL>",trial)
+	tmp <- ReplaceChar(tmp,"<LENGTH>",Length(stim))
+        MessageBox(tmp,gWin)
+     }
+
+     trial <- trial + 1
+   }
+
+   ## Compute some aggregates
+
+
+   primeLabs <- ["No prime      ",
+                 "Row prime     ",
+                 "Column Prime  ",
+                 "Both prime    ",
+                 "Neutral Prime "]
+
+
+   subs <- Transpose([primeconds,primelabs])
+   data <- Transpose([dataCorrect,dataIntrusions, dataRT])
+
+   out <- "Spatial Priming task, designed and developed by Ben Loucks and Shane Mueller" +CR(2)+
+	     TimeStamp() +CR(1) +
+		 gResponseType + CR(1)+
+	     "Participant code: " + gSubNum + CR(1) +
+	     "Time on task:  " + Round(GetTime()/1000/60,2) + " min"+CR(1)+
+	    "-----------------------------------------------------"+CR(1)+
+	    "  Condition     N  #Correct #Intrusions  RT     "+CR(1)+
+	    "-----------------------------------------------------"+CR(1)
+
+
+   ##Loop through all the prime conditions:
+   loop(cond,subs)
+    {
+        match <- Match(dataConditions,First(cond))
+   	sub <- Transpose(Filter(data,match))
+
+	out <- out + Second(cond) + "   "+ Length(sub) + "     " +
+	       Length(First(sub)) + "    " + Sum(First(sub)) + "      "+
+	       Sum(Second(sub)) + "      "+ Mean(Third(sub)) + CR(1)
+    }
+
+
+    report <- FileOpenWrite("data/priming-report-"+gSubNum+".txt")
+    FilePrint(report,out)
+##   }  ##removed, but replace for shuffling through all of them.
+    MessageBox(out+CR(1)+gStrings.debrief,gWin)
+
+}
+
+
+
+define GetStrings(lang)
+{
+  gStrings <- GetTranslations("spatialpriming", lang)
+}

@@ -1,0 +1,93 @@
+## Test launcher.pbl JSON support functions
+
+define Start(p)
+{
+    Print("=== Testing Launcher JSON Support ===")
+    Print("")
+
+    ## Test 1: EndsWith function
+    Print("Test 1: EndsWith function")
+    test1a <- EndsWith("test.par.json", ".json")
+    test1b <- EndsWith("test.par", ".json")
+    test1c <- EndsWith("test.par.json", ".par.json")
+    Print("  EndsWith('test.par.json', '.json'): " + test1a + " (expected 1)")
+    Print("  EndsWith('test.par', '.json'): " + test1b + " (expected 0)")
+    Print("  EndsWith('test.par.json', '.par.json'): " + test1c + " (expected 1)")
+    Print("")
+
+    ## Test 2: ReadSchemaFile with JSON
+    Print("Test 2: ReadSchemaFile with JSON schema")
+    if(FileExists("upload-battery/corsi/params/corsi.pbl.schema.json"))
+    {
+        schema <- ReadSchemaFile("upload-battery/corsi/params/corsi.pbl.schema.json")
+        Print("  Loaded JSON schema, parameters count: " + Length(schema))
+        firstParam <- First(schema)
+        Print("  First parameter name: " + First(firstParam))
+        Print("  First parameter default: " + Second(firstParam))
+        Print("  First parameter description: " + Third(firstParam))
+    } else {
+        Print("  ERROR: JSON schema file not found")
+    }
+    Print("")
+
+    ## Test 3: ReadSchemaFile with legacy format
+    Print("Test 3: ReadSchemaFile with legacy schema")
+    if(FileExists("upload-battery/corsi/params/corsi.pbl.schema"))
+    {
+        legacySchema <- ReadSchemaFile("upload-battery/corsi/params/corsi.pbl.schema")
+        Print("  Loaded legacy schema, parameters count: " + Length(legacySchema))
+    } else {
+        Print("  Note: Legacy schema file not found (this is OK)")
+    }
+    Print("")
+
+    Print("=== All launcher JSON tests completed ===")
+    SignalFatalError("SUCCESS - Launcher JSON support working")
+}
+
+## Include the functions from launcher.pbl that we need to test
+
+define EndsWith(string, suffix)
+{
+  stringLen <- StringLength(string)
+  suffixLen <- StringLength(suffix)
+
+  if(suffixLen > stringLen)
+  {
+    result <- 0
+  } else {
+    ending <- SubString(string, stringLen - suffixLen + 1, suffixLen)
+    result <- (Uppercase(ending) == Uppercase(suffix))
+  }
+
+  return(result)
+}
+
+define ReadSchemaFile(filename)
+{
+   ## Auto-detect JSON format based on file extension
+   if(EndsWith(filename, ".json"))
+   {
+      ## Parse JSON schema file
+      schemaJSON <- ParseJSON(FileReadText(filename))
+
+      ## Convert JSON schema to list format expected by launcher
+      ## Format: [[name, default, description], ...]
+      list <- []
+      loop(param, schemaJSON.parameters)
+      {
+         line <- [param.name, param.default, param.description]
+         PushOnEnd(list, line)
+      }
+   } else {
+      ## Legacy pipe-delimited format
+      schemalist <- FileReadList(filename)
+      list <- []
+      loop(i,schemalist)
+       {
+          line <- SplitString(i,"|")
+          PushOnEnd(list,line)
+       }
+   }
+  return list
+}

@@ -1,0 +1,69 @@
+## This is forced-choice task in which the 
+## subject must judge whether the right or left channel was first.
+##
+
+define Start(p)
+{
+  
+  gLeft <- LoadSound("tone.ogg")
+  gRight <- LoadSound("tone.ogg")
+  SetPanning(gLeft,1.0,0.0)
+  SetPanning(gRight,0.0,1.0)
+  SetPlayRepeats(gLeft,0)
+  SetPlayRepeats(gRight,0)
+  gSleepEasy <- 0
+
+   gWin <- MakeWindow("black")
+   gStatus <- EasyLabel("Listen for which side starts first",gVideoWidth/2,gVideoHeight/2,gWin,25)
+   Draw()
+   PlayBackground(gLeft)
+   PlayBackground(gRight)
+   Stop(gLeft)
+   Stop(gRight)
+   WaitForAnyKeyPress()
+   PlayForeground(gLeft)
+   WaitForAnyKeyPress()
+   PlayForeground(gRight)
+
+WaitForAnyKeyPress()
+  trials <- 20
+  loop(i, trials)
+  {
+      offset <- 500 + RandomUniform(500)
+      sign <- Sample([-1,1])
+
+
+      Trial(sign*offset)
+  }
+}
+
+
+
+define Trial(offset)
+{
+  gStatus.text <- "+"
+  Draw()
+  Wait(200)
+  if(offset<0)
+  {
+    first <-  gRight
+    second <- gLeft
+  }else{
+    first <-  gLeft
+    second <- gRight
+
+  }
+ 
+  PlayBackground(first)
+  Wait(offset)
+  PlayBackground(second)
+  
+  Wait(1000)
+  Stop(first)
+  Stop(second)
+  gStatus.text <- "press left or right shift for earlier tone"
+  Draw()
+  resp <-   WaitForListKeyPress(["<lshift>","<rshift>"])
+
+  Print([offset, resp])
+}

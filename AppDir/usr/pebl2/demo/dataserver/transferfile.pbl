@@ -1,0 +1,153 @@
+## Simple file transfer to a server.
+## This script communicates with the simple fileserver.pbl server,
+## or the moderately better server2.py server that runs on
+## a server with specified IP address.  The demo here runs on the local
+## computer (IP 127.0.0.1)
+## 
+##  Recommended usage is to call this at the end of a script
+##  to send data home, while not necessarily guaranteeing it will
+##  do so because of potential internet problems.
+
+
+
+define Start(p)
+{
+   gWin <- MakeWindow("black", 500,300)
+   msg <- EasyTextBox("",20,20,gWin,16,460,250)
+
+
+   msg.text <- "Connecting to server"
+   Draw()
+   network <- 
+  
+}
+
+
+
+
+define SubmitData(filename, address)
+{
+     Print("submitting data via server")
+##     address <- "mueller-linux.bio.mtu.edu"
+##     address <- "localhost"
+       gNetwork <- 0
+       time0 <- GetTime()
+       success <- 0
+       ##Try for 10 seconds:
+     while(gNetwork==0 and GetTime()< (time0+10000) and success == 0)
+     {
+      gNetwork <- ConnectToHost(address,4444)
+      Wait(100)
+     }
+    if(gNetwork)
+    {
+      success <-  SendFile(gNetwork,filename,filename)
+      CloseNetworkConnection(gNetwork)
+
+    } else {
+     success <- 0
+    }
+
+    DBAddValue("data/db.csv","DATASENT",success)
+    return success
+}
+
+
+##this is also located in pebl-lib\FileTransfer.pbl
+
+
+define SendFile(network,filename,id)
+{ 
+   Print("loading filename: ["+filename+"]")
+   text <- FileReadText(filename)
+   length <- StringLength(text)+""
+   
+   if(StringLength(length)>16)
+   {
+     SignalFatalError("Cannot send a file this long:"+length)
+   }
+
+   Print("Sending: [" +id +"] : "+length)
+   message <-  Format(id,32)+Format(length,16) + text
+   label <- EasyLabel("Attempting to send data to server (up to 10 secs)", gWin.width/2,gWin.Height/2,gWin,22)
+   Draw()
+   Wait(500)
+   success <- SendData(network,message)
+   if(success)
+   {
+      label.text <- "Succeeded at sending data"
+      Draw()
+      Wait(500)
+   } else {
+      label.text <- "Failed to send data.  Please try again later or send data files directly. Press any key to begin."
+      Draw()
+      WaitForAnyKeyPress()
+   }
+   return success
+}
+
+
+
+## This gets a value from the database file in name.
+##
+define DBGetValue(dbname,key)
+{
+   db <- ReadDB(dbname)
+   if(Length(db)==0)
+   {
+     value <- ""
+   }else{
+    value <- Lookup(key,First(Transpose(db)),Second(Transpose(db)))
+
+    ##If it is an empty return value, reset it to ""
+    if(IsList(value))
+    {
+      value <- ""
+    }
+   }  
+   return value
+}
+
+define DBAddValue(dbname,key,value)
+{
+  db <- ReadDB(dbname)
+  newdb <- []
+  added <- 0  ##flag to determine whether I have added/replaced a value set.
+  loop(i,db)
+  {
+    if(First(i)==key)
+    {
+      PushOnEnd(newdb,[key,value])
+      added <- 1
+    } else {
+      PushOnEnd(newdb,i)
+    }
+  }
+ if(not added)
+   {
+      PushOnEnd(newdb,[key,value])
+   }
+   
+
+   WriteCSV(dbname,newdb)
+   return newdb
+}
+
+define ReadDB(dbname)
+{
+   if(FileExists(dbname))
+   {
+      db <- ReadCSV(dbname)
+   } else {
+
+      db <- []
+   }
+
+   return db
+}
+
+
+
+
+
+

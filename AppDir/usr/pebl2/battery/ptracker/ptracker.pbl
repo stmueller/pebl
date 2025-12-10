@@ -1,0 +1,375 @@
+#######################################
+##
+## PEBL Tracker Version 0.1
+## A work-alike for 'CompTrack' by Makeig & Jolley (1995),
+## a compensatory tracking task.
+##
+##
+## Originally used to investigate vigilance, as the cursor must be
+## continuously adjusted to keep it 'in the bullseye'.
+## Originally used with a trackball.  A mouse works fine, but the
+## little 'pencil eraser' device on most laptops is great for it too.
+##
+##
+## See http://sccn.ucsd.edu/~scott
+##     http://sccn.ucsd.edu/~scott/pdf/COMPTRACK.pdf
+##    http://oai.dtic.mil/oai/oai?&verb=getRecord&metadataPrefix=html&identifier=ADA311977
+##
+##  Works basically like the task described in the above documents, although
+##  some of the constants have been changed for better performance (or
+##  because they were described incorrectly in the pdf.
+##
+##  Part of the PEBL Test Battery.
+##  Version 0.2
+##  Version 0.1 Released Sept 2008, Shane T. Mueller (smueller@obereed.net)
+##
+
+##Initialize many of the
+define Init()
+{
+
+  ##restrict the bounds of the cursor.
+  boundsW <- Min([gParams.width,gVideoWidth])
+  boundsH <- Min([gParams.height,gVideoHeight])
+
+  gBoundsMinX <- -(boundsw)/2
+  gBoundsMaxX <- (boundsw)/2
+
+  gBoundsMinY <-  -(boundsh)/2
+  gBoundsMaxY <-  (boundsh)/2
+
+  gHomeX <- Round(gVideoWidth/2)
+  gHomeY <- Round(gVideoHeight/2)
+
+  gPI <- 3.141597
+  gRadius <- gParams.radius           #Radius of disc
+  gGutter <- 2 * gRadius  #Radius of 2nd ring
+  gOuterRadius <- 20*gRadius
+
+  ## For the 'pencil eraser' mice, this should be small (.05)
+  ## For other devices, it might need to be larger.
+
+  gMouseSensitivity <- gParams.sensitivity
+
+  gAngles <- []
+  i <- 1
+  while(i <=5)
+   {
+     gAngles <- Append(gAngles,Random()*2*gPI)
+     i <- i + 1
+   }
+
+
+
+   gTimeStep <- gParams.timestep    # in seconds
+
+   mass     <- gParams.mass       # mass of object
+   c        <- gParams.c       # Screen friction
+   k        <- gParams.k      # users spring constant. A higher
+                       # k value gives the user stronger
+                       # pull on the target.
+
+   bfscale <- .44 ##not used
+   inscale <- 250 ##not used
+
+  gDamping <- 1/(mass + c*gTimestep + k*gTimestep^2)
+
+}
+
+define Start(p)
+{
+ gScriptName  <- "PEBL Compensatory Tracker"
+
+  parpairs <- [["numtrials",4],
+              ["timepertrial",20],
+              ["width",800],
+              ["height",600],
+	      ["radius",10],
+	      ["sensitivity",.4],
+	      ["timestep",0.015],
+	      ["mass",1],
+	      ["c",3], #screen friction
+  	      ["k",0.5]] # users spring constant. A higher
+                        # k value gives the user stronger
+                        # pull on the target.
+
+
+  gParams <- CreateParameters(parpairs,gParamFile)
+
+
+  Init()
+
+  ShowCursor(0)
+  gSleepEasy <- 1
+
+
+  gWin <- MakeWindow("grey10")
+
+  if(gSubNum+""=="0")
+   {
+     gSubNum <- GetSubNum(gWin)
+   }
+
+  GetStrings(gLanguage)
+
+  gFileOut <- GetNewDataFile(gSubNum,gWin,"ptracker","csv",
+       "subnum,time,posX,posY,userdeltaX,userdeltaY,timeDelta,targetDeltaX,targetDeltaY,deviation,mouseD1,mouseD2")
+
+  gSummaryFile <- GetNewDataFile(gSubNum,gWin,"ptracker-summary",".txt","")
+
+  tmp <-ReplaceChar(gStrings.inst1,"<TIME>",gParams.timepertrial)
+  inst <- EasyTextBox(tmp, 20,20,gwin, 18,gVideoWidth-40,250)
+  Draw()
+  WaitForAnyKeyPress()
+  Hide(inst)
+  Draw()
+
+  center  <-  Circle(gHomeX,gHomeY,gRadius,MakeColor("black"),1)
+  ring  <-  Circle(gHomeX,gHomeY,gGutter,MakeColor("grey"),1)
+  AddObject(ring,gWin)
+  AddObject(center,gWin)
+
+  target <- Circle(gHomeX,gHomeY,gRadius,MakeColor("white"),1)
+  AddObject(target,gWin)
+
+  timelab <- EasyLabel("",gHomeX,10,gWin,24)
+  lasttime <- 0
+
+  Draw()
+
+  deviations <- []
+  loop(trial,Sequence(1,gParams.numtrials,1))
+  {
+
+  timelab.text <- ""
+  lastpos <- [0,0]
+  newpos <- lastpos
+  Move(target, gHomeX, gHomeY)
+  SetMouseCursorPosition(gHomeX,gHomeY)
+  ShowCursor(0)
+  Draw()
+  Wait(2000)
+  lastpos <- [0,0]
+  newpos <- lastpos
+  Move(target, gHomeX, gHomeY)
+  SetMouseCursorPosition(gHomeX,gHomeY)
+  t <- GetTime()
+  endtime <- 1* 1000*gParams.timepertrial + GetTime()
+  timelab.text <-GetRemaining(endtime,GetTime())
+  cont <- 1
+
+  prevTime <- GetTime()
+  tdelta <- 0
+  deviation <- 0
+  prevMouse <- [0,0]
+  prevMouseVel <- 0
+  mouseVel <- 0
+  mouseAccel <- 0
+  mouseD1 <- 0
+  mousePrevD1 <- 0
+
+  dataCount <- 0
+  prevUserDelta <- 0
+  targetDelta <- 0
+
+  dataTimeSteps <- []
+  dataAbsDeviations <- []
+  dataMouseVelocity <- []
+  dataMouseAccel <- []
+  dataTargetDeltas <- []
+
+  while(cont)
+  {
+     t<- GetTime()
+     mousepos <- GetMouseCursorPosition()
+
+     userdelta <- AddVectors(mousepos,[-gHomeX,-gHomeY])
+     newpos <-NewPos(newpos,lastpos,userdelta)
+     Move(target, gHomeX+First(newpos), gHomeY+Nth(newpos,2))
+
+     SetMouseCursorPosition(gHomeX,gHomeY)
+
+     ##update list every few seconds
+     if((t-lasttime) > 1000)
+       {
+            timelab.text <- GetRemaining(endtime,t)
+            lasttime <- t
+       }
+
+
+
+     ##Compute running stats:
+     tdelta <- t-prevTime
+     targetdelta <- AddVectors(newPos, ScaleVector(lastPos,-1))
+     deviation <- Sqrt(First(newpos)^2 + Second(newpos)^2)
+     mouseD1 <- Sqrt(First(userDelta)^2+Second(userDelta)^2)
+
+     mouseD2 <- mouseD1 - mousePrevD1
+
+
+    dataCount  <- dataCount + 1
+
+    PushOnEnd(dataTimeSteps,tdelta)
+    PushOnEnd(dataTargetDeltas,targetDelta)
+    PushOnEnd(dataAbsDeviations,deviation)
+    PushOnEnd(dataMouseVelocity,mouseD1)
+    PushOnEnd(dataMouseAccel,mouseD2)
+
+
+     dat <- Flatten([gSubNum,trial,t, newpos, userdelta,tDelta,targetDelta,deviation,mouseD1,mouseD2])
+     FilePrint(gFileOut,ConcatenateList(dat,","))
+     Draw()
+
+    lastPos <- newPos
+    prevDeviation <- deviation
+    prevTime <- t
+    prevUserDelta <- userDelta
+    mousePrevD1 <- mouseD1
+     Wait((t + gTimeStep*1000)-GetTime())
+     if(t  > endtime )
+     {
+     cont <- 0
+     }
+
+  }
+
+   ##summary data:
+  text <-"Participant:     " + gSubNum+CR(1)+
+   " Trial:            " + trial + CR(1)+
+   " Timestamp:        " + TimeStamp() +CR(1)+
+   " Trial time:       " + Sum(dataTimeSteps)+CR(1)+
+   " Mean deviation:   " + Mean(dataAbsDeviations)+CR(1)+
+   " Median deviation:   " + Median(dataAbsDeviations)+CR(1)+
+   " Mean mouse velocity: " + Mean(dataMouseVelocity) +CR(2)
+
+
+   FilePrint(gSummaryFile,text)
+
+   MessageBox(gStrings.cont+CR(1)+text,gWin)
+
+}
+
+
+ FileClose(gFileOut)
+
+}
+
+
+
+define GetRemaining(endtime,curtime)
+{
+  timeleft <- (endtime - curtime)/1000/60
+  mins <-    Floor(timeleft)
+  secs <-    Ceiling((timeleft - mins)*60)
+  tmp <- ReplaceChar(gStrings.remaining,"<MIN>",mins)
+  tmp <- ReplaceChar(tmp,"<SEC>",secs)
+  return  tmp
+}
+
+define Buffet(t)
+{
+   cx <- (1+Sqrt(5))/2
+   cy <- gPI/2
+
+  ##Add increment for each direction
+  fBX <- 0
+  fBY <- 0
+
+  n <- 0
+  loop(i,gAngles)
+    {
+      fBX <- fBX + cx^(-n) * Cos(cx^n*t+i)
+      fBY <- fBY + cx^(-n) * Sin(cy^n*t+i)
+      n <- n + 1
+    }
+
+  return [fBX,fBY]
+}
+
+
+
+##Exerts a radial force.  This matches the code, which is inconsistent
+## with the pdf write-up (-3/2 versus 3/2)
+define Gravity (pos)
+{
+   r <- NormVector(pos)
+
+   if(r<=6*gRadius)
+   {
+     x <-    1/2 * r^2
+   } else {
+     x <- -3/2 * (r-20*gRadius)
+   }
+
+ return ScaleVector(ScaleVector(pos,1/r),x)
+}
+
+##pos1 is current position
+##pos0 is previous position
+
+define NewPos(pos1, pos0,userinput)
+{
+ x0 <- First(pos0)
+ y0 <- Nth(pos0,2)
+
+ x1 <- First(pos1)
+ y1 <- Nth(pos1,2)
+
+  grav <- ScaleVector(Gravity(pos1),.5382)
+  buff <- Buffet(GetTime()/1000)
+  scaleduser <- ScaleVector(userinput,gMouseSensitivity)
+  force <- ScaleVector(AddVectors(buff,scaleduser),.8288)
+  prevdrag <- ScaleVector(pos0,.0003)
+  delta <- ScaleVector(AddVectors(pos1, ScaleVector(pos0,-1)),gDamping)
+  newpos <- AddVectors(AddVectors(AddVectors(pos1, delta),prevdrag),force)
+
+
+  x <- Min([Max([gBoundsMinX,First(newpos)]),gBoundsMaxX])
+  y <- Min([Max([gBoundsMinY,Second(newpos)]),gBoundsMaxY])
+
+#  Print(gBoundsMinX+"<"+x+"<"+gBoundsMaxX +"   "+gBoundsMinY+"<"+y+"<"+gBoundsMaxY )
+ return [x,y]
+
+}
+
+
+define AddVectors(vec1, vec2)
+{
+   newvec <- []
+   loop(i,Transpose([vec1,vec2]))
+    {
+
+      newvec <- Append(newvec, Sum(i))
+    }
+  return newvec
+}
+
+define ScaleVector(vec,scale)
+{
+  newvec <- []
+  loop(i,vec)
+  {
+    newvec <- Append(newvec,i*scale)
+
+  }
+  return newvec
+}
+
+define NormVector(vec)
+{
+   sum <- 0
+   loop(i,vec)
+   {
+
+     sum <- sum + i^2
+   }
+
+  return Sqrt(sum)
+}
+
+
+
+define GetStrings(lang)
+{
+  gStrings <- GetTranslations("ptracker", lang)
+}

@@ -1,0 +1,47 @@
+## Test background color changes via nested properties
+define Start(p)
+{
+    gWin <- MakeWindow()
+
+    Print("STEP 1: Creating label with WHITE text on BLUE background")
+    font <- MakeFont("DejaVuSans.ttf", 0, 48, MakeColor("white"), MakeColor("blue"), 1)
+    label <- MakeLabel("BACKGROUND TEST", font)
+    AddObject(label, gWin)
+    Move(label, gVideoWidth/2, gVideoHeight/2)
+    Draw()
+
+    Print("Visual check: WHITE text on BLUE background")
+    Print("BG color: " + label.font.bgcolor.red + "," + label.font.bgcolor.green + "," + label.font.bgcolor.blue)
+    Wait(3000)
+
+    Print("STEP 2: Setting bgcolor.red <- 255 (blue -> magenta)")
+    Print("This adds red to blue (0,0,255) making magenta (255,0,255)")
+    label.font.bgcolor.red <- 255
+    Draw()
+
+    Print("Visual check: WHITE text on MAGENTA background")
+    Print("BG color: " + label.font.bgcolor.red + "," + label.font.bgcolor.green + "," + label.font.bgcolor.blue)
+    Wait(3000)
+
+    Print("STEP 3: Setting bgcolor.green <- 255 (magenta -> white)")
+    Print("This adds green to magenta (255,0,255) making white (255,255,255)")
+    label.font.bgcolor.green <- 255
+    Draw()
+
+    Print("Visual check: WHITE text on WHITE background (text should disappear!)")
+    Print("BG color: " + label.font.bgcolor.red + "," + label.font.bgcolor.green + "," + label.font.bgcolor.blue)
+    Wait(3000)
+
+    Print("STEP 4: Setting bgcolor to red (255,0,0)")
+    label.font.bgcolor.red <- 255
+    label.font.bgcolor.green <- 0
+    label.font.bgcolor.blue <- 0
+    Draw()
+
+    Print("Visual check: WHITE text on RED background")
+    Print("BG color: " + label.font.bgcolor.red + "," + label.font.bgcolor.green + "," + label.font.bgcolor.blue)
+    Wait(3000)
+
+    Print("Test complete - press any key")
+    WaitForAnyKeyPress()
+}

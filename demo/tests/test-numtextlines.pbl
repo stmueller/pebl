@@ -1,0 +1,68 @@
+## Test script to verify numTextLines property works correctly
+
+define Start(lPar)
+{
+    gWin <- MakeWindow("black")
+
+    ## Test 1: Simple short text that fits on one line
+    text1 <- "This is a single line of text"
+    box1 <- EasyTextBox(text1, 100, 100, gWin, 24, 400, 200)
+    Draw()
+    Print("Test 1: Single line")
+    Print("Text: " + text1)
+    Print("NUMTEXTLINES: " + box1.numTextLines)
+    Print("LINEHEIGHT: " + box1.lineHeight)
+    PrintProperties(box1)
+    Print("---")
+
+    ## Test 2: Longer text that wraps to multiple lines
+    text2 <- "This is a much longer piece of text that should wrap onto multiple lines when displayed in a textbox that has a limited width. We want to see how many lines this actually takes up."
+    Hide(box1)
+    box2 <- EasyTextBox(text2, 100, 100, gWin, 24, 400, 200)
+    Draw()
+    Print("Test 2: Multi-line wrapped text")
+    Print("Text: " + text2)
+    Print("NUMTEXTLINES: " + box2.numTextLines)
+    Print("LINEHEIGHT: " + box2.lineHeight)
+    Print("Total height needed: " + (box2.numTextLines * box2.lineHeight))
+    Print("Box height: " + box2.height)
+    Print("---")
+
+    ## Test 3: Text with explicit line breaks
+    text3 <- "Line 1" + CR(1) + "Line 2" + CR(1) + "Line 3" + CR(1) + "Line 4"
+    Hide(box2)
+    box3 <- EasyTextBox(text3, 100, 100, gWin, 24, 400, 200)
+    Draw()
+    Print("Test 3: Text with explicit line breaks")
+    Print("Text: " + text3)
+    Print("NUMTEXTLINES: " + box3.numTextLines)
+    Print("LINEHEIGHT: " + box3.lineHeight)
+    Print("---")
+
+    ## Test 4: Different font sizes
+    text4 <- "Testing with different font size to see if numTextLines updates correctly."
+    Hide(box3)
+    box4 <- EasyTextBox(text4, 100, 100, gWin, 32, 400, 200)
+    Draw()
+    Print("Test 4: Larger font (32pt)")
+    Print("Text: " + text4)
+    Print("NUMTEXTLINES: " + box4.numTextLines)
+    Print("LINEHEIGHT: " + box4.lineHeight)
+    Print("---")
+
+    ## Test 5: Very narrow box forcing many line breaks
+    text5 <- "This text is in a very narrow box so it should wrap many times."
+    Hide(box4)
+    box5 <- EasyTextBox(text5, 100, 100, gWin, 24, 150, 400)
+    Draw()
+    Print("Test 5: Narrow box (150px wide)")
+    Print("Text: " + text5)
+    Print("NUMTEXTLINES: " + box5.numTextLines)
+    Print("LINEHEIGHT: " + box5.lineHeight)
+    Print("Total height needed: " + (box5.numTextLines * box5.lineHeight))
+    Print("Box height: " + box5.height)
+    Print("---")
+
+    Print("All tests complete. Press any key to exit.")
+    WaitForAnyKeyPress()
+}

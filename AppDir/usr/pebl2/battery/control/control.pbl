@@ -1,0 +1,172 @@
+define Start(p)
+{
+
+   gWin <- MakeWindow("black")
+
+   parpairs <- [["targcolor","red"],
+                ["trackercolor","white"],
+		["targetsize",50]
+		]
+
+   gParams <- CreateParameters(parpairs,gParamFile)
+
+   CountDown(gWin)
+   Print(Trial(30000,.9))
+   CountDown(gWin)
+   Print(Trial(30000,.9))
+   CountDown(gWin)
+   Print(Trial(30000,.9))
+
+}
+
+
+
+define Trial(duration,noise)
+{
+   
+  xbase <- gVideoWidth/2
+  ybase <- gVideoHeight/2
+  xscale <- 100   ##scale in pixels of oscillation.  SHould be max of 3x, from the center, so that an xscale of 100 needs +/-300 or 600 pixels of movement.
+  
+  tracker <-Circle(xbase,ybase,gParams.targetsize+3,MakeColor(gparams.trackercolor),1)
+  target <- Circle(xbase,ybase,gParams.targetsize,MakeColor(gparams.targcolor),1)
+
+
+  trackerX <- xbase
+  targetX <- xbase
+
+  AddObject(tracker,gWin)  
+  AddObject(target,gWin)
+
+
+   ##generate the target path parameters. We will calculate these each time,
+   ##so it tracks smoothly with time rather than sequence.
+
+   freq1 <- RandomUniform(.3)
+   freq2 <- RandomUniform(.3)+.3
+   freq3 <- RandomUniform(.4)+.6
+
+
+
+   Draw()
+   timeStart <- GetTime()
+   time <- timeStart
+   timescale <- .002  ## how ms scales to the sine wave
+
+   trackerstep <- 0  ##how far the tracker moves. Can be in non-whole pixels
+
+
+   maxspeed <- 2
+   speedstep <- .05
+   lasttime <- GetTime()
+   delta <- 0
+   delta2 <- 0
+   deltaSum <- 0
+   adj <- 0   
+   count <- 0
+   cont <- 1
+   autopilot <- 1
+   autopilotthresh <- 5  ##don't adjust unless delta is this big.
+   deltas <- []
+   delay <- 2
+   stayProb <- .3  ##probability of continuing previous action.
+    
+  while(cont and time < timeStart+duration)
+     {
+
+       stime <- timescale * (time-timestart)
+       xval <- xbase+(Sin(stime*freq1) + Sin(stime*freq2) + Sin(stime*freq3))*xscale
+       targetX <- xval
+       target.x <- targetX
+       delta0 <- trackerX - targetX
+       PushOnEnd(deltas,delta0)
+       delta <- Abs(delta0)
+
+       if(autopilot)
+        {
+
+
+       if(Random()>stayProb)
+        {
+         if(Length(deltas)<=delay)
+	  {
+	    pilotdelta0 <- 0
+	  }else{
+             pilotdelta0 <- Nth(deltas,Length(deltas)-delay)
+          }
+          pilotdelta <- Abs(pilotdelta0)
+          if(pilotdelta>autopilotthresh)
+	   {
+            if(pilotdelta0<0) ##we are left
+            {
+	      trackerstep <- trackerstep + speedstep
+   	      trackerstep <- Min([trackerstep,maxspeed])
+
+             } elseif(pilotdelta0>0) ##we are right
+               {
+	        trackerstep <- trackerstep - speedstep
+   	        trackerstep <- Max([trackerstep,-maxspeed])
+              }
+	      
+
+
+          if(Random()<noise)
+	    {
+	      adj <- trackerstep
+            }else{
+              adj <- IfElse(Random()<.5, trackerstep*.9,trackerstep/.9)
+            }
+
+            }
+	  }
+        } else {
+       if(IsKeyDown("<left>"))
+       {
+         trackerstep <- trackerstep -speedstep
+	 trackerstep <- Max([trackerstep,-maxspeed])
+         adj <-  trackerstep
+
+       } elseif(IsKeyDown("<right>"))
+       {
+         trackerstep <- trackerstep + speedstep
+	 trackerstep <- Min([trackerstep,maxspeed])
+         adj <-  trackerstep
+
+       }
+        }
+
+
+       trackerx <- Max([xbase-xscale*3,Min([xbase + xscale*3, trackerX + adj])])
+       tracker.x <- trackerx
+
+
+
+
+       delta2 <- delta2 + delta * (time-lasttime)
+       deltaSum <- deltaSum + delta
+       count <- count + 1
+       
+     # Print(time+","+targetX+","+trackerX +","+adj)
+       Draw()
+       Wait(5)
+       lasttime <- time
+       time <- GetTime()
+      }
+
+       return [deltaSum/count, delta2/(time-timeStart)]
+
+}
+
+
+define IfElse(condition,a,b)
+{
+   retval <- 0
+    if(condition)
+    {
+     retval <- a
+    }else{
+      retval <- b
+    }
+
+  return retval
+}

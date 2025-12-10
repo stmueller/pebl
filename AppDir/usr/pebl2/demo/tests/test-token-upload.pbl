@@ -1,0 +1,95 @@
+## Test token-based file upload
+## This script creates a test file and uploads it to verify the complete flow
+
+define Start(p)
+{
+    gVideoWidth <- 800
+    gVideoHeight <- 600
+    gWin <- MakeWindow()
+
+    Print("=== PEBL Token Upload Test ===")
+    Print("")
+
+    ## Check if upload.json exists
+    configExists <- FileExists("upload.json")
+    Print("upload.json exists: " + configExists)
+
+    if(not configExists)
+    {
+        Print("ERROR: No upload.json found!")
+        Print("Add ?token=TOKEN to URL")
+        Draw()
+        WaitForKeyPress("X")
+        SignalFatalError("No upload.json file")
+    }
+
+    ## Read configuration
+    config <- ParseJSON(FileReadText("upload.json"))
+    Print("Server: " + config.host + ":" + config.port)
+    Print("Endpoint: " + config.page)
+    Print("Task: " + config.taskname)
+
+    if(PropertyExists(config, "token"))
+    {
+        Print("Token: " + config.token)
+    }
+    Print("")
+
+    ## Create a test data file
+    testFile <- "test-upload-data.csv"
+    Print("Creating test data file: " + testFile)
+
+    fileout <- FileOpenWrite(testFile)
+    FilePrint(fileout, "subnum,trial,timestamp,data")
+    FilePrint(fileout, "999,1," + GetTime() + ",test_value_1")
+    FilePrint(fileout, "999,2," + GetTime() + ",test_value_2")
+    FilePrint(fileout, "999,3," + GetTime() + ",test_value_3")
+    FileClose(fileout)
+    Print("Test file created with 4 lines")
+    Print("")
+
+    ## Display status in window
+    title <- EasyLabel("Token Upload Test", gVideoWidth/2, 50, gWin, 22)
+    msg1 <- EasyLabel("Configuration loaded", gVideoWidth/2, 120, gWin, 14)
+    msg2 <- EasyLabel("Server: " + config.host + ":" + config.port, gVideoWidth/2, 150, gWin, 14)
+    msg3 <- EasyLabel("Test file created", gVideoWidth/2, 180, gWin, 14)
+    msg4 <- EasyLabel("Press SPACE to upload", gVideoWidth/2, 250, gWin, 18)
+    Draw()
+
+    WaitForKeyPress(" ")
+
+    ## Attempt upload
+    Print("Attempting upload...")
+    status <- EasyLabel("Uploading...", gVideoWidth/2, 300, gWin, 16)
+    Draw()
+
+    result <- UploadFile(999, testFile, "upload.json")
+
+    Print("Upload result: " + result)
+    Print("")
+
+    ## Display result
+    Hide(status)
+    if(result)
+    {
+        resultMsg <- EasyLabel("✓ Upload successful!", gVideoWidth/2, 300, gWin, 18)
+        Print("SUCCESS: File uploaded to server")
+    } else {
+        resultMsg <- EasyLabel("✗ Upload failed", gVideoWidth/2, 300, gWin, 18)
+        Print("FAILED: Upload did not complete")
+        Print("Check:")
+        Print("  1. Is server running?")
+        Print("  2. Is database set up? (create_tokens_table.sql)")
+        Print("  3. Is token valid in database?")
+        Print("  4. Check server logs for errors")
+    }
+
+    instr <- EasyLabel("Press X to exit", gVideoWidth/2, 400, gWin, 14)
+    Draw()
+    WaitForKeyPress("X")
+
+    Print("")
+    Print("=== Test Complete ===")
+
+    return(1)
+}

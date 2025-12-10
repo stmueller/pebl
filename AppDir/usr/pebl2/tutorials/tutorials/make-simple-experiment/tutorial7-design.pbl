@@ -1,0 +1,67 @@
+define Start(p)
+{
+
+   reps <- 10
+   
+   gWin <- MakeWindow("black")
+   lab <- EasyLabel("Welcome. Press any key to begin.", gVideoWidth/2,200,gWin,30)
+   Draw()
+   WaitForAnyKeyPress()
+   RemoveObject(lab,gWin)
+  MessageBox("These are the instructions for the test.  In this test, you must decide whether a number of even or odd. Try to do this as quickly and accurately as possible.  For example:
+  
+  1121334141:   odd
+  1411561632:   even
+  3:            odd
+  4:            even
+  
+  When a number is odd, press the LEFT shift key.  When a number is even press the RIGHT shift key.  
+  
+  Ready? ",gWin)
+  
+  desOdd <- Sequence(101,999,2)
+  desEven <- Sequence(100,998,2)
+  
+   trialsOdd <- SampleN(desOdd,reps)
+   trialsEven <- SampleN(desEven,reps)
+   
+   trials <- Shuffle(Merge(trialsOdd,trialsEven))
+   
+   
+  # trials <- Shuffle([101,300,511,24, 19,17,25])
+
+   
+   trial <- 1
+   loop(i,trials)
+   {
+     starttime <- GetTime()
+     out <-  Trial(i)
+	 PrintList(Merge([gSubNum,trial,starttime],out),",")
+     trial <- trial + 1
+   }
+  
+}
+
+
+define Trial(number)
+{
+
+  header <- Easylabel("Decide whether even or odd",gVideoWidth/2,100,gWin,40)
+  stim <-   EasyLabel(number+"",gVideoWidth/2,gVideoHeight/2,gWin,80)
+  footer <- EasyLabel("<left shift> ODD                                   EVEN <right shift>",gVideoWidth/2,gVideoHeight-200,gWin,30)
+  
+  Draw()
+  time1 <- GetTime()
+  resp <- WaitForListKeyPress(["<lshift>","<rshift>"])
+  time2 <- GetTime()
+   rt <- (time2-time1)
+   odd <- IsOdd(number)
+   corr <- (odd and resp=="<lshift>") or ((not odd) and resp=="<rshift>")
+
+  return [number,odd,resp,corr,rt] 
+}
+
+define IsOdd(number)
+{
+    return Mod(number,2)
+}

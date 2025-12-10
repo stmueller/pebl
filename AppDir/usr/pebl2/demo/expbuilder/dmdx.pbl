@@ -1,0 +1,371 @@
+##JSON output from visualdmdx.com
+define Start(p)
+{
+
+
+   expText <- FileReadText("dmdx.json")
+   expObj <- ParseJSON(exptext)
+   PrintProperties(expObj)
+
+}
+
+define Dummy()
+{
+
+
+
+   pars.responsebuttons <- ["<lshift>","<rshift>"]
+   pars.responseLabels <- ["Left shift key","Right shift key"]
+
+   gFrameDuration <- ToNumber(pars.frameduration)
+   gISI <- ToNumber(pars.delay)
+   ##We should check on whether 'frame duration' is acheivable. 
+   Print("**********************************")
+   PrintProperties(expObject)
+   Print("**********************************")
+   RunEXP(expObject)
+}
+
+
+
+
+define RunEXP(expobject)
+{
+  ##first, let's extract any gloabel informaion we can.
+
+  params <- expobject.parameters
+  PrintProperties(params)
+  bgcolor <- HexToRGBColor(params.bgcolor)
+  fgcolor <- HexToRGBColor(params.color)
+  fontsize <- ToNumber(params.fontsize)
+  gStimFont <- MakeFont(gPEBLBaseFont,0,fontsize,fgcolor,bgcolor,0)
+  frameDuration <- params.frameduration
+
+#  usekeyboard <- params.keyboard
+#  usemouse <- params.mouse
+#  timeout <- params.timeout
+  video <- params.videomode
+  gVideoWidth <- video.width
+  gVideoHeight <- video.height
+  ##other video properties must be set at runtime.
+  gWin <- MakeWindow()
+  gWin.bgcolor <- bgcolor  ##This seems to be broken???
+#  gBack <- Rectangle(gVideoWidth/2,gVideoHeight/2,gVideoWidth,gVideoHeight,bgcolor,1)
+#  AddObject(gBack,gWin)
+  Draw()
+  WaitForAnyKeyPress()  
+
+
+  gFooter <- EasyLabel("",gVideoWidth/2,gVideoHeight-100,gWin,18)
+  Draw()
+  ##Should you pause with a space bar between each trial?:  
+  continuous <- TTF(params.continuosrun)
+
+  items <- expObject.items
+ 
+   ##Label the items by id number in order defined:
+   id <- 1
+   loop(itm,items)
+   {
+    itm.id <- id
+    id <- id + 1
+   }
+
+  ##Loop thruogh each of the items in the experiment:
+  trialcounter <- 1
+  id <- 1
+  while(id<=Length(items))
+   {
+     item <- Nth(items,id)
+
+    if(item.type=="instructions")
+     {
+       DoInstructions(item)
+
+     }elseif(item.type=="loop")
+     {
+     ##'loop' items organize a loop over subsequent items:
+       
+       Print("getting subset of "+items+" " +id + " " +item.content)
+#       PrintProperties(item)
+        
+       first <- id+1
+       times <- ToInteger(item.description)
+       top <- ToInteger(item.content)
+
+       subset <- SubList(items,first,top)
+
+       ##Outer part of the loop....
+       loop(timeX, Sequence(1,times,1))
+       {
+
+       ##Should the items be shuffled?
+	if(TTF(item.scramble))
+         {
+	  subset <- Shuffle(subset)
+         }
+
+	 ##loop over the items:	
+	loop(itm,subset) 
+         {
+            Print("Running trial " + trialcounter + " / item " +itm.id)
+
+            output <-   RunItem(item,params)
+	    Draw()
+	  if(not continuous)
+            {
+	     gFooter.text <- "Press space bar to continue."
+	     Show(gFooter)
+	     Draw()
+             WaitForKeyPress(" ")
+             Hide(gFooter)
+
+	    }
+            Draw()         
+            durationISI <-	 WaitSteps( gISI)
+            Print("ISI "+durationISI)
+         
+
+  	   trialcounter <- trialcounter + 1
+        }
+       id <- top 
+     }
+    
+     } elseif(item.type=="item")
+     {
+
+       #this is a normal item, not in a loop.  
+
+       output <-  RunItem(item,params)
+       Draw()
+       if(not continuous)
+         {
+	    gFooter.text <- "Press space bar to continue."
+	    Show(gFooter)
+	    Draw()
+            WaitForKeyPress(" ")
+	    Hide(gFooter)
+	    Draw()
+         }
+         Draw()         
+	 durationISI <-	 WaitSteps( gISI)
+	 Print("ISI "+durationISI)
+
+     }
+    
+     id <- id + 1
+   }
+
+}
+
+
+##This handles a single 'item'
+##an item consists of one or more 'stimuli'
+##and a response.  
+##This does not handle 'loop' or 'instruction' items, but only
+## items of item.type "item"
+##
+
+define RunItem(item,params)
+{
+    Print("Running item:" + item)
+#    PrintProperties(item)
+    startTime <- GetTime()
+    clockOnTime <- GetTime()  #THIS WILL change depending on the parameter item.clockon
+
+    Print("Stimuli")
+    Print(item.stimuli)
+     if(Length(item.stimuli)>0)
+        {
+            Print("LOOPING STIMULI ON ITEM")
+	    
+	    ##pull the stimuli from the item and shuffle if necessary
+            stimuli <- item.stimuli
+            if(item.scramble=="true")
+	    {
+             stimuli <- Shuffle(stimuli)
+	    }
+
+
+	    ##then go through each part of the item'
+	    startTimer <- ToNumber(item.clockon)
+
+	     objects <- []
+	     timesteps <- []
+
+	     stimid <- 1
+             loop(stim,stimuli)
+             {
+
+                xval <- Lookup(stim.horizontal,
+		     ["left","center","right"],
+   		     [gVideoWidth/4,gVideoWidth/2,3*gVideoWidth/4])
+
+		yval <- Lookup(stim.vertical,
+		     ["top","middle","bottom"],
+   		     [gVideoHeight/4,gVideoHeight/2,3*gVideoHeight/4])
+
+                if(stim.format=="text")
+                {
+		  Print("making text label")
+                  object <- MakeLabel(stim.val,gStimFont)
+		  AddObject(object,gWin)
+		  Print(xval)
+		  Print(yval)
+		  Move(object,xval,yval)
+                       
+                } elseif(stim.format=="bmp")
+                {
+                  object <- MakeImage(stim.val+".bmp")
+		  AddObject(object,gWin)
+		  Move(object,xval,yval)
+
+                }elseif(stim.format=="jpg")
+                {
+                  object <- MakeImage(stim.val+".jpg")
+		  AddObject(object,gWin)
+		  Move(object,xval,yval)
+                }elseif(stim.formbat=="blank")
+ 		{
+		 ##Should be blank.
+                 object <- MakeLabel("",gStimFont)
+		}
+                PushOnEnd(objects,object)
+
+		
+
+		##Now, the current object is on the screen, ready to be drawn.
+		Draw()
+
+		steptime <- GetTime()
+		PushOnEnd(timesteps,steptime)
+		if(stimid == startTimer)
+		{
+		  clockOnTime <- steptime
+		}
+
+		##Present for specific number of steps.
+		stimduration <- WaitSteps(ToNumber(stim.duration))
+		Print(stimduration)
+
+		if(TTF(stim.clear))
+		{
+		   Hide(object)
+		}
+
+		##Don't draw here; wait until the next object is added.
+		stimid <- stimid + 1
+             }
+           }
+
+	   ##Now, collect the response.
+           resptype <- Lookup(item.response,
+ 	 	              ["positive","negative","any","none"],
+   		              [1,2,3,4])
+
+         timeout <- ToNumber(params.timeout)
+
+         if(timeout>0)
+              {
+                 resp <-  WaitForListKeyPressWithTimeout(params.responsebuttons,timeout,1)  
+              }
+	     
+    ##NOW, WE SHOULD RECORD EVERYTHING ABOUT THE TRIAL:
+
+
+    RemoveObjects(objects,gWin)
+    Draw()
+    return ""
+}
+
+define RemoveObjects(obs,win)
+{
+  loop(i,obs)
+  {
+    RemoveObject(i,win)
+  }
+}
+
+define DoInstructions(object)
+{
+
+   MessageBox(object.content,gWin)
+   Print(object.stimuli)
+
+}
+
+
+define WaitSteps(steps)
+{
+
+  time <- GetTime()
+  endtime <- time + gFrameDuration*steps
+  while(GetTime()<endtime)
+  {
+   Draw()  
+  }
+  trueendtime <- GetTime() 
+ ##wait some number of steps.
+ return (trueendtime-time)
+}
+
+##convert hexcode to an rgb color.
+define HexToRGBColor(hexcode)
+{
+  Print(hexcode)
+  chars <- SplitString(Uppercase(hexcode),"")
+  hexcodelist <- ["0","1","2","3","4","5","6","7","8","9",
+                       "A","B","C","D","E","F"]
+
+  map <- [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]
+
+
+  ##first letter should be #
+  good <- Length(chars)==7 or Length(chars)==9
+  good <- good and First(chars)=="#"
+
+  loop(i,Sublist(chars,2,Length(chars)))
+   {
+     good <- good and IsMember(i,hexcodelist)
+   }
+
+   if(not good)
+   {
+    SignalfatalError("["+hexcode +"] is not a legal color code.")
+   }
+
+   Print(hexcodelist)
+    red <- Lookup(Nth(chars,2), hexcodelist,map) * 16 +  
+                Lookup(Nth(chars,3),hexcodelist,map)  
+
+    green <- Lookup(Nth(chars,4),hexcodelist,map) * 16 +  Lookup(Nth(chars,5),hexcodelist,map)  
+    blue <- Lookup(Nth(chars,6),hexcodelist,map) * 16 +  Lookup(Nth(chars,7),hexcodelist,map)  
+
+    Print("Red green blue:" + red + "--" + green + " -- " + blue)
+    color <- MakeColorRGB(red,green,blue)
+    if(Length(chars)==9)
+    {
+      alpha <- Lookup(Nth(hexcodelist,8),hexcodelist,map) * 16 +  Lookup(Nth(hexcodelist,9),hexcodelist,map)  
+      color.alpha <- alpha
+    }
+
+
+
+  return color
+}
+
+
+define TTF(truefalse)
+{
+
+  tf <- UpperCase(truefalse)
+  if(tf=="TRUE" or tf =="T" or ToNumber(truefalse)>0)
+  {
+      tff <- 1
+  } else 
+  {
+     tff <- 0
+  }
+
+ return tff
+}

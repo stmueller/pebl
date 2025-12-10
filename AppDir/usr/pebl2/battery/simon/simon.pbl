@@ -1,0 +1,237 @@
+define Start(p)
+{
+
+  gScriptName <- "PEBL Simon Task"
+
+   gWin <- MakeWindow("BLACK")
+
+  if(gSubNum+""=="0")
+   {
+     gSubNum <- GetSubNum(gWin)
+   }
+
+  GetStrings(gLanguage)
+
+  ##set default parameter values, in case .par file does not exist
+  parpairs <- [["reps",5],  ##number of repetitions of the (10-stimulus) design
+               ["targsize",50],  ##radius, in pixels, of target circles
+               ["leftcolor","red"],
+	       ["rightcolor","blue"]
+                ]
+
+  gParams <- CreateParameters(parpairs,gParamFile)
+
+
+   gInstructions <-EasyTextBox("",50,20,gWin,18,gVideoWidth-100,200)
+   gInstructions.text <-gStrings.inst1
+
+
+   ShowCursor(0)
+   gSleepEasy <- 1
+
+   MakeDirectory("data")
+
+   gFileOut <- GetNewDataFile(gSubNum,gWin,"simon","csv",
+           "subnum,trial,type,pos,compatible,resp,corr,time,rt")
+
+   ##This controls how many times through the 10-stimulus trial set we go
+   reps <- gParams.reps
+
+   ##Create the stimulus sequence:
+
+   ##xpos is the irrelevant dimension, stim is red/blue
+   xpos <- [-200,-100,-50,0,50,100,200]
+   stim <- [1,2]
+   trialbase <- DesignFullCounterbalance(xpos,stim)
+
+   ##repeat the location/stimulus pairs and shuffle:
+   stim <- Shuffle(RepeatList(trialbase,reps))
+   length <- Length(stim)
+
+   ##Colors and shapes of the left/right stimuli:
+   leftcol <- MakeColor(gParams.leftcolor)
+   rightcol <- MakeColor(gParams.rightcolor)
+   stimA <- Circle(0,0,gParams.targsize,leftcol,1)
+   stimB <- Circle(0,0,gParams.targsize,rightcol,1)
+
+   AddObject(stimA,gWin)
+   AddObject(stimB,gWin)
+   Move(stimA,gVideoWidth/2-200,350)
+   Move(stimB,gVideoWidth/2+200,350)
+
+
+
+   foot1 <- EasyLabel(gStrings.footer1,gVideoWidth/2,gVideoHeight-100,gWin,22)
+   foot2 <- EasyLabel("   "+gParams.leftcolor+"                                                 "+gParams.rightcolor,gVideoWidth/2,gVideoHeight-70,gWin,22)
+   Draw()
+   Hide(stimA)
+   Hide(stimB)
+   Move(stimA,gVideoWidth/2,gVideoHeight/2)
+   Move(stimB,gVideoWidth/2,gVideoHeight/2)
+
+##Do a little initial practice.
+   resp <- ""
+   while(not resp == " ")
+    {
+       resp <- WaitForListKeyPress(["<lshift>","<rshift>"," "])
+       if(resp == "<lshift>")
+        {
+          Hide(stimB)
+          Show(stimA)
+        }else{
+
+          Hide(stimA)
+          Show(stimB)
+        }
+     Draw()
+    }
+   Hide(gInstructions)
+   Hide(stimA)
+   Hide(stimB)
+
+   status <- EasyLabel("",gVideoWidth/2,20,gWin,15)
+   fixation <- EasyLabel("+",gVideoWidth/2,gVideoHeight/2,gWin,80)
+   Hide(fixation)
+
+
+  ##Loop through the stimuli.
+   fixation.text <- "+"
+   rts <- []
+   corrs <- []
+   conds <- []
+   compats <- []
+
+   Draw()
+   trial <- 1
+   loop(i,stim)
+   {
+    status.text <- "["+trial +"] of [" + length +"]"
+    type <- Second(i)
+    pos <- First(i)
+    PushonEnd(conds, type+"|"+pos)
+    if(type==1)
+     {
+      stim <- stimA
+     }else{
+      stim <- stimB
+     }
+
+     Move(stim,gVideoWidth/2+pos,gVideoHeight/2)
+
+     Show(fixation)
+     Draw()
+     Wait(400)
+     Hide(fixation)
+     Draw()
+     Wait(200+Random()*200)
+     Show(stim)
+     Draw()
+     time0 <- GetTime()
+     resp <- WaitForListKeyPress(["<lshift>","<rshift>"])
+     time2 <- GetTime()
+
+     corr <- (resp=="<lshift>" and type==1 ) or(resp=="<rshift>" and type==2)
+     Hide(stim)
+
+    ##1 if compatible, -1 if incompatible, 0 if neutral.
+
+    side <-(Abs(Floor(pos/25)) >1) * Sign(pos)
+
+    compat <- ((type -1)*2-1) * side  ##make 0 and +/- 50 neutral
+
+    PushOnEnd(compats,compat)
+
+     if(Mod(trial,50)==0)
+      {
+
+        status.text <-gStrings.break
+        Draw()
+        WaitForKeyPress(" ")
+
+      }
+     Draw()
+
+     FilePrint(gFileOut,gSubNum+","+trial + "," + type + "," + pos + "," +
+             compat+ "," + resp + "," +corr + "," + time0 +  ","  + (time2-time0))
+
+     rts <- Append(rts,(time2-time0))
+     corrs <- Append(corrs,corr)
+     trial <- trial +1
+   }
+
+    gInstructions.text <- gStrings.debrief
+    Show(gInstructions)
+
+    Draw()
+
+
+   ##Compute some summary stats.
+   rtsum  <-SummaryStats(rts,conds)
+   corrsum <-SummaryStats(corrs,conds)
+   ##reorder these so they are in the proper order.
+   rtsum<- SortBy(rtSum,[2,1,3,4,6,7,5,9,8,10,11,13,14,12])
+   corrsum<- SortBy(corrSum,[2,1,3,4,6,7,5,9,8,10,11,13,14,12])
+
+   rtsumComp  <-SummaryStats(rts,compats)
+   corrsumComp <-SummaryStats(corrs,compats)
+
+
+
+   sumFile <- GetNewDataFile(gSubNum,gWin,"simon-summary","txt","")
+   FilePrint(sumfile,"PEBL Simon Test: Summary data")
+   FilePrint(sumfile,GetPEBLVersion())
+   FilePrint(sumfile,TimeStamp()+CR(2))
+
+
+
+   FilePrint(sumfile,"Response times (by compatibility):")
+   FilePrint(sumfile,"condition  N   median  mean    sd")
+   FilePrint(sumfile,"---------------------------------")
+
+    loop(i,rtsumComp)
+     {
+       FilePrint(sumfile,PrintList(i))
+     }
+
+
+   FilePrint(sumfile,CR(2)+"Response times (by position/Condition):")
+   FilePrint(sumfile,"condition  N   median  mean    sd")
+   FilePrint(sumfile,"---------------------------------")
+
+    loop(i,rtsum)
+     {
+       FilePrint(sumfile,PrintList(i))
+     }
+
+
+
+   FilePrint(sumfile,CR(2)+"Accuracy (By compatibility):")
+   FilePrint(sumfile,"condition  N   median  mean    sd")
+   FilePrint(sumfile,"---------------------------------")
+
+    loop(i,corrsumComp)
+     {
+       FilePrint(sumfile,PrintList(i))
+     }
+
+
+   FilePrint(sumfile,CR(2)+"Accuracy (By position/condition):")
+   FilePrint(sumfile,"condition  N   median  mean    sd")
+   FilePrint(sumfile,"---------------------------------")
+
+    loop(i,corrsum)
+     {
+       FilePrint(sumfile,PrintList(i))
+     }
+
+   WaitForAnyKeyPress()
+
+}
+
+
+
+
+define GetStrings(lang)
+{
+  gStrings <- GetTranslations("simon", lang)
+}

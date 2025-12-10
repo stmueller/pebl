@@ -1,0 +1,288 @@
+ ## Two-column addition task, as found in UTC-PAB Test No. 4
+ ##
+ ##
+ ##  Part of the PEBL Test Battery
+ ##  Shane T. Mueller, Ph.D.
+ ##   smueller@ obereed.net
+ ##
+ ##
+ ## To cite: Mueller, S. T. (2011). The PEBL Two-column addition test.  Computer software retrieved from http://pebl.sf.net.
+ ##
+ ##
+
+define Start(p)
+{
+
+
+  gScriptName <- "PEBL Two-column Addition Task"
+
+  parpairs <- [["numpractice",10],
+               ["numtrials",45],
+	       ["isi",250],
+               ["timeout",15000]]
+
+  gParams <- CreateParameters(parpairs,gParamFile)
+
+  numPracticeTrials <- gParams.numpractice
+  numTrials         <- gParams.numtrials
+  isi <- gParams.isi
+  gTimeout <- gParams.timeout
+
+
+
+   win <- MakeWindow()
+   gSleepEasy <- 1
+   if(gSubNum+""=="0")
+   {
+     gSubNum <- GetSubNum(win)
+   }
+
+
+
+   GetStrings(gLanguage)
+
+
+   gFileOut <- GetNewDataFile(gSubNum,win,"twocol","csv", "sub,cond,trial,num1,num2,num3,sum,resp,corr,toolong,clicks,starttime,firstclick,completetime")
+   gSummaryFile <- GetNewDataFile(gSubNum,win,"twocol-summary","txt","")
+
+  ##The sound file to play:
+  gBuzz <- LoadSound("buzz500ms.ogg")
+
+  Draw()
+
+  ####################################
+  ## Give instructions
+
+  inst <-gStrings.inst
+
+  instruct <- EasyTextBox(inst,50,20,win,14,500,400)
+  Draw()
+  WaitForAnyKeyPress()
+  Hide(instruct)
+
+
+
+  ####################################
+  ## Make display objects
+
+  glabel1 <- EasyLabel("",gVideoWidth/2,100,win,40)  #top number
+  glabel2 <- EasyLabel("",gVideoWidth/2,150,win,40)  #middle number
+  glabel3 <- EasyLabel("",gVideoWidth/2,200,win,40)  #bottom number
+  gLine <-  Line(gVideoWidth/2-100,250,200,0,MakeColor("black")) #horizontal rule
+  AddObject(gLine,win)
+  gsum   <- EasyTextBox("",gVideoWidth/2-50,300,win, 40, 100,40) #response
+  gFeedback <-EasyLabel("",gVideoWidth/2,400,win,28) #Feedback label
+
+
+  ##label output file
+
+
+  ####################################
+  #Do practice trials
+  trial <- 1
+  while(trial <= numPracticeTrials)
+  {
+
+    FilePrint_(gFileOut,gSubNum + ",0," + trial + ",")
+    Trial(1)
+    trial <- trial + 1
+    Wait(isi)
+  }
+
+
+  instruct.text <- ReplaceChar(gStrings.practice,"<TRIALS>",numtrials)
+
+  Show(instruct)
+  Draw()
+  Wait(1000)
+  WaitForAnyKeyPress()
+  Hide(instruct)
+  Draw()
+  Wait(1000)
+
+  ####################################
+  ##Do regular trials
+
+  trial <- 1
+  while(trial <= numTrials)
+  {
+    FilePrint_(gFileOut,gSubNum + ",1," + trial + ",")
+
+    result <-  Trial(0)
+
+    trial <- trial + 1
+    Wait(isi)
+  }
+
+  ####################################
+  # Clean up and give feedback
+  FileClose(gFileOut)
+  FilePrint(gSummaryFile,"PEBL Two-column addition task" + Timestamp())
+  FileClose(gSummaryFile)
+  ShowAll(0)
+  Hide(gSum)
+  instruct.text <- gStrings.debrief
+  Show(instruct)
+  Draw()
+
+  WaitForAnyKeyPress()
+
+}
+
+
+define Trial(feedback)
+{
+
+
+   num1 <- GetNum()
+   num2 <- GetNum()
+   num3 <- GetNum()
+
+  gLabel1.text <- num1
+  gLabel2.text <- num2
+  gLabel3.text <- num3
+  gSum.text <- "?"
+  Show(gSum)
+  ShowAll(1)
+
+   starttime <- GetTime()
+   endtime <- starttime + gTimeout
+   continue <- 1
+   text <- ""
+   firstclick <- -1
+   toolong <- 0
+   clicks <- 0
+
+   corrections <- 0
+
+   while(continue)
+    {
+      resp <-  GetNumberResponse(endtime - GetTime())
+
+      if(clicks == 0)
+         {
+          firstclick <- GetTime()-starttime
+         }
+
+      if(resp=="<timeout>")
+         {
+           continue <- 0
+           toolong <- 1
+         }
+
+      if(resp == "<return>" or resp == "<kp_enter>")
+      {
+        continue <- 0
+        completetime <- GetTime()-starttime
+
+      } else {
+
+
+         length <- Max([0,StringLength(text)-1])
+         if(resp == "<backspace>")
+         {
+
+            text <- SubString(text, 1,length)
+          } else {
+
+             if((length+1)<3)
+              {
+             	text <- text + resp
+              }
+        }
+        clicks <- clicks + 1
+        gSum.text <- text
+        ShowAll(0)
+
+      }
+    }
+
+   if(toolong)
+   {
+
+     completetime <- GetTime()-starttime
+
+
+     Show(gFeedback)
+     Hide(gSum)
+     gFeedback.text <- gStrings.toolong
+     Draw()
+     PlayForeground(gBuzz)
+     Hide(gFeedback)
+
+     Draw()
+   }
+   resp <- ToInteger(gSum.text)
+   gSum.text <- ""
+
+
+
+
+  corr <- 0
+  if(resp  == num1+num2+num3)
+   {
+     corr <- 1
+   }
+
+   FilePrintCSVList(gFileOut, [num1, num2, num3, (num1+num2+num3), resp, corr, toolong, clicks, starttime, firstclick, completetime])
+
+
+   if(feedback)
+   {
+     if(corr){
+          gFeedback.text <- gStrings.correct + Round(completetime/100)/10 +  gStrings.sec
+      } else {
+          gFeedback.text <- gStrings.incorrect + Round(completetime/100)/10 + gStrings.sec
+      }
+     Show(gFeedback)
+     Draw()
+     Wait(500)
+     Hide(gFeedback)
+     Draw()
+   }
+
+  return corr
+}
+
+
+define ShowAll(p)
+{
+  gLabel1.visible <- p
+  gLabel2.visible <- p
+  gLabel3.visible <- p
+  gLine.visible   <- p
+
+  Draw()
+}
+
+
+define GetNum()
+{
+  ##We need a number between 11 and 99, not including any 0s.
+  return RandomDiscrete(9)*10+RandomDiscrete(9)
+}
+
+
+## You can use either numbers on top or keypad.
+## delete set of digits to restrict to one or the other.
+define GetNumberResponse(timeleft)
+{
+
+   x <-   WaitForListKeyPressWithTimeOut(["1","2","3","4","5","6","7","8","9","0",
+            "<KP_1>","<KP_2>","<KP_3>","<KP_4>","<KP_5>","<KP_6>","<KP_7>","<KP_8>","<KP_9>","<KP_0>",
+	     "<backspace>", "<return>","<kp_enter>"],
+              timeleft,1)
+  return x
+}
+
+
+define  FilePrintCSVList(file,list)
+{
+   FilePrintList(file,list,",")
+}
+
+
+define GetStrings(lang)
+{
+  gStrings <- GetTranslations("twocoladd", lang)
+}

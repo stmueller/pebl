@@ -1,0 +1,65 @@
+
+
+define Start(p)
+{
+
+  gSleepEasy<-1    ##Don't do busy waits for this.
+
+  ##Make a window and two fonts:
+  win <- MakeWindow()
+
+  ##Make two labels to display stuff.
+  lab <-  Easylabel("",gVideoWidth/2,gVideoHeight/2+40,win,50)
+  lab2 <- EasyLabel("Key Tester: Displays the keys you type.  Press <esc> to quit.", 
+                    gVideoWidth/2,gVideoHeight/2,win,18)
+
+
+  font <- lab.font
+  					
+  Draw()
+  ##Get keyboard input and display/print it until you hit esc:
+
+if(1)
+{
+  x <- ""
+  while (x != "<esc>") 
+  {
+  ## Use this to specify just a small set of keys to watch
+  ##     x <-WaitForListKeyPress(["<KP_1>","<KP_2>","<RETURN>","<esc>"])
+     x <- WaitForAnyKeyPress()
+	 lab.text <- x   
+     Print(x)
+     Draw()
+  }
+}
+
+  tb <- EasyTextBox("",100,100,win,14,100,100)
+
+  Draw()
+  x <- GetInput(tb,"<esc>")
+  Print(x)
+
+   
+
+}
+
+
+
+##This is a dumb version of WaitForListKeyPress(),
+##useful for non-standard keys.
+
+define WaitForKeyPad()
+{
+    x <- ""
+    while(x == "")
+     {
+        x <- WaitForAnyKeyPress()
+        ## Use whatever keys you are looking for.
+        if(not IsMember(x,["1","2","3"]))
+        {
+           x <- ""
+        }
+     }
+    return x
+}
+

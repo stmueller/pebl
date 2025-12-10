@@ -1,0 +1,700 @@
+#################################################
+## The PEBL Multi-Object Tracking Task.
+##
+## Modeled after Storm & Pylyshyn
+##
+##
+##  Version 1.0, Released 2018 Shane T Mueller, Ph.D.
+##  http://pebl.sf.net
+##  smueller@obereed.net
+##
+#################################################
+
+define Start(p)
+{
+
+   #SeedRNG(100)
+        gPI <- 3.141596
+	gScriptName <- "PEBL Multi-Object Tracking (MOT) Task"
+
+	gBgColor <- "grey80"      # Background color
+	gFgColor <- "black"       # Foreground color
+	gWin <- MakeWindow(gBgColor)
+
+
+        ##Set initial values to use if .par file does not exist.
+        parpairs <- [["reps",2],
+		     ["numobjs",8],
+		     ["mintargs",2],
+		     ["maxtargs",4],
+		     ["minreps",500],
+		     ["maxreps",2000],
+		     ["targsize",20]
+                     ]
+
+
+
+        gParams <- CreateParameters(parpairs,gParamFile)
+
+
+
+
+#	Initialize()
+	## Get subject code if we need to:
+#	if(gSubNum+""=="0")
+#	 {
+#	   gSubNum <- GetSubNum(gWin)
+#	 }
+	header <- "subnum,block,trial,practice,cue,topbottom,targdir,flankercoherence,flankerdir,time0,delay,resp,corr,rt"
+	## Make data files
+
+        gFileOut <- GetNewDataFile(gSubNum,gWin,"MOT","csv",header)
+	gPooledFileOut <- FileOpenAppend("data/MOT-pooled.csv")
+	gSumFileOut <- GetNewDataFile(gSubNum,gWin,"MOT-summary","txt","")
+
+	gLog <- FileOpenAppend("data/MOT-log.csv")
+	gPooledSummary <- FileOpenAppend("data/MOT-all.csv")
+
+
+	## Add headers onto files.
+	flen <- Length(FileReadList("data/MOT-pooled.csv"))
+
+	if(flen==0)
+	 {
+  	    # Print("Empty pooled data file.  Adding header")
+	   FilePrint(gPooledFileOut, header)
+	 }
+
+  gxmin<- gVideoWidth/2-300
+  gxmax<-gVideoWidth/2+300
+  gymin<-gVideoHeight/2-250
+  gymax<-gVideoHeight/2+250
+
+
+
+  targsByTrial <- Shuffle(RepeatList(Sequence(gParams.mintargs,gParams.maxtargs,1),gParams.reps))
+  numtrials <- Length(targsbytrial)
+ size <- gParams.targsize
+  numobjs <- gParams.numobjs
+
+  bg <- Rectangle((gXmin+gXmax)/2,(gymin+gymax)/2,
+                 gXMax-gXMin+size*2,gYMax-gYMIn+size*2,MakeColor("black"),1)
+  AddObject(bg,gWin)
+  gHeader <- EasyLabel("",gVideoWidth/2,bg.y-bg.height/2-60,gWin,40)
+  gHeader2 <- EasyLabel("",gVideoWidth/2,bg.y-bg.height/2-20,gWin,22)
+  gYes <- EasyLabel("YES", gVideoWidth/2-150,bg.y+bg.height/2+20,gWin,40)
+  gNo <- EasyLabel("NO", gVideoWidth/2+150,bg.y+bg.height/2+20,gWin,40)
+  gOK <- EasyLabel("OK", gVideoWidth/2,bg.y+bg.height/2+20,gWin,40)
+  Hide(gYes)
+  Hide(gNo)
+  Hide(gOK)
+
+
+  ##creating these paths takes a while.
+
+  paths <- []
+
+  loop(i,numtrials)
+  {
+    gHeader2.text <- i + " of " +numtrials
+    Draw()
+
+    frames <- Round(gParams.minreps + Random()*(gParams.maxreps-gparams.minreps))
+    numtargs <- Nth(targsbytrial,i)
+    path <-GeneratePaths(numobjs,numtargs,size,frames,.25)
+    PushOnEnd(paths,path)
+    ExecuteSelectTrial(path)
+  }
+
+  gHeader2.text <- ""
+
+  ##Now, do a block of selection trials.
+
+
+
+}
+
+define Stuffy(p)
+{
+  trial <- 1
+  loop(i,trials)
+  {
+
+    frames <- Round(gParams.minreps + Random()*(gParams.maxreps-gparams.minreps))
+    presentabsent <- Sample([1,0])
+    numtargs <- Sample(Sequence(gParams.mintargs,gParams.maxtargs,1))
+    out <- TrialYesNo(numObjs,numtargs,size,frames,presentabsent)
+    FilePrint(gFileOut,Merge([gSubNum,trial,frames,presentabsent,numtargs,numobjs],out))
+    trial <- trial +1
+  }
+
+}
+
+define TrialYesNo(numobjs,numtargs,size,frames,targfoil)
+{
+  gHeader.text <- "Generating trial"
+  Draw()
+  disp <- CreateDisplay(numobjs,numtargs,size)
+  startpos <- disp.xys
+  startdir <- disp.dirs
+
+
+  rates <- disp.rates
+  deltat <- .1666  ##assume rate here.
+
+
+
+  sequence <-CreateAnimationSequence(startpos,startdir,rates,deltat,frames)
+
+
+  ## Add the targets here.
+  ##
+  targs <- []
+  xys <- disp.xys
+  loop(i,numtargs)
+   {
+
+      targ <- Circle(First(Nth(xys,i)),Second(Nth(xys,i)),size-3,MakeColor("gold"),1)
+      targ.aa <- 1
+      AddObject(targ,gWin)
+      PushOnEnd(targs,targ)
+   }
+
+   gHeader.text <- "Track the yellow targets. Click mouse to begin."
+   ShowCursor(0)
+   Draw()
+   Wait(300)  ##prevent accidental fast-click
+   WaitForDownClick()
+   gHeader.text <- "Track targets that were yellow"
+   HideAll(targs)
+   Draw()
+  ##rates are embedded in disp.
+
+  time0 <- GetTime()
+  PlayAnimationSequence(disp,sequence,deltat)
+
+
+
+    test <- First(targs)
+    if(targfoil)
+    {
+        pt <- First(disp.xys)
+    }else {
+        pt <- Nth(disp.xys,numtargs+1)
+    }
+
+
+   Move(test,First(pt),Second(pt))
+   Show(test)
+   gHeader.text <- "Was this a target? (Click YES or NO)"
+   Show(gYes)
+   Show(gNo)
+   ShowCursor(1)
+   SetMouseCursorPosition(gVideoWidth/2,gYes.y)
+   Draw()
+
+   time1 <- GetTime()
+
+   out <-   WaitForClickOnTarget([gYes,gNo],["Y","N"])
+   time2 <- GetTime()
+   HideAll(disp.objs)
+   Hide(test)
+    Draw()
+   corr <- ((Uppercase(out)=="Y") and targfoil) or ((Uppercase(out)=="N")and(not targfoil))
+
+
+   if(corr)
+   {
+     gHEader.text <- "Correct!"
+    }else{
+     gHEader.text <- "Incorrect."
+    }
+
+   gHeader.text <- gHeader.text + " " + "Click mouse to continue"
+    Hide(gYes)
+    Hide(gNo)
+    Draw()
+    WaitForDownClick()
+
+   ret <- [(time1-time0),(time2-time1),out,corr]
+
+
+  return ret
+}
+
+
+
+define GeneratePaths(numobjs,numtargs,size,frames,deltat:.1666)
+{
+  gHeader.text <- "Generating trial"
+  Draw()
+  disp <- CreateDisplay(numobjs,numtargs,size) ##size is needed for non-overlap logic.
+  startpos <- disp.xys
+  startdir <- disp.dirs
+  rates <- disp.rates
+
+
+   sequence <-CreateAnimationSequence(startpos,startdir,rates,deltat,frames)
+   disp.sequence <- sequence
+   disp.deltat <- deltat
+   gHeader.text <- ""
+   Draw()
+  return disp
+}
+
+
+##
+## This trial type has the user select only the targets that  they were supposed to be watching.
+define ExecuteSelectTrial(display)
+{
+
+  ##this executes a selection trial (click on the target circles).
+  ##it needs a display that has been created with GeneratePaths; one with animation already loaded.
+  ##This is done so we can use the SAME trials using both selection methods.
+
+  xys <- display.xys
+  size <- display.size
+  numtargs <- display.numtargs
+  targs <- []
+
+  ##create all of the tracking objects:
+
+  col <- MakeColor("darkgreen")
+  objs <- []
+
+  loop(i,xys)
+    {
+       x <- First(i)
+       y <- Second(i)
+       tmp <- Circle(x,y,size,col,1)
+       tmp.aa <- 1
+       AddObject(tmp,gWin)
+       PushOnEnd(objs,tmp)
+    }
+  display.objs <- objs
+
+
+  ##mark targets in gold.
+  loop(i,numtargs)
+   {
+
+      targ <- Circle(First(Nth(xys,i)),Second(Nth(xys,i)),size-3,MakeColor("gold"),1)
+      targ.aa <- 1
+      AddObject(targ,gWin)
+      PushOnEnd(targs,targ)
+   }
+   display.targs <- targs
+
+
+
+   gHeader.text <- "Track the yellow targets. Click mouse to begin."
+   ShowCursor(0)
+   Draw()
+   Wait(300)  ##prevent accidental fast-click
+   WaitForDownClick()
+   gHeader.text <- "Track targets that were yellow"
+   HideAll(targs)
+   Draw()
+  ##rates are embedded in disp.
+
+  time0 <- GetTime()
+  PlayAnimationSequence(display,display.sequence,display.deltat)
+
+
+   gHeader.text <- "Click to select targets. Hit OK to confirm."
+   Show(gOK)
+   ShowCursor(1)
+   SetMouseCursorPosition(gVideoWidth/2,gYes.y)
+   Draw()
+   time1 <- GetTime()
+   cont <- 1
+   clicked <- Repeat(0,numtargs)
+
+   while(cont)
+    {
+
+        clicktargets <- Append(display.objs,gOK)
+        out <-   WaitForClickOnTarget(clicktargets,
+                                 Append(Sequence(1,Length(display.objs),1),"OK"))
+
+	time2 <- GetTime()
+
+     if(out=="OK")
+     {
+      cont <- 0
+      Print(Sort(clicked))
+      Print(Sequence(1,numtargs,1))
+
+      corr <- (ListEqual(Sort(clicked),Sequence(1,numtargs,1)))
+
+     }else{
+
+       tmp <- First(display.targs)
+       targobj <- Nth(display.objs,out)
+       Move(tmp,targobj.x,targobj.y)
+       Show(tmp)
+
+       clicked <- Rest(Append(clicked,out))
+       display.targs <-  Rotate(display.targs,1) ##rotate the target list.
+       Draw()
+
+
+     }
+    }
+
+   if(corr)
+   {
+     gHEader.text <- "Correct!"
+    }else{
+     gHEader.text <- "Incorrect."
+    }
+    gHeader.text <- gHeader.text + " " + "Click mouse to continue"
+   HideAll(display.objs)
+   loop(i,display.numtargs)
+   {
+     Show(Nth(display.objs,i))
+   }
+    Hide(gOK)
+    Draw()
+   WaitForDownClick()
+   Draw()
+
+   display.objs <- 0 #remove these so they disappear
+   display.targs <- 0
+   ret <- [clicked,corr,(time1-time0),(time2-time1)]
+   return ret
+}
+
+
+
+define PlayAnimationSequence(display,sequence,deltat)
+{
+   loop(row,sequence)
+   {
+
+      xys <- First(row)
+
+
+      loopon <-  Transpose([display.objs,xys])
+      loop(j,loopon)
+       {
+        obj <- First(j)
+        pos <- Second(j)
+
+         Move(obj,First(pos),Second(pos))
+	 Draw()
+	 Wait(deltat)
+       }
+     display.xys <- xys
+   }
+}
+
+define CreateAnimationSequence(startpos,startdir,rates,deltat,steps)
+{
+  sequence <-[ [startpos,startdir]]
+  positions <- startpos
+  dirs <- startdir
+  loop(i,steps)
+   {
+     newline <- UpdateObjects(positions,dirs,rates,deltat)
+     PushOnEnd(sequence,newline)
+     positions <- First(newline)
+     dirs <- Second(newline)
+   }
+
+  return sequence
+}
+
+
+define Dist(a,b)
+{
+  return   Sqrt((First(a)-First(b))^2 + (Second(a) -Second(b))^2)
+}
+
+
+
+##This determines if any points are too close to one another.
+##it will return a complete set of collisions.
+
+define Collide(positions,thresh:40)
+{
+  collisions <- []
+
+  loop(i, Sequence(1,Length(positions)-1,1))
+     {
+       loop(j,Sequence(i+1,Length(positions),1))
+        {
+	  dist <- Dist(Nth(positions,i),
+	               Nth(positions,j))
+	  if(dist < thresh)
+	   {
+	     PushOnEnd(collisions,[i,j])
+	   }
+	}
+     }
+
+   return collisions
+ }
+
+
+
+define UpdateObjects(positions,dirs,rates,deltat)
+{
+
+   newpos <-[]
+   newdirs <- []
+
+   loop(i,Length(positions))
+   {
+
+      xy <- Nth(positions,i)
+      dir <- Nth(dirs,i)
+      rate <- Nth(rates,i)
+
+      newx <- First(xy) + deltat * Cos(dir) * rate
+      newy <-  Second(xy)  + deltat * Sin(dir)*rate
+      newxy <- [newx,newy]
+
+      ##bounce if we hit a wall.
+      if(not InsideRect([newx,newy],[gxmin,gxmax,gymin,gymax]))
+      {
+        dir <-  dir - gPi + RandomNormal(0,.2)  ##bounce#
+        newx <- First(xy) + 2*deltat * Cos(dir) * rate
+        newy <-  Second(xy)  + 2*deltat * Sin(dir)*rate
+      }
+      PushOnEnd(newpos,[newx,newy])
+      PushOnEnd(newdirs,dir)
+
+   }
+
+     ##see if there are any collisions. Adjust newpos based on original positions/dirs
+
+
+
+      collisions <- Collide(newpos,40)
+
+      if(Length(collisions)>0)
+        {
+
+         loop(collide,collisions)
+	 {
+	   ##These are about to collide.
+	   ##we will give one chance to bounce; if they are still in collision,
+	   ##the will have to sort it out next round. Otherwise, this gets too complicated;
+	   ##especially if there are three in a neighborhood.
+
+
+	      ii <- First(collide)
+	      jj <- Second(collide)
+
+
+	      ##we need to redo objects collide[1] and [2]
+	      xy1 <- Nth(positions,ii)
+	      dir1 <- Nth(dirs,ii)
+
+	      xy2 <- Nth(positions,jj)
+	      dir2 <- Nth(dirs,jj)
+
+
+	      newdir1 <- dir1 - gPI + RandomNormal(0,.5)
+	      newdir2 <- dir2 - gPI + RandomNormal(0,.5)
+
+
+ 	      ##resample based on perturbed directional.
+
+              newx1 <- First(xy1) + deltat * Cos(newdir1) * rate
+              newy1 <-  Second(xy1)  + deltat * Sin(newdir1)*rate
+
+              newx2 <- First(xy2) + deltat * Cos(newdir2) * rate
+              newy2 <-  Second(xy2)  + deltat * Sin(newdir2)*rate
+
+	      SetElement(newpos,ii,[newx1,newy1])
+	      SetElement(newpos,jj,[newx2,newy2])
+	      SetElement(newdirs,ii,newdir1)
+     	      SetElement(newdirs,jj,newdir2)
+
+
+	}
+
+
+}
+  return ([newpos,newdirs])
+}
+
+
+
+
+define CreateDisplay(numobjs,numtargs,size:25)
+{
+
+  objs <- []
+  xys <- []
+  dirs <- []
+  rates <- []
+
+
+  xys <- NonOverlapLayout(gXMin,gXMax,gYMin,gYMax,40,numobjs)
+
+  loop(i,xys)
+    {
+       x <- First(i)
+       y <- Second(i)
+       dir <- RandomUniform(1)*2*gPi
+       rate <- 2 + RandomUniform(1) * 6
+       PushOnEnd(dirs,dir)
+       PushOnEnd(rates,rate)
+    }
+
+  display <-   MakeCustomObject("display")
+  display.numobjs <- numobjs
+  display.numtargs <- numtargs
+  display.xys <- xys
+  display.dirs <- dirs
+  display.rates <- rates
+  display.size <- size
+
+ return(display)
+}
+
+
+
+define Initialize()
+{
+        gResponseType <-"shiftkeys"  ##currently, changing this has no effect.
+	gSleepEasy <- 1
+	GetStrings(gLanguage)
+	ShowCursor(0)
+
+	##  The screen resolution should be set automatically.
+	##
+	##  the y offset is supposed to be 1.06 degrees above offset.
+	##
+	##-\                                       X
+	##  \                                      |
+	##  #|          tan(1.06) = rise/distance  |
+	##  #|-------------------------------------X
+	##  #|
+	##  /           rise = tan(1.06)*distance
+	##_/
+	##
+
+	## Default to 17" 3x4 screen.  Adjust to suit.
+	#screenheight <- 10.2   # 10.2 inches high
+	#eyedistance  <- 30     # assume 30" from screen.
+
+	## iMac 21" 16:9 screen.  Adjust to suit.
+	#screenheight <- 10.2   # 10.2 inches high
+	#eyedistance  <- 20     # assume 25 inches from screen.
+
+    # hp Pavilion dm4 14" 16:9 screen.  Adjust to suit.
+	screenheight <- 7   # 7 inches high
+	eyedistance  <- 21     # assume 25 inches from screen.
+
+	pixelsperunit <- gVideoHeight/screenheight
+	eyepixeldistance <- eyedistance * pixelsperunit
+
+	## This is the vertical offset
+	gOffset <-  Round(Tan(DegToRad(1.06)) * eyepixeldistance)
+
+	if(not FileExists("data"))
+	 {
+	   MakeDirectory("data")
+	 } elseif(not IsDirectory("data"))
+	 {
+	   SignalFatalError("File named 'data' exists.  Remove so data directory can be created.")
+	 }
+} #- End Initialize
+
+define MessageKeyBox(message)
+{
+	tb <- EasyTextBox(message,100,100,gWin,28,gVideoWidth-200,gVideoHeight-200)
+	Draw()
+	WaitForAnyKeyPress()
+	RemoveObject(tb,gWin)
+} #- End MessageKeyBox
+
+define WaitUntil(time)
+{
+	RegisterEvent("<TIMER>", 1, time,"<GEQ>","", [])
+	StartEventLoop() # Start the timer
+	ClearEventLoop() # Clear it out when done.
+} #- End WaitUntil
+
+
+
+define GetStrings(lang)
+{
+  gStrings <- GetTranslations("MOT", lang)
+} #- End GetStrings
+
+
+define InsideRect(click,rect)
+{
+    x <- First(click)
+    y <- Second(click)
+
+   xlow <- First(rect)
+   xhigh <- Second(rect)
+
+   ylow <- Third(rect)
+   yhigh <- Fourth(rect)
+
+    inside <- (x >= xlow) and (x  <= xhigh) and (y >= ylow) and (y <= yhigh)
+
+
+return inside
+}
+
+
+define HideAll(objs)
+{
+ loop(i,objs)
+ {
+    Hide(i)
+ }
+}
+
+
+
+define ListEqual(l1,l2)
+{
+  if(Length(l1)==Length(l2))
+  {
+   same <- 1
+
+
+   loop(i,Transpose([l1,l2]))
+    {
+     if(not (First(i) == Nth(i,2)))
+      {
+        same <- 0
+      }
+
+    }
+   } else {
+     same <- 0
+   }
+  return same
+}
+
+
+define ListEqual(l1,l2)
+{
+  if(Length(l1)==Length(l2))
+  {
+   same <- 1
+
+
+   loop(i,Transpose([l1,l2]))
+    {
+     if(not (First(i) == Nth(i,2)))
+      {
+        same <- 0
+      }
+
+    }
+   } else {
+     same <- 0
+   }
+  return same
+}

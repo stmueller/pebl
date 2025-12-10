@@ -1,0 +1,185 @@
+define Start(p)
+{
+
+
+   win <- MakeWindow()
+
+
+
+   ##Make a bunch of circles of different sizes.
+   minR <- 10
+   maxR <- 50
+   i <- minR
+  stim <- []
+   while(i <= maxR)
+   {
+     stimulus <- Circle(0,0,i,MakeColor("red"),1)
+     stim <- Append(stim,stimulus)
+     i <- i + 1
+   }
+
+  stim <- Shuffle(stim)
+  MultiOptionChoice(First(stim),SubList(stim,2,3),win)
+
+  stim <- Shuffle(stim)
+  MultiOptionChoice(First(stim),SubList(stim,2,8),win)
+
+  stim <- Shuffle(stim)
+  MultiOptionChoice(First(stim),SubList(stim,2,15),win)
+
+  stim <- Shuffle(stim)
+  MultiOptionChoice(First(stim),SubList(stim,2,24),win)
+
+}
+
+
+
+define MultiOptionChoice(target,foils,win)
+
+{
+
+   message1 <- "Watch for Circle"
+   message2 <- "Choose Circle shown originally"
+   lab <- EasyLabel( message1,gVideoWidth/2,25,win,25)
+
+   AddObject(target, win)
+   Move(target, gVideoWidth/2,gVideoheight/2)
+   Draw()
+   Wait(1000)  ##Present the stimulus for 1 sec
+   Draw()
+   lab.text <- message2
+ 
+
+   order <- Sequence(1,Length(foils)+1,1)
+   stim <- Merge([target],foils)
+   shuffledorder <- Shuffle(order)  ##A random set of numbers 1..N+1
+   neworder <- SortBy(order, shuffledorder)
+   newstim <- SortBy(stim,shuffledorder)
+   
+  grid <- GetGrid(Length(newstim))
+  layout <-  LayoutGrid(100, gVideoWidth-100, 100, gVideoheight-100,
+                        First(grid), Second(grid), 1)
+
+  ##make it the right length
+  layout <- SubList(layout, 1, Length(newstim))
+
+  tmp <- Transpose([newstim,layout])
+  loop(i,tmp)
+  {
+    AddObject(First(i),win)
+    xy <- Second(i)
+    Move(First(i),First(xy),Second(xy))
+  }
+  Draw()
+
+  time0 <- GetTime()
+  resp <- WaitForClickOnTarget(newstim, neworder)
+  time1 <- GetTime()
+
+
+  ##Remove the stimuli
+ 
+  loop(i,newstim)
+  {
+    RemoveObject(i, win)
+  }
+  ##Get the chosen object.
+  chosen <- Nth(stim,resp)
+  ##Score whether it is correct.
+  corr <- resp == 1
+
+  
+
+  return [resp,corr, (time1-time0), chosen.x, chosen.y]
+
+}
+
+
+define GetGrid(items)
+
+{
+
+  ##Actually, this grid table 
+  ## is reproduced exactly by the algorithm below.
+
+   grids <- [[1,1],  #1 item
+             [1,2],  # 2 items
+             [1,3],  # 3 items
+             [2,2] , #4 item
+             [2,3],  #5 items
+             [2,3],  #6 items
+             [2,4],  #7 items
+             [2,4],  #8 items
+             [3,3],  #9 items
+             [3,4],  #10 items
+             [3,4],  #11 items
+             [3,4],  #12 items
+             [3,5],  #13 items
+             [3,5],  #14 items
+             [3,5]]  #15 items
+
+
+   if(items <=15)
+   {
+
+     ret <- Nth(grids,items)
+
+   } else {
+
+     base <- Round(Sqrt(items))
+    if((base-1)*base >=items)
+     {
+      ret <- [base-1,base]
+     } elseif(base*base >= items)
+     {
+        ret <- [base, base]
+     } elseif(base*(base+1)>=items)
+     { 
+       ret <- [base, base+1]
+     } else
+     {
+       ret <- [base+1,base+1]
+     }
+   }
+  return ret
+}
+
+
+
+ define LayoutGrid(xmin,xmax,ymin,ymax, tall, wide, horvert)
+ {
+     xskip <- (xmax-xmin)/(wide+1)
+     yskip <- (ymax-ymin)/(tall+1)
+
+     pts <- []
+
+     if(horvert == 1)
+      {
+        x <- xmin+xskip
+       loop(i,Sequence(1,wide,1))
+        {  
+          y <- ymin+yskip
+         loop(j,Sequence(1,tall,1))
+          {
+             pts <- Append(pts, [x,y])
+             y <- y + yskip
+          }
+          x <- x + xskip
+        }
+      } else {
+       y <- ymin+yskip
+       loop(i,Sequence(1,tall,1))
+        {  
+          x <- xmin+xskip
+         loop(j,Sequence(1,wide,1))
+          {
+
+             pts <- Append(pts, [x,y])
+             x <- x + xskip
+             y <- y + yskip        
+          }
+
+     }}
+
+   return pts
+  }

@@ -1,0 +1,102 @@
+define Start(p)
+{
+  gVideoWidth <- 300
+  gVideoHeight <-300
+  gWin <- MakeWindow("black")
+  gLastUpdate<- GetTime()
+  dummy <- EasyLabel("one",150,150,gWin,14)
+  
+#  RegisterEvent("<TIMER>", 1, GetTime()+2000,"<GEQ>","SHOW1", [dummy])
+
+  Print("timer1")
+  RegisterEvent("<TIMER>", 1, GetTime(),     "<GEQ>","UPDATECLOCK", [dummy])
+  #
+    Print("timer2")
+    RegisterEvent("<KEY_PRESS>","a",1,"<EQUAL>","PRESS1",["a"])
+    RegisterEvent("<KEY_PRESS>","b",1,"<EQUAL>","PRESS2",["b"])
+    gNumResponses <- 0
+
+    RegisterEvent("<KEY_PRESS>","<ANYKEY>",1,"<EQUAL>","MOVEINBOX",[])
+    RegisterEvent("<TEXT_INPUT>","<dummy>",1,"<TRUE>","LOG",["dumb"])
+
+    Draw(gWin)
+   Print( StartEventLoop())
+#  Wait(10000)
+# WaitForAnyKEyPress()
+
+}
+
+
+
+define MoveInbox(event)
+{
+ Print("MOVEINBOX")
+ Print(event)
+}
+define Log(p,event)
+{
+  Print("LOG: " + p+" " + event)
+  
+}
+
+define Press1(p,event)
+{
+  gNumResponses <- gNumResponses +1
+ if(gNumResponses>1)
+ {
+  gKeepLooping <- 0
+ }
+ 
+ Print(GetTime()+"pressing 1" + p)
+ return "<REMOVE>"
+}
+
+define Press2(p,event)
+{
+ gNumResponses <- gNumResponses +1
+ if(gNumResponses>1)
+ {
+  gKeepLooping <- 0
+ }
+ Print(GetTime()+"pressing 2" + p)
+ return "<REMOVE>"
+}
+
+define UpdateClock(p,event)
+{
+
+#   Print("updating clock")
+   t <- GetTime()
+   if((t-gLastUpdate)>50)
+   {
+
+    gLastUpdate <- t
+    p.text <- TimeStamp()
+    Draw(gWin)
+   }
+return 0
+}
+define Draw(p)
+{
+   Print("drawing redo"+p)
+  :Draw(p)  
+  Print("done")
+ 
+}
+
+
+define Show1(p)
+{
+  Print("running the show")
+  Show(p)
+  Print("showp")
+  Draw(gWin)
+
+  Hide(p)
+  Print("hidep")
+  Draw(gWin)
+
+ return 3#"<REMOVE>" ## this one happens just once.
+}
+
+

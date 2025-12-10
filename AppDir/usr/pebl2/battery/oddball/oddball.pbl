@@ -1,0 +1,456 @@
+########################################################################
+## The PEBL OddBall Task
+##
+##
+##
+##  Method modeled roughly after one described by:
+##
+##
+##
+## Huettel, S. A., & McCarthy, G. (2004). What is odd in the oddball
+##   task?:: Prefrontal cortex is activated by dynamic changes in
+##   response strategy. Neuropsychologia, 42(3), 379-386.
+##
+##
+##
+##  Version 1.0, Released 2011 Shane T Mueller, Ph.D.
+##  http://pebl.sf.net
+##  smueller@obereed.net
+##
+########################################################################
+
+define Start(p)
+{
+  ## Initialize upload system (works for both online and native)
+  InitializeUpload()
+
+  gScriptName <- "Oddball task"
+  parpairs <- [["numreps",1],     ##this many reps of the 20-trial design
+               ["soa",3000] ##Fix the stimulus-onset asynchrony.
+               ]
+
+   gParams <- CreateParameters(parpairs,gParamFile)
+
+   numreps <- gParams.numreps
+   soa <- gParams.soa
+
+   gWin <- MakeWindow("black")
+   Initialize()
+
+   ##Get subject code if we need to:
+   if(gSubNum+""=="0")
+    {
+	  gSubNum <- GetSubNum(gWin)
+    }
+
+   ##Make data files
+
+   header <- "subnum,block,trial,practice,targdir,oddballcoherence,oddballdir,time0,resp,corr,rt"
+   gFileOut <- GetNewDataFile(gSubNum,gWin,"oddball","csv",header)
+   gPooledFileOut <- FileOpenAppend("data/oddball-pooled.csv")
+
+
+   gSumFileOut <- GetNewDataFile(gSubNum,gWin,"oddball-report","txt","")
+   gLog <- FileOpenAppend("data/oddball-log.csv")
+   gPooledSummary <- FileOpenAppend("data/oddball-all.csv")
+
+   ##Add headers onto files.
+   flen <- Length(FileReadList("data/oddball-pooled.csv"))
+
+
+   if(flen==0)
+    {
+      Print("empty pooled data file.  Adding header")
+      FilePrint(gPooledFileOut, header)
+    }
+
+   FilePrint(gFileOut,header)
+
+
+   FilePrint(gLog, gSubNum + "," + gLanguage + "," +  TimeStamp()+",ODDBALL TASK,"+gResponseType+",INITIATED")
+   DoInstructions()
+   FilePrint(gLog, gSubNum + "," + gLanguage + "," + TimeStamp()+",ODDBALL TASK,"+gResponseType+",PRACTICE BEGIN")
+
+   ##Create the stimuli blocks.  Each trial consists of:
+   ##  a stimulus (square or circle)
+   ##  - a target side (left or right)
+   ## each round uses 122 trials.
+   ## 90% are coherent
+   ## 10% are 'oddballs'; with the wrong mappings.
+
+   stim <- [1,2,1,2]
+   side <- [-1,1,1,-1]
+   times <- [9,9,1,1]
+
+   basetrials <- Shuffle(RepeatList(RepeatLists(Transpose([stim,side]),times),numreps))
+
+
+
+   ##Practice uses just a few trials
+    practrials <- Shuffle(RepeatList([[1,-1],[1,-1],[2,1],
+                                      [2,1],[1,1],[2,-1]],2))
+
+    ##Set up some data holders
+    gOddball    <- []
+    gRTs        <- []
+    gCorr       <- []
+
+    ###########################################
+    ## Do the practice round
+    gTrial <- 1
+    gBlock <- 0
+    CountDown(gWin)
+
+    endtime <- GetTime()
+
+    loop(trial,practrials)
+    {
+      endtime  <- endtime+soa
+      Trial(trial,1,endtime)
+      gTrial <- gTrial + 1
+    }
+
+    MessageKeyBox(gInterblock)
+    CountDown(gWin)
+
+    ###########################################
+    ## Do the first test round
+    FilePrint(gLog, gSubNum + "," + gLanguage + "," +   TimeStamp()+",ODDBALL TASK,"+gResponseType+",BLOCK 1 BEGIN")
+	gBlock <- 1
+    endtime <- GetTime()
+
+    loop(trial,basetrials)
+    {
+      endtime  <- endtime+soa
+      Trial(trial,0,endtime)
+	  gTrial <- gTrial + 1
+    }
+
+
+
+   aggOddballRT <-SummaryStats(gRTs,gOddball)
+   aggOddballAcc <-SummaryStats(gCorr,gOddball)
+
+   Print(aggOddballRT)
+   Print(aggOddballAcc)
+
+   oddballcost<- Nth(Second(aggoddballRT),4)-Nth(First(aggoddballRT),4)
+
+   FilePrint(gSumFileOut,"-----------------------------------------------")
+   FilePrint(gSumFileOut,"PEBL Oddball Task, Version 1.0")
+   FilePrint(gSumFileOut,"http://pebl.sf.net")
+   FilePrint(gSumFileOut,"Shane T. Mueller")
+   FilePrint(gSumFileOut, GetPEBLVersion())
+   FilePrint(gSumFileOut, GetSystemType())
+   FilePrint(gSumFileOut,"-----------------------------------------------")
+   FilePrint(gSumFileOut,"Screen width x height: " +gVideoWidth+ "x"+gVideoHeight)
+   FilePrint(gSumFileOut, "Subject code: "+gSubNum)
+   FilePrint(gSumFileOut, "Time:         "+TimeStamp())
+   FilePrint(gSumFileOut,"-----------------------------------------------")
+
+   FilePrint(gSumFileOut,"Total Errors:           "+(Length(gCorr)-Sum(gCorr)))
+   FilePrint(gSumFileOut,"Mean Accuracy:          "+Mean(gCorr))
+   FilePrint(gSumFileOut,"Mean response time:     "+Mean(gRTs))
+   FilePrint(gSumFileOut,"Oddball cost (ms):     "+oddballcost)
+
+
+
+   FilePrint(gSumFileOut,"Mean Response time (all trials) by Oddball type")
+   FilePrint(gSumFileOut,"----------------------------------------")
+   FilePrint(gSumFileOut,"Cond    N       median  mean    sd")
+   FilePrint(gSumFileOut,"----------------------------------------")
+   loop(i,aggOddballRT)
+    {
+      tmp <- ""
+      loop(j,i)
+       {
+         tmp <- tmp + Format(j,7) + " "
+       }
+	   FilePrint(gSumFileOut,tmp)
+    }
+   FilePrint(gSumFileOut,"----------------------------------------")
+
+   FilePrint(gSumFileOut," Accuracy by Oddball type")
+   FilePrint(gSumFileOut,"----------------------------------------")
+   FilePrint(gSumFileOut,"Cond    N       median  mean    sd")
+   FilePrint(gSumFileOut,"----------------------------------------")
+   loop(i,aggOddballAcc)
+    {
+      tmp <- ""
+      loop(j,i)
+       {
+         tmp <- tmp + Format(j,7) + " "
+       }
+	   FilePrint(gSumFileOut,tmp)
+    }
+   FilePrint(gSumFileOut,"----------------------------------------")
+
+
+   Draw()
+
+
+   datalist <- Flatten([[Mean(gCorr),Mean(gRTS),oddballcost],
+                Fourth(Transpose(aggOddballRT)),
+	        	Fourth(Transpose(aggOddballAcc))])
+
+
+   FilePrint(gPooledSummary,gSubNum+","+TimeStamp()+datalist)
+   FilePrint(gLog, gSubNum + "," + gLanguage + "," + TimeStamp()+",ODDBALL TASK,"+gResponseType+",EXPERIMENT COMPLETE")
+
+   ## Upload data files (works online, no-op on native)
+   UploadFile(gSubNum, "data/" + gSubNum + "/oddball-" + gSubNum + ".csv")
+   UploadFile(gSubNum, "data/" + gSubNum + "/oddball-report-" + gSubNum + ".txt")
+   UploadFile(gSubNum, "data/oddball-pooled.csv")
+   UploadFile(gSubNum, "data/oddball-log.csv")
+   UploadFile(gSubNum, "data/oddball-all.csv")
+
+  MessageKeyBox(gDebrief)
+
+}
+
+define Trial (stim,practice,trialend)
+{
+   time0 <- GetTime()
+   ##add the fixation right away.
+   fixation <- EasyLabel("+",gVideoWidth/2,gVideoHeight/2,gWin,40)
+   footer <- EasyLabel(gFooterL+"                   "+gFooterR,gVideoWidth/2,gVideoHeight-100,gWin,28)
+
+   Draw()
+
+   targID <- First(stim) #1=circle,2=square
+   side <- Second(stim)  #-1=left,+1=right
+
+   oddball <- (targID==1 and side==1 ) or (targID==2 and side==-1)
+
+    xval <- gVideoWidth/2 + side * 200
+
+    if(targID==1)
+      {
+	     stim <- Circle(xval, gVideoHeight/2,75,MakeColor("red"),1)
+      } else {
+	     stim <- Square(xval, gVideoHeight/2,150,MakeColor("red"),1)
+      }
+
+    AddObject(stim,gWin)
+    ##Now, how the trial sequence.
+
+	Draw()
+
+    time1 <- GetTime()
+    gStimOn <- 1
+    RegisterEvent("<TIMER>", 1, time1+500,"<GEQ>","HIDEME", [stim])
+    resp <- WaitForListKeyPressWithTimeout(["<lshift>","<rshift>"],2500,1)
+    time2 <- GetTime()
+    Hide(stim)
+
+    corr <- ((targID ==2) and (resp == "<rshift>")) or
+            ((targID ==1) and (resp == "<lshift>"))
+    rt <- time2-time1
+
+    if(practice)
+     {
+         if(corr)
+		    {
+              fixation.text  <- gCorrect + " ["+rt+"]"
+            } else {
+              fixation.text  <- gIncorrect+ " ["+rt+"]"
+            }
+			Show(fixation)
+			Draw()
+			Wait(400)
+
+     }
+   Draw()
+   dataline <- gSubNum + ","+ gBlock + "," +gTrial+","+practice+","+
+               targID+","+side+","+
+			   oddball+","+time0+","+resp+","+corr+","+rt
+
+   FilePrint(gFileOut,dataline)
+   FilePrint(gPooledFileOut,dataline)
+
+   if(not practice)
+    {
+      gOddball <- Append(gOddball,oddball)
+      gRTs        <- Append(gRTS,rt)
+      gCorr       <- Append(gCorr,corr)
+
+   }
+
+  RemoveObject(stim,gWin)
+  RemoveObject(fixation,gWin)
+
+  WaitUntil(trialend)
+  return resp
+}
+
+define HideMe(stim,evt:0)
+{
+  if(gStimOn)
+  {
+     Hide(stim)
+	 gStimOn <- 0
+	 Draw()
+  }
+
+  return "<REMOVE>"
+}
+
+
+define ShowAll(list,hideshow)
+{
+   loop(i,list)
+   {
+     i.visible <- hideshow
+   }
+}
+
+
+##This creates a full factorial design with each sublist of list
+##as a factor.
+define CrossFactors(list)
+{
+
+  factors <- First(list)
+  size <- 2
+  loop(factor,SubList(list,2,Length(list)))
+  {
+     tmp <-DesignFullCounterbalance(factors,factor)
+	 factors <- FoldList(Flatten(tmp),size)
+	 size <- size + 1
+  }
+  return factors
+}
+
+
+define GetStrings(lang)
+{
+  gStrings <- GetTranslations("oddball", lang)
+
+
+   gCorrect <- gStrings.correct
+   gIncorrect <- gStrings.incorrect
+   gInst1Text <- gStrings.inst1text
+   gInst2Text <- gStrings.inst2text
+   gInst3text <- gStrings.inst3text
+
+   gFooterl <- gStrings.footerL
+   gFooterR <- gStrings.footerR
+   gInterblock <- gStrings.interblock
+   gDebrief <- gStrings.debrief
+
+}
+
+
+
+define Initialize()
+{
+
+
+  gResponseType <-"shiftkeys"  ##currently, changing this has no effect.
+  gSleepEasy <- 1
+  GetStrings(gLanguage)
+  ShowCursor(0)
+
+  ##  The screen re
+  ##
+  ##gVideoWidth <- 800
+  ##gVideoheight <- 600
+
+  ## the yoffset is supposed to be 1.06 degrees above offset.
+  ##
+  ##-\                                       X
+  ##  \                                      |
+  ##  #|          tan(1.06) = rise/distance  |
+  ##  #|-------------------------------------X
+  ##  #|
+  ##  /           rise = tan(1.06)*distance
+  ##_/
+  ##
+
+  ##default to 17" 3x4 screen.  Adjust to suit.
+  screenheight <- 10.2   ## 10.2 inches high
+  eyedistance  <- 30     ##assume 30" from screen.
+  pixelsperunit <- gVideoHeight/screenheight
+  eyepixeldistance <- eyedistance * pixelsperunit
+
+  ##this is the vertical offset
+  gOffset <-  Round(Tan(DegToRad(1.06)) * eyepixeldistance)
+  Print("using offset of "+gOffset)
+
+   if(not FileExists("data"))
+    {
+       MakeDirectory("data")
+
+    } elseif(not IsDirectory("data"))
+    {
+       SignalFatalError("File named 'data' exists.  Remove so data directory can be created.")
+    }
+
+
+
+}
+
+
+define MessageKeyBox(message)
+{
+
+  tb <- EasyTextBox(message,100,100,gWin,28,gVideoWidth-200,gVideoHeight-200)
+  Draw()
+  WaitForAnyKeyPress()
+  RemoveObject(tb,gWin)
+
+}
+
+define DoInstructions()
+{
+
+   tb <- EasyTextbox(gInst1text,100,50,gWin,16,gVideoWidth-200,200)
+
+
+   fixation <- EasyLabel("+",gVideoWidth/2,gVideoHeight/2+100,gWin,40)
+   stim1 <- Circle(gVideoWidth/2-200, gVideoHeight/2+100,75,MakeColor("red"),1)
+   stim2 <- Square(gVideoWidth/2+200, gVideoHeight/2+100,150,MakeColor("red"),1)
+   footer <- EasyLabel(gFooterL+"                   "+gFooterR,gVideoWidth/2,gVideoHeight-100,gWin,28)
+   AddObject(stim1,gWin)
+   AddObject(stim2,gWin)
+   Draw()
+   WaitForAnyKeyPress()
+
+   tb.text <- gInst2text
+   stim1.x <- gVideoWidth/2+200
+   stim2.x <- gVideoWidth/2-200
+   Draw()
+   WaitForAnyKeyPress()
+
+   tb.text <- gInst3text
+   Draw()
+   WaitForAnyKeyPress()
+   RemoveObject(stim1,gWin)
+   RemoveObject(stim2,gWin)
+   RemoveObject(fixation,gWin)
+   RemoveObject(tb,gWin)
+}
+
+
+
+define WaitUntil(time)
+{
+
+     RegisterEvent("<TIMER>", 1, time,"<GEQ>","", [])
+     StartEventLoop()  #Start the timer
+     ClearEventLoop()  #clear it out when done.
+
+}
+
+
+define RepeatLists(lists,times)
+{
+
+  base <- Transpose([lists,times])
+   tmp <- []
+   loop(i,base)
+   {
+     tmp <- Merge(tmp, Repeat(First(i),Second(i)))
+   }
+ return tmp
+}

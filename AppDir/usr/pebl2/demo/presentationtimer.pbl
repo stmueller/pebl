@@ -1,0 +1,166 @@
+## This is a simple presentation time that canr be used at a
+## conference to give speakers an indication of the time remaining
+## on their talk.  It will turn yellow with 3 minutes remaining, and red when 
+## no time remains.
+##
+
+define Start(p)
+{ 
+
+  gWin <- MakeWindow("black")
+  gSleepEasy <- 1
+
+
+  gBaseTime <- 12
+  gWarningTime <- 3
+  gTimeLeft <- gBaseTime*60*1000
+  gNextTime <- GetTime()
+  gTimeEntry <- MakeTextEntry("Time limit (min)", 100,80,gWin,150,gBaseTime,1)
+
+  gFontOK <- MakeFont(gPEBLBaseFont,0,250,MakeColor("white"),
+                                        MakeColor("black"),0)  
+  gfontDanger <- MakeFont(gPEBLBaseFont,0,250,MakeColor("YELLOW"),
+                                         MakeColor("black"),0) 
+
+  gfontOver <- MakeFont(gPEBLBaseFont,0,250,MakeColor("red"),
+                                          MakeColor("black"),0)
+
+  gTimer <- MakeLabel(MakeTimeString(gTimeLeft),gFontOK)
+  AddObject(gTimer,gWin)
+  Move(gTimer,gVideoWidth/2,gVideoHeight/2)
+
+   quit <- MakeButton("Quit",175,125,gWin,150)
+   reset <- MakeButton("Reset",175,150,gWin,150)
+   pause <- MakeButton("Pause",175,175,gWin,150)
+   start <- MakeButton("Start timer",175,200,gWin,150)
+
+   reset.clickon <- "ResetTime"
+   start.clickon <- "StartTimer"
+   pause.clickon <- "Pause"
+
+
+  Draw()
+  cont <- 1
+  items <- [quit,gTimeEntry,reset,pause,start]
+
+  gTiming <- 0
+  endtime <- GetTime()
+  while(cont)
+  {
+
+    RegisterEvent("<TIMER>",1,1 ,"<TRUE>","UpdateTimer", [gTimer])
+    resp <-  WaitForClickOnTargetWithTimeout(items,Sequence(1,Length(items),1),500)
+
+
+    if(not resp == "<timeout>")
+    {
+     obj <- Nth(items,resp)
+     CallFunction(obj.clickon,[obj,gClick])
+     Draw()
+   
+      #Exit condition:
+      cont <- resp>1
+     }
+  }
+}  
+
+
+
+define ResetTime(obj,click)
+{
+    PushButton(obj,click)
+    gBaseTime <- ToNumber(gTimeEntry.value)
+    gTimeLeft <- gBaseTime*60*1000 
+    gEndTime <- gTimeLeft+ GetTime()
+
+    gTimer.font <- gFontOK
+    gTimer.text <-MakeTimeString(gTimeLeft)
+    gTiming <- 0
+
+
+
+
+    Draw()
+}
+
+
+
+define MakeTimeString(timeleft)
+{
+    num <- Abs(timeleft)
+    sign <- Sign(timeleft)
+
+    if(sign==-1)
+	{
+	  prepend <- "-"
+	}else{
+	 prepend <- ""
+       }
+    secs <- num/1000
+    mins <- Floor(secs/60)
+    secs <- Floor(secs - mins*60)
+
+
+    return prepend + ZeroPad(mins,2)+":"+ZeroPad(secs,2)
+}
+
+
+define UpdateTimer(timer,evt:0)
+{ 
+
+   if(gTiming)
+   {
+
+
+     if(GetTime()>gNextTime)
+     {
+
+     timeleft <- gEndtime - GetTime()
+     timestring <- MaketimeString(timeleft)
+
+     if(timeleft < 60*gWarningTime*1000)
+     {
+       timer.font <- gFontDanger
+     }
+     if(timeleft < 0)
+     {
+       timer.font <- gFontOver
+     } 
+
+     timer.text <- timestring
+     Draw()
+     gNextTime <- GetTime()+100
+    }
+   }
+}
+
+
+define StartTimer(obj,click)
+{
+    PushButton(obj,click)
+
+    gBaseTime <- ToNumber(gTimeEntry.value)
+    gTimeLeft <- gBaseTime*60*1000 
+    gEndTime <- gTimeLeft+ GetTime()
+    gTiming <- 1
+
+
+}
+
+
+
+
+define Pause(obj,click)
+{
+   PushButton(obj,click)
+   ##turn timing off, 
+   gTiming <- 1-gTiming
+
+   if(not gTiming)
+   {
+     gTimeLeft <- gEndTime-GetTime()
+   } else {
+   ##starting up again
+     gEndTime <- GetTime()+gTimeLeft
+   }
+}

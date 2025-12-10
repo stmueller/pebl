@@ -1,0 +1,722 @@
+## Mental Rotation Test (MRT)
+##
+## A test of spatial visualization ability requiring participants to identify
+## which of four alternatives match a target object shown from different angles.
+##
+## Based on the Vandenberg & Kuse (1978) Mental Rotations Test, originally
+## developed by Shepard & Metzler (1971).
+
+define Start(p)
+{
+    ## Initialize
+    gScriptname <- "Mental Rotation Test"
+    InitializeUpload()
+    ## Parameters
+    parpairs <- [["imagewidth", 1600]]  ## Original image width for scaling
+    gParams <- CreateParameters(parpairs, gParamFile)
+
+    ## Setup window
+    gSleepEasy <- 1
+    gWin <- MakeWindow("white")
+    ShowCursor(1)
+
+
+
+ ##Set up timer globals
+   buttonColor <- MakeColor("gold")
+   deleteButton <- Rectangle(850,850,200,40,buttonColor,1)
+  timerBack <-  Rectangle(gVideowidth/2,gVideoHeight-300,300,21,MakeColor("grey"),0)
+  timerFront <-  Rectangle(gVideowidth/2,gVideoHeight-300,300,19, MakeColor("red"),1)
+  timerText <- EasyLabel("",gVideowidth/2,gVideoHeight-300,gWin,24,MakeColor("white"))
+
+  AddObject(timerFront,gWin)
+  AddObject(timerBack,gWin)
+
+   gTimer <- MakeCustomObject("timer")
+   gTimer.front <- timerFront
+   gTimer.back <- timerBack
+   gTimer.text <- timerText
+
+
+   ShowTimer(gTimer,0)
+
+   maxtime <- 3*60*1000 ## 3 minutes per half 
+
+
+
+    ## Get subject number
+    if(gSubNum + "" == "0")
+    {
+        gSubNum <- GetSubNum(gWin)
+    }
+
+    ## Create data file
+    gFileOut <- GetNewDataFile(gSubNum, gWin, "mrt", "csv",
+        "subnum,trial,trial_type,correct1,correct2,response1,response2,num_correct,both_correct,start_time,complete_time,rt,timestamp")
+
+    ## Load instructions and problems
+    LoadInstructions()
+    LoadProblems()
+
+    ## Run practice trials with feedback
+
+    gPractice <- Sublist(gProblems,1,4)
+    gSet1 <- Sublist(gProblems,5,14)
+    gSet2 <- Sublist(gProblems,15,24)
+    gTotalCorrect <- 0
+    ## Show initial instructions
+    ShowInstructionPage("inst1", gInstructions.inst1)
+    ShowInstructionPage("inst2", gInstructions.inst2)
+    Print("instructions done")
+    
+
+
+    ##first, do practice untimed.
+    loop(prob, gProblems)
+    {
+        trialName <- prob.trial
+
+        if(SubString(trialName, 1, 1) == "p")
+        {
+            ## Practice trial
+            if(trialName == "p1")
+            {
+                ## Show p1 with inst3 text at top and inst4 as feedback
+                result <- RunTrial(prob, 1, gInstructions.inst3, gInstructions.inst4)
+            }elseif(trialName == "p2")
+            {
+                ## Show inst5 before p2-p4
+                ShowInstruction(gInstructions.inst5)
+                result <- RunTrial(prob, 1, "Select the two shapes on the right that match the shape on the left",  "")
+            }else{
+                ## p3, p4
+                result <- RunTrial(prob, 1, "Select the two shapes on the right that match the shape on the left", "")
+            }
+
+     }    
+    }
+
+
+
+
+
+   ShowTimer(gTimer,1)
+   ## Show inst6 before first test trial
+   ShowInstruction(gInstructions.inst6)
+   Draw()
+
+   #At the beginning of the problem, do an OK and set the timeout time.
+
+
+     startTime <- GetTime()
+     gMaxtime <- 3*60*1000 ## 3-minute for first set
+     gTimeout <- starttime+gMaxtime
+     Print(gTimeout)
+     UpdateTimer(gtimeout,gmaxtime,gTimer)
+     gTimeElapsed <- 0
+
+    loop(prob,gSet1)
+     {
+
+
+         ResetTimer()
+         result <- RunTrial(prob, 0, "Select the two shapes on the right that match the shape on the left", "",1)
+         gTotalCorrect <- gTotalCorrect + Nth(result, 4)  ## both_correct
+          if(gTimeElapsed)
+	   {
+	      break
+	   }
+ 
+    }
+
+     
+     gKeepLooping <- 0
+     ClearEventLoop()
+     gMaxtime <- 60*1000 ## 1 break
+     gTimeout <- GetTime()+gMaxtime
+     UpdateTimer(gtimeout,gmaxtime,gTimer)
+     ## Show inst6 before first test trial
+     ShowInstruction(gInstructions.inst7)
+
+   gTimeElapsed <- 0
+   gmaxtime <- 3*60*1000 ## 1 break
+   startTime <- GetTime()
+   #At the beginning of the problem, do an OK and set the timeout time.
+   gtimeout <- starttime+maxtime
+   
+
+
+     loop(prob,gSet2)
+     {
+            ResetTimer()
+            result <- RunTrial(prob, 0, "Select the two shapes on the right that match the shape on the left", "",1)
+            gTotalCorrect <- gTotalCorrect + Nth(result, 4)  ## both_correct
+           if(gTimeElapsed)
+	    {
+	      break
+	    }
+
+
+     }
+     gKeepLooping<- 0 #probably not needed.
+     ClearEventLoop()
+
+     FileClose(gFileOut)
+     Print("uploading" + gFileout.filename)
+     out <- UploadFile(gSubNum, gFileOut.filename)
+     Print(out)
+    ## Show final results
+    finalText <- gInstructions.inst8
+    finalText <- ReplaceChar(finalText, "<total>", gTotalCorrect + "")
+    ShowInstruction(finalText)
+}
+
+##reactivates the timer/event loop
+define ResetTimer()
+{
+
+       UpdateTimer(gtimeout,gmaxtime,gTimer)
+       RegisterEvent("<TIMER>", 1, GetTime()+500,"<GEQ>","UpdateTimer", [gtimeout,gmaxtime,gTimer])
+       RegisterEvent("<TIMER>", 1, gtimeout,"<GEQ>","EndTrial", [gtimeout])
+
+}
+define LoadInstructions()
+{
+    ## Load instructions from CSV
+    lines <- ReadCSV("instructions.csv")
+    gInstructions <- MakeCustomObject("instructions")
+
+    loop(line, lines)
+    {
+        if(Length(line) >= 2)
+        {
+            key <- First(line)
+            value <- Nth(line, 2)
+            ## Remove quotes if present
+            value <- StripQuotes(value)
+            SetProperty(gInstructions, key, value)
+        }
+    }
+}
+
+define LoadProblems()
+{
+    ## Load problems from CSV
+    lines <- FileReadTable("problems.csv", ",")
+    gProblems <- []
+
+    loop(line, lines)
+    {
+        if(Length(line) >= 3)
+        {
+            trial <- First(line)
+            correct1 <- ToNumber(Nth(line, 2))
+            correct2 <- ToNumber(Nth(line, 3))
+
+            prob <- MakeCustomObject("problem")
+            prob.trial <- trial
+            prob.correct1 <- correct1
+            prob.correct2 <- correct2
+
+            PushOnEnd(gProblems, prob)
+        }
+    }
+}
+
+define ShowInstructionPage(imageName, instructionText)
+{
+    ## Show instruction image with text below
+
+    ## Clear screen first
+    Draw()
+
+    ## Load image
+    imagePath <- "img/" + imageName
+    if(not FileExists(imagePath))
+    {
+        imagePath <- "img/" + imageName + ".png"
+    }
+
+    if(not FileExists(imagePath))
+    {
+        SignalFatalError("Image file not found: " + imagePath)
+    }
+
+    img <- MakeImage(imagePath)
+    imageWidth <- img.width
+    imageHeight <- img.height
+
+    ## Calculate scale to fit screen width - 50 pixels, then reduce by 10%
+    targetWidth <- gVideoWidth - 50
+    scale <- (targetWidth / gParams.imagewidth) * 0.9
+    scaledHeight <- imageHeight * scale
+
+    ## Position image at top center (coordinates are for CENTER of image)
+    imgX <- gVideoWidth / 2
+    imgY <- scaledHeight / 2 + 10
+
+    ## Add to window and set properties
+    AddObject(img, gWin)
+    Move(img, imgX, imgY)
+    img.zoomx <- scale
+    img.zoomy <- scale
+
+    ## Add instruction text below image
+    textY <- scaledHeight + 20
+    textHeight <- gVideoHeight - textY - 80
+    textWidth <- 800
+    textX <- (gVideoWidth - textWidth) / 2
+    inst <- EasyTextBox(instructionText, textX, textY, gWin, 18, textWidth, textHeight)
+
+    ## Add OK button at bottom
+    okButton <-MakeOKButton(gVideoWidth / 2, gVideoHeight - 350,gWin, 150, 50, "red")
+    Draw()
+    Print("wait x1")
+    ## Wait for click on OK button
+    WaitForClickOnTarget([okButton],[1])
+    Print("waitx11")
+    ClickOn(okbutton,GetMouseCursorPosition())
+    RemoveObject(okButton,gWin)  
+    RemoveObject(img, gWin)
+    RemoveObject(inst, gWin)
+    Draw()
+}
+
+define ShowInstruction(text)
+{
+    ## Show text-only instruction
+    Draw()
+    textWidth <- 800
+    textX <- (gVideoWidth - textWidth) / 2
+    textY <- gVideoHeight / 2 - 150
+    inst <- EasyTextBox(text, textX, textY, gWin, 20, textWidth, 300)
+
+   ## Add OK button at bottom
+    okButton <-MakeOKButton(gVideoWidth / 2, gVideoHeight -350,gWin, 150, 50)
+    Draw()
+    ## Wait for click on OK button
+
+-    WaitForClickOnTarget([okButton],[1])
+     ClickOn(okbutton,GetMouseCursorPosition())
+
+
+    RemoveObject(okButton, gWin)
+
+    Draw()
+}
+
+define RunTrial(prob, dofeedback, instructionText, appendtext,timed:0)
+{
+    ## Extract problem data
+    trialName <- prob.trial
+    correct1 <- prob.correct1
+    correct2 <- prob.correct2
+
+    imagePath <- "img/" + trialName + ".png"
+    img <- MakeImage(imagePath)
+    imageWidth <- img.width
+    imageHeight <- img.height
+
+    ## Scale to fit screen width - 50 pixels, then reduce by 10%
+    targetWidth <- gVideoWidth - 50
+    scale <- (targetWidth / gParams.imagewidth) * 0.9
+    scaledWidth <- gParams.imagewidth * scale
+
+    ## Center image
+    imgX <- gVideoWidth / 2
+    imgY <- gVideoHeight / 2
+
+    AddObject(img, gWin)
+    Move(img, imgX, imgY)
+    img.zoomx <- scale
+    img.zoomy <- scale
+
+    ## Show instruction text at top if provided (add after image so it draws on top)
+
+
+    inst <- EasyTextBox(instructionText, 50, 10, gWin, 16,gVideoWidth-100,50)
+
+    ## Calculate clickable rectangle positions
+    ## Original: 250x300 pixels, centers at 600, 900, 1200, 1500 from left edge
+    rectWidth <- 250 * scale
+    rectHeight <- 300 * scale
+
+    ## Centers in original image coordinates
+    centers <- [600, 900, 1200, 1500]
+
+    ## Create rectangles (hidden for hit detection) and plus icons
+    rectangles <- []
+    plusIcons <- []
+    loop(i, Sequence(1, 4, 1))
+    {
+        centerX <- Nth(centers, i) * scale
+        ## Position relative to image left edge
+        imageLeft <- imgX - (scaledWidth / 2)
+        rectX <- imageLeft + centerX
+        rectY <- imgY
+
+        ## Create invisible rectangle for hit detection
+        rect <- Rectangle(rectX, rectY, rectWidth, rectHeight, MakeColor("blue"), 0)
+        AddObject(rect, gWin)
+        Hide(rect)
+        PushOnEnd(rectangles, rect)
+
+        ## Create checkmark icon positioned at upper right corner of rectangle
+        checkFont <- MakeFont(gPEBLBaseFont, 0, 72, MakeColor("green"), MakeColor("white"), 0)
+        plusIcon <- MakeLabel("✓", checkFont)
+        AddObject(plusIcon, gWin)
+        ## Position at upper right, then move down 50 and left 50 pixels
+        plusIcon.x <- rectX + rectWidth / 2 - 50
+        plusIcon.y <- rectY - rectHeight / 2 + 50
+        Hide(plusIcon)
+        PushOnEnd(plusIcons, plusIcon)
+    }
+
+    ## Track selections
+    selections <- []
+    selectedPlusIcons <- []
+
+    ## Create OK button (initially hidden)
+    okButton <-MakeOKButton(gVideoWidth / 2, gVideoHeight -350,gWin, 150, 50)
+    Hide(okButton)
+
+    startTime <- GetTime()
+
+    ## Selection loop
+    done <- 0
+    while(not done)
+    {
+        Draw()
+        click <- WaitForMouseButton()
+
+	if(timed)
+	{
+           ResetTimer()
+	   if(gTimeElapsed)
+	   {
+	    done <- 1
+	    Draw()
+	   }
+	}
+        if(Third(click) == 1)  ## Left click
+        {
+            ## Check if OK button clicked
+            if(Length(selections) == 2)
+            {
+                if(Inside(click, okButton))
+                {
+                    done <- 1
+                }
+            }
+
+            ## Check rectangle clicks
+            if(not done)
+            {
+                loop(i, Sequence(1, 4, 1))
+                {
+                    rect <- Nth(rectangles, i)
+                    if(Inside(click, rect))
+                    {
+                        ## Check if already selected
+                        alreadySelected <- 0
+                        loop(sel, selections)
+                        {
+                            if(sel == i)
+                            {
+                                alreadySelected <- 1
+                            }
+                        }
+
+                        if(not alreadySelected)
+                        {
+                            plusIcon <- Nth(plusIcons, i)
+
+                            ## Add to selections
+                            if(Length(selections) < 2)
+                            {
+                                PushOnEnd(selections, i)
+                                PushOnEnd(selectedPlusIcons, plusIcon)
+                                Show(plusIcon)
+                            } else {
+                                ## Replace first selection
+                                Hide(First(selectedPlusIcons))
+                                selections <- [Nth(selections, 2), i]
+                                selectedPlusIcons <- [Nth(selectedPlusIcons, 2), plusIcon]
+                                Show(plusIcon)
+                            }
+
+                            ## Show OK button if 2 selected
+                            if(Length(selections) == 2)
+                            {
+                                Show(okButton)
+
+                            } else {
+                                Hide(okButton)
+
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+
+
+    completeTime <- GetTime()
+    rt <- completeTime - startTime
+
+    Draw()
+
+    response1 <- "NA"
+    response2 <- "NA"
+    ## Get responses
+    if(Length(selections)>0)
+    {
+      response1 <- First(selections)
+    }
+    if(Length(selections)>1)
+    {
+      response2 <- Nth(selections, 2)
+    }
+
+     
+    ## Calculate accuracy
+    numCorrect <- 0
+    if(response1 == correct1 or response1 == correct2)
+    {
+        numCorrect <- numCorrect + 1
+    }
+    if(response2 == correct1 or response2 == correct2)
+    {
+        numCorrect <- numCorrect + 1
+    }
+
+    bothCorrect <- 0
+    if(numCorrect == 2)
+    {
+        bothCorrect <- 1
+    }
+
+    ## Write to file
+    trialType <- "practice"
+    if(SubString(trialName, 1, 1) == "t")
+    {
+        trialType <- "test"
+    }
+
+    FilePrint(gFileOut, gSubNum + "," + trialName + "," + trialType + "," +
+              correct1 + "," + correct2 + "," + response1 + "," + response2 + "," +
+              numCorrect + "," + bothCorrect + "," + startTime + "," + completeTime + "," + rt + "," + TimeStamp())
+
+    ## Show feedback if practice
+    if(dofeedback)
+    {
+        Draw()
+
+        feedbackText <- "Incorrect"
+        feedbackColor <- MakeColor("red")
+        if(bothCorrect)
+        {
+            feedbackText <- "Correct!"
+            feedbackColor <- MakeColor("green")
+        }
+
+        feedbackFont <- MakeFont(gPEBLBaseFontMono, 0, 32, feedbackColor, MakeColor("white"), 1)
+        feedback <- MakeLabel(feedbackText, feedbackFont)
+        AddObject(feedback, gWin)
+        feedback.x <- gVideoWidth / 2
+        feedback.y <- gVideoHeight / 2 - 250
+
+      
+
+        ## Add OK button if there's append text
+        if(appendtext != "")
+        {
+
+	  ## Add append text if provided
+           appendLabel <- EasyLabel(appendtext, gVideoWidth / 2, gVideoHeight  - 100, gWin, 20)
+
+ 	   ## Add OK button at bottom
+           okButton <-MakeOKButton(gVideoWidth / 2, gVideoHeight - 350,gWin, 150, 50)
+        }
+
+        Draw()
+
+        if(appendtext != "")
+        {
+            ## Wait for click on OK button
+
+            WaitForClickOnTarget([okButton],[1])
+            ClickOn(okbutton,GetMouseCursorPosition())
+
+        } else {
+            Wait(1000)
+        }
+
+        RemoveObject(feedback, gWin)
+    }
+
+    ## Clean up
+    RemoveObject(img, gWin)
+    Draw()
+
+    ClearEventLoop()##just to be sure 
+    return([response1, response2, numCorrect, bothCorrect])
+}
+
+
+
+define MakeOKButton(x,y,win,width:200,height:50,color:"lightgrey",text:"OK")
+{
+
+
+  ##get window color
+  if(PropertyExists(win,"bgcolor"))
+   {
+     wincol <- win.bgcolor
+   } elseif(PropertyExists(win,"color"))
+   {
+     wincol <- win.color
+   }elseif(PropertyExists(win,"fgcolor")){
+     wincol <- win.fgcolor
+   }else {
+     wincol <- MakeColor("white")##really all that is needed 
+   }
+
+ button     <- MakeCustomObject("button")
+ button.name <- "<CUSTOMOBJECT>"  #uses rectangle rules.
+ obj<- MakeCanvas(width,height,MakeColor("grey40"))
+ button.bg  <- Rectangle(obj.width/2-2,obj.height/2-2,width-6,height-6,MakeColor("grey80"),1)
+ AddObject(button.bg, obj)
+ font <- MakeFont(gPEBLBaseFont,0,24,MakeColor("black"),MakeColor("white"),0)
+ button.lab  <- MakeLabel(text,font)
+ AddObject(button.lab,obj)
+ Move(button.lab, obj.width/2,obj.height/2)
+ Draw(button.bg)
+ Draw(button.lab)
+ Draw(obj)
+ 
+   button.x <- x
+   button.y <- y
+   button.width<- width
+   button.height <- height
+   button.clickon <- "PushButton"
+   button.Draw <- "DrawButton"
+   button.Move <- "MoveButton"
+   button.Hide <- "HideButton"
+   button.Show <- "ShowButton"
+   button.Move <-   "MoveButton"
+   button.Draw <-   "DrawButton"
+   button.AddObject <- "AddButton"
+   button.RemoveObject <- "RemoveButton"
+
+   button.button <- obj
+
+   AddObject(button,win)
+   Move(button,x,y)
+   
+  return button
+}
+
+
+define AddButton(button,window,evt:0)
+{
+   AddObject(button.button,window)
+   
+}
+
+
+define RemoveButton(button,window,evt:0)
+{
+
+   RemoveObject(button.button,window)
+
+
+}
+
+
+
+##redo this base function so we can implement the timer.
+
+define WaitForMouseButtonWithTimeout(timeout)
+{
+    endtime <- GetTime() + timeout
+    RegisterEvent("<MOUSE_BUTTON_PRESS>",1,1,"<EQUAL>","", [])
+
+
+   RegisterEvent("<TIMER>", 1, endtime,"<GEQ>","",[])
+   out <-   StartEventLoop()
+   ClearEventLoop()
+   
+   return(out)
+
+}
+
+
+define WaitForMouseButton()
+{
+   RegisterEvent("<MOUSE_BUTTON_PRESS>",1,1,"<EQUAL>","", [])
+   out <-   StartEventLoop()
+   ClearEventLoop()
+
+   if(out=="<timeout>")
+   {
+     out <-[0,0,0,"<timeout>"]
+   }
+   return(out)
+
+}
+
+
+define Wait(time)
+{
+
+
+    ##register the timer
+    endtime <- GetTime() + time
+    RegisterEvent("<TIMER>", 1, endtime,"<GEQ>","",[])
+    StartEventLoop()
+    ClearEventLoop()
+
+    
+    return(1)
+}
+
+
+define UpdateTimer(endtime,maxtime,timer,evt:0)
+{
+   prop <- Max([0,endTime - GetTime()])/maxtime
+   front <- gTimer.front
+   back <- gTimer.back
+   text <- gTimer.text
+   front.width <- back.width * prop
+   text.text <- Ceiling((endTime-GetTime())/1000)
+   Draw()
+   return 0
+}
+
+
+
+  define ShowTimer(timer,value)
+  {
+     if(value)
+     {
+       Show(gtimer.front)
+       Show(gTimer.back)
+       Show(gTimer.text)
+     }else{
+       Hide(gtimer.front)
+       Hide(gTimer.back)
+       Hide(gTimer.text)
+
+    }
+  }
+
+define EndTrial(p,evt:0)
+{
+ gKeeplooping <- 0
+ gTimeElapsed <- 1
+ Draw()
+ return "<REMOVE>"
+}

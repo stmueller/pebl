@@ -1,0 +1,89 @@
+define Start(p)
+{
+  #############################################################
+  ## This is a simple keyboard tapping task. It has been
+  ## used to test low-level motor ability, and may be impacted
+  ## by things like fatigue and sleep deprivation.
+  ##
+  ## (c) 2008 Shane T. Mueller (smueller obereed net)
+  #############################################################
+
+  ## The time of each trial
+  trialtime <- 20*1000   #number of seconds * 1000 = ms
+  numtrials <- 3
+
+
+  win <- MakeWindow()
+  tb <- EasyTextBox("In this task, you are asked to tap the keyboard as quickly as possible for "+ numtrials +" trials of " +
+  trialtime/1000 + " seconds.  Use  the 'A' key.  Begin tapping when you see a 'GO'.  Press 'A' to begin.",20,20,win,16,600,300)
+
+  Draw()
+
+
+
+
+  lab <- EasyLabel("",gVideoWidth/2,gVideoHeight/2,win,24)
+  Hide(lab)
+
+  data <- []
+  trial <- 1
+
+
+   WaitForKeyPress("A")
+
+
+  while (trial <= numtrials) 
+  {
+
+     ##On the trial, gate the beginning with the "A" press
+     lab.text <- "Press 'A' to begin"
+     Show(lab)
+     Hide(tb)   
+     Draw()      
+     WaitForKeyPress("A")
+     Hide(lab)
+     Draw()
+     Wait(2000)    #Give 2 seconds before trial begins
+
+     lab.text <- "GO:"
+     Show(lab)
+     Draw()
+
+    ##Give a 1 second lead time
+    Wait(1000)
+    Draw()
+
+     ##Compute the end-time of the trial
+    finaltime <- GetTime() + trialtime
+    hits <- 0  
+    while(GetTime() < finaltime)
+     {
+     
+       WaitForKeyPress("A")
+
+       time <- GetTime()
+       remaining <- Ceiling((finaltime - time)/1000)
+  	   lab.text <- "GO: [" + remaining + "]"
+       Draw()   
+       hits <- hits + 1
+     }
+  
+   data <- Append(data,hits-1)
+  
+
+   ## Give feedback for each trial.
+   Hide(lab)
+   Show(tb)
+   tb.text <- "You made " + (hits-1) + " keypresses. Press X to continue."
+   Draw()
+   trial <- trial + 1
+   WaitForKeyPress("X")
+  }
+
+  x <- PrintList(data)
+  tb.text <- "Resulting keypresses on each trial:" + CR(3)+ x+ CR(2)+". Press X to exit"
+  Show(tb)
+  Draw()
+  WaitForKeyPress("X")
+
+}

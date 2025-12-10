@@ -1,0 +1,633 @@
+## Basic Luck and Vogel change-detection task.
+##
+##
+
+define Start(p)
+{
+  ## Initialize upload system (works for both online and native)
+  InitializeUpload()
+
+  parpairs <- [["fieldWidth",400],
+               ["fieldheight",400],
+               ["squaresize",50],
+	       ["prestime",300],
+	       ["delaytime",1000],
+	       ["length1",1],
+	       ["length2",2],
+	       ["length3",3],
+	       ["length4",4],
+	       ["length5",8],
+	       ["length6",12],
+	       ["trialsperlength",10], ##per length and same/diff condition
+	       ["givefeedback",1],
+	       ["blocksize",40],
+	       ["useAudiofeedback",1]
+              ]
+
+  gParams <- CreateParameters(parpairs,gParamFile)
+
+
+   gParams.length <- [gParams.length1,gParams.length2,gParams.length3,
+                      gparams.length4,gParams.length5,gParams.length6]
+
+
+   if(gParams.UseAudioFeedback)
+   {
+     gCorrectSound <- LoadSound("correct.ogg")
+     gIncorrectSound <-LoadSound("buzz500ms.ogg")
+   }
+
+
+   ##These should be basically color-blind safe:
+   gCols <- [MakeColorRGB(230,159,0),  #orange
+   	    MakeColorRGB(86,180,233),  #skyblue
+	    MakeColorRGB(0,158,115),   #blue-green
+      	    MakeColorRGB(240,228,66),  #yellow
+	    MakeColorRGB(213,94,0), #vermillion (red)
+            MakeColorRGB(255,255,255),  #white
+            MakeColorRGB(0,0,0)         #Black
+           ]
+
+   gColNames <- ["orange","skyblue","bluegreen","yellow","red","white","black"]
+   gShapeNames <- ["circle","square","plus","ellipse","star"]
+
+
+  gScriptName <- "PEBL Visual Change Detection Task"
+
+  gWin <- MakeWindow("black")
+  gSleepEasy <- 1
+  ShowCursor(0)
+
+  if(gSubNum+""=="0")
+   {
+      gSubNum <- GetSubNum(gWin)
+   }
+
+
+  GetStrings(gLanguage)
+
+
+  gFileOut <- GetNewDataFile(gSubNum,gWin,"luckvogel","csv",
+               "subnum,trial,abstime,prestime,delay,size,same,resp,corr,rt")
+
+  gHeader <- EasyLabel("",gVideoWidth/2,gVideoHeight/2-gParams.fieldheight/2-30,gWin,30)
+
+  bgField <- Rectangle(gVideoWidth/2,gVideoHeight/2,
+               gParams.fieldwidth,gParams.fieldheight,
+              MakeColor("grey50"),1)
+  AddObject(bgField,gWin)
+  font <- Makefont(gPEBLBaseFont,0,50,MakeColor("black"),MakeColor("white"),0)
+  gStatus <- MakeLabel("",font)
+  Move(gStatus,gVideoWidth/2,gVideoHeight/2)
+  AddObject(gStatus,gWin)
+
+
+   instbox <- EasyTextBox(gStrings.inst,20,20,gWin,18,gVideoWidth-40,120)
+
+   displays <- MakeStimSet(5,"box",1)
+   cont <- 1
+   ShowAll(First(displays),1)
+   Draw()
+   WaitForAnyKeyPress()
+
+   instbox.text <- instbox.text + gStrings.continue
+   ShowAll(First(displays),0)
+   Draw()
+   Wait(1000)
+   gHeader.text <- gStrings.headersame
+   while(cont)
+   {
+
+     displays <- MakeStimSet(5,"box",1)
+     ShowAll(First(displays),1)
+     Draw()
+     Wait(500)
+     ShowAll(First(displays),0)
+     Draw()
+     Wait(1000)
+     ShowAll(First(displays),1)
+     Draw()
+     out <-  WaitForListKeyPress([" ","X"])
+     ShowAll(First(displays),0)
+     Draw()
+     Wait(1000)
+     cont <- (out==" ")
+
+   }
+
+  instbox.text <-gStrings.inst2
+
+   gHeader.text <-gStrings.headerdifferent
+   Draw()
+   WaitForAnyKeyPress()
+
+   instbox.text <- instbox.text +gStrings.continue2
+    cont <- 1
+
+  while(cont)
+   {
+    displays <- MakeStimSet(5,"box",1)
+    ShowAll(First(displays),1)
+     Draw()
+     Wait(500)
+     ShowAll(First(displays),0)
+     Draw()
+     Wait(1000)
+     ShowAll(Second(displays),1)
+     Draw()
+     out <-  WaitForListKeyPress([" ","X"])
+     ShowAll(Second(displays),0)
+     Draw()
+     Wait(1000)
+     cont <- (out==" ")
+
+   }
+
+
+   instbox.text <- gStrings.inst3
+   gHeader.text <- gStrings.header
+   Draw()
+   WaitForAnyKeyPress()
+   Hide(instbox)
+   CountDown(gWin)
+
+   loop(i,[1,0,1,0,0,1])
+     {
+       out <-  TrialSquares(3,i)
+     }
+
+  design <- DesignFullCounterbalance(gParams.length,[0,1])
+  stim <- Shuffle(RepeatList(design,gParams.trialsperlength))
+
+   instbox.text <-gStrings.inst4
+   Show(instbox)
+   Draw()
+   WaitForAnyKeyPress()
+   Hide(instbox)
+   CountDown(gWin)
+
+   ##also, burn a couple trials of the test set:
+   out <-  TrialSquares(3,1)
+   out <-  TrialSquares(3,0)
+
+   trial <- 1
+   loop(i,stim)
+    {
+      out <-  TrialSquares(First(i),Second(i))
+      FilePrint(gfileOut,gSubNum+","+trial+","+GetTime()+","+gParams.prestime+","+gParams.delaytime+","+
+                First(i)+","+First(out)+","+Second(out)+","+Third(out)+","+Fourth(out))
+
+     if(Mod(trial,gParams.blocksize)==0)
+     {
+     breaktext <- ReplaceChar(gStrings.break,"<TRIAL>",trial+"")
+     breaktext <- ReplaceChar(breaktext,"<LENGTH>",Length(stim)+"")
+
+
+       instbox.text <- breaktext
+       Show(instbox)
+       Draw()
+       Hide(instbox)
+        WaitForAnyKeyPress()
+        CountDown(gWin)
+        out <-  TrialSquares(3,1)
+        out <-  TrialSquares(3,0)
+
+     }
+
+      trial <- trial + 1
+    }
+
+  ## Display debrief message
+  instbox.text <- gStrings.debrief
+  Show(instbox)
+  Draw()
+  WaitForAnyKeyPress()
+
+  ## Upload data files (works online, no-op on native)
+  out <- UploadFile(gSubNum, gFileOut.filename)
+  Print(out)
+}
+
+define TrialSquares(number,change)
+{
+    gHeader.text <- gStrings.trialheader
+    displays <- MakeStimSet(number,"box",change)
+    gStatus.text <- gStrings.ready
+    Draw()
+    Wait(500)
+    gStatus.text <- ""
+    Draw()
+    Wait(1000)
+
+    ShowAll(First(displays),1)
+    Draw()
+    Wait(gParams.prestime)
+    ShowAll(First(displays),0)
+    Draw()
+    Wait(gParams.delaytime)
+    ShowAll(Second(displays),1)
+
+    Draw()
+
+    time1 <- GetTime()
+    resp <- WaitForListKeyPress(["<lshift>","<rshift>"])
+    time2 <- GetTime()
+
+    if(change)
+        {
+              corr <- resp=="<rshift>"
+        }else {
+              corr <- resp=="<lshift>"
+        }
+
+   if(gParams.givefeedback)
+   {
+      ShowAll(Second(displays),0)
+      gStatus.text <- Nth([gStrings.incorrect,gStrings.Correct],corr+1)
+      Draw()
+      if(gParams.UseAudioFeedback)
+       {
+       if(corr)
+        {
+          PlayForeground(gCorrectSound)
+        }else{
+          PlayForeground(gIncorrectSound)
+        }
+      }
+
+
+      Wait(350)
+      gStatus.text <- ""
+      Draw()
+   }
+  return [change,resp,corr,(time2-time1)]
+}
+
+
+define MakeStimSet(number,type,change)
+{
+
+
+
+  if(type=="box")
+  {
+
+  ##create the positions here:
+  gLeft <- gVideoWidth/2-gParams.fieldwidth/2 +gParams.squaresize/2+10
+  gRight <- gVideoWidth/2+gParams.fieldwidth/2-gParams.squaresize/2-10
+  gUpper <- gVideoHeight/2-gParams.fieldheight/2+gParams.squaresize/2+10
+  gLower <- gVideoHeight/2+gParams.fieldheight/2-gParams.squaresize/2-10
+
+    ##pick the colors (we have 7)
+    indices <- Shuffle(Sequence(1,7,1))
+    swaps <- SampleN(indices,2)  ##these won't match
+
+   if(number==1)
+    {
+      positions <- [[gLeft+Random()*(gRight-gLeft),
+                     gUpper+Random()*(gLower-gUpper)]]
+
+      colors1 <- [First(swaps)]
+     if(change)
+     {
+      colors2 <- [Second(swaps)]
+     }else{
+      colors2 <-[First(swaps)]
+     }
+
+    }else {
+
+     positions <- NonOverlapLayout(gLeft,gRight,gUpper,glower,
+                            gParams.squaresize*2,number)
+
+     rest <- DesignBalancedSampling(indices,number-1)
+     colors1 <- Append(rest,First(swaps))
+     if(change)
+     {
+      colors2 <- Append(rest,Second(swaps))
+     }else{
+      colors2 <- Append(rest,First(swaps))
+     }
+
+     }
+
+
+    cnames1 <- ExtractListItems(gColNames,colors1)
+    cnames2 <- ExtractListItems(gColNames,colors2)
+    col1 <- ExtractListItems(gCols,colors1)
+    col2 <- ExtractListItems(gCols,colors2)
+
+    display1 <- []
+    display2 <- []
+
+    loop(i,Sequence(1,number,1))
+    {
+        xy <- Nth(positions,i)
+	sq1a <- Square(First(xy),Second(xy),gParams.squaresize+4,  MakeColor("black"),1)
+        sq1 <- Square(First(xy),Second(xy),gParams.squaresize,  Nth(col1,i),1)
+	sq2a <- Square(First(xy),Second(xy),gParams.squaresize+4,  MakeColor("black"),1)
+        sq2 <- Square(First(xy),Second(xy),gParams.squaresize,  Nth(col2,i),1)
+
+        AddObject(sq1a,gWin)
+        AddObject(sq1,gWin)
+	AddObject(sq2a,gWin)
+	AddObject(sq2,gWin)
+
+	PushOnEnd(display1,sq1)
+	PushOnEnd(display1,sq1a)
+	PushOnEnd(display2,sq2)
+	PushOnEnd(display2,sq2a)
+    }
+
+  }
+ ShowAll(display1,0)
+ ShowAll(display2,0)
+ return [display1,display2]
+}
+
+
+define ShowAll(set,onoff)
+{
+   loop(i,set)
+    {
+      i.visible <- onoff
+    }
+}
+
+
+define GetStrings(lang)
+{
+  gStrings <- GetTranslations("luckvogel", lang)
+}
+The PEBL Visual change-detection task, based on the one popularized by Luck & Vogel.  
+
+This task measures visual working memory by making simple changes to arrays of objects and requiring participant to detect the difference.
+{
+  "test": "luckvogel",
+  "version": "1.0",
+  "description": "LUCKVOGEL Test",
+  "parameters": [
+    {
+      "name": "fieldWidth",
+      "type": "integer",
+      "default": 400,
+      "description": "Width of field in pixels"
+    },
+    {
+      "name": "fieldheight",
+      "type": "integer",
+      "default": 400,
+      "description": "height of field in pixels"
+    },
+    {
+      "name": "squaresize",
+      "type": "integer",
+      "default": 50,
+      "description": "size of square stimuli"
+    },
+    {
+      "name": "prestime",
+      "type": "integer",
+      "default": 300,
+      "description": "presentation time"
+    },
+    {
+      "name": "delaytime",
+      "type": "integer",
+      "default": 1000,
+      "description": "delay blank"
+    },
+    {
+      "name": "length1",
+      "type": "boolean",
+      "default": 1,
+      "description": "size of problem",
+      "options": [
+        0,
+        1
+      ]
+    },
+    {
+      "name": "length2",
+      "type": "integer",
+      "default": 2,
+      "description": "size of problem"
+    },
+    {
+      "name": "length3",
+      "type": "integer",
+      "default": 3,
+      "description": "size of problem"
+    },
+    {
+      "name": "length4",
+      "type": "integer",
+      "default": 4,
+      "description": "size of problem"
+    },
+    {
+      "name": "length5",
+      "type": "integer",
+      "default": 8,
+      "description": "size of problem"
+    },
+    {
+      "name": "length6",
+      "type": "integer",
+      "default": 12,
+      "description": "size of problem"
+    },
+    {
+      "name": "trialsperlength",
+      "type": "integer",
+      "default": 10,
+      "demo_override": 1,
+      "description": "Number of trials for each length for both match and mismatch"
+    },
+    {
+      "name": "givefeedback",
+      "type": "boolean",
+      "default": 1,
+      "description": "Whether trial-by-trial feedback should be given.",
+      "options": [
+        0,
+        1
+      ]
+    },
+    {
+      "name": "blocksize",
+      "type": "integer",
+      "default": 40,
+      "description": "Pause for a rest after this many blocks"
+    },
+    {
+      "name": "useaudiofeedback",
+      "type": "boolean",
+      "default": 1,
+      "description": "Whether to give audio feedback",
+      "options": [
+        0,
+        1
+      ]
+    }
+  ]
+}
+{
+  "version": "1.0",
+  "display": {
+    "minimum_width": 900,
+    "minimum_height": 800,
+    "recommended_width": 1024,
+    "recommended_height": 800,
+    "fullscreen_recommended": false
+  },
+  "input": {
+    "keyboard": true,
+    "mouse_buttons": false,
+    "mouse_movement": false,
+    "touch": false,
+    "notes": "Uses left and right shift keys only"
+  },
+  "audio": {
+    "required": false,
+    "output": true,
+    "input": false,
+    "notes": "Audio feedback is optional (configurable via useAudiofeedback parameter)"
+  },
+  "performance": {
+    "timing_critical": true,
+    "max_acceptable_latency_ms": 50,
+    "notes": "Visual working memory task with brief stimulus presentations (300ms default)"
+  },
+  "accessibility": {
+    "color_discrimination_required": true,
+    "motion_sensitivity_warning": false,
+    "keyboard_only": true,
+    "notes": "Task requires distinguishing between colored squares (uses color-blind safe palette)"
+  },
+  "device_support": {
+    "desktop": true,
+    "tablet": false,
+    "mobile": false,
+    "notes": "Requires large screen for visual stimulus field display"
+  }
+}
+{
+"INST": "In dieser Aufgabe werden Sie gebeten, sich einen Bildschirm voller farbiger Objekte zu merken, wie Sie unten sehen. Der Bildschirm wird kurz erscheinen, verschwinden und dann wird ein neuer Bildschirm erscheinen. Dieser neue Bildschirm kann gleich oder unterschiedlich zum vorherigen Bildschirm sein. Ihre Aufgabe ist es zu bestimmen, ob sie gleich sind. Im folgenden Beispiel wird sich der Bildschirm beim Aufblitzen nicht ändern. Drücken Sie eine beliebige Taste, um Beispielreize zu sehen.",
+"INST2": "Jetzt sehen Sie ein Beispiel einer Änderung. Drücken Sie eine beliebige Taste, um das Beispiel zu sehen.",
+"INST3": "Im Test werden Sie gebeten, mit der linken oder rechten Umschalttaste zu antworten. Linke Umschalttaste für GLEICHE Durchgänge und rechte Umschalttaste für UNTERSCHIEDLICHE Durchgänge. Sie beginnen mit einigen Übungsdurchgängen. Drücken Sie eine beliebige Taste, um zu beginnen",
+"INST4": "Jetzt werden Sie wirklich getestet. Versuchen Sie so genau wie möglich zu sein. Drücken Sie eine beliebige Taste, um zu beginnen.",
+"CONTINUE": "  Drücken Sie die Leertaste, um das Beispiel erneut zu sehen, oder X, um fortzufahren.",
+"HEADERSAME": "GLEICHE Durchgänge",
+"HEADERDIFFERENT": "UNTERSCHIEDLICHE Durchgänge",
+"HEADER": "<lshift>=GLEICH             <rshift>= UNTERSCHIEDLICH",
+"CONTINUE2": "  Drücken Sie die Leertaste, um das Beispiel erneut zu sehen, oder X, um fortzufahren.",
+"BREAK": "Sie können eine kurze Pause machen und fortfahren, wenn Sie bereit sind.\n <TRIAL> von <LENGTH> Problemen abgeschlossen. Drücken Sie eine beliebige Taste, um fortzufahren",
+"DEBRIEF": "Diese Aufgabe ist nun abgeschlossen. Drücken Sie eine beliebige Taste, um fortzufahren",
+"TRIALHEADER": "<lshift>=GLEICH             <rshift>= UNTERSCHIEDLICH",
+"READY": "BEREIT",
+"CORRECT": "Richtig",
+"INCORRECT": "Falsch"
+}
+{
+"INST": "In this task, you will be asked to remember a screen full of colored objects, like you see below.  The screen will appear briefly, disappear, and then a new screen will appear.  This new screen may or may not be the same as the previous screen.  Your job is to determine whether they are the same. On the following example trial, the screen won't change when it flashes. Press any key to see example stimuli.",
+"INST2": "Now you will see an example of a change.  Press any key to see the example.",
+"INST3": "In the test, you will be asked to respond with either the left or right shift key. left shift to indicate SAME trials, and right shift to indicate DIFFERENT trials. You will start with a few practice trials.  Press any key to begin",
+"INST4": "Now, you will be tested for real. Try to be as accurate as possible.  Press any key to begin.",
+"CONTINUE": "  Press space bar to see the example again, or X to continue.",
+"HEADERSAME": "SAME trials",
+"HEADERDIFFERENT": "DIFFERENT trials",
+"HEADER": "<lshift>=SAME             <rshift>= DIFFERENT",
+"CONTINUE2": "  Press space bar to see the example again, or X to continue.",
+"BREAK": "You may take a short break, and continue when you are ready.\n <TRIAL> out of <LENGTH> problems complete.  Press any key to continue",
+"DEBRIEF": "This task is now complete. Press any key to proceed",
+"TRIALHEADER": "<lshift>=SAME             <rshift>= DIFFERENT",
+"READY": "READY",
+"CORRECT": "Correct",
+"INCORRECT": "Incorrect"
+}
+{
+"INST": "En esta tarea, se le pedirá que recuerde una pantalla llena de objetos de colores, como puede ver a continuación. La pantalla aparecerá brevemente, desaparecerá y luego aparecerá una nueva pantalla. Esta nueva pantalla puede ser igual o diferente a la pantalla anterior. Su trabajo es determinar si son iguales. En el siguiente ensayo de ejemplo, la pantalla no cambiará cuando parpadee. Presione cualquier tecla para ver los estímulos de ejemplo.",
+"INST2": "Ahora verá un ejemplo de un cambio. Presione cualquier tecla para ver el ejemplo.",
+"INST3": "En la prueba, se le pedirá que responda con la tecla shift izquierda o derecha. Shift izquierda para indicar ensayos IGUALES, y shift derecha para indicar ensayos DIFERENTES. Comenzará con algunos ensayos de práctica. Presione cualquier tecla para comenzar",
+"INST4": "Ahora, será evaluado de verdad. Intente ser lo más preciso posible. Presione cualquier tecla para comenzar.",
+"CONTINUE": "  Presione la barra espaciadora para ver el ejemplo nuevamente, o X para continuar.",
+"HEADERSAME": "Ensayos IGUALES",
+"HEADERDIFFERENT": "Ensayos DIFERENTES",
+"HEADER": "<lshift>=IGUAL             <rshift>= DIFERENTE",
+"CONTINUE2": "  Presione la barra espaciadora para ver el ejemplo nuevamente, o X para continuar.",
+"BREAK": "Puede tomar un breve descanso y continuar cuando esté listo.\n <TRIAL> de <LENGTH> problemas completados. Presione cualquier tecla para continuar",
+"DEBRIEF": "Esta tarea ahora está completa. Presione cualquier tecla para continuar",
+"TRIALHEADER": "<lshift>=IGUAL             <rshift>= DIFERENTE",
+"READY": "LISTO",
+"CORRECT": "Correcto",
+"INCORRECT": "Incorrecto"
+}
+{
+"INST": "Dans cette tâche, il vous sera demandé de mémoriser un écran rempli d'objets colorés, comme vous le voyez ci-dessous. L'écran apparaîtra brièvement, disparaîtra, puis un nouvel écran apparaîtra. Ce nouvel écran peut être identique ou différent de l'écran précédent. Votre tâche est de déterminer s'ils sont identiques. Dans l'exemple suivant, l'écran ne changera pas lorsqu'il clignote. Appuyez sur n'importe quelle touche pour voir les stimuli d'exemple.",
+"INST2": "Maintenant, vous verrez un exemple de changement. Appuyez sur n'importe quelle touche pour voir l'exemple.",
+"INST3": "Dans le test, il vous sera demandé de répondre avec la touche Maj gauche ou droite. Maj gauche pour indiquer les essais IDENTIQUES, et Maj droite pour indiquer les essais DIFFÉRENTS. Vous commencerez par quelques essais de pratique. Appuyez sur n'importe quelle touche pour commencer",
+"INST4": "Maintenant, vous serez testé pour de vrai. Essayez d'être aussi précis que possible. Appuyez sur n'importe quelle touche pour commencer.",
+"CONTINUE": "  Appuyez sur la barre d'espace pour revoir l'exemple, ou X pour continuer.",
+"HEADERSAME": "Essais IDENTIQUES",
+"HEADERDIFFERENT": "Essais DIFFÉRENTS",
+"HEADER": "<lshift>=IDENTIQUE             <rshift>= DIFFÉRENT",
+"CONTINUE2": "  Appuyez sur la barre d'espace pour revoir l'exemple, ou X pour continuer.",
+"BREAK": "Vous pouvez faire une courte pause et continuer quand vous êtes prêt.\n <TRIAL> sur <LENGTH> problèmes complétés. Appuyez sur n'importe quelle touche pour continuer",
+"DEBRIEF": "Cette tâche est maintenant terminée. Appuyez sur n'importe quelle touche pour continuer",
+"TRIALHEADER": "<lshift>=IDENTIQUE             <rshift>= DIFFÉRENT",
+"READY": "PRÊT",
+"CORRECT": "Correct",
+"INCORRECT": "Incorrect"
+}
+{
+"INST": "In questo compito, ti verrà chiesto di ricordare uno schermo pieno di oggetti colorati, come puoi vedere qui sotto. Lo schermo apparirà brevemente, scomparirà e poi apparirà un nuovo schermo. Questo nuovo schermo potrebbe essere uguale o diverso dallo schermo precedente. Il tuo compito è determinare se sono uguali. Nel seguente esempio di prova, lo schermo non cambierà quando lampeggia. Premi un tasto qualsiasi per vedere gli stimoli di esempio.",
+"INST2": "Ora vedrai un esempio di un cambiamento. Premi un tasto qualsiasi per vedere l'esempio.",
+"INST3": "Nel test, ti verrà chiesto di rispondere con il tasto shift sinistro o destro. Shift sinistro per indicare prove UGUALI, e shift destro per indicare prove DIVERSE. Inizierai con alcune prove di pratica. Premi un tasto qualsiasi per iniziare",
+"INST4": "Ora, sarai testato per davvero. Cerca di essere il più preciso possibile. Premi un tasto qualsiasi per iniziare.",
+"CONTINUE": "  Premi la barra spaziatrice per vedere l'esempio di nuovo, o X per continuare.",
+"HEADERSAME": "Prove UGUALI",
+"HEADERDIFFERENT": "Prove DIVERSE",
+"HEADER": "<lshift>=UGUALE             <rshift>= DIVERSO",
+"CONTINUE2": "  Premi la barra spaziatrice per vedere l'esempio di nuovo, o X per continuare.",
+"BREAK": "Puoi fare una breve pausa e continuare quando sei pronto.\n <TRIAL> di <LENGTH> problemi completati. Premi un tasto qualsiasi per continuare",
+"DEBRIEF": "Questo compito è ora completato. Premi un tasto qualsiasi per procedere",
+"TRIALHEADER": "<lshift>=UGUALE             <rshift>= DIVERSO",
+"READY": "PRONTO",
+"CORRECT": "Corretto",
+"INCORRECT": "Errato"
+}
+{
+"INST": "In deze taak wordt u gevraagd om een scherm vol gekleurde objecten te onthouden, zoals u hieronder ziet. Het scherm zal kort verschijnen, verdwijnen en dan zal er een nieuw scherm verschijnen. Dit nieuwe scherm kan hetzelfde zijn of verschillen van het vorige scherm. Uw taak is om te bepalen of ze hetzelfde zijn. In het volgende voorbeeldonderzoek zal het scherm niet veranderen wanneer het knippert. Druk op een willekeurige toets om voorbeeldstimuli te zien.",
+"INST2": "Nu ziet u een voorbeeld van een verandering. Druk op een willekeurige toets om het voorbeeld te zien.",
+"INST3": "In de test wordt u gevraagd om te reageren met de linker- of rechter shift-toets. Linker shift voor DEZELFDE proeven en rechter shift voor VERSCHILLENDE proeven. U begint met een paar oefenproeven. Druk op een willekeurige toets om te beginnen",
+"INST4": "Nu wordt u echt getest. Probeer zo nauwkeurig mogelijk te zijn. Druk op een willekeurige toets om te beginnen.",
+"CONTINUE": "  Druk op de spatiebalk om het voorbeeld opnieuw te zien, of X om door te gaan.",
+"HEADERSAME": "DEZELFDE proeven",
+"HEADERDIFFERENT": "VERSCHILLENDE proeven",
+"HEADER": "<lshift>=HETZELFDE             <rshift>= VERSCHILLEND",
+"CONTINUE2": "  Druk op de spatiebalk om het voorbeeld opnieuw te zien, of X om door te gaan.",
+"BREAK": "U kunt een korte pauze nemen en doorgaan wanneer u klaar bent.\n <TRIAL> van <LENGTH> problemen voltooid. Druk op een willekeurige toets om door te gaan",
+"DEBRIEF": "Deze taak is nu voltooid. Druk op een willekeurige toets om door te gaan",
+"TRIALHEADER": "<lshift>=HETZELFDE             <rshift>= VERSCHILLEND",
+"READY": "KLAAR",
+"CORRECT": "Correct",
+"INCORRECT": "Onjuist"
+}
+{
+"INST": "Nesta tarefa, será pedido que você se lembre de uma tela cheia de objetos coloridos, como você pode ver abaixo. A tela aparecerá brevemente, desaparecerá e então uma nova tela aparecerá. Esta nova tela pode ser igual ou diferente da tela anterior. Seu trabalho é determinar se elas são iguais. No seguinte ensaio de exemplo, a tela não mudará quando piscar. Pressione qualquer tecla para ver os estímulos de exemplo.",
+"INST2": "Agora você verá um exemplo de uma mudança. Pressione qualquer tecla para ver o exemplo.",
+"INST3": "No teste, será pedido que você responda com a tecla shift esquerda ou direita. Shift esquerda para indicar ensaios IGUAIS, e shift direita para indicar ensaios DIFERENTES. Você começará com alguns ensaios de prática. Pressione qualquer tecla para começar",
+"INST4": "Agora, você será testado de verdade. Tente ser o mais preciso possível. Pressione qualquer tecla para começar.",
+"CONTINUE": "  Pressione a barra de espaço para ver o exemplo novamente, ou X para continuar.",
+"HEADERSAME": "Ensaios IGUAIS",
+"HEADERDIFFERENT": "Ensaios DIFERENTES",
+"HEADER": "<lshift>=IGUAL             <rshift>= DIFERENTE",
+"CONTINUE2": "  Pressione a barra de espaço para ver o exemplo novamente, ou X para continuar.",
+"BREAK": "Você pode fazer uma pausa breve e continuar quando estiver pronto.\n <TRIAL> de <LENGTH> problemas concluídos. Pressione qualquer tecla para continuar",
+"DEBRIEF": "Esta tarefa agora está completa. Pressione qualquer tecla para prosseguir",
+"TRIALHEADER": "<lshift>=IGUAL             <rshift>= DIFERENTE",
+"READY": "PRONTO",
+"CORRECT": "Correto",
+"INCORRECT": "Incorreto"
+}

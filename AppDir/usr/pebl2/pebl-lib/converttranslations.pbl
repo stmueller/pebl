@@ -1,0 +1,39 @@
+define Start(p)
+{
+
+ fnames <-GetDirectoryListing("./")
+ loop(f,fnames)
+ {
+  Print("File: " + f)
+  l <- StringLength(f)
+  if(l>4) {
+  #Print(SubString(f,l-2,3))
+
+  if(SubString(f,l-2,3) == "csv")
+  {
+
+     lang <- SubString(f,l-5,2)
+     base <- SubString(f,1,l-7)
+
+    # Print("Base:       [" + base+"]")
+     #Print("Language:   ["+lang+"]")
+
+     trans <- ReadCSV(f)
+
+    custom <- MakeCustomObject("json")
+    loop(i,trans)
+    {
+      SetProperty(custom,First(i),Second(i))
+     }
+
+
+
+    out <- (JSONText(custom))
+  #  Print(out)
+    file <- FileOpenOverwrite(base+"-"+ lang + ".json")
+    FilePrint(file,out)
+ }
+ }
+ }
+
+}

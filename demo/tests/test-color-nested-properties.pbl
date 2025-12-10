@@ -1,0 +1,56 @@
+## Test nested color property modifications
+define Start(p)
+{
+    gWin <- MakeWindow()
+
+    Print("=== Test 1: Direct color property modification ===")
+    color <- MakeColor("red")  ## R=255, G=0, B=0
+    Print("Initial color (red): " + color)
+    Print("  color.red = " + color.red)
+    Print("  color.green = " + color.green)
+    Print("  color.blue = " + color.blue)
+
+    Print("Setting color.green <- 255 (should make yellow)")
+    color.green <- 255
+    Print("After change: " + color)
+    Print("  color.red = " + color.red)
+    Print("  color.green = " + color.green)
+    Print("  color.blue = " + color.blue)
+    Print("")
+
+    Print("=== Test 2: Label bgcolor property modification ===")
+    label <- MakeLabel("Test Label", MakeFont("DejaVuSans.ttf", 0, 24, MakeColor("white"), MakeColor("blue"), 1))
+    AddObject(label, gWin)
+    Move(label, gVideoWidth/2, 100)
+    Draw()
+    Print("Label created with blue background")
+    WaitForAnyKeyPress()
+
+    Print("Setting label.font.bgcolor.red <- 255 (should make magenta)")
+    label.font.bgcolor.red <- 255
+    Draw()
+    Print("Did background turn magenta? (Press key)")
+    WaitForAnyKeyPress()
+
+    Print("")
+    Print("=== Test 3: Label fgcolor property modification ===")
+    Print("Setting label.font.fgcolor.red <- 0 (white->cyan)")
+    label.font.fgcolor.red <- 0
+    Draw()
+    Print("Did text turn cyan? (Press key)")
+    WaitForAnyKeyPress()
+
+    Print("")
+    Print("=== Test 4: Multiple color component changes ===")
+    Print("Setting label.font.bgcolor.green <- 255 (magenta->white)")
+    Print("Setting label.font.bgcolor.blue <- 255")
+    label.font.bgcolor.green <- 255
+    label.font.bgcolor.blue <- 255
+    Draw()
+    Print("Did background turn white? (Press key)")
+    WaitForAnyKeyPress()
+
+    Print("")
+    Print("All tests complete!")
+    return(0)
+}

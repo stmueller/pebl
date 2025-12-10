@@ -1,0 +1,41 @@
+##This just displays the current version number and some runtime information
+ 
+define Start(par) {
+
+  win <- MakeWindow()
+  font <- MakeFont(gPEBLBasefont,0,40, MakeColor("black"), MakeColor("white"),0)
+  tbfont <- MakeFont(gPEBLBasefontmono,0,18, MakeColor("black"), MakeColor("white"),0)
+  tb  <- MakeTextBox("",tbfont,600,400)
+  AddObject(tb,win)
+  Move(tb,gVideoWidth/2-300,gVideoHeight/2-200)
+
+  message <-  "PEBL VERSION:         ["+GetPEBLVersion()+"]"+CR(1)+
+              "System type:          ["+GetSystemType()+"]"+CR(1)+
+              "Time of day:          ["+TimeStamp()+"]"+CR(1)+
+	      "Participant code:     ["+gSubNum+"]"+CR(1)+
+	      "Screen width:         ["+gVideoWidth+"]"+CR(1)+ 
+	      "Screen height:        ["+gVideoHeight+"]"+CR(1)+ 
+	      "Language:             ["+gLanguage+"]"+CR(1)+
+	      "Parameter file:       ["+gParamFile+"]"+CR(1)+
+              "Basefont:             ["+gPEBLBaseFont+"]"+CR(1)+
+              "Mono Basefont:        ["+gPEBLBaseFontMono+"]"+CR(1)+
+              "Serif basefont:       ["+gPEBLBaseFontSerif+"]"+CR(1)
+
+  id <- 1
+  loop(i,par)
+  {
+   message <- message +  "parameter "+id+":          ["+i+"]"+CR(1)
+   id <- id + 1
+  }
+
+  tb.text <- message
+  Print(message)
+  lab2 <- MakeLabel("Press any key to exit.",font)
+  AddObject(lab2,win)
+  Move(lab2, gVideoWidth/2,80)
+  Draw()
+  WaitForAnyKeyPress()
+
+  
+}
+

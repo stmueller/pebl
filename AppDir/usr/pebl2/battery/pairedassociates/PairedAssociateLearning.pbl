@@ -1,0 +1,522 @@
+define Start(p)
+{
+
+  parpairs <- [["isi",2500],
+               ["givefeedback",1]]
+
+  gParams <- CreateParameters(parpairs,gParamFile)
+
+  gisi <- gParams.isi   ##Time between words.
+  gGiveFeedback <- gParams.givefeedback
+
+  ##  Create word pairs to learn, of several types:
+  ## A to B
+  ##  1. name to unrelated word
+  ##  2. word to unrelated word
+  ##  3. word to 1st associate  (easier?)
+  ##  4. word to 3nd associate  (less easy)
+  
+  ## Each list will contain 2 or 4 pairs of each.  During test, 
+  ## half will be tested with the A, other half will be tested 
+  ## with the B word.
+
+
+
+  ##Do 16 of these-4 for each list
+  names <-  ["ABIGAIL",
+    	     "CHARLOTTE","DANIEL",
+	     "FRANKLIN",
+	     "GEORGIA","HAROLD",
+	     "INGRID","JASON",
+	     "LOUISE",
+	     "NANCY","OLIVIA", 
+	     "PAULINE","RANDALL",
+	     "STACY","THOMAS",
+	      "WALTER"]
+		
+  words <- ["ABSENCE","BARGAIN", "COMPOUND","DEGREE",
+       "EFFORT",  "INSTANT","KINDNESS","LEGEND",
+       "LETTER","METHOD",  "NOTION", "QUESTION",
+       "RELIEF",  "STANDARD","VALUE","WEAKNESS"]
+
+
+  wordnamepairs <- Transpose([Shuffle(names),
+			    Shuffle(words),
+			    Repeat("WN",Length(words)),
+			    RepeatList([1,-1],8) ])
+
+##16 random pairs--4 for each list.
+unrelatedpairs <- Append(
+   FoldList( Shuffle(["AMOUNT","BELIEF","BUREAU","CARRIAGE",
+      "MERCHANT","COLLEGE","COTTON","ELBOW",
+      "HUSBAND","JERSEY","LIQUOR","MILLION",
+      "NUMBER","ODOR","PENNY","PILLOW",
+      "RABBIT","SEASON","SERVICE","SUPPER",
+      "HABIT", "OFFENSE", "TRIBUTE","PROBLEM",
+      "MOTION", "GOODBYE", "JUDGMENT","FEELING",
+      "SYSTEM","UNION","WINDOW","YELLOW"]),  16),
+    Repeat("WW",16))
+
+unrelatedpairs <- Transpose(Append(unrelatedpairs,   RepeatList([1,-1],8)))
+
+##16 triplets--2 each easy/difficult for each list.
+  simPairs <- Shuffle([["SICKNESS","HEALTH","ILLNESS"],
+     	    ["ROUGH","SMOOTH","HARD"],
+	    ["EATING","FOOD","HUNGRY"],
+   	    ["ALWAYS","NEVER","SOMETIMES"],
+   	    ["HAMMER","NAIL","TOOL"],
+   	    ["HIGH","LOW","LADDER"],
+   	    ["HOUSE","HOME","ROOF"],
+   	    ["KING","QUEEN","RULER"],
+   	    ["SPEAK","TALK","SOFTLY"],
+   	    ["SCISSORS","CUT","PAPER"],
+   	    ["BED","SLEEP","PILLOW"],
+   	    ["DARK","LIGHT","ROOM"],
+   	    ["QUICKLY","FAST","RUN"],
+   	    ["CHAIR","TABLE","SOFT"],
+	    ["DEBATE","ISSUE","ELECTION"],
+	    ["REPAIR","FIX","BREAK"] ])
+
+
+   easy1Pairs <- []
+   order <- 1
+   loop(i,SubList(simpairs,1,Floor(Length(simpairs)/2)))
+   {
+       PushOnEnd(easy1Pairs,[First(i),Nth(i,2),"E1",order])
+       order <- order * (-1)
+   }
+
+
+   easy2pairs <- []
+   loop(i,SubList(simpairs,Floor(Length(simpairs)/2)+1,Length(simpairs)))
+   {
+       PushOnEnd(easy2Pairs,[First(i),Nth(i,2),"E2",order])
+       order <- order * (-1)
+   }
+
+
+
+  ##Now, we create 4 equivalent lists to present and perform recall on.   
+  ## from the following sets:
+  ##  wordnamepairs,  (16)
+  ##  unrelatedpairs, (16)
+  ##  easy1pairs,     (8)  (easy1 and easy2  are sorta equivalent)
+  ##  easy2pairs      (8)
+
+
+
+  wnl4 <- FoldList(wordnamepairs,4)
+  urp4 <- FoldList(unrelatedpairs,4)
+  easy14 <- FoldList(easy1pairs,2)
+  easy24  <- FoldList(easy2pairs,2)
+  
+   l1 <- Shuffle(FlattenN([Nth(wnl4,1),
+                           Nth(urp4,1),
+			   Nth(easy14,1),
+			   Nth(easy24,1)],1))
+
+   l2 <- Shuffle(FlattenN([Nth(wnl4,2),
+                           Nth(urp4,2),
+			   Nth(easy14,2),
+			   Nth(easy24,2)],1))
+
+   l3 <- Shuffle(FlattenN([Nth(wnl4,3),
+                           Nth(urp4,3),
+			   Nth(easy14,3),
+			   Nth(easy24,3)],1))
+
+   l4 <- Shuffle(FlattenN([Nth(wnl4,4),
+                           Nth(urp4,4),
+			   Nth(easy14,4),
+			   Nth(easy24,4)],1))
+
+
+
+  gWin<- MakeWindow("black")
+  gSleepEasy <- 1
+ if(gSubNum+""=="0") 
+  {
+    gSubNum <- GetSubNum(gWin)
+  }
+
+
+
+   header <- "subnum,type,block,resptrial,probe,target,W1,W2,cond,wordord,leftword,rightword,prestrial,respid,rt1,respx,respy,corrresp,actualresp,correct,rt"
+  gFileOut <- GetNewDataFile(gSubNum,gWin,"paired","csv",header)
+
+  MessageBox("In this task, you will see a pair of words for several seconds each.  There will be twelve word pairs.  Try to remember the pairing--you will be asked about it later.  There is no need to remember the order of these words.  This test will take about eight minutes."+CR(3)+"To remember the words, many people try to come up with a scene or image that involves the pairing, to make it more memorable.  You may try this, or some other strategy that helps you remember how they go together.",gWin)
+
+
+  gHeader <- EasyLabel("Remember word pairs",gVideoWidth/2,20,gWin,30)
+  stim <- EasyLabel("Press any key to start.",gVideoWidth/2,gVideoHeight/2,gWin,44)
+  Draw()
+  Hide(stim)
+
+   WaitForAnyKeyPress()
+
+   gBlock <- 1
+   
+   l1a <- DoPresentation(l1)
+   results1a <-  DoRecognition(l1a)
+   stim.text <- "Press any key to repeat the test."
+   Show(stim)
+   Draw()
+   WaitForAnyKeyPress()
+   Hide(stim)
+
+   gBlock <- gBlock + 1
+
+   l1b <- DoPresentation(l1)
+   results1b <- DoRecognition(l1b)
+   Show(stim)
+   Draw()
+   WaitForAnyKeyPress()
+   Hide(stim)
+
+
+
+   l2 <- DoPresentation(l2)
+   results2 <-  DoRecall(l2)
+
+   stim.text <- "Press any key to continue to next test."
+   Show(stim)
+   Draw()
+   WaitForAnyKeyPress()
+   Hide(stim)
+
+   gBlock <- gBlock + 1
+   l3 <- DoPresentation(l3)
+   results3 <-  DoRecognition(l3)
+
+   stim.text <- "Press any key to continue to next test."
+   Show(stim)
+   Draw()
+   WaitForAnyKeyPress()
+   Hide(stim)
+
+   gBlock <- gBlock + 1
+   l4 <- DoPresentation(l4)
+   results4 <-  DoRecall(l4)
+   MessageBox("Thank you for participating",gWin)
+
+}
+
+## Present the word pairs
+##
+define DoPresentation(wordlist)
+{
+
+
+
+  stim <- EasyLabel("",gVideoWidth/2,gVideoHeight/2,gWin,44)
+  ##we should probably record this order.
+  newlist <- []
+  index <- 1
+
+  loop(i,wordlist)
+  {
+    ii <- Shuffle(Sublist(i,1,2))
+    stim.text <- First(ii) + "    " + Second(ii)
+    Draw()   
+    PushOnEnd(newlist,Flatten([i,First(ii),Second(ii),index]))
+    Wait(gisi)
+    index <- index + 1
+  }
+
+  Hide(stim)
+
+  return newlist
+}
+
+
+define DoRecognition(wordlist)
+{
+ 
+  ##wordlist is in the presentation order.
+  correctNum <- 0
+  toptions <- Transpose(wordlist)
+ 
+  order <- Nth(toptions, 4)
+  words <- SubList(toptions,1,2)
+   
+   choicelist <- []
+   probelist <- []
+   list <- Transpose(Append(words,order))
+
+   loop(i,list)
+   {
+     if(Third(i)==-1)
+     {
+       PushOnEnd(choicelist,First(i))
+       PushOnEnd(probelist,Second(i))
+     } else {
+       PushOnEnd(choicelist,Second(i))
+       PushOnEnd(probeList,First(i))
+     }
+   }
+
+   probes <- Transpose(Merge([probelist,choicelist],toptions))
+
+
+   ##pick the order everything will be presented in....
+   ## Note: the words were presented in one order.
+   ##       we need to test them in a second order
+   ##      they must be presented on the grid in a third order (consistently)
+
+   testord <- Shuffle(Sequence(1,Length(probelist),1))
+   presord <- Shuffle(Sequence(1,Length(probelist),1))
+   
+   presented <- SortBy(choicelist,presord)   
+
+   respid <- 1
+   loop(i,SortBy(probes,testord))
+   {  
+      time1 <- GetTime()
+      resp <- RespondRecognition(First(i),presented)
+      time2 <- GetTime()
+
+
+      correctanswer <- Second(i)
+      chosen <- Nth(presented,First(resp))  ##This is the word that was chosen.
+      ##We need to compute some stuff here.
+
+      corr <- (chosen == correctanswer)
+      correctNum <- correctNum + 1
+      ##Print out all the datas:
+
+      if(gGiveFeedback)
+      {
+            if(corr)
+             {
+                 gHeader.text <- "Correct (" +correctanswer + ")"
+             } else {
+	         gHeader.text <- "Incorrect (" +correctanswer + ")"
+            }            
+	   Draw()
+	   Wait(500)
+	   gHeader.text <- ""
+      }
+
+      Fileprint_(gFileOut,gSubNum+","+gBlock+",recognition,"+respid+",")
+      FilePrint_(gFileOut,ConcatenateList(i,",")+",")
+      FilePrint_(gFileOut,ConcatenateList(resp,",")+",")
+      FilePrint(gFileOut,correctanswer+","+chosen+","+corr+","+(time2-time1))
+
+      respid <- respid+1
+   }
+
+ return correctNum
+}
+
+
+
+
+define DoRecall(wordlist)
+{
+  correctnum <- 0
+  ##wordlist is in the presentation order.
+
+  toptions <- Transpose(wordlist)
+ 
+  order <- Nth(toptions, 4)
+  words <- SubList(toptions,1,2)
+   
+   choicelist <- []
+   probelist <- []
+   list <- Transpose(Append(words,order))
+
+   loop(i,list)
+   {
+     if(Third(i)==-1)
+     {
+       PushOnEnd(choicelist,First(i))
+       PushOnEnd(probelist,Second(i))
+     } else {
+       PushOnEnd(choicelist,Second(i))
+       PushOnEnd(probeList,First(i))
+     }
+   }
+
+   probes <- Transpose(Merge([probelist,choicelist],toptions))
+
+
+   ##pick the order everything will be presented in....
+   ## Note: the words were presented in one order.
+   ##       we need to test them in a second order
+   ##      they must be presented on the grid in a third order (consistently)
+
+   testord <- Shuffle(Sequence(1,Length(probelist),1))
+   presord <- Shuffle(Sequence(1,Length(probelist),1))
+   
+   presented <- SortBy(choicelist,presord)   
+
+   respid <- 1
+   loop(i,SortBy(probes,testord))
+   {  
+
+      time1 <- GetTime()
+      resp <- RespondRecall(First(i))
+      time2 <- GetTime()
+
+
+
+      correctanswer <- Second(i)
+      chosen <- Uppercase(resp)  ##This is the word that was chosen.
+      ##We need to compute some stuff here.
+
+      corr <- (chosen == correctanswer)
+      correctNum <- correctNum + 1
+
+
+    if(gGiveFeedback)
+      {
+            if(corr)
+             {
+                 gHeader.text <- "Correct (" +correctanswer + ")"
+             } else {
+	         gHeader.text <- "Incorrect (" +correctanswer + ")"
+            }            
+	   Draw()
+	   Wait(500)
+	   gHeader.text <- ""
+      }
+      ##Print out all the datas:
+      Fileprint_(gFileOut,gSubNum+","+gBlock+",recall,"+respid+",")
+      FilePrint_(gFileOut,ConcatenateList(i,",")+",")
+      FilePrint_(gFileOut,"NA,NA,NA,NA,")
+      FilePrint(gFileOut,correctanswer+","+chosen+","+corr+","+(time2-time1))
+
+      respid <- respid+1
+   }
+
+  return correctNum
+}
+
+
+##options should include target!
+define RespondRecognition(target,options)
+{
+
+   gHeader.text <- "Select word paired with:  " +target
+
+   font <- MakeFont(gPEBLBaseFont,0,33,MakeColor("white"),MakeColor("black"),0)
+   ##Make a label for each option.
+   labs <- []
+   loop(i, options) 
+   { 
+      PushOnEnd(labs,MakeLabel(i,font))
+   }
+
+
+  choice <-   MultiOptionChoice(labs,gWin)
+  gHeader.text <- ""
+  return choice
+}
+
+
+
+##options should include target!
+define RespondRecall(target)
+{
+   gHeader.text <- "Type word paired with:  " +target
+   font <- MakeFont(gPEBLBaseFont,0,33,MakeColor("white"),MakeColor("black"),0)
+   entry <- EasyTextBox("",gVideoWidth/2-200,gVideoHeight/2-50,gWin,45,400,100)
+   
+   choice <- GetInput(entry,"<return>")  
+   gHeader.text <- ""
+   return choice
+}
+
+
+
+define GetGrid(items)
+{
+   grids <- [[1,1],  #1 item
+             [1,2],  # 2 items
+             [1,3],  # 3 items
+             [2,2] , #4 item
+             [2,3],  #5 items
+             [2,3],  #6 items
+             [2,4],  #7 items
+             [2,4],  #8 items
+             [3,3],  #9 items
+             [3,4],  #10 items
+             [3,4],  #11 items
+             [3,4],  #12 items
+             [3,5],  #13 items
+             [3,5],  #14 items
+             [3,5]]  #15 items
+
+   if(items <=15)
+   {
+
+     ret <- Nth(grids,items)
+
+   } else {
+
+     base <- Round(Sqrt(items))
+    if((base-1)*base >=items)
+     {
+      ret <- [base-1,base]
+     } elseif(base*base >= items)
+     {
+        ret <- [base, base]
+     } elseif(base*(base+1)>=items)
+     {
+       ret <- [base, base+1]
+     } else
+     {
+       ret <- [base+1,base+1]
+     }
+   }
+  return ret
+}
+ 
+
+##foils should be widgets to choose amongst.
+##They need not be added to the window.
+define MultiOptionChoice(options,win)
+{
+
+
+  grid <- GetGrid(Length(options))
+
+   width <- Max([750,gVideoWidth-100])
+   height <- Max([550,gVideoHeight-150])
+  layout <-  LayoutGrid((gVideoWidth-width)/2, (gVideoWidth+width)/2, 
+                       (gVideoHeight-height)/2, (gVideoheight+height)/2,
+                        First(grid), Second(grid), 1)
+
+  ##make it the right length
+  layout <- SubList(layout, 1, Length(options))
+
+  tmp <- Transpose([options,layout])
+  loop(i,tmp)
+  {
+    AddObject(First(i),win)
+    xy <- Second(i)
+    Move(First(i),First(xy),Second(xy))
+    Show(First(i))
+  }
+
+  Draw()
+
+  time0 <- GetTime()
+  resp <- WaitForClickOnTarget(options, Sequence(1,Length(options),1))
+  time1 <- GetTime()
+
+
+  ##Remove the stimuli
+
+  loop(i,options)
+  {
+    RemoveObject(i, win)
+  }
+  ##Get the chosen object.
+  chosen <- Nth(options,resp)
+
+  return [resp, (time1-time0), chosen.x, chosen.y]
+
+}
+
+

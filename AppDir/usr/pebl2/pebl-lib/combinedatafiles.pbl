@@ -1,0 +1,543 @@
+## This function will search for and combine data files within 
+## the directory you are running in.
+##
+
+define Start(p)
+{
+  gVideoWidth <- 800
+  gVideoHeight <- 600
+  gSleepEasy <- 1
+  gWin <- MakeWindow("grey90")
+
+  directory <- "."
+  filter <- "*"
+  exclude <- ""
+  filename <- "pooled.csv"
+
+  fontsize <- 12
+  gSelected <- 1
+
+  head <- EasyLabel("PEBL Data Combining Tool", gVideoWidth/2+120,20,gWin,30)
+
+
+  helpdefault <- "Instructions:  
+*Specify matching and exclusion filters to add or remove filenames from the merge.
+*Check 'Add filename to data' to put the filename on each line.
+*Check 'Files contain header' if your data files contain a common header line.  This will strip the header from each file and add a single header to the merged file.
+* Matching filters are applied first, followed by exclusion filters.  Within filter, space or | indicates OR, & indicates AND. ANDs are handled before OR.
+* Example: add [.csv dat] to include all files having either .csv and dat in their names. Add [.csv&test] to include only files that have both .csv and test in their names. Add [pooled] to excludes to exclude all files with pooled in their names."
+
+  help <- EasyTextBox(helpdefault,10,270,gWin,12,260,310)
+   gFileWindow <- MakeScrollBox([""],"Files:",300,50,gWin,12,480,300,1)
+   
+
+  gWindowhead <- Easylabel("Files identified:",gfileWindow.x, gfilewindow.y-8,gWin,fontsize)
+  gyHeight <- gWindowhead.height 
+  gWindowhead.x <- gFileWindow.x+gWindowhead.width/2
+
+#  gfilepreview <- EasyTextBox("",300,470,gWin,fontsize,450,100)
+#  gfilepreview.linewrap <- 0
+
+  gFilePreview <- MakeScrollBox([""],"Preview:",300,370,gWin,10,480,200,0)
+  Hide(gFilePreview.selection)
+  fptb <- gFilePreview.box
+  fptb.font <- Makefont(gPEBLBaseFontMono,0,10,MakeColor("black"),MakeColor("white"),0)
+
+  gPreviewHead <- Easylabel("Preview:",gfilepreview.x, gfilePreview.y-8,gWin,fontsize)
+  gPreviewHead.x <- gFilePreview.x + gPreviewHead.width/2
+
+
+  helpfont <- MakeFont(gPeblBaseFont,4,15,MakeColor("blue"),MakeColor("black"),0)
+
+  cb1 <- MakeCheckBox("Add filename to data",40,100,gWin,200)
+  cb2 <- MakeCheckBox("Files contain header",40,125,gWin,200)
+
+  filterBox <- EasyTextbox(filter,100,150,gWin,12,190,30)
+  excludeBox <- EasyTextbox(exclude,100,190,gWin,12,190,30)
+  filenamebox <-EasyTextbox(filename,100,230,gWin,12,190,15)
+
+  filtername <- EasyLabel("Match:",0,0,gWin,12)
+  Move(filtername, filterbox.x-filtername.width/2-5,
+                   filterbox.y+filterbox.height/2)
+
+  excludename <- EasyLabel("Excludes:",0,0,gWin,12)
+  Move(excludename, excludebox.x-excludename.width/2-5,
+                   excludebox.y+excludebox.height/2)
+
+
+  filenamename <- EasyLabel("Save file:",0,0,gWin,12)
+  Move(filenamename, filenamebox.x-filenamename.width/2-5,
+                   filenamebox.y+filenamebox.height/2)
+
+
+  preview <- MakeButton("Combine and open",140,35,gWin,200)
+  combine   <- MakeButton("Combine and save",140,55,gWin,200)
+  exit      <- MakeButton("Exit",140,75,gWin,200)
+
+  gStatus <- EasyLabel("",300,gVideoHeight-20,gWin,12)
+  UpdateStatus("status:")
+
+  h1 <- MakeLabel("?",helpfont);Addobject(h1,gWin);Move(h1,preview.x-preview.width/2-5,preview.y)
+  h2 <- MakeLabel("?",helpfont);Addobject(h2,gWin);Move(h2,combine.x-combine.width/2-5,combine.y)
+  h3 <- MakeLabel("?",helpfont);Addobject(h3,gWin);Move(h3,cb1.x-cb1.width/2-5,cb1.y)
+  h4 <- MakeLabel("?",helpfont);Addobject(h4,gWin);Move(h4,cb2.x-cb2.width/2-5,cb2.y)
+  h5 <- MakeLabel("?",helpfont);Addobject(h5,gWin);Move(h5,filtername.x-filtername.width/2-5,filtername.y)
+  h6 <- MakeLabel("?",helpfont);Addobject(h6,gWin);Move(h6,excludename.x-excludename.width/2-5,excludename.y)
+  h7 <- MakeLabel("?",helpfont);Addobject(h7,gWin);Move(h7,filenamename.x-filenamename.width/2-5,filenamename.y)  
+  h8 <- MakeLabel("?",helpfont);Addobject(h8,gWin);Move(h8,gWindowhead.x-gWindowhead.width/2-5,gWindowhead.y)  
+  h9 <- MakeLabel("?",helpfont);Addobject(h9,gWin);Move(h9,gPreviewHead.x-gPreviewHead.width/2-5,gPreviewHead.y)  
+  h10 <- MakeLabel("?",helpfont);Addobject(h10,gWin);Move(h10,head.x-head.width/2-5,head.y)  
+
+  UpdateFilter(directory,filter,exclude)
+
+  ##Put a message in the box
+   objs <- [cb1,cb2]
+   cont <- 1
+   while (cont)
+   {
+
+
+     Draw()
+     out <- WaitForClickOnTarget([cb1,cb2,preview,filterbox,
+                                   excludebox,gfilewindow,filenamebox,
+				   combine,exit,gFilePreview,
+                                     h1,h2,h3,h4,h5,h6,h7,h8,h9,h10],
+                                      [1,2,3,4,5,6,7,8,9,10,
+                                       11,12,13,14,15,16,17,18,19,20])
+     if(out==1)
+     {
+        ClickCheckBox(cb1,[0,0])
+        Draw()
+     }elseif(out==2)
+     {	
+        ClickCheckBox(cb2,[0,0])
+        Draw()
+     }elseif(out==3)
+     {
+        PushButton(preview,[0,0])
+        CombineDataFiles(directory,filename,filter,exclude,cb2.state,cb1.state)
+        Launchfile(filename)
+        UpdateStatus("File opened")
+        Draw()
+
+     } elseif(out==4)
+     {
+        ##filter box
+	relx <- First(gClick) - (filterBox.x )
+	rely <- Second(gClick) - (filterBox.y )
+
+  	filterBox.cursorpos <-  GetTextBoxCursorFromClick(filterBox,relx,rely)
+        filter <- GetInput(filterbox,"<return>",1)
+
+         UpdateFilter(directory,filter,exclude)
+         Draw()
+
+
+     }elseif(out==5)
+     {  ##excludebox
+
+	   relx <- First(gClick) - (excludeBox.x )
+	   rely <- Second(gClick) - (excludeBox.y )
+
+  	   excludeBox.cursorpos <-  GetTextBoxCursorFromClick(excludeBox,relx,rely)
+
+	   exclude <- GetInput(excludebox,"<return>",1)
+           UpdateFilter(directory,filter,exclude)
+	   Draw()
+
+     }elseif(out==6)
+     {  ##click on file window
+
+      Callfunction(gFileWindow.clickon,[gFileWindow,gClick])
+      gSelected <- gFileWindow.selected
+      SetSelected(gSelected)
+	Draw()
+
+      } elseif(out==7)
+      {
+          ##filename box
+	   relx <- First(gClick) - (filenameBox.x )
+	   rely <- Second(gClick) - (filenameBox.y )
+  	   filenameBox.cursorpos <-  GetTextBoxCursorFromClick(filenameBox,
+                                                            relx,rely)
+	   filename <- GetInput(filenamebox,"<return>",1)
+	   Draw()
+     }elseif(out==8)
+     {
+
+ 
+     PushButton(combine,[0,0])
+     CombineDataFiles(directory,filename,filter,exclude,cb2.state,cb1.state)
+ 
+     
+     }elseif(out==9)
+     {
+       PushButton(exit,[0,0])
+       cont <- 0
+
+     }elseif(out==10)
+     {  ##click on file preview window
+
+      Callfunction(gFilePreview.clickon,[gFilePreview,gClick])
+      Draw()
+
+     }elseif(out>10 and out<=20)
+     {
+        instructions <- ["This button merges the files and opens them in your default handler (i.e., microsoft excel for csv files)",
+                        "This button combines the files and saves the combined file to the save file",
+			"Thus button determines whether you strip the first row in each file",
+			"This button determines whether you add the filename as a column on each row",
+			"Specify match filters here, separated by spaces or | (for OR) or & (for AND).  use * to specify all files. * cannot be combined with other characters, so *.csv does not work, but .csv does.  Examples:
+csv files with 'pooled' in their names: csv&pooled
+txt files or csv files: txt|csv
+",
+			"Specify exclusion criteria here, separated by spaces.  Excludes are processed after matches.  
+For example, to not match any files names test-summary-X.txt, add 'summary' in the box.",
+			"Specify file name to save the merged data file as.",
+			"This box lists all files matching the constraints. This box does not scroll, so if you match too many files, you will not see the ones at the end.",
+       			"This gives you a preview any data file selected in the files window.  This allows you to inspect whether the file should be included, and whether there is a header.",
+			helpdefault]
+				
+        text <- Nth(instructions,out-10)
+	help.text <- text
+	Draw()
+	PopupMessageBox(text,gWin)
+     }
+   }   
+
+}
+
+
+define SplitFilter(filter)
+{
+
+  
+   filter<- ReplaceChar(filter," ","|")
+
+   ##see if there are any ANDS here
+   tmp <- SplitString(filter,"&")
+
+
+   if(Length(tmp)>1)
+   {
+     out <- ["AND"]
+     loop(i,tmp)
+     {
+        PushOnEnd(out,SplitFilter(i))
+     }
+   } else {
+      tmp <- SplitString(filter,"|")
+      if(Length(tmp)>1)
+      {
+        out <- ["OR"]
+       loop(i,tmp)
+       {
+         PushOnEnd(out,SplitFilter(i))
+       }
+
+      }else{
+       out <- First(tmp)       
+      }
+   }
+
+  return out
+}
+
+
+define MatchToFilter(text,filtertree)
+{
+
+  if(IsList(filtertree))
+  { 
+
+    if(First(filtertree)=="OR")
+    {
+       match <- 0
+      loop(i,Sequence(2,Length(filtertree),1))
+      {
+           match <- match OR MatchToFilter(text,Nth(filtertree,i))
+
+      }
+    }else{ ##AND
+      match <- 1
+      loop(i,Sequence(2,Length(filtertree),1))
+      {
+           match <- match AND MatchToFilter(text, Nth(filtertree,i))
+      }
+
+    }
+  }else{
+    if(filtertree=="")
+    {
+      match <- 0
+    }elseif(filtertree=="*")
+    {
+      match <- 1
+    }else{
+  
+    ##not a list; final filter leaf.
+    match <- (FindInString(text,filtertree,1)>0 ) or (filtertree=="*")
+    }
+ }
+
+
+  return match
+}
+
+
+define FilterFileListing(list,matchfilter,excludefilter)
+{
+  matches <- SplitFilter(matchfilter)
+  excludes <- SplitFilter(excludefilter)
+  newlist <- []
+  loop(item,list)
+  {	
+
+    match <- MatchToFilter(item,matches)
+
+    exclude <- MatchToFilter(item,excludes)
+
+    if(match and (not exclude))
+    {
+      PushOnEnd(newlist,item)
+    }
+  }
+
+return newlist
+}
+
+
+define GetFilteredFiles(directory,matches,excludes)
+{
+    list <- GetFileListing(directory)
+    out <- FilterFileListing(list,matches,excludes)
+    return out
+}
+
+##this gets a hierarchical directory.
+define GetFileListing(directory)
+{
+
+  ##first, get a listing of the files.
+  list <- GetDirectoryListing(directory)
+
+  header <- ""
+  fileListing <- []
+
+  id <- 1
+  while(id <= Length(list))
+   {
+
+    i <- Nth(list,id)
+
+    if(not IsDotFile(i))
+      {
+    
+        ##First check if its a directory.
+        if(IsDirectory(directory+"/"+i))
+         {
+     	   Print("directory: [" + directory+"]")
+           sublist <- GetDirectoryListing(directory+"/"+i)
+
+	   loop(sfile,sublist)	
+            {
+
+	      if(not IsdotFile(sfile))	
+	      {
+                  PushOnEnd(list, i+"/"+sfile)
+	      }
+            }
+         }else {
+           PushOnEnd(fileListing ,i)        
+         }
+    }
+
+   id <- id + 1
+ }
+  return fileListing
+}
+
+## This will find .csv files and combine them,
+## removing the header if necessary.
+
+define CombineDataFiles(directory,mergefilename,filter,
+                       exclude,headerMatch,
+                       addFileLine)
+{
+
+
+    header <- ""
+    UpdateFilter(directory,filter,exclude)
+    list <- gFileList
+    fileLines <- []
+
+    loop(i,list)
+       {
+
+              fileIn <- FileReadList(i)
+
+              if(headerMatch)
+	      {
+               ##We need to handle special-case emptyfiles that have
+ 	       ##only headers.
+
+                
+ 	      if(Length(filein)>0)
+	         {
+		    header <- First(filein)
+  	         }
+
+	      if(Length(filein)>1)
+   	         {
+             	    fileIn<-SubList(filein,2,Length(filein))
+		 }else{
+		    ##We have a header-only file.
+		    filein <- []
+		 }
+              }
+
+              if(addFileLine)
+                   {
+                        out <- []
+                        loop(line,fileIn)
+			      {
+                                PushOnEnd(out,gQuote+i+gQuote+","+line)
+                              }
+                        fileIn <- out
+
+                   }
+
+             PushOnEnd(fileLines,fileIn)
+        }
+
+ 
+
+  fileout <- FileOpenOverwrite(mergefilename)
+  if(not header=="") 
+     {
+     if(addFileLine)
+        {
+          header <- "FILE,"+header
+        }
+        FilePrint(fileout,header)
+      }
+
+
+     loop(i,Flatten(fileLines))
+      {
+
+        FilePrint(fileout,i)
+      }
+
+}
+
+##checks to see if a filename is .. or .
+##this is just a helper for CombineDataFiles
+define IsDotFile(i)
+{
+  
+  isdot <-   SubString(i,StringLength(i),1) == "."
+
+
+  if(StringLength(i)>1)
+  {
+    isdot <- isdot or (SubString(i,StringLength(i)-1,2) == "..")
+  }
+ return isdot
+}
+
+
+## This updates the file preview based on the selected index.
+##
+define SetSelected(index)
+{
+
+     
+  if((Length(gFileList)>0)  and (gSelected <= Length(gFileList)))
+   {
+    file <- Nth(gfileList,gSelected)
+
+     if(FileExists(file))
+       {
+          ##we should'nt have to read everything, should we?
+           gfilepreview.list <- FileReadNLines(file,1000)
+           UpdateScrollbox(gFilePreview)
+         }else{
+
+           gfilepreview.list <- ["File does not exist"]
+           UpdateScrollbox(gFilePreview)
+         }
+
+
+	DrawScrollbox(gFilePreview)
+
+       gPreviewHead.text <- "Preview: "+file
+       gPreviewHead.x <- gFilePreview.x + gPreviewHead.width/2
+	Draw()
+ }
+
+}
+
+##This reads N lines of text
+define FileReadNLines(file,n)
+{
+  
+  filein <- FileopenRead(file)
+  out <- []
+  loop(i, Sequence(1,n,1))
+  {
+    PushOnEnd(out , FileReadLine(filein))
+    if(EndOfFile(filein))
+    {
+      break
+    }
+   }
+  return out
+}
+
+
+define ListToText(list)
+{
+ text <- ""
+ sep <- ""
+ loop(i,list)
+ {
+    text <- text + sep +i
+    sep <- CR(1)
+ }
+return text
+}
+
+define UpdateStatus(message)
+{
+  box <- gStatus
+ x <- box.x-box.width/2 
+ y <- box.y-box.height/2
+ box.text<- "status: " + message
+ MoveCorner(box,x,y)
+}
+
+## This does all the stuff we need to update the filtering
+define UpdateFilter(directory,filter,exclude)
+{
+  gFileList <- ["Reading files...."]
+  gfileWindow.list <- ["reading files....."]
+  UpdateScrollbox(gFileWindow)
+  DrawScrollbox(gFileWindow)
+  UpdateStatus("reading and filtering files")
+  SetSelected(gFileWindow.selected)
+  Draw()
+  gfileList <- GetFilteredFiles(directory,filter,exclude)
+  
+  gFileWindow.list <- gFileList
+  SetSelected(gFileWindow.selected)
+  UpdateScrollbox(gFileWindow)
+  DrawScrollBox(gFileWindow)
+
+  gWindowhead.text  <- "Files identified: " +Length(gFileList)
+  MoveCorner(gWindowhead,gFileWindow.x,gFileWindow.y-15)
+
+  UpdateStatus("Files read")
+  Draw()
+
+}

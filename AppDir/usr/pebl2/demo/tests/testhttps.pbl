@@ -1,0 +1,36 @@
+define Start(p)
+{ 
+ gVideoWidth<-800
+ gVideoHeight <- 600
+ gWin <- MakeWindow()
+ head <- EasyLabel("PEBL http testing demo",gVideoWidth/2,50,gWin,24)
+
+  gStatus <- EasyTextBox("",50,100,gWin,16,gVideoWidth-100,gVideoHeight-150)
+ Draw()
+
+  server <- "https://pages.mtu.edu/~shanem/"
+  file <- "Dishwashers.csv"
+
+  resp <- GetHTTPText(server,443,file)
+  Print(resp)
+ 
+  Print("Finished with demo test.  Press any key to continue")
+  WaitForAnyKeyPress()
+
+
+
+
+
+}
+
+
+
+
+
+define Print(x)
+{
+   :Print(x)
+   gStatus.text <- x + CR(1) + gstatus.text
+   Wait(10)
+   Draw()
+}

@@ -1,0 +1,439 @@
+
+##This is the 'attention management' task.  It measures how well a person
+##can manage/monitor multiple information sources for detection.  It is designed
+##to involve multiple simultaneous monitoring tasks.
+
+define Start(p)
+{
+
+  gWin <- MakeWindow("white")
+  gSleepEasy <- 1
+
+  gScore <- 0
+  lanechange <- MakeStayInLane(25)
+
+  gBubbleHit <- 20
+  gBubbleMiss <- (-50)
+
+
+  AddObject(lanechange.canvas,gWin)
+  Move(lanechange.canvas,gVideoWidth-150,300)
+  scoreboard <- EasyLabel("Score: "+gScore + "|" + GetTime(),gVideoWidth/2-100,100,gWin,25)
+
+
+  canv <- lanechange.canvas
+
+  
+  true <- 1
+  while(true)
+  {
+     UpdateStayInLane(lanechange)
+     UpdateScoreboard(scoreboard)
+     
+     resp <-  WaitForClickOnTargetWithTimeout([lanechange.hotzone],[1],10)
+
+     Print_("")
+     if(resp==1)
+     {
+         ##click on hotzone       
+	 if(lanechange.inzone)
+	 {
+
+	     gscore <- gscore + gbubblehit
+	     ResetTarget(lanechange)
+	 }else{
+	     gscore <- gscore + gbubblemiss
+	 }
+
+     }
+
+       Draw()
+  }
+
+
+}
+
+
+define UpdateScoreboard(scoreboard)
+{
+  scoreboard.text <- "Score: " + gScore + "|" + Timestamp()
+}
+
+
+
+
+define MakeStayInLane(numtargs)
+{
+
+  width <- 100
+  height <- 500
+  lane <- MakeCustomObject("stayinlane")
+  canv <- MakeCanvas(width,height,MakeColor("grey80"))
+
+  targetpos <- [width/2,0]
+  targetspeed <- 20
+
+  positions <- []
+  speeds <- []   
+  targets <- []
+  loop(i,Sequence(1,numtargs,1))
+    {
+
+       pos <- [Round(RandomUniform(width)),
+       	        Round(RandomUniform(height))]    
+       speed <- RandomUniform(20)+10
+       col <- Sample(["blue","green3","navy","aquamarine","green4"])
+       obj <- Circle(First(pos),Second(pos),RandomUniform(20)+5,MakeColor(col),1)
+      obj.aa <- 1
+       AddObject(obj,canv)
+       PushOnEnd(positions,pos)
+       PushonEnd(speeds,speed) 
+       PushonEnd(targets,obj) 
+    }
+
+     target <- Circle(First(targetpos),Second(targetpos),15,MakeColor("red4"),1)
+     AddObject(target,canv)
+     target.aa <- 1
+
+
+     col <- MakeColorRGB(200,20,20)
+     col.alpha <- 90
+
+     hotzone <- Rectangle(canv.width/2,canv.height-20,canv.width,40,col,1)
+     AddObject(hotzone,canv)
+     lane.canvas <- canv
+     lane.positions <- positions
+     lane.speeds <- speeds
+     lane.targets <- targets
+     lane.numtargets <- numtargs
+     lane.width <- width
+     lane.height <- height
+     lane.time <- GetTime()
+     lane.scale <- .001  #scale for movement of targets.
+     lane.target <- target
+     lane.targetpos <- targetpos
+     lane.targetspeed <- targetspeed
+     lane.hotzone <- hotzone
+     lane.inzone <- 0
+  return lane
+}
+
+
+define UpdateStayInLane(lane)
+{
+  newtime <- GetTime()
+  canv <- lane.canvas
+  col <- canv.bgcolor
+  canv.bgcolor <- col
+
+  loop(i,Sequence(1,lane.numtargets,1))
+   {
+        pos <- Nth(lane.positions,i)
+        circ <- Nth(lane.targets,i)
+	newY <- Second(pos) + (newtime - lane.time) * Nth(lane.speeds,i) * lane.scale
+	newX <- First(pos)
+
+	if(newY -circ.r > lane.height)
+	{
+           newY <- -circ.r
+	   newX <- RandomUniform(lane.width)
+	}
+	circ.y <- newY
+	circ.x <- newX
+	SetElement(lane.positions,i,[newX,newY])
+   }
+
+
+##update target position:
+  targ <- lane.target
+  targpos <- lane.targetpos
+
+  targx <- First(targpos)
+  targy <- Second(targpos)
+  targY <- targY + (newtime - lane.time) *lane.targetspeed * lane.scale
+  if(targy - targ.r > lane.height)
+   {
+      targY <- -targ.R
+      gScore <- gScore + gBubbleMiss
+      #play buzz here?
+   }
+
+
+  targ.x <- targx
+  targ.y <- targy
+  lane.targetpos <- [targx,targy]
+
+  hotzone <- lane.hotzone
+
+  lane.inzone <-  ((targy + targ.r > hotzone.y-hotzone.height/2) and
+                     (targy - targ.r < hotzone.y+hotzone.height/2))
+
+
+
+  Draw(lane.canvas)
+  lane.time <- newtime
+}
+
+
+define ResetTarget(task)
+{
+  targ <-    task.target
+
+  targX <- targ.x
+  targY <- -targ.R  
+  targpos <- task.targetpos
+  targ.y <- targY
+  task.targetpos <- [targX,targY]
+  task.inzone <- 0  
+  Draw(task.canvas)
+}
+
+
+define GetAbsolutePosition(object)
+{
+   currX <- object.x 
+   currY <- object.y 
+
+   parentpos <- [0,0]
+   if(object.parent)
+   {
+      parentpos <- GetAbsolutePosition(object.parent)
+   }
+
+  return [currX+First(parentpos),currY+Second(parentpos)]
+}
+## This should handle 'Inside' calls for almost anything
+## but it only works reliably for things attached to the main window
+## (or a canvas the same size as the window).
+define Inside(click,object)
+{
+
+
+
+    if(not IsList(click))
+    {
+      SignalFatalError("First argument of Inside(<click>, <object>) must be a list specifying [x,y] position.")
+    }
+
+    x <- First(click)
+    y <- Second(click)
+
+    ##now, get the actual position of the target, in screen pixels
+
+    objpos <- GetAbsolutePosition(object)
+    parentx <- First(objpos)
+    parenty <- Second(objpos)
+    
+    if((not IsNumber(x)) or (not IsNumber(y)))
+     {
+       SignalFatalError("First argument of Inside(<click>, <object>) is not a list of numbers.  It must specify [x,y] position.")
+     }
+
+   called <- 0
+   if(IsCustomObject(object))	
+    {    
+
+      if(PropertyExists(object,"inside"))
+      {
+          inside <- CallFunction(object.inside, [click,object])
+	  called <- 1
+      }
+     } 
+
+   if(not called)
+    {
+
+    xadj <- 0
+    yadj <- 0
+    
+      parent <- object.parent
+      if(IsCanvas(parent) or IsImage(parent) or IsLabel(parent))
+       {
+          xadj <-  - parent.width/2 
+          yadj <-  - parent.height/2 
+       }
+  
+
+   if(IsImage(object) or IsLabel(object) or  IsCanvas(object) or
+      object.name == "<RECTANGLE>" or object.name == "<SQUARE>" or 
+      Uppercase(object.name) == "<CUSTOMOBJECT>")
+    {
+	##First, determine object limits
+	xlow <- parentx - object.width/2 +xadj
+	xhigh <- parentx + object.width/2+xadj
+
+	ylow <- parenty - object.height/2+yadj
+	yhigh <- parenty + object.height/2+yadj
+
+
+	
+    inside <- (x >= xlow) and (x  <= xhigh) and (y >= ylow) and (y <= yhigh)
+
+   } elseif (IsTextBox(object))
+   {
+     xlow <- parentx+xadj
+     xhigh <- parentx+object.width+xadj
+     ylow <- parenty+yadj
+     yhigh <- parenty+object.height+yadj
+     inside <- (x >= xlow) and (x  <= xhigh) and (y >= ylow) and (y <= yhigh)
+
+   } elseif(object.name == "<CIRCLE>")
+       {
+          d <- Dist([x,y],[parentx+xadj,parenty+yadj])
+          inside  <- (d <= object.r)
+
+   } else {
+       SignalFatalError("Second argument of Inside(<click>,<object>) must either be an image, label, textbox, rectangle, square, or circle, or <CUSTOMOBJECT>.")
+   }
+}
+
+	return inside
+
+}
+
+define Inside2(click,object)
+{
+
+    if(not IsList(click))
+    {
+      SignalFatalError("First argument of Inside(<click>, <object>) must be a list specifying [x,y] position.")
+    }
+
+    x <- First(click)
+    y <- Second(click)
+
+    ##now, get the actual position of the target, in screen pixels
+
+    objpos <- GetAbsolutePosition(object)
+    parentx <- First(objpos)
+    parenty <- Second(objpos)
+    
+    if((not IsNumber(x)) or (not IsNumber(y)))
+     {
+       SignalFatalError("First argument of Inside(<click>, <object>) is not a list of numbers.  It must specify [x,y] position.")
+     }
+
+   called <- 0
+   if(IsCustomObject(object))	
+    {    
+
+      if(PropertyExists(object,"inside"))
+      {
+          inside <- CallFunction(object.inside, [click,object])
+	  called <- 1
+      }
+     } 
+
+   if(not called)
+    {
+
+    xadj <- 0
+    yadj <- 0
+
+    ##see if we are attached to a canvas; the 'parent' property must be used.
+    if(PropertyExists(object,"parent"))
+    {
+      parent <- object.parent
+      if(IsCanvas(parent))
+      {
+       xadj <-  parentx - parent.width/2 
+       yadj <-  parenty - parent.height/2 
+      }
+    }elseif(PropertyExists(object,"window"))
+     {
+      if(IsCanvas(parent))
+      {
+       xadj <-  parentx - parent.width/2 
+       yadj <-  parenty - parent.height/2 
+      }
+     }
+
+
+   if(IsImage(object) or IsLabel(object) or  IsCanvas(object) or
+      object.name == "<RECTANGLE>" or object.name == "<SQUARE>" or 
+      Uppercase(object.name) == "<CUSTOMOBJECT>")
+    {
+	##First, determine object limits
+	xlow <- parentx - object.width/2 +xadj
+	xhigh <- parentx + object.width/2+xadj
+
+	ylow <- parenty - object.height/2+yadj
+	yhigh <- parenty + object.height/2+yadj
+	
+    inside <- (x >= xlow) and (x  <= xhigh) and (y >= ylow) and (y <= yhigh)
+
+   } elseif (IsTextBox(object))
+   {
+     xlow <- parentx+xadj
+     xhigh <- parentx+object.width+xadj
+     ylow <- parenty+yadj
+     yhigh <- parenty+object.height+yadj
+     inside <- (x >= xlow) and (x  <= xhigh) and (y >= ylow) and (y <= yhigh)
+
+   } elseif(object.name == "<CIRCLE>")
+       {
+          d <- Dist([x,y],[parentx+xadj,parenty+yadj])
+          inside  <- (d <= object.r)
+
+   } else {
+       SignalFatalError("Second argument of Inside(<click>,<object>) must either be an image, label, textbox, rectangle, square, or circle, or <CUSTOMOBJECT>.")
+   }
+}
+	return inside
+
+}
+
+
+
+define WaitForClickOnTargetWithTimeoutRedundant(targetlist,keylist,time)
+{
+
+  ret <- ""
+  testlist <- Transpose([targetlist,keylist])
+   
+   wait1 <- 1
+   while(wait1)
+     {
+      wait2 <- 1
+      while(wait2)
+       {
+         pos <- WaitForMouseButtonWithTimeout(time)
+	 if(Length(pos)==4)
+          {
+           if(Nth(pos,4)=="<pressed>" and Nth(pos,3)==1)
+            {
+              wait2 <- 0
+              gClick <- pos
+            }
+         } else {
+            wait2 <- 0
+			wait1 <- 0
+            gClick <- [-1,-1]
+            ret <- "<timeout>"
+           
+         }
+       }
+
+       ##only loop through the test if wait1 is 0; otherwise
+       ##we timed out.
+      if(wait1)
+      {
+       newtargs <- []
+
+       loop(i,testlist)
+          {
+
+	    Print("testing inside: " + pos + "A" + First(i))
+             if(Inside(pos,First(i)))
+             {
+  	        wait1 <- 0
+                ret <- Nth(i,2)
+                break
+             }
+          }
+     }
+    }
+
+  return ret
+}
+

@@ -1,0 +1,87 @@
+## Simple test of AdaptiveTextBox without user interaction
+## This file includes a copy of the AdaptiveTextBox functions for testing
+
+define Start(lPar)
+{
+    gWin <- MakeWindow("black")
+
+    Print("=" + RepeatString("=", 70))
+    Print("ADAPTIVE TEXTBOX SIMPLE TEST")
+    Print("=" + RepeatString("=", 70))
+    Print("")
+
+    shortText <- "This is a short piece of text."
+    longText <- "This is a very long piece of text designed to thoroughly test the adaptive textbox functionality. It contains many sentences with enough content to ensure that it will require significant adaptation in most scenarios."
+
+    ##------------------------------------------------------------------------
+    ## TEST 1: No adaptation
+    ##------------------------------------------------------------------------
+    Print("TEST 1: No adaptation (adaptive=0)")
+    box1 <- AdaptiveTextBox(shortText, 50, 50, gWin, 24, 400, 120, 0)
+    Print("  Created box with " + box1.numTextLines + " lines")
+    Print("")
+
+    ##------------------------------------------------------------------------
+    ## TEST 2: ScaleBox - text fits already
+    ##------------------------------------------------------------------------
+    Print("TEST 2: ScaleBox - text that already fits")
+    RemoveObject(box1, gWin)
+    box2 <- AdaptiveTextBox(shortText, 50, 50, gWin, 24, 400, 120, "scalebox")
+    Print("  Created box with " + box2.numTextLines + " lines")
+    Print("")
+
+    ##------------------------------------------------------------------------
+    ## TEST 3: ScaleBox - needs adaptation
+    ##------------------------------------------------------------------------
+    Print("TEST 3: ScaleBox - text needs adaptation")
+    RemoveObject(box2, gWin)
+    box3 <- AdaptiveTextBox(longText, 50, 50, gWin, 24, 400, 100, "scalebox")
+    Print("  Created box with " + box3.numTextLines + " lines")
+    Print("  ZoomY: " + box3.zoomY)
+    Print("")
+
+    ##------------------------------------------------------------------------
+    ## TEST 4: ScaleFont - text fits already
+    ##------------------------------------------------------------------------
+    Print("TEST 4: ScaleFont - text that already fits")
+    RemoveObject(box3, gWin)
+    box4 <- AdaptiveTextBox(shortText, 50, 50, gWin, 24, 400, 120, "scalefont")
+    Print("  Created box with " + box4.numTextLines + " lines")
+    Print("")
+
+    ##------------------------------------------------------------------------
+    ## TEST 5: ScaleFont - needs adaptation
+    ##------------------------------------------------------------------------
+    Print("TEST 5: ScaleFont - text needs adaptation")
+    RemoveObject(box4, gWin)
+    box5 <- AdaptiveTextBox(longText, 50, 50, gWin, 32, 400, 100, "scalefont")
+    Print("  Created box with " + box5.numTextLines + " lines")
+    Print("  LineHeight: " + box5.lineHeight)
+    Print("")
+
+    ##------------------------------------------------------------------------
+    ## TEST 6: MaxLines limit
+    ##------------------------------------------------------------------------
+    Print("TEST 6: MaxLines=5 with long text")
+    RemoveObject(box5, gWin)
+    box6 <- AdaptiveTextBox(longText, 50, 50, gWin, 24, 400, 100, "scalebox", 5)
+    Print("  Created box with " + box6.numTextLines + " lines (should be capped at 5)")
+    Print("")
+
+    Print("=" + RepeatString("=", 70))
+    Print("ALL TESTS COMPLETE")
+    Print("=" + RepeatString("=", 70))
+
+    Wait(500)
+}
+
+## Helper function to repeat a string n times
+define RepeatString(str, n)
+{
+    result <- ""
+    loop(i, Sequence(1, n, 1))
+    {
+        result <- result + str
+    }
+    return result
+}

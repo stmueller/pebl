@@ -1,0 +1,795 @@
+define Start(p)
+{ 
+  gVideoWidth<-800
+  gVideoHeight<-600
+  gWin <- MakeWindow("grey90")
+  gSleepEasy <- 1
+
+
+  Init()
+  gExperiment <- []
+  gStageNames <- []
+
+##################################################
+##
+## This sets up the main UI
+## 
+##################################################
+
+ ##an experiment consists of a series of stages.
+ ##these stages will be named and appear in the left-hand scroller panel.
+   sb <- MakeScrollBox(gExperiment,"Experiment Stages",100,40,gWin,12,150,500,3)
+   gSB <- sb
+   menubar <- Rectangle(gVideoWidth/2,8,gVideoWidth,16,MakeColor("grey20"),1)
+   AddObject(menubar,gwin)
+
+   menu1 <- MakeMenu("File",0,0,gWin,14,10,
+              ["Open","Save","Save as","Quit"],
+              ["MYMESSAGE","MYMESSAGE","MYMESSAGE","QUIT"])
+
+   menu2<- MakeMenu("Edit",70,0,gWin,14,10,    
+              ["Cut","Copy","Paste","Select"],
+              ["MYMESSAGE","MYMESSAGE","MYMESSAGE","MYMESSAGE"])
+
+   menu3 <- MakeMenu("Options",140,0,gWin,14,10,["Preferences","Options","Settings","Parameters"],
+              ["MYMESSAGE","MYMESSAGE","MYMESSAGE","MYMESSAGE"])
+
+   menu4<- MakeMenu("Help",gVideoWidth-100,0,gWin,14,120,["HELP","About","Goto Web","Donate"],
+      ["MYMESSAGE","MYMESSAGE","MYMESSAGE","MYMESSAGE"])
+
+
+
+
+   insert <- MakeButton("Insert",50,120,gWin,90)
+   add <- MakeButton("Add",50,140,gWin,90)
+   moveup <- MakeButton("Up",50,160,gWin,90)
+   movedown <- MakeButton("Down",50,180,gWin,90)
+
+
+   save <- MakeButton("Save",50,80,gWin,90)
+
+   compile <- MakeButton("Compile & run",50,250,gWin,90)
+   compilestage <- MakeButton("Run stage",50,270,gWin,90)
+
+
+   save.clickon <- "SaveExp"
+   add.clickon <- "AddStage"
+   sb.clickon <- "UpdateStageBox"
+
+   compile.clickon <- "CompileAndRun"
+   compilestage.clickon <- "CompileAndRunStage"
+
+   gPanelui <-   MakePanelUI(260,40,gWin)
+   
+
+
+  Draw()
+
+
+  Draw()
+  cont <- 1
+  baseitems <- [sb,compile,compilestage,insert,add,moveup,movedown,save,
+                menu1,menu2,menu3,menu4]
+  extra <- []
+  while(cont)
+  {
+
+    RegisterEvent("<WINDOW_RESIZE>",1,1 ,"<TRUE>","UpdateWindow", [gWin])
+
+    if(IsList(extra))
+     {
+       items <- Merge(baseitems,extra)
+     }else{
+       items <- baseitems
+     }
+
+
+    resp <-  WaitForClickOnTarget(items,Sequence(1,Length(items),1))
+    obj <- Nth(items,resp)
+    extra <- CallFunction(obj.clickon,[obj,gClick])
+    Print(extra)
+    Draw()
+
+
+    #Exit condition:
+
+    
+
+ }
+}  
+
+##this creates an object for the panel UdI on the right of the screen.  
+define MakePanelUI (x,y,win)
+{
+
+  
+
+  panelwidth <- gVideoWidth-x-10
+  panelheight <- gVideoHeight-y-50
+  
+  rect <- Rectangle(x+panelwidth/2,y+panelheight/2,panelwidth,panelheight,MakeColor("grey32"),0)
+  AddObject(rect,win)
+
+  title   <- EasyLabel("Panel UI",x+panelwidth/2,y+15,win,18)
+
+  panelui <- MakeCustomObject("PANELUI")
+  panelui.bgrect <- rect
+  panelui.title <- title
+  panelui.x <- x
+  panelui.y <- y
+  panelui.width <-panelwidth
+  panelui.height <- panelheight
+
+  return panelui
+}
+ 
+##pos is the mouse position...
+##this is a callback on the 'add stage' button.
+##it starts by creating a new stage with appropriate names, then
+##calling the stage edit functions.
+define AddStage(obj,pos)
+{
+  ##this adds a stage to the sequence.
+
+  ##first, select which type of stage to add:
+  opts <- ["text","image","testblock"]
+
+  type <-  PopUpSelection("Which type of stage?",["Text Instructions",
+                                                 "Image instructions",
+						 "Test block"],gWin,pos)
+
+  ##type is now set.  Go about creating that type with the selection UI for it:
+
+
+   if(type==1)
+   {
+    ##Text isntructions stage.
+    name <- PopUpEntryBox("Enter name/label for stage",gWin,[gpanelui.x+8,gpanelui.y+30])
+    stage <- MakeTextInstructionsStage(name)
+   
+   
+    ui <- EditTextInstructionsStage(stage,gwin,[gpanelui.x+8,gpanelui.y+30])  
+    ##ui is a pair, the first contains a list of anything that can be clicked on
+    ##the second is a list of all the UI elements, which should be
+    ##attached to gPanelUI.
+
+     editable <- First(ui)      
+     gPanelUI.dynamic <- Second(ui)
+
+   }elseif(type==2)
+   {  ##Image instructions stage.
+      ##This includes a centered image with a 'continue' label at the bottom.
+
+    ##Image instructions stage.
+
+    name <- PopUpEntryBox("Enter name/label for image instructions stage",gWin,[gpanelui.x+8,gpanelui.y+30])
+    stage <- MakeImageInstructionsStage(name)
+      
+    ui <- EditImageInstructionsStage(stage,gwin,[gpanelui.x+8,gpanelui.y+30])  
+    ##ui is a pair, the first contains a list of anything that can be clicked on
+    ##the second is a list of all the UI elements, which should be
+    ##attached to gPanelUI.
+
+     editable <- First(ui)      
+     gPanelUI.dynamic <- Second(ui)
+
+   }
+ 
+  PushOnEnd(gExperiment,stage)
+  PushOnEnd(gStageNames,stage.name)
+
+  ##We should update the scrollbox here, but 
+  ##we don't really know what to call it.
+    gSB.list <- gStageNames
+    UpdateScrollbox(gsb)			    
+    DrawScrollbox(gsb)
+
+  #return a list of click-on-able things:
+  ##the entire ui gets set to .dynamic for updating later.
+  return editable
+}
+
+
+
+define CompileAndRun(obj,pos)
+{
+   text <- CompileExperiment(gExperiment,gExpPars)
+
+   expfile <- FileOpenOverwrite(gExpPars.expname+".pbl")
+   FilePrint(expfile,text)
+   FileClose(expfile)
+   SystemCall("pebl "+gQuote+gExpPars.expname+".pbl"+gQuote,"")
+ }
+
+define CompileandRunStage(obj,pos)
+{
+
+   exp <- [Nth(gExperiment,gSB.selected)]
+   text <- CompileExperiment(exp,gExpPars)
+
+   expfile <- FileOpenOverwrite("tmp.pbl")
+   FilePrint(expfile,text)
+   FileClose(expfile)
+   SystemCall("pebl tmp.pbl","")
+ }
+
+
+##obj is whatever was clicked on.
+define SaveExp(obj,pos)
+{
+  out <- ""
+   loop(i,gExperiment)
+   {
+    Print("Saving: " +i )
+    PrintProperties(i)
+    out <- out + ObjectToText(i,i.name)
+   }
+  Print(out)
+  return out
+ }
+
+
+define UpdateWindow(win)
+{
+ 
+   Print("Resizeing in updatewindow")
+##   ResizeWindow(win)
+}
+define TestPopupEntry(box,pos)
+{
+   PopUpEntryBox("Test pop-up entry box.  Enter a word here",box.win,pos)
+}
+
+
+define TestPopupMessage(box,pos)
+{
+   PopUpMessageBox("Test pop-up message box. No entry available here.",box.win)
+}
+
+define MyMessage(obj,xy)
+{
+  PopupMessageBox("You chose:" +obj.text,obj.win)
+}
+
+
+
+##Make an easy-to-use (small 300x200) pop-up messagebox function.
+
+define PopUpSelection(text,options,win,xy)
+{
+  boxwidth <- 301
+  boxheight <- 101
+  if(not IsWindow(win))
+  { 
+    SignalFatalError("PopupEntryBox(win) needs a window to be specified, not [" + win + "]")
+  }
+
+
+    curmouse <- xy
+    
+    ##xpos/ypos are center of box:	   
+    xpos <- Min([Max([boxwidth/2+5,First(curmouse)]),
+                      gVideoWidth-boxwidth/2-5])
+
+    ypos <- Min([Max([boxheight/2+5,Second(curmouse)]),
+                      gVideoHeight-boxheight/2-5])
+   
+
+   bgcol <- win.BGCOLOR
+
+   popup  <- MakeCanvas(boxwidth,boxheight,MakeColor("grey60"))
+   Move(popup,xpos,ypos)
+   AddObject(popup,win)
+   
+   
+   bg <- Rectangle(boxwidth/2,boxheight/2,boxwidth-2,boxheight-2,bgcol,1)
+   AddObject(bg,popup)
+   font <- MakeFont(gPEBLBaseFont,0,13,MakeColor("black"),bgcol,0)
+
+   ##text label at top:
+   box <- MakeTextBox(text,font,boxwidth-20,boxheight-50)
+   Move(box, 10,10)
+   AddObject(box,popup)
+
+
+   Draw(popup)
+   Hide(bg)
+
+
+   ok <- MakeButton("OK",xpos,ypos,gWin,70)
+   pulldown <- MakePulldown(options,xpos-boxwidth/2+10,
+                            ypos+20,win,12,boxwidth-20,1)
+
+
+   Draw()
+
+   ##now, wait for a click either on OK or the pulldown
+
+  targs <- [pulldown,ok]
+  cont <- 1
+  while(cont)
+  {
+
+   resp <- WaitForClickOnTarget(targs,Sequence(1,Length(targs),1))
+
+    obj <- NtH(targs,resp)    				     
+   if(resp==1)
+   {				      				      
+
+     CallFunction(obj.clickon,[obj,gClick])
+     ##handle click on pulldown
+   }else{
+
+
+     CallFunction(obj.clickon,[obj,gClick])
+     cont <- 0
+   }
+
+   Draw()
+  }
+
+   Draw()
+   return pulldown.selected
+}
+
+define Quit(obj,xy)
+{
+ return 0
+}
+
+define MakeInstructionsStage(name)
+{
+
+  obj <- MakeCustomObject("textstage")
+  obj.name <-name
+ 
+ return obj 
+}
+
+
+## This creates a 'blank' instructions stage.
+## It can be edited using 'edittextinstructionsstage'
+
+define MakeTextInstructionsStage(name)
+{
+
+    stage <- MakeCustomObject("textstage")
+    stage.name <- name
+    stage.type <- "textstage"
+    stage.header <- "INSTRUCTIONS"
+    stage.instructions <- ""
+    stage.prompt <- "Click OK to continue."
+    stage.ok <- "OK"
+    stage.panels <- 1   ##How many 'panels' of the instruction.  
+    stage.fontsize <- 18
+
+  return stage
+}
+
+
+define MakeImageInstructionsStage(name)
+{
+
+    stage <- MakeCustomObject("imageinstructionsstage")
+    stage.name <- name
+    stage.type <- "imageinstructionsstage"
+    stage.header <- "INSTRUCTIONS"
+    stage.imagefile <- ""
+    stage.prompt <- "Click OK to continue."
+    stage.ok <- "OK"
+    stage.panels <- 1   ##How many 'panels' of the instruction.  Not used currently
+    stage.fontsize <- 18
+   return stage
+}
+
+
+
+
+define EditStage(stage,win,xy)
+{
+
+ Print("editing stage")
+ Print(stage.type)
+ PrintProperties(stage)
+
+ if(stage.type == "textstage")
+ { 
+  ret <-    EditTextInstructionsStage(stage,win,xy)
+  Draw()
+
+ }elseif(stage.type=="imageinstructionsstage")
+ {
+
+   ret <- EditImageInstructionsStage(stage,win,xy)
+   Draw()
+ }else{
+    SignalFatalError("To edit instructions stage, a stage type must be specified. Expected [textstage] or [??] but got ["+type+"] Internal error. This is a bug")
+}
+
+  return ret
+}
+
+
+##this rebuilds the ui to eit the text instructions.
+
+define EditTextInstructionsStage(stage,win,xy)
+{
+ if(stage.type != "textstage")
+ { 
+   SignalFatalError("To edit instructions stage, an instructions stage must be specified. Expected [textstage] but got ["+type+"] Internal error. This is a bug")
+ }
+
+ title <-  gPanelUI.title 
+ title.text <- stage.name
+ ##we need label-entry pairs for
+ ##header (short entry)
+ #OK (shortentry)
+ #prompt (short entry)
+ #instructions (long-entry)
+ #fontsize (number-entry)
+
+  ##xy are the mouse click, and should be irrelevant. 
+  x <- gPanelUI.x+5
+  y <- gPanelUI.y + 10
+
+  header <- MakeShortEntryPair("Header:",stage.header,win,x,y,"header",stage)
+  y <- y + Second(header)
+
+  ok <- MakeShortEntryPair("Continue button label",stage.ok,win,x,y,"ok",stage)
+
+  y <- y +Second(ok)
+
+  prompt <- MakeShortEntryPair("Prompt to continue",stage.prompt,win,x,y,"prompt",stage)
+  y <- y + Second(prompt)
+ 
+
+  insts <- MakeLongEntryPair("Instructions",stage.instructions,win,x,y,gVideoWidth-x-30,150,"instructions",stage)
+  y <- y + Second(insts)
+
+  fontsize <- MakeShortEntryPair("Font size",stage.fontsize,win,x,y,"fontsize",stage)
+
+  ui <- [First(header),First(ok),First(prompt),First(insts),First(fontsize)]
+  Draw()
+  interactions <- Second(Transpose(ui))
+  return [interactions,ui]
+}
+
+
+##this rebuilds the ui to eit the text instructions.
+
+define EditImageInstructionsStage(stage,win,xy)
+{
+ if(stage.type != "imageinstructionsstage")
+ { 
+   SignalFatalError("To edit instructions stage, an instructions stage must be specified. Expected [textstage] but got ["+type+"] Internal error. This is a bug")
+ }
+
+ title <-  gPanelUI.title 
+ title.text <- stage.name
+ ##we need label-entry pairs for
+ ##header (short entry)
+ #OK (shortentry)
+ #prompt (short entry)
+ #imagefile  (short-entry)
+ #fontsize (number-entry)
+
+  ##xy are the mouse click, and should be irrelevant. 
+  x <- gPanelUI.x+5
+  y <- gPanelUI.y + 10
+
+  header <- MakeShortEntryPair("Header:",stage.header,win,x,y,"header",stage)
+  y <- y + Second(header)
+
+  ok <- MakeShortEntryPair("Continue button label",stage.ok,win,x,y,"ok",stage)
+
+  y <- y +Second(ok)
+
+  prompt <- MakeShortEntryPair("Prompt to continue",stage.prompt,win,x,y,"prompt",stage)
+  y <- y + Second(prompt)
+ 
+
+  imagefile <- MakeShortEntryPair("Image file",stage.imagefile,win,x,y,"imagefile",stage)
+  y <- y + Second(imagefile)
+
+  fontsize <- MakeShortEntryPair("Font size",stage.fontsize,win,x,y,"fontsize",stage)
+
+  ui <- [First(header),First(ok),First(prompt),First(imagefile),First(fontsize)]
+#  Draw()
+  interactions <- Second(Transpose(ui))
+  return [interactions,ui]
+}
+
+
+
+define MakeShortEntryPair(text,default,win,x,y,propname,stage)
+{      
+
+
+   ## lab <- EasyLabel(text,x,y,win,12)
+   ## MoveCorner(lab,x,y)
+   ## entry <- EasyTextbox(default,x,y+lab.height+2,win,150,20)
+   ## bottom <- y + entry.height
+   ## return [[lab,entry],bottom]
+  return MakeLongEntryPair(text,default,win,x,y,250,20,propname,stage)
+}
+
+
+define MakeLongEntryPair(text,default,win,x,y,width,height,propertyname,stage)
+{      
+   lab <- EasyLabel(text,x,y,win,12)
+   MoveCorner(lab,x,y)
+
+   entrybox <- MakeCustomObject("entrybox")
+   entry <- EasyTextbox(default,x,y+lab.height+2,win,14,width,height)
+   bottom <- entry.y+ entry.height-y
+   entrybox.clickon <- "Clickontextbox"
+   entrybox.x <- entry.x
+   entrybox.y <- entry.y
+   entrybox.width <- entry.width
+   entrybox.height <- entry.height
+   entrybox.entry <- entry
+   entrybox.inside <- "InsideTB"
+   entrybox.clickon <- "ClickOnTextBox"
+
+   ##this lets you link data here back to the stage property.
+   entrybox.stage <- stage
+   entrybox.propertyname <- propertyname
+   return [[lab,entrybox],bottom]
+
+}
+
+##This will update the particular stage scrollbox
+define UpdateStageBox(obj,xy)
+{
+  Print("UPDATING STAGE BOX")
+  ##start with a simple update:
+  ClickOnScrollbox(obj,xy)
+#  UpdateScrollbox(obj)
+  
+
+  ##now, update the side panel.
+  ui <- EditStage(Nth(gExperiment,obj.selected),obj.win,xy)
+  editable <- First(ui)
+  gPanelUI.dynamic <- Second(ui)
+
+  return editable
+}
+
+##Initilaize global things.
+define Init()
+{
+  gFontSizes <- [8,10,12,14,16,18,20,24,28,32,36,40,48]
+  gFunctionCounter <- 1
+
+  gExpPars <- MakeCustomObject("experimentparams")
+  gExpPars.width <- gVideoWidth
+  gExpPars.height <- gVideoHeight
+  gExpPars.bgcol <- "black"
+  gExpPars.author <- "Enter author here"
+  gExpPars.timestamp <- TimeStamp()
+  gExpPars.contact <- "author@contact.edu"
+  gExpPars.expname <- "demoexp"
+  gExppars.language <- "EN"
+
+}
+
+
+define ClickOnTextBox(obj,xy)
+{
+
+  value <-  GetInput(obj.entry,"<return>")
+  
+  stage <- obj.stage
+  pname <-  obj.propertyname
+  SetProperty(stage,pname,value)
+
+  Print("setting property: "+ pname + " to value " + value)
+  return value
+}
+
+
+
+## This should compile a stage into a function.
+##
+define CompileTextInstructionsStage(stage,name)
+{
+
+   fname <- MakeFunctionName(name)
+   functiondef <- "define "+fname+ "(win)
+{
+
+   ##the textbox could have multiple parts for better layout.
+
+   bgcol <- win.BGCOLOR
+
+   bg  <- MakeCanvas(gVideoWidth,gVideoHeight,bgcol)
+   Move(bg,gVideoWidth/2,gVideoHeight/2)
+   AddObject(bg,win)
+
+   box <- EasyTextBox( "+gQuote+stage.header+CR(2)+
+                           stage.instructions+CR(2)+
+                           stage.prompt+gQuote+",100,50, win,"+
+    stage.fontsize+
+    ",gVideoWidth-200,gVideoHeight-200)
+   ok <- EasyLabel("+gQuote+stage.ok+gQuote+",gVideoWidth/2,gVideoHeight-100,win,44)
+
+   ##Get foreground color
+   ##HSV val is the max of RGB
+    val <- Max([bgcol.RED, bgcol.GREEN, bgcol.BLUE])
+
+    ##Make it white if the background is too dark.
+    if(val <=	100)
+    { 
+      fgcol <- MakeColor("+gQuote+"white"+gQuote+")
+    } else {
+      fgcol <- MakeColor("+gQuote+"black"+gQuote+")
+    }
+
+   back <- Rectangle(gVideoWidth/2,gVideoHeight-100, ok.width+10,ok.height+4,fgcol,0)
+   AddObject(back,win)
+   Draw()
+   ShowCursor(1)
+   WaitForClickOnTarget([back],[1])
+
+   RemoveObject(back,win)
+   RemoveObject(ok,win)
+   RemoveObject(box,win)
+   RemoveObject(back,win)
+
+   Draw()}"
+
+   
+
+ return [fname,functiondef]  
+
+}
+
+
+
+
+## This should compile a stage into a function.
+##
+define CompileImageInstructionsStage(stage,name)
+{
+
+   fname <- MakeFunctionName(name)
+   functiondef <- "define "+fname+ "(win)
+{
+
+   ##the textbox could have multiple parts for better layout.
+
+   bgcol <- win.BGCOLOR
+
+   bg  <- MakeCanvas(gVideoWidth,gVideoHeight,bgcol)
+   Move(bg,gVideoWidth/2,gVideoHeight/2)
+   AddObject(bg,win)
+
+
+   image <- MakeImage("+gQuote+ stage.imagefile+gQuote+")
+   AddObject(image,win)
+   Move(image,gVideoWidth/2,gVideoHeight/2)
+
+   
+   header <- EasyLabel( "+gQuote+stage.header+gQuote+",gVideoWidth/2,50,win,"+stage.fontsize+")"+CR(1) +
+"   prompt <- EasyLabel( "+gQuote+stage.prompt+gQuote+",gVideoWidth/2,gVideoHeight-150,win,"+stage.fontsize+")"+CR(1) +
+"   ok <- EasyLabel("+gQuote+stage.ok+gQuote+",gVideoWidth/2,gVideoHeight-100,win,44)
+
+   ##Get foreground color
+   ##HSV val is the max of RGB
+    val <- Max([bgcol.RED, bgcol.GREEN, bgcol.BLUE])
+
+    ##Make it white if the background is too dark.
+    if(val <=	100)
+    { 
+      fgcol <- MakeColor("+gQuote+"white"+gQuote+")
+    } else {
+      fgcol <- MakeColor("+gQuote+"black"+gQuote+")
+    }
+
+   back <- Rectangle(gVideoWidth/2,gVideoHeight-100, ok.width+10,ok.height+4,fgcol,0)
+   AddObject(back,win)
+   Draw()
+   ShowCursor(1)
+   WaitForClickOnTarget([back],[1])
+
+   RemoveObject(back,win)
+   RemoveObject(ok,win)
+   RemoveObject(header,win)
+   RemoveObject(prompt,win)
+   RemoveObject(image,win)
+   RemoveObject(back,win)
+
+   Draw()}"
+
+   
+
+ return [fname,functiondef]  
+
+}
+
+
+define CompileStage(stage,stage.name)
+{
+
+   Print(stage.type)
+   if(stage.type=="textstage")
+   {
+     out <- CompileTextInstructionsStage(stage,stage.name)
+
+   }elseif(stage.type=="imageinstructionsstage")
+   {
+     out <- CompileImageInstructionsStage(stage,stage.name)
+   } else {
+   SignalFatalError("cannot compile stage of type: "+stage.type)
+   }
+ return out
+}
+
+define CompileExperiment(stagelist,exppars)
+{
+
+   exptext <- ""
+
+base <- "
+## Auto-generated PEBL experiment.
+## http://pebl.sourceforge.net
+## Lead developer: Shane T. Mueller
+##
+## If you use PEBL please cite Mueller & Piper, 2014 Journal of Neuroscience Methods
+##
+##
+## This experiment is auto-generated using the PEBL Experiment Builder.
+## Edit this file at your own riske.  You can edit this file to make final 
+## tweaks, but edits will not be reflected within the experiment builder,
+## and changes directly to this file will be overwritten if the builder 
+## recompiles the script.
+##
+## author:                 " +gExpPars.author + CR(1)+
+"## Contact information:   "+gExpPars.contact + CR(1)+
+"## Generation timestamp:  "+gExpPars.timestamp + CR(1)+
+"##" +CR(3)+
+"define Start(p)
+{
+
+  gVideoWidth<-"+exppars.width+"
+  gVideoHeight<-"+exppars.height+"
+  gWin <- MakeWindow("+gQuote+exppars.bgcol+gQuote+")
+  gSleepEasy <- 1
+
+
+"
+
+loop(stage,stagelist)
+  {
+   compiled <- CompileStage(stage,stage.name)
+   Print(compiled)
+   base <- base + "    "+ First(compiled)+"(gWin)"+CR(1)
+   exptext <- exptext + Second(compiled)+CR(1)    
+  }
+
+
+  return base +"}"+ CR(3)+exptext  
+}
+
+define MakeFunctionName(basename)
+{
+  base <- "F"+StripSpace(basename)
+  base <- ReplaceChar(base, [" ","/","\",",",":"], "" )
+
+  base <- base + gFunctionCounter
+  gFunctionCounter <- gFunctionCounter + 1
+
+  return base
+}
+
+
+define ObjectToText(obj,objname)
+{
+  out <- ""
+  props <- GetPropertyList(obj)
+  loop(i,props)
+   {
+    out <- out + objname+","+i+","+GetProperty(obj,i)+CR(1)
+   }
+  return out
+}

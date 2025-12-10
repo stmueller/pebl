@@ -1,0 +1,380 @@
+## This is the PEBL Remote Associate Test (RAT) see
+##http://socrates.berkeley.edu/~kihlstrm/RATest.htm Mednick & Mednick
+##(1962, 1967), Victor Shames
+##(http://socrates.berkeley.edu/~kihlstrm/PDFfiles/VICTOR_PHD.pdf) and
+##
+##  others not included here:
+##  Bowden, E.M., & Jung-Beeman, M.  (2003).  Normative data for
+##  144 compound remote associate problems.  Behavioral Research
+##  Methods, Instrumentation, and Computers, 35, 634-639.
+
+##
+##
+##  Note that this is divided into three subsets of about 20 problems each.
+##  (easy-med-diff).  This can take up to 30s for each problem, so the entire
+##  test can take more than 30 minutes.
+##
+##  you can specify whether you want to do easy/medium/difficult
+##  You can also mix the problems together or do them separately.
+##  if maxprobs < the total number of given problems, problems are
+##  sampled randomly from the individual sets.
+
+define Start(p)
+{
+
+  parpairs <- [["timeout",30], ##time per problem in s
+	       ["doeasy",0],
+	       ["domed",0],
+	       ["dodiff",0],
+	       ["mixproblemsets",0],
+	       ["blocksize",50], ##give a pause after this many
+	       ["maxprobs", 50],  ##do only this many problems
+	       ["seedrandom",0],
+	       ["rngseed",  1000],
+	       ["givefeedback",1],
+	       ["allowretry",0],
+	       ["usecustom","rat2.csv"]  #use a custom file?
+               ]
+
+  gParams <- CreateParameters(parpairs,gParamFile)
+  gWin<- MakeWindow("black")
+  gSleepEasy <- 1
+ if(gSubNum+""=="0") 
+  {
+    gSubNum <- GetSubNum(gWin)
+  }
+
+  ##seed the rng if you want the same order/subset each time.
+  if(gParams.seedrandom)
+  {
+    SeedRNG(gParams.rngseed)
+  }
+
+
+  if(gParams.useCustom)
+  {
+    if(FileExists(gParams.useCustom))
+    {
+       problems <- ReadCSV(gParams.useCustom)
+       if(Length(problems)==0) 
+       {
+        SignalFatalError("No problems specified in custom file")
+       }
+       newprobs <- Shuffle(problems)
+       
+    }else{
+       SignalFatalError("Custom file ["+gParams.useCustom+"] does not exist")
+    }
+  } else{
+  problems <- ReadCSV("rat.csv")
+  ##this contains a header:
+  problems <- SubList(problems,2,Length(problems))
+
+
+  set  <- Nth(Transpose(problems),7)
+  easy <- Filter(problems,Match(set,"1"))
+  med <- Filter(problems,Match(set,"2"))
+  diff <- Filter(problems,Match(set,"3"))
+  
+  
+  probs <- Filter([easy,med,diff],[gParams.doeasy,gParams.domed,gParams.dodiff])
+
+
+
+
+  if(Length(probs)==0) 
+   {
+    MessageBox("No problems specified in script parameters",gWin)
+    SignalFatalError("No problems specified in script parameters")
+   }
+
+  ##we have a nested list that contains problmes of several types.
+  ##we need to select out the right number.
+
+
+  ##if we mix, make them a single set:
+  if(gParams.mixproblemsets)
+  {
+    newprobs <- InterleaveLists(probs)
+
+  }else{
+    newprobs <- FlattenN(probs,1)
+  }
+
+}
+  ##
+  ##now, problems are selected and specified in the newprobs variable.
+
+##only use up to maxprobs
+
+   newprobs <- SubList(newprobs,1,Min([Length(newprobs),gParams.maxprobs]))
+
+  header <- "subnum,block,trial,w1,w2,w3,corranswer,tries,answer,trytime,corr,finaltry,time0,rt"
+  gFileOut <- GetNewDataFile(gSubNum,gWin,"RAT-byresp","csv",header)
+  gFileOut2 <- GetNewDataFile(gSubNum,gWin,"RAT-FINAL","csv",header)
+
+  MessageBox("In this task, you will see a set of three words.  Each will be related in some way to a single answer word.  Your job is to determine what that word is. For example, if you see:
+
+Heart            Head                Back
+
+The answer would be 
+
+               ACHE",gWin)
+MessageBox("Other times, some of the words will be more conceptually-related to the word you are trying to guess, and might be related to different meanings of a word.  For instance, 
+
+Ribbon          Arrow             Curtsy
+
+the answer would be
+
+                 BOW
+
+ (these refer to three different meanings of BOW).
+
+You will have "+gParams.timeout+" seconds per problem to identify the correct answer.  If you guess incorrectly, you can have the rest of this time to come up with an answer.  Try to answer as quickly as you can.  Press OK to begin",gWin)
+
+  ShowCursor(0)
+  gHeader <- EasyLabel("",gVideoWidth/2,40,gWin,50)
+  gStim <- EasyLabel("",gVideoWidth/2,150,gWin,55)
+  gFooter <- EasyLabel("",gVideoWidth/2,gVideoHeight-150,gWin,25)
+  Draw()
+  
+
+ ##Set up timer globals
+  timerBack <-  Rectangle(gVideoWidth/2,gVideoHeight/2+100,300,20,
+                    MakeColor("grey"),0)
+
+  timerFront <-  Rectangle(gVideoWidth/2,gVideoHeight/2+100,300,20,
+                           MakeColor("red"),1)
+  AddObject(timerFront,gWin)
+  AddObject(timerBack,gWin)
+
+ gTimer <- MakeCustomObject("timer")
+ gTimer.front <- timerFront
+ gTimer.back <- timerBack
+
+
+   gBlock <- 1
+   gTrial <- 1
+   loop(i,newprobs)   
+   {
+     time0 <- GetTime()
+     out <- GetResponse(i)
+     correct <- Second(out)
+     resp <- First(First(out))
+     history <- Second(First(out))
+     
+     try <- 1
+     loop(h,history)
+     {
+
+      last <- (try == Length(history))
+       resp1 <- First(h)
+       if(resp1=="")
+       {
+         resp1 <- "<NO_RESPONSE>"
+        }
+
+
+      
+       thiscorr <- Uppercase(resp1) ==Uppercase(Fourth(i))
+       
+       line <- gSubNum+","+gBlock+","+gTrial+ ","+ConcatenateList(i,",")+","+
+                try+","+resp1+","+Second(h)+","+thiscorr+","+last+","+ time0 + ","+(Second(h)-time0)
+
+       FilePrint(gfileOut,line)
+       if(last)
+       {
+	 FilePrint(gFileOut2,line)
+       }
+
+       try <- try + 1
+     }
+                       
+
+     gTrial <- gTrial + 1
+     if(Mod(gTrial,gParams.blocksize)==0)
+     {
+       MessageBox("You have completed "+gTrial+" of "+Length(newprobs)+" problems. You may take a short break before you continue",gWin)
+
+      ShowCursor(0)
+       gBlock <- gBlock + 1
+     }
+   }
+
+
+
+
+   MessageBox("Thank you for participating",gWin)
+
+}
+
+##options should include target!
+define GetResponse(target)
+{
+   gHeader.text <- "What word goes with:"
+   gStim.text <- First(target) +"        "+ Second(target)+"        "+Third(target)
+   gFooter.text <- "Type Enter to complete.  backspace to correct errors"
+   time0 <- GetTime()
+   cont <- 1
+   entry <- EasyTextBox("",gVideoWidth/2-200,gVideoHeight/2-50,gWin,45,400,100)
+   response <- GetInputWithTimer(entry,gTimer,Fourth(target),gParams.timeout*1000,gParams.allowretry)    
+
+    correct <- Uppercase(First(response))==Uppercase(Fourth(target))
+
+  if(gParams.givefeedback)
+  {
+    cresponse <- ": " +Fourth(target)
+  }else{
+    cresponse <- ""
+  }
+   if(correct)
+   {   
+     gHeader.text <- "Correct"+ cresponse
+
+   }else{
+     gHeader.text <- "Incorrect" +  cresponse
+   }
+    #entry.text <- Fourth(target)
+    front <- gTimer.front
+    front.width <- 0
+
+   gFooter.text <- "Press any key to continue."
+   Draw()
+
+   Wait(150) ##avoid too-fast presses.
+   WaitForAnyKeyPress()
+   return [response,correct]
+}
+
+
+
+
+## This is like Transpose, but it can handle
+## lists of different lengths
+define InterleaveLists(nested)
+{
+
+  flatList <- []
+  flatindexes <- []
+
+  loop(i,nested)
+  {
+     PushOnEnd(flatlist,i)
+     PushOnEnd(flatindexes,Shuffle(Sequence(1,Length(i),1)))
+  }
+
+   ##we don't want to always go ABCABCABC, so shuffle the whole mix first.
+   ##to break this order.
+
+    flatlist <- FlattenN(flatlist,1)
+    flatindexes <- Flatten(flatindexes)
+    
+    shuffledpair <- Shuffle(Transpose([flatlist,flatindexes]))
+    ##re-sort by indexes
+    tsp <- Transpose(shuffledpair)
+    lists <- First(tsp)
+    indexes <- Second(tsp)
+   return SortBy(lists,indexes)
+}
+
+## This is suitable for short inputs, and requires only ALL-CAPS
+## Input in latin characters.
+define GetInputWithTimer(entry,timelabel,validation,maxtime,allowretry)
+{
+
+  opts <- ["1","2","3","4","5","6","7","8","9","0",
+            "A","B","C","D","E","F","G","H","I","J","K","L","M",
+             "N","O","P","Q","R","S","T","U","V","W","X","Y","Z",
+            "<backspace>","<return>" ,"<kp_enter>"]
+
+  done <- 0
+  outs <- [] 
+  out <- ""
+  SetEditable(entry,1)
+  timeout <- GetTime()+maxtime
+
+
+  while (not done)
+  { 
+
+     RegisterEvent("<TIMER>", 1, Gettime(),"<GEQ>","UpdateTimer", [timeout,maxtime,gTimer])
+     RegisterEvent("<TIMER>", 1, timeout,"<GEQ>","EndTrial", [timeout])
+
+     resp <- (WaitForListKeyPressWithTimeout(opts,500,1))
+     if(resp=="<timeout>")
+      {
+         if(GetTime()>timeout)
+         {
+          done <- 1
+         }
+      } elseif( resp == "<return>" or resp == "<kp_enter>")
+      {
+          done <- 1
+      } else {
+
+       if(resp == "<backspace>")
+       {
+         if(StringLength(out)<=1)
+         {
+           out <- ""
+         } else {
+          start <- 1
+          max <- Max([1,StringLength(out)-1])
+          out <- SubString(out,1,max)
+        }
+       } else {
+   
+      out <- out + Uppercase(resp)
+     }
+
+
+      entry.text <- out
+      entry.cursorpos <- StringLength(out) 
+       Draw()
+     }
+
+     ##check if the validation matches
+     if(done)
+     {
+      PushOnEnd(outs,[out,GetTime()])
+
+      corr <- (Uppercase(out)==Uppercase(validation))
+
+      if(not corr and allowRetry)
+      {
+        done <- 0
+	out <- ""
+	entry.text <- out ##this gives them the incorrect idea that they wrote the right thing.
+      }
+     }
+
+   ##exit if time is up, or we don't allow retries
+   if(GetTime()>timeout)
+   {  
+    done <- 1
+   }
+  }
+
+  SetEditable(entry,0)
+  ClearEventLoop()
+  return [out,outs]
+}
+
+
+define UpdateTimer(endtime,maxtime,timer,evt:0)
+{
+
+    prop <- Max([0,endTime - GetTime()])/maxtime
+    front <- gTimer.front
+    back <- gTimer.back
+    front.width <- back.width * prop
+    Draw()
+}
+
+
+define EndTrial(p,evt:0)
+{
+ gKeeplooping <- 0
+ Draw()
+ return "<REMOVE>"
+}

@@ -1,0 +1,50 @@
+define Start(p)
+{
+   gWin <- MakeWindow("black")
+   lab <- EasyLabel("Welcome. Press any key to begin.", gVideoWidth/2,200,gWin,30)
+   Draw()
+   WaitForAnyKeyPress()
+   RemoveObject(lab,gWin)
+  MessageBox("These are the instructions for the test.  In this test, you must decide whether a number of even or odd. Try to do this as quickly and accurately as possible.  For example:
+  
+  1121334141:   odd
+  1411561632:   even
+  3:            odd
+  4:            even
+  
+  When a number is odd, press the LEFT shift key.  When a number is even press the RIGHT shift key.  
+  
+  Ready? ",gWin)
+  
+  MessageBOx("0:"+IsOdd(0),gWin)
+  MessageBOx("1:"+IsOdd(1),gWin)
+  MessageBOx("2:"+IsOdd(2),gWin)
+  MessageBox("33:" + IsOdd(33),gWin)
+  MessageBOx("114141:"+IsOdd(114141),gWin)
+  
+
+}
+
+
+define Trial(number)
+{
+
+  header <- Easylabel("Decide whether even or odd",gVideoWidth/2,100,gWin,40)
+  stim <-   EasyLabel(number+"",gVideoWidth/2,gVideoHeight/2,gWin,80)
+  footer <- EasyLabel("<left shift> ODD                                   EVEN <right shift>",gVideoWidth/2,gVideoHeight-200,gWin,30)
+  
+  Draw()
+  time1 <- GetTime()
+  resp <- WaitForListKeyPress(["<lshift>","<rshift>"])
+  time2 <- GetTime()
+   rt <- (time2-time1)
+
+  Print(number+","+resp+","+rt)
+ 
+  return [number,resp,rt]
+}
+
+define IsOdd(number)
+{
+    return Mod(number,2)
+}

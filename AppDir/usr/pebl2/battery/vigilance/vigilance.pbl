@@ -1,0 +1,240 @@
+define Start(p)
+{
+  gScriptName <- "Vigilance Cascade Task"
+
+  parpairs <- [["restmin",4000],
+  	       ["restmax",8000],
+  	       ["targetletter","X"],
+	       ["foilletters","AKMNRVWYZ"],
+	       ["stimProb",.25],
+	       ["stimtime",300],
+	       ["timeout",2700],
+	       ["numtrials",10]
+               ]
+
+
+  gParams <- CreateParameters(parpairs,gParamFile)
+
+  gWin <- MakeWindow("black")
+  gSleepEasy <- 1
+
+  if(gSubNum+"" == "0")
+   {
+      gSubNum <- GetSubNum(gWin)
+   }
+
+   GetStrings(gLanguage)
+
+   header <- "subnum,trial,stim,target,corr,delay1,delay2,rt,resp,abstime"
+
+   ## Make data files
+   gFileOut <- GetNewDataFile(gSubNum,gWin,"vigilance","csv",header)
+
+
+  gCircle <- Circle(gVideoWidth/2,gVideoHeight/2,100,MakeColor("white"),1)
+  gDonut <-  Circle(gVideoWidth/2,gVideoHeight/2,80,MakeColor("black"),1)
+  gPlus  <-  Plus(gVideoWidth/2,gVideoheight/2,95,20, MakeColor("white") )
+  gScreen <- Circle(gVideoWidth/2,gVideoHeight/2,120,MakeColor("black"),1)
+
+
+  AddObject(gCircle,gWin)
+  AddObject(gDonut,gWin)
+  AddObject(gPlus,gWin)
+  AddObject(gScreen,gWin)
+  gStim <- EasyLabel("",gVideoWidth/2,gVideoheight/2,gWin,80)
+  Hide(gCircle)
+  Hide(gDonut)
+  Hide(gPlus)
+  Hide(gScreen)
+  Hide(gStim)
+
+  gFooter <- EasyLabel(ReplaceChar(gStrings.prompt,"<TARGET>",
+                                   gParams.targetletter),
+                       gVideoWidth/2,gVideoHeight-150,gWin,18)
+
+
+  gFoils <- SplitString(gParams.foilletters,"")
+
+   ShowCursor(0)
+
+  inst <- EasyTextBox("",gVideoWidth/2-300,20,gWin,18,600,200)
+
+  inst.text <- ReplaceChar(gSTrings.inst1,"<TARGET>",gParams.targetletter)
+
+Show(gCircle)
+Show(gDonut)
+Draw()
+
+    WaitForAnyKeyPress()
+
+   inst.text <- gStrings.inst2
+   Draw()
+   WaitForAnyKeyPress()
+
+   Show(gplus)
+   inst.text <- gStrings.inst3
+
+   Draw()
+   WaitForAnyKeyPress()
+
+   Hide(gPlus)
+
+   inst.text <- ReplaceChar(gStrings.inst4,"<X>",gParams.targetletter)
+   gStim.text <- gParams.targetletter
+   Show(gStim)
+   Draw()
+   WaitForAnyKeyPress()
+
+   gStim.text <- gStrings.demostim2
+
+   inst.text <- SubstituteStrings(gStrings.inst5,[["<X>",gParams.targetletter],
+                                                  ["<K>",gStrings.demostim2]])
+
+    Draw()
+    WaitForAnyKeyPress()
+    Hide(gStim)
+    Hide(gDonut)
+    Hide(gCircle)
+
+    inst.text <-gStrings.inst5b
+
+    Draw()
+    WaitForAnyKeyPress()
+
+    Hide(inst)
+
+   resp <-  Trial(gParams.targetletter)
+
+   corr <- (Fourth(resp) == " ")
+    Show(inst)
+    inst.text <- ReplaceChar(gSTrings.inst5target,"<X>",gParams.targetletter)
+
+    if(corr)
+	{
+        inst.text <- inst.text +gStrings.inst5corr
+        }else{
+        inst.text <- inst.text + gStrings.inst5incorr
+
+        }
+
+
+    Draw()
+    WaitForAnyKeyPress()
+    Hide(inst)
+    Draw()
+    resp <-  Trial(gStrings.demostim3)
+
+    corr <- (Fourth(resp) == "NORESP")
+    Show(inst)
+    inst.text <-ReplaceChar(gStrings.inst6,"<Z>",gStrings.demostim3)
+
+
+    if(corr)
+	{
+        inst.text <- inst.text + gStrings.inst6corr
+        }else{
+        inst.text <- inst.text +ReplaceChar(gStrings.inst6incorr,
+	                                      "<X>",gParams.targetletter)
+        }
+    Draw()
+    WaitForAnyKeyPress()
+    Hide(inst)
+    Draw()
+    pracstim <- Shuffle(["X","X","O","Z","V"])
+     loop(s,pracstim)
+     {
+         Trial(s)
+     }
+
+
+  Show(inst)
+  inst.text <- gStrings.inst7
+  Draw()
+  WaitForAnyKeyPress()
+  Hide(inst)
+  Draw()
+
+  numTargs <- Floor(gParams.stimprob*gParams.numtrials)
+  numFoils <- gParams.numtrials - numTargs
+  stimseq <- Shuffle(Merge(Repeat(gParams.targetletter,numTargs),
+                     SampleNWithReplacement(gFoils,numFoils)))
+
+   trial <- 1
+  loop(s,stimSeq)
+  {
+   resp <-  Trial(s)
+
+   trial <- trial + 1
+   target <- ( s == gParams.targetletter)
+   response <- First(resp)
+   corr <- (target  and (response==" ")) or  ((not target)  and (response=="NORESP"))
+   FilePrint(gFileOut,gSubNum+"," + trial + "," +s+","+ target + "," + corr +","+
+              First(resp) +"," +Second(resp)+","+Third(resp)+","+Fourth(resp)+","+
+               GetTime() )
+   trial <- trial +1
+  }
+
+}
+
+
+define Trial(stimulus)
+{
+
+  Show(gCircle)
+  Show(gDonut)
+  ##Rest period
+  gFooter.text <- gStrings.rest
+  ##do rest period
+  delay1 <- gParams.restMin + Random() *(gParams.restMax - gParams.restMin)
+  delay2 <- gParams.restMin + Random() *(gParams.restMax - gParams.restMin)
+  Draw()
+  time1 <- GetTime()
+  Wait(delay1)
+  time2 <- GetTime()
+  gFooter.text <- gSTrings.await
+#  gStim.text <- "+"
+  Show(gPlus)
+  Draw()
+  Wait(delay2)
+  Hide(gPlus)
+  Hide(gCircle)
+  gStim.text <- stimulus
+  Show(gStim)
+  gFooter.text <- gStrings.respond +gParams.targetletter
+  Draw()
+  time3 <- GetTime()
+  endtime <- time3 + gParams.stimtime + gParams.timeout
+
+  ##show for stimtime:
+  resp <- WaitForListKeyPressWithTimeout([" "],gParams.stimtime,1)
+
+  ##if timed out, show for timeout time then:
+  if(resp=="<timeout>")
+  {
+    resp <- WaitForListKeyPressWithTimeout([" "],gParams.timeout,1)
+  }
+
+  gFooter.text <- ""
+  time4 <- GetTime()
+  if(resp == "<timeout>")
+  {
+    resp <- "NORESP"
+  }
+  Hide(gStim)
+  Hide(gPlus)
+  Hide(gCircle)
+  Draw()
+  Wait(endtime-time4)
+
+  return [delay1,delay2,time4-time3,resp]
+}
+
+
+
+
+
+
+define GetStrings(lang)
+{
+  gStrings <- GetTranslations("vigilance", lang)
+}

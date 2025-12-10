@@ -73,10 +73,12 @@ protected:
     virtual std::ostream & SendToStream(std::ostream& out) const;
 
 private:
+    // Helper to get PlatformFont pointer from counted_ptr when needed
+    PlatformFont* GetPlatformFont() const {
+        return dynamic_cast<PlatformFont*>(mFontObject.get());
+    }
 
     counted_ptr<PEBLObjectBase> mFontObject;
-    //This below is just a shortcut to the font.
-    PlatformFont * mFont;
 };
 
 

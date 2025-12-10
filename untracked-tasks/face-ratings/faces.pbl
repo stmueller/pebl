@@ -1,0 +1,369 @@
+define Start (p)
+{
+        InitializeUpload()  ## Initialize token-based hosting if upload.json exists
+        gScriptName <- "Emotion Recognition Task (PEBL)"
+	gBgColor <- "grey80"      # Background color
+	gFgColor <- "black"       # Foreground color
+	gWin <- MakeWindow(gBgColor)
+
+        gSleepEasy <- 1
+         if(gSubNum+""=="0")
+          {
+               gSubNum <- GetSubNum(gWin)
+          }
+
+##stimulus font
+
+        gFont <- MakeFont(gPEBLBaseFont,0,45,MakeColor(gFGColor),MakeColor(gBGColor),0)
+        gPI <- 3.14159
+
+
+      gunderstandlog <- GetNewdataFile(gSubNum,gWin,"emotion-understand","csv","sub,id,timestamp,emotion,resp,rt")
+      gFileOut <- GetNewdataFile(gSubNum,gWin,"emotion-data","csv",
+      	       "filename,Usercode,Iteration,Language,Completed,TrialNum,Timestamp,Block,Trial,TrialResult,Response,RT,correct")
+
+
+       doHeader <- (not FileExists("data/face_summary.csv"))
+       gSummaryFile <-GetNewDataFile(gSubnum,gWin,"face-summary","csv",
+       "subnum,timestamp,language,NUM_AF,NUM_AN,NUM_DI,NUM_HA,NUM_NE,NUM_SA,NUM_SU,CORR_AF,CORR_AN,CORR_DI,CORR_HA,CORR_NE,CORR_SA,CORR_SU,RT_AF,RT_AN,RT_DI,RT_HA,RT_NE,RT_SA,RT_SU") 
+
+       gPooledSummaryFile <-FileOpenAppend("data/face_summary.csv")
+       if(doHeader)
+       {
+         FilePrint(gPooledSummarySummaryFile, "subnum,timestamp,language,NUM_AF,NUM_AN,NUM_DI,NUM_HA,NUM_NE,NUM_SA,NUM_SU,CORR_AF,CORR_AN,CORR_DI,CORR_HA,CORR_NE,CORR_SA,CORR_SU,RT_AF,RT_AN,RT_DI,RT_HA,RT_NE,RT_SA,RT_SU") 
+       }
+
+
+        ##Set initial values to use if .par file does not exist.
+        parpairs <- [["imagewidth",400],
+	             ["respradius",400]
+                     ]
+
+
+        gParams <- CreateParameters(parpairs,gParamFile)
+
+	GetStrings(gLanguage)
+
+
+        g6Emotions <- [gstrings.anger,gstrings.disgust,gstrings.fear,
+                      gstrings.happy, gstrings.sad, gstrings.surprise]
+        g7Emotions <- Append(g6Emotions, gStrings.neutral)
+
+       gEmotionLabels <- ["AN","DI","FE","HA","SA","SU","NE"]
+
+
+
+   trials <- ReadCSV("stim.csv")
+
+
+   DoBasicUnderstanding()
+   DoPracticeTrials()
+   DoTest()
+
+  Print("uploading data")
+  settingsfile <- "/upload.json"
+  out <- UploadFile(gSubnum,gFileOut.filename,settingsfile);  Print(out)
+  out <- UploadFile(gSubnum,gUnderstandingLog.filename,settingsfile);  Print(out)
+  out <- UploadFile(gSubnum,gSummaryFile.filename,settingsfile);  Print(out)
+  out <- UploadFile(gSubnum,gPooledSummaryFile.filename,settingsfile);  Print(out)
+   
+}
+
+
+
+define DoPracticeTrials()
+{
+   ##Do initial instructions
+   inst <- EasyTextBox(gStrings.practice1,200,100,gWin,30,gVideoWidth-400,300)
+   Draw()
+   WaitForKeyPress(" ")
+   Hide(inst)
+   Draw()
+
+   #Make fixation
+   fixation <- EasyLabel("+",gVideoWidth/2,gVideoHeight/2,gWin,80)
+   Draw()
+
+
+   practrials <- Shuffle(ReadCSV("practicestim.csv"))
+   trial <- 1
+   loop(i,practrials)
+   {
+
+    Wait(1000)
+
+    imagename <- "FACES/Sample trial/"+Second(i)
+
+    out <- Trial(imagename)
+    resp <- First(out)
+    rt <- Second(out)
+
+
+    Draw()
+    corr <- resp == Third(i)
+
+    line <- [gQuote+imagename+gQuote,gSubNum,"PEBL",gLanguage,"T","P"+trial,Timestamp(),"PRACTICE",Nth(i,4),Nth(i,3),resp,rt,corr]
+    FilePrint(gFileOut,ConcatenateList(line,","))
+ 
+    trial <- trial + 1
+
+   }
+
+}
+
+
+
+define DoTest()
+{
+
+   #Initial instructions
+   inst <- EasyTextBox(gStrings.test1,200,100,gWin,30,gVideoWidth-400,300)
+   Draw()
+   WaitForKeyPress(" ")
+   Hide(inst)
+   Draw()
+
+   fixation <- EasyLabel("+",gVideoWidth/2,gVideoHeight/2,gWin,80)
+   pause <- EasyLabel(gStrings.pause,gVideoWidth/2,gVideoHeight/2,gWin,40)
+   pause2 <- EasyLabel(gStrings.faster,gVideoWidth/2,gVideoHeight/2-25,gWin,40)
+   Hide(pause)
+   Hide(pause2)
+   trials <- Sublist( Shuffle(ReadCSV("stim.csv")),1,20)
+
+   trial <- 1
+   sumtime <- 0
+
+   conds <- []
+   corrects <- []
+   rts <- []
+
+
+   loop(i,trials)
+   {
+
+   if(Mod(trial,10)==0 and trial<Length(trials))
+   {
+
+        meantime <- sumtime/10
+	sumtime <- 0
+
+
+        if(meantime > 7000)
+	{
+          Show(pause2)
+
+	}
+
+        Hide(fixation)
+        Show(pause)
+
+
+	Draw()
+	WaitForKeyPress(" ")
+	Hide(pause)
+	Hide(pause2)
+	
+	Show(fixation)
+	Draw()
+   }
+    Wait(1000)
+    imagename <- "FACES/"+First(i)+"/"+Second(i)
+
+    out <- Trial(imagename)
+    resp <- First(out)
+    rt <- Second(out)
+    Draw() 
+
+    sumtime <- sumtime+rt
+    corr <- resp == Third(i)
+    
+    PushOnEnd(conds,First(out))
+    PushOnEnd(rts,rt)
+    PushOnEnd(corrects,corr)
+
+
+    line <- [gQuote+imagename+gQuote,gSubNum,"PEBL",gLanguage,"T",trial,Timestamp(),"MAIN",Nth(i,4),Nth(i,3),resp,rt,corr]
+
+
+    FilePrint(gFileOut,ConcatenateList(line,","))
+     
+    trial <- trial + 1
+
+
+   }
+
+
+
+  stats1 <- Transpose(SummaryStats(rts,conds))
+  stats2 <- Transpose(SummaryStats(corrects,conds))
+  Print(stats1)
+  Print(stats2)
+
+
+  outline <- Flatten([gSubnum,TimeStamp(),gLanguage,Nth(stats1,1),Nth(stats2,4),Nth(stats1,4)])
+  FilePrint(gSummaryFile,ConcatenateList(outline,","))
+  inst.text <- gStrings.debrief
+  Show(inst)
+  Draw()
+  WaitForAnyKeyPress()
+}
+
+
+
+define Trial(imagename)
+{
+  Draw()
+  radius <- 400 ##  radius of response circle
+   ##there should be an image
+
+  img <- MakeImage(imagename)
+  img.zoomX <- 400/img.width
+  img.zoomY <- img.zoomX
+
+  AddObject(img,gWin)
+  Move(img,gVideoWidth/2,gVideoHeight/2)
+  order <- Shuffle(Sequence(1,7,1))
+
+  Wait(1000)
+
+  labels <-[]
+  resps <- []
+
+  index <- 0
+  loop(i,order)
+  {
+    x <- gVideoWidth/2+ Cos(2*gPI/7*index)*radius
+    y <- gVideoHeight/2+ Sin(2*gPI/7*index)*radius
+    lab <- MakeLabel(Nth(g7Emotions,i),gFont)
+    AddObject(lab,gWin)
+    Move(lab,x,y)
+    PushOnEnd(labels,lab)
+    PushonEnd(resps,Nth(gEmotionLabels,i))
+    index <- index + 1
+  }
+  SetMouseCursorPosition(gVideoWidth/2,gVideoHeight/2)
+   Draw()
+  time0 <- GetTime()
+  out <- WaitForClickOnTarget(labels,resps)
+  time1 <- GetTime()
+  rt <- time1-time0
+  return [out,rt]
+}
+
+define DoBasicUnderstanding()
+{
+
+
+  tb <- EasyTextBox(gStrings.understand0,200,100,gWin,32,gVideoWidth-400,200)
+  answer <- EasyTextBox("",200,350,gWin,32,gVideoWidth-400,200)
+   yes <- MakeButton(gStrings.yes,gVideoWidth/2-150,315,gWin,100)
+   no <- MakeButton(gStrings.no,gVideoWidth/2+150,315,gWin,100)
+   ok <- MakeButton(gStrings.ok,gVideoWidth/2,315,gWin,100)
+
+    yes.Hide <- "HideButton"
+    no.Hide <- "HideButton"
+    ok.Hide <- "HideButton"
+
+    yes.Show <- "ShowButton"
+    no.Show <- "ShowButton"
+    ok.Show <- "ShowButton"
+
+
+
+  Hide(yes)
+  Hide(no)
+  Hide(answer)
+  Draw()
+
+
+  WaitForClickOnTarget([ok],[1])
+  PushButton(ok,[0,0])
+  loop(i,g6Emotions)
+  {
+
+     ##Do you know EMOTION?
+     startTime <- GetTime()
+     tb.text <- ReplaceChar(gStrings.Understand1,"<EMOTION>",i)
+     Show(yes)
+     Show(no)
+     Hide(ok)
+     Draw()
+
+     resp <-  WaitForClickOnTarget([yes,no],[1,2])
+     response <- Nth(["YES","NO"],resp)   
+     endTime <- GetTime()
+     PushButton(Nth([yes,no],resp),[0,0])
+     FilePrint(gUnderstandLog,gSubNum+",KNOW,"+TimeStamp() + "," + i + ","+response + ","+(endTime-startTime))
+
+     ##Tell me a situation where you felt EMOTION
+     startTime <- GetTime()
+     tb.text <- ReplaceChar(gStrings.Understand2,"<EMOTION>",i)
+     Hide(yes)
+     Hide(no)
+     Hide(ok)
+     Show(answer)
+     answer.text <- ""
+     Draw()
+     resp <-  GetInput(answer,"<return>")
+     endTime <- GetTime()
+     FilePrint(gUnderstandLog,gSubNum+",EXAMPLE,"+TimeStamp() + "," + i + ","+
+         gQuote+ReplaceChar(resp,",",";")+gQuote+ ","+(endTime-startTime))
+
+
+     ##Show me  EMOTION
+     startTime <- GetTime()
+     tb.text <- ReplaceChar(gStrings.Understand3,"<EMOTION>",i)
+     Hide(yes)
+     Hide(no)
+     Show(ok)
+     Hide(answer)
+     answer.text <- ""
+     Draw()
+     resp <-  WaitForClickOnTarget([ok],[1])
+     endTime <- GetTime()
+     PushButton(ok,[0,0])
+
+
+     FilePrint(gUnderstandLog,gSubNum+",SHOW,"+TimeStamp() + "," + i + ",OK,"+(endTime-startTime))
+
+  }
+
+  tb.text <- gStrings.understand4
+  Draw()
+  WaitForClickOnTarget([ok],[1])
+  FilePrint(gUnderstandLog,gSubNum+",DONE,"+TimeStamp() + ",NEUTRAL,OK,"+(endTime-startTime))
+
+}
+
+define GetStrings(lang)
+{
+
+
+  lang <- Uppercase(lang)
+  fname <- "translations/faces.pbl-"+LowerCase(lang)+".json"
+
+  if(FileExists(fname))
+  {
+    gStrings <- ReadTranslationJSON(fname,lang)
+  } else
+  {
+    gStrings <- ReadTranslationJSON("translations/faces.pbl-en.json",lang)
+  }
+}
+
+
+define HideButton(button)
+{
+
+ Hide(button.button)
+}
+
+
+define ShowButton(button)
+{
+
+ Show(button.button)
+}
+
+## UploadFile and SyncDataFile functions removed - using library versions from Utility.pbl
+## These functions are auto-loaded and support both token and username/password authentication

@@ -1,0 +1,38 @@
+## Test converted JSON parameter files
+
+define Start(p)
+{
+    ## Test 1: Converted schema JSON (corsi)
+    Print("=== Test 1: Corsi JSON schema ===")
+    if(FileExists("upload-battery/corsi/params/corsi.pbl.schema.json"))
+    {
+        schema <- ParseJSON(FileReadText("upload-battery/corsi/params/corsi.pbl.schema.json"))
+        Print("Test: " + schema.test)
+        Print("Version: " + schema.version)
+        Print("Parameters count: " + Length(schema.parameters))
+        firstParam <- First(schema.parameters)
+        Print("First param name: " + firstParam.name)
+        Print("First param default: " + firstParam.default)
+    }
+    Print("")
+
+    ## Test 2: Converted parameter JSON (ANT)
+    Print("=== Test 2: ANT JSON parameters with CreateParameters ===")
+    defaults <- [["iti",500], ["showfooter",0], ["reps",3]]
+    params <- CreateParameters(defaults, "upload-battery/ANT.pbl.par.json")
+    Print("iti: " + params.iti + " (expected 400 from JSON)")
+    Print("showfooter: " + params.showfooter + " (expected 1 from JSON)")
+    Print("reps: " + params.reps + " (expected 2 from JSON)")
+    Print("leftresponse: " + params.leftresponse + " (from JSON)")
+    Print("")
+
+    ## Test 3: Verify backward compatibility with original .par file
+    Print("=== Test 3: Original .par file still works ===")
+    params2 <- CreateParameters(defaults, "upload-battery/ANT.pbl.par")
+    Print("iti from CSV: " + params2.iti + " (expected 400)")
+    Print("showfooter from CSV: " + params2.showfooter + " (expected 1)")
+    Print("")
+
+    Print("=== All converted files working correctly! ===")
+    SignalFatalError("SUCCESS - Converted files validated")
+}

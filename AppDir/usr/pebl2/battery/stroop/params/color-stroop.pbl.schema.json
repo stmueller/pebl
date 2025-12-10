@@ -1,0 +1,123 @@
+{
+  "test": "color-stroop",
+  "version": "1.0",
+  "description": "COLOR-STROOP Test",
+  "parameters": [
+    {
+      "name": "stimsize",
+      "type": "integer",
+      "default": 60,
+      "description": "Font size of stimulus"
+    },
+    {
+      "name": "responsetype",
+      "type": "string",
+      "default": "keyboard",
+      "description": "Input method.  'ask' lets you choose in-task.  'keyboard' uses keyboard responses, 'audio' uses voicekey (which can be a bit buggy)."
+    },
+    {
+      "name": "scorerealtime",
+      "type": "boolean",
+      "default": 0,
+      "description": "For audio, set this to 1 to score real-time with keyboard. otherwise, you need to go back through and code responses afterward.",
+      "options": [
+        0,
+        1
+      ]
+    },
+    {
+      "name": "usepreset",
+      "type": "boolean",
+      "default": 1,
+      "description": "If set to 1, it will use the same sequence of stimuli every time.  If set to 0, it will  regenerate randomly on each run.",
+      "options": [
+        0,
+        1
+      ]
+    },
+    {
+      "name": "custompractrials",
+      "type": "integer",
+      "default": 8,
+      "description": "Number of trials to use for practice, if usepreset = 0."
+    },
+    {
+      "name": "customtrials",
+      "type": "integer",
+      "default": 28,
+      "description": "Number of trials to use per block, if usepreset = 0."
+    },
+    {
+      "name": "practicethreshold",
+      "type": "float",
+      "default": 0.75,
+      "description": "Practice threshold--must achieve this accuracy to move beyond practice round."
+    },
+    {
+      "name": "maxpracticerounds",
+      "type": "integer",
+      "default": 10,
+      "description": "Most practice rounds to use--it will continue after this. You may wish to remove anyone who does not meet this threshold."
+    },
+    {
+      "name": "fixationTime",
+      "type": "integer",
+      "default": 1000,
+      "description": "time for the fixation cross."
+    },
+    {
+      "name": "responseTimeout",
+      "type": "integer",
+      "default": 3000,
+      "description": "Time limit given for responding"
+    },
+    {
+      "name": "giveFeedback",
+      "type": "boolean",
+      "default": 1,
+      "description": "Should feedback be given?",
+      "options": [
+        0,
+        1
+      ]
+    },
+    {
+      "name": "voicekeythreshold",
+      "type": "float",
+      "default": 0.35,
+      "description": "The voice key will trip when this proportion of the last gVoiceKeyDuration 1-ms bins are above the threshold. Based on input power and microphone noise, you may need to adjust these parameters."
+    },
+    {
+      "name": "voiceKeyDuration",
+      "type": "integer",
+      "default": 200,
+      "description": "Number of bins back to test for being above threshold for the voice key"
+    },
+    {
+      "name": "saveAudio",
+      "type": "boolean",
+      "default": 1,
+      "description": "Should the audio buffer be saved to a file?",
+      "options": [
+        0,
+        1
+      ]
+    },
+    {
+      "name": "compressAudio",
+      "type": "boolean",
+      "default": 0,
+      "description": "Should .wav files be compressed? 0=no, 1 = yes",
+      "options": [
+        0,
+        1
+      ]
+    },
+    {
+      "name": "compressor",
+      "type": "string",
+      "default": "oggenc",
+      "description": "Command to compress audio"
+    }
+  ]
+}

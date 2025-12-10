@@ -1,0 +1,177 @@
+##this tests various functions within the pebl-lib library.
+define Start(p)
+{
+
+ doDesign <- 1
+ doMath <- 1
+ 
+ 
+  gVideoWidth<-800
+  gVideoHeight <- 600
+  gWin <- MakeWindow("black")
+
+
+  label <-Easylabel("testtype:",gVideoWidth/2,30,gWin,20)
+  label.text <- "Testing Design.pbl functions"
+   gTB <- EasyTextBox("",50,50,gWin,12,gVideoWidth-100,gVideoHeight-100)
+   Draw()
+   WaitForAnyKeyPress()
+  
+
+ if(doDesign)
+ {
+## 
+##the following functions need to be tested in Design.pbl
+ PrintResults("DesignLatinSquare([1,2,3],[12,22,32])",DesignLatinSquare([1,2,3],[12,22,32]))
+ 
+ PrintResults("LatinSquare([1,2,3,5])",LatinSquare([1,2,3,5]))
+ 
+ PrintResults("DesignGrecoLatinSquare([1,2],[11,12], [101,102])",DesignGrecoLatinSquare([1,2],[11,12], [101,102]))
+
+ PrintResults("DesignGrecoLatinSquare([1,2,3],[11,12,13], [101,102,103])",DesignGrecoLatinSquare([1,2,3],
+                                                                              [11,12,13], [101,102,103]))
+ 
+
+ 
+ PrintResults( "DesignBalancedSampling([1,2,3,4,5,6],20)",  DesignBalancedSampling([1,2,3,4,5,6],20))
+ PrintResults( "DesignBalancedSampling([1,2,3,4,5,6],100)",  DesignBalancedSampling([1,2,3,4,5,6],100))
+
+ PrintResults( "SubSet(Sequence(101,150,1),[1,3,10,15,25,49,22])",SubSet(Sequence(101,150,1),[1,3,10,15,25,49,22]))
+
+ PrintResults( "ExtractListItems(Sequence(101,150,1),[1,3,10,15,25,49,22])",
+                    ExtractListItems(Sequence(101,150,1),[1,3,10,15,25,49,22]))
+					
+					
+
+
+ PrintResults("ChooseN(Sequence(101,150,1),10)",ChooseN(Sequence(101,150,1),10))
+ PrintResults("ChooseN(Sequence(101,150,1),45)",ChooseN(Sequence(101,150,1),45))
+ PrintResults("ChooseN(Sequence(101,150,1),60)",ChooseN(Sequence(101,150,1),60))
+
+
+ PrintResults("SampleN(Sequence(101,150,1),10)",SampleN(Sequence(101,150,1),10))
+ PrintResults("SampleN(Sequence(101,150,1),45)",SampleN(Sequence(101,150,1),45))
+ PrintResults("SampleN(Sequence(101,150,1),60)",SampleN(Sequence(101,150,1),60))
+ 
+ PrintResults("SampleNWithReplacement(Sequence(101,150,1),10)",SampleNWithReplacement(Sequence(101,150,1),10))
+ PrintResults("SampleNWithReplacement(Sequence(101,150,1),45)",SampleNWithReplacement(Sequence(101,150,1),45))
+
+ PrintResults("FoldList(Sequence(101,150,1),4)",FoldList(Sequence(101,150,1),4))
+ PrintResults("FoldList(Sequence(101,150,1),9)",FoldList(Sequence(101,150,1),9))
+
+
+ PrintResults("Flatten([[1,2],3,[4,[5,6]]])",Flatten([[1,2],3,[4,[5,6]]]))
+ PrintResults("FlattenN([[1,2],3,[4,[5,6]]],1)",FlattenN([[1,2],3,[4,[5,6]]],1))
+ PrintResults("FlattenN([[1,2],3,[4,[5,6]]],2)",FlattenN([[1,2],3,[4,[5,6]]],2))
+ PrintResults("FlattenN([[1,2],3,[4,[5,6]]],4)",FlattenN([[1,2],3,[4,[5,6]]],4))
+
+ PrintResults("Replace([1,2,3,4,5,6,5,6,5,6],[[5,50]])",         Replace([1,2,3,4,5,6,5,6,5,6],[[5,50]]))
+ PrintResults("Replace([1,2,3,4,5,6,5,6,5,6],[[5,50],[6,50]])",  Replace([1,2,3,4,5,6,5,6,5,6],[[5,50],[6,50]]))
+ PrintResults("Replace([1,2,3,4,5,6,5,6,5,6],[[5,50],[9,99]])",  Replace([1,2,3,4,5,6,5,6,5,6],[[5,50],[9,99]]))
+
+ PrintResults("Reverse([1,2,3,4,5])",Reverse([1,2,3,4,5]))
+ 
+ PrintResults("ShuffleRepeat([1,2,3,4],10)",ShuffleRepeat([1,2,3,4],10))
+ 
+ PrintResults("ShuffleWithoutAdjacents([[1,1],2,[3,3,4,5],6,7,8,9])",ShuffleWithoutAdjacents([[1,1],2,[3,3,4,5],6,7,8,9]))
+
+ PrintResults("Sample(Sequence(101,110,2))",Sample(Sequence(101,110,2)))
+ 
+ PrintResults("ListBy([1,2,3,4,5,6,7,8,9,10],[1,1,1,2,3,2,3,2,4,4])",ListBy([1,2,3,4,5,6,7,8,9,10],[1,1,1,2,3,2,3,2,4,4]))
+ PrintResults("Levels([1,1,1,2,3,3,6,6,1,2,3,3,4])",Levels([1,1,1,2,3,3,6,6,1,2,3,3,4]))
+
+
+ PrintResults("RemoveSubset(Sequence(100,2000,100),[1,5,9])",RemoveSubset(Sequence(100,2000,100),[1,5,9]))
+ PrintResults("Insert([1,2,3,4,5],100,3)",Insert([1,2,3,4,5],100,3))
+ PrintResults("Insert([1,2,3,4,5],100,99)",Insert([1,2,3,4,5],100,99))
+ PrintResults("Rest([1,2,3,4,5,6])",Rest([1,2,3,4,5,6]))
+ PrintResults("Rest(Rest([1,2,3,4,5,6]))",Rest(Rest([1,2,3,4,5,6])))
+ 
+}
+ if(doMath)
+ {
+ 
+   nums1 <- [5,99,1,25,26,88,3,10,16,99,110]
+   nums2 <- [1,1,1,1,1,1,1]
+   
+
+  PrintResults("Sum("+nums1+")",Sum(nums1))
+  PrintResults("Sum("+nums2+")",Sum(nums2))
+
+  PrintResults("Mean("+nums1+")",Mean(nums1))
+  PrintResults("Mean("+nums2+")",Mean(nums2))
+
+  PrintResults("StdDev("+nums1+")",StdDev(nums1))
+  PrintResults("StdDev("+nums2+")",StdDev(nums2))
+
+  PrintResults("Min("+nums1+")",Min(nums1))
+  PrintResults("Min("+nums2+")",Min(nums2))
+
+  PrintResults("Max("+nums1+")",Max(nums1))
+  PrintResults("Max("+nums2+")",Max(nums2))
+
+  PrintResults("Median("+nums1+")",Median(nums1))
+  PrintResults("Median("+nums2+")",Median(nums2))
+
+  PrintResults("Order("+nums1+")",Order(nums1))
+  PrintResults("Order("+nums2+")",Order(nums2))
+
+ PrintResults("Rank("+nums1+")",Rank(nums1))
+ PrintResults("Rank("+nums2+")",Rank(nums2))
+ 
+ PrintResults("Quantile("+nums1+",45)",Quantile(nums1,45))
+ PrintResults("Quantile("+nums2+",45)",Quantile(nums2,45))
+ 
+ PrintResults("CumNormInv(.001)",CumNormInv(.001)) 
+ PrintResults("CumNormInv(.01)",CumNormInv(.01))
+ PrintResults("CumNormInv(.1)",CumNormInv(.1)) 
+ PrintResults("CumNormInv(.5)",CumNormInv(.5))
+ PrintResults("CumNormInv(.8)",CumNormInv(.8))
+ 
+ 
+ PrintResults("NormalDensity(-3)",NormalDensity(-3))
+ PrintResults("NormalDensity(-2)",NormalDensity(-2))
+ PrintResults("NormalDensity(-.5)",NormalDensity(-.5))
+ PrintResults("NormalDensity(0)",NormalDensity(0))
+ PrintResults("NormalDensity(2.5)",NormalDensity(2.5))
+
+  PrintResults("SDTDprime(.42,.4)",SDTDprime(.42,.4)) 
+  PrintResults("SDTDprime(.6,.4)",SDTDprime(.6,.4)) 
+  PrintResults("SDTDprime(.9,.7)",SDTDprime(.9,.7)) 
+  PrintResults("SDTDprime(.7,.9) (should be negative)",SDTDprime(.7,.9)) 
+
+  PrintResults("SDTBeta(.42,.4)",SDTBeta(.42,.4)) 
+  PrintResults("SDTBeta(.6,.4)",SDTBeta(.6,.4)) 
+  PrintResults("SDTBeta(.9,.7)",SDTBeta(.9,.7)) 
+  PrintResults("SDTBeta(.7,.9)",SDTBeta(.7,.9)) 
+
+  PrintResults("SummaryStats([10,11,12,10,11,13],[1,1,1,2,2,2])",SummaryStats([10,11,12,10,11,13],[1,1,1,2,2,2]))
+
+  PrintResults("Dist([0,0],[5,5])",Dist([0,0],[5,5]))
+ 
+  PrintResults("Match([1,2,3,4,5,6,1,2,3,1,2,3],3)",Match([1,2,3,4,5,6,1,2,3,1,2,3],3)) 
+  PrintResults("Filter([1,2,3,4,5,6,1,2,3,1,2,3],[1,1,1,1,1,0,0,0,0,0,0,0])",
+               Filter([1,2,3,4,5,6,1,2,3,1,2,3],[1,1,1,1,1,0,0,0,0,0,0,0]))
+ PrintResults("Bound(Random(),.4,.8)",Bound(Random(),.4,.8))
+ PrintResults("Bound(Random(),.4,.8)",Bound(Random(),.4,.8))
+ PrintResults("Bound(Random(),.4,.8)",Bound(Random(),.4,.8))
+ PrintResults("Bound(Random(),.4,.8)",Bound(Random(),.4,.8))
+ PrintResults("Bound(Random(),.4,.8)",Bound(Random(),.4,.8))
+ PrintResults("Bound(Random(),.4,.8)",Bound(Random(),.4,.8))
+ PrintResults("Bound(Random(),.4,.8)",Bound(Random(),.4,.8))
+ PrintResults("Bound(Random(),.4,.8)",Bound(Random(),.4,.8))
+   
+ }
+
+
+}
+
+
+define PrintResults(text,testresults)
+{
+  out <- "Test: "+CR(1)+text+""+CR(1)+  "Results:" +CR(1)+testresults
+  gTB.text <- out + CR(1)+ "Press any key to continue."
+  Print(out)
+  Draw()
+  WaitForAnyKeyPress()
+}

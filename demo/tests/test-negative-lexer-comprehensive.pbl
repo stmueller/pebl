@@ -1,0 +1,224 @@
+## Comprehensive test for negative number lexer patterns
+## Tests all edge cases before modifying the lexer to accept \-?[0-9]+
+
+define Start(p)
+{
+    Print("=== COMPREHENSIVE NEGATIVE NUMBER LEXER TEST ===")
+    Print("")
+
+    ## Test 1: Basic negative literals
+    Print("TEST 1: Basic negative literals")
+    a <- -1
+    b <- -5.5
+    c <- -100
+    Print("  a <- -1 = " + a)
+    Print("  b <- -5.5 = " + b)
+    Print("  c <- -100 = " + c)
+    Print("  EXPECTED: -1, -5.5, -100")
+    Print("")
+
+    ## Test 2: Subtraction without spaces
+    Print("TEST 2: Subtraction without spaces (x-1)")
+    x <- 10
+    result <- x-1
+    Print("  x <- 10")
+    Print("  result <- x-1 = " + result)
+    Print("  EXPECTED: 9")
+    Print("")
+
+    ## Test 3: Subtraction with spaces
+    Print("TEST 3: Subtraction with spaces (x - 1)")
+    result2 <- x - 1
+    Print("  result2 <- x - 1 = " + result2)
+    Print("  EXPECTED: 9")
+    Print("")
+
+    ## Test 4: Addition with negative
+    Print("TEST 4: Addition with negative (3 + -3)")
+    result3 <- 3 + -3
+    Print("  result3 <- 3 + -3 = " + result3)
+    Print("  EXPECTED: 0")
+    Print("")
+
+    ## Test 5: Subtraction with negative (double negative)
+    Print("TEST 5: Subtraction with negative (3 - -5)")
+    result4 <- 3 - -5
+    Print("  result4 <- 3 - -5 = " + result4)
+    Print("  EXPECTED: 8")
+    Print("")
+
+    ## Test 6: Multiplication with negative
+    Print("TEST 6: Multiplication with negative (2 * -4)")
+    result5 <- 2 * -4
+    Print("  result5 <- 2 * -4 = " + result5)
+    Print("  EXPECTED: -8")
+    Print("")
+
+    ## Test 7: Division with negative
+    Print("TEST 7: Division with negative (10 / -2)")
+    result6 <- 10 / -2
+    Print("  result6 <- 10 / -2 = " + result6)
+    Print("  EXPECTED: -5")
+    Print("")
+
+    ## Test 8: Negative in parentheses
+    Print("TEST 8: Negative in parentheses (3 + (-3))")
+    result7 <- 3 + (-3)
+    Print("  result7 <- 3 + (-3) = " + result7)
+    Print("  EXPECTED: 0")
+    Print("")
+
+    ## Test 9: Consecutive operators (3+-5)
+    Print("TEST 9: Consecutive operators (3+-5)")
+    result8 <- 3+-5
+    Print("  result8 <- 3+-5 = " + result8)
+    Print("  EXPECTED: -2")
+    Print("")
+
+    ## Test 10: Consecutive operators (3--5)
+    Print("TEST 10: Consecutive operators (3--5)")
+    result9 <- 3--5
+    Print("  result9 <- 3--5 = " + result9)
+    Print("  EXPECTED: 8")
+    Print("")
+
+    ## Test 11: Function call with negative argument
+    Print("TEST 11: Function call with negative argument TestFunc(-1)")
+    result10 <- TestFunc(-1)
+    Print("  result10 <- TestFunc(-1) = " + result10)
+    Print("  EXPECTED: -2")
+    Print("")
+
+    ## Test 12: Function call with multiple negative arguments
+    Print("TEST 12: Multiple negative arguments TestFunc2(-1, -2)")
+    result11 <- TestFunc2(-1, -2)
+    Print("  result11 <- TestFunc2(-1, -2) = " + result11)
+    Print("  EXPECTED: -3")
+    Print("")
+
+    ## Test 13: List with negative numbers
+    Print("TEST 13: List with negative numbers [-1, -2, -3]")
+    myList <- [-1, -2, -3]
+    Print("  myList <- [-1, -2, -3]")
+    Print("  First(myList) = " + First(myList))
+    Print("  Second(myList) = " + Second(myList))
+    Print("  Third(myList) = " + Third(myList))
+    Print("  EXPECTED: -1, -2, -3")
+    Print("")
+
+    ## Test 14: Mixed positive and negative in list
+    Print("TEST 14: Mixed list [1, -2, 3, -4]")
+    mixedList <- [1, -2, 3, -4]
+    Print("  mixedList <- [1, -2, 3, -4]")
+    Print("  Sum: " + (First(mixedList) + Second(mixedList) + Third(mixedList) + Fourth(mixedList)))
+    Print("  EXPECTED: -2")
+    Print("")
+
+    ## Test 15: Negative in comparison
+    Print("TEST 15: Negative in comparison (x > -5)")
+    x2 <- -3
+    comparison <- 0
+    if(x2 > -5)
+    {
+        comparison <- 1
+    }
+    Print("  x2 <- -3")
+    Print("  (x2 > -5) = " + comparison)
+    Print("  EXPECTED: 1 (true)")
+    Print("")
+
+    ## Test 16: Variable minus variable
+    Print("TEST 16: Variable minus variable (a-b)")
+    a2 <- 10
+    b2 <- 3
+    result12 <- a2-b2
+    Print("  a2 <- 10, b2 <- 3")
+    Print("  result12 <- a2-b2 = " + result12)
+    Print("  EXPECTED: 7")
+    Print("")
+
+    ## Test 17: Complex expression with negatives
+    Print("TEST 17: Complex expression (2 * -3 + 4 * -1)")
+    result13 <- 2 * -3 + 4 * -1
+    Print("  result13 <- 2 * -3 + 4 * -1 = " + result13)
+    Print("  EXPECTED: -10")
+    Print("")
+
+    ## Test 18: Function with default parameter (will test after lexer update)
+    Print("TEST 18: Function with default parameter")
+    result14 <- TestFuncWithDefault()
+    result15 <- TestFuncWithDefault(5)
+    Print("  TestFuncWithDefault() = " + result14)
+    Print("  TestFuncWithDefault(5) = " + result15)
+    Print("  EXPECTED: 0, 5")
+    Print("")
+
+    ## Test 19: Multiple consecutive negations (----5)
+    Print("TEST 19: Multiple consecutive negations (----5)")
+    result16 <- ----5
+    Print("  result16 <- ----5 = " + result16)
+    Print("  EXPECTED: 5 (four negations cancel out)")
+    Print("")
+
+    ## Test 20: Multiple negations in expression (3 - - - -3)
+    Print("TEST 20: Multiple negations in expression (3 - - - -3)")
+    result17 <- 3 - - - -3
+    Print("  result17 <- 3 - - - -3 = " + result17)
+    Print("  EXPECTED: 6 (3 - (-(-(- 3)))) = 3 - (-(-(-3))) = 3 - (-3) = 3 + 3 = 6")
+    Print("")
+
+    ## Test 21: Triple negative literal (---5)
+    Print("TEST 21: Triple negative literal (---5)")
+    result18 <- ---5
+    Print("  result18 <- ---5 = " + result18)
+    Print("  EXPECTED: -5 (three negations: -(-(-5)) = -5)")
+    Print("")
+
+    ## Test 22: Mixed operators with multiple negatives (2*--3)
+    Print("TEST 22: Mixed operators with multiple negatives (2*--3)")
+    result19 <- 2*--3
+    Print("  result19 <- 2*--3 = " + result19)
+    Print("  EXPECTED: 6 (2 * (-(-3)) = 2 * 3 = 6)")
+    Print("")
+
+    ## Test 23: Addition with multiple negatives (5+--2)
+    Print("TEST 23: Addition with multiple negatives (5+--2)")
+    result20 <- 5+--2
+    Print("  result20 <- 5+--2 = " + result20)
+    Print("  EXPECTED: 7 (5 + (-(-2)) = 5 + 2 = 7)")
+    Print("")
+
+    ## Test 24: Complex nested negatives (10 - - - - - 3)
+    Print("TEST 24: Complex nested negatives (10 - - - - - 3)")
+    result21 <- 10 - - - - - 3
+    Print("  result21 <- 10 - - - - - 3 = " + result21)
+    Print("  EXPECTED: 7 (10 - (-(-(-(-(3))))) = 10 - (-(-(-(-3)))) = 10 - (-(-(3))) = 10 - (-3) = 10 + 3 = 13)")
+    Print("  Wait, let me recalculate: 10 - (-(-(-(-(3))))) = 10 - 3 = 7")
+    Print("")
+
+    Print("=== ALL TESTS COMPLETE ===")
+}
+
+define TestFunc(val)
+{
+    result <- val * 2
+    return(result)
+}
+
+define TestFunc2(a, b)
+{
+    result <- a + b
+    return(result)
+}
+
+## Function with default parameter using 0 (works now)
+define TestFuncWithDefault(val: 0)
+{
+    return(val)
+}
+
+## After lexer update, we should be able to use:
+## define TestFuncWithNegativeDefault(val: -1)
+## {
+##     return(val)
+## }

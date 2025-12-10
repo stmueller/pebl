@@ -1,0 +1,311 @@
+## An implementation of the Brown-Peterson task, as done by Peterson & Peterson,
+## 1959.
+##
+##
+
+define Start(p)
+{
+  gWin <- MakeWindow("black")
+  gSleepEasy <- 1
+
+  parpairs <- [["usebeep",1],
+               ["reps",8],
+	       ["repsintrial",1],
+	       ["numdelays",6],
+	       ["beeptime",500],
+	       ["delay1",3],
+	       ["delay2",6],
+	       ["delay3",9],
+	       ["delay4",12],
+	       ["delay5",15],
+	       ["delay6",18],
+	       ["delay7",0],
+	       ["delay8",0],
+	       ["delay9",0],
+	       ["delay10",0]
+              ]
+  gUseBeep <- 1
+  gParams <- CreateParameters(parpairs,gParamFile)
+
+
+  ##Instrumentation variables:
+  #reps <- 8 ## real test used 8
+
+   delayset <- [gParams.delay1,gParams.delay2,
+   	       gParams.delay3,gParams.delay4,
+               gParams.delay5,gParams.delay6,gParams.delay7,
+               gParams.delay8,gParams.delay9,gParams.delay10]
+
+  delays <- SubList(delayset,1,gParams.numdelays)
+ # delays <- [3,6,9,12,15,18]  ##delays in seconds of P&P 1959
+ # delays <- [3,6,18]  ##delays in seconds; shortened
+  numtrials <- Length(delays)*gParams.reps
+
+
+  if(gSubNum+""=="0")
+  {
+    gSubNum <- GetSubNum(gWin)
+  }
+
+  GetStrings(gLanguage)
+
+  gFileOut <- GetNewDataFile(gSubNum,gWin,"brownpeterson","csv",
+       "subcode,trial,ccc,number,delay,resp,corr,rt")
+
+  consonants <- FileReadList("UppercaseConsonants.txt")
+
+  ##Make a unique stimulus list
+  cccs <- []
+  while (Length(cccs)<numtrials)
+   {
+     ccc <- ListToString(SampleN(consonants,3))
+     cccs <- Levels(Append(cccs,ccc))
+   }
+  cccs <- Shuffle(cccs)
+
+  ##stimuli require 3-digit numbers:
+  stimNumbers <- SampleN(Sequence(100,999,1),numTrials)
+
+  ##Create the delay durations too:
+  delayStim <- Flatten(ShuffleRepeat(delays,gParams.reps))
+
+
+
+  ##Should we use a beep?  Load sounds if so.
+  if(gParams.UseBeep)
+  {
+     gBeeps <-[MakeSineWave(400,200,.3),
+               MakeSineWave(800,200,.1)]
+  }
+
+## Here are the original instructions:
+##"Please sit against the back of your chair so that you are comfortable. You will not be shocked during this experiment. In front of you is a little black box. The top or green light is on now. This green light means that we are ready to begin a trial. I will speak some letters and then a number. You are to repeat the number immediately after I say it and begin counting backwards by S's (4's) from that number in time with the ticking that you hear. I might say, ABC 309. Then you say, 309, 306, 303, etc., until the bottom or red light comes on. When you see this red light come on, stop counting immediately and say the letters that were given at the beginning of the trial. Remember to keep your eyes on the black box at all times. There will be a short rest period and then the green light will come on again and we will start a new trial."
+
+
+  MessageBox(gStrings.inst1,gWin)
+  Trial("BDG", 899, 5,1)
+  MessageBox(gStrings.inst2,gWin)
+  Trial("SGN", 309, 3,1)
+  Trial("CXZ", 239, 8,1)
+  Trial("VQR", 411, 4,1)
+
+  MessageBox(gStrings.inst3a+ numtrials+gStrings.inst3b,gWin)
+
+  trialcounter <- Easylabel("",gVideoWidth-100,100,gWin,18)
+  ##Now, do the data collection.
+  data <- []
+  stim <- Transpose([cccs,stimNumbers])
+  loop(i,Sequence(1,Length(delays)*gParams.reps,1))
+  {
+   trialCounter.text <-  gStrings.triala+i+gStrings.trialb+numtrials
+   out <-    Trial(Nth(cccs,i),       ##The stimulus
+                   Nth(stimNumbers,i), ## the number
+                   Nth(delaystim,i),   ## The delay in seconds
+		   gParams.repsintrial)      ##Number of learning repetitions
+   PushOnEnd(data,Append(out,Nth(delayStim,i)))  ##accumulate data
+
+   FilePrint(gFileOut,gSubNum+","+i+","+
+                 Nth(cccs,i)+","+
+                 Nth(stimNumbers,i)+","+
+		 Nth(delayStim,i)+","+
+                 First(out)+","+
+		 Second(out)+","+
+		 Third(out))
+  }
+
+
+##Now, do some data analytics--by delay.
+
+  datatable <- []
+  loop(i,delays)
+  {
+    filter <- Match(delayStim,i)
+    subset <- Filter(data,filter)
+    tsub <- Transpose(subset)
+    datatable <- Append(datatable,
+    [i,Sum(filter),Mean(Second(tsub)),Exp(Mean(Ln(Third(tSub)))),Median(Third(tSub))])
+
+  }
+
+
+
+ dttext <- "Results for Brown Peterson Task"+CR(1)+
+"Participant:     " + gSubNum +CR(1)+
+TimeStamp() + CR(1)+
+"-------------------------------------------
+Delay  N   Accuracy    Mean(RT)   Median(RT)
+-------------------------------------------"
+ loop(i,datatable)
+ {
+   dttext <- dtText + CR(1) +
+   First(i) + "   " + Second(i) + "   " + Third(i) + "   " + Fourth(i) +" "+ Fifth(i)
+ }
+
+  dtText <- dtText + CR(1) + "-------------------------------------------"
+
+  Print(dtText)
+  fileout2 <- FileOpenWrite("data/bp-report-"+gSubNum+".txt")
+  FilePrint(fileout2,dttext)
+  MessageBox(dttext+ CR(2)+ gStrings.debrief,gWin)
+
+}
+
+
+## Basic B-P trial.  Note that the reps value is set to 1 in this
+## demo, but could be increased to give more learning, like in Exp. 2
+## of Peterson & Peterson.
+
+define Trial(ccc,number,delay,reps)
+{
+
+   ##Make sure they are always in the same order.
+
+   ##First, prepare the graphical elements:
+   stim <- EasyLabel(ccc,gVideoWidth/2,gVideoHeight/2,gWin,44)
+   back <- Rectangle(gVideoWidth/2,gVideoHeight/2,300,80,MakeColor("red"),0)
+   AddObject(back,gWin)
+   Hide(stim)
+   prompt <- EasyLabel(gStrings.await,gVideoWidth/2,gVideoHeight-150,gWin,30)
+   Draw()
+   #Orient attention:
+   CountDown(gWin)
+
+   ##Initiate start time.
+   time1 <- GetTime()
+   Draw()
+
+
+   ##after 500 ms, Hide stimulus:
+   tick <- time1
+   nexttick <- time1 + gParams.beeptime*2
+
+   loop(i,Sequence(1,reps,1))
+    {
+      Show(stim)
+      if(gParams.UseBeep)
+      {
+        PlayBackground(Nth(gBeeps,1))
+      }
+      Draw()
+
+      WaitUntil(tick + gParams.beeptime)
+
+      Draw()
+      if(gParams.UseBeep)
+      {
+        PlayBackground(Nth(gBeeps,2))
+      }
+
+      WaitUntil(nexttick)
+      Draw()
+
+      tick <- nexttick
+      nexttick <- tick + gParams.beeptime*2
+    }
+
+   ##After next tick,  start counting backward.
+   WaitUntil(tick+gParams.beeptime)
+   Show(stim)
+   stim.text <- number
+   Draw()
+   countStart <- GetTime()
+   WaitUntil(tick+1500)   ##Show number for 1 sec.
+   stim.text <- ""
+   prompt.text <- gStrings.count
+   Draw()
+
+   nexttick <- tick + 2000
+
+   ##beep/flash until time limit.
+   id <- 1
+   while(GetTime()<countstart+delay*gParams.beeptime*2)
+   {
+
+    WaitUntil(nexttick)
+    if(gParams.UseBeep)
+    {
+       PlayBackground(Nth(gBeeps,id))
+       id <- 3-id  ##flip between 2 and 1
+    }
+    Hide(back)
+    Draw()
+    Wait(50)
+    Show(back)
+    Draw()
+
+    nexttick <- nexttick + gParams.beeptime
+    Draw()
+   }
+
+  ##Now, collect response:
+  stim.text <- gStrings.recall
+  prompt.text <- gStrings.recallprompt
+
+  Show(back)
+  Draw()
+
+  #accept letters, as well as backspace and enter key to complete.
+  cons <- Merge(FileReadList("UppercaseConsonants.txt"),
+                ["<backspace>","<return>","<enter>","<kp_enter>"])
+
+
+   letters <- []
+   rt1 <- GetTime()
+   cont <- 1
+   Show(back)
+   while(cont)
+   {
+      #Repeate until you get enough responses
+     resp <- UpperCase(WaitForListKeyPress(cons))
+
+
+     ##Handle backspace:
+     if(resp == "<BACKSPACE>")
+     {
+       if(Length(letters)>1)
+       {
+         letters <- SubList(letters,1,Length(letters)-1)
+       }elseif(Length(letters)==1)
+       {
+         letters <- []
+       }
+
+     ##Handle the end of the list enter
+     }elseif( resp == "<RETURN>" or resp == "<KP_ENTER>")
+       {
+         if(Length(letters)==3 )
+	 {
+           cont <- 0
+  	 }
+       } elseif(Length(letters)<3) {
+
+         ##If we are here, the letter is good
+         letters <- Append(letters,resp)
+      }
+
+     #Update the current response on screen.
+      stim.text <- ListToString(letters)
+      Draw()
+   }
+
+  rt2 <- GetTime()
+  #Now, judge whether it is correct.
+  corr <- ListToString(letters) == ccc
+
+  return [ListtoString(letters), corr, rt2-rt1]
+}
+
+define WaitUntil(time)
+{
+     RegisterEvent("<TIMER>", 1, time,"<GEQ>","", [])
+     StartEventLoop()  #Start the timer
+     ClearEventLoop()  #clear it out when done.
+
+}
+
+
+
+define GetStrings(lang)
+{
+  gStrings <- GetTranslations("brownpeterson", lang)
+}

@@ -1,0 +1,48 @@
+## Exercises custom object structure.
+##
+
+define Start(p)
+{
+  x <- MakeCustomObject("testobject")
+  x.a <- 33
+  x.b <- 55
+  Print("X:")
+  Print(x)
+
+
+  PrintProperties(x)  
+  
+  Print("DONE1")
+  Print(GetProperty(x,"a"))
+  Print("DONE2")
+  SetProperty(x,"d","beaver")
+  SetProperty(x,"bad","cleaver")
+  PrintProperties(x)  
+  b <- x
+  
+  PrintProperties(b)
+  Print(GetProperty(b,"BAD"))
+
+  props <- GetPropertyList(b)
+  Print(props)
+  loop(i,props)
+  {
+
+    Print(i+":------->"+GetProperty(x,i))
+  }
+  
+  Print(PropertyExists(x,"nothing"))
+   
+ Print("adding list") 
+ x.list <- [1,2,3,4,5]
+ PrintProperties(x)
+ PrintProperties(b)
+
+
+ b <- MakeCustomObject("object2")
+ b.first <- x
+ 
+ Print(b)
+ PrintProperties(b)
+ PrintProperties(b.first)
+}

@@ -1,0 +1,50 @@
+PEBL's "Bechara Gambling Task": an independent implementation of Bechara et al.'s so-called "Iowa Gambling Task". Choose which option and receive rewards and costs.  This version, by Peter Bull, is a substantial improvement over the original PEBL test, which is still available as iowa-old.pbl if needed.
+
+
+Data format:
+
+
+The data looks like this:
+subNum 	version 	trialnum 	chosendeck 	win 	lose 	net 	totalscore 	borrow 	time 	rt
+111 	V2 	1 	D 	50 	0 	50 	2050 	2000 	16551 	1307
+111 	V2 	2 	C 	50 	0 	50 	2100 	2000 	19664 	607
+111 	V2 	3 	B 	100 	0 	100 	2200 	2000 	22711 	544
+111 	V2 	4 	A 	100 	0 	100 	2300 	2000 	25703 	488
+
+Whenever a choice is made, a row is recorded. For each choice, a reward is given (50 or 100). On some trials. a loss is also incurred, as below on trial 13:
+111 	V2 	12 	B 	100 	0 	100 	2750 	2000 	51023 	377
+111 	V2 	13 	A 	100 	150 	-50 	2700 	2000 	53952 	426
+
+
+So choosing A on trial 13 led to a gain of 100 and a loss of 150, for a net loss of 50.  Totalscore is just the running total of the bank value at that time.
+
+
+The decks align to what was originally published by Bechara but with some corrections, so the rewards and penalties are as follows
+
+  deck1Pen <- [0,0,150,0,300,0,200,0,250,350,
+               0,350,0,250,200,0,300,150,0,0,
+               0,300,0,350,0,200,250,150,0,0,
+               350,200,250,0,0,0,150,300,0,0]
+
+  deck2Pen <- [-1,-1,0,-1,0,-1,0,0,1250,0, # Note: -1 signifies red card.
+               -1,-1,0,1250,0,-1,-1,0,0,0,
+               1250,0,-1,-1,0,-1,0,-1,0,0,
+               -1,1250,0,-1,0,-1,0,-1,0,0]
+
+  deck3Pen <- [0,0,50,0,50,0,50,0,50,50,
+               0,25,75,0,0,0,25,75,0,50,   # Note: error in original list.
+               0,0,0,50,25,50,0,0,75,50,
+               0,0,0,25,25,0,75,0,50,75]   # Note: error in original list.
+
+  deck4Pen <- [-1,0,-1,0,0,-1,-1,0,0,250,  # Note: -1 signifies red card.
+               -1,-1,0,0,-1,0,0,0,-1,250,
+               0,-1,0,0,-1,-1,-1,0,250,0,
+               0,-1,0,-1,250,-1,0,0,-1,0]
+
+  deck1Rew <- 100
+  deck2Rew <- 100
+  deck3Rew <- 50
+  deck4Rew <- 50
+
+that is deck 1 and 2 have a constant reward of 100, deck 3 and 4 have a constant reward of 50, but penalties differ across the 4 decks.
+

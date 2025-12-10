@@ -1,0 +1,265 @@
+#####################################################################
+## (c) 2005-2008
+## Shane T. Mueller (smueller at obereed dot net)
+## and Gulab Parab
+##
+##
+##
+## Part of the PEBL Test Battery
+## http://pebl.sourceforge.net
+## For use with PEBL 0.09 or later
+##
+## This task implements a classic Spatial Cueing paradigm
+## (AKA Posner's Cueing Task), in which a spatial location (left
+## or right) is cued, and then a simple reaction must be made
+## when the stimulus appears.  The cue is either left, right, or both,
+## and the left/right cues can be valid or invalid.
+##
+##
+##  Posner, M. I. (1980). Orienting of attention. Quarterly Journal
+##     of Experimental Psychology, 32, 3-25.
+##  Posner, M. I., Snyder, C. R. R., & Davidson, B. J. (1980).
+##     Attention and the detection of signals. Journal of Experimental
+##     Psychology: General, 109, 160-174.
+##
+#####################################################################
+define Start(par)
+{
+
+     gScriptName <- "PEBL Spatial Cueing (Posner) Task"
+    parPairs <- [["numValid",15],
+                 ["numInvalid",5],
+		 ["numNeutral",5],
+		 ["fontsize",22],
+		 ["reps",4]
+               ]
+
+    gParams <- CreateParameters(parpairs,gParamFile)
+
+
+    gWin <- MakeWindow("grey")
+    if(gSubNum+""=="0")
+    {
+      gSubNum <- GetSubNum(gWin)
+    }
+
+
+    GetStrings(gLanguage)
+
+    gFileOut <- GetNewDataFile(gSubNum,gWin,"spatialcueing","csv",
+          "subnum,trial,cue,stim,correct,delay,rt")
+
+
+#######################################################################
+## Specify the number of times each type of stimulus is presented.
+#######################################################################
+
+ ##The left stimuli:
+    leftC <- gParams.numvalid     #Correct Cue
+    leftI <- gParams.numInvalid   #Invalid Cue
+    leftN <- gParams.numNeutral  #Neutral Cue
+
+ ##The right stimuli:
+    rightC <- gParams.numValid     #Correct Cue
+    rightI <- gParams.numInvalid   #Invalid Cue
+    rightN <- gParams.numNeutral  #Neutral Cue
+
+#############################################
+## Randomize the stimuli for presentation.
+#############################################
+
+   ##Generate the stimuli: -1 means left, 1 means right
+   stim <- Merge(Repeat(-1, leftC + leftI + leftN) ,
+			     Repeat(1, rightC + rightI + rightN))
+
+   ##Generate the cues: -1 means left, 0 means center, 1 means right
+   cues <- Flatten([Repeat(-1,leftC),  Repeat(0,leftN), Repeat(1,leftI),
+                    Repeat(-1, rightI), Repeat(0,rightN), Repeat(1,rightC)])
+
+   stim1 <- Transpose([stim,cues])
+   stim2 <- RepeatList(stim1,gParams.reps)
+   Print(stim2)
+   stimSequence <- Shuffle(stim2)
+
+######################################
+## Set up the basic  display stuff.
+######################################
+
+
+    font <- MakeFont(gPEBLBaseFontMono,0,gParams.fontsize,MakeColor("black"), MakeColor("white"),0)
+
+
+#################################################################
+## Define gLabel globally so that Trial can use them.
+#################################################################
+
+
+    gLabel <- MakeLabel("", font)
+    gStimLabel <-MakeLabel("X",font)
+
+    ShowCursor(0)
+    gHomeX <- gVideoWidth/2
+    gHomeY <- gVideoHeight/2
+
+    AddObject(gLabel, gWin)
+    Move(gLabel,gHomeX,gHomeY)
+    AddObject(gStimLabel, gWin)
+    Hide(gStimLabel)
+
+
+###########################################
+## Create the text box for instructions.
+###########################################
+
+
+  font2 <-MakeFont(gPEBLBaseFont, 0, 16, MakeColor("black"),
+                       MakeColor("grey"), 1)
+
+
+  numTrials <- ( leftC + leftI + rightC + rightI + leftN + rightN )*gParams.reps
+  pct <-Round(100*((rightC +leftC )/(leftC+leftI + rightC + rightI)))
+
+   tmp <- ReplaceChar(gStrings.inst,"<TRIALS>",numTrials)
+   MessageBox(Replacechar(tmp,"<PERCENT>",pct),gWin)
+
+    tb <- MakeTextBox("", font2, 700, 350)
+    AddObject(tb, gwin)
+    Move(tb,70,75)
+    Hide(tb)
+
+
+########################################
+## Present the trial sequence.
+########################################
+   corr <- []
+   rts <- []
+
+    trialnum <- 1
+    loop(i, stimSequence)
+    {
+       FilePrint_(gFileOut,gSubnum + "," + trialnum + "," )
+       time <- Trial(First(i), Nth(i,2))
+       corr <- Append(corr, First(i)*Nth(i,2))
+       rts <- Append(rts,time)
+       trialnum <- trialnum + 1
+    }
+
+
+  cond <- Transpose(stimSequence)
+  report <- FileOpenWrite("data/spatialcueing-report-"+gSubNum+".txt")
+
+   FilePrint(report,"---------------------------------------------------")
+   FilePrint(report," Report for PEBL's Spatial Cueing Task,")
+   FilePrint(report," a free version of Posner's cueing task")
+   FilePrint(report," (c) 2005-2008 Shane T. Mueller and Gulab Parab")
+   FilePrint(report," Version 0.2")
+   FilePrint(report," "+GetPEBLVersion())
+   FilePrint(report," "+TimeStamp())
+   FilePrint(report," Participant Code: " + gSubNum)
+   FilePrint(report," http://pebl.sf.net")
+   FilePrint(report,"---------------------------------------------------")
+
+  valid<-SummaryStats(rts,corr)
+
+  FilePrint(report,"RT stats by Validity Condition")
+  FilePrint(report,"Cond         N median mean sd")
+  FilePrint(report,"-----------------------")
+  FilePrint_(report, "Invalid ")
+  FilePrintList(report,First(valid))
+  FilePrint_(report, "Neutral ")
+  FilePrintList(report,Nth(valid,2))
+  FilePrint_(report, "Valid   ")
+  FilePrintList(report,Nth(valid,3))
+
+  stimdir<-SummaryStats(rts,First(cond))
+  FilePrint(report,CR(2))
+  FilePrint(report,"RT stats by Stimulus Location")
+  FilePrint(report,"Cond           N median mean sd")
+  FilePrint(report,"-----------------------")
+  FilePrint_(report, "Left     ")
+  FilePrintList(report,First(stimdir))
+  FilePrint_(report, "Right    ")
+  FilePrintList(report,Nth(stimdir,2))
+
+  cuedir <-SummaryStats(rts,Nth(cond,2))
+
+  FilePrint(report,CR(2))
+  FilePrint(report,"RT stats by Cue Direction")
+  FilePrint(report,"Cond          N median mean sd")
+  FilePrint(report,"-----------------------")
+  FilePrint_(report, "Left    ")
+  FilePrintList(report,First(cuedir))
+  FilePrint_(report, "Neutral ")
+  FilePrintList(report,Nth(cuedir,2))
+  FilePrint_(report, "Right   ")
+  FilePrintList(report,Nth(cuedir,3))
+  FilePrint(report,"------------------------------------------------")
+
+  FileClose(report)
+####################################
+## Create the debriefing message.
+####################################
+
+    SetText(tb,gStrings.debrief)
+
+    Show(tb)
+    Draw()
+    FileClose(gfileout)
+
+    WaitForAnyKeyPress()
+}
+
+
+define Trial(stim, cue)
+{
+
+   ## Determine what the fixation/cue should look like
+    if(cue == -1)
+        {
+          text <- "[<+ ]"
+        }elseif(cue == 1){
+          text  <- "[<+>]"
+        }else{
+           text  <- "[ +>]"
+        }
+
+     ##Figure out the xposition of the stimulus; whether to the left or
+     ## right of the fixation.
+    xpos <- gHomeX + 100*stim
+    Move(gStimLabel,xpos,gHomeY)
+        Draw()
+
+        ##Draw the fixation/cue
+        SetText(gLabel,text)
+        Wait(300)
+        Draw()
+
+        ##Calculate a random delay, and then display the stimulus.
+    delay <- RandomDiscrete(750)
+        Wait(750 + delay)
+    Show(gStimLabel)
+        Draw()
+        start <- GetTime()
+
+    ##Get the response
+        response <- WaitForAnyKeyPress( )
+        end <- GetTime()
+        SetText(gLabel,"")
+        Hide(gStimLabel)
+        Draw()
+
+	correct <- (cue == stim)
+        #Record the data
+        FilePrint(gFileOut, cue + "," + stim + "," + correct + "," + delay + "," + (end - start))
+        Wait(100)
+
+        return (end-start)
+ }
+
+
+
+
+define GetStrings(lang)
+{
+  gStrings <- GetTranslations("spatialcuing", lang)
+}

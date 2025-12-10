@@ -1,0 +1,60 @@
+#Automated RSpan Test
+#lines beginning with a '#' are comments, they are ignored
+
+#run:<distract_timeout>:<target_timeout>:{D|T}{1,}
+#static:<timeout>:<path/to/file.txt>
+#battery:<reps>:<min_targets>:<max_targets>:<target_timeout>
+
+#############################################################
+#introductory instructions
+static:-1:rspan_instructions.txt
+
+#practice recall (2 x 2; 2 x 3)
+static:-1:letters.txt
+static:-1:letters2.txt
+run:-1:1000:TTF
+run:-1:1000:TTF
+run:-1:1000:TTTF
+run:-1:1000:TTTF
+
+#practice reading (15 practice trials)
+static:-1:reading.txt
+static:-1:reading2.txt
+static:-1:reading3.txt
+run:-1:0:DDDF
+run:-1:0:DDF
+run:-1:0:DF
+run:-1:0:DDF
+run:-1:0:DF
+run:-1:0:DDF
+run:-1:0:DF
+run:-1:0:DDF
+run:-1:0:DF
+run:-1:0:DDF
+run:-1:0:DF
+run:-1:0:DDF
+run:-1:0:DF
+run:-1:0:DDF
+run:-1:0:DF
+
+# config battery on basis of practise results
+batteryconfig
+
+# clearstats before this practice battery
+clearstats
+
+#practice battery
+static:-1:rspan_pracbattery1.txt
+static:-1:rspan_pracbattery2.txt
+static:-1:rspan_pracbattery3.txt
+battery:2:2:2:1000
+
+# definitely clear stats before the real
+clearstats
+
+#proper trials
+static:-1:rspan_trials.txt
+battery:3:3:7:1000
+
+#end of assessment
+static:2000:end.txt

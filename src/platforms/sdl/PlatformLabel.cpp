@@ -123,7 +123,7 @@ PlatformLabel::~PlatformLabel()
 // Inheritable function that is called by friend method << operator of PComplexData
 ostream & PlatformLabel::SendToStream(ostream& out) const
 {
-    out << "<SDL PlatformLabel: " << mText << " in " << *mFont << ">" <<flush;
+    out << "<SDL PlatformLabel: " << mText << " in " << *GetPlatformFont() << ">" <<flush;
     return out;
 }
 
@@ -141,14 +141,14 @@ bool  PlatformLabel::RenderText()
     if(mDirection == 1)
         {
             //Re-render the text using the associated font.
-            tmpSurface = mFont->RenderText(mText.c_str());
+            tmpSurface = GetPlatformFont()->RenderText(mText.c_str());
         }
     else
         {
 
             std::string rtext = PEBLUtility::strrev_utf8(mText);
             //Re-render the text using the associated font.
-            tmpSurface  = mFont->RenderText(rtext.c_str());
+            tmpSurface  = GetPlatformFont()->RenderText(rtext.c_str());
         }
     
 
@@ -223,7 +223,6 @@ void PlatformLabel::SetFont(counted_ptr<PEBLObjectBase> font)
 {
 
     mFontObject = font;
-    mFont = dynamic_cast<PlatformFont*>(mFontObject.get());
 
     // Update the FONT property so nested access works correctly
     PComplexData * pcd = new PComplexData(mFontObject);
@@ -255,7 +254,7 @@ bool PlatformLabel::Draw()
 {
 
     // Check if label text changed OR if font properties changed
-    if(mChanged || mFont->HasChanged())
+    if(mChanged || GetPlatformFont()->HasChanged())
         {
 
             RenderText();
@@ -266,7 +265,7 @@ bool PlatformLabel::Draw()
 
             InitializeProperty("HEIGHT",mHeight);
             InitializeProperty("WIDTH",mWidth);
-            mFont->ClearChanged();  // Clear font changed flag after re-rendering
+            GetPlatformFont()->ClearChanged();  // Clear font changed flag after re-rendering
 
             // Only clear mChanged if texture was successfully created
             // If mTexture is NULL, keep mChanged=true to retry when renderer is available

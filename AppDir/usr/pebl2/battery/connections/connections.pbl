@@ -1,0 +1,1164 @@
+## The PEBL Connections Task, An implementation of
+## the task described by Salthouse et al. (2000), originally
+## based on Zahlen Verbindsungs Test, which according to Salthouse was
+## introduced by Oswald and Roth (1978) and has been
+## described in Vernon (1993).\
+## Oswald, W. D,, & Roth, E. (1978). Der Zahlen-Verbindungs Test
+## (ZVT). Gottingen, Germany: Hogrefe.
+## Vernon, P. A. (1993). Der Zahlen-Verbindsungs Test and other
+## trail-making correlates of general intelligence. Personality and
+## Individual Differences, 14, 35-40
+## See:
+## Salthouse, T. A., Toth, J., Daniels, K., Parks, C., Pak, R., Wolbrette, M.,
+## et al. (2000). Effects of aging on the efficiency of task switching in
+## a variant of the Trail Making Test. Neuropsychology, 14, 102–111.
+##
+
+
+define Start(p)
+{
+
+   parPairs <- [["inputdevice","mouse"],
+                ["width",7],  ##Now, use 7x7 as the test size:
+		["height",7],
+                ["timelimit",20] ##time limit in seconds. Use -1 for no time limit
+               ]
+
+   gParams <- CreateParameters(parPairs,gParamFile)
+
+
+   ## Could be 'mouse' or 'touch', currently no differences.
+   ## a 'keypad' method should also be implemented.
+   gInputDevice <- gParams.inputdevice
+   gWide <- gParams.width
+   gHigh <- gParams.height
+
+
+   ##Time limit in seconds.   Use -1 for no time limit.
+   gTimelimit <- gParams.timelimit
+
+
+   gLanguage <- Uppercase(gLanguage)
+   GetStrings(gLanguage)
+
+   gWin <- MakeWindow("black")
+   InitializeUpload()  ## Initialize token-based hosting if upload.json exists
+
+   if(gVideoWidth<800 or gVideoheight < 600)
+    {
+     MessageBox("Screen size too small to run connections task.  Requires at least 800x600",gWin)
+     SignalFatalError("Screen size too small to run connections task.  Requires at least 800x600")
+    }
+    gXrange <- [gVideoWidth/2 -300, gVideoWidth/2+300]
+    gYrange <- [gVideoHeight/2 -220, gVideoHeight/2+270]
+
+
+  if(gLanguage == "HE")
+    {
+        gFont <- MakeFont("DejaVuSans.ttf",3,18,MakeColor("white"),Makecolor("black"),0)
+     }else{
+        gFont <- MakeFont(gPEBLBaseFontMono,3,18,MakeColor("white"),Makecolor("black"),0)
+     }
+
+   Draw()
+   gSleepEasy <- 1
+
+
+  if(gSubNum+""=="0")
+  {
+    gSubNum <- GetSubNum(gWin)
+  }
+
+
+  fileOut <- GetNewDataFile(gSubNum,gWin,"connections","csv","")
+
+
+ FilePrint_(fileout, "subnum,type,trial,width,height,length,sumdist,anglesum,sumoptions,entropy,numclicks,lastclick,rt,time")
+  seq <- Sequence(1,gwide*ghigh,1)
+  loop(i,seq)
+  {
+    FilePrint_(fileout,",s"+ZeroPad(i,3))
+  }
+  FilePrint(fileout,"")
+
+  ##create a log for each click we do.
+   gPathfileOut <- GetNewDataFile(gSubNum,gWin,"connections-path-practice","csv","")
+
+ ##Create 4 paths total
+
+ instbox <- EasyTextBox("Generating 5 paths: ",25,40,gWin,18,gVideoWidth-50,220)
+ Draw()
+
+
+ paths <-[]
+
+
+  instbox.text <- instbox.text + "1";Draw()
+  path <- MakePath(gwide,ghigh,0)
+  PushOnENd(paths,path)
+  instbox.text <- instbox.text + "2";Draw()
+  path <- MakePath(gwide,ghigh,0)
+  PushOnENd(paths,path)
+  instbox.text <- instbox.text + "3";Draw()
+  path <- MakePath(gwide,ghigh,0)
+  PushOnENd(paths,path)
+  instbox.text <- instbox.text + "4";Draw()
+  path <- MakePath(gwide,ghigh,0)
+  PushOnENd(paths,path)
+
+   instbox.text <- instbox.text + "5";Draw()
+   practicepath <- MakePath(4,4,0)
+
+
+   instbox.text <- gInst1
+
+    #Temporarily change the display range.
+    gXrange0 <- gXRange
+    gYrange0 <- gYRange
+
+    gXRange <- [gVideoWidth/2 -150, gVideoWidth/2+150]
+    gYrange <- [290, 590]
+
+    gTrial <- "P1"
+    dat <-  CollectPath(practicepath,"num",4,4, gTimelimit)
+   Print(dat)
+
+    instbox.text <-gInst2
+
+   practicepath <- MakePath(4,4,0)
+    gTrial <- "P2"
+   dat <-  CollectPath(practicepath,"numletter",4,4, gTimelimit)
+   Print(dat)
+
+    gXRange <- gXrange0
+    gYRange <- gYrange0
+   Draw()
+
+   instbox.text <- gInst3
+  Draw()
+  WaitForDownClick()
+  Hide(instbox)
+  Draw()
+
+  ##close the practice log and reopen.
+  FileClose(gPathFileout)
+  gPathfileOut <- GetNewDataFile(gSubNum,gWin,"connections-path","csv","")
+
+  tpaths <- []
+  loop(i,paths)
+  {
+    tpaths <- Append(tPaths,TransposePath(i,gwide,ghigh))
+  }
+
+
+  types1 <- ["num","letter","numletter","letternum"]
+  types2 <- ["numletter","letternum","letter","num"]
+
+##Shuffle each set of 4 separately
+  p1 <- Shuffle(Transpose([types1,paths]))
+  p2 <- Shuffle(Transpose([types2,tpaths]))
+  trials <- Merge(p1,p2)
+
+
+  data <- []
+  conds <- []
+  footer <- Easylabel("",gVideoWidth/2,Second(gYrange)+20,gWin,22)
+   gTrial <- 1
+   loop(i, trials)
+    {
+
+       type <-First(i)
+       path <- Second(i)
+
+
+       if(type=="num")
+       {
+
+         foot <- gFoot1
+       }elseif(type=="numletter")
+       {
+          foot <- gFoot2
+       }elseif(type=="letternum")
+       {
+          foot <- gFoot3
+       }else{
+          foot <- gFoot4
+       }
+
+       footer.text <- foot +  gFootX1 +gTrial+"/"+Length(trials)+ gFootX2
+       Draw()
+       footer.text <- foot+gTrialText+gTrial+"/"+Length(trials)+"]"
+
+       time0 <- GetTime()
+       dat <-  CollectPath(path,type,gwide,ghigh,gTimelimit)
+
+       ##dat returns [numclicks, id-at-finish, time-to-finish]
+
+       time1 <- GetTime()
+       ##Get some specific stats.
+
+       mypath <- SubList(path,1,Second(dat))
+       stats <- GetStats(mypath,gwide,ghigh)
+
+       datalist <- Flatten([gSubNum,type, gTrial, stats,
+                             dat,(time1-time0),path])
+       FilePrint(fileout,ConcatenateList(datalist,","))
+
+       data <- Append(data,Merge(dat,stats))
+       conds <- Append(conds,type)
+       gTrial <- gtrial + 1
+    }
+
+
+  numsdat <- Filter(data,Match(conds,"num"))
+  letsdat <- Filter(data,Match(conds,"letter"))
+  lndat <- Filter(data,Match(conds,"letternum"))
+  nldat <- Filter(data,Match(conds,"numletter"))
+
+  single <- Transpose(Merge(numsdat,letsdat))
+  switch <- Transpose(Merge(nldat,lndat))
+
+  Print(single)
+  Print(switch)
+##These have clicks/time pairs
+   singleClicks <- Mean(First(single))
+   singleTargs <- Mean(Second(single))
+   singleOverclicks <- Sum(First(single))-Sum(Second(single))
+   singleRTs <- Mean(Third(single))
+
+   switchClicks <- Mean(First(switch))
+   switchTargs <- Mean(Second(switch ))
+   switchOverclicks <- Sum(First(switch))-Sum(Second(switch))
+   switchRTs <- Mean(Third(switch ))
+
+  out <- ""
+  out <- out +  Print("---------------------------------------")+CR(1)
+  out <- out +  Print("Mode:        Single   Switch   Ratio/difference ")+CR(1)
+  out <- out +  Print("---------------------------------------")+CR(1)
+  out <- out +  Print("Targets:     "+singleTargs+"    " + switchTargs + "   " + (switchTargs/singleTargs))+CR(1)
+  out <- out +  Print("RT:          "+singleRTS+"    " + switchRTS + "   " + (switchRTS/singleRTS))+CR(1)
+  out <- out +  Print("Clicks:      "+singleClicks+"    " + switchClicks + "   " + (switchClicks-singleClicks))+CR(1)
+  out <- out +  Print("OverClicks:  "+singleOverClicks+"    " + switchOverClicks + "   " + (switchOverClicks -singleOverClicks))+CR(1)
+  out <- out +  Print("--------------------------------------")+CR(1)
+
+  ## Close files and prepare report
+  FileClose(fileOut)
+  FileClose(gPathfileOut)
+
+  report <- FileOpenWrite("data/"+gSubNum+"/connections-report-"+gSubNum+".txt")
+  FilePrint(report,"-------------------------------------------------------")
+  FilePrint(report,"  PEBL Connection Test")
+  FilePrint(report,"To cite:")
+  FilePrint(report, "Mueller, S. T. (2012).  The PEBL Connections Test [Computer Software].  Retreived from http://pebl.sf.net")
+  FilePrint(report,"  Based on connections test by Salthouse et al. (2000) ")
+  FilePrint(report,"-------------------------------------------------------")
+  FilePrint(report,TimeStamp())
+  FilePrint(report,"Gridsize:          "+gwide +"x"+ghigh)
+  FilePrint(report,"Time limit:        "+gTimelimit)
+  FilePrint(report,"Participant code:  " +gSubNum)
+  FilePrint(report,out)
+  FilePrint(report,"-------------------------------------------------------")
+  FileClose(report)
+
+  ##Upload data files
+  Print("Uploading data files...")
+  out <- UploadFile(gSubNum, fileOut.filename); Print(out)
+  out <- UploadFile(gSubNum, report.filename); Print(out)
+
+  MessageBox(gThanks+out,gWin)
+
+}
+
+
+##Computes the transpose path--same pattern but row-column instead of column-row.
+define TransposePath(path,w,h)
+{
+
+  newpath <- []
+  loop(i,path)
+  {
+    nodegrid <- GetGrid(i,w,h)
+    newnode <- GetID([Second(nodegrid),First(nodegrid)],w,h)
+    newpath <- Append(newpath,newnode)
+  }
+
+   return newpath
+}
+
+
+
+
+## This function can be used to generate and save
+## simulated paths.  It is not used in the default task.
+##
+define SimPaths(wide,high,num)
+{
+ fileout <- FileOpenAppend("data/pathstats.txt")
+#  fileout <- FileOpenAppend("tmp.txt")
+
+#   FilePrint(fileout,"Seed,Pathsize,pathlength,anglesum,optionsum,entropy")
+ ##This is a simulator that generates and prints out paths.
+  i <- 1
+
+  while(i <= num)
+   {
+
+##Use the following for debugging.
+    rand <- RandomDiscrete(10000000)
+##    rand <- (5535518)
+##    Print(i + ": " + rand)
+    SeedRNG(rand)
+
+
+
+    path <- MakePath(wide,high,0)
+
+   stuff <-   DrawPath(path,wide,high,gXrange, gYrange)
+   Draw()
+   RemoveObjects(stuff,gWin)
+
+   stats <- GetStats(path,wide,high)
+   FilePrintList(fileout,Flatten([rand,stats,path]),",")
+
+
+     i <- i + 1
+   }
+
+
+}
+
+
+
+
+define CollectPath(path,style,w,h,timelimit)
+{
+
+  if(timelimit>0)
+  {
+    timer <- EasyLabel(timelimit+"",Second(gxRange)+50,gVideoHeight/2,gWin,40)
+  }
+
+  if(style=="num")
+   {
+     vals <- SortBy(Sequence(1,Length(path),1),path)
+
+   }elseif(style=="letter")
+   {
+     ucase <- FileReadList("Uppercase.txt")
+     lcase <- FileReadList("Lowercase.txt")
+
+     if(gLanguage=="HE")
+     {
+     ucase <- ["א", "ב", "ג", "ד", "ה", "ו", "ז", "ח", "ט", "י", "כ", "ל", "מ", "נ", "ס", "ע", "פ", "צ", "ק", "ר", "ש", "ת"]
+     lcase <- ucase
+     }
+
+     stim <- ucase
+     loop(i,ucase)
+     {
+        stim <- Append(stim,"*"+i)
+     }
+
+     stim <- Merge(stim,lcase)
+     loop(i,lcase)
+     {
+        stim <- Append(stim,"*"+i)
+     }
+
+     vals <- SortBy(SubList(stim,1,Length(path)),path)
+   }elseif(style=="letternum")
+   {
+   if(glanguage=="HE")
+     {
+      letters1 <- ["א", "ב", "ג", "ד", "ה", "ו", "ז", "ח", "ט", "י", "כ", "ל", "מ", "נ", "ס", "ע", "פ", "צ", "ק", "ר", "ש", "ת"]
+     }else{
+
+       letters1 <- FileReadList("Uppercase.txt")
+     }
+
+     letters <- letters1
+     loop(i,letters1)
+     {
+        letters <- Append(letters,"*"+i)
+     }
+
+     nums <- Sequence(1,Length(letters),1)
+
+     stim <- Flatten(Transpose([letters,nums]))
+
+     vals <- SortBy(SubList(stim,1,Length(path)),path)
+
+   }elseif(style=="numletter")
+   {
+
+
+    if(gLanguage =="HE")
+      {
+        letters1 <- ["א", "ב", "ג", "ד", "ה", "ו", "ז", "ח", "ט", "י", "כ", "ל", "מ", "נ", "ס", "ע", "פ", "צ", "ק", "ר", "ש", "ת"]
+      }else{
+        letters1 <- FileReadList("Uppercase.txt")
+      }
+
+     letters <- letters1
+
+     ##add *ed letters to the end.
+     loop(i,letters1)
+      {
+        letters <- Append(letters,"*"+i)
+      }
+
+     nums <- Sequence(1,Length(letters),1)
+     stim <- Flatten(Transpose([nums,letters]))
+
+     vals <- SortBy(SubList(stim,1,Length(path)),path)
+
+   }else{
+    SignalFatalError("Unknown test type: " + style)
+   }
+
+
+
+  bgstuff <-  DrawPathDetail(path,w,h, gXrange,gYrange,vals,Repeat(0,Length(path)))
+
+  lines <- First(bgstuff)
+  targets <- Second(bgstuff)
+  labs <- Third(bgstuff)
+
+  loop(i,labs)
+  {
+     Hide(i)
+  }
+
+
+  thegrid <- Repeat(Sequence(1,w,1),h)
+  rows <- Flatten(Transpose(thegrid))
+  cols <- Flatten(thegrid)
+
+  id <- 2
+  clicks <- 0
+  newlines <- SubList(lines,2,Length(lines))
+  newtargs <- SubList(targets,2,Length(targets))
+  clickedColor <- MakeColor("grey")
+
+  back <- First(targets)
+  back.color <- MakeColor("red")
+
+  ##This may differ for keyboard entry.
+  insttext <- "Click on highlighted circle to start "
+  inst <- EasyLabel(insttext,gVideoWidth/2,25,gWin,25)
+  Show(First(labs))
+
+  Draw()
+  WaitForClickOnTarget([First(targets)],[1])
+
+
+  back.color <- clickedColor
+  loop(i,labs)
+  {
+     Show(i)
+  }
+
+  time1 <- GetTime()
+  if(timelimit >0)
+  {
+    endtime <- time1 + timelimit*1000
+  } else {
+    endtime <- time1 + 1000*60*60  ##1 hr to finish.
+  }
+
+
+  ##Loop over all targets in sequence:
+  loop(i,Transpose([newlines,newtargs]))
+  {
+      Draw()
+      resp <- -1
+      cont <- 1
+
+      ##Keep going until we get to the end of the
+      ##list or time runs out.
+
+       while(cont)
+	 {
+
+	   ##Do we have a time limit?
+           if(timelimit > 0)
+	     {
+               #IF so, collect time with a timeout function
+	       # so we can update a timer.
+	       resp <- "<timeout>"
+	       while(resp == "<timeout>")
+	        {
+		 ##tHIS draws the timer ever 100 ms:
+                 resp <- WaitForClickOnTargetWithTimeout(targets,
+							 path,100)
+
+                 timeleft <- (endtime - GetTime())
+
+		 if(timeleft>0)
+                  {
+                    timer.text <-MakeTime(timeleft)
+                    Draw()
+                 }else{
+		   resp <- "toolong"
+		 }
+
+
+		}
+
+	     }else{
+	       ##We don't have a time limit--go easy.
+               resp <- WaitForClickOnTarget(targets,path)
+             }
+               ##Get and record current time.
+               time <- GetTime()
+
+
+	     ##At this point, we have a click on some circle,
+	     ##not necessarily the right one
+
+	     ##update the click count.
+	     clicks <- clicks + 1
+
+	     ##if the resp is 'toolong', we are out of time and need to stop.
+	     if(resp == "toolong")
+	     {
+                 cont <- 0
+	     }else {
+	       ##Otherwise, we are not out of time; score/record the
+	       ##click and move on.
+
+              corr <- (resp == Nth(path,id))
+  	      target <- Second(i)
+
+	      row <-Nth(rows,resp)
+	      col <- Nth(cols,resp)
+
+              FilePrint(gPathFileOut,gSubNum+","+ gTrial+","+
+                         style+","+ w +","+h+","+row+","+col+","+
+			  target.x+","+target.y+","+
+			  resp+","+ clicks+","+ id+","+
+                          corr+","+(time-time1))
+
+              #Did we make it all the way to the end?
+               cont <- (not resp == Nth(path,id))
+   	     }
+
+	   ##when we get here, we have either clicked on
+	   ##the next target, an incorrect circle,  or
+           ## have run out of time.
+
+
+	   ##we only get out of this while if the target
+	   ##is good or time is up.
+	 }
+
+
+
+
+    ##Has time limit elapsed?
+    if(resp == "toolong")
+      {
+        break
+      } else {
+
+        ##increment the id of the 'next' target
+	##and update the display
+
+      line <- First(i)
+      Show(line) #Show the line
+      bg <- Second(i)
+      bg.color <- clickedcolor  ##Change the color of the bg.
+
+      Draw()
+
+        id <- id + 1
+      }
+
+  }
+
+  ##For some reason, the lines/shapes do not go away now.
+
+  time2 <- GetTime()
+  return [clicks,(id-1),(time2-time1)]
+}
+
+define VecAbs(vec)
+{
+  tmp <- []
+  loop(i,vec)
+   {
+     tmp <- Append(tmp,Abs(i))
+   }
+ return tmp
+}
+
+
+define GetStats(path,w,h)
+{
+  length <- Length(path)
+
+   ##Compute distance
+   pairs <-    Transpose([Append(path,-1),
+                          Merge([-1],path)])
+
+
+  sum <- 0
+  angleSum <- 0
+  prevangle <- [0,0]
+
+  loop(i, pairs)
+  {
+
+
+    ##don't use the first and last nodes.
+    if((First(i)>0) and (Second(i)>0))
+     {
+
+        grid1 <-GetGrid(First(i),w,h)
+	grid2 <- GetGrid(Second(i),w,h)
+
+	##Add to the running distance.
+	delt <- Sqrt((First(grid1)-First(grid2))^2 +
+	            (Second(grid1)-Second(grid2))^2 )
+
+        sum <- sum + delt
+
+
+	##Compute the angle
+
+	angle <- GetGridAngle(grid1,grid2)
+	angledist <- VecMinus(angle,prevangle)
+#	Print(anglesum+"--"+ prevangle + " " + angle + " " +angledist+"  " +VecAbs(angledist) +" " + angledist + " -- " + Sum(VecAbs(angledist)))
+	anglesum <- anglesum + Sum(VecAbs(angledist))
+ 	prevAngle <- angle
+     }
+
+  }
+
+  ##This is the total number of options across the path
+  sumoptions <- 4*(w-1)*(h-1) + (w-1)+(h-1)
+  entropy <- GetEntropy(path,w,h)
+
+  return [w,h,length,sum,anglesum,sumoptions,entropy]
+}
+
+
+define GetEntropy(list,w,h)
+{
+     ##Start from the beginning,
+    sumEntropy <- 0
+    remains <- Rest(list)
+    loop(i,list)
+    {
+        igrid <- GetGrid(i,w,h)
+
+	options <-  LogN(Length(GetNeighbors(iGrid,remains,w,h)),2)
+	if(options>0)
+	{
+ 	  p <- 1/options
+	  entr <- p * LogN(p,2)
+          sumEntropy <- sumEntropy -entr
+         }
+         remains <- Rest(remains)
+    }
+
+  return sumEntropy
+}
+
+
+define GetGridAngle(prevgrid,curgrid)
+{
+   ##First, compute dx and dy
+   dx <- First(prevGrid) - First(curgrid)
+   dy <- Second(prevgrid)-Second(curgrid)
+
+   return [dx,dy]
+}
+
+
+##This will return a list of gridpoint ids that are
+##adjacent to the given point
+
+define GetNeighbors(nodeGrid,path,w,h)
+{
+
+    ##First, get the candidate neighbor elements
+    dirs <- [[0,-1], [1,-1],
+             [1,0],[1,1],
+       	    [0,1],  [-1,1],
+            [-1,0],[-1,-1]]
+
+
+          neighbors <- []
+          loop(i,dirs)
+          {
+
+             tmp <- [First(i)+First(nodeGrid),Second(i)+Second(nodeGrid)]
+
+
+	     if(First(tmp)>0 and First(tmp)<=h and
+	       Second(tmp)>0 and Second(tmp)<=w)
+	       {
+
+	          ##It is a legal node (in the grid)
+                   id <- GetID(tmp,w,h)
+
+		   ##Is it on the path?
+		  if(IsMember(id, path))
+                    {
+                       neighbors <- Append(neighbors,id)
+                    }
+               }
+          }
+	  ##neighbors now contains all adjacents.
+  return neighbors
+}
+
+
+##This Creates a path, given the sizes you care about.
+##You can allow path crossings, but the algorithm is not well tested for
+## this condition.
+define MakePath(w,h,crosses)
+{
+
+   debugPlot <- 0
+
+   endID <- w * h
+   ids <- Sequence(1,endID,1)
+
+   ##specify directions clockwise from 12:00; using
+   ## matrix row/column notation
+   ## 1 is right and -1 is up.
+
+   ## create an initial path that goes from 1 to endID,
+   ## by randomly picking left, down, and diagonal left/down
+   ## directions.
+   posdir <-     [ [1,0],[1,1],[0,1]]
+
+   nextID <- -1
+   current <- 1
+   path <- [current]
+   xys <- [[1,1]]
+
+
+   while(not current == endID)
+   {
+      point <- GetGrid(current,w,h)
+
+
+      ##Choose one direction
+      next <-[w+1,h+1]##Unsatisfactory next point
+
+      while(First(next)>h or Second(next)>w)
+       {
+
+             dir <- Sample(posdir)
+	     next <- VecPlus(point,dir)
+       }
+
+
+
+    nextID <- GetID(next,w,h)
+
+    path <- Append(path,nextID)
+    xys <- Append(xys,next)
+    current <- nextID
+   }
+
+
+if(debugPlot)
+   {
+  stuff <-   DrawPath(path,w,h,gXrange,gYrange)
+   Draw()
+   RemoveObjects(stuff,gWin)
+   }
+  ##Now we have an initial path.  Let's get a list of the nodes
+  ##not on the path.
+  remains <- RemoveSubSet(ids,path)
+
+
+  while(Length(remains)>0)
+   {
+
+     touches <- []
+
+    tries <- 0
+
+    remains <- Shuffle(remains)
+    ##Try out each member of remains to see if it touches something:
+    while(Length(touches)==0)
+     {
+       remains <- Rotate(remains,1)
+       ##See if First(remains) touches the path
+       touches <- TouchesPath(First(remains),path,w,crosses)
+       tries <- tries + 1
+
+       ##If we have tried all members of remains and failed, we are stuck.
+       if(tries > Length(remains))
+       {
+
+
+           ##We've tried everything, but nothing works.
+
+	   ##If we are stuck, we need to find two elements that do
+	   ##touch, remove the inside chain, and add the current element.
+
+           ##Pick the first node in remains
+           node <-First(remains)
+       	   nodeGrid <- GetGrid(node,w,h)
+
+          ##Gets neighbors on the path:
+          neighbors <- GetNeighbors(nodegrid,path,w,h)
+
+
+
+	  if(Length(neighbors)>=2)
+	  {
+            # Print("Remains:" + remains)
+	    # Print("Node: "+node)
+	    #  Print("Neighbors"+neighbors)
+            pair <- SampleN(neighbors,2)
+
+
+	      ##Get rid of everything on the path between these two elements.
+	      newpath <- []
+	      newrems <- Rest(remains)
+	      cut <- 0
+
+               ##Loop through the path, and cut out the
+               ##subpath, splicing in the problem child.
+	      loop(el,path)
+               {
+	         if(IsMember(el,pair))
+		 {
+
+		   ##Add the node at the cut, then add
+		   ##the current node
+                   cut <- 1-cut
+                   newpath <- Append(newpath,el)
+
+		   if(cut)
+		   {
+		     newpath <- Append(newpath,node)
+		   }
+		 }else {
+
+		 if(cut==1)
+		 {
+		   newrems <- Append(newrems,el)
+
+		 } else {
+		   newpath <- Append(newpath,el)
+  		 }
+                }
+               }
+
+	       path <- newpath
+
+	       remains <- newrems
+	       tries <- 0  ##try again
+          } else {
+	  ##
+ 	   Print("Possible Bad Path Created")
+	   # SignalFatalError("Cannot create path. We should recurse here.")
+	  }
+
+
+       }
+     }
+
+
+      ## We need to touch the graph at least once to move here; it may be multiple touches
+      ##we have a touch!!
+      splicepoint <- Sample(touches)
+
+      ##we should put the point at the splicepoint.
+
+
+      path <- Flatten([SubList(path,1,splicepoint),
+                       First(remains),
+		       SubList(path,splicepoint+1,Length(path))])
+
+if(debugPlot)
+   {
+     stuff <-   DrawPath(path,w,h,gXrange,gYrange)
+     Draw()
+     RemoveObjects(stuff,gWin)
+   }
+
+
+#  stuff <-   DrawPath(path,w,h,gXrange,gYrange)
+#  Draw()
+#  RemoveObjects(stuff,gWin)
+
+  remains <- Rest(remains)
+
+
+ }
+
+
+
+ return path
+}
+
+
+##THis deter
+define TouchesPath(testID, path,w,crosses)
+{
+
+   pathpairs <- SubList(Transpose([path,Rotate(path,1)]),1,Length(path)-1)
+   touches <- []
+   id <- 1
+   loop(i,pathpairs)
+   {
+      ##testID only touches if it touches both pairs.
+       if(Touchpairs(testID,First(i),Second(i),w))
+         {
+	    ##OK--we touch something.  But will adding this
+ 	    ##node lead to a cross in another link?
+            if(crosses==0)
+            {
+              cross <- 0
+            ##Crossing lines are not allowed.
+	     ##We are trying to add two lines
+##	     line1 <- [First(i),testID]
+##	     line2 <- [testID,Second(i)]
+
+             ##Get the grid points of line 1
+	     xya <- Getgrid(First(i),w,0)
+	     xyb <- GetGrid(testID,w,0)
+	     xyc <- Getgrid(Second(i),w,0)
+
+            ##See if either ab or bc crosses something already in
+            ##the list.
+            checkit <- []
+	     ##Is AB a diagonal?
+	     if((Abs(First(xya)-First(xyb)) +
+	        Abs(Second(xya)-Second(xyb)))==2)
+	     {
+
+	        ##check to see if their crossing pair is connected.
+		cross1 <- GetID([First(xya),Second(xyb)],w,0)
+		cross2 <- GetID( [First(xyb),Second(xya)],w,0)
+	        checkit <- [cross1,cross2]
+
+	     }
+
+	     ##Is BC a diagonal?
+	     if((Abs(First(xyc)-First(xyb)) +
+	        Abs(Second(xyc)-Second(xyb)))==2)
+	     {
+
+	        ##check to see if their crossing pair is connected.
+		cross1 <- GetID([First(xyc),Second(xyb)],w,0)
+		cross2 <- GetID( [First(xyb),Second(xyc)],w,0)
+	        checkit <- [cross1,cross2]
+
+	     }
+
+             ##
+	     if(Length(checkit)==2)
+             {
+                   p1 <- Lookup(First(checkit),path,Sequence(1,Length(path),1))
+                   p2 <- Lookup(Second(checkit),path,Sequence(1,Length(path),1))
+
+		   if(Abs(p1-p2)==1)
+                    {
+                     cross <- 1
+                    }
+
+             }
+	     if(not cross)
+	     {
+                   touches <- Append(touches,id)
+             } else {
+                   0
+            }
+
+            }else{
+
+               touches <- Append(touches,id)
+	    }
+
+
+         }
+    id <- id + 1
+   }
+
+  return touches
+}
+
+
+##Does id1 touch both id1 and id3
+define TouchPairs(id1,id2,id3,w)
+{
+  return (Touches(id1,id2,w) and  Touches(id1,id3,w))
+}
+
+
+define Touches(id1,id2,w)
+  {
+    ##This assumes that that a point touches itself; may not
+    ## be useful in some contexts to make this assumption.
+
+    p1 <- GetGrid(id1,w,0)
+    p2 <- GetGrid(id2,w,0)
+    dH <-Abs(First(p1) - First(p2))
+    dW <- Abs(Second(p1)-Second(p2))
+   return (dH<2 and dW<2)
+  }
+
+
+define GetGrid(id,w,h)
+{
+   column <- Mod(id,w)
+   if(column==0)
+    {
+      column <- w
+    }
+    return [Ceiling(id/w),column]
+}
+
+define GetID(point,w,h)
+{
+    out <-  Second(point)+(First(point)-1)*w
+#    Print(point + " "+w+ " " + h + " " + out)
+  return out
+}
+
+define VecMinus(a,b)
+{
+  return  VecPlus(a, [-First(b),-Second(b)])
+}
+
+define VecPlus(a,b)
+{
+  sum <- []
+  loop(i,Transpose([a,b]))
+   {
+      sum <- Append(sum,First(i)+Second(i))
+   }
+ return sum
+}
+
+
+##This will draw a path with all the elements
+define DrawPath(path,w,h,xrange,yrange)
+{
+  return DrawPathDetail(path,w,h,xrange,yrange,Sequence(1,w*h,1),Repeat(1,Length(path)))
+}
+
+define DrawPathDetail(path,w,h,xrange,yrange,labels,connected)
+{
+
+    fgcol <- MakeColor("Navy")
+    bgCol <- MakeColor("royalblue")
+
+    xdelt <- (Second(xrange)-First(xrange))/(w)
+    ydelt <- (Second(yrange)-First(yrange))/(h)
+    x0 <- First(xrange)
+    y0 <- First(yrange)
+
+    tmpbgs <- []
+    tmpfgs <-[]
+    tmplines <- []
+    tmplabs <- []
+
+    point <- [1,1]
+    prevXY<- [x0,y0]
+
+    ##Draw the path
+
+    path2<- Transpose([path,connected])
+    loop(i,path2)
+    {
+
+        point <- GetGrid(First(i),w,h)
+        x <- First(xrange) + xdelt*(Second(point)-1)
+        y <- First(yrange) + ydelt*(First(point)-1)
+
+        circ <- Circle(x,y,24,fgcol,1)
+        AddObject(circ,gWin)
+	tmpBGs <- Append(tmpbgs,circ)
+
+        line <-ThickLine(First(prevXY),Second(prevXY),x,y,8,bgcol)
+        AddObject(line,gWin)
+        tmpLines <- Append(tmpLines,line)
+
+        if(not Second(i))
+         {
+             Hide(line)
+         }
+
+
+        prevXY <- [x,y]
+    }
+
+
+     ##Draw the top circles and the labels.
+     id <- 1
+     loop(i,Sequence(1,h,1))
+      {
+          loop(j,Sequence(1,w,1))
+          {
+	     x <- x0+xdelt*(j-1)
+             y <- y0+ydelt*(i-1)
+             bg <- Circle(x,y,20,MakeColor("blue"),1)
+	     AddObject(bg,gWin)
+ 	     lab <- MakeLabel(Nth(labels,id)+"",gFont)
+	     Move(lab,x,y)
+	     AddObject(lab,gWin)
+	     tmpFGs <- Append(tmpFGs,bg)
+	     tmpLabs <- Append(tmpLabs, lab)
+             id <- id + 1
+          }
+      }
+
+
+
+   return [tmplines,tmpBGs,tmpLabs,tmpFGs]
+}
+
+
+
+define MakeTime(msecs)
+{
+   secs <- Floor(msecs/1000)
+   tenths <- Floor(Mod(msecs,1000)/100)
+   return secs+"."+tenths
+}
+
+
+define GetStrings(lang)
+{
+  gStrings <- GetTranslations("connections", lang)
+
+
+  gTimeInst <- gStrings.timeinsta +gTimelimit+gStrings.timeinstb
+
+  if(gTimelimit>0)
+   {
+     timelimitinst <- gTimeInst
+   } else {
+     timelimitinst <- ""
+  }
+
+ gInst1 <-gStrings.inst1a +timelimitinst+gStrings.inst1b
+
+
+ gInst2 <- gStrings.inst2
+ dimensions <- gWide + "x" + gHigh
+ gInst3 <- gStrings.inst3a  + dimensions + gStrings.inst3b
+
+
+gFoot1 <- gStrings.foot1
+gFoot2 <- gStrings.foot2
+gFoot3 <- gStrings.foot3
+gFoot4 <- gStrings.foot4
+
+gFootX1 <- gStrings.footx1
+gFootX2 <-gStrings.footx2
+gTrialtext <- gStrings.trialtext
+gThanks <-gStrings.thanks
+
+}

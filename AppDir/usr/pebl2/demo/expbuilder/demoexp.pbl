@@ -1,0 +1,119 @@
+
+## Auto-generated PEBL experiment.
+## http://pebl.sourceforge.net
+## Lead developer: Shane T. Mueller
+##
+## If you use PEBL please cite Mueller & Piper, 2014 Journal of Neuroscience Methods
+##
+##
+## This experiment is auto-generated using the PEBL Experiment Builder.
+## Edit this file at your own risk.  You can edit this file to make final
+## tweaks, but edits will not be reflected within the experiment builder,
+## and changes directly to this file will be overwritten if the builder
+## recompiles the script.
+##
+## author:                 Enter author here
+## Contact information:   author@contact.edu
+## Generation timestamp:  Fri Mar  8 20:08:17 2019
+##
+
+
+define Start(p)
+{
+
+  gVideoWidth<-800
+  gVideoHeight<-600
+  gWin <- MakeWindow("black")
+  gSleepEasy <- 1
+
+
+    FINST13(gWin)
+    FINST24(gWin)
+}
+
+
+define FINST13(win)
+{
+
+   ##the textbox could have multiple parts for better layout.
+
+   bgcol <- win.BGCOLOR
+
+   bg  <- MakeCanvas(gVideoWidth,gVideoHeight,bgcol)
+   Move(bg,gVideoWidth/2,gVideoHeight/2)
+   AddObject(bg,win)
+
+   box <- EasyTextBox( "INSTRUCTIONS
+
+These are my instructions. There are others like it, but these instructions are mine.
+
+Click OK to continue.",100,50, win,18,gVideoWidth-200,gVideoHeight-200)
+   ok <- EasyLabel("OK",gVideoWidth/2,gVideoHeight-100,win,44)
+
+   ##Get foreground color
+   ##HSV val is the max of RGB
+    val <- Max([bgcol.RED, bgcol.GREEN, bgcol.BLUE])
+
+    ##Make it white if the background is too dark.
+    if(val <=	100)
+    {
+      fgcol <- MakeColor("white")
+    } else {
+      fgcol <- MakeColor("black")
+    }
+
+   back <- Rectangle(gVideoWidth/2,gVideoHeight-100, ok.width+10,ok.height+4,fgcol,0)
+   AddObject(back,win)
+   Draw()
+   ShowCursor(1)
+   WaitForClickOnTarget([back],[1])
+
+   RemoveObject(back,win)
+   RemoveObject(ok,win)
+   RemoveObject(box,win)
+   RemoveObject(back,win)
+
+   Draw()}
+define FINST24(win)
+{
+
+   ##the textbox could have multiple parts for better layout.
+
+   bgcol <- win.BGCOLOR
+
+   bg  <- MakeCanvas(gVideoWidth,gVideoHeight,bgcol)
+   Move(bg,gVideoWidth/2,gVideoHeight/2)
+   AddObject(bg,win)
+
+   box <- EasyTextBox( "INSTRUCTIONS
+
+These are the instructions of my brother.
+
+Click OK to continue.",100,50, win,28,gVideoWidth-200,gVideoHeight-200)
+   ok <- EasyLabel("OK",gVideoWidth/2,gVideoHeight-100,win,44)
+
+   ##Get foreground color
+   ##HSV val is the max of RGB
+    val <- Max([bgcol.RED, bgcol.GREEN, bgcol.BLUE])
+
+    ##Make it white if the background is too dark.
+    if(val <=	100)
+    {
+      fgcol <- MakeColor("white")
+    } else {
+      fgcol <- MakeColor("black")
+    }
+
+   back <- Rectangle(gVideoWidth/2,gVideoHeight-100, ok.width+10,ok.height+4,fgcol,0)
+   AddObject(back,win)
+   Draw()
+   ShowCursor(1)
+   WaitForClickOnTarget([back],[1])
+
+   RemoveObject(back,win)
+   RemoveObject(ok,win)
+   RemoveObject(box,win)
+   RemoveObject(back,win)
+
+   Draw()}
+

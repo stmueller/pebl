@@ -1,0 +1,169 @@
+##  This implements a handedness inventory,
+##  based on the paper version used by Piper (2013).
+##
+define Start(p)
+{
+
+   gWin <- MakeWindow("white")
+   gSleepEasy <- 1
+   if(gSubNum == 0)
+   {
+     gSubNum <- GetSubNum(gWin)
+   }
+
+  labelmain <- EasyLabel("1. Do you have any tendency towards left-handedness (click box to change answer)?",gVideoWidth/2,50,gWin,18)
+
+
+  yesno <- EasyLabel("Yes/No",gVideoWidth/2,80,gWin,20)
+  yesnobox <- Rectangle(gVideoWidth/2,80,150,40,MakeColor("grey"),0)
+  AddObject(yesnobox,gWin)
+  yesorno <- ""
+
+  inst2 <- "Please indicate your preferences in the use of hands in the following activities by clicking in the appropriate column. Please give a rating for each of the activities.  Click one box per activity to indicate your preferred hand. Where the preferences is so strong that you would never try to use the other hand unless absolutely forced to, click twice to put a '++' there. If for any case you are really indifferent, click to put a + in both columns. If you make a mistake, clicking a third time will reset the rating.  Some of the activities require both hands. In these cases the part of the task, or object, for which hand preferences is wanted is indicated in parentheses.
+Please try to answer all the questions and only leave a blank if you have no experience at all of the object or task."
+
+ tb <- EasyTextBox(inst2,50,140,gWin,18,gVideoWidth-100,200)
+
+ scales <- ["Writing","Drawing","Throwing","Scissors",
+  	      "Toothbrush","Knife (without fork)","Broom (upper hand)",
+	      "Striking match (match)","Opening box (lid)"]
+
+
+  xs <- [-300,0,300,-300,0,300,-300,0,300]
+  ys <- [400,400,400,480,480,480,560,560,560]
+
+  doit<- Transpose([scales,xs,ys])
+
+
+  doneback <- Rectangle(gVideoWidth/2,gVideoHeight-100,100,30,MakeColor("grey"),0)
+  AddObject(doneback,gWin)
+  done <- EasyLabel("DONE",gVideoWidth/2,gVideoHeight-100,gWin,28)
+
+  labs <- []
+  pluses <- []  
+  rects <- []
+  lrs <- []
+
+  loop(i,doit)
+   {
+      x <- gVideoWidth/2 + Second(i)
+      y <- Third(i)
+      tmplab <- EasyLabel(First(i),x,y-10,gWin,18)
+      leftright <- Easylabel("Left   Right",x,y+8,gWin,16)
+
+      plusleft <- EasyLABEL("",x-24,y+30,gWin,18)  ##This is where the + gets entered.
+      plusright <- EasyLABEL("",x+24,y+30,gWin,18)  ##This is where the + gets entered.
+
+      leftbox <- Rectangle(x-24,y+30,34,25,MakeColor("grey"),0)
+      rightbox <- Rectangle(x+24,y+30,34,25,MakeColor("grey"),0)
+      AddObject(leftbox,gWin)
+      AddObject(rightbox,gWin)
+
+      PushOnEnd(labs,tmplab)
+
+      PushOnEnd(pluses,plusleft)
+      PushOnEnd(pluses,plusright)
+
+      PushOnEnd(rects,leftbox)
+      PushOnEnd(rects,rightbox)
+
+      PushOnEnd(lrs,leftright) 
+ }
+
+
+
+   rated <- Repeat(0,10)
+   rating <- Repeat(0,19)
+
+   click <- -1
+   cont <- 1
+
+   targets <- Flatten([yesnobox,rects])
+   Hide(doneback)
+   Hide(done)
+   Draw()
+
+   while (cont)
+    { 
+      if(Sum(rated)==10)
+          {
+	     Show(doneback)
+	     Show(done)
+	     Draw()
+	     targets <- Flatten([yesnobox,rects,doneback])
+           }
+
+	   click <- WaitForClickOnTarget(targets,Sequence(1,Length(targets),1))
+
+	   if(click==20)
+           {
+                cont <- 0
+           } elseif(click==1)
+	   {
+
+             if(yesorno == "" or yesorno =="Yes")
+             {
+                yesorno <- "No"
+             } else {
+                yesorno <- "Yes"
+             }
+            SetElement(rated,1,1) 
+            yesno.text <- yesorno
+	    SetElement(rating,1,yesorno)
+	   }else{
+
+	   ##click on 2/3 = question 2 (yes/no is question 1)
+	    questionID <- Floor(click/2)+1
+	    boxid <- click 
+	    side <- Mod(click,2)*2-1  #-1 is left, +1 is right
+
+	    SetElement(rated,questionID,1)
+
+            tmprate <- Nth(rating,boxid)+1
+	    ##cycle through +,++
+            if(tmprate==3)
+             {
+                tmprate <- 0
+             }
+
+            SetElement(rating,boxID,tmprate)
+            plusbox <- Nth(pluses,boxid-1)
+            plusbox.text <- ListToString(Repeat("+",tmprate))
+
+          }
+      Draw()
+    }
+
+    labelmain.text <- "Complete. Click DONE or continue to adjust"
+    Draw()
+
+
+    lefts <- SubSet(rating,[2,4,6,8,10,12,14,16,18])
+    rights <- Subset(rating,[3,5,7,9,11,13,15,17,19])
+
+   ##Convert lefts and rights to just 0/1
+   loop(i,Sequence(1,9,1))
+    {
+        Print(Nth(lefts,i)+"--"+ Nth(rights,i))
+        SetElement(lefts,i, Nth(lefts,i)>0)
+        SetElement(rights,i, Nth(rights,i)>0)
+    }
+
+   outline <- gSubNum
+   loop(i,rating)
+    {
+	  outline <- outline +","+i 
+    }
+
+    quotient <- (Sum(rights)-Sum(lefts))/9
+    outline <- outline + "," + Sum(lefts) + "," + Sum(rights) + "," + quotient
+   outline <- outline + ","+GetTime()+","+TimeStamp()
+
+
+   MakeDirectory("data")
+   out <- FileOpenAppend("data/handedness-data.csv")
+   FilePrint(out,outline)
+
+   Messagebox("Right-Handedness quotient (-1=left; +1 = right): " + quotient,gWin)
+}
+

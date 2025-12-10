@@ -190,13 +190,22 @@ bool  PlatformCanvas::Reset()
     //SDL_SetAlpha(mSurface,0,0);
 
     //        }
+    mReset = false;  //Reset the reset flag.
+
+
     //we can only render onto a texture if renderer exists.
     //i.e., the canvas needs to be on a window.
 
     if(mTexture)
         {
+
             SDL_DestroyTexture(mTexture);
             mTexture =NULL;
+            mReset = true;
+        }
+    else
+        {
+            mReset = true;
         }
 
     if(mRenderer)
@@ -216,24 +225,11 @@ bool  PlatformCanvas::Reset()
             SDL_SetRenderTarget(mRenderer,mTexture);
             SDL_RenderClear( mRenderer );
 
-            // Get background color from property system (in case it was modified via nested properties)
-            Variant backgroundColor = PEBLObjectBase::GetProperty("BGCOLOR");
-            PColor* bgColor = nullptr;
-            if(backgroundColor.GetComplexData())
-            {
-                bgColor = dynamic_cast<PColor*>(backgroundColor.GetComplexData()->GetObject().get());
-            }
 
-            // Use property color if available, otherwise fall back to mBackgroundColor
-            if(!bgColor)
-            {
-                bgColor = &mBackgroundColor;
-            }
-
-            SDL_SetRenderDrawColor(mRenderer, bgColor->GetRed(),
-                                   bgColor->GetGreen(),
-                                   bgColor->GetBlue(),
-                                   bgColor->GetAlpha());
+            SDL_SetRenderDrawColor(mRenderer,  (mBackgroundColor.GetRed()),
+                                   (mBackgroundColor.GetGreen()),
+                                   (mBackgroundColor.GetBlue()),
+                                   (mBackgroundColor.GetAlpha()));
 
             SDL_RenderFillRect(mRenderer,&screensize);
 
@@ -242,15 +238,16 @@ bool  PlatformCanvas::Reset()
 
             //SDL_FreeSurface(tmp);
 
-        }
+        }else{
+        mReset = true;
+    }
 
-    // Clear the reset flag now that we've completed the reset
-    mReset = false;
 
     if(mTexture)
         return true;
     else
         {
+            mReset = true;
             return false;
         }
 }
@@ -270,16 +267,19 @@ bool PlatformCanvas::SetProperty(std::string name, Variant v)
 
 bool PlatformCanvas::Draw()
 {
-    //Only reset if mReset flag is true (set when properties change)
-    //Don't reset every frame - that destroys the texture that children render to!
+    //Can we only reset if something has changed on a child?
+    mReset = true;
     if(mReset)
-    {
-        Reset();
-    }
+        {
+        }
+            Reset();
 
-    bool ret = PlatformWidget::Draw();
 
-    return ret;
+    bool ret =     PlatformWidget::Draw();
+    mReset = false;
+
+
+    return  ret;
 }
 
 void PlatformCanvas::SetHeight(pInt h)

@@ -1,24 +1,10 @@
-## Test GetSubNum dialog and general GetInput
+## Test simple textbox with GetInput
 
 define Start(p)
 {
   gWin <- MakeWindow("black")
 
-  Print("=== TEST 1: GetSubNum() ===")
-  subnum <- GetSubNum(gWin)
-  Print("Got subject number: " + subnum)
-
-  ## Display it
-  lab <- EasyLabel("Subject: " + subnum, gVideoWidth/2, gVideoHeight/2-100, gWin, 40)
-  Draw()
-  Wait(2000)
-
-  ## Clear screen
-  RemoveObject(lab, gWin)
-  Draw()
-
-  Print("")
-  Print("=== TEST 2: Simple textbox with GetInput() ===")
+  Print("=== Simple textbox with GetInput() ===")
 
   ## Create a simple textbox and use GetInput
   prompt <- EasyLabel("Type your name and press ENTER:", gVideoWidth/2, 100, gWin, 20)
@@ -31,6 +17,7 @@ define Start(p)
 
   ## Display what was entered
   RemoveObject(textbox, gWin)
+  RemoveObject(prompt, gWin)
   result <- EasyLabel("You entered: " + name, gVideoWidth/2, 200, gWin, 30)
   Draw()
   Wait(3000)

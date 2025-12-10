@@ -1,0 +1,33 @@
+## Test very shallow recursion
+
+define Start(p)
+{
+    Print("Testing shallow recursion...")
+
+    Print("Calling CountDown(1)...")
+    result1 <- CountDown(1)
+    Print("CountDown(1) = " + result1)
+
+    Print("Calling CountDown(2)...")
+    result2 <- CountDown(2)
+    Print("CountDown(2) = " + result2)
+
+    Print("Calling CountDown(3)...")
+    result3 <- CountDown(3)
+    Print("CountDown(3) = " + result3)
+
+    Print("Test complete")
+}
+
+define CountDown(n)
+{
+    Print("  CountDown called with n = " + n)
+    result <- 0
+    if(n <= 0)
+    {
+        result <- 0
+    } else {
+        result <- CountDown(n - 1) + 1
+    }
+    return(result)
+}

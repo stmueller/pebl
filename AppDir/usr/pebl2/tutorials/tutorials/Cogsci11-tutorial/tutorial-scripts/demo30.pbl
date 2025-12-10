@@ -1,0 +1,138 @@
+define Start(p)
+{
+   gSleepEasy <- 1
+   win <- MakeWindow()
+   subnum <- GetSubNum(win)
+
+   ##Do rest of experiment here:
+}
+
+
+#define GetSubNum(win)
+#{
+#    out <- VKeyboardInput(win,"Enter participant code","keyboard")
+#    return out
+#}
+
+
+define VKeyboardInput(win,labeltext,type)
+{
+
+   backing <- Rectangle(gVideoWidth/2,gVideoHeight/2,gVideoWidth,gVideoheight,MakeColor("black"),1)
+   AddObject(backing,win)
+   
+    ##basic display parameters
+	ybase <- 50
+	xbase <- 50
+	gap <- 70
+    keysize <- 60
+
+if(Lowercase(type)=="number")
+   {
+   keys <- [["1","2","3"],
+            ["4","5","6"],
+            ["7","8","9"],
+            ["BACK","0","DONE"]]
+
+	##we should automatically determine length/height of keys here.
+	height <- 4
+	width <- 3
+  }elseif(Lowercase(type)=="keyboard")
+   {
+   keys <- [["1","2","3","4","5","6","7","8","9","0"],
+            ["A","B","C","D","E","F","G","H","I","J"],
+			["K","L","M","N","O","P","Q","R","S","T"],
+			["U","V","W","X","Y","Z","CLEAR","BACK","SPACE","DONE"]]
+
+	##we should automatically determine length/height of keys here.
+	height <- 4
+	width <- 10
+   }else{
+    SignalFatalError("Unknown virtual keyboard type ["+type+"]in VKeyboardInput(window,type).  Only keyboard or number are allowed.")
+   }
+ 
+    font <- MakeFont(gPEBLBaseFont,2,25,MakeColor("white"),MakeColor("white"),0)
+	wordfont<-MakeFont(gPEBLBaseFont,2,15,MakeColor("lightgrey"),MakeColor("white"),0)
+
+	##make an entry field label
+    label <- MakeLabel("[]",font)
+	AddObject(label,win)
+	Move(label,xbase + gap*(width+1)/2,ybase)
+	Draw(label)
+
+	inst <- MakeLabel(labeltext,font)
+	AddObject(inst,win)
+	Move(inst,xbase+gap*(width+1)/2,ybase+ gap*(height+1))
+
+    rownum <- 1
+    clicks <- []
+	stuff <- []
+	loop(row,keys)
+    {
+	  colnum <- 1
+	  loop(col,row)
+      {
+        
+        back1 <- Square(xbase+colnum*gap,ybase+rownum*gap,keysize,MakeColor("grey"),1)
+        back2 <- Square(xbase+colnum*gap,ybase+rownum*gap,keysize-4,MakeColor("grey20"),1)
+		if(StringLength(col)>1) 
+         {
+		   lab <- MakeLabel(col,wordfont)
+         } else {
+ 
+	    	lab <- MakeLabel(col,font)
+         }
+		AddObject(back1,win)
+		AddObject(back2,win)
+		AddObject(lab,win)
+		Move(lab,xbase+colnum*gap,ybase+rownum*gap)
+
+
+	    colnum <- colnum + 1
+		clicks <- Append(clicks,back1)
+        stuff <- Append(stuff,[lab,back1,back2])
+      }
+     rownum <- rownum + 1
+	  
+    }
+
+    Draw()
+
+	labtext <- ""
+	resp <- ""
+	while(not resp == "DONE")
+    {
+	  label.text <- labtext
+	  Draw()
+	  resp <- WaitForClickOnTarget(clicks,Flatten(keys))
+	  if(resp == "BACK")
+      {
+	      end <- Max([StringLength(labtext)-1,0])
+		  if(end>0)
+           {
+     		  labtext <- SubString(labtext,1,end)
+		   }else{
+		      labtext <- ""
+           }
+      }elseif(resp=="CLEAR")
+      {
+        labtext <- ""
+	  } elseif(resp == "DONE")
+      {
+	    Print(labtext)
+      }  elseif(resp == "SPACE")
+      {
+        labtext <- labtext + " "
+      }else {
+        labtext <- labtext + resp
+      }
+	 
+    }
+
+	 label.text <- labtext
+     Draw()
+
+    
+	return labtext
+
+}

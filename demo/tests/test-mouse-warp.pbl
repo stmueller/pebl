@@ -1,0 +1,95 @@
+## Simple test program to check SDL video drivers and mouse warping
+## Usage:
+##   Default (Wayland): bin/pebl2 test-mouse-warp.pbl
+##   Force X11:         SDL_VIDEODRIVER=x11 bin/pebl2 test-mouse-warp.pbl
+
+define Start(p)
+{
+    ## List available video drivers
+    Print("========================================")
+    Print("Available SDL Video Drivers:")
+    drivers <- GetDrivers()
+    Print(drivers)
+    Print("========================================")
+    Print("")
+
+    ## Create window
+    gWin <- MakeWindow("black")
+
+    ## Show instructions
+    inst <- "This test will check if mouse warping works."+CR(1)+CR(1)+
+            "The red circle shows where the mouse should warp to."+CR(1)+
+            "The white crosshair shows the actual mouse position."+CR(1)+CR(1)+
+            "Press any key to start the test."
+
+    MessageBox(inst, gWin)
+
+    ## Create visual markers
+    homeX <- 400
+    homeY <- 300
+
+    ## Target location (where mouse should warp)
+    target <- Circle(homeX, homeY, 20, MakeColor("red"), 1)
+    AddObject(target, gWin)
+
+    ## Crosshair to show actual mouse position
+    crosshair <- Plus(0, 0, 30, 3, MakeColor("white"))
+    AddObject(crosshair, gWin)
+
+    ## Instructions label
+    label <- EasyLabel("Click anywhere to warp mouse to red circle",
+                       gVideoWidth/2, 50, gWin, 18)
+
+    counterLabel <- EasyLabel("Warps: 0", gVideoWidth/2, 100, gWin, 18)
+
+    Draw()
+
+    ## Test loop
+    count <- 0
+    continue <- 1
+
+    while(continue)
+    {
+        ## Update crosshair to actual mouse position
+        mousePos <- GetMouseCursorPosition()
+        crosshair.x <- First(mousePos)
+        crosshair.y <- Nth(mousePos, 2)
+        Draw()
+
+        ## Wait for click
+        click <- WaitForClickOnTarget([target, label, counterLabel], [1, 2, 3])
+
+        if(click == 1)  ## Clicked on target
+        {
+            label.text <- "Mouse was already at target! Click elsewhere to test warp."
+        } else {
+            ## Try to warp mouse to target
+            Print("Attempting to warp mouse to: " + homeX + ", " + homeY)
+            SetMouseCursorPosition(homeX, homeY)
+
+            ## Give SDL time to process
+            Wait(50)
+
+            ## Check if it worked
+            newPos <- GetMouseCursorPosition()
+            newX <- First(newPos)
+            newY <- Nth(newPos, 2)
+
+            dist <- Sqrt((newX - homeX)^2 + (newY - homeY)^2)
+
+            if(dist < 5)
+            {
+                label.text <- "SUCCESS! Mouse warped correctly. Distance: " + Round(dist) + "px"
+                Print("Mouse warp succeeded!")
+            } else {
+                label.text <- "FAILED! Mouse did not warp. Distance: " + Round(dist) + "px (expected < 5)"
+                Print("Mouse warp failed! Expected (" + homeX + "," + homeY + ") but got (" + newX + "," + newY + ")")
+            }
+
+            count <- count + 1
+            counterLabel.text <- "Warps attempted: " + count
+        }
+
+        Draw()
+    }
+}

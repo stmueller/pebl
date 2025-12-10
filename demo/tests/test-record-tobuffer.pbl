@@ -1,0 +1,29 @@
+## Test RecordToBuffer() function
+define Start(p)
+{
+   gVideoWidth<- 800
+   gVideoHeight <- 600
+   ## Create a window - SDL might need this
+   win <- MakeWindow("black")
+
+   ## DIAGNOSTIC: Play a sound first to wake up the audio system
+#   Print("Playing sound to wake up audio system...")
+#   sound <- LoadSound("buzz500ms.wav")
+#   PlayBackground(sound)
+#   Wait(600)  ## Wait for sound to finish
+#   Print("Sound played.")
+
+   Print("Creating 3-second audio buffer...")
+   buffer <- MakeAudioInputBuffer(10000)
+   Print("Buffer created successfully!")
+
+   Print("Recording audio for 3 seconds (say something)...")
+   RecordToBuffer(buffer)
+   Print("Recording complete!")
+
+   Print("Saving buffer to WAV file...")
+   SaveAudioToWaveFile("test-recordtobuffer.wav", buffer)
+   Print("Done! Check test-recordtobuffer.wav")
+
+   WaitForAnyKeyPress()
+}

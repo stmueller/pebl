@@ -1,0 +1,105 @@
+## Test luckvogel semantic labels with different response modes
+
+define Start(p)
+{
+  gSubNum <- 999
+
+  ## Test keyboard mode
+  Print("=== TEST: luckvogel with keyboardShift mode ===")
+  gWin <- MakeWindow("black")
+
+  parpairs <- [["fieldWidth",200],
+               ["fieldheight",200],
+               ["squaresize",30],
+               ["prestime",300],
+               ["delaytime",1000],
+               ["length1",1],
+               ["length2",2],
+               ["length3",3],
+               ["trialsperlength",1],
+               ["givefeedback",0],
+               ["blocksize",40],
+               ["useAudiofeedback",0],
+               ["responsemode","keyboardShift"],
+               ["responselabels",["SAME","DIFFERENT"]]]
+
+  gParams <- CreateParameters(parpairs,gParamFile)
+  gLayout <- CreateLayout("luckvogel", gWin, gParams)
+
+  Print("Response mode: " + gLayout.responseMode.type)
+  Print("Footer: " + gLayout.footer.text)
+  Print("Labels:")
+  loop(label, gLayout.responseLabels)
+  {
+    Print("  - " + label.text)
+  }
+
+  Draw()
+  Wait(2000)
+
+  ## Test mousebutton mode
+  Print("")
+  Print("=== TEST: luckvogel with mousebutton mode ===")
+
+  parpairs2 <- [["fieldWidth",200],
+                ["fieldheight",200],
+                ["squaresize",30],
+                ["prestime",300],
+                ["delaytime",1000],
+                ["length1",1],
+                ["length2",2],
+                ["length3",3],
+                ["trialsperlength",1],
+                ["givefeedback",0],
+                ["blocksize",40],
+                ["useAudiofeedback",0],
+                ["responsemode","mousebutton"],
+                ["responselabels",["SAME","DIFFERENT"]]]
+
+  gParams2 <- CreateParameters(parpairs2,gParamFile)
+  gLayout2 <- CreateLayout("luckvogel", gWin, gParams2)
+
+  Print("Response mode: " + gLayout2.responseMode.type)
+  Print("Footer: " + gLayout2.footer.text)
+  Print("Labels:")
+  loop(label, gLayout2.responseLabels)
+  {
+    Print("  - " + label.text)
+  }
+
+  Draw()
+  Wait(2000)
+
+  ## Test mousetarget mode
+  Print("")
+  Print("=== TEST: luckvogel with mousetarget mode ===")
+
+  parpairs3 <- [["fieldWidth",200],
+                ["fieldheight",200],
+                ["squaresize",30],
+                ["prestime",300],
+                ["delaytime",1000],
+                ["length1",1],
+                ["length2",2],
+                ["length3",3],
+                ["trialsperlength",1],
+                ["givefeedback",0],
+                ["blocksize",40],
+                ["useAudiofeedback",0],
+                ["responsemode","mousetarget"],
+                ["responselabels",["SAME","DIFFERENT"]]]
+
+  gParams3 <- CreateParameters(parpairs3,gParamFile)
+  gLayout3 <- CreateLayout("luckvogel", gWin, gParams3)
+
+  Print("Response mode: " + gLayout3.responseMode.type)
+  Print("Footer: " + gLayout3.footer.text)
+  Print("Labels:")
+  loop(label, gLayout3.responseLabels)
+  {
+    Print("  - " + label.text)
+  }
+
+  Draw()
+  Wait(2000)
+}

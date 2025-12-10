@@ -1,0 +1,62 @@
+## Test TEXTCOMPLETE property with different text lengths
+
+define Start(lPar)
+{
+    gWin <- MakeWindow("black")
+
+    Print("=======================================================================")
+    Print("TEXTCOMPLETE PROPERTY TEST")
+    Print("=======================================================================")
+    Print("")
+
+    ## Test 1: Text that fits
+    Print("TEST 1: Short text in large box (should be complete)")
+    shortText <- "This is short text."
+    box1 <- EasyTextBox(shortText, 50, 50, gWin, 24, 400, 200)
+    Print("  numTextLines: " + box1.numTextLines)
+    Print("  textComplete: " + box1.textComplete)
+    Print("")
+
+    ## Test 2: Text that doesn't fit
+    Print("TEST 2: Long text in small box (should NOT be complete)")
+    longText <- "This is a very long piece of text designed to thoroughly test the adaptive textbox functionality. It contains many sentences with enough content to ensure that it will require significant adaptation in most scenarios. The purpose is to verify that both the scalebox and scalefont strategies work correctly when dealing with substantial amounts of text that would normally overflow a standard textbox."
+    RemoveObject(box1, gWin)
+    box2 <- EasyTextBox(longText, 50, 50, gWin, 24, 400, 100)
+    Print("  numTextLines: " + box2.numTextLines)
+    Print("  textComplete: " + box2.textComplete)
+    Print("")
+
+    ## Test 3: Gradually increase box height until complete
+    Print("TEST 3: Iteratively increase box height until textComplete=1")
+    RemoveObject(box2, gWin)
+    height <- 50
+    box3 <- EasyTextBox(longText, 50, 50, gWin, 24, 400, height)
+    iteration <- 0
+
+    while(box3.textComplete == 0 and iteration < 20)
+    {
+        iteration <- iteration + 1
+        height <- height + 20
+        box3.height <- height
+        Draw(box3)
+        Print("  Iteration " + iteration + ": height=" + height +
+              ", numTextLines=" + box3.numTextLines +
+              ", textComplete=" + box3.textComplete)
+    }
+
+    if(box3.textComplete == 1)
+    {
+        Print("  SUCCESS: All text rendered at height=" + height)
+    }
+    else
+    {
+        Print("  FAILED: Text still not complete after " + iteration + " iterations")
+    }
+
+    Print("")
+    Print("=======================================================================")
+    Print("TEST COMPLETE")
+    Print("=======================================================================")
+
+    Wait(500)
+}

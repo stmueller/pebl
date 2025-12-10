@@ -1,0 +1,358 @@
+## PEBL Language and Script Testing Suite
+## Tests automatic RTL detection and HarfBuzz script shaping
+## This file demonstrates proper rendering of various writing systems
+
+define Start(p) {
+
+    gWin <- MakeWindow("black")
+
+    font <- MakeFont(gPEBLBaseFont, 0, 28, MakeColor("black"), MakeColor("white"), 1)
+    smallfont <- MakeFont(gPEBLBaseFont, 0, 16, MakeColor("grey"), MakeColor("black"), 1)
+
+    y <- 50
+    x <- 200  ## Shifted right 100px (labels are centered on x, not left-aligned)
+
+    ## Header
+    header <- MakeLabel("PEBL Multi-Script Rendering Test", font)
+    AddObject(header, gWin)
+    Move(header, 512, y)
+    y <- y + 60
+
+    ## Test 1: Arabic (script: Arab, direction: RTL, ligatures: yes)
+    label1 <- MakeLabel("Arabic (with ligatures):", smallfont)
+    AddObject(label1, gWin)
+    Move(label1, x, y)
+
+    arabic <- MakeLabel("مرحبا بالعالم", font)  ## "Hello world"
+    AddObject(arabic, gWin)
+    Move(arabic, x + 300, y)
+    y <- y + 45
+
+    ## Test 2: Hebrew (script: Hebr, direction: RTL)
+    label2 <- MakeLabel("Hebrew:", smallfont)
+    AddObject(label2, gWin)
+    Move(label2, x, y)
+
+    hebrew <- MakeLabel("שלום עולם", font)  ## "Hello world"
+    AddObject(hebrew, gWin)
+    Move(hebrew, x + 300, y)
+    y <- y + 45
+
+    ## Test 3: English (script: none, direction: LTR)
+    label3 <- MakeLabel("English:", smallfont)
+    AddObject(label3, gWin)
+    Move(label3, x, y)
+
+    english <- MakeLabel("Hello World", font)
+    AddObject(english, gWin)
+    Move(english, x + 300, y)
+    y <- y + 45
+
+    ## Test 4: Mixed bidirectional text
+    label4 <- MakeLabel("Mixed (English + Hebrew):", smallfont)
+    AddObject(label4, gWin)
+    Move(label4, x, y)
+
+    mixed <- MakeLabel("Hello שלום World", font)
+    AddObject(mixed, gWin)
+    Move(mixed, x + 300, y)
+    y <- y + 45
+
+    ## Test 5: Devanagari (script: Deva, direction: LTR, conjuncts: yes)
+    label5 <- MakeLabel("Hindi/Devanagari:", smallfont)
+    AddObject(label5, gWin)
+    Move(label5, x, y)
+
+    devanagari <- MakeLabel("नमस्ते दुनिया", font)  ## "Hello world"
+    AddObject(devanagari, gWin)
+    Move(devanagari, x + 300, y)
+    y <- y + 45
+
+    ## Test 6: Thai (script: Thai, direction: LTR, tone marks: yes)
+    label6 <- MakeLabel("Thai:", smallfont)
+    AddObject(label6, gWin)
+    Move(label6, x, y)
+
+    thai <- MakeLabel("สวัสดีชาวโลก", font)  ## "Hello world"
+    AddObject(thai, gWin)
+    Move(thai, x + 300, y)
+    y <- y + 45
+
+    ## Test 7: Bengali (script: Beng, direction: LTR, conjuncts: yes)
+    label7 <- MakeLabel("Bengali:", smallfont)
+    AddObject(label7, gWin)
+    Move(label7, x, y)
+
+    bengali <- MakeLabel("হ্যালো বিশ্ব", font)  ## "Hello world"
+    AddObject(bengali, gWin)
+    Move(bengali, x + 300, y)
+    y <- y + 45
+
+    ## Test 8: Chinese (script: Hani, direction: LTR)
+    label8 <- MakeLabel("Chinese (Simplified):", smallfont)
+    AddObject(label8, gWin)
+    Move(label8, x, y)
+
+    chinese <- MakeLabel("你好世界", font)  ## "Hello world"
+    AddObject(chinese, gWin)
+    Move(chinese, x + 300, y)
+    y <- y + 45
+
+    ## Test 9: Japanese (script: Hani/Kana, direction: LTR)
+    label9 <- MakeLabel("Japanese:", smallfont)
+    AddObject(label9, gWin)
+    Move(label9, x, y)
+
+    japanese <- MakeLabel("こんにちは世界", font)  ## "Hello world"
+    AddObject(japanese, gWin)
+    Move(japanese, x + 300, y)
+    y <- y + 45
+
+    ## Test 10: Korean (script: Hang, direction: LTR)
+    label10 <- MakeLabel("Korean:", smallfont)
+    AddObject(label10, gWin)
+    Move(label10, x, y)
+
+    korean <- MakeLabel("안녕하세요 세계", font)  ## "Hello world"
+    AddObject(korean, gWin)
+    Move(korean, x + 300, y)
+    y <- y + 60
+
+    ## Test 11: Multi-line TextBox with Arabic
+    y <- y + 20
+    label8 <- MakeLabel("Arabic TextBox (multi-line):", smallfont)
+    AddObject(label8, gWin)
+    Move(label8, x, y)
+
+    arabicText <- "مرحبا بالعالم" + CR(1) + "هذا اختبار للنص العربي" + CR(1) + "مع عدة أسطر"
+    textbox <- MakeTextBox(arabicText, font, 600, 120)
+    AddObject(textbox, gWin)
+    Move(textbox, x, y + 30)
+    y <- y + 170
+
+    ## Test 9: Hebrew TextBox
+    label9 <- MakeLabel("Hebrew TextBox (multi-line):", smallfont)
+    AddObject(label9, gWin)
+    Move(label9, x, y)
+
+    hebrewText <- "שלום עולם" + CR(1) + "זהו מבחן של טקסט עברי" + CR(1) + "עם מספר שורות"
+    textbox2 <- MakeTextBox(hebrewText, font, 600, 120)
+    AddObject(textbox2, gWin)
+    Move(textbox2, x, y + 30)
+
+    ## Instructions
+    instructions <- MakeLabel("Press SPACE to continue, ESC to quit", smallfont)
+    AddObject(instructions, gWin)
+    Move(instructions, 512, 750)
+
+    Draw()
+
+    WaitForKeyPress(" ")
+
+    ## Page 2: GetInput Tests (RTL cursor positioning)
+    Hide(header)
+    Hide(label1)
+    Hide(arabic)
+    Hide(label2)
+    Hide(hebrew)
+    Hide(label3)
+    Hide(english)
+    Hide(label4)
+    Hide(mixed)
+    Hide(label5)
+    Hide(devanagari)
+    Hide(label6)
+    Hide(thai)
+    Hide(label7)
+    Hide(bengali)
+    Hide(label8)
+    Hide(chinese)
+    Hide(label9)
+    Hide(japanese)
+    Hide(label10)
+    Hide(korean)
+    Hide(textbox)
+    Hide(textbox2)
+    Hide(instructions)
+
+    y <- 50
+
+    header_input <- MakeLabel("GetInput Test - RTL Cursor Positioning", font)
+    AddObject(header_input, gWin)
+    Move(header_input, 512, y)
+    y <- y + 80
+
+    ## Test Arabic input
+    label_ar_input <- MakeLabel("Type in Arabic (press ESC when done):", smallfont)
+    AddObject(label_ar_input, gWin)
+    Move(label_ar_input, x, y)
+    y <- y + 40
+
+    ## Seed with Arabic text to trigger RTL detection
+    arabic_input_box <- MakeTextBox("مرحبا", font, 600, 80)
+ #   SetProperty(arabic_input_box, "BACKGROUNDCOLOR", MakeColor("white"))
+    AddObject(arabic_input_box, gWin)
+    Move(arabic_input_box, x + 300, y)
+    y <- y + 100
+
+    ## Test Hebrew input
+    label_he_input <- MakeLabel("Type in Hebrew (press ESC when done):", smallfont)
+    AddObject(label_he_input, gWin)
+    Move(label_he_input, x, y)
+    y <- y + 40
+
+    ## Seed with Hebrew text to trigger RTL detection
+    hebrew_input_box <- MakeTextBox("שלום", font, 600, 80)
+#    SetProperty(hebrew_input_box, "BACKGROUNDCOLOR", MakeColor("white"))
+    AddObject(hebrew_input_box, gWin)
+    Move(hebrew_input_box, x + 300, y)
+    y <- y + 100
+
+    ## Test English input (baseline)
+    label_en_input <- MakeLabel("Type in English (press ESC when done):", smallfont)
+    AddObject(label_en_input, gWin)
+    Move(label_en_input, x, y)
+    y <- y + 40
+
+    english_input_box <- MakeTextBox("Hello", font, 600, 80)
+#    SetProperty(english_input_box, "BACKGROUNDCOLOR", MakeColor("white"))
+    AddObject(english_input_box, gWin)
+    Move(english_input_box, x + 300, y)
+    y <- y + 100
+
+    ## Test English RIGHT-justified input
+    label_en_right_input <- MakeLabel("Type in English RIGHT-justified (press ESC when done):", smallfont)
+    AddObject(label_en_right_input, gWin)
+    Move(label_en_right_input, x, y)
+    y <- y + 40
+
+    english_right_input_box <- MakeTextBox("Hello Right", font, 600, 80)
+    SetProperty(english_right_input_box, "JUSTIFY", "RIGHT")
+#    SetProperty(english_right_input_box, "BACKGROUNDCOLOR", MakeColor("white"))
+    AddObject(english_right_input_box, gWin)
+    Move(english_right_input_box, x + 300, y)
+    y <- y + 100
+
+    ## Instructions for input tests
+    instructions_input <- MakeLabel("Click in a box and type. Test cursor positioning with arrows and mouse clicks.", smallfont)
+    AddObject(instructions_input, gWin)
+    Move(instructions_input, 512, y)
+    y <- y + 30
+
+    instructions_input2 <- MakeLabel("Press SPACE when done to see results, or Q to skip", smallfont)
+    AddObject(instructions_input2, gWin)
+    Move(instructions_input2, 512, y)
+
+    Draw()
+
+    ## Get Arabic input
+    arabic_result <- GetInput(arabic_input_box, "<esc>")
+
+    ## Get Hebrew input
+    hebrew_result <- GetInput(hebrew_input_box, "<esc>")
+
+    ## Get English input
+    english_result <- GetInput(english_input_box, "<esc>")
+
+    ## Get English RIGHT-justified input
+    english_right_result <- GetInput(english_right_input_box, "<esc>")
+
+    ## Show what was typed
+    Hide(label_ar_input)
+    Hide(arabic_input_box)
+    Hide(label_he_input)
+    Hide(hebrew_input_box)
+    Hide(label_en_input)
+    Hide(english_input_box)
+    Hide(label_en_right_input)
+    Hide(english_right_input_box)
+    Hide(instructions_input)
+    Hide(instructions_input2)
+
+    y <- 150
+
+    result_header <- MakeLabel("You typed:", font)
+    AddObject(result_header, gWin)
+    Move(result_header, 512, y)
+    y <- y + 60
+
+    ar_result_label <- MakeLabel("Arabic: " + arabic_result, smallfont)
+    AddObject(ar_result_label, gWin)
+    Move(ar_result_label, 512, y)
+    y <- y + 40
+
+    he_result_label <- MakeLabel("Hebrew: " + hebrew_result, smallfont)
+    AddObject(he_result_label, gWin)
+    Move(he_result_label, 512, y)
+    y <- y + 40
+
+    en_result_label <- MakeLabel("English: " + english_result, smallfont)
+    AddObject(en_result_label, gWin)
+    Move(en_result_label, 512, y)
+    y <- y + 40
+
+    en_right_result_label <- MakeLabel("English (RIGHT): " + english_right_result, smallfont)
+    AddObject(en_right_result_label, gWin)
+    Move(en_right_result_label, 512, y)
+    y <- y + 80
+
+    next_instructions <- MakeLabel("Press SPACE to continue", smallfont)
+    AddObject(next_instructions, gWin)
+    Move(next_instructions, 512, y)
+
+    Draw()
+    WaitForKeyPress(" ")
+
+    ## Page 3: Script detection details
+    Hide(header_input)
+    Hide(ar_result_label)
+    Hide(he_result_label)
+    Hide(en_result_label)
+    Hide(en_right_result_label)
+    Hide(result_header)
+    Hide(next_instructions)
+
+    y <- 50
+
+    header2 <- MakeLabel("Script Detection Details", font)
+    AddObject(header2, gWin)
+    Move(header2, 512, y)
+    y <- y + 80
+
+    detailFont <- MakeFont("DejaVuSans.ttf", 0, 20, MakeColor("lightgreen"), MakeColor("black"), 1)
+
+    details <- [
+        "Auto-detected scripts:",
+        "",
+        "Arab (Arabic) - RTL + contextual joining + ligatures",
+        "Hebr (Hebrew) - RTL + diacritics",
+        "Deva (Devanagari) - LTR + conjunct consonants",
+        "Thai (Thai) - LTR + tone marks + vowel positioning",
+        "Beng (Bengali) - LTR + conjunct forms",
+        "Hani (Chinese) - LTR + ideographs",
+        "Kana (Japanese) - LTR + syllabary",
+        "Hang (Korean) - LTR + hangul syllables",
+        "NULL (Latin/Cyrillic/Greek) - LTR + standard",
+        "",
+        "Benefits:",
+        "- Zero configuration required",
+        "- Proper ligatures for Arabic (40% width reduction)",
+        "- Correct RTL text flow",
+        "- Complex script support (Devanagari conjuncts, Thai marks)",
+        "- Font coverage depends on gPEBLBaseFont selection"
+    ]
+
+    loop(line, details) {
+        detail <- MakeLabel(line, detailFont)
+        AddObject(detail, gWin)
+        Move(detail, 512, y)
+        y <- y + 35
+    }
+
+    instructions2 <- MakeLabel("Press any key to exit", smallfont)
+    AddObject(instructions2, gWin)
+    Move(instructions2, 512, 750)
+
+    Draw()
+    WaitForAnyKeyPress()
+}

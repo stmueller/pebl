@@ -1,0 +1,86 @@
+define Start(p)
+{
+  gVideoWidth <- 600
+  gVideoHeight <- 600
+  gWin <- MakeWindow("grey40")
+
+  ## Create status label at bottom
+  gStatusLabel <- EasyLabel("Click on any target...", gVideoWidth/2, gVideoHeight - 30, gWin, 16)
+
+  ## Create several target objects
+  targets <- []
+  labels <- []
+
+  ## Create 3 circles
+  circle1 <- Circle(150, 150, 40, MakeColor("red"), 1)
+  AddObject(circle1, gWin)
+  PushOnEnd(targets, circle1)
+  PushOnEnd(labels, "Red Circle")
+
+  circle2 <- Circle(300, 150, 40, MakeColor("blue"), 1)
+  AddObject(circle2, gWin)
+  PushOnEnd(targets, circle2)
+  PushOnEnd(labels, "Blue Circle")
+
+  circle3 <- Circle(450, 150, 40, MakeColor("green"), 1)
+  AddObject(circle3, gWin)
+  PushOnEnd(targets, circle3)
+  PushOnEnd(labels, "Green Circle")
+
+  ## Create 3 rectangles
+  rect1 <- Rectangle(150, 300, 80, 60, MakeColor("orange"), 1)
+  AddObject(rect1, gWin)
+  PushOnEnd(targets, rect1)
+  PushOnEnd(labels, "Orange Rectangle")
+
+  rect2 <- Rectangle(300, 300, 80, 60, MakeColor("purple"), 1)
+  AddObject(rect2, gWin)
+  PushOnEnd(targets, rect2)
+  PushOnEnd(labels, "Purple Rectangle")
+
+  rect3 <- Rectangle(450, 300, 80, 60, MakeColor("yellow"), 1)
+  AddObject(rect3, gWin)
+  PushOnEnd(targets, rect3)
+  PushOnEnd(labels, "Yellow Rectangle")
+
+  statuslab <- EasyLabel("",gVideoWidth/2,400,gWin,15,"grey20")
+
+  ## Create exit button
+  exitBack <- Rectangle(gVideoWidth/2, 450, 120, 50, MakeColor("red"), 1)
+  AddObject(exitBack, gWin)
+  exitLabel <- EasyLabel("EXIT", gVideoWidth/2, 450, gWin, 24, "white")
+  PushOnEnd(targets, exitBack)
+  PushOnEnd(labels, "EXIT")
+
+  Draw()
+
+  ## Main loop - wait for clicks
+  continuing <- 1
+  clickCount <- 0
+
+  while(continuing)
+  {
+    Print("Waiting for click...")
+
+    ## Wait for click on any target
+    result <- WaitForClickOnTarget(targets, labels)
+
+    clickCount <- clickCount + 1
+    Print("Click #" + clickCount + ": " + result)
+    statuslab.text <- result + "  " + clickcount
+    
+    ## Update status label
+    if(result == "EXIT")
+    {
+      gStatusLabel.text <- "Exiting... Total clicks: " + clickCount
+      continuing <- 0
+    } else {
+      gStatusLabel.text <- "You clicked: " + result + " (click #" + clickCount + ")"
+    }
+
+    Draw()
+  }
+
+#  Wait(1000)
+  Print("Test complete!")
+}

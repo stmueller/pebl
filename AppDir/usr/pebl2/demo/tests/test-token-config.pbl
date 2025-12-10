@@ -1,0 +1,86 @@
+## Test token-based upload configuration
+## This script verifies that upload.json is correctly injected from URL parameters
+
+define Start(p)
+{
+    gVideoWidth <- 800
+    gVideoHeight <- 600
+    gWin <- MakeWindow()
+
+    Print("=== PEBL Token-Based Configuration Test ===")
+    Print("")
+
+    ## Check if upload.json exists
+    configExists <- FileExists("upload.json")
+    Print("upload.json exists: " + configExists)
+    Print("")
+
+    if(configExists)
+    {
+        ## Read and parse the configuration
+        Print("Reading upload.json...")
+        configText <- FileReadText("upload.json")
+        Print("Raw content:")
+        Print(configText)
+        Print("")
+
+        ## Parse JSON and display fields
+        config <- ParseJSON(configText)
+        Print("Parsed configuration:")
+        Print("  host: " + config.host)
+        Print("  port: " + config.port)
+        Print("  page: " + config.page)
+        Print("  taskname: " + config.taskname)
+        Print(config)
+	PrintProperties(config)
+	
+        ## Check if token is present
+        if(PropertyExists(config, "token"))
+        {
+            Print("  token: " + config.token + " (length: " + StringLength(config.token) + ")")
+            Print("")
+            Print("✓ Token-based authentication configured!")
+        } else {
+            Print("  username: " + config.username)
+            Print("  password: [hidden]")
+            Print("")
+            Print("⚠ Using username/password authentication")
+        }
+    } else {
+        Print("✗ upload.json not found!")
+        Print("")
+        Print("Expected URL format:")
+        Print("  pebl2.html?token=YOUR_TOKEN&server=localhost&port=8080&task=test")
+    }
+
+    ## Display results in window
+    title <- EasyLabel("Token Configuration Test", gVideoWidth/2, 50, gWin, 22)
+
+    if(configExists)
+    {
+        msg1 <- EasyLabel("✓ Configuration loaded successfully", gVideoWidth/2, 150, gWin, 18)
+        msg2 <- EasyLabel("Server: " + config.host + ":" + config.port, gVideoWidth/2, 200, gWin, 14)
+        msg3 <- EasyLabel("Task: " + config.taskname, gVideoWidth/2, 240, gWin, 14)
+
+        if(PropertyExists(config, "token"))
+        {
+            msg4 <- EasyLabel("Auth: Token (length " + StringLength(config.token) + ")", gVideoWidth/2, 280, gWin, 14)
+        } else {
+            msg4 <- EasyLabel("Auth: Username/Password", gVideoWidth/2, 280, gWin, 14)
+        }
+    } else {
+        msg1 <- EasyLabel("✗ Configuration not found", gVideoWidth/2, 150, gWin, 18)
+        msg2 <- EasyLabel("Add ?token=TOKEN to URL", gVideoWidth/2, 200, gWin, 14)
+    }
+
+    instr <- EasyLabel("Check browser console for details", gVideoWidth/2, 350, gWin, 14)
+    instr2 <- EasyLabel("Press any key to exit", gVideoWidth/2, 400, gWin, 14)
+
+    Draw()
+    WaitForAnyKeyPress()
+
+    Print("")
+    Print("=== Test Complete ===")
+
+    return(1)
+}

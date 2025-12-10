@@ -1,0 +1,150 @@
+define Start(par)
+{
+  gUseGUI <- 1
+
+  if(gUseGUI)
+  {
+    gVideoWidth <- 800
+    gVideoHeight <- 600
+
+     gWin <- MakeWindow("black")
+     ##These are updated with UpdateQueue function:
+     gStatus <- EasyTextBox("",50,50,gWin,12,600,400)
+     gMessageQueue <- []
+     gmqMax <- 25
+  }
+
+
+
+  Message("Starting fileserver")
+  Message("Creating data subdirectory")
+  MakeDirectory("data")
+  count <- 1
+  cont <- 1
+  while(cont)
+  {
+
+##  The following can be replaced by the two-step OpenNetworkListener and CheckForNetworkConnection.
+
+if(not gUseGUI)
+       {
+      gNetwork <- WaitForNetworkConnection(4444)
+
+     l1 <- GetData(gNetwork,16)
+     length <- ToNumber(l1)
+     Print("l1:[" + l1 + "] length: " + length)
+     tag <- StripSpace(GetData(gNetwork,16))
+     Print("***************fileserver1 Getting file of length: "+ length)
+     data <- GetData(gNetwork,length)
+#     Print("data gotten")
+
+     CloseNetworkConnection(gNetwork)
+
+     unique <- RandomDiscrete(100000)
+     fname <- "data/"+ReplaceChar(tag+ReplaceChar(TimeStamp()," ","_")+"-"+unique+".txt","/","")
+     out <- FileOpenWrite(fname)
+     FilePrint(out,data)
+     FileClose(out)   
+     Message(fname +" Written")
+     Message("count: "+count)
+     count <- count + 1
+
+       }else{
+
+
+       gNetwork <-      OpenNetworkListener(4444)
+       Message("Network listener created")
+#     PrintProperties(gNetwork)     
+#     ip <- GetMyIPAddress(gNetwork)     
+#     Print("IP Address: " +ip) 
+     
+     unconnected <- 1
+
+     while(unconnected)
+     {
+ 
+       connection <- CheckForNetworkConnection(gNetwork)       
+       unconnected <- connection==0
+       resp <- (WaitForListKeyPressWithTimeout(["Q"],100,1))
+#       Print(resp)
+       if(resp == "q")
+       {
+          unconnected <- 0
+	  cont <- 0
+       } 
+
+      Draw()
+     } 
+
+   if(not (resp == "Q"))
+   {
+     Message("Client Connected")
+     tag <- StripSpace(GetData(gNetwork,32))
+     Message("Using tag:              " + tag)
+     length <- ToNumber(GetData(gNetwork,16))
+     Message("Getting file of length: " + length)
+
+     Print("***************fileserver2 Getting file of length: "+ length)
+     data <- GetData(gNetwork,length)
+     Message("Data received.")
+     CloseNetworkConnection(gNetwork)
+
+
+     unique <- RandomDiscrete(100000)
+     fname <- "data/"+tag+ReplaceChar(TimeStamp()," ","_")+"-"+unique+".txt"
+
+     out <- FileOpenWrite(fname)
+     FilePrint(out,data)
+     FileClose(out)
+
+     Message(fname +" Written")
+     Message("count: "+count)
+     count <- count + 1
+  #   SignalFatalError("DONE")
+  }
+}
+ }
+
+}
+
+define Message(message)
+{
+
+
+    if(not gUseGUI)
+    {
+          Print(Format(TimeStamp(),25)+message)
+    }else{
+     PushOnEnd(gMessageQueue,Format(TimeStamp(),25)+message)
+
+     len <- Length(gMessageQueue)
+     if(len>gmqMax)
+     {
+       gMessageQueue <- Sublist(gMessageQueue,2,len)
+     }
+     text <- ""
+     ii <- 1
+     loop(i,Reverse(gMessageQueue))
+     {
+      text <- text +ii+" " + i + CR(1)
+      ii <- ii + 1
+     }
+
+     gStatus.text <- text
+     Draw()
+  }
+}
+
+
+define StartClient()
+{
+  gHeader.text <- "Enter Host Name (e.g., localhost)"
+  gEntry.text <- "localhost"
+  Show(gEntry)
+  Draw()  
+  address <- GetInput(gEntry,"<return>")
+  gNetwork <- ConnectToHost(address,4444)
+   Hide(gEntry)
+  Draw()   
+}
+

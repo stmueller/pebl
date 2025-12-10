@@ -1,0 +1,42 @@
+
+define Start(p)
+
+{
+   win <- MakeWindow()
+   gSubNum <- GetSubNum(win)
+  #make a name for the logfile that depends on subject code
+  logname <- "explog-"+gSubNum+".csv"
+  #Check if the file already exists
+  if(FileExists(logname))
+   {
+       #if it does, find out how long it was.  FileReadList reads a file into a list
+       ## we could also use FileReadTable(), and get the actual number of the session.
+       tmp <- FileReadList(logname)
+       ## Increment the session number
+       session <- Length(tmp)+1
+
+   } else {
+       #This is the first session
+       session <- 1
+   }
+
+   ##Now,know which session we are in.  Open the log file and write out a line
+   ##including a timestamp, so you know when it took place.
+   outlog <- FileOpenAppend(logname)
+   FilePrint(outlog,gSubNum + "," + session +","+ TimeStamp())
+   FileClose(outlog)
+  #Make sure gSubNum is a number
+  subnum <- ToNumber (gSubNum)
+ SeedRNG(subnum)
+
+  #create a random sequence of the stimuli, guaranteed to be the same every time the subject is run
+  stim <- Shuffle(Sequence(1,100,1))
+  sessionStim <- SubList(stim, 1 + (session-1)*20, session*20)
+  Print(sessionStim)
+}
+
+ 
+define FileExistsX(file)
+{
+  return 1
+}

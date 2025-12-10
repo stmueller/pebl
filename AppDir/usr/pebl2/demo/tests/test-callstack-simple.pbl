@@ -1,0 +1,19 @@
+## Simplest possible test case for call stack bug
+## Tests if the issue is specifically with Start() having a parameter
+
+define Start(p)
+{
+    Print("Start() called with parameter")
+    Print("Calling user function...")
+
+    ## Does this trigger the call stack error?
+    MyFunction()
+
+    Print("Success!")
+}
+
+define MyFunction()
+{
+    Print("Inside MyFunction()")
+    return 42
+}

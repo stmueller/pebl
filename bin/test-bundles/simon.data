@@ -1,0 +1,438 @@
+# Simon Task - Translation Files Complete
+
+## Summary
+Created translation files for the Simon Task in 7 languages (including the existing English and Chinese).
+
+## Available Languages
+
+| Language   | Code | File                    | Status |
+|------------|------|-------------------------|--------|
+| English    | en   | simon.pbl-en.json       | ✓ Existing |
+| Chinese    | cn   | simon.pbl-cn.json       | ✓ Existing |
+| German     | de   | simon.pbl-de.json       | ✓ Created |
+| Spanish    | es   | simon.pbl-es.json       | ✓ Created |
+| French     | fr   | simon.pbl-fr.json       | ✓ Created |
+| Italian    | it   | simon.pbl-it.json       | ✓ Created |
+| Dutch      | nl   | simon.pbl-nl.json       | ✓ Created |
+| Portuguese | pt   | simon.pbl-pt.json       | ✓ Created |
+
+## Translation Keys
+
+All translation files contain these 5 keys:
+
+1. **INST1**: Main task instructions explaining the red/blue circle task and key mappings
+2. **FOOTER1**: Footer text showing "left shift" and "right shift" labels
+3. **BREAK**: Break message between blocks
+4. **DEBRIEF**: Thank you message at the end
+
+## File Locations
+
+**Development:**
+- `/home/smueller/Dropbox/Research/pebl/pebl/upload-battery/simon/translations/`
+
+**Deployed:**
+- `/home/smueller/Dropbox/Research/pebl/PEBLOnlinePlatform/battery/simon/translations/` (for browse.php)
+- `/home/smueller/Dropbox/Research/pebl/PEBLOnlinePlatform/runtime/test-bundles/simon.data` (bundle includes translations)
+
+## Bundle Update
+
+The simon test bundle has been rebuilt and deployed with the new translations:
+- **Old size**: 8.7K
+- **New size**: 14K (increased due to 6 additional translation files)
+- **Deployed**: November 27, 2024
+
+## Usage
+
+To run the Simon task in a specific language, use the `language` URL parameter:
+
+```
+# German
+?test=simon&mode=demo&language=de
+
+# Spanish
+?test=simon&mode=demo&language=es
+
+# French
+?test=simon&mode=demo&language=fr
+
+# Italian
+?test=simon&mode=demo&language=it
+
+# Dutch
+?test=simon&mode=demo&language=nl
+
+# Portuguese
+?test=simon&mode=demo&language=pt
+
+# Chinese
+?test=simon&mode=demo&language=cn
+```
+
+## Testing
+
+To test each translation:
+1. Navigate to: `http://localhost/runtime/public-launcher.html?test=simon&mode=demo&scriptFile=simon.pbl&language=XX`
+   (Replace XX with language code: de, es, fr, it, nl, pt, cn)
+2. Verify instructions appear in the correct language
+3. Check that key labels in footer are translated
+4. Complete a few trials and verify break/debrief messages
+
+## Translation Quality
+
+All translations follow these principles:
+- Natural, fluent language appropriate for the target audience
+- Preserve technical accuracy (shift key names, color names)
+- Maintain consistent formatting (\n for line breaks)
+- Equivalent instruction clarity to English original
+- Culturally appropriate phrasing for experimental contexts
+
+## Notes
+
+- Footer spacing may need adjustment for languages with longer key names
+- All files use UTF-8 encoding to support special characters (ñ, é, ü, etc.)
+- Translation files are loaded automatically by PEBL's GetStrings() function based on gLanguage parameter
+{
+  "version": "1.0",
+  "display": {
+    "minimum_width": 800,
+    "minimum_height": 600,
+    "recommended_width": 1024,
+    "recommended_height": 768
+  },
+  "input": {
+    "keyboard": true,
+    "mouse_buttons": false,
+    "mouse_movement": false,
+    "touch": false
+  },
+  "performance": {
+    "timing_critical": true,
+    "max_acceptable_latency_ms": 20
+  }
+}
+{
+  "test": "simon",
+  "version": "1.0",
+  "description": "SIMON Test",
+  "parameters": [
+    {
+      "name": "reps",
+      "type": "integer",
+      "default": 10,
+      "demo_override": 3,
+      "description": "Number of repetitions of the (10-stimulus) design"
+    },
+    {
+      "name": "targsize",
+      "type": "integer",
+      "default": 50,
+      "description": "radius, in pixels, of target circles"
+    },
+    {
+      "name": "leftcolor",
+      "type": "string",
+      "default": "red",
+      "description": "Color name of left color.  Accepts hundreds of color names. See appendix of PEBL manual"
+    },
+    {
+      "name": "rightcolor",
+      "type": "string",
+      "default": "blue",
+      "description": "Color name of right color.  Accepts hundreds of color names. See appendix of PEBL manual"
+    }
+  ]
+}define Start(p)
+{
+
+  ## Initialize upload system (works for both online and native)
+  InitializeUpload()
+
+  gScriptName <- "PEBL Simon Task"
+
+   gWin <- MakeWindow("BLACK")
+
+  if(gSubNum+""=="0")
+   {
+     gSubNum <- GetSubNum(gWin)
+   }
+
+  GetStrings(gLanguage)
+
+  ##set default parameter values, in case .par file does not exist
+  parpairs <- [["reps",5],  ##number of repetitions of the (10-stimulus) design
+               ["targsize",50],  ##radius, in pixels, of target circles
+               ["leftcolor","red"],
+	       ["rightcolor","blue"]
+                ]
+
+  gParams <- CreateParameters(parpairs,gParamFile)
+
+
+   gInstructions <-EasyTextBox("",50,20,gWin,18,gVideoWidth-100,200)
+   gInstructions.text <-gStrings.inst1
+
+
+   ShowCursor(0)
+   gSleepEasy <- 1
+
+   MakeDirectory("data")
+
+   gFileOut <- GetNewDataFile(gSubNum,gWin,"simon","csv",
+           "subnum,trial,type,pos,compatible,resp,corr,time,rt")
+
+   ##This controls how many times through the 10-stimulus trial set we go
+   reps <- gParams.reps
+
+   ##Create the stimulus sequence:
+
+   ##xpos is the irrelevant dimension, stim is red/blue
+   xpos <- [-200,-100,-50,0,50,100,200]
+   stim <- [1,2]
+   trialbase <- DesignFullCounterbalance(xpos,stim)
+
+   ##repeat the location/stimulus pairs and shuffle:
+   stim <- Shuffle(RepeatList(trialbase,reps))
+   length <- Length(stim)
+
+   ##Colors and shapes of the left/right stimuli:
+   leftcol <- MakeColor(gParams.leftcolor)
+   rightcol <- MakeColor(gParams.rightcolor)
+   stimA <- Circle(0,0,gParams.targsize,leftcol,1)
+   stimB <- Circle(0,0,gParams.targsize,rightcol,1)
+
+   AddObject(stimA,gWin)
+   AddObject(stimB,gWin)
+   Move(stimA,gVideoWidth/2-200,350)
+   Move(stimB,gVideoWidth/2+200,350)
+
+
+
+   foot1 <- EasyLabel(gStrings.footer1,gVideoWidth/2,gVideoHeight-100,gWin,22)
+   foot2 <- EasyLabel("   "+gParams.leftcolor+"                                                 "+gParams.rightcolor,gVideoWidth/2,gVideoHeight-70,gWin,22)
+   Draw()
+   Hide(stimA)
+   Hide(stimB)
+   Move(stimA,gVideoWidth/2,gVideoHeight/2)
+   Move(stimB,gVideoWidth/2,gVideoHeight/2)
+
+##Do a little initial practice.
+   resp <- ""
+   while(not resp == " ")
+    {
+       resp <- WaitForListKeyPress(["<lshift>","<rshift>"," "])
+       if(resp == "<lshift>")
+        {
+          Hide(stimB)
+          Show(stimA)
+        }else{
+
+          Hide(stimA)
+          Show(stimB)
+        }
+     Draw()
+    }
+   Hide(gInstructions)
+   Hide(stimA)
+   Hide(stimB)
+
+   status <- EasyLabel("",gVideoWidth/2,20,gWin,15)
+   fixation <- EasyLabel("+",gVideoWidth/2,gVideoHeight/2,gWin,80)
+   Hide(fixation)
+
+
+  ##Loop through the stimuli.
+   fixation.text <- "+"
+   rts <- []
+   corrs <- []
+   conds <- []
+   compats <- []
+
+   Draw()
+   trial <- 1
+   loop(i,stim)
+   {
+    status.text <- "["+trial +"] of [" + length +"]"
+    type <- Second(i)
+    pos <- First(i)
+    PushonEnd(conds, type+"|"+pos)
+    if(type==1)
+     {
+      stim <- stimA
+     }else{
+      stim <- stimB
+     }
+
+     Move(stim,gVideoWidth/2+pos,gVideoHeight/2)
+
+     Show(fixation)
+     Draw()
+     Wait(400)
+     Hide(fixation)
+     Draw()
+     Wait(200+Random()*200)
+     Show(stim)
+     Draw()
+     time0 <- GetTime()
+     resp <- WaitForListKeyPress(["<lshift>","<rshift>"])
+     time2 <- GetTime()
+
+     corr <- (resp=="<lshift>" and type==1 ) or(resp=="<rshift>" and type==2)
+     Hide(stim)
+
+    ##1 if compatible, -1 if incompatible, 0 if neutral.
+
+    side <-(Abs(Floor(pos/25)) >1) * Sign(pos)
+
+    compat <- ((type -1)*2-1) * side  ##make 0 and +/- 50 neutral
+
+    PushOnEnd(compats,compat)
+
+     if(Mod(trial,50)==0)
+      {
+
+        status.text <-gStrings.break
+        Draw()
+        WaitForKeyPress(" ")
+
+      }
+     Draw()
+
+     FilePrint(gFileOut,gSubNum+","+trial + "," + type + "," + pos + "," +
+             compat+ "," + resp + "," +corr + "," + time0 +  ","  + (time2-time0))
+
+     rts <- Append(rts,(time2-time0))
+     corrs <- Append(corrs,corr)
+     trial <- trial +1
+   }
+
+    gInstructions.text <- gStrings.debrief
+    Show(gInstructions)
+
+    Draw()
+
+
+   ##Compute some summary stats.
+   rtsum  <-SummaryStats(rts,conds)
+   corrsum <-SummaryStats(corrs,conds)
+   ##reorder these so they are in the proper order.
+   rtsum<- SortBy(rtSum,[2,1,3,4,6,7,5,9,8,10,11,13,14,12])
+   corrsum<- SortBy(corrSum,[2,1,3,4,6,7,5,9,8,10,11,13,14,12])
+
+   rtsumComp  <-SummaryStats(rts,compats)
+   corrsumComp <-SummaryStats(corrs,compats)
+
+
+
+   sumFile <- GetNewDataFile(gSubNum,gWin,"simon-summary","txt","")
+   FilePrint(sumfile,"PEBL Simon Test: Summary data")
+   FilePrint(sumfile,GetPEBLVersion())
+   FilePrint(sumfile,TimeStamp()+CR(2))
+
+
+
+   FilePrint(sumfile,"Response times (by compatibility):")
+   FilePrint(sumfile,"condition  N   median  mean    sd")
+   FilePrint(sumfile,"---------------------------------")
+
+    loop(i,rtsumComp)
+     {
+       FilePrint(sumfile,PrintList(i))
+     }
+
+
+   FilePrint(sumfile,CR(2)+"Response times (by position/Condition):")
+   FilePrint(sumfile,"condition  N   median  mean    sd")
+   FilePrint(sumfile,"---------------------------------")
+
+    loop(i,rtsum)
+     {
+       FilePrint(sumfile,PrintList(i))
+     }
+
+
+
+   FilePrint(sumfile,CR(2)+"Accuracy (By compatibility):")
+   FilePrint(sumfile,"condition  N   median  mean    sd")
+   FilePrint(sumfile,"---------------------------------")
+
+    loop(i,corrsumComp)
+     {
+       FilePrint(sumfile,PrintList(i))
+     }
+
+
+   FilePrint(sumfile,CR(2)+"Accuracy (By position/condition):")
+   FilePrint(sumfile,"condition  N   median  mean    sd")
+   FilePrint(sumfile,"---------------------------------")
+
+    loop(i,corrsum)
+     {
+       FilePrint(sumfile,PrintList(i))
+     }
+
+   ## Upload data files (works online, no-op on native)
+   out <- UploadFile(gSubNum, gFileOut.filename); Print(out)
+   out <- UploadFile(gSubNum, sumFile.filename); Print(out)
+
+   WaitForAnyKeyPress()
+
+}
+
+
+
+
+define GetStrings(lang)
+{
+  gStrings <- GetTranslations("simon", lang)
+}
+PEBL's Simon Interference Task. Judge  the color of a stimuli while ignoring its horizontal position.  
+Data are saved to simon-X.csv and simon-summary.txt files in simon directory.
+To cite:  Mueller, S. T. (2011). The PEBL Simon Interference Task.  Computer software retrieved from http://pebl.sf.net/battery.html
+{
+"INST1": "你即将参与一项游戏。在游戏中，你会看到两种图形：如下所示的红色圆形，或蓝色圆形。圆形会出现在不同的水平位置，但是它出现的位置无关紧要。当你看见图形时，请尽可能快地地作出反应：如果你看见的是红色的圆形，请按左边的shift键；如果你看见的是蓝色的圆形，请按右边的shift键。\n\n现在，请练习按shift键，看看它们分别与哪种图形对应。请按空格键开始游戏。",
+"FOOTER1": "左shift键                                          右shift键",
+"BREAK": "请休息一下。按空格键继续游戏。",
+"DEBRIEF": "谢谢参与。按任意按键退出游戏。"
+}
+{
+"INST1": "Sie werden an einer Studie teilnehmen, bei der Sie einen von zwei Reizen sehen werden: einen roten oder blauen Kreis, wie unten zu sehen. Der Kreis erscheint an verschiedenen Positionen links-rechts, aber die Position ist irrelevant. Reagieren Sie so schnell wie möglich, wenn Sie den Reiz sehen: Wenn Sie einen roten Kreis sehen, drücken Sie die linke Umschalttaste; wenn Sie einen blauen Kreis sehen, drücken Sie die rechte Umschalttaste.\n\nÜben Sie jetzt, indem Sie die Umschalttasten drücken, um zu sehen, welchem Reiz sie zugeordnet sind. Drücken Sie die Leertaste, um zu beginnen.",
+"FOOTER1": "linke Umschalttaste                      rechte Umschalttaste",
+"BREAK": "Machen Sie eine kurze Pause. Drücken Sie die Leertaste, um fortzufahren",
+"DEBRIEF": "Vielen Dank für Ihre Teilnahme. Drücken Sie eine beliebige Taste, um fortzufahren."
+}
+{
+"INST1": "You are about to take part in a study in which you will see one of two stimuli: a red or blue circle seen below.  The circle will appear at a different left-right location, but the location it appears in is irrelevant.  When you see the stimulus, respond as quickly as possible: when you see a red circle, press the left shift key; when you see the blue circle, press the right shift key.  \n\nPractice now by hitting the shift keys to see which stimulus the map onto.  Hit the space key to begin.",
+"FOOTER1": "left shift                                        right shift",
+"BREAK": "Take a short break.  Press space bar to begin again",
+"DEBRIEF": "Thank you for participating.  Press any key to continue."
+}
+{
+"INST1": "Está a punto de participar en un estudio en el que verá uno de dos estímulos: un círculo rojo o azul como se muestra a continuación. El círculo aparecerá en diferentes posiciones izquierda-derecha, pero la ubicación es irrelevante. Cuando vea el estímulo, responda lo más rápido posible: cuando vea un círculo rojo, presione la tecla Shift izquierda; cuando vea un círculo azul, presione la tecla Shift derecha.\n\nPractique ahora presionando las teclas Shift para ver a qué estímulo corresponden. Presione la barra espaciadora para comenzar.",
+"FOOTER1": "Shift izquierda                           Shift derecha",
+"BREAK": "Tome un breve descanso. Presione la barra espaciadora para continuar",
+"DEBRIEF": "Gracias por participar. Presione cualquier tecla para continuar."
+}
+{
+"INST1": "Vous allez participer à une étude dans laquelle vous verrez l'un des deux stimuli : un cercle rouge ou bleu comme indiqué ci-dessous. Le cercle apparaîtra à différentes positions gauche-droite, mais l'emplacement n'est pas pertinent. Lorsque vous voyez le stimulus, répondez aussi rapidement que possible : lorsque vous voyez un cercle rouge, appuyez sur la touche Shift gauche ; lorsque vous voyez un cercle bleu, appuyez sur la touche Shift droite.\n\nEntraînez-vous maintenant en appuyant sur les touches Shift pour voir à quel stimulus elles correspondent. Appuyez sur la barre d'espacement pour commencer.",
+"FOOTER1": "Shift gauche                              Shift droite",
+"BREAK": "Faites une courte pause. Appuyez sur la barre d'espacement pour continuer",
+"DEBRIEF": "Merci d'avoir participé. Appuyez sur n'importe quelle touche pour continuer."
+}
+{
+"INST1": "Stai per partecipare a uno studio in cui vedrai uno dei due stimoli: un cerchio rosso o blu come mostrato di seguito. Il cerchio apparirà in diverse posizioni sinistra-destra, ma la posizione è irrilevante. Quando vedi lo stimolo, rispondi il più rapidamente possibile: quando vedi un cerchio rosso, premi il tasto Shift sinistro; quando vedi un cerchio blu, premi il tasto Shift destro.\n\nEsercitati ora premendo i tasti Shift per vedere a quale stimolo corrispondono. Premi la barra spaziatrice per iniziare.",
+"FOOTER1": "Shift sinistro                            Shift destro",
+"BREAK": "Fai una breve pausa. Premi la barra spaziatrice per continuare",
+"DEBRIEF": "Grazie per aver partecipato. Premi un tasto qualsiasi per continuare."
+}
+{
+"INST1": "U gaat deelnemen aan een onderzoek waarbij u een van twee stimuli ziet: een rode of blauwe cirkel zoals hieronder weergegeven. De cirkel verschijnt op verschillende links-rechts posities, maar de locatie is niet relevant. Reageer zo snel mogelijk wanneer u de stimulus ziet: wanneer u een rode cirkel ziet, druk op de linker Shift-toets; wanneer u een blauwe cirkel ziet, druk op de rechter Shift-toets.\n\nOefen nu door op de Shift-toetsen te drukken om te zien bij welke stimulus ze horen. Druk op de spatiebalk om te beginnen.",
+"FOOTER1": "linker Shift                              rechter Shift",
+"BREAK": "Neem een korte pauze. Druk op de spatiebalk om door te gaan",
+"DEBRIEF": "Bedankt voor uw deelname. Druk op een willekeurige toets om door te gaan."
+}
+{
+"INST1": "Você está prestes a participar de um estudo no qual verá um de dois estímulos: um círculo vermelho ou azul, conforme mostrado abaixo. O círculo aparecerá em diferentes posições esquerda-direita, mas a localização é irrelevante. Quando vir o estímulo, responda o mais rápido possível: quando vir um círculo vermelho, pressione a tecla Shift esquerda; quando vir um círculo azul, pressione a tecla Shift direita.\n\nPratique agora pressionando as teclas Shift para ver a qual estímulo elas correspondem. Pressione a barra de espaço para começar.",
+"FOOTER1": "Shift esquerda                            Shift direita",
+"BREAK": "Faça uma pausa curta. Pressione a barra de espaço para continuar",
+"DEBRIEF": "Obrigado por participar. Pressione qualquer tecla para continuar."
+}

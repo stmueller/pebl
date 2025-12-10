@@ -1,0 +1,26 @@
+## Test for Tests 4 and 5 issue
+define Start(p)
+{
+    gWin <- MakeWindow()
+    label <- EasyLabel("Original Text Size 18", gVideoWidth/2, 100, gWin, 18)
+    Draw()
+    Print("Initial label size 18 displayed")
+    WaitForAnyKeyPress()
+
+    ## Test 4: Set size to 100, then call Draw()
+    Print("Test 4: Setting label.font.size <- 100")
+    label.font.size <- 100
+    Print("  Font size property: " + label.font.size)
+    Print("  Calling Draw()...")
+    Draw()
+    Print("  Does text appear huge at size 100? (Press key)")
+    WaitForAnyKeyPress()
+
+    ## Test 5: Call Draw() again without changing anything
+    Print("Test 5: Calling Draw() again without changes")
+    Draw()
+    Print("  Text should still be size 100 (Press key)")
+    WaitForAnyKeyPress()
+
+    return(0)
+}

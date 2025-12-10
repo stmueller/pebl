@@ -1,0 +1,337 @@
+#################################################################
+##  PEBL Match To Sample Task
+##
+##  For use with PEBL 0.09 or later
+##  http://pebl.sf.net
+##  Part of  The PEBL Psychological Test Battery
+##  2008 Released into Public Domain
+##  by Shane T. Mueller, Ph.D. (smueller at obereed dot net)
+##
+##  This is an implementation of  'match to sample task
+##  described in the UTC Test Battery test #24; originating from
+##  Skinner (1950).
+##
+##  See: Perez, W. A. Masline, P. J., Ramsey, E. g., and Urban, K. E.,
+##       (1987). Unified tri-services cognitive performance assessment
+## 		 battery: Review and methodology.  DTIC AAMRL-TR-87-007.
+##
+##
+##
+##
+#################################################################
+
+ define Start(p)
+{
+
+  parpairs <- [["size",4],
+               ["autorun",1],
+	       ["prestime",1000],
+               ["givefeedback",1],
+	       ["numtrials",30],
+	       ["delay",3500]
+               ]
+
+  gParams <- CreateParameters(parpairs,gParamFile)
+
+  gSize <- gParams.size  #Number of rows/columns in the matrix
+  giveFeedback <- gParams.givefeedback
+  numtrials <-  gParams.numtrials
+  delay <- gParams.delay           ## Time between study and test
+
+
+  gSleepEasy <- 1
+
+  gWin <- MakeWindow()
+
+   ##Get subject code if we need to:
+    if(gSubNum+""=="0")
+    {
+	  gSubNum <- GetSubNum(gWin)
+    }
+   GetStrings(gLanguage)
+
+
+  ShowCursor(0)
+  gLinecolor <- MakeColor("white")
+  gCellempty <- MakeColor("yellow2")
+  gCellFull  <-  MakeColor("red")
+
+   gFileOut <- GetNewDataFile(gSubNum,gWin,"matchtosample","csv",
+               "subnum,trial,targ,foil,studytime,rt,order,resp,corr")
+
+  instruc <- gStrings.inst1
+
+  inst1 <- gStrings.head1
+
+  inst2 <- gStrings.head2
+
+  gFooter <- EasyLabel(inst2,gVideoWidth/2,gVideoHeight-100,gWin,24)
+  gFeedback <- EasyLabel("",gVideoWidth/2,gVideoHeight/2,gWin,40)
+  Hide(gFeedback)
+
+  ##Provide initial instructions
+
+  width <- Max([750,gVideoWidth-200])
+  inst <- EasyTextBox(instruc,(gVideoWidth-width)/2,50,gWin,18,width,gVideoHeight-100)
+  Draw()
+
+  WaitForAnyKeyPress()
+  Hide(inst)
+  Draw()
+
+  ## Print file header
+
+
+  trial <- 1
+
+  while (trial <= numtrials)
+   {
+
+   ##Create test matrix
+   matrices <- MakeMatrices()
+
+   targ <- First(matrices)
+   foil <- Nth(matrices, 2)
+
+   FilePrint_(gFileOut,gsubnum + "," + trial + "," )
+   FilePrint_(gFileOut,ConcatenateList(Flatten(targ),",")+ ",")
+   FilePrint_(gFileOut,ConcatenateList(Flatten(foil),",")+ ",")
+
+
+    ##Present the study matrix
+
+    x <- DisplayMatrix(targ,gVideoWidth/2)
+    t0 <- GetTime()
+
+    ##either wait for click or present for fixed time:
+    if(gParams.autorun)
+     {
+       gFooter.text <- ""
+       Draw()
+       Wait(gParams.prestime)
+
+     } else {
+       gFooter.text <- inst1
+       Draw()
+       WaitForAnyKeyPress()
+     }
+
+    RemoveComplex(x,gWin)
+    Hide(gFooter)
+    Draw()
+    t1 <- GetTime()
+    Wait(delay)
+
+
+
+ ## Present the test matrix
+    gFooter.text <- inst2
+    Show(gFooter)
+    order <- Sample([0,1])
+
+     if(order)
+     {
+       x1 <- DisplayMatrix(targ,gVideoWidth/2-200)
+       x2 <- DisplayMatrix(foil,gVideoWidth/2+200)
+     } else {
+       x1 <- DisplayMatrix(targ,gVideoWidth/2+200)
+       x2 <- DisplayMatrix(foil,gVideoWidth/2-200)
+     }
+
+
+    Draw()
+    t2 <- GetTime()
+    resp <- WaitForListKeyPress(["<lshift>","<rshift>"])
+    t3 <- GetTime()
+    RemoveComplex(x1,gWin)
+    RemoveComplex(x2,gWin)
+    Draw()
+
+    if(order == 0)
+    {
+      corr <- Lookup(resp,["<lshift>","<rshift>"],[0,1])
+    } else {
+      corr <- Lookup(resp,["<lshift>","<rshift>"],[1,0])
+    }
+
+
+
+   FilePrint(gFileOut,(t1-t0) + "," + (t3-t2)  + "," + order + "," + resp + "," + corr)
+
+    if(giveFeedback)
+    {
+        if(corr)
+        {
+         gFeedback.text <- gStrings.correct
+
+        } else {
+         gFeedback.text <- gStrings.incorrect
+
+        }
+     Show(gFeedback)
+     Draw()
+     Wait(800)
+     Hide(gFeedback)
+     Draw()
+
+    }
+    trial <- trial +1
+   }
+
+}
+
+
+define DisplayMatrix(mat,xpos)
+{
+
+   xcells <- Length(mat)
+   ycells <- Length(First(mat))
+
+   xcenter <- xpos
+   ycenter <- gVideoHeight/2
+
+   xsize <- 200
+   ysize <- 200
+
+   upper <- ycenter-ysize/2
+   lower <- ycenter+ysize/2
+   left <- xcenter-xsize/2
+   right <- xcenter+xsize/2
+
+   xjump <- xsize/xcells
+   yjump <- ysize/ycells
+
+
+  complex <- []
+
+  #First, make the lines
+
+  ##draw the background square
+  back <- Rectangle(xcenter,ycenter,xsize,ysize,gcellempty,1)
+  AddObject(back,gWin)
+  complex <- Append(complex,back)
+
+  ##Draw the 'present' cells
+
+   row <- 1
+   loop(line, mat)
+     {
+        col <- 1
+        loop(cell,line)
+         {
+           if(cell==1)
+           {
+             x <- Rectangle(left+(col-.5)*xjump,upper+(row-.5)*yjump,xjump,yjump,gCellFull,1)
+             AddObject(x,gWin)
+             complex <- Append(complex,x)
+           }
+           col <- col +1
+         }
+      row <- row + 1
+     }
+
+
+  ##Finally, draw lines on top
+  loop(i,Sequence(0,xcells,1))
+  {
+    l <- Line(left,upper+yjump*i,xsize,0,gLinecolor)
+    AddObject(l,gWin)
+    complex <- Append(complex,l)
+  }
+
+  loop(i,Sequence(0,ycells,1))
+   {
+
+    l <- Line(left+xjump*i,upper,0,ysize,gLinecolor)
+    AddObject(l,gWin)
+    complex <- Append(complex,l)
+   }
+ return complex
+}
+
+
+##This creates a matrix and a foil
+define MakeMatrices()
+{
+
+  #How many dots should be perturbed?
+
+  ##fill half the cells.
+
+  ##Number should be 7,8, or 9
+  num <- Round(RandomDiscrete(3)+ Floor(gsize^2/2)-2)
+  numempty <- gsize*gsize - num
+
+  standard <- Merge(Repeat(1,num), Repeat(0,numempty))
+  ##On the foil, a 1 should be swapped with a 0
+  foil     <-Rotate(standard,1)
+
+  tmp <- Transpose(Shuffle(Transpose([standard,foil])))
+
+  targ <- FoldList(First(tmp),gSize)
+  foil <- FoldList(Nth(tmp,2),gSize)
+  return [targ,foil]
+}
+
+
+
+define RemoveComplex(comp,win)
+{
+  loop(i,comp)
+  {
+    RemoveObject(i,win)
+  }
+}
+
+define PrintMatrix(m)
+{
+  loop(i,m)
+  {
+    PrintList(i)
+  }
+}
+
+
+define MatrixEqual(m1,m2)
+{
+
+  equal <- 1
+  test <- Transpose([m1,m2])
+  loop(i,test)
+  {
+    ii <- Transpose(i)
+    loop(j, ii)
+    {
+      if(not (First(j) ==Nth(j,2)))
+       {
+            equal <- 0
+       }
+    }
+
+  }
+
+  return equal
+}
+
+
+define CheckMatrix(list)
+{
+
+  seq <- Sequence(1,Length(list),1)
+
+  ok <-1
+  if(list == seq or
+     list == Reverse(seq))
+   {
+    ok <- 0
+   }
+
+ return ok
+}
+
+
+define GetStrings(lang)
+{
+  gStrings <- GetTranslations("matchtosample",lang)
+  
+}

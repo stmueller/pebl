@@ -1,0 +1,158 @@
+define Start(p)
+{
+
+  parpairs <- [["numSame",20],
+               ["numDiffItem",10],
+	       ["numDiffOrder",10],
+	       ["stimsize",7],
+	       ["prestime",2000],
+	       ["delaytime",2500]]
+
+  gParams <- CreateParameters(parpairs,gParamFile)
+
+  Init()
+
+
+  gFileOut <- GetNewDataFile(gSubNum,gWin,"itemorder","csv",
+              "subnum,trial,cond,target,compare,pos,resp,corr,abstime,rt")
+
+  giveFeedback <- 1
+  trials <-Shuffle(Flatten([Repeat(0,gParams.numSame),Repeat(1,gParams.numDiffItem),Repeat(2,gParams.numDiffOrder)]))
+
+  trial <- 1
+  loop(cond, trials)
+   {
+    FilePrint_(gFileOut,gSubNum + "," + trial + ","+ cond + ",")
+    Trial(cond)
+    trial <- trial + 1
+   }
+  Hide(gTarget)
+  Show(gInst)
+  gInst.text <- gStrings.debrief
+
+  WaitForAnyKeyPress()
+
+}
+
+define Init()
+{
+#  gVideoWidth <- 800
+#  gVideoHeight <- 600
+  gWin <- MakeWindow("black")
+
+
+  ShowCursor(0)
+  if(gSubNum+"" == "0")
+  {
+    gSubNum <- GetSubNum(gWin)
+  }
+
+  GetStrings(gLanguage)
+
+  gLetters <- SubList(FileReadList("Consonants.txt"),1,21)
+
+  gTarget <-EasyLabel(gStrings.fixation,gVideoWidth/2,gVideoHeight/2,gWin,70)
+  gFooter1 <- EasyLabel(gStrings.footer1,   gVideoWidth/2,gVideoHeight-160,gWin,28)
+  gFooter2 <- EasyLabel(gStrings.footer2, gVideoWidth/2,gVideoHeight-120,gWin,28)
+
+  Hide(gFooter1)
+  Hide(gFooter2)
+  Hide(gTarget)
+  inst <- gStrings.inst1
+
+  gInst <- EasyTextBox(inst,50,50,gWin,22,700,500)
+  Draw()
+  WaitForAnyKeyPress()
+  Hide(gInst)
+  Draw()
+}
+
+
+define Trial(type)
+{
+
+  if(type == 0)## same
+   {
+
+     pos <- 0
+     target <- ListToString(SampleN(gLetters,gParams.stimsize))
+     compare <- target
+   }elseif(type == 1)  ## item replace
+   {
+
+      letters <- SampleN(gLetters,gParams.stimsize+1)
+      base  <- SubList(letters,2,gParams.stimsize+1)
+      pos <- RandomDiscrete(gParams.stimsize)-1  ##rotate between 0 and 6 items
+      target <- Rotate(base,-pos)
+      addA <- First(letters)
+      addB <- Second(letters)
+
+      key <- [[addB,addA]]
+      compare <- ListToString(Replace(target,key))
+      target <- ListToString(target)
+
+
+   } else {  #swap adjacent elements.
+
+
+      target  <- SampleN(gLetters,gParams.stimsize)
+      pos <- RandomDiscrete(gParams.stimsize-1)
+
+      swapA <- Nth(target,pos)
+      swapB <- Nth(target,pos+1)
+
+      key <- [[swapA,swapB],[swapB,swapA]]
+      compare <- ListToString(Replace(target,key))
+      target <- ListToString(target)
+   }
+
+  gTarget.text <- target
+  Show(gTarget)
+  Hide(gFooter1)
+  Hide(gFooter2)
+  Draw()
+  Wait(gParams.prestime)
+  Hide(gTarget)
+
+  Draw()
+
+  Wait(gParams.delaytime)
+  Show(gTarget)
+  Show(gFooter1)
+  Show(gFooter2)
+
+  gTarget.text <- compare
+  Draw()
+  time0 <- GetTime()
+  resp <- WaitForListKeyPress(["<lshift>","<rshift>"])
+  time1 <- GetTime()
+
+
+  corr <- ((type==0) and ( resp == "<lshift>")) or ((type > 0) and (resp=="<rshift>"))
+
+  FilePrint(gFileOut,   target + "," + compare + "," + pos + ","  + resp + ","  + corr + "," + time0 + "," + (time1-time0))
+
+  if(giveFeedback)
+  {
+  if(corr)
+  {
+    gTarget.text <- gstrings.correct
+  } else {
+    gTarget.text <- gstrings.incorrect
+  }
+  Draw()
+  Wait(500)
+  }
+
+   gTarget.text <- gStrings.fixation
+   Draw()
+   Wait(800)
+}
+
+
+
+define GetStrings(lang)
+{
+  gStrings <- GetTranslations("itemorder",lang)
+
+}

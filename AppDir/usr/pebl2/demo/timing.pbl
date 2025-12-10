@@ -1,0 +1,130 @@
+define Start(parameter)
+{
+
+    numtrials <- 100 #How many time trials
+    minwait   <- 1    #what is the min wait in ms
+    maxwait   <- 200 #what is the max wait is ms
+	#wait until initialization output catches up.
+	Wait(2000)
+    
+
+    gSleepEasy <- 0
+
+
+
+    waits0 <- []
+    waits1 <- []
+
+    misses0 <- []
+    misses1 <- []
+
+    waitmiss0 <- []
+    waitmiss1 <- []
+    
+    waitactual0 <- []
+    waitactual1 <- []
+        
+ 	i <- 0
+	while(i < numtrials)
+	  {
+                                  
+		 waitTime <- minwait + RandomDiscrete(maxwait-minwait)
+		 start <- GetTime()
+		 Wait(waitTime)
+		 end <- GetTime()
+		 miss <- ((end-start) - waitTime)
+         waits0 <- Append(waits0, waittime)
+         if(Abs(miss)>0)
+          {
+            misses0 <- Append(misses0,miss)
+            waitmiss0 <- Append(waitmiss0,waitTime)
+            waitactual0 <- Append(waitactual0,(end-start))
+            Print( gSleepEasy + " MISS ********")
+          }
+
+		 i<-i+1
+	   }
+
+  gSleepEasy <- 1
+
+ 	i <- 0
+
+	while(i < numtrials)
+	  {
+		 waitTime <- minwait + RandomDiscrete(maxwait-minwait)
+		 start <- GetTime()
+		 Wait(waitTime)
+		 end <- GetTime()
+		 miss <- ((end-start) - waitTime)
+         waits1 <- Append(waits1, waittime)
+        if(Abs(miss)>0)
+           {
+            misses1 <- Append(misses1,miss)
+            waitmiss1 <- Append(waitmiss1,waitTime)
+            waitactual1 <- Append(waitactual1,(end-start))
+            Print( gSleepEasy + " MISS ********")
+          }
+		 i<-i+1
+	   }
+		
+
+  Print("==================================================")
+  Print("Summary of Timing")
+  Print("==================================================")
+  Print("                          Wait Type    ")
+  Print("                        Busy    Easy")
+  Print("==================================================")
+  Print("Number of trials:       " + numtrials + "         " + numtrials)
+  Print("Average wait time:      " + Format(Mean(waits0),8)  + "  " + Mean(waits1))
+  Print("Number of misses:       " + Format(Length(misses0),8) + "  " +  Length(misses1))
+  Print("Average Miss:           " + Format(Mean(misses0),8) +  "  " + Mean(misses1)) 
+
+ 
+  Print("Median Miss:            " + Format(Med(misses0),8) +  "  " + Med(misses1)) 
+  Print("Worst Miss:             " + Format(Maxx(misses0),8) +  "  " + Maxx(misses1)) 
+  Print("==================================================")
+
+  Print("Busy wait misses:")
+  
+  dat <- Transpose([misses0,waitmiss0,waitactual0])
+  Print("Scheduled   Actual   Miss")
+  loop(i,dat)
+   {
+     Print(Second(i) + " " + Third(i)+ " " + First(i))
+   }
+
+  Print("Easy wait misses:")
+  
+  dat <- Transpose([misses1,waitmiss1,waitactual1])
+  loop(i,dat)
+   {
+     Print(Second(i) + " " + Third(i)+ " " + First(i))
+   }
+
+}
+
+
+define Med(list)
+{
+  if(Length(list)==0)
+    {
+      med <- "NA"
+    } else { 
+
+      med <- Median(list)
+   }
+ return med
+}
+
+
+define Maxx(list)
+{
+  if(Length(list)==0)
+    {
+      max <- 0
+    } else { 
+
+      max <- Max(list)
+   }
+ return max
+}

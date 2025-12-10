@@ -1,0 +1,382 @@
+##############################################################
+##
+## Simple variation on the classic memory span task,
+## requiring a sequence to be 'built up' with repeated
+## presentation.
+##
+## This tests works like 'simon', and assesses the ability to
+## 'learn' the sequence, by adding one item at a time.
+##
+##
+
+define Start(p)
+{
+
+  parpairs <- [["upperbound", 9],      ## The longest list length
+               ["lowerbound", 3],      ## The shortest list length
+               ["staircasestart", 4],  ## starting point for staircasestart.
+               ["numtrials", 10],      ## Number of staircase trials.
+               ["ISI", 1000],           ## Inter-stimulus interval in ms
+               ["ITI",1500],           ## inter-trial interval.
+               ["Wait",500],           ## How long to 'go to each room'
+               ["DoWait", 0]]          ## Whether there should be a 'blow-up'
+                                       ## of the screen
+
+  gScriptName <- "Memory span task"
+  gParams <- CreateParameters(parpairs,gParamFile)
+  gHomeX <- gVideoWidth/2
+  gHomeY <- gVideoHeight/2
+
+  ##extract parameters
+  upperbound <- gParams.upperbound
+  lowerbound <- gParams.lowerbound
+  staircasestart  <- gParams.staircasestart
+  numtrials <- gParams.numtrials
+  gISI <- gParams.isi
+  gITI <- gParams.ITI
+  gWait <- gParams.wait
+  gDoWait <- gParams.dowait
+
+
+  gSleepEasy <- 1
+  gWin <- MakeWindow("white")
+
+  if(gSubNum==0)
+   {
+    gSubNum <- GetSubNum(gWin)
+   }
+
+
+  GetStrings(gLanguage)
+
+
+  gFileOut <- GetNewDataFile(gSubNum,gWin,"buildup","csv",
+      "subnum,trial,stimid,responses,corr,rt1,rt2,rt3,rt4,rt5,rt6,rt7,rt8,rt9," )
+
+  gLogFile <- FileOpenAppend("data/buildup-log.txt")
+  FilePrint(gLogFile,"BUILDUP start " +GetTime() + " " + TimeStamp() +  " " + gSubNum )
+
+
+  ShowCursor(0)
+  Draw()
+
+  inst <- EasyTextBox("",(gVideoWidth-700)/2,100,gWin,24,700,400)
+  inst.text <- gStrings.instbase+gStrings.instbuildup
+  Draw()
+   WaitForDownClick()
+
+  pics <-["mspan-images/apple.png","mspan-images/bus.png",
+  	     "mspan-images/deer.png", "mspan-images/pear.png",
+ 		 "mspan-images/tree.png", "mspan-images/bird.png", "mspan-images/chipmunk.png",
+		 "mspan-images/fish.png", "mspan-images/plane.png"]
+
+
+   names <- ["apple","bus","deer",
+    	     "pear", "tree", "bird",
+            "chipmunk", "fish", "plane"]
+
+
+  gFont <- MakeFont(gPEBLBaseFont,1,25,MakeColor("black"),MakeColor("white"),1)
+  gFont2 <- MakeFont(gPEBLBaseFont,0,20,MakeColor("black"),MakeColor("white"),1)
+
+
+
+  stim <- Transpose([names,pics])
+
+
+  Hide(inst)
+  Draw()
+
+  lengths <- []
+  gTrialnum <- 1
+
+  while(gTrialnum <= numtrials)
+   {
+    ##Measures the length that the trial got to.
+    length  <-  TrialSet(stim)
+    gTrialnum <- gTrialnum + 1
+    lengths <- Append(lengths,length)
+  }
+
+
+  Show(inst)
+  inst.text <- gStrings.debrief + Mean(lengths)
+  Draw()
+  FilePrint(gLogFile,"BUILDUP END " +GetTime() + " " + TimeStamp() + " " + gSubNum )
+  WaitForKeyPress("X")
+
+}
+
+##This is an entire set of trials.
+define TrialSet(stim)
+{
+  ##Use this order throughout the trial.
+  stimorder <- Shuffle((Sequence(1,9,1)))
+
+
+  length <- 2
+  corr <- 1
+
+  while(corr == 1 and length <= 9)
+   {
+      corr <- Trial(SubList(stimorder,1,length),stim)
+
+     if(corr)
+      {
+        length <- length + 1
+      }
+   }
+
+  return length
+}
+
+
+define Trial(stimid,rooms)
+{
+  ShowCursor(0)
+
+
+  ##Make a ready signal.
+  warn <- EasyLabel(gstrings.ready,gHomeX,gHomeY,gWin,30)
+  Draw()
+  Wait(gITI)
+  Hide(warn)
+  Draw()
+
+
+  stim <- ExtractListItems(rooms,stimid)
+  FilePrint_(gFileOut, gSubNum + "," + gTrialNum + ","  +  ListToString(stimid)+ ",")
+
+  ##First, display the stimuli, at appropriate rate
+   loop(i, stim)
+   {
+      tmp <- MakeImage(Second(i))
+      AddObject(tmp,gWin)
+      Move(tmp,gHomeX, gHomeY)
+      Resize(tmp,250)
+
+      lab <- MakeLabel(First(i),gFont)
+	  AddObject(lab,gWin)
+      Move(lab,gHomeX,gVideoHeight-100)
+
+      Draw()
+      Wait(gISI)
+
+      RemoveObject(tmp,gWin)
+	  RemoveObject(lab,gWin)
+      Draw()
+      Wait(200)
+   }
+
+
+
+  tmp <-  MakeTargets(rooms)
+  Draw()
+  targs <- First(tmp)
+
+  keys <- Sequence(1,10,1)
+  ShowCursor(1)
+  responses <- []
+  times <- []
+  resp <- 0
+  starttime <- GetTime()
+  while(resp <> 10)
+   {
+     resp  <- WaitForResponse(targs,keys)
+
+     if(resp<10)
+       {
+         responses <- Append(responses,resp)
+         times <- Append(times, (GetTime() - starttime))
+
+     #Hide the clicked target
+     Hide(Nth(targs,resp))
+
+
+
+    ##Blow up the target picture and present it for some period of time.
+    if(gDoWait)
+     {
+
+      #Hide the other stuff with a black background
+      back <- Rectangle(gHomeX,gHomeY,gVideoWidth,gVideoHeight,MakeColor("black"),1)
+      AddObject(back,gWin)
+
+      #Load the big copy of that picture.
+      img <- MakeImage(Second(Nth(rooms,resp)))
+      AddObject(img,gWin)
+      Move(img,gHomeX,gHomeY)
+	  Resize(img,250)
+      Draw()
+      ##Wait for time period controlled at top of script.
+      Wait(gWait)
+      RemoveObject(img,gWin)
+      RemoveObject(back,gWin)
+      }
+
+
+     Draw()
+    }
+
+  }
+
+  FilePrint_(gFileOut, ListToString(responses) + ",")
+
+  RemoveObjects(Second(tmp),gWin)
+  Draw()
+
+  corr <-ListEqual(stimid,responses)
+  if(corr)
+   {
+     warn.text <- gStrings.correct
+   }else{
+     warn.text <- gStrings.incorrect
+   }
+   Show(warn)
+   Draw()
+   Wait(500)
+   RemoveObject(warn,gWin)
+   FilePrint_(gFileOut, corr + "," )
+
+   ##print out RTs
+   i <- 1
+   loop(t,times)
+    {
+      FilePrint_(gFileOut,t+ "," )
+      i <- i + 1
+    }
+   #Pad the end with Xs
+   while(i <= 9)
+   {
+    FilePrint_(gFileOut,"X,")
+     i <- i + 1
+   }
+    FilePrint(gFileOut,"")
+
+  return corr
+}
+
+
+define ListEqual(l1,l2)
+{
+  if(Length(l1)==Length(l2))
+  {
+   same <- 1
+
+
+   loop(i,Transpose([l1,l2]))
+    {
+     if(not (First(i) == Nth(i,2)))
+      {
+        same <- 0
+      }
+
+    }
+   } else {
+     same <- 0
+   }
+  return same
+}
+
+
+##This adapts WaitForClickOnTarget, making sure
+##you click on a 'visible' target.
+
+define WaitForResponse(targetlist,keylist)
+{
+
+  ret <- ""
+  testlist <- Transpose([targetlist,keylist])
+
+   wait1 <- 1
+   while(wait1)
+     {
+      wait2 <- 1
+      while(wait2)
+       {
+         pos <- WaitForMouseButton()
+         if(Nth(pos,4)=="<pressed>")
+          {
+            wait2 <- 0
+          }
+       }
+
+      newtargs <- []
+
+      loop(i,testlist)
+          {
+   		  ## Only allow clicks on visible targets
+             obj <- First(i)
+
+             if( obj.Visible and  Inside(pos,obj))
+             {
+			    wait1 <- 0
+                ret <- Nth(i,2)
+                break
+             }
+
+          }
+     }
+  return ret
+}
+
+
+
+##This assumes 9 stimuli
+define MakeTargets(stim)
+{
+
+  top <-   -40
+  xskip <- 250
+  yskip <- 200
+  left <-  gVideoWidth/2 - xskip*2
+
+  xpos <- [1,2,3,1,2,3,1,2,3]
+  ypos <- [1,1,1,2,2,2,3,3,3]
+  tmp <- []
+  clickon <- []
+
+  newstim <-Transpose(Merge(Transpose(stim), [xpos,ypos]))
+
+  loop(i,newstim)
+  {
+    p <- MakeImage(Second(i))
+	AddObject(p,gWin)
+	Move(p,left + xskip*Third(i),top+yskip*Fourth(i))
+	Resize(p,100)
+    tmp <- Append(tmp,p)
+    clickon <- Append(clickon,p)
+
+    lab <- MakeLabel(First(i),gFont2)
+	AddObject(lab,gWin)
+	Move(lab,left + xskip*Third(i),top+yskip*Fourth(i)+90)
+    tmp <- Append(tmp,lab)
+  }
+
+
+  done <- MakeLabel(gStrings.done,gFont)
+  AddObject(done,gWin)
+  Move(done,gHomeX,25)
+  box <- Rectangle(gHomeX,25,140,40,MakeColor("grey60"),0)
+  AddObject(box,gWin)
+
+  clickon <- Append(clickon, box)
+  tmp <- Merge(tmp,[box,done])
+  return([clickon,tmp])
+}
+
+define Resize(pic, width)
+{
+    scale <- Max([width/pic.width , width/pic.height])
+
+    pic.zoomx <- scale
+    pic.zoomy <- scale
+}
+
+
+
+define GetStrings(lang)
+{
+  gStrings <- GetTranslations("buildup",lang)
+  
+}

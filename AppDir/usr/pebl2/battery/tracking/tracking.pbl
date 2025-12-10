@@ -1,0 +1,226 @@
+## Tracking task, with x/y reversal options.
+##
+
+define Start(p)
+{
+  gScriptName <- "PEBL Tracking Task"
+
+
+  parpairs <- [["trialtime",30],
+               ["numtrials",10],
+	       ["ytrans",-1],
+	       ["xtrans",1],
+	       ["movementrate",.2]
+	      ]
+
+
+  gParams <- CreateParameters(parpairs,gParamFile)
+  gWin <- MakeWindow("black")
+  numTrials <- 10
+
+
+  min <- 2000
+  spread <- 1200
+
+  if(gSubNum+""=="0")
+   {
+    gSubNum <- GetSubNum(gWin)
+   }
+
+   GetStrings(gLanguage)
+
+
+   gFileOutRaw <- GetNewDataFile(gSubNum,gWin,"tracking-pts","csv",
+                    "subnum,trial,xtrans,ytrans,start,step,time,targx,targy,cursx,cursy,dist")
+   gFileOut <- GetNewDataFile(gSubNum,gWin,"tracking","csv",
+                    "subnum,trial,xtrans,ytrans,start,step,time,duration,mad,mad2")
+
+
+  MessageBox(gStrings.inst1,gWin)
+  MessageBox(gStrings.inst2,gWin)
+
+
+  header <- EasyLabel("",gVideoWidth/2,20,gWin,16)
+  trial <- 0
+
+  header.text <- SubstituteSTrings(gStrings.header,[["<I>","0"],["<N>",gParams.numtrials]])
+  DoTrackingTrial(gparams.trialtime,1,1,"normal",gparams.movementrate)
+
+  trial <- 1
+  loop(i,gParams.numtrials)
+  {
+    header.text <- SubstituteStrings(gStrings.header,[["<I>",i],["<N>",gParams.numtrials]])
+    if(trial==1)
+    {
+      MessageBox(gSTrings.inst3,gWin)
+    }else{
+      MessageBox(gStrings.inst4,gWin)
+    }
+    DoTrackingTrial(gParams.trialtime,gParams.xtrans,gParams.ytrans,"MODIFIED"+trial,gparams.movementrate)
+    trial <- trial + 1
+  }
+
+  MessageBox(gSTrings.debrief,gWin)
+
+#  DoMoveTrial(min,spread,1,-1)
+#  loop(i,Sequence(1,gNumtrials,1))
+#    {
+#       DomoveTrial(min,spread,1,-1)
+#    }
+#    ShowCursor(1)
+}
+
+
+
+
+
+
+define DoTrackingTrial(duration,xtrans:1,ytrans:1,label:"NORMAL",rate:.25)
+{
+  targsize <- 20
+  fieldX <- 800
+  fieldY <- 600
+
+  field <- Rectangle(gVideoWidth/2,gVideoheight/2,
+                        fieldx+targsize*2,fieldy+targsize*2,MakeColor("grey20"),0)
+  AddObject(field,gWin)
+
+
+  CountDown(gWin)
+  starttime <- GetTime()
+  endtime <- starttime +duration*1000
+#  meter <- EasyLabel("",gVideoWidth-300,gVideoheight-100,gWin,20)
+  target <- Circle(gVideoWidth/2,gVideoHeight/2,targsize,MakeColor("blue"),1)
+  AddObject(target,gWin)
+  gCursor <- Plus(0,0,10,2,MakeColor("red"))
+  AddObject(gCursor,gWin)
+  Move(gCursor,gVideoWidth/2,gVideoHeight/2)
+  ShowCursor(0)
+
+
+
+     targDest <- [gVideoWidth/2 + (RandomUniform(1)-.5)*(fieldx),
+              gVideoHeight/2 + (RandomUniform(1)-.5)*fieldy]
+
+     targPos <- [gVideoWidth/2,gVideoHeight/2]
+     cursorPos <-[gVideoWidth/2,gVideoHeight/2]
+     Move(gCursor,First(cursorPos),Second(cursorpos))
+     SetMouseCursorPosition(First(cursorPos),Second(cursorpos))
+
+       rate <- .25  ##pixels/ms
+       Draw()
+       time0 <- GetTime()
+
+       lasttime <- GetTime()
+       startpos <- GetMouseCursorPosition()
+
+       deltas <- []
+       deltas2 <- []
+
+       step <- 1
+       cont <- 1
+       while(cont)
+       {
+         time <- GetTime()
+         Move(target,First(targpos),Second(targpos))
+         mousepos <- GetMouseCursorPosition()
+
+          ##or some transform
+
+          if(xtrans<0)
+	  {
+	   xpos <- gVideoWidth-First(mousepos)
+ 	  }else{
+  	   xpos <- First(mousepos)
+	  }
+
+	  if(ytrans<0)
+	  {
+	   ypos <- gVideoHeight-Second(mousepos)
+	   }else{
+	   ypos <- Second(mousepos)
+	  }
+
+
+          cursorpos <- [xpos,ypos]
+          MoveCursor(cursorpos)
+
+
+          ##calculate how far we are off:
+	  diffx <- xpos-First(targpos)
+	  diffy <- ypos-Second(targpos)
+
+          dist2 <- (diffx^2+diffy^2)
+	  dist <- Sqrt(dist2)
+          PushOnEnd(deltas,dist)
+          PushOnEnd(deltas2,dist2)
+
+          FilePrint(gFileOutRaw,gSubNum+","+label+","+
+	                 xtrans+","+ytrans+","+
+                          starttime+","+step+","+time+","+
+                           First(targpos)+","+Second(targpos)+","+
+			   xpos+","+ypos+","+dist)
+
+
+
+          #calculate how much we need to move.
+          deltaX <- First(targdest)-First(targpos)
+          deltaY <- Second(targdest)-Second(targpos)
+          deltadist <- Sqrt(deltaX^2+deltay^2)
+
+          #Update position of target
+          targpos <- [First(targpos) + deltax/deltadist*rate*(time-lasttime),
+	              Second(targpos) + deltay/deltadist*rate*(time-lasttime)]
+
+
+          Wait(10)
+
+
+          ## Print(deltadist+"--"+(rate*(time-lasttime)))
+
+          #Choose new destiny if we are within two steps of the target
+          if(deltadist<(2*rate*(time-lasttime)))
+	    {
+
+              targDest <- [gVideoWidth/2 + (RandomUniform(1)-.5)*(fieldx),
+                           gVideoHeight/2 + (RandomUniform(1)-.5)*fieldy]
+
+	    }
+
+	  lasttime <- time
+        if(GetTime()>endtime)
+	{
+	  cont <- 0
+	}
+  	 step <- step + 1
+
+       }
+
+##compute mean absolute deviation
+  mad <- Mean(deltas)
+  mad2 <- Mean(deltas2)
+  FilePrint(gFileOut, gSubNum+","+label+","+xtrans+","+ytrans+","+
+                      starttime+","+step+","+time+","+
+                           duration + ","+ mad+","+mad2)
+
+}
+
+
+
+
+
+
+define MoveCursor(pos)
+
+{
+  gCursor.x <- First(pos)
+  gCursor.y <- Nth(pos,2)
+  Draw()
+}
+
+
+define GetStrings(lang)
+{
+  gStrings <- GetTranslations("tracking",lang)
+
+}

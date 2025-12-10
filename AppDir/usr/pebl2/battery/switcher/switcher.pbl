@@ -1,0 +1,511 @@
+define Start(p)
+{
+   ## Initialize upload system (works for both online and native)
+   InitializeUpload()
+
+   gScriptName <- "PEBL Switcher task"
+
+   parPairs <- [["trials",12],
+                ["fieldwidth",400],
+		["fieldheight",400]]
+
+   gParams <- CreateParameters(parPairs,gParamFile)
+
+
+#   gCols <- [MakeColor("red"),MakeColor("darkblue"),MakeColor("yellow"),MakeColor("grey"),MakeColor("darkgreen")]
+
+   ##Number of clicks per trial.
+   triallength <- gParams.trials
+
+   ##These should be basically color-blind safe:
+   gCols <- [MakeColorRGB(230,159,0),  #orange
+   	    MakeColorRGB(86,180,233),  #skyblue
+	    MakeColorRGB(0,158,115),   #blue-green
+      	    MakeColorRGB(240,228,66),  #yellow
+	    MakeColorRGB(213,94,0)    #vermillion (red)
+                                   ]
+#            MakeColorRGB(255,255,255),  #white
+#            MakeColorRGB(0,0,0)         #Black
+
+   gColNames <- ["orange","skyblue","bluegreen","yellow","red"]
+   gShapeNames <- ["circle","square","plus","ellipse","star"]
+
+   gStim <- FileReadList("Uppercase.txt")
+   gFont <- MakeFont(gPEBLBaseFont,0,22,MakeColor("black"),MakeColor("black"),0)
+   gWin <- MakeWindow("black")
+   gSleepEasy <- 1
+
+
+   if(gSubNum+""=="0")
+   {
+     gSubNum <- GetSubNum(gWin)
+   }
+
+
+   GetStrings(gLanguage)
+
+   gFileOut <- GetNewDataFile(gSubNum,gWin,"switch","csv",
+           "gSubNum,block,type,try,successes,rule,lastrule,curid,currentval,correct,matchColor,matchLetter,matchShape,matchLast,curcolor,curletter,curshape,targcolor,targletter,targshape,clickcolor,clickletter,clickshapetargx,targx,targy,targid,corsum,incsum,time,rt")
+
+   gFileOutSum <- GetNewDataFile(gSubNum,gWin,"switch-summary","csv",
+       "subNum,timestamp,testtype,numcues,numerr,matchlast,matchany,tooslow,waittime,perftime,medtime")
+
+
+   gRuleNames <- ["color","letter","shape","NA"]
+   coltmplt <-   [1,1,2,2,3,3,4,4,5,5]
+   numtmplt <-   [1,2,3,4,5,1,2,3,4,5]
+   shapetmplt <- [1,2,1,3,2,4,3,5,4,5]
+
+
+
+################################################################
+## Instructions:
+
+
+ gInst <- EasyTextBox("",gVideoWidth/2-390,10,gWin,16,780, 140)
+ gInst.text <-gStrings.inst1
+
+   ##set the field size.
+
+   ## make sure field size does not overflow
+   ##height has to be less than screen height to make room for instruction box and
+   ##cue label.
+   
+   ##thhe upper/lower/left/right are the centers of the objects, so you must leave a gutter 
+   gParams.fieldheight <- Min([gParams.fieldheight,gVideoHeight-gInst.height - 50])
+   gParams.fieldwidth <- Min([gParams.fieldwidth,gVideoWidth-100])
+   gYcenter <- ((gInst.height+ 20 + 30) + (gVideoheight-20))/2 ##halvsies between screen bottom and instruction label
+
+
+
+   gLeft <- gVideoWidth/2-gParams.fieldwidth/2
+   gRight <- gVideoWidth/2+gParams.fieldwidth/2
+   gUpper <- gycenter-gParams.fieldheight/2
+   gLower <- gycenter+gParams.fieldheight/2
+
+  Print([gLeft,gRight, gUpper,gLower])
+
+  ##Generate a single layout for practice:
+  gPoints <- NonOverlapLayout(gLeft+32,gRight-32,gUpper+32,glower-32,80,10)
+  gType <- 0
+  gBlock <- 0
+  Draw()
+
+##this is practice.
+  Trial(Transpose([coltmplt,numtmplt,shapetmplt]),[1,2,3,1,2,3])
+#  Trial(Transpose([coltmplt,numtmplt,shapetmplt]),ShuffleEpoch([1,2,3],4))
+
+  gInst.text <- gStrings.break1
+  Draw()
+
+
+
+
+
+  ##Generate a single global layout:
+  ## leave some room at the edge because the the layout specifies thecenters,
+  ## and the typical shape has a radius of 30
+  gPoints <- NonOverlapLayout(gLeft+32,gRight-32,gUpper+32,glower-32,80,10)
+
+  WaitFordownClick()
+  Hide(gInst)
+  Draw()
+
+
+    i <- 1
+
+
+
+    ##Consistent 2 rule
+    gType <- 1
+    cuebase <- Shuffle([[1,2],[2,3],[1,3]])
+    loop(base,cuebase)
+     {
+       gBlock <- gBlock  + 1
+      seq <- Sequence(1,5,1)
+      tmpcol <- Shuffle(seq)
+      tmpnum <- Shuffle(seq)
+      tmpshape <- Shuffle(seq)
+
+      trial <- Shuffle(Transpose([Replace(coltmplt,Transpose([seq,tmpcol])),
+	          Replace(numtmplt,Transpose([seq,tmpnum])),
+                  Replace(shapetmplt,Transpose([seq,tmpshape]))]))
+
+      cues <-SubList(RepeatList(base,Ceiling(triallength/2)),1,trialLength)
+
+      time <- GetTime()
+      ret  <- Trial(trial,cues)
+
+      waittime <- Third(ret)
+      perftime <- Fourth(ret)
+      medtime <- Fifth(ret)
+      tooslow <- Nth(ret,6)
+      lastmatches <- Nth(ret,7)  ##How many times the error matched a feature of the current.
+      matchany <- Nth(ret,8)     ##How many times did the error match any feature of the current.
+
+      FilePrint(gFileOutSum,gSubNum + "," + TimeStamp()+ ","+ gType + "," +
+                First(ret) + "," + Second(ret)+ ","+lastmatches+","+matchany+
+		","+ tooslow +","+waittime + ","+perftime+","+medtime)
+
+
+
+      i <- i + 1
+
+    }
+
+    gInst.text <- gStrings.break2
+    Show(gInst)
+    Draw()
+    WaitForDownCLick()
+    Draw()
+    Hide(gInst)
+    Draw()
+    ##Consistent order-3 rule
+    gType <- 2
+    threes <- [[1,2,3],[1,3,2],[2,1,3],[2,3,1],[3,1,2],[3,2,1]]
+    cuebase <- SampleN(threes,3)
+    loop(base,cuebase)
+     {
+      gBlock <- gBlock  + 1
+      seq <- Sequence(1,5,1)
+      tmpcol <- Shuffle(seq)
+      tmpnum <- Shuffle(seq)
+      tmpshape <- Shuffle(seq)
+
+      trial <- Shuffle(Transpose([Replace(coltmplt,Transpose([seq,tmpcol])),
+   	               Replace(numtmplt,Transpose([seq,tmpnum])),
+                       Replace(shapetmplt,Transpose([seq,tmpshape]))]))
+
+      cues <-SubList(RepeatList(base,Ceiling(trialLength/3)),1,trialLength)
+
+      time <- GetTime()
+      ret  <- Trial(trial,cues)
+
+      waittime <- Third(ret)
+      perftime <- Fourth(ret)
+      medtime <- Fifth(ret)
+      tooslow <- Nth(ret,6)
+      lastmatches <- Nth(ret,7)  ##How many times the error matched a feature of the current.
+      matchany <- Nth(ret,8)     ##How many times did the error match any feature of the current.
+
+      FilePrint(gFileOutSum,gSubNum + "," + TimeStamp()+ ","+ gType + "," +
+                First(ret) + "," + Second(ret)+ ","+lastmatches+","+matchany+","+
+		tooslow +","+waittime + ","+perftime+","+medtime)
+
+
+   i <- i + 1
+
+    }
+
+    gInst.text <- gStrings.break3
+    Show(gInst)
+    Draw()
+    WaitForDownCLick()
+    Draw()
+    Hide(gInst)
+    Draw()
+    ##Random order-3 rule
+    gType <- 3
+    times <- [1,2,3]
+    loop(x,times)
+     {
+
+      gBlock <- gBlock  + 1
+      seq <- Sequence(1,5,1)
+      tmpcol <- Shuffle(seq)
+      tmpnum <- Shuffle(seq)
+      tmpshape <- Shuffle(seq)
+
+      trial <- Shuffle(Transpose([Replace(coltmplt,Transpose([seq,tmpcol])),
+	          Replace(numtmplt,Transpose([seq,tmpnum])),
+              Replace(shapetmplt,Transpose([seq,tmpshape]))]))
+
+
+      cues <- SubList(ShuffleEpoch([1,2,3],
+                          Ceiling(trialLength/3)),1,trialLength)
+
+      time <- GetTime()
+      ret  <- Trial(trial,cues)
+
+      waittime <- Third(ret)
+      perftime <- Fourth(ret)
+      medtime <- Fifth(ret)
+      tooslow <- Nth(ret,6)
+      lastmatches <- Nth(ret,7)  ##How many times the error matched a feature of the current.
+      matchany <- Nth(ret,8)     ##How many times did the error match any feature of the current.
+
+      FilePrint(gFileOutSum,gSubNum + "," + TimeStamp()+ ","+ gType + "," +
+                First(ret) + "," + Second(ret)+ ","+lastmatches+","+matchany+","+ tooslow +","+waittime + ","+perftime+","+medtime)
+
+      i <- i + 1
+
+    }
+ gInst.text <- gStrings.debrief
+ Show(gInst)
+  Draw()
+
+  ## Upload data files (works online, no-op on native)
+  UploadFile(gSubNum, gFileOut.filename)          ##"data/" + gSubNum + "/switch-" + gSubNum + ".csv")
+  UploadFile(gSubNum, gFileOutSum.filename)       ##"data/" + gSubNum + "/switch-summary-" + gSubNum + ".csv")
+
+  WaitForDownClick()
+
+}
+
+
+define Trial(setup,cues)
+{
+
+
+  cue <- EasyLabel(gStrings.tobegin,gVideoWidth/2,gUpper-20,gWin,35)
+  circs <- []
+  texts <- []
+  backs <- []
+  rts <- [] ##list of correct response times.
+   tooslow <- 0
+   cor <- 0
+   inc <- 0
+   first <- -1
+
+   black <- MakeColor("black")
+   points <- gPoints
+   stim <- PasteTables(setup,points)
+   stim <- PasteTables(stim,Transpose([Sequence(1,10,1)]))
+   labels <- SampleN(gStim,6)
+
+     back <- Circle(First(First(points)),Second(First(points)),40,MakeColor("white"),1)
+     back.aa <- 1
+     AddObject(back,gWin)
+
+      loop(i,stim)
+       {
+          color <- Nth(gCols,First(i))
+          label <- Nth(labels,Second(i))+""
+
+          x <- Fourth(i)
+          y <- Fifth(i)
+          p1 <- GetShape(Third(i),x,y,color)
+          pback <- Circle(x,y,35,black,1)
+	  pback.aa <- 1
+          t <- MakeLabel(label,gFont)
+          Move(t,x,y)
+
+          AddObject(pback,gWin)
+          AddObject(p1,gWin)
+          AddObject(t,gWin)
+
+          backs <- Append(backs,pBack)
+          texts <- Append(texts,t)
+          circs <- Append(circs,p1)
+
+       }
+   Draw()
+   t0 <- GetTime()
+
+   ids <- Sequence(1,10,1)
+
+   rulelabs <- [gStrings.color,gStrings.letter,gStrings.shape]
+   resp <- First(stim)
+   next <- 1
+   done <- 0
+   rt <- -1
+
+   WaitForClickOnTarget([cue],[1])
+
+   t1 <- GetTime()
+   lasttime <- t1
+   Draw()
+   try <- 0
+   successes <- 0
+   lastrule <- 4   #4 is a non-rule.
+   lastmatches <- 0 # Count how many mis-clicks matched the previous rule
+   matchanys <- 0   # count hom many mis-clicks matched any dimension of the current selection
+   current <- First(stim)
+
+   loop(rule,cues)
+   {
+
+
+     curid <- Nth(resp,6)
+     currentval <- Nth(resp,rule)
+     cue.text <- Nth(rulelabs,rule)
+     Draw()
+
+     cont <- 1
+     while(cont)
+      {
+
+       respa <- WaitForClickOnTarget(backs,stim)
+       time <- GetTime()
+
+
+       SetMouseCursorPosition(Round(Nth(respa,4)+7),Round(Nth(respa,5)+7))
+
+       ##respa is the clicked-on stim string.
+       try <- try + 1
+       if(Nth(respa,rule) == currentval and
+         Nth(respa,6) <> curid)
+        {
+       ###Correct
+        rt <- (time-lasttime)
+        rts <- Append(rts, rt)
+        tooslow <- tooslow + (rt > 2000)
+        lasttime <- time
+        resp <- respa
+        Move(back,Fourth(resp),Fifth(resp))
+        Draw()
+        cont <- 0
+
+        correct <- 1
+        cor <- cor + 1
+	if(first<0)
+         {
+           first <- GetTime()
+         }
+
+      matchColor <- 0
+      matchLetter <- 0
+      matchShape <- 0
+      matchlast <- 0
+
+     }else{
+       inc <- inc + 1
+       correct <- 0
+#       Print("wrong")
+        #lets do some scoring for type of error.
+
+#	Print("lastrule: "+lastrule)
+        ## Let's check whether the clicked-on object matches each
+        ##of the three features of the current one.  If correct,
+        ## they all should match
+	matchColor <- First(resp)==First(respa)
+        matchLetter <-Second(resp)==Second(respa)
+        matchShape <- Third(resp)==Third(respa)
+	matchlast <- Nth([matchColor,matchLetter,matchShape,"NA"],lastrule)
+        matchany <- matchcolor or matchletter or matchshape
+
+	matchanys <- matchanys + matchany
+        lastmatches <- lastmatches + matchlast
+
+      }
+
+
+       out <-  FilePrint(gFileOut,gSubNum+","+ gBlock + "," + gType+","+
+        try+","+successes+"," + Nth(gRuleNames,rule) + ","+Nth(gRuleNames,lastrule)+","+curid+","+
+       currentval+","+correct+","+matchColor+","+matchLetter+","+matchShape+","+matchLast+","+
+        Nth(gColNames,First(current))+","+Nth(labels,Second(current))+","+Nth(gShapeNames,Third(current))+","+
+        Nth(gColNames,First(resp))+","+Nth(labels,Second(resp))+","+Nth(gShapeNames,Third(resp))+","+
+        Nth(gColNames,First(respa))+","+Nth(labels,Second(respa))+","+Nth(gShapeNames,Third(respa))+","+
+        Fourth(respa)+","+Fifth(respa)+","+Nth(respa,6)+","+cor+","+inc+","+time+","+rt)
+#      Print(out)
+     }
+   current <- resp
+   successes <- successes + 1
+    lastrule <- rule
+   }
+  tend <- time
+
+ # Print(rts)
+  return [cor,inc,(t1-t0),(tend-t1),Median(rts),tooslow,lastmatches,matchanys]
+}
+
+define PasteTables(tab1,tab2)
+{
+
+   a <- Transpose(tab1)
+   b <- Transpose(tab2)
+
+
+   return Transpose(Merge(a,b))
+}
+
+
+define GetShape(type,x,y,color)
+{
+    if(type==1)
+     {
+         shape <- Circle(x,y,30,color,1)
+         shape.aa <- 1
+    }elseif(type==2)
+    {
+        shape <- Square(x,y,45,color,1)
+    } elseif(type==3)
+    {
+
+      shape <- Plus(0,0,30,20,color)
+      Move(shape,x,y)
+
+   } elseif(type==4)
+   {
+       shape <- Ellipse(x,y,30,22,color,1)
+       shape.aa <- 1
+   } elseif(type==5)
+   {
+       pts <- MakeStarPoints(30,20,7)
+       shape <- Polygon(x,y,First(pts),Second(pts),color,1)
+      shape.aa <- 1
+   }else{
+    SignalFatalError("Unknown shape type in GetShape.")
+   }
+
+  return shape
+}
+
+
+
+##This shuffles by epoch, with the restrictions that:
+## 1. no two adjacent conditions are alike
+## 2. no two adjacent epochs are identical.
+define ShuffleEpoch(list,times)
+{
+   out <- [Shuffle(list)]
+   i <-1
+   next <- First(list)
+   try <- out
+   last <- First(out)
+   while(i < times)
+   {
+    try <- Shuffle(list)
+    while(First(try)==First(First(out)) or Listequal(try,last))
+    {
+
+      try <- Shuffle(list)
+    }
+
+     last <- try
+     out <- Merge([Reverse(try)],out)
+
+    i <- i + 1
+   }
+  return Flatten( out)
+}
+
+
+
+define ListEqual(l1,l2)
+{
+  if(Length(l1)==Length(l2))
+  {
+   same <- 1
+
+
+   loop(i,Transpose([l1,l2]))
+    {
+     if(not (First(i) == Nth(i,2)))
+      {
+        same <- 0
+      }
+
+    }
+   } else {
+     same <- 0
+   }
+  return same
+}
+
+
+define GetStrings(language)
+{
+##Known trasnlations:  EN
+  gStrings <- GetTranslations("switcher", language)
+}

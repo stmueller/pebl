@@ -1,0 +1,208 @@
+##This is an implementation of the Shiffrin/Schneider
+## memory automaticity task. The goal of this task is to
+## do repeated memory search, until 'automatictiy'
+## kicks in and you show flat search times.
+## with respect to set size.
+
+
+define Start(p)
+{
+
+
+
+
+  gScriptName <- "PEBL Memory Automaticity Task"
+
+  parpairs <- [["testtype",3],  #3==both
+	       ["leftresponse","<lshift>"],
+      	       ["rightresponse","<rshift>"],
+
+	       ["trialsperset",4],
+	       ["frames",25],
+	       ["matches","FJKNT"],
+	       ["nonmatches","DOPSX"]
+
+                   ]
+
+   out <- ""
+   gParams <- CreateParameters(parpairs,gParamFile)
+
+   gWin <- MakeWindow("black")
+   gSleepEasy <- 1
+
+   if(gSubNum+""=="0")
+    {
+      gSubNum <-GetSubNum(gWin)
+    }
+
+   GetStrings(gLanguage)
+
+    gFileOut<- GetNewdataFile(gSubNum,gWin,"automat","csv","subnum,type,time,trial,ltrs,target,size,match,resp,corr,rt")
+    gReportFile <- FileOpenAppend("data/"+gsubnum+"/automat-report-"+gSubNum+".txt")
+
+
+
+  if(gParams.testtype==4)
+   {
+     types <- GetEasyChoice(gStrings.choice,
+       [gStrings.consistent,
+        gStrings.varied,
+        gStrings.both],[[1],[2],Shuffle([1,2])],gWin)
+   } elseif(gParams.testtype==3) {
+       types <- Shuffle([1,2])
+   }else
+   {
+     types <- [gParams.testtype]
+   }
+
+   inst1 <- ReplaceChar(gSTrings.inst1,"<RIGHT>",gparams.rightresponse)
+   inst1 <- ReplaceChar(inst1,"<LEFT>", gParams.leftresponse)
+   Messagebox(inst1,gWin)
+
+  trials <-gParams.trialsperset  ##trials per setsize.; trialsx4 *frames total
+  frames <- gParams.frames        #responses per letter set
+
+  matchesCM <-    SplitString(gParams.matches,"")
+  nonmatchesCM <- SplitString(gParams.nonmatches,"")
+
+
+
+
+  loop(type,types)
+   {
+
+  if(type==1)
+   {
+    matches <- matchesCM
+    nonmatches <- nonmatchesCM
+    MessageBox(gStrings.instconsistent,gWin)
+
+   } else{
+
+       MessageBox(gStrings.instvaried,gWin)
+   }
+
+   footer<-EasyLabel(gParams.leftresponse+gStrings.footer+gParams.rightresponse,gVideoWidth/2, gVideoHeight-150,gWin,30)
+
+   center <-Easylabel("+",gVideoWidth/2,gVideoHeight/2,gWin,60)
+   prompt <- Easylabel("",gVideoWidth/2,gVideoHeight-200,gWin,25)
+   ##set sizes to use
+   setsizes<- [1,2,3,4]
+    ##we will always use frame size of 1.
+
+
+   ##these are the set-size conditionsfor each trial
+   trialcond <- Shuffle(Flatten(Repeat(setsizes,trials)))
+
+
+   data <- []
+   trial <- 1
+   loop(size,trialcond)
+    {
+
+     if(type==2){
+
+       ##Create the varied (random) mapping, on each round.
+       all <- Shuffle(Merge(matchesCM,nonmatchesCM))
+       matchesVM <- SubList(all,1,Length(matchesCM))
+       nonmatchesVM <- SubList(all,Length(matchesCM)+1,Length(all))
+
+       matches <- matchesVM
+       nonmatches <- nonmatchesVM
+
+      }
+
+
+        letters<- SampleN(matches,size)
+        ltrstring <- ListToString(letters)
+        center.text <- gStrings.remember + ltrstring
+        prompt.text <- gStrings.prompt
+        Draw()
+        WaitForKeyPress(" ")
+        center.text <- "+"
+        prompt.text <- ""
+
+
+       numpos<- Ceiling(frames/2)
+       matchcond<-Shuffle(Merge(Repeat(1,numpos),Repeat(2,frames-numpos)))
+      loop(frame,matchcond)
+        {
+
+           center.text <- "+"
+	   Draw()
+	   Wait(200)
+
+           if(frame==1)
+	     {
+	       target <- Sample(letters)
+	     }else{
+	       target <- Sample(nonmatches)
+             }
+
+          center.text <- target
+	  Draw()
+	  time1 <- GetTime()
+	  resp <- WaitForListKeyPress([gParams.leftresponse,gParams.rightresponse])
+          time2 <- GetTime()
+
+          if(frame==1)  ##the response was a match.
+	   {
+
+            corr<- (resp==gParams.rightresponse)
+
+           }else{  ##nonmatch; frametype==2
+
+            corr<- (resp==gParams.leftresponse)
+           }
+
+          rt<-time2-time1
+          PushOnEnd(data,[size,corr,rt])
+          FilePrint(gFileOut,gSubNum+","+type+","+GetTime()+","+trial+","+ltrstring+","+
+	   target+","+size+","+ frame+","+ resp+","+ corr + ","+rt)
+
+           trial<- trial + 1
+         }
+    }
+
+
+
+
+    ##we should aggregate by size.
+
+
+   out <- out+TimeStamp()+CR(1)
+   out <- out+CR(1)+Nth([gStrings.consistent,gStrings.varied],type)+CR(1)
+
+   td <- Transpose(data)
+   sizes <-First(td)
+   out<- out+   "-----------------------------------------"+CR(1)
+   out <- out + "size           Accuracy          RT   N"+CR(1)
+   out <- out + "-----------------------------------------"+CR(1)
+   loop(size,Levels(sizes))
+   {
+     tmp <- Filter(data,Match(sizes,size))
+     ttmp <- Transpose(tmp)
+
+     out <- out +  size+":    "+Mean(Second(ttmp)) + "      " + Mean(Third(ttmp))+"  " + Length(Second(ttmp))+CR(1)
+
+
+   }
+      out <- out + "---------------------------------------"+CR(1)
+
+   Print(out)
+}
+  FilePrint(gReportFile,out)
+
+   MessageBox(gStrings.debrief+out,gWin)
+}
+
+
+
+
+
+
+define GetStrings(lang)
+{
+  gStrings <- GetTranslations("memoryautomaticity",lang)
+  
+}

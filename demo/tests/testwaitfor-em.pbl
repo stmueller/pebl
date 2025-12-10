@@ -1,0 +1,558 @@
+## Comprehensive test for EM.pbl WaitFor* functions
+## Tests both successful responses and timeout behavior
+## Logs timing accuracy for timeout functions
+
+define Start(p)
+{
+    gVideoWidth <- 800
+    gVideoHeight <- 600
+    gWin <- MakeWindow("black")
+
+    gFont <- MakeFont(gPEBLBaseFont, 0, 18, MakeColor("white"), MakeColor("black"), 1)
+    gLabel <- MakeLabel("", gFont)
+    AddObject(gLabel, gWin)
+    Move(gLabel, gVideoWidth/2, 100)
+
+    gInstructions <- MakeLabel("", gFont)
+    AddObject(gInstructions, gWin)
+    Move(gInstructions, gVideoWidth/2, 150)
+
+    Print("========================================")
+    Print("EM.PBL WAITFOR FUNCTION TEST SUITE")
+    Print("========================================")
+    Print("")
+
+    ## Test 1: Wait function with timing
+    TestWait()
+    WaitForAnyKeyPress()
+
+    ## Test 2: WaitForKeyPress
+   # TestWaitForKeyPress()
+   # WaitForAnyKeyPress()
+
+    ## Test 3: WaitForAnyKeyPress
+#    TestWaitForAnyKeyPress()
+#    WaitForAnyKeyPress()
+
+    ## Test 4: WaitForAnyKeyPressWithTimeout - timeout case
+#    TestWaitForAnyKeyPressWithTimeout_Timeout()
+#    WaitForAnyKeyPress()
+
+    ## Test 5: WaitForAnyKeyPressWithTimeout - success case
+#    TestWaitForAnyKeyPressWithTimeout_Success()
+#    WaitForAnyKeyPress()
+
+    ## Test 6: WaitForListKeyPress
+#    TestWaitForListKeyPress()
+#    WaitForAnyKeyPress()
+
+    ## Test 7: WaitForListKeyPressWithTimeout - timeout case
+#    TestWaitForListKeyPressWithTimeout_Timeout()
+#    WaitForAnyKeyPress()
+
+    ## Test 8: WaitForListKeyPressWithTimeout - success case
+#    TestWaitForListKeyPressWithTimeout_Success()
+#    WaitForAnyKeyPress()
+
+    ## Test 9: WaitForKeyRelease
+#    TestWaitForKeyRelease()
+#    WaitForAnyKeyPress()
+
+    ## WaitForAnyKeyRelease - SKIPPED (not a built-in function)
+    ## TestWaitForAnyKeyRelease()
+
+    ## Test 10: WaitForMouseButton
+ #   TestWaitForMouseButton() 
+#    WaitForAnyKeyPress()
+
+    ## Test 11: WaitForMouseButtonWithTimeout - timeout case
+    TestWaitForMouseButtonWithTimeout_Timeout()
+
+
+    ## Test 12: WaitForMouseButtonWithTimeout - success case
+    TestWaitForMouseButtonWithTimeout_Success()
+
+   ## Test 11: WaitForMouseButtonWithTimeout - timeout case
+    TestWaitForMouseButtonWithTimeout_Timeout()
+
+
+    ## Test 12: WaitForMouseButtonWithTimeout - success case
+    TestWaitForMouseButtonWithTimeout_Success()
+
+   ## Test 11: WaitForMouseButtonWithTimeout - timeout case
+    TestWaitForMouseButtonWithTimeout_Timeout()
+
+
+    ## Test 12: WaitForMouseButtonWithTimeout - success case
+    TestWaitForMouseButtonWithTimeout_Success()
+
+   ## Test 11: WaitForMouseButtonWithTimeout - timeout case
+    TestWaitForMouseButtonWithTimeout_Timeout()
+
+
+    ## Test 12: WaitForMouseButtonWithTimeout - success case
+    TestWaitForMouseButtonWithTimeout_Success()
+
+    Print("")
+    Print("========================================")
+    Print("ALL TESTS COMPLETE")
+    Print("========================================")
+
+    gLabel.text <- "All tests complete! Press any key to exit."
+    gInstructions.text <- ""
+    Draw()
+    WaitForAnyKeyPress()
+}
+
+define TestWait()
+{
+    Print("----------------------------------------")
+    Print("TEST 1: Wait(time) - Timing Accuracy")
+    Print("Expected: Wait 500ms, verify actual timing")
+
+    gLabel.text <- "TEST 1: Wait(500) - timing test"
+    gInstructions.text <- "Watch console for timing results"
+    Draw()
+
+    tolerance <- 50
+    testTime <- 500
+
+    startTime <- GetTime()
+    Wait(testTime)
+    endTime <- GetTime()
+
+    actualTime <- endTime - startTime
+    difference <- Abs(actualTime - testTime)
+
+    Print("  Expected: " + testTime + "ms")
+    Print("  Actual: " + actualTime + "ms")
+    Print("  Difference: " + difference + "ms")
+
+    if(difference <= tolerance)
+    {
+        Print("  PASS: Timing within tolerance (" + tolerance + "ms)")
+    }else{
+        Print("  FAIL: Timing exceeded tolerance")
+    }
+    Print("")
+}
+
+define TestWaitForKeyPress()
+{
+    Print("----------------------------------------")
+    Print("TEST 2: WaitForKeyPress(key)")
+    Print("Expected: Returns the key code when 'x' is pressed")
+
+    gLabel.text <- "TEST 2: WaitForKeyPress('x')"
+    gInstructions.text <- "Press 'x' to continue"
+    Draw()
+
+    result <- WaitForKeyPress("x")
+
+    Print("  Result: [" + result + "]")
+    if(Lowercase(result) == "x")
+    {
+        Print("  PASS: Correct key returned")
+    }else{
+        Print("  FAIL: Expected 'x', got '" + result + "'")
+    }
+    Print("")
+}
+
+## Commented out - WaitForKeyPressWithTimeout is not a built-in function (EM.pbl only)
+## define TestWaitForKeyPressWithTimeout_Timeout()
+## {
+##     Print("----------------------------------------")
+##     Print("TEST 3: WaitForKeyPressWithTimeout(key, timeout) - TIMEOUT")
+##     Print("Expected: Returns '<timeout>' after 1000ms if 'x' not pressed")
+##
+##     gLabel.text <- "WaitForKeyPressWithTimeout('x', 1000)"
+##     gInstructions.text <- "DO NOT press any key - testing timeout"
+##     Draw()
+##
+##     tolerance <- 100
+##     timeoutValue <- 1000
+##
+##     startTime <- GetTime()
+##     result <- WaitForKeyPressWithTimeout("x", timeoutValue)
+##     endTime <- GetTime()
+##
+##     actualTime <- endTime - startTime
+##     difference <- Abs(actualTime - timeoutValue)
+##
+##     Print("  Result: [" + result + "]")
+##     Print("  Expected time: " + timeoutValue + "ms")
+##     Print("  Actual time: " + actualTime + "ms")
+##     Print("  Difference: " + difference + "ms")
+##
+##     if(result == "<timeout>" and difference <= tolerance)
+##     {
+##         Print("  PASS: Timeout returned with correct timing")
+##     }elseif(result == "<timeout>")
+##     {
+##         Print("  PARTIAL: Timeout returned but timing off by " + difference + "ms")
+##     }else{
+##         Print("  FAIL: Expected '<timeout>', got '" + result + "'")
+##     }
+##     Print("")
+## }
+##
+## define TestWaitForKeyPressWithTimeout_Success()
+## {
+##     Print("----------------------------------------")
+##     Print("TEST 4: WaitForKeyPressWithTimeout(key, timeout) - SUCCESS")
+##     Print("Expected: Returns 'x' before timeout when pressed")
+##
+##     gLabel.text <- "WaitForKeyPressWithTimeout('x', 3000)"
+##     gInstructions.text <- "Press 'x' within 3 seconds"
+##     Draw()
+##
+##     startTime <- GetTime()
+##     result <- WaitForKeyPressWithTimeout("x", 3000)
+##     endTime <- GetTime()
+##
+##     actualTime <- endTime - startTime
+##
+##     Print("  Result: [" + result + "]")
+##     Print("  Response time: " + actualTime + "ms")
+##
+##     if(Lowercase(result) == "x" and actualTime < 3000)
+##     {
+##         Print("  PASS: Correct key returned before timeout")
+##     }elseif(result == "<timeout>")
+##     {
+##         Print("  FAIL: Timed out - user did not press key in time")
+##     }else{
+##         Print("  FAIL: Expected 'x', got '" + result + "'")
+##     }
+##     Print("")
+## }
+
+define TestWaitForAnyKeyPress()
+{
+    Print("----------------------------------------")
+    Print("TEST 3: WaitForAnyKeyPress()")
+    Print("Expected: Returns any key code that is pressed")
+
+    gLabel.text <- "TEST 3: WaitForAnyKeyPress()"
+    gInstructions.text <- "Press any key to continue"
+    Draw()
+
+    result <- WaitForAnyKeyPress()
+
+    Print("  Result: [" + result + "]")
+    if(result != "" and result != "<timeout>")
+    {
+        Print("  PASS: Key returned: " + result)
+    }else{
+        Print("  FAIL: No key returned")
+    }
+    Print("")
+}
+
+define TestWaitForAnyKeyPressWithTimeout_Timeout()
+{
+    Print("----------------------------------------")
+    Print("TEST 4: WaitForAnyKeyPressWithTimeout(timeout) - TIMEOUT")
+    Print("Expected: Returns '<timeout>' after 1000ms if no key pressed")
+
+    gLabel.text <- "TEST 4: WaitForAnyKeyPressWithTimeout(1000)"
+    gInstructions.text <- "DO NOT press any key - testing timeout"
+    Draw()
+
+    tolerance <- 100
+    timeoutValue <- 1000
+
+    startTime <- GetTime()
+    result <- WaitForAnyKeyPressWithTimeout(timeoutValue)
+    endTime <- GetTime()
+
+    actualTime <- endTime - startTime
+    difference <- Abs(actualTime - timeoutValue)
+
+    Print("  Result: [" + result + "]")
+    Print("  Expected time: " + timeoutValue + "ms")
+    Print("  Actual time: " + actualTime + "ms")
+    Print("  Difference: " + difference + "ms")
+
+    if(result == "<timeout>" and difference <= tolerance)
+    {
+        Print("  PASS: Timeout returned with correct timing")
+    }elseif(result == "<timeout>")
+    {
+        Print("  PARTIAL: Timeout returned but timing off by " + difference + "ms")
+    }else{
+        Print("  FAIL: Expected '<timeout>', got '" + result + "'")
+    }
+    Print("")
+}
+
+define TestWaitForAnyKeyPressWithTimeout_Success()
+{
+    Print("----------------------------------------")
+    Print("TEST 5: WaitForAnyKeyPressWithTimeout(timeout) - SUCCESS")
+    Print("Expected: Returns key code before timeout when pressed")
+
+    gLabel.text <- "TEST 5: WaitForAnyKeyPressWithTimeout(3000)"
+    gInstructions.text <- "Press any key within 3 seconds"
+    Draw()
+
+    startTime <- GetTime()
+    result <- WaitForAnyKeyPressWithTimeout(3000)
+    endTime <- GetTime()
+
+    actualTime <- endTime - startTime
+
+    Print("  Result: [" + result + "]")
+    Print("  Response time: " + actualTime + "ms")
+
+    if(result != "<timeout>" and actualTime < 3000)
+    {
+        Print("  PASS: Key returned before timeout: " + result)
+    }elseif(result == "<timeout>")
+    {
+        Print("  FAIL: Timed out - user did not press key in time")
+    }else{
+        Print("  FAIL: Unexpected result")
+    }
+    Print("")
+}
+
+define TestWaitForListKeyPress()
+{
+    Print("----------------------------------------")
+    Print("TEST 6: WaitForListKeyPress(keys)")
+    Print("Expected: Returns one of ['a', 'b', 'c'] when pressed")
+
+    gLabel.text <- "TEST 6: WaitForListKeyPress(['a', 'b', 'c'])"
+    gInstructions.text <- "Press 'a', 'b', or 'c' to continue"
+    Draw()
+
+    result <- WaitForListKeyPress(["a", "b", "c"])
+
+    Print("  Result: [" + result + "]")
+
+    resultLower <- Lowercase(result)
+    if(resultLower == "a" or resultLower == "b" or resultLower == "c")
+    {
+        Print("  PASS: Valid key from list returned")
+    }else{
+        Print("  FAIL: Expected a/b/c, got '" + result + "'")
+    }
+    Print("")
+}
+
+define TestWaitForListKeyPressWithTimeout_Timeout()
+{
+    Print("----------------------------------------")
+    Print("TEST 7: WaitForListKeyPressWithTimeout(keys, timeout) - TIMEOUT")
+    Print("Expected: Returns '<timeout>' after 1000ms if a/b/c not pressed")
+
+    gLabel.text <- "TEST 7: WaitForListKeyPressWithTimeout(['a','b','c'], 1000)"
+    gInstructions.text <- "DO NOT press any key - testing timeout"
+    Draw()
+
+    tolerance <- 100
+    timeoutValue <- 1000
+
+    startTime <- GetTime()
+    result <- WaitForListKeyPressWithTimeout(["a", "b", "c"], timeoutValue)
+    endTime <- GetTime()
+
+    actualTime <- endTime - startTime
+    difference <- Abs(actualTime - timeoutValue)
+
+    Print("  Result: [" + result + "]")
+    Print("  Expected time: " + timeoutValue + "ms")
+    Print("  Actual time: " + actualTime + "ms")
+    Print("  Difference: " + difference + "ms")
+
+    if(result == "<timeout>" and difference <= tolerance)
+    {
+        Print("  PASS: Timeout returned with correct timing")
+    }elseif(result == "<timeout>")
+    {
+        Print("  PARTIAL: Timeout returned but timing off by " + difference + "ms")
+    }else{
+        Print("  FAIL: Expected '<timeout>', got '" + result + "'")
+    }
+    Print("")
+}
+
+define TestWaitForListKeyPressWithTimeout_Success()
+{
+    Print("----------------------------------------")
+    Print("TEST 8: WaitForListKeyPressWithTimeout(keys, timeout) - SUCCESS")
+    Print("Expected: Returns a/b/c before timeout when pressed")
+
+    gLabel.text <- "TEST 8: WaitForListKeyPressWithTimeout(['a','b','c'], 3000)"
+    gInstructions.text <- "Press 'a', 'b', or 'c' within 3 seconds"
+    Draw()
+
+    startTime <- GetTime()
+    result <- WaitForListKeyPressWithTimeout(["a", "b", "c"], 3000)
+    endTime <- GetTime()
+
+    actualTime <- endTime - startTime
+
+    Print("  Result: [" + result + "]")
+    Print("  Response time: " + actualTime + "ms")
+
+    resultLower <- Lowercase(result)
+    if((resultLower == "a" or resultLower == "b" or resultLower == "c") and actualTime < 3000)
+    {
+        Print("  PASS: Valid key returned before timeout")
+    }elseif(result == "<timeout>")
+    {
+        Print("  FAIL: Timed out - user did not press valid key in time")
+    }else{
+        Print("  FAIL: Expected a/b/c, got '" + result + "'")
+    }
+    Print("")
+}
+
+define TestWaitForKeyRelease()
+{
+    Print("----------------------------------------")
+    Print("TEST 9: WaitForKeyRelease(key)")
+    Print("Expected: Returns key code when 'x' is released")
+
+    gLabel.text <- "TEST 9: WaitForKeyRelease('x')"
+    gInstructions.text <- "Press and HOLD 'x', then RELEASE it"
+    Draw()
+
+    result <- WaitForKeyRelease("x")
+
+    Print("  Result: [" + result + "]")
+    if(Lowercase(result) == "x")
+    {
+        Print("  PASS: Correct key release detected")
+    }else{
+        Print("  FAIL: Expected 'x', got '" + result + "'")
+    }
+    Print("")
+}
+
+## Commented out - WaitForAnyKeyRelease is not a built-in function
+## define TestWaitForAnyKeyRelease()
+## {
+##     Print("----------------------------------------")
+##     Print("TEST 12: WaitForAnyKeyRelease()")
+##     Print("Expected: Returns key code when any key is released")
+##
+##     gLabel.text <- "WaitForAnyKeyRelease()"
+##     gInstructions.text <- "Press and HOLD any key, then RELEASE it"
+##     Draw()
+##
+##     result <- WaitForAnyKeyRelease()
+##
+##     Print("  Result: [" + result + "]")
+##     if(result != "" and result != "<timeout>")
+##     {
+##         Print("  PASS: Key release detected: " + result)
+##     }else{
+##         Print("  FAIL: No key release detected")
+##     }
+##     Print("")
+## }
+
+define TestWaitForMouseButton()
+{
+    Print("----------------------------------------")
+    Print("TEST 10: WaitForMouseButton()")
+    Print("Expected: Returns [x, y, button, status] when mouse clicked")
+
+    gLabel.text <- "TEST 10: WaitForMouseButton()"
+    gInstructions.text <- "Click the mouse to continue"
+    Draw()
+
+    result <- WaitForMouseButton()
+
+    Print("  Result: " + result)
+    if(IsList(result) and Length(result) == 4)
+    {
+        Print("  X: " + First(result))
+        Print("  Y: " + Second(result))
+        Print("  Button: " + Nth(result, 3))
+        Print("  Status: " + Nth(result, 4))
+        Print("  PASS: Mouse click detected with correct format")
+    }else{
+        Print("  FAIL: Expected list [x, y, button, status], got: " + result)
+    }
+    Print("")
+}
+
+define TestWaitForMouseButtonWithTimeout_Timeout()
+{
+    Print("----------------------------------------")
+    Print("TEST 11: WaitForMouseButtonWithTimeout(timeout) - TIMEOUT")
+    Print("Expected: Returns '<timeout>' after 1000ms if no click")
+
+    gLabel.text <- "TEST 11: WaitForMouseButtonWithTimeout(1000)"
+    gInstructions.text <- "DO NOT click mouse - testing timeout"
+    Draw()
+
+    tolerance <- 100
+    timeoutValue <- 1000
+
+    startTime <- GetTime()
+    result <- WaitForMouseButtonWithTimeout(timeoutValue)
+    endTime <- GetTime()
+
+    actualTime <- endTime - startTime
+    difference <- Abs(actualTime - timeoutValue)
+
+    Print("  Result: <<" + result+">>")
+    Print("  Expected time: " + timeoutValue + "ms")
+    Print("  Actual time: " + actualTime + "ms")
+    Print("  Difference: " + difference + "ms")
+
+    if(result == "<timeout>" and difference <= tolerance)
+    {
+        Print("  PASS: Timeout returned with correct timing")
+    }elseif(result == "<timeout>")
+    {
+        Print("  PARTIAL: Timeout returned but timing off by " + difference + "ms")
+    }else{
+        Print("  FAIL: Expected '<timeout>', got '" + result + "'")
+    }
+    Print("")
+}
+
+define TestWaitForMouseButtonWithTimeout_Success()
+{
+    Print("----------------------------------------")
+    Print("TEST 12: WaitForMouseButtonWithTimeout(timeout) - SUCCESS")
+    Print("Expected: Returns mouse data before timeout when clicked")
+
+    gLabel.text <- "TEST 12: WaitForMouseButtonWithTimeout(3000)"
+    gInstructions.text <- "Click the mouse within 3 seconds"
+    Draw()
+
+    startTime <- GetTime()
+    result <- WaitForMouseButtonWithTimeout(3000)
+    endTime <- GetTime()
+
+    actualTime <- endTime - startTime
+
+    Print("  Result: <<" + result+">>")
+    Print("  Response time: " + actualTime + "ms")
+
+    if(IsList(result))
+     { if(Length(result) == 4 and actualTime < 3000)
+      {
+        Print("  X: " + First(result))
+        Print("  Y: " + Second(result))
+        Print("  Button: " + Nth(result, 3))
+        Print("  Status: " + Nth(result, 4))
+        Print("  PASS: Mouse click detected before timeout")
+    }else{
+        Print("Unspecific list in WaitForMousButtonWithTimeout")
+    }
+    }elseif(result == "<timeout>") {
+        Print("  FAIL: Timed out - user did not click in time")
+    }else{
+        Print("  FAIL: Unexpected result format")
+    }
+    Print("")
+}

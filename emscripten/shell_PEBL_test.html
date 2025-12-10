@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PEBL Test/Debug Environment</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Header */
+        #header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 15px 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #header h1 {
+            font-size: 24px;
+            font-weight: 600;
+            color: white;
+        }
+
+        #status {
+            padding: 8px 16px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 20px;
+            font-size: 14px;
+            color: white;
+        }
+
+        #status.loading { background: #f39c12; }
+        #status.ready { background: #27ae60; }
+        #status.running { background: #3498db; }
+        #status.error { background: #e74c3c; }
+
+        /* Main content area */
+        #main-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* Canvas area */
+        #canvas-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background-color: #2d2d30;
+            position: relative;
+        }
+
+        #canvas-wrapper {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #000;
+            position: relative;
+        }
+
+        #canvas {
+            display: block;
+            max-width: 100%;
+            max-height: 100%;
+            border: 2px solid #3498db;
+        }
+
+        #canvas-info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-family: 'Courier New', monospace;
+            color: #3498db;
+        }
+
+        #fullscreen-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(52, 152, 219, 0.9);
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+
+        #fullscreen-btn:hover {
+            background: rgba(52, 152, 219, 1);
+        }
+
+        #start-btn {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            padding: 20px 40px;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: 600;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            transition: all 0.3s;
+            z-index: 100;
+        }
+
+        #start-btn:hover {
+            transform: translate(-50%, -50%) scale(1.05);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        #start-btn:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        /* Resize separator */
+        #resize-separator {
+            width: 5px;
+            background-color: #3e3e42;
+            cursor: col-resize;
+            position: relative;
+            transition: background-color 0.2s;
+        }
+
+        #resize-separator:hover {
+            background-color: #007acc;
+        }
+
+        #resize-separator:active {
+            background-color: #0098ff;
+        }
+
+        /* Console panel */
+        #console-panel {
+            width: 400px;
+            min-width: 250px;
+            max-width: 800px;
+            background-color: #252526;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .console-header {
+            padding: 10px 15px;
+            background-color: #2d2d30;
+            border-bottom: 1px solid #3e3e42;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .console-header h3 {
+            font-size: 14px;
+            font-weight: 600;
+            color: #cccccc;
+        }
+
+        .console-clear {
+            background: #007acc;
+            border: none;
+            padding: 5px 12px;
+            border-radius: 3px;
+            color: white;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .console-clear:hover {
+            background: #005a9e;
+        }
+
+        .console-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        #console-output {
+            color: #d4d4d4;
+        }
+
+        #console-errors {
+            background-color: #0a0a0a;
+            color: #33ff33;
+            font-family: 'Courier New', 'Courier', monospace;
+            text-shadow: 0 0 5px #33ff33;
+        }
+
+        .console-line {
+            margin: 2px 0;
+            padding: 2px 4px;
+            border-left: 2px solid transparent;
+        }
+
+        .console-line.stdout {
+            border-left-color: #4ec9b0;
+        }
+
+        .console-line.stderr {
+            border-left-color: #33ff33;
+            background: rgba(0, 20, 0, 0.6);
+            color: #33ff33;
+            text-shadow: 0 0 3px #33ff33;
+        }
+
+        .console-line.info {
+            border-left-color: #569cd6;
+        }
+
+        /* Fullscreen mode */
+        body.fullscreen #header,
+        body.fullscreen #console-panel {
+            display: none;
+        }
+
+        body.fullscreen #canvas-container {
+            width: 100vw;
+            height: 100vh;
+        }
+
+        body.fullscreen #canvas {
+            border: none;
+        }
+
+        /* Loading spinner */
+        #spinner {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 60px;
+            height: 60px;
+            border: 6px solid rgba(52, 152, 219, 0.2);
+            border-top-color: #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* Scrollbar styling */
+        .console-content::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        .console-content::-webkit-scrollbar-track {
+            background: #1e1e1e;
+        }
+
+        .console-content::-webkit-scrollbar-thumb {
+            background: #424242;
+            border-radius: 5px;
+        }
+
+        .console-content::-webkit-scrollbar-thumb:hover {
+            background: #4e4e4e;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div id="header">
+        <h1>🧪 PEBL Test/Debug Environment</h1>
+        <div id="status" class="loading">Initializing...</div>
+    </div>
+
+    <!-- Main content -->
+    <div id="main-container">
+        <!-- Canvas area -->
+        <div id="canvas-container">
+            <div id="canvas-wrapper">
+                <div id="spinner"></div>
+                <canvas id="canvas" tabindex="1"></canvas>
+                <div id="canvas-info">Canvas: <span id="canvas-size">0 x 0</span></div>
+                <button id="start-btn" disabled>▶ Start Test</button>
+                <button id="fullscreen-btn" title="Toggle Fullscreen (F11)">⛶ Fullscreen</button>
+            </div>
+        </div>
+
+        <!-- Resize separator -->
+        <div id="resize-separator"></div>
+
+        <!-- Console panel -->
+        <div id="console-panel">
+            <div class="console-header">
+                <h3>📋 Console Output</h3>
+                <button class="console-clear" onclick="clearConsole()">Clear</button>
+            </div>
+            <div class="console-content" id="console-output"></div>
+
+            <div class="console-header" style="margin-top: 10px;">
+                <h3>⚠️ Errors &amp; Warnings</h3>
+                <button class="console-clear" onclick="clearErrors()">Clear</button>
+            </div>
+            <div class="console-content" id="console-errors"></div>
+        </div>
+    </div>
+
+    <script>
+        // Console management
+        function addConsoleOutput(text, type = 'stdout') {
+            const consoleEl = document.getElementById('console-output');
+            const line = document.createElement('div');
+            line.className = `console-line ${type}`;
+            line.textContent = text;
+            consoleEl.appendChild(line);
+            consoleEl.scrollTop = consoleEl.scrollHeight;
+        }
+
+        function addConsoleError(text, type = 'stderr') {
+            const consoleEl = document.getElementById('console-errors');
+            const line = document.createElement('div');
+            line.className = `console-line ${type}`;
+            line.textContent = text;
+            consoleEl.appendChild(line);
+            consoleEl.scrollTop = consoleEl.scrollHeight;
+        }
+
+        function clearConsole() {
+            document.getElementById('console-output').innerHTML = '';
+        }
+
+        function clearErrors() {
+            document.getElementById('console-errors').innerHTML = '';
+        }
+
+        function updateStatus(text, className) {
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = text;
+            statusEl.className = className;
+        }
+
+        function updateCanvasSize() {
+            const canvas = document.getElementById('canvas');
+            const sizeEl = document.getElementById('canvas-size');
+            sizeEl.textContent = `${canvas.width} × ${canvas.height}`;
+        }
+
+        // Fullscreen handling
+        document.getElementById('fullscreen-btn').addEventListener('click', function() {
+            const container = document.getElementById('canvas-container');
+
+            if (!document.fullscreenElement) {
+                container.requestFullscreen().then(() => {
+                    document.body.classList.add('fullscreen');
+                    resizeCanvas();
+                }).catch(err => {
+                    addConsoleError(`Fullscreen error: ${err.message}`);
+                });
+            } else {
+                document.exitFullscreen().then(() => {
+                    document.body.classList.remove('fullscreen');
+                    resizeCanvas();
+                });
+            }
+        });
+
+        document.addEventListener('fullscreenchange', () => {
+            if (!document.fullscreenElement) {
+                document.body.classList.remove('fullscreen');
+                resizeCanvas();
+            }
+        });
+
+        // Canvas resizing
+        function resizeCanvas() {
+            const canvas = document.getElementById('canvas');
+            const wrapper = document.getElementById('canvas-wrapper');
+
+            if (document.fullscreenElement) {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            } else {
+                // Use sensible defaults when not fullscreen
+                const maxWidth = wrapper.clientWidth - 40;
+                const maxHeight = wrapper.clientHeight - 40;
+                canvas.width = Math.min(800, maxWidth);
+                canvas.height = Math.min(600, maxHeight);
+            }
+
+            updateCanvasSize();
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+
+        // Console panel resizing
+        (function() {
+            const separator = document.getElementById('resize-separator');
+            const consolePanel = document.getElementById('console-panel');
+            let isResizing = false;
+
+            separator.addEventListener('mousedown', function(e) {
+                isResizing = true;
+                document.body.style.cursor = 'col-resize';
+                e.preventDefault();
+            });
+
+            document.addEventListener('mousemove', function(e) {
+                if (!isResizing) return;
+
+                const containerWidth = window.innerWidth;
+                const newWidth = containerWidth - e.clientX;
+
+                // Enforce min/max constraints
+                if (newWidth >= 250 && newWidth <= 800) {
+                    consolePanel.style.width = newWidth + 'px';
+                }
+            });
+
+            document.addEventListener('mouseup', function() {
+                if (isResizing) {
+                    isResizing = false;
+                    document.body.style.cursor = '';
+                }
+            });
+        })();
+
+        // Module configuration
+        var Module = {
+            noInitialRun: true,  // Don't run main() automatically
+            preRun: [],
+            postRun: [],
+
+            canvas: document.getElementById('canvas'),
+
+            print: function(text) {
+                if (arguments.length > 1) {
+                    text = Array.prototype.slice.call(arguments).join(' ');
+                }
+                console.log(text);
+                addConsoleOutput(text, 'stdout');
+            },
+
+            printErr: function(text) {
+                if (arguments.length > 1) {
+                    text = Array.prototype.slice.call(arguments).join(' ');
+                }
+                console.error(text);
+                addConsoleError(text, 'stderr');
+            },
+
+            setStatus: function(text) {
+                if (!text) {
+                    updateStatus('Ready', 'ready');
+                    document.getElementById('spinner').classList.add('hidden');
+                    addConsoleOutput('PEBL initialized and ready', 'info');
+                    resizeCanvas();
+                } else if (text.indexOf('Running') === 0) {
+                    updateStatus('Running test...', 'running');
+                } else {
+                    updateStatus(text, 'loading');
+                }
+            },
+
+            totalDependencies: 0,
+
+            monitorRunDependencies: function(left) {
+                this.totalDependencies = Math.max(this.totalDependencies, left);
+                const percent = this.totalDependencies ?
+                    Math.round((this.totalDependencies - left) / this.totalDependencies * 100) : 0;
+                Module.setStatus(left ?
+                    `Loading dependencies (${percent}%)...` : '');
+            }
+        };
+
+        // Error handling
+        window.onerror = function(event) {
+            addConsoleError('Exception thrown: ' + event);
+            updateStatus('Error', 'error');
+        };
+
+        // Initial setup
+        addConsoleOutput('=== PEBL Test/Debug Environment ===', 'info');
+        addConsoleOutput('Test file: /test.pbl', 'info');
+        addConsoleOutput('Initializing Emscripten module...', 'info');
+        resizeCanvas();
+    </script>
+
+    {{{ SCRIPT }}}
+
+    <script>
+        // Initialize module after page loads
+        window.addEventListener('load', function() {
+            addConsoleOutput('Page loaded, creating PEBL module...', 'info');
+
+            createPEBLModule(Module).then(function(instance) {
+                addConsoleOutput('PEBL module created successfully', 'info');
+                addConsoleOutput('Click "Start Test" to begin', 'info');
+                window.PEBLModule = instance;
+
+                // Enable start button
+                const startBtn = document.getElementById('start-btn');
+                startBtn.disabled = false;
+                updateStatus('Ready - Click Start Test', 'ready');
+
+                // Run test when button clicked
+                startBtn.addEventListener('click', function() {
+                    startBtn.style.display = 'none';
+                    addConsoleOutput('Starting test: /test.pbl', 'info');
+                    updateStatus('Running test...', 'running');
+                    instance.callMain(['/test.pbl']);
+                });
+
+            }).catch(function(error) {
+                addConsoleError('Failed to load PEBL module: ' + error);
+                updateStatus('Error: ' + error.message, 'error');
+            });
+        });
+    </script>
+</body>
+</html>

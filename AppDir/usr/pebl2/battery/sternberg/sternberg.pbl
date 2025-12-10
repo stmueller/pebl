@@ -1,0 +1,202 @@
+define Start(p)
+{
+   gScriptName <- "PEBL Memory Scanning Task"
+   ##fallback parameters
+   parpairs <- [["length1",2],
+                ["length2",4],
+		["length3",6],
+                ["trialsperblock",25],
+                ["stimset","BCDFGHJKLMNPQRSTVWZ"],
+		["rounds",2],
+		["samestim",1]]
+
+
+
+  gParams <- CreateParameters(parpairs,gParamFile)
+
+  stimulusSet <- SplitString(gParams.stimset,"")
+
+  lengths <- [gParams.length1,gParams.length2,gParams.length3]
+  trialBase <- gParams.trialsperblock  ##how many targets and foils per block.
+
+
+  gSleepEasy <- 1
+  gwin <- MakeWindow("black")
+
+  if(gSubNum+""=="0")
+  {
+    gSubNum <- GetSubNum(gWin)
+  }
+
+  GetStrings(gLanguage)
+
+  gFileOut <- GetNewDataFile(gSubNum,gWin,"sternberg","csv",
+                    "subNum,length,trial,set,stim,targetfoil,resp,corr,rt")
+
+  log <- FileOpenAppend("data/runlog.txt")
+  FilePrint(log, gSubNum + "," + TimeStamp() + "Sterberg started")
+
+  MessageBox(gStrings.inst1,gWin)
+
+  ShowCursor(0)
+
+  datAcc <- []
+  datRT <- []
+  datCond <- []
+  datTF  <- []
+
+  stimsets <- []
+  nonsets <- []
+  ##precreate the stimuli
+  if(gParams.samestim)
+   {
+    loop(length,lengths)
+    {
+      #Pick the letters--both the target set and the nonset
+      letters <- Shuffle(stimulusSet)
+      stim <- SubList(letters,1,length)
+      nonset <- SubList(letters, length+1,Length(letters))
+     PushOnEnd(stimsets,stim)
+     PushOnEnd(nonsets, nonset)
+
+    }
+
+    stimsets <- RepeatList(stimsets,gParams.rounds)
+    nonsets <- RepeatList(nonsets,gParams.rounds)
+
+   }else{
+    loop(i,Sequence(1,gParams.rounds,1))
+    {
+     loop(length,lengths)
+     {
+      #Pick the letters--both the target set and the nonset
+      letters <- Shuffle(stimulusSet)
+      stim <- SubList(letters,1,length)
+      nonset <- SubList(letters, length+1,Length(letters))
+     PushOnEnd(stimsets,stim)
+     PushOnEnd(nonsets, nonset)
+    }
+   }
+
+   }
+
+  rounds <- Sequence(1,Length(stimsets),1)
+  trial <- 1
+  loop(i,rounds)
+  {
+      length<-Length(Nth(stimsets,i))
+
+      stim <- Nth(stimsets,i)
+      nonset <-Nth(nonsets,i)
+
+      ##now create the stimulus sets
+      targs <- SampleNWithReplacement(stim,trialBase)
+      foils <- SampleNWithReplacement(nonset,trialBase)
+
+      ##Create a stimulus sequence in random order
+      stimbase <- Merge(targs,foils)
+      tf <- Merge(Repeat("T",trialbase),Repeat("F",trialbase))
+      stimsequence <- Shuffle(Transpose([stimbase,tf]))
+
+      lab <- EasyLabel(ListToString(stim),gVideoWidth/2,100,gWin,44)
+      lab2 <- EasyLabel(gStrings.head1,gVideoWidth/2,gVideoHeight/2,gWin,25)
+      lab3 <- EasyLabel(gStrings.head2,gVideoWidth/2,gVideoHeight-100,gWin,25)
+      Draw()
+      WaitForAnyKeyPress()
+      Hide(lab)
+      Hide(lab2)
+      Hide(lab3)
+      Draw()
+
+     correct <- 0
+
+     loop(st,stimsequence)
+      {
+
+      if(not correct)
+      {
+         Show(lab)
+	 Show(lab3)
+         Draw()
+         Wait(1500)
+         Hide(lab)
+	 Hide(lab3)
+         Draw()
+      }
+         out <- Trial(stim,First(st),Second(st))
+	 correct <- Second(out)
+	 outlist <- [gSubNum,length,trial,ListToString(stim),st,out]
+	 FilePrint(gFileOut,ConcatenateList(Flatten(outlist),","))
+	 trial <- trial + 1
+
+	 ##record data:
+	 PushOnEnd(datAcc,correct)
+	 PushOnEnd(datRT,Third(out))
+	 PushOnEnd(datCond,length)
+	 PushOnEnd(datTF,Second(st))
+      }
+
+  }
+
+  ##Compute stats
+  levs <- Levels(datCond)
+
+
+  out <- TimeStamp() +CR(1) + "Participant: "+ gSubNum +CR(2)
+  datall <- Transpose([datRT,datAcc,datTF])
+  loop(i,levs)
+  {
+
+   subset <- Transpose(Filter(datAll,Match(datCond,i)))
+   filterT <- Match(Third(subset),"T")
+   filterF <- Match(Third(subset),"F")
+
+   rtMeanT <- Mean(Filter(First(subset),filterT))
+   rtMeanF <- Mean(Filter(First(subset),filterF))
+
+   accMeanT <- Mean(Filter(Second(subset),filterT))
+   accMeanF <- Mean(Filter(Second(subset),filterF))
+
+   out <- out + i + " Present     "+ Round(rtmeanT) + "    " + Round(accMeanT,3) +CR(1)
+   out <- out + i + " Absent      "+ Round(rtmeanF) + "    " + Round(accMeanF,3) +CR(1)
+
+  }
+
+
+  out2 <- FileOpenWrite("data/"+gSubNum+"/report.txt")
+  FilePrint(out2,out)
+
+  FilePrint(log, gSubNum + "," + TimeStamp() + "Sterberg completed")
+  MessageBox(out+gStrings.debrief,gWin)
+}
+
+##Do the basic
+define Trial(learned,stim,type)
+{
+
+   lab2 <- EasyLabel(gStrings.head2,gVideoWidth/2,gVideoHeight-100,gWin,25)
+   stimlab<- EasyLabel(stim,gVideoWidth/2,gVideoHeight/2,gWin,50)
+
+
+   Show(stimlab)
+   Draw()
+   time1 <- GetTime()
+   resp <- WaitForListKeyPress(["<lshift>","<rshift>"])
+   time2 <- GetTime()
+   Hide(stimlab)
+   Draw()
+   Wait(20)
+   ##Score for correctness:
+   if(type=="T")
+   {
+     corr <- (resp == "<lshift>")
+   } else {
+     corr  <-( resp == "<rshift>")
+   }
+ return [resp,corr,(time2-time1)]
+}
+
+define GetStrings(lang)
+{
+  gStrings <- GetTranslations("sternberg", lang)
+}

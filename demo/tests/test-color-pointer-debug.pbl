@@ -1,0 +1,32 @@
+## Test if property system returns the same color object
+define Start(p)
+{
+    gWin <- MakeWindow()
+
+    Print("Creating label")
+    font <- MakeFont("DejaVuSans.ttf", 0, 24, MakeColor("white"), MakeColor("blue"), 1)
+    label <- MakeLabel("Test", font)
+
+    ## Get color through property system twice
+    color1 <- label.font.bgcolor
+    color2 <- label.font.bgcolor
+
+    Print("Color1 before: " + color1.red + "," + color1.green + "," + color1.blue)
+    Print("Color2 before: " + color2.red + "," + color2.green + "," + color2.blue)
+
+    ## Modify through color1
+    color1.red <- 255
+
+    Print("Color1 after: " + color1.red + "," + color1.green + "," + color1.blue)
+    Print("Color2 after: " + color2.red + "," + color2.green + "," + color2.blue)
+    Print("Font bgcolor after: " + label.font.bgcolor.red + "," + label.font.bgcolor.green + "," + label.font.bgcolor.blue)
+
+    if(color2.red == 255)
+    {
+        Print("SAME OBJECT - color2 also changed to 255")
+    }
+    else
+    {
+        Print("DIFFERENT OBJECTS - color2 is still " + color2.red)
+    }
+}

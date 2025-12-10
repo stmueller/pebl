@@ -1,0 +1,34 @@
+## Test font bold property changes trigger label re-rendering
+define Start(p)
+{
+    gWin <- MakeWindow("black")
+
+    ## Create a label
+    font <- MakeFont("DejaVuSans.ttf", 0, 30, MakeColor("white"), MakeColor("black"), 1)
+    label <- MakeLabel("Test Label", font)
+    AddObject(label, gWin)
+    Move(label, 400, 300)
+    Draw()
+
+    Print("Initial state - Normal font")
+    Print("Font bold property: " + label.font.bold)
+    WaitForDownClick()
+
+    ## Make bold
+    Print("Setting font to bold...")
+    label.font.bold <- 1
+    Draw()
+    Print("Font bold property: " + label.font.bold)
+    Print("Click to continue...")
+    WaitForDownClick()
+
+    ## Back to normal
+    Print("Setting font to normal...")
+    label.font.bold <- 0
+    Draw()
+    Print("Font bold property: " + label.font.bold)
+    Print("Click to exit...")
+    WaitForDownClick()
+
+    Print("Test complete!")
+}

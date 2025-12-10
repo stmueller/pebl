@@ -1,0 +1,53 @@
+## Test if font background transparency can be changed via nested properties
+define Start(p)
+{
+    gWin <- MakeWindow("darkgreen")
+
+    ## Add pebl.png image as background to better show transparency
+    img <- MakeImage("pebl.png")
+    AddObject(img, gWin)
+    Move(img, gVideoWidth/2, gVideoHeight/2)
+
+    Print("STEP 1: Creating label with WHITE text on opaque BLUE background")
+    ## Alpha=255 means fully opaque
+    font <- MakeFont("DejaVuSans.ttf", 0, 48, MakeColor("white"), MakeColor("blue"), 1)
+    label <- MakeLabel("TRANSPARENCY TEST", font)
+    AddObject(label, gWin)
+    Move(label, gVideoWidth/2, gVideoHeight/2)
+    Draw()
+
+    Print("Check: Do you see a BLUE box behind the text?")
+    Print("Background alpha: " + label.font.bgcolor.alpha)
+    Wait(3000)
+
+    Print("STEP 2: Setting bgcolor.alpha <- 128 (semi-transparent)")
+    label.font.bgcolor.alpha <- 128
+    Draw()
+
+    Print("Check: Blue background should be semi-transparent (green showing through)")
+    Print("Background alpha: " + label.font.bgcolor.alpha)
+    Wait(3000)
+
+    Print("STEP 3: Setting bgcolor.alpha <- 0 (fully transparent)")
+    label.font.bgcolor.alpha <- 0
+    Draw()
+
+    Print("Check: Blue background should be GONE - just text on green window")
+    Print("Background alpha: " + label.font.bgcolor.alpha)
+    Wait(3000)
+
+    Print("STEP 4: Setting bgcolor.alpha <- 255 and changing to RED")
+    label.font.bgcolor.alpha <- 255
+    label.font.bgcolor.red <- 255
+    label.font.bgcolor.green <- 0
+    label.font.bgcolor.blue <- 0
+    Draw()
+
+    Print("Check: Should have opaque RED background again")
+    Print("Background: (" + label.font.bgcolor.red + "," + label.font.bgcolor.green + "," +
+          label.font.bgcolor.blue + "," + label.font.bgcolor.alpha + ")")
+    Wait(3000)
+
+    Print("Test complete - press any key")
+    WaitForAnyKeyPress()
+}

@@ -1,0 +1,27 @@
+## Debug test for font color changes
+define Start(p)
+{
+    gWin <- MakeWindow()
+
+    Print("Creating label with blue background")
+    font <- MakeFont("DejaVuSans.ttf", 0, 24, MakeColor("white"), MakeColor("blue"), 1)
+    label <- MakeLabel("Test Label", font)
+    AddObject(label, gWin)
+    Move(label, gVideoWidth/2, 100)
+    Draw()
+    Wait(1000)
+
+    Print("Current bgcolor: " + label.font.bgcolor.red + "," + label.font.bgcolor.green + "," + label.font.bgcolor.blue)
+
+    Print("Setting label.font.bgcolor.red <- 255")
+    label.font.bgcolor.red <- 255
+
+    Print("After change: " + label.font.bgcolor.red + "," + label.font.bgcolor.green + "," + label.font.bgcolor.blue)
+
+    Print("Calling Draw()")
+    Draw()
+    Wait(2000)
+
+    Print("Done - press key to exit")
+    WaitForAnyKeyPress()
+}

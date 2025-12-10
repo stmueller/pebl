@@ -1,0 +1,29 @@
+## This tests various ways to create windows, either the 'traditional' way,
+## (no arguments, gviedowitd/height)
+##
+
+define Start(p)
+{
+ win1 <- MakeWindow()  ##create a black window of gvideowidth/gvideoheight
+ lab1 <- EasyLabel("win1: " + win1.width + "x" + win1.height,win1.width/2,win1.height/2,win1,18)
+
+ gVideoWidth <- 800
+ gVideoHeight <- 600
+
+ ##use one of hundreds of named colors:
+  win2 <-MakeWindow("yellow")
+ lab2 <- EasyLabel("win2: " + win2.width + "x" + win2.height,win2.width/2,win2.height/2,win2,18)
+
+  ##use an actual pebl-specified color--could do a specific RGB value here.
+  ##also, specify window size in arguments instead of relying on
+  ##gvideowidth/height
+  
+  win3 <- MakeWindow(MakeColor("red"),300,200)
+  lab3 <- EasyLabel("Hit any key to exit. win3: " + win3.width + "x" + win3.height,win3.width/2,win3.height/2,win3,16)
+  Draw()
+  
+  WaitForAnyKeyPress()
+
+}
+
+

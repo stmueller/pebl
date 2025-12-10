@@ -1,0 +1,330 @@
+## This allows you to read in the current english
+## translation and create a localized translation.
+##
+
+## This has been imported into launcher directly, but it shuold still work if used in the script directory.
+##
+define Start(p)
+{
+
+  scriptname <- First(p)
+  language <- Lowercase(gLanguage)
+  win <- MakeWindow("grey")
+  gSleepEasy <- 1
+  Draw()
+
+   LoadTranslations(scriptname,language,win)
+
+
+}
+
+
+define LoadTranslations(scriptname,lang,win)
+{
+
+  ##Create background over current window.
+  rect <- Rectangle(gVideoWidth/2,gVideoHeight/2,gVideoWidth,gVideoheight,MakeColor("grey"),1)
+  AddObject(rect,win)
+
+
+  ##We need to get the directory of the scriptname argument.
+
+  filepair <-   SplitFilename(scriptname,"/")
+  Print("filepair: " + filepair)
+  workingdir <- First(filepair)
+  file <- Second(filepair)
+  if(not workingdir=="")
+   {
+    Print("attempting to set working directory:" + workingdir)
+    SetWorkingDirectory(workingdir)
+    }
+
+  MakeDirectory("translations")
+  path <- "translations/"
+
+  englishfile <- path+file+"-en.json"
+  paramsfile <- path+file+"-"+lang+".json"
+
+
+  header <- EasyLabel("Editing text translations for "+scriptname,gVideoWidth/2,40,win,20)
+  if(not FileExists(englishfile))
+  {
+    SignalFatalError("Translation file "+englishfile+" does not exist")
+  }
+
+  english <- ReadTranslationJSON(englishfile,"EN")
+
+  if(FileExists(paramsfile))
+   {
+     newlang <- ReadTranslationJSON(paramsfile,lang)
+   }else{
+     newlang <- ReadTranslationJSON(englishfile,lang)
+   }
+
+  changed <- 0
+  ui <- []
+  save <- MakeButton("Save file",200,70,win,150)
+  reset <- MakeButton("Reset to defaults",200,92,win,150)
+  quit  <- MakeButton("Quit without saving",200,114,win,150)
+
+  ##Now, make a grid showing values, etc., in the schema file
+  c1Base <- 200
+  c1 <- 150
+  c2 <- 400
+  c3 <- 400
+  rowBase <- 140
+  rowHeight <- 300
+
+  head1 <- EasyLabel("String name",c1Base+c1/2,rowBase,win,18)
+  head2 <- EasyLabel("English",    c1Base+c1+c2/2,rowBase,win,18)
+  head3 <- EasyLabel("Translation",c1Base+c1+c2+c3/2,rowBase,win,18)
+  row <- 0
+
+
+   r1 <- EasyTextbox("", c1Base,rowBase+20,win,12,c1-2,rowHeight-2,"grey30","grey90")
+   r2 <- EasyTextbox("", c1Base+c1,rowBase + 20,win,12,c2-2,rowHeight-2,"grey30","grey90")
+   r3 <- EasyTextbox("", c1Base+c1+c2,rowBase + 20,win,12,c3-2,rowHeight-2)
+
+
+
+  parnames <- GetPropertyList(english)
+
+  ##Add the parameter scroller:
+  scroller <- MakeScrollBox(parnames, "Parameter names",
+                       30,140,win,10,150,300,1)
+
+
+  ##Add the language translation
+  langbox <- EasytextBox(LowerCase(lang),c1Base+200,rowBase-30,win,14,40,20)
+  langlabel <- EasyLabel("Language:",c1base,rowbase-30,win,14)
+  Move( langlabel,langbox.x-langlabel.width/2,langbox.y+langlabel.height/2)
+
+  filenametext <- EasyLabel(paramsfile,langlabel.x,langlabel.y-30,win,18)
+  MoveCorner(filenametext,langlabel.x,langlabel.y-30)
+ selectedpar <- First(parnames)
+ r1.text <-   selectedpar
+ r2.text <- GetProperty(english,selectedpar)
+
+   ##This needs to be checked to make sure it exists:
+   if(PropertyExists(newlang,selectedpar))
+      {
+           r3.text <- GetProperty(newlang,selectedpar)
+      }else{
+          r3.text <- ""
+      }
+
+   vals <- [scroller,save,reset,quit,r3,langbox]
+   returns <- ["scroller","save","reset","quit","edit","langedit"]
+
+  cont <- 1
+   while(cont)
+   {
+
+    Draw()
+
+
+    resp <-   WaitForClickOnTarget(vals,returns)
+
+    ##See if we need to edit something.
+    ######################################3
+    ## Quit (without saving)
+    if(resp == "quit")
+    {
+      PushButton(quit,[0,0])
+
+      cont <- 0
+
+      ################################
+      ## Save button pushed
+
+    }elseif(resp=="save")
+    {
+
+
+      pfile <- FileOpenOverwrite(paramsfile)
+
+
+      PushButton(save,[0,0])
+
+
+     loop(i,parnames)
+      {
+
+      if(not PropertyExists(newlang,i))
+      {
+        SetProperty(newlang,i, GetProperty(english,i))
+      }
+
+
+#        text <- RemoveCRs(text)
+#        FilePrint(pfile,i+","+gQuote+text+gQuote)
+      }
+      FilePrint(pfile,JSONText(newlang))
+
+      PopUpMessageBox("File "+ paramsfile + " saved.",win)
+
+     ##############################################
+      ## Reset button is pushed
+     ##############################################
+
+     } elseif(resp=="reset")
+    {
+
+      PushButton(reset,[0,0])
+
+
+    ##re-read translations from the file, or english if necessary.
+     if(FileExists(paramsfile))
+      {
+         newlang <- ReadTranslation(paramsfile,lang)
+      }else{
+         newlang <- ReadTranslation(englishfile,lang)
+      }
+
+
+     UpdateScrollbox(scroller)
+     selectedpar <- Nth(parnames,scroller.selected)
+     r1.text <-   selectedpar
+     r2.text <- GetProperty(english,selectedpar)
+    ##This needs to be checked to make sure it exists:
+     if(PropertyExists(newlang,selectedpar))
+      {
+           r3.text <- GetProperty(newlang,selectedpar)
+      }else{
+          r3.text <- ""
+      }
+
+      Draw()
+
+    #######################################
+    ## Adjust the scrollbar
+    #######################################
+
+    }elseif(resp == "scroller")
+    {
+
+
+        CallFunction(scroller.clickon,[scroller,gClick])
+
+	 selectedpar <- Nth(parnames,scroller.selected)
+         r1.text <-   selectedpar
+	 r2.text <- GetProperty(english,selectedpar)
+
+         paramsfile <- path+file+"-"+lang+".json"
+         ##This needs to be checked to make sure it exists:
+         if(PropertyExists(newlang,selectedpar))
+	     {
+           r3.text <- GetProperty(newlang,selectedpar)
+         }else{
+           r3.text <- ""
+        }
+        #######################################
+         ## Edit
+        #######################################
+
+      }	 elseif(resp=="edit"){
+       ##click on the r3 edit box
+
+        box <- r3
+        relx <- First(gClick) - (box.x )
+        rely <- Second(gClick) - (box.y )
+        cursorpos <- GetTextBoxCursorFromClick(box,relx,rely)
+       	box.cursorpos<-cursorpos
+
+        newval  <- GetInput(box,"<esc>",1)
+      	parname <- Nth(parnames,scroller.selected)
+
+        text <- newval
+        #RemoveCRs(newval) #We no longer do this with  json, because it can handle line breaks just fine.
+        ##this just replaced line breaks with \n.
+        SetProperty(newlang,parname,text)
+	     if(parname=="LANGUAGE")
+	     {
+	       lang <- Lowercase(newval)
+	       SetProperty(newlang,parname,lang)
+	       langbox.text <- lang
+        paramsfile <- path+file+"-"+lang+".json"
+
+	     }
+
+        Draw()
+
+    ######################################
+    ## Edit the language box
+    ######################################
+
+    } elseif(resp=="langedit")
+    {
+        box <- langbox
+        relx <- First(gClick) - (box.x )
+        rely <- Second(gClick) - (box.y )
+        cursorpos <- GetTextBoxCursorFromClick(box,relx,rely)
+	box.cursorpos<-cursorpos
+	newval  <- GetInput(box,"<return>",1)
+
+	lang <- Lowercase(newval)
+	box.text <- lang
+	SetProperty(newlang,"LANGUAGE",Lowercase(lang)) ##set the config file property too.
+	##we should also reset the textbox if the textbox is being set.
+
+	 selectedpar <- Nth(parnames,scroller.selected)
+         ##This needs to be checked to make sure it exists:
+         if(PropertyExists(newlang,selectedpar))
+	        {
+           r3.text <- GetProperty(newlang,selectedpar)
+         }else{
+           r3.text <- ""
+        }
+        paramsfile <- path+file+"-"+lang+".json"
+
+
+      if(FileExists(paramsfile))
+      {
+         newlang <- ReadTranslation(paramsfile,lang)
+      }else{
+         newlang <- ReadTranslation(englishfile,lang)
+      }
+
+
+      UpdateScrollbox(scroller)
+     selectedpar <- Nth(parnames,scroller.selected)
+     r1.text <-   selectedpar
+     r2.text <- GetProperty(english,selectedpar)
+    ##This needs to be checked to make sure it exists:
+     if(PropertyExists(newlang,selectedpar))
+      {
+           r3.text <- GetProperty(newlang,selectedpar)
+      }else{
+          r3.text <- ""
+      }
+
+
+    }
+
+       filenametext.text <- paramsfile
+       MoveCorner(filenametext,langlabel.x,langlabel.y-30)
+       Draw()
+   }
+
+}
+
+
+
+
+define RemoveCRs(text)
+{
+  cr <- CR(1)
+  list <- SplitStringSlow(text,cr)
+  text <- ConcatenateList(list,"\n")
+  return text
+}
+
+define SplitFilename(scriptname,sep:"\")
+{
+    seps <- SplitString(scriptname,sep)
+    filename <- Nth(seps,Length(seps))
+    path <- SubString(scriptname,1,StringLength(scriptname)-StringLength(filename))
+
+  return [path,filename]
+
+}

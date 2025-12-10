@@ -1,0 +1,23 @@
+## Simple audio recording test
+define Start(p)
+{
+   Print("Creating 3-second audio buffer...")
+   buffer <- MakeAudioInputBuffer(3000)
+   Print("Buffer created successfully!")
+
+   Print("Recording audio (say something)...")
+   Print("Using GetVocalResponseTime with threshold=0.01 to record full duration")
+
+   ## Use a very low threshold (0.01) and short sustain (50ms) to trigger immediately
+   ## This will record until silence is detected or buffer is full
+   rt <- GetVocalResponseTime(buffer, 0.01, 50)
+
+   Print("VoiceKey result: " + rt)
+   Print("Result[1] (onset time): " + First(rt))
+   Print("Result[2] (offset time): " + Nth(rt,2))
+   Print("Result[3] (triggered): " + Third(rt))
+
+   Print("Saving buffer to WAV file...")
+   SaveAudioToWaveFile("test-record-simple.wav", buffer)
+   Print("Done! Check test-record-simple.wav")
+}

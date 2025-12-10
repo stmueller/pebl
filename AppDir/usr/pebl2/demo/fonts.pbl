@@ -1,0 +1,221 @@
+define Start(par)
+{
+    gSleepEasy <- 1
+
+	## Font names paired with appropriate sample text
+	## Format: [fontname, sample_text, description]
+	fontdata <- [
+		["DejaVuSans.ttf", "The quick brown fox jumps over the lazy dog.
+АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ
+αβγδεζηθικλμνξοπρστυφχψω
+Àáâãäåæçèéêëìíîïðñòóôõöøùúûüýþÿ
+0123456789 !@#$%^&*()", "DejaVu Sans - Latin/Greek/Cyrillic (Default Western)"],
+
+		["DejaVuSans-Bold.ttf", "The quick brown fox jumps over the lazy dog.
+АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ
+αβγδεζηθικλμνξοπρστυφχψω
+Bold variant for emphasis", "DejaVu Sans Bold"],
+
+		["DejaVuSansMono.ttf", "The quick brown fox jumps over 1234567890
+if(condition) { return true; }
+for i in range(10): print(i)
+монопространен шрифт
+固定寬度字體", "DejaVu Sans Mono - Programming/Code"],
+
+		["DejaVuSerif.ttf", "The quick brown fox jumps over the lazy dog.
+АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ
+αβγδεζηθικλμνξοπρστυφχψω
+Serif font with excellent readability
+Traditional typography for documents", "DejaVu Serif"],
+
+		["DejaVuSerif-Bold.ttf", "The quick brown fox jumps over the lazy dog.
+АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ
+Bold serif for headings and emphasis", "DejaVu Serif Bold"],
+
+		["NotoSans-Regular.ttf", "The quick brown fox jumps over the lazy dog.
+АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ
+Àáâãäåæçèéêëìíîïðñòóôõöøùúûüýþÿ
+ĀāĂăĄąĆćĈĉĊċČčĎďĐđĒēĔĕĖėĘęĚě
+0123456789", "Noto Sans - Universal Western coverage"],
+
+		["NotoSans-Bold.ttf", "The quick brown fox jumps over the lazy dog.
+Bold text for headings and emphasis
+0123456789", "Noto Sans Bold"],
+
+		["NotoSansMono-Regular.ttf", "The quick brown fox 0123456789
+function test() { return 42; }
+def calculate(x, y): return x + y
+Monospace for code and data alignment", "Noto Sans Mono"],
+
+		["NotoSansMono-Bold.ttf", "def hello_world():
+    print('Hello, World!')
+    return True
+Bold monospace for emphasis in code", "Noto Sans Mono Bold"],
+
+		["NotoSerif-Regular.ttf", "The quick brown fox jumps over the lazy dog.
+Serif font for elegant typography
+0123456789", "Noto Serif"],
+
+		["NotoSerif-Bold.ttf", "The quick brown fox jumps over the lazy dog.
+Bold serif for headings
+Traditional document styling", "Noto Serif Bold"],
+
+		## RTL LANGUAGES - Arabic (AR language code)
+		["NotoSansArabic-Regular.ttf", "مرحبا بالعالم
+السلام عليكم ورحمة الله وبركاته
+اللغة العربية جميلة جدا
+الأبجدية: ا ب ت ث ج ح خ د ذ ر ز س ش ص ض ط ظ ع غ ف ق ك ل م ن ه و ي
+الأرقام العربية: ٠ ١ ٢ ٣ ٤ ٥ ٦ ٧ ٨ ٩
+اختبار النص من اليمين إلى اليسار
+النص العربي مع الأرقام: ١٢٣٤٥٦٧٨٩٠", "Noto Sans Arabic - RTL script (language: AR)"],
+
+		## RTL LANGUAGES - Hebrew (HE/IW language codes)
+		["NotoSansHebrew-Regular.ttf", "שלום עולם
+ברוכים הבאים לעולם של פעבל
+האלפבית העברי: א ב ג ד ה ו ז ח ט י כ ל מ נ ס ע פ צ ק ר ש ת
+מספרים עבריים: ٠ ١ ٢ ٣ ٤ ٥ ٦ ٧ ٨ ٩
+בדיקת טקסט מימין לשמאל
+טקסט עברי עם מספרים: ١٢٣٤٥٦٧٨٩٠", "Noto Sans Hebrew - RTL script (language: HE/IW)"],
+
+		## THAI (TH language code)
+		["NotoSansThai-Regular.ttf", "สวัสดีครับ ยินดีต้อนรับ
+ภาษาไทยสวยงามมาก
+พยัญชนะไทย: ก ข ฃ ค ฅ ฆ ง จ ฉ ช ซ ฌ ญ ฎ ฏ ฐ ฑ ฒ ณ ด ต ถ ท ธ น บ ป ผ ฝ พ ฟ ภ ม ย ร ล ว ศ ษ ส ห ฬ อ ฮ
+สระ: ะ ั า ำ ิ ี ึ ื ุ ู เ แ โ ใ ไ
+เลขไทย: ๐ ๑ ๒ ๓ ๔ ๕ ๖ ๗ ๘ ๙
+การทดสอบการแสดงผลภาษาไทย", "Noto Sans Thai (language: TH)"],
+
+		## DEVANAGARI - Hindi/Marathi/Nepali (HI/MR/NE language codes)
+		["NotoSansDevanagari-Regular.ttf", "नमस्ते और स्वागत है
+देवनागरी लिपि बहुत सुंदर है
+हिन्दी भाषा का परीक्षण
+व्यंजन: क ख ग घ ङ च छ ज झ ञ ट ठ ड ढ ण त थ द ध न प फ ब भ म य र ल व श ष स ह
+स्वर: अ आ इ ई उ ऊ ऋ ए ऐ ओ औ
+देवनागरी अंक: ० १ २ ३ ४ ५ ६ ७ ८ ९
+मराठी: नमस्कार आणि स्वागत
+नेपाली: नमस्कार र स्वागत छ", "Noto Sans Devanagari (languages: HI/MR/NE)"],
+
+		## BENGALI (BN language code)
+		["NotoSansBengali-Regular.ttf", "নমস্কার এবং স্বাগতম
+বাংলা লিপি অতি সুন্দর
+ব্যঞ্জনবর্ণ: ক খ গ ঘ ঙ চ ছ জ ঝ ঞ ট ঠ ড ঢ ণ ত থ দ ধ ন প ফ ব ভ ম য র ল শ ষ স হ
+স্বরবর্ণ: অ আ ই ঈ উ ঊ ঋ এ ঐ ও ঔ
+বাংলা সংখ্যা: ০ ১ ২ ৩ ৪ ৫ ৬ ৭ ৮ ৯
+বাংলা ভাষার পরীক্ষা", "Noto Sans Bengali (language: BN)"],
+
+		## GEORGIAN (KA language code)
+		["NotoSansGeorgian-Regular.ttf", "გამარჯობა მსოფლიო
+ქართული ენა ძალიან ლამაზია
+ანბანი: ა ბ გ დ ე ვ ზ თ ი კ ლ მ ნ ო პ ჟ რ ს ტ უ ფ ქ ღ ყ შ ჩ ც ძ წ ჭ ხ ჯ ჰ
+ციფრები: ၀ ၁ ၂ ၃ ၄ ၅ ၆ ၇ ၈ ၉
+ქართული ტექსტის ტესტი", "Noto Sans Georgian (language: KA)"],
+
+		## CJK - Chinese/Japanese/Korean (ZH/CN/TW/JA/JP/KO/KR/KP codes)
+		["NotoSansCJK-Regular.ttc", "你好世界 简体中文
+世界您好 繁體中文
+こんにちは世界 ひらがな
+コンニチハセカイ カタカナ
+안녕하세요 세계 한글
+漢字 한자 汉字
+平仮名: あいうえお かきくけこ さしすせそ
+片仮名: アイウエオ カキクケコ サシスセソ
+한글: ㄱㄴㄷㄹㅁㅂㅅㅇㅈㅊㅋㅌㅍㅎ
+簡體字: 学习汉语很有趣
+繁體字: 學習漢語很有趣", "Noto Sans CJK (languages: ZH/CN/TW/JA/JP/KO/KR/KP)"],
+
+		["Humanistic.ttf", "The quick brown fox jumps over the lazy dog.
+ABCDEFGHIJKLMNOPQRSTUVWXYZ
+abcdefghijklmnopqrstuvwxyz
+0123456789 !@#$%^&*()
+Sharp, distinctive letterforms", "Humanistic - Decorative font"],
+
+		["Optician-Sans.otf", "E F P T O Z
+L P E D P E C F D
+E D F C Z P
+F E L O P Z D
+D E F P O T E C", "Optician Sans - Vision testing (similar letterforms)"],
+
+		["Stimulasia.ttf", "0123456789ABCDEFGHIJKLMNO
+0=1/5 width, 1=2/5, 2=3/5... 9=10/5
+Special spacing characters for timing", "Stimulasia - Timing/spacing font"]
+	]
+
+	window <- MakeWindow("grey")
+	bg <- MakeColor("grey")
+	fg <- MakeColor("Black")
+	bg2 <- MakeColor("white")
+	baseFont <- MakeFont(gPEBLBaseFont,0,28,fg,bg,1)
+	descFont <- MakeFont(gPEBLBaseFont,0,14,fg,bg,1)
+
+	## Create labels
+	label <- MakeLabel("Test Font:", baseFont)
+	descLabel <- MakeLabel("", descFont)
+	AddObject(label,window)
+	AddObject(descLabel,window)
+	Move(label, 400,15)
+	Move(descLabel, 400,50)
+
+	## Create text box for sample text
+	box <- MakeTextBox("PEBL Font System Test
+
+This test demonstrates all fonts included with PEBL,
+with appropriate sample text for each script.
+
+Press any key to begin testing fonts...",baseFont,740,500)
+	AddObject(box, window)
+	Move(box, 30,100)
+	Draw()
+	WaitForAnyKeyPress()
+
+	## Loop through each font with its sample text
+	loop(fontinfo, fontdata)
+	{
+		fontname <- First(fontinfo)
+		sampletext <- Nth(fontinfo, 2)
+		description <- Nth(fontinfo, 3)
+
+		label.text <- fontname
+		descLabel.text <- description
+
+		## Create font and update textbox
+		testFont <- MakeFont(fontname, 0, 20, fg, bg2, 0)
+		SetFont(box, testFont)
+		SetText(box, sampletext)
+
+		Draw()
+		WaitForAnyKeyPress()
+	}
+
+	## Summary screen
+	label.text <- "Font Test Complete"
+	descLabel.text <- "Successfully tested " + Length(fontdata) + " fonts"
+
+	## Use DejaVuSans explicitly for summary (last font might be Stimulasia)
+	summaryFont <- MakeFont("DejaVuSans.ttf",0,18,fg,bg2,1)
+	SetFont(box, summaryFont)
+	SetText(box, "PEBL Font System Test Complete!
+
+Font Coverage Summary:
+
+DejaVu Fonts (Default for Western languages):
+  • Latin, Greek, Cyrillic, Arabic, Hebrew support
+  • Sans, Serif, and Mono variants
+
+Noto Fonts (Language-specific via --language):
+  • AR (Arabic) → NotoSansArabic with RTL support
+  • HE/IW (Hebrew) → NotoSansHebrew with RTL support
+  • TH (Thai) → NotoSansThai
+  • HI/MR/NE (Hindi/Marathi/Nepali) → NotoSansDevanagari
+  • BN (Bengali) → NotoSansBengali
+  • KA (Georgian) → NotoSansGeorgian
+  • ZH/CN/TW (Chinese) → NotoSansCJK
+  • JA/JP (Japanese) → NotoSansCJK
+  • KO/KR/KP (Korean) → NotoSansCJK
+
+Use --language XX to set language (e.g., --language AR for Arabic)
+
+All fonts tested successfully with appropriate scripts!")
+
+	Draw()
+	WaitForAnyKeyPress()
+}

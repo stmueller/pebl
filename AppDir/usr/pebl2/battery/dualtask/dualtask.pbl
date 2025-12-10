@@ -1,0 +1,746 @@
+## This task is intended to demonstrate multi-task interference,
+## along with multi-task non-interference.
+##
+##
+## This version uses a single stimulus, requiring two simultaneous responses
+##  (shape and size)
+##
+
+define Start(p)
+{
+
+
+  ##Task 1: shape matching
+  ##Task 2: (interfering) size judgement (big vs small)
+
+  ## Parameters:
+
+   parpairs <- [["numrounds",4],
+                ["trialsperblock",25],
+		["smallsize",65],
+		["largesize",160],
+		["doyoked",0],
+		["stimtype",3],
+		["type4offset",40]]
+
+  gParams <- CreateParameters(parpairs,gParamFile)
+  trialsperblock <- gParams.trialsperblock
+
+  gParams.stimtype<-4
+  GetStrings(gLanguage,gParams.stimtype)
+
+
+
+  keys1 <- ["1","2"]
+  keys2 <- ["9","0"]
+  keysall <- Merge(keys1,keys2)
+
+  gWin<- MakeWindow("black")
+  if(gSubNum+""=="0")
+   {
+     gSubNum <- GetSubNum(gWin)
+   }
+
+   gFileOut <- GetNewDataFile(gSubNum,gWin,"dualtask-data","csv",
+  "subnum,stimtype,block,trialtype,trial,condition,stim,dim1,dim2,time0,resp1,rt1,corr1,resp2,rt2,corr2,tooslow")
+
+   gblockFileOut <- GetNewDataFile(gSubNum,gWin,"dualtask-block","txt", "")
+
+
+if(gParams.stimtype==1)
+{
+  ##Type 1 is circle vs square; big vs small
+   stim1a <- Circle(gVideoWidth/2,gVideoHeight/2,gParams.smallsize/2,MakeColor("red"),1)  ##small
+   stim1b <- Square(gVideoWidth/2,gVideoHeight/2,gParams.smallsize,MakeColor("red"),1) ##small
+   stim2a <- Circle(gVideoWidth/2,gVideoHeight/2,gParams.largesize/2,MakeColor("red"),1) #lg
+   stim2b <- Square(gVideoWidth/2,gVideoHeight/2,gParams.largesize,MakeColor("red"),1) #lg
+   stim1a.aa<-1
+   stim2a.aa<-1
+
+}elseif(gParams.stimtype==2)
+{
+  ##type 2 is LR arrows, small vs large
+
+  stim1a <- Arrow(-1,MakeColor("red"),gParams.smallsize,gWin,gVideoWidth/2,gVideoHeight/2)
+  stim1b <- Arrow(1,MakeColor("red"),gParams.smallsize,gWin,gVideoWidth/2,gVideoHeight/2)
+  stim2a <- Arrow(-1,MakeColor("red"),gParams.largesize,gWin,gVideoWidth/2,gVideoHeight/2)
+  stim2b <- Arrow(1,MakeColor("red"),gParams.largesize,gWin,gVideoWidth/2,gVideoHeight/2)
+
+}elseif(gParams.stimtype==3)
+{
+   ##type 3 is two arraws (top/bottom red/blue). Probably easiest; at least interference
+   ##is equal along both decisions.
+   col1 <- MakeColor("red")
+   col2 <- MakeColor("blue")
+   stim1a <- DoubleArrow(-1,-1,col1,col2,gParams.smallsize,gWin,gVideoWidth/2,gVideoHeight/2)
+   stim1b <- DoubleArrow(-1,1,col1,col2,gParams.smallsize,gWin,gVideoWidth/2,gVideoHeight/2)
+   stim2a <- DoubleArrow(1,-1,col1,col2,gParams.smallsize,gWin,gVideoWidth/2,gVideoHeight/2)
+   stim2b <- DoubleArrow(1,1,col1,col2,gParams.smallsize,gWin,gVideoWidth/2,gVideoHeight/2)
+
+} elseif(gParams.stimtype==4)
+{
+   ##type 4 is two arraws (top/bottom red/blue), but offset left/right as well.
+
+   col1 <- MakeColor("red")
+   col2 <- MakeColor("blue")
+   stim1a <- DoubleArrow(-1,-1,col1,col2,gParams.smallsize,gWin,gVideoWidth/2,gVideoHeight/2,gParams.type4offset)
+   stim1b <- DoubleArrow(-1,1,col1,col2,gParams.smallsize,gWin,gVideoWidth/2,gVideoHeight/2,gParams.type4offset)
+   stim2a <- DoubleArrow(1,-1,col1,col2,gParams.smallsize,gWin,gVideoWidth/2,gVideoHeight/2,gParams.type4offset)
+   stim2b <- DoubleArrow(1,1,col1,col2,gParams.smallsize,gWin,gVideoWidth/2,gVideoHeight/2,gParams.type4offset)
+
+}
+
+
+
+    AddObject(stim1a,gWin)
+    AddObject(stim1b,gWin)
+    AddObject(stim2a,gWin)
+    AddObject(stim2b,gWin)
+
+    Move(stim1a,gVideoWidth-350,150)
+    Move(stim1b,gVideoWidth-150,150)
+    Move(stim2a,gVideoWidth-350,450)
+    Move(stim2b,gVideoWidth-150,450)
+
+
+    MessageBox(gStrings.message1,gWin,30, 100,500,200,0)
+
+   gVisualStim <- [stim1a,stim1b,stim2a,stim2b]
+
+  loop(i,gVisualStim)
+  {
+    Move(i,gVideoWidth/2,gVideoHeight/2)
+    Hide(i)
+  }
+
+    gHeader <- EasyLabel("",gVideoWidth/2,100,gWin,30)
+    gFixation <- Easylabel("+",gVideoWidth/2,gVideoHeight/2,gWin,60)
+    gdim1Correct <- Easylabel("",gVideoWidth/2-200,gVideoHeight/2,gWin,30)
+    gdim2Correct <- Easylabel("",gVideoWidth/2+200,gVideoHeight/2,gWin,30)
+    gFooter1 <- EasyLabel(gstrings.footer2,gVideoWidth/2,gVideoHeight-180,gWin,30)
+    gFooter2 <- EasyLabel(gStrings.footer1,gVideoWidth/2,gVideoHeight-140,gWin,30)
+
+
+    gBlock <- 0
+
+
+    dim1s <- []
+    dim2s <- []
+    dimboths <- []
+    dimbothsyoked <- []
+
+
+   loop(round, gParams.numrounds)
+     {
+
+
+    MyMessageBox(gStrings.pure1,keys1)
+    CountDown(gWin)
+    out1 <- Block(trialsperblock,1)
+    PushOnEnd(dim1s,out1)
+
+    MyMessageBox(gStrings.pure2,keys2)
+    CountDown(gWin)
+    out2 <- Block(trialsperblock,2)
+    PushOnEnd(dim2s,out2)
+    MyMessageBox(gStrings.both1,keysall)
+    CountDown(gWin)
+    out3 <-  Block(trialsperblock,3)
+    PushOnEnd(dimboths,out3)
+  if(gParams.doyoked)
+   {
+    MyMessageBox(gStrings.bothyoked,keysall)
+    CountDown(gWin)
+    out4 <-  Block(trialsperblock,4)
+    PushOnEnd(dimbothsyoked,out4)
+
+   }
+
+
+    tabdat <- [Merge([gStrings.dim1],out1),
+               Merge([gStrings.dim2],out2),
+	       Merge([gStrings.both],out3)]
+
+
+
+  if(gParams.doYOKED)
+   {
+     PushOnEnd(tabdat, Merge([gStrings.bothtogether],out4))
+   }
+
+    tab <- MakeTable(tabdat,["Condition",[gStrings.dim1, "RT"] ,[gSTrings.dim2 ,"RT"],
+      [ gStrings.dim1 ,"Acc"] ,[gSTrings.dim2 , "Acc"],"Too slow"],900,300,18,MakeColor("white"),MakeColor("black"))
+
+    AddObject(tab,gWin)
+    Move(tab,gVideoWidth/2,gVideoHeight/2+50)
+
+    Hide(gFooter1)
+    Hide(gFooter2)
+    Hide(gHeader)
+    MessageBox(gStrings.feedback+CR(1)+gstrings.break,gWin,20,100,100,gVideoHeight/2+200,0)
+    RemoveObject(tab,gWin)
+   }
+
+  MessageBox(gStrings.debrief,gWin)
+}
+
+## Note: you should not mix dualstim12 and dualboth, as this promotes
+##  inconsistent instructions.
+define Block(trials,type)
+{
+    ShowCursor(0)
+
+    gBlock <- gBlock + 1
+     if(type==1)
+     {
+        ##single task.
+	gHeader.text <- gStrings.singleheader1
+	Hide(gFooter1)
+	Show(gFooter2)
+     }elseif(type==2)
+     {
+     	Show(gFooter2)
+	Hide(gFooter2)
+
+     	gHeader.text <- gStrings.singleheader2
+     }else{ ##3 or 4
+
+     	Show(gFooter1)
+	Show(gFooter2)
+       	gHeader.text <- gstrings.dualheader
+     }
+
+    Show(gHeader)
+    Draw()
+
+
+    trials <- DesignBalancedSampling([1,2,3,4],trials)
+    trial <- -Length(trials)
+
+    ##do 8  practice trials
+    prac <- Flatten(ShuffleRepeat([1,2,3,4],2))
+    loop(p,prac)
+    {
+      out <-  Trial(p,type)
+
+     if(type==4)
+     {
+      delta <- Abs(Nth(out,3)-Nth(out,6))
+      if(delta>50)
+       {
+          gFixation.text  <- "Respond at the same time"
+          Show(gFixation)
+	  Draw()
+	  Wait(1500)
+	  gFixation.text <- "+"
+      }
+     }
+      FilePrint(gFileOut,ConcatenateList(Merge([gSubNum,gParams.stimtype,gblock,"PRACTICE",trial,type,p],out),","))
+      trial <- trial + 1
+    }
+
+
+
+     rts1 <- []
+     rts2 <- []
+     acc1 <- []
+     acc2 <- []
+     tooslows <- []
+     trial <- 1
+    loop(i,trials)
+    {
+       out <-  Trial(i,type)
+     if(type==4)   ##type4 makes them respond at the same time.
+     {
+      delta <- Abs(Nth(out,3)-Nth(out,6))
+      if(delta>50)
+      {
+          Show(gFixation)
+          gFixation.text  <- gStrings.sametime
+	  Draw()
+	  Wait(1500)
+	  gFixation.text <- "+"
+      }
+     }
+
+       FilePrint(gFileOut,ConcatenateList(Merge([gSubNum,gParams.stimtype,gblock,"TEST",trial,type,i],out),","))
+
+
+       PushOnEnd(rts1,Nth(out,5))
+       PushOnEnd(rts2,Nth(out,8))
+       PushOnEnd(acc1,Nth(out,6))
+       PushOnEnd(acc2,Nth(out,9))
+       PushOnEnd(tooslows,Nth(out,10))
+       trial <- trial + 1
+     }
+
+     #print out summary data for whole block:
+     FilePrint(gblockFileout,gParams.stimtype+" " + type+"  " +(Format(Round(Mean(rts1)),8)+ "  " +
+        Format(Round(Mean(rts2)),8) + "  " +
+	Format(Mean(acc1),5)  + "  " +
+	Format(Mean(acc2),5)  + "  " + Mean(tooslows)))
+
+    ShowCursor(1)
+  return  [Mean(rts1), Mean(rts2),Mean(acc1), Mean(acc2), Mean(tooslows)]
+
+}
+
+
+## For dotask1/2, 0 indicates no stimulus/response
+##                1 indicates stimulus+response
+##                2 indicates stimulus but no response collected.
+
+define Trial(stim,type)
+{
+
+  Show(gFixation)
+  Hide(gDim1Correct)
+  Hide(gDim2Correct)
+
+  Draw()
+  Wait(300+500*Random())
+
+
+  ##0 SOA here!
+   dotask1 <- type==1 or type==3 or type==4
+   dotask2 <- type==2 or type==3 or type==4
+
+
+  resps1 <- Ifelse(dotask1, ["1","2"],[])
+  resps2 <- Ifelse(dotask2,["9","0"],[])
+
+  allresps <-   Merge(resps1,resps2)
+  if(Length(allresps)==0)
+  {
+     SignalFatalError("No responses programmed for trial")
+  }
+
+  ##Now, figure out which image to show:
+
+  stimObj <- Nth(gVisualStim,stim)
+
+
+  Show(stimObj)
+  Hide(gFixation)
+
+  Draw()
+  time0 <- GetTime()
+
+ correct1 <- 0
+ correct2 <- 0
+
+  out <- GetResponses(resps1,resps2)
+
+  rt1 <- First(out)
+  rt2 <- Second(out)
+  resp1 <- Third(out)
+  resp2 <- Fourth(out)
+  toolong <- Fifth(out)
+
+   ##code the value of each dimension.
+   dim1 <- stim==1 or stim==3
+   dim2 <- stim==1 or stim==2
+
+
+   correct1 <- IfElse(stim==1 or stim==3,resp1 == "1",resp1=="2")
+   correct2 <- IfElse(stim==1 or stim==2,resp2 == "9",resp2=="0")
+   delay <- 500
+
+  Hide(stimObj)
+##now, we need to know whether we are correct for each one!
+  if(doTask1)
+   {
+
+   if(correct1)
+     {
+        gDim1Correct.text <- gSTrings.correct
+      }else{
+        gDim1Correct.text <- gStrings.incorrect
+	delay <- 1000
+    }
+
+       Show(gDim1Correct)
+   }
+
+
+
+   if(doTask2>0)
+   {
+     ##dotask2 is size judgment. 9=small (stim 1 and 2), 0 = large ( 3 and 4)
+
+
+
+   if(correct2)
+     {
+        gDim2Correct.text <- gStrings.correct
+      }else{
+        gDim2Correct.text <- gStrings.incorrect
+	delay <- 1000
+      }
+
+       Show(gDim2Correct)
+   }
+
+
+   Draw()
+   Wait(delay)
+   Hide(gDim1Correct)
+   Hide(gDim2Correct)
+   Draw()
+
+
+
+ return [dim1,dim2,time0,resp1,rt1,correct1,resp2,rt2,correct2,toolong]
+}
+
+
+define IfElse(ab,a,b)
+{
+  ret <- 0
+  if(ab)
+   {
+    ret <- a
+   } else {
+    ret <- b
+ }
+ return ret
+}
+
+
+
+define GetResponses(resps1,resps2,deadline:5000)
+{
+
+  doresp1 <- Length(resps1)>0
+  doresp2 <- Length(resps2)>0
+
+
+  now <- GetTime()
+  if(deadline>0)
+   {
+      RegisterEvent("<TIMER>", 1,now+deadline,"<GEQ>","ENDIT", ["<Timeout>"])
+   }
+
+ if(doresp1)
+  {
+    loop(i,resps1)
+     {
+
+        RegisterEvent("<KEY_PRESS>",i,1,"<EQUAL>","PRESS1",[i])
+     }
+  }
+
+if(doresp2)
+{
+    loop(i,resps2)
+     {
+
+        RegisterEvent("<KEY_PRESS>",i,1,"<EQUAL>","PRESS2",[i])
+     }
+
+}
+
+
+  ##gPhase = 0: need two responses
+  ##gphase = 1: need one response
+  ##gphase = 2: responses collected.
+
+  gPhase <- 2-doresp1-doresp2
+
+
+  gResponded1 <- 0
+  gResponded2 <- 0
+  gTimeOut <- 0
+
+  gTime1 <- 0
+  gTime2 <- 0
+
+  gResponse1 <- "NA"
+  gResponse2 <- "NA"
+  time1 <- GetTime()
+
+  out <- StartEventLoop()
+
+  ClearEventLoop()
+
+
+
+  rt1 <- Ifelse((gTime1-time1)  < 0, 0,(gTime1-time1))
+  rt2 <- Ifelse((gTime2-time1) < 0, 0,(gTime2-time1))
+  return [rt1,rt2,gResponse1,gResponse2,1-((gTimeout-time1)<0)]
+}
+
+
+
+define Endit(p1,p2)
+{
+   gTimeOut <- GetTime()
+   gKeepLooping <- 0
+
+}
+
+define Press1(p,p2)
+{
+   if(not gResponded1)
+       {
+        gPhase <- gPhase + 1
+        gResponded1 <- 1  ##flag to allow just one response
+	gTime1 <- GetTime()
+	gResponse1 <- p
+       }
+  if(gPhase >= 2)
+   {
+     gKeepLooping <- 0
+   }
+
+}
+
+
+define Press2(p,p2)
+{
+
+   if(not gResponded2)
+       {
+        gPhase <- gPhase + 1
+        gResponded2 <- 1  ##flag to allow just one response
+	gTime2 <- GetTime()
+	gResponse2 <- p
+       }
+  if(gPhase >= 2)
+   {
+     gKeepLooping <- 0
+   }
+
+}
+
+define MyMessageBox(msg,keys)
+{
+   MessageBox(msg,gWin,
+     32,100,100,200,1,keys)
+}
+
+
+define DoubleArrow(d1,d2,col1,col2,size,window,x,y,lroffset:0)
+{
+
+        obj <- MakeCustomObject("doublearrow")
+
+	xmid <- size/2
+	bgcolor <- window.bgcolor
+	color <- (bgcolor)
+#	color.alpha <- 0
+	canv <- MakeCanvas(size+lroffset*2,size,color)
+	obj.canv <- canv
+        xmid <- canv.width/2
+        y1 <- canv.height*3/4
+        y2 <- canv.height/4
+
+
+      if(not d1==0)
+	 {
+	   line1 <- Rectangle(xmid+lroffset,y1,size-20,8,col1,1)
+	   AddObject(line1,canv)
+	   Draw(line1)
+           obj.line1 <- line1
+
+	   trix <- [d1*size/4,-d1*size/4,-d1*size/4]
+	   triy <- [0,size/4,-size/4]
+	   head1 <- Polygon(xmid+lroffset+d1*(size/2-size/4),y1,trix,triy,col1,1)
+	   AddObject(head1,canv)
+	   Draw(head1)
+           obj.head1 <- head1
+	 }
+
+
+      if(not d2==0)
+	 {
+	   line2 <- Rectangle(xmid-lroffset,y2,size-20,8,col2,1)
+	   AddObject(line2,canv)
+	   Draw(line2)
+           obj.line2 <- line2
+
+	   trix <- [d2*size/4,-d2*size/4,-d2*size/4]
+	   triy <- [0,size/4,-size/4]
+	   head2 <- Polygon(xmid-lroffset+d2*(size/2-size/4),y2,trix,triy,col2,1)
+	   AddObject(head2,canv)
+	   Draw(head2)
+           obj.head2 <- head2
+	 }
+
+
+
+  obj.Draw <- "DrawArrow"
+  obj.move <- "MoveArrow"
+  obj.addobject <- "AddArrow"
+  obj.removeobject <- "RemoveArrow"
+  obj.show <- "ShowArrow"
+  obj.hide <- "HideArrow"
+  obj.width <- canv.width
+  obj.height <- canv.height
+  AddObject(obj,gWin)
+  Move(obj,x,y)
+
+  return obj
+} #- End Arrow
+
+
+
+define Arrow(direction,fg,size,window,x,y)
+{
+
+        obj <- MakeCustomObject("arrow")
+
+	xmid <- size/2
+	bgcolor <- window.bgcolor
+	color <- (bgcolor)
+#	color.alpha <- 0
+	canv <- MakeCanvas(size,size/2,color)
+	obj.canv <- canv
+       xmid <- canv.width/2
+       ymid <- canv.height/2
+
+
+      if(not direction==0)
+	 {
+	   line <- Rectangle(xmid,ymid,size-20,8,fg,1)
+	   AddObject(line,canv)
+	   Draw(line)
+           obj.line <- line
+
+	   trix <- [direction*size/4,-direction*size/4,-direction*size/4]
+	   triy <- [0,size/4,-size/4]
+	   head <- Polygon(xmid+direction*(size/2-size/4),ymid,trix,triy,fg,1)
+	   AddObject(head,canv)
+	   Draw(head)
+           obj.head <- head
+	 }
+
+
+  obj.Draw <- "DrawArrow"
+  obj.move <- "MoveArrow"
+  obj.addobject <- "AddArrow"
+  obj.removeobject <- "RemoveArrow"
+  obj.show <- "ShowArrow"
+  obj.hide <- "HideArrow"
+
+  AddObject(obj,gWin)
+  Move(obj,x,y)
+
+  return obj
+} #- End Arrow
+
+
+
+define HideArrow(obj)
+{
+   canv <- obj.canv
+   Hide(canv)
+}
+
+
+define ShowArrow(obj)
+{
+   canv <- obj.canv
+   Show(canv)
+}
+
+define AddArrow(obj,win)
+{
+  AddObject(obj.canv,win)
+}
+
+define RemoveArrow(obj,win)
+{
+  RemoveObject(obj.canv,win)
+}
+
+define MoveArrow(obj, x,y)
+{
+  Move(obj.canv,x,y)
+}
+
+
+define DrawArrow(obj)
+{
+  Draw(obj.canv)
+}
+
+
+
+
+define GetStrings(lang,type)
+{
+
+ gStrings <- GetTranslations("dualtask", lang)
+
+
+   if(type==1)
+    {
+
+       ##shape + size
+       dim1 <-  gStrings.shape
+       dim2 <-  gStrings.size
+       dim1a <- gStrings.circle
+       dim1b <- gStrings.square
+       dim2a <- gStrings.small
+       dim2b <- gStrings.large
+       mod1 <-  ""
+       mod2 <-  ""
+
+
+    }elseif(type==2)
+   {
+      ##arrow + size
+       dim1 <-  gStrings.direction
+       dim2 <-  gStrings.size
+       dim1a <- gStrings.left
+       dim1b <- gStrings.right
+       dim2a <- gStrings.small
+       dim2b <- gStrings.large
+
+      mod1 <- gStrings.arrow
+      mod2 <- gStrings.arrow
+
+
+    }elseif(type==3 or type==4)
+    {
+       ##Two arrows
+
+       dim1 <-  gStrings.top
+       dim2 <-  gStrings.bottom
+       dim1a <- gStrings.left
+       dim1b <- gStrings.right
+       dim2a <- gStrings.left
+       dim2b <- gStrings.right
+
+      mod1 <- gStrings.top +  " " + gStrings.blue + " " +  gStrings.arrow
+      mod2 <- gStrings.bottom +  " " + gStrings.red + " " +gSTrings.arrow
+    }
+
+
+   gStrings.dim1 <- dim1
+   gStrings.dim2 <- dim2
+
+    mappings <-    [["<DIM1>",dim1],
+                    ["<DIM1A>",dim1a],
+	            ["<DIM1B>",dim1b],
+		    ["<DIM2>",dim2],
+		    ["<DIM2A>",dim2a],
+		     ["<DIM2B>",dim2b],
+		     ["<MODIFIER1>",mod1],
+		     ["<MODIFIER2>",mod2]]
+
+
+   gStrings.footer1 <- SubstituteStrings(gStrings.footer1,mappings)
+   gStrings.footer2 <- SubstituteStrings(gStrings.footer2,mappings)
+   gStrings.message1 <- SubstituteStrings(gStrings.message1,mappings)
+   gStrings.pure1 <- SubstituteStrings(gStrings.pure1,mappings)
+   gStrings.pure2 <- SubstituteStrings(gStrings.pure2,mappings)
+   gStrings.both1 <- SubstituteStrings(gStrings.both1,mappings)
+   gStrings.bothyoked <- SubstituteStrings(gStrings.bothyoked,mappings)
+
+  gStrings.singleheader1 <-SubstituteStrings(gStrings.singleheader1,mappings)
+  gStrings.singleheader2 <-SubstituteStrings(gStrings.singleheader2,mappings)
+  gStrings.dualheader <- SubstituteStrings(gStrings.dualheader,mappings)
+
+}

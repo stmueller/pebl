@@ -1,0 +1,29 @@
+
+define Start(p)
+{
+
+  gWin <- MakeWindow("black")
+  lab  <- EasyLabel("one",gVideoWidth/2,gVideoHeight/2,gWin,25)
+  Draw()
+  WaitForAnyKeyPress()
+
+## One way to change the stimulus size: make a font and change
+## the label's fontt property:
+  newfont <- MakeFont(gPEBLBaseFont,0,55,MakeColor("white"),MakeColor("black"),0)
+  lab.font <- newfont
+  Draw()
+  WaitForAnyKeyPress()
+
+
+##Another strategy is to stretch the target object using the .zoomx and
+## .zoomy properties. This will not always be a good idea, because you
+## can see scaling artifacts, but it is a really easy fix: 
+
+  lab.zoomX <- 1.5  #Increase size by 1.5 times
+  Draw()
+  WaitForAnyKeyPress()
+
+  lab.zoomY <- 1.5
+  Draw()
+  WaitForAnyKeyPress()
+}

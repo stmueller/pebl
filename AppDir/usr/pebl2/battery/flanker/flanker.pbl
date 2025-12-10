@@ -1,0 +1,644 @@
+#################################################
+## The PEBL Flanker Task
+## An implemenation of the "Eriksen Flanker Task"
+##  see Eriksen, C. W., & Schultz, D. W. (1979). "Information processing in
+##  visual search: A continuous flow conception and experimental
+##  results". Perception & Psychophysics 25 (4): 249–263. PMID 461085
+##
+##
+##  Method modeled roughly after one described by:
+## John F. Stins, Tinca J. C. Polderman, Dorret I. Boomsma and Eco
+## J. C. de Geus (2007). "Conditional accuracy in response
+## interference tasks: Evidence from the Eriksen flanker task and the
+## spatial conflict task". Advances in Cognitive Psychology 3 (3):
+## 389–396. http://www.ac-psych.org/download.php?id=63.
+##
+##  However, it includes a 'neutral' as well as congruent/incongruent.
+##
+##  See also PEBL's 'ANT' task, a complexified version
+##  of this task.
+##
+##  Version 1.0, Released 2011 Shane T Mueller, Ph.D.
+##  http://pebl.sf.net
+##  smueller@obereed.net
+##
+#################################################
+
+define Start(p)
+{
+     InitializeUpload()  ## Initialize token-based hosting if upload.json exists
+
+     parpairs <- [["numreps",20],  ##20:number of repeats of the 2x3 design
+                  ["practicereps",1], #2
+		  ["includedashtrials",1], ##whether -->-- and --<-- trials should be included
+                  ["includeemptytrials",1], ##whether [  >  ] and [  <  ] trials should be used
+                  ["arrowsize",40],
+		  ["gap",2],
+		  ["fixationtime",500],  ##time of fixatiotn cross
+		  ["timeout",800], ##how long to make response
+		  ["iti",1000]  ##time between trials
+
+                 ]
+
+
+   gBgColor <- "black"      # Background color
+   gFgColor <- "white"       # Foreground color
+
+    gParams <- CreateParameters(parpairs,gParamFile)
+    gWin <- MakeWindow(gBgColor)
+    Initialize()
+
+   ##Get subject code if we need to:
+   if(gSubNum+""=="0")
+    {
+       gSubNum <- GetSubNum(gWin)
+    }
+
+   ##Make data files
+
+   gFileOut <- GetNewDataFile(gSubNum,gWin,"flanker","csv",
+        "subnum,block,trial,practice,targdir,flankercoherence,flankerdir,time0,resp,corr,rt")
+
+   gPooledFileOut <- FileOpenAppend("data/flanker-pooled.csv")
+   gSumFileOut <-  GetNewDataFile(gSubNum,gWin,"flanker-report","txt","")
+
+
+   gLog <- FileOpenAppend("data/flanker-log.csv")
+   gPooledSummary <- FileOpenAppend("data/flanker-all.csv")
+
+   ##Add headers onto files.
+   flen <- Length(FileReadList("data/flanker-pooled.csv"))
+   header <- "subnum,block,trial,practice,targdir,flankercoherence,flankerdir,time0,resp,corr,rt"
+
+   if(flen==0)
+    {
+      Print("empty pooled data file.  Adding header")
+      FilePrint(gPooledFileOut, header)
+    }
+
+
+   FilePrint(gLog, gSubNum + "," + gLanguage + "," +  TimeStamp()+",FLANKER TASK,"+gResponseType+",INITIATED")
+   DoInstructions()
+   FilePrint(gLog, gSubNum + "," + gLanguage + "," + TimeStamp()+",FLANKER TASK,"+gResponseType+",PRACTICE BEGIN")
+
+   ##Create the stimuli blocks.  Each trial consists of:
+   ##  - a target direction (left or right)
+   ##  - a flanker condition (consistent, inconsistent, neutral)
+
+   base <- [-1,1]
+
+   if(gParams.includedashtrials)
+   {
+     PushOnEnd(base,"NA")
+   }
+   if(gParams.includeemptytrials)
+   {
+    PushOnEnd(base,0)
+   }
+   design <- CrossFactors([[-1,1],base])
+   ##Practice uses 12 trials
+   practrials <- Shuffle(RepeatList(design,gParams.practicereps))
+
+
+   ##real trials each use the complete design,
+   trials <- Shuffle(RepeatList(design,gParams.numreps))
+
+
+    ##Set up some data holders
+    gBlocknum <-   []
+    gCuetype <-    []
+    gCongruence <- []
+    gRTs        <- []
+    gCorr       <- []
+
+    ###########################################
+    ## Do the practice round
+    gTrial <- 1
+    gBlock <- 0
+    CountDown(gWin)
+    abstime <- GetTime()
+    loop(trial,practrials)
+    {
+      Trial(trial,1)
+      gTrial <- gTrial + 1
+    }
+
+    MessageKeyBox(gInterblock)
+    CountDown(gWin)
+    ###########################################
+    ## Do the first test round
+    FilePrint(gLog, gSubNum + "," + gLanguage + "," +   TimeStamp()+",FLANKER,"+gResponseType+",BLOCK 1 BEGIN")
+	gBlock <- 1
+    loop(trial,trials)
+    {
+      Trial(trial,0)
+      gTrial <- gTrial + 1
+    }
+
+
+
+
+   aggRTCong <-SummaryStats(gRTs,gCongruence)
+   aggAccCong <-SummaryStats(gCorr,gCongruence)
+
+   FilePrint(gSumFileOut,"-----------------------------------------------")
+   FilePrint(gSumFileOut,"PEBL Flanker Task, Version 1.0")
+   FilePrint(gSumFileOut,"http://pebl.sf.net")
+   FilePrint(gSumFileOut,"Shane T. Mueller")
+   FilePrint(gSumFileOut, GetPEBLVersion())
+   FilePrint(gSumFileOut, GetSystemType())
+   FilePrint(gSumFileOut,"-----------------------------------------------")
+   FilePrint(gSumFileOut,"Screen width x height: " +gVideoWidth+ "x"+gVideoHeight)
+   FilePrint(gSumFileOut,"Offset used: "+gOffset)
+   FilePrint(gSumFileOut, "Subject code: "+gSubNum)
+   FilePrint(gSumFileOut, "Time:         "+TimeStamp())
+   FilePrint(gSumFileOut,"-----------------------------------------------")
+
+   FilePrint(gSumFileOut,"Total Errors:           "+(Length(gCorr)-Sum(gCorr)))
+   FilePrint(gSumFileOut,"Mean Accuracy:          "+Mean(gCorr))
+   FilePrint(gSumFileOut,"Mean response time:     "+Mean(gRTs))
+
+   tdat <- Transpose(aggRTCong)
+   conds <- First(tdat)
+   rtmeans <- Fourth(tdat)
+
+   incong <- Mean(Filter(rtmeans,Match(conds,-1)))
+   cong <- Mean(Filter(rtmeans,Match(conds,1)))
+
+   conflict  <- incong-cong
+   FilePrint(gSumFileOut,"Congruent mean (ms):                               "+ cong)
+   FilePrint(gSumFileOut,"Incongruest mean (ms):                             "+ incong)
+   FilePrint(gSumFileOut,"Conflict Cost (incongruent mean - congruent mean): "+ conflict)
+
+
+   FilePrint(gSumFileOut,"Congruence types:")
+   FilePrint(gSumFileOut,"   -1:  Opposing arrows")
+   FilePrint(gSumFileOut,"    0:  Dashes")
+   FilePrint(gSumFileOut,"    NA:  No arrows")
+   FilePrint(gSumFileOut,"    1:  Consistent arrows")
+   FilePrint(gSumFileOut,CR(3))
+   FilePrint(gSumFileOut,"----------------------------------------")
+
+   FilePrint(gSumFileOut,"Mean Response time (all trials) by Congruence type")
+   FilePrint(gSumFileOut,"----------------------------------------")
+   FilePrint(gSumFileOut,"Cond    N       median  mean    sd")
+   FilePrint(gSumFileOut,"----------------------------------------")
+   loop(i,aggRTCong)
+    {
+      tmp <- ""
+      loop(j,i)
+       {
+         tmp <- tmp + Format(j,7) + " "
+       }
+	   FilePrint(gSumFileOut,tmp)
+    }
+   FilePrint(gSumFileOut,"----------------------------------------")
+
+   FilePrint(gSumFileOut," Accuracy by Congruence type")
+   FilePrint(gSumFileOut,"----------------------------------------")
+   FilePrint(gSumFileOut,"Cond    N       median  mean    sd")
+   FilePrint(gSumFileOut,"----------------------------------------")
+   loop(i,aggAccCong)
+    {
+      tmp <- ""
+      loop(j,i)
+       {
+         tmp <- tmp + Format(j,7) + " "
+       }
+	   FilePrint(gSumFileOut,tmp)
+    }
+   FilePrint(gSumFileOut,"----------------------------------------")
+
+
+   Draw()
+
+
+   datalist <- Flatten([[Mean(gCorr),Mean(gRTS),conflict],
+                Fourth(Transpose(aggRTCong)),
+	        	Fourth(Transpose(aggAccCong))])
+
+
+   FilePrint(gPooledSummary,gSubNum+","+TimeStamp()+datalist)
+   FilePrint(gLog, gSubNum + "," + gLanguage + "," + TimeStamp()+",flanker ,"+gResponseType+",EXPERIMENT COMPLETE")
+
+
+
+
+  Print("uploading data")
+  settingsfile <- "/upload.json"
+  out <- UploadFile(gSubnum,gFileOut.filename,settingsfile);  Print(out)
+  out <- UploadFile(gSubnum,gPooledSummary.filename,settingsfile);  Print(out)
+  out <- UploadFile(gSubnum,gLog.filename,settingsfile);  Print(out)
+  out <- UploadFile(gSubnum,gSumFileOut.filename,settingsfile);  Print(out)
+  out <- UploadFile(gSubnum,gPooledFileOut.filename,settingsfile);  Print(out)
+
+
+  MessageKeyBox(gDebrief)
+
+}
+
+define Trial(stimpair,practice)
+{
+   time0 <- GetTime()
+   ##add the fixation right away.
+   fixation <- EasyLabel("+",gVideoWidth/2,gVideoHeight/2,gWin,40)
+   footer <- EasyLabel(gFooterL+"                   "+gFooterR,gVideoWidth/2,gVideoHeight-150,gWin,40)
+
+   Draw()
+
+   targdir <- First(stimpair)
+   flankercoherence <- Second(stimpair)
+
+   if(flankercoherence=="NA")
+     {
+        flankerdir <- "NA"
+     }else{
+        flankerdir <- flankercoherence * targdir
+     }
+
+    stim <- MakeStim([flankerdir,flankerdir,targdir,flankerdir,flankerdir])
+
+    AddObject(stim,gWin)
+    Move(stim,gVideoWidth/2,gVideoHeight/2)
+
+	Hide(stim)
+        ##Now, how the trial sequence.
+        time1 <- GetTime()
+        Wait(gParams.fixationtime)
+        Show(stim)
+	Hide(fixation)
+	Draw()
+	time2 <- GetTime()
+	resp <- WaitForListKeyPressWithTimeout(["<lshift>","<rshift>"],gParams.timeout,1)
+	time3 <- GetTime()
+        Hide(stim)
+        corr <- ((targdir ==1) and (resp == "<rshift>")) or
+            ((targdir ==-1) and (resp == "<lshift>"))
+        rt <- time3-time2
+
+    if(practice)
+     {
+         if(corr)
+		    {
+              fixation.text  <- gCorrect+ "   ["+rt+"]"
+            } else {
+              fixation.text  <- gIncorrect + " ["+rt+"]"
+            }
+
+
+	Show(fixation)
+	Draw()
+        Wait(400) #This is the time to show the feedback.
+
+     }
+   Draw()
+   dataline <- gSubNum + ","+ gBlock + "," +gTrial+","+practice+","+
+               targdir+","+flankercoherence+","+
+	       flankerdir+","+time0+","+resp+","+corr+","+rt
+
+   FilePrint(gFileOut,dataline)
+   FilePrint(gPooledFileOut,dataline)
+
+   if(not practice)
+    {
+
+      gBlocknum <-   Append(gBlockNum,gBlock)
+      gCongruence <- Append(gCongruence,flankercoherence)
+      gRTs        <- Append(gRTS,rt)
+      gCorr       <- Append(gCorr,corr)
+
+   }
+
+  RemoveObject(stim,gWin)
+  RemoveObject(fixation,gWin)
+  Draw()
+  Wait(gParams.iti)
+  return resp
+}
+
+
+
+
+define ShowAll(list,hideshow)
+{
+   loop(i,list)
+   {
+     i.visible <- hideshow
+   }
+}
+
+
+##This creates a full factorial design with each sublist of list
+##as a factor.
+define CrossFactors(list)
+{
+
+  factors <- First(list)
+  size <- 2
+  loop(factor,SubList(list,2,Length(list)))
+  {
+     tmp <-DesignFullCounterbalance(factors,factor)
+	 factors <- FoldList(Flatten(tmp),size)
+	 size <- size + 1
+  }
+  return factors
+}
+
+
+define MakeStim(dirs)
+{
+
+    ##Make a canvas to attach the arrows to:
+    skip <- gParams.arrowsize + gParams.gap
+    xsize <- skip*5
+    color <- MakeColor(gBgCol)
+
+
+    canv <- MakeCanvas(xsize,20,gFgCol)
+
+    col <- MakeColor("white")
+    ##x positions relevative to center
+    xpos <- [-2*skip,-skip,0,skip,2*skip]
+    tmp <- Transpose([xpos,dirs])
+    arrows <- []
+
+     loop(i,tmp)
+       {
+	 arrow <-  Arrow(Second(i),col)
+         AddObject(arrow,canv)
+
+	 Move(arrow,xsize/2+First(i),10)
+	 Draw(arrow)
+
+    }
+
+  return canv
+}
+
+
+define MakeStim(dirs)
+{
+
+        obj <- MakeCustomObject("arrowstim")
+	## Make a canvas to attach the arrows to:
+	skip <- 42
+	xsize <- skip*5
+	color <- MakeColor(gBgColor)  # dummy color; we later blank it.
+
+        canv <- MakeCanvas(xsize,20,color)
+	col <- MakeColor(gFgColor)
+	obj.canv <- canv
+
+	## x positions relevative to center
+	xpos <- [-2*skip,-skip,0,skip,2*skip]
+	tmp <- Transpose([xpos,dirs])
+	arrows <- []
+	loop(i,tmp)
+	 {
+	   arrow <-  Arrow(Second(i),col)
+	   AddObject(arrow,canv)
+	   Move(arrow,xsize/2+First(i),10)
+	   Draw(arrow)
+	   PushOnEnd(arrows,arrow)
+	 }
+        obj.arrows <- arrows
+
+        obj.Draw <- "DrawArrow"
+        obj.move <- "MoveArrow"
+        obj.addobject <- "AddArrow"
+        obj.removeobject <- "RemoveArrow"
+	obj.hide <- "HideArrow"
+	obj.show <- "ShowArrow"
+
+
+	return obj
+} #- End MakeStim
+
+
+
+
+define Arrow(direction,fg,showneutral:0)
+{
+
+        obj <- MakeCustomObject("arrow")
+        xsize <- 40
+	xmid <- xsize/2
+	color <- MakeColor(gBgColor)
+#	color.alpha <- 0
+	canv <- MakeCanvas(xsize,20,color)
+	obj.canv <- canv
+
+
+	if(showNeutral) # Show neutral flankers switch
+	 {
+	   line <- Rectangle(xmid,10,xsize-10,2,fg,1)
+	   AddObject(line,canv)
+	   Draw(line)
+           obj.line <- line
+	 }
+
+	if(not direction==0)
+	 {
+	   line <- Rectangle(xmid,10,xsize-10,2,fg,1)
+	   AddObject(line,canv)
+	   Draw(line)
+           obj.line <- line
+	   trix <- [direction*5,-direction*5,-direction*5]
+	   triy <- [0,5,-5]
+	   head <- Polygon(xmid+direction*(xsize/2-5),10,trix,triy,fg,1)
+	   AddObject(head,canv)
+	   Draw(head)
+           obj.head <- head
+	 }
+
+
+
+  obj.Draw <- "DrawArrow"
+  obj.move <- "MoveArrow"
+  obj.addobject <- "AddArrow"
+  obj.removeobject <- "RemoveArrow"
+  obj.show <- "ShowArrow"
+  obj.hide <- "HideArrow"
+
+  return obj
+} #- End Arrow
+
+
+
+
+
+
+define HideArrow(obj)
+{
+   canv <- obj.canv
+   Hide(canv)
+}
+
+
+define ShowArrow(obj)
+{
+   canv <- obj.canv
+   Show(canv)
+}
+
+define AddArrow(obj,win)
+{
+  AddObject(obj.canv,win)
+}
+
+define RemoveArrow(obj,win)
+{
+  RemoveObject(obj.canv,win)
+}
+
+define MoveArrow(obj, x,y)
+{
+  Move(obj.canv,x,y)
+}
+
+
+define DrawArrow(obj)
+{
+  Draw(obj.canv)
+}
+
+
+
+
+
+define Initialize()
+{
+
+
+  gResponseType <-"shiftkeys"  ##currently, changing this has no effect.
+  gSleepEasy <- 1
+  GetStrings(gLanguage)
+  ShowCursor(0)
+
+
+  ## the yoffset is supposed to be 1.06 degrees above offset.
+  ##
+  ##-\                                       X
+  ##  \                                      |
+  ##  #|          tan(1.06) = rise/distance  |
+  ##  #|-------------------------------------X
+  ##  #|
+  ##  /           rise = tan(1.06)*distance
+  ##_/
+  ##
+
+  ##default to 17" 3x4 screen.  Adjust to suit.
+  screenheight <- 10.2   ## 10.2 inches high
+  eyedistance  <- 30     ##assume 30" from screen.
+  pixelsperunit <- gVideoHeight/screenheight
+  eyepixeldistance <- eyedistance * pixelsperunit
+
+  ##this is the vertical offset
+  gOffset <-  Round(Tan(DegToRad(1.06)) * eyepixeldistance)
+  Print("using offset of "+gOffset)
+
+   if(not FileExists("data"))
+    {
+       MakeDirectory("data")
+
+    } elseif(not IsDirectory("data"))
+    {
+       SignalFatalError("File named 'data' exists.  Remove so data directory can be created.")
+    }
+
+
+
+}
+
+
+
+define MessageKeyBox(message)
+{
+
+  tb <- EasyTextBox(message,100,100,gWin,28,gVideoWidth-200,gVideoHeight-200)
+  Draw()
+  WaitForAnyKeyPress()
+  RemoveObject(tb,gWin)
+
+}
+
+define DoInstructions()
+{
+
+   yval <- 300
+
+   tb <- EasyTextbox(gInst1text,100,50,gWin,16,gVideoWidth-200,200)
+   s1 <- MakeStim([1,1,1,1,1]);      AddObject(s1,gWin);Move(s1,gVideoWidth/2,yval)
+   l1 <- EasyLabel(gFooterR,gVideoWidth/2+200,yval,gWin,15); yval <- yval+40
+   s2 <- MakeStim([-1,-1,-1,-1,-1]); AddObject(s2,gWin);Move(s2,gVideoWidth/2,yval)
+   l2 <- EasyLabel(gFooterL,gVideoWidth/2-200,yval,gWin,15); yval <- yval+40
+
+if(gParams.includeemptytrials)
+{
+   s3 <- MakeStim([0,0,1,0,0]);      AddObject(s3,gWin);Move(s3,gVideoWidth/2,yval)
+   l3 <- EasyLabel(gFooterR,gVideoWidth/2+200,yval,gWin,15); yval <- yval+40
+   s4 <- MakeStim([0,0,-1,0,0]);     AddObject(s4,gWin);Move(s4,gVideoWidth/2,yval)
+   l4 <- EasyLabel(gFooterL,gVideoWidth/2-200,yval,gWin,15);yval <- yval+40
+
+}
+
+if(gParams.includedashtrials)
+  {
+   s5 <- MakeStim(["NA","NA",1,"NA","NA"]);    AddObject(s5,gWin);Move(s5,gVideoWidth/2,yval)
+   l5 <- EasyLabel(gFooterR,gVideoWidth/2+200,yval,gWin,15); yval <- yval+ 40
+   s6 <- MakeStim(["NA","NA",-1,"NA","NA"]);   AddObject(s6,gWin);Move(s6,gVideoWidth/2,yval)
+   l6 <- EasyLabel(gFooterL,gVideoWidth/2-200,yval,gWin,15); yval <- yval+ 40
+
+  }
+
+   s7 <- MakeStim([-1,-1,1,-1,-1]);  AddObject(s7,gWin);Move(s7,gVideoWidth/2,yval)
+   l7 <- EasyLabel(gFooterR,gVideoWidth/2+200,yval,gWin,15); yval <- yval+ 40
+
+
+   s8 <- MakeStim([1,1,-1,1,1]);     AddObject(s8,gWin);Move(s8,gVideoWidth/2,yval)
+   l8 <- EasyLabel(gFooterL,gVideoWidth/2-200,yval,gWin,15)
+
+   Draw()
+   WaitForAnyKeyPress()
+
+   tb.text <- gInst3text
+   Draw()
+   WaitForAnyKeyPress()
+
+}
+
+
+
+define WaitUntil(time)
+{
+
+     RegisterEvent("<TIMER>", 1, time,"<GEQ>","", [])
+     StartEventLoop()  #Start the timer
+     ClearEventLoop()  #clear it out when done.
+
+}
+
+
+
+define GetStrings(language)
+{
+  gStrings <- GetTranslations("flanker", language)
+
+  ## Assign to global variables for convenience
+  gInst1text <- gStrings.inst1text
+  gInst3text  <- gStrings.inst3text
+  gFooterl <- gStrings.footerL
+  gFooterr <- gStrings.footerR
+  gInterblock <- gStrings.interblock
+  gDebrief <- gStrings.debrief
+
+  gCorrect <- gStrings.correct
+  gIncorrect <- gStrings.incorrect
+}
+
+
+
+## UploadFile and SyncDataFile functions removed - using library versions from Utility.pbl
+## These functions are auto-loaded and support both token and username/password authentication
+
+

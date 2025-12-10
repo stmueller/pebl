@@ -1,0 +1,104 @@
+## Test script for DetectTextScript() and IsRTL() functions
+define Start(par)
+{
+    gSleepEasy <- 1
+
+    ## Test strings for different scripts
+    tests <- [
+        ["English text", "Latin/English"],
+        ["مرحبا بالعالم", "Arabic (RTL)"],
+        ["שלום עולם", "Hebrew (RTL)"],
+        ["안녕하세요", "Korean Hangul"],
+        ["こんにちは", "Japanese Hiragana"],
+        ["你好世界", "Chinese Han"],
+        ["สวัสดี", "Thai"],
+        ["नमस्ते", "Hindi Devanagari"],
+        ["নমস্কার", "Bengali"],
+        ["გამარჯობა", "Georgian"]
+    ]
+
+    window <- MakeWindow("grey")
+    fg <- MakeColor("black")
+    bg <- MakeColor("white")
+
+    titleFont <- MakeFont(gPEBLBaseFont, 0, 24, fg, bg, 1)
+    testFont <- MakeFont(gPEBLBaseFont, 0, 18, fg, bg, 1)
+
+    title <- MakeLabel("Script Detection Test Results", titleFont)
+    AddObject(title, window)
+    Move(title, 400, 30)
+
+    y <- 80
+
+    ## Display headers
+    headerFont <- MakeFont(gPEBLBaseFont, 0, 14, fg, bg, 1)
+    header1 <- MakeLabel("Text", headerFont)
+    header2 <- MakeLabel("Description", headerFont)
+    header3 <- MakeLabel("Detected Script", headerFont)
+    header4 <- MakeLabel("RTL?", headerFont)
+
+    AddObject(header1, window)
+    AddObject(header2, window)
+    AddObject(header3, window)
+    AddObject(header4, window)
+
+    Move(header1, 100, y)
+    Move(header2, 250, y)
+    Move(header3, 450, y)
+    Move(header4, 650, y)
+
+    y <- y + 30
+    objs <- []
+    ## Test each string
+    loop(test, tests)
+    {
+        text <- First(test)
+        description <- Nth(test, 2)
+
+        ## Call our new functions
+        script <- DetectTextScript(text)
+        isRTL <- IsRTL(text)
+
+        ## Display empty string as "(Latin)" for clarity
+        if(script == "")
+        {
+            script <- "(Latin)"
+        }
+
+        ## Convert RTL boolean to readable text
+        rtlText <- ""
+        if(isRTL == 1)
+        {
+            rtlText <- "YES"
+        } else {
+            rtlText <- "NO"
+        }
+
+        ## Create labels for this row
+        textLabel <- MakeLabel(text, testFont)
+        descLabel <- MakeLabel(description, testFont)
+        scriptLabel <- MakeLabel(script, testFont)
+        rtlLabel <- MakeLabel(rtlText, testFont)
+
+        AddObject(textLabel, window)
+        AddObject(descLabel, window)
+        AddObject(scriptLabel, window)
+        AddObject(rtlLabel, window)
+
+        Move(textLabel, 100, y)
+        Move(descLabel, 250, y)
+        Move(scriptLabel, 450, y)
+        Move(rtlLabel, 650, y)
+        PushOnEnd(objs,[textlabel,desclabel,scriptLabel,rtlLabel])
+        y <- y + 25
+    }
+
+    ## Add instructions
+    instrFont <- MakeFont(gPEBLBaseFont, 0, 16, fg, bg, 1)
+    instr <- MakeLabel("Press any key to exit", instrFont)
+    AddObject(instr, window)
+    Move(instr, 400, y + 30)
+
+    Draw()
+    WaitForAnyKeyPress()
+}

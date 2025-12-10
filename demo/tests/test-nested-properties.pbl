@@ -1,0 +1,61 @@
+## Test nested property access (both reading and writing)
+## Tests 2-level and 3-level property chains
+
+define Start(p)
+{
+    ## Create test objects with nested properties
+    Print("Testing nested property access...")
+
+    ## Test 1: Create object with 2-level nesting
+    gLayout <- MakeCustomObject("layout")
+    gLayout.header <- MakeCustomObject("header")
+    gLayout.header.text <- "Header Text"
+    gLayout.header.size <- 24
+
+    ## Test 2: Read 2-level nested properties
+    Print("Test 2-level reading:")
+    Print("  gLayout.header.text = " + gLayout.header.text)
+    Print("  gLayout.header.size = " + gLayout.header.size)
+
+    ## Test 3: Write to 2-level nested properties
+    Print("Test 2-level writing:")
+    gLayout.header.text <- "Modified Header"
+    gLayout.header.size <- 32
+    Print("  After modification:")
+    Print("  gLayout.header.text = " + gLayout.header.text)
+    Print("  gLayout.header.size = " + gLayout.header.size)
+
+    ## Test 4: Create object with 3-level nesting
+    Print("Test 3-level nesting:")
+    gLayout.body <- MakeCustomObject("body")
+    gLayout.body.content <- MakeCustomObject("content")
+    gLayout.body.content.text <- "Body Content"
+    gLayout.body.content.font <- "DejaVu"
+
+    ## Test 5: Read 3-level nested properties
+    Print("  gLayout.body.content.text = " + gLayout.body.content.text)
+    Print("  gLayout.body.content.font = " + gLayout.body.content.font)
+
+    ## Test 6: Write to 3-level nested properties
+    gLayout.body.content.text <- "Modified Body"
+    gLayout.body.content.font <- "Arial"
+    Print("  After modification:")
+    Print("  gLayout.body.content.text = " + gLayout.body.content.text)
+    Print("  gLayout.body.content.font = " + gLayout.body.content.font)
+
+    ## Test 7: Local variables with nested properties
+    Print("Test local variables:")
+    obj <- MakeCustomObject("local")
+    obj.level1 <- MakeCustomObject("l1")
+    obj.level1.level2 <- MakeCustomObject("l2")
+    obj.level1.level2.value <- 42
+    Print("  obj.level1.level2.value = " + obj.level1.level2.value)
+
+    ## Test 8: Modify local variable nested property
+    obj.level1.level2.value <- 99
+    Print("  After modification: obj.level1.level2.value = " + obj.level1.level2.value)
+
+    Print("All nested property tests passed!")
+
+    return(0)
+}

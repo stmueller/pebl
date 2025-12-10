@@ -1,0 +1,75 @@
+## Simple test for ThickLine to verify it works in Emscripten
+## This draws several thick lines of different widths and colors
+
+define Start(p)
+{
+  gVideoWidth <- 800
+  gVideoHeight <- 600
+
+  gWin <- MakeWindow("white")
+
+  ## Title
+  font <- MakeFont(gPEBLBaseFont, 0, 32, MakeColor("black"), MakeColor("white"), 1)
+  title <- MakeLabel("ThickLine Test", font)
+  AddObject(title, gWin)
+  Move(title, 400, 50)
+
+  ## Instructions
+  smallFont <- MakeFont(gPEBLBaseFont, 0, 18, MakeColor("black"), MakeColor("white"), 1)
+  inst <- MakeLabel("You should see 5 colored thick lines of increasing width", smallFont)
+  AddObject(inst, gWin)
+  Move(inst, 400, 100)
+
+  ## Draw 5 thick lines with different widths
+  y <- 150
+
+  ## Line 1: width 2, red
+  line1 <- ThickLine(100, y, 700, y, 2, MakeColor("red"))
+  AddObject(line1, gWin)
+  label1 <- MakeLabel("Width 2 (red)", smallFont)
+  AddObject(label1, gWin)
+  Move(label1, 50, y)
+
+  y <- y + 80
+
+  ## Line 2: width 5, green
+  line2 <- ThickLine(100, y, 700, y, 5, MakeColor("green"))
+  AddObject(line2, gWin)
+  label2 <- MakeLabel("Width 5 (green)", smallFont)
+  AddObject(label2, gWin)
+  Move(label2, 50, y)
+
+  y <- y + 80
+
+  ## Line 3: width 10, blue
+  line3 <- ThickLine(100, y, 700, y, 10, MakeColor("blue"))
+  AddObject(line3, gWin)
+  label3 <- MakeLabel("Width 10 (blue)", smallFont)
+  AddObject(label3, gWin)
+  Move(label3, 50, y)
+
+  y <- y + 80
+
+  ## Line 4: width 15, orange (diagonal)
+  line4 <- ThickLine(100, y-30, 700, y+30, 15, MakeColor("orange"))
+  AddObject(line4, gWin)
+  label4 <- MakeLabel("Width 15 (orange, diagonal)", smallFont)
+  AddObject(label4, gWin)
+  Move(label4, 50, y)
+
+  y <- y + 80
+
+  ## Line 5: width 20, purple (diagonal other way)
+  line5 <- ThickLine(100, y+30, 700, y-30, 20, MakeColor("purple"))
+  AddObject(line5, gWin)
+  label5 <- MakeLabel("Width 20 (purple, diagonal)", smallFont)
+  AddObject(label5, gWin)
+  Move(label5, 50, y)
+
+  Draw()
+
+  Print("ThickLine test complete. If you see colored lines, ThickLine is working.")
+  Print("Press any key to exit.")
+
+  WaitForAnyKeyPress()
+}

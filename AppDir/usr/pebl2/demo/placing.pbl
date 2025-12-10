@@ -1,0 +1,262 @@
+define Start(p)
+{
+##  This implements a simple 'placing' experiment akin to Pastel's
+##  paradigm, which is a modified version of a Fitts-style aimed
+##  movement task.
+##  
+##
+
+##These are the IVs: target distance, target size, and slack (how much 
+## wiggle room for placement there is.)
+  targdist <- [100,300,700]
+  targsize <- [20,40,60]
+  slack <- [1,5,15]
+
+  reps     <- 2       ##Number of times through list
+
+
+  gWin <- MakeWindow()
+  ##Get subject code if we need to:    
+    if(gSubNum==0)
+    {
+	  gSubNum <- GetSubNum(gWin)
+    }
+
+  gFileOut <- FileOpenWrite("placing-"+gSubNum+".csv")
+  gPointFile <- FileOpenWrite("placingpoints-"+gSubNum+".csv")
+
+  ShowCursor(0)
+  gTargCol  <- MakeColor("red")
+  gStartx <- 50
+  gHomeX <- Round(gVideoWidth/2)
+  gHomeY <- Round(gVideoHeight/2)
+  gTargHeight <- 50
+  gShowPreview <- 1         ##Can you see the target before you move?
+  gSleepEasy <- 1
+  gMessage <- EasyLabel("",gHomeX,gHomeY-100,gWin,22)
+  gCounter <- EasyLabel("",gHomeX,gHomeY-150,gWin,22)
+
+  
+
+##Create the 'cursor', whose width will get changed based on slack 
+  gCursor <- Rectangle(0,0,20,gTargHeight-4,MakeColor("darkblue"),1)
+  AddObject(gCursor,gWin)
+
+##Create a starting position crosshairs marker
+  l1 <-   Line(gstartx-10,gHomeY,20,0,MakeColor("black"))
+  l2 <-   Line(gstartx,gHomeY-10,0,20,MakeColor("black"))
+  AddObject(l1,gWin)
+  AddObject(l2,gWin)
+
+##create the trial sequence
+  conda <- DesignFullCounterbalance(targdist,targsize)
+  cond <- FoldList(Flatten(DesignFullCounterbalance(conda,slack)),3)
+  trials <- Shuffle(RepeatList(cond,reps))
+
+  MessageBox("In this study, you will be asked to move a blue rectangular cursor onto a red target.  The cursor will be smaller than the target, and you should attempt to place the cursor so that you can see at least one pixel of the red target rectangle on each side of the cursor. Once you reach the target position, stop moving the mouse and the computer will determine whether you have reached the target location accurately. On each trial, the target will be placed at a different distance from the starting location, and different target and cursor sizes will be tested. You may begin by clicking the OK button below.",gWin)
+
+  l <- Length(trials)
+  i <- 1
+  loop(trial,trials)
+  {
+    gCounter.text <- ("Trial [" + i + "] of "+l)
+    FilePrint_(gFileOut,gSubNum + "," + i + ",")
+
+    Trial(i, First(trial),Second(trial),Third(trial),4)
+
+    i <- i + 1
+  }
+  ShowCursor(1)
+  FileClose(gFileOut)
+  FileClose(gPointFile)
+}
+
+
+
+
+
+define Trial(trial, pos, size,slack,type)
+{
+
+   ##Type == 1:
+   ##Type == 3;  doesn't require clicking; only dwelling.
+   ##Type == 4; a placing trial.
+
+   if(type==4)
+   {
+     gCursor.width <- size-slack     
+     Print(size+"--"+slack + "--"+gCursor.width)
+   }
+
+   targ0 <- Rectangle(gStartx+pos,gHomeY,size+10,gTargHeight+10,MakeColor("black"),2)
+   AddObject(targ0,gWin)
+   Hide(targ0)
+
+   targ <- Rectangle(gStartx+pos,gHomeY,size,gTargHeight,gTargCol,1)
+   AddObject(targ,gWin)
+   Hide(targ)
+   if(gShowPreview)
+    {
+      Show(targ0)
+    }
+
+   #Put cursor on top:
+   RemoveObject(gCursor,gWin)
+   AddObject(gCursor,gWin)
+
+   ##Hide the cursor and wait for a click to start trial
+   SetMouseCursorPosition(gStartX,gHomeY)
+   MoveCursor([gStartx, gHomeY])
+
+   gMessage.text <- "Click mouse to set position"
+   Show(gMessage)
+   Draw()
+   
+   WaitForDownClick()
+   Show(gCursor)
+   SetMouseCursorPosition(gStartX,gHomeY)
+   MoveCursor([gStartx, gHomeY])
+   gMessage.text <- "Move to target when ready."
+   Draw()
+   Wait(50)
+   Draw()
+   WaitForMouseMovement()
+
+   Show(targ)
+   Show(targ0)
+   Hide(gMessage)
+   Draw()
+
+   start <- GetTime()
+   clicks <- 0
+
+   if(type == 3 or type==4)
+   {
+     Draw()
+     lastpos <- GetMouseCursorPosition()
+     continue <- 1
+     while(continue)
+       {
+        time <- GetTime()
+        mousepos <- GetMouseCursorPosition()
+        mousepos <- MoveCursor(mousepos)
+
+        FilePrintList(gPointfile,Merge([trial,size,pos,slack,time],mousepos))
+        #If you stop moving, check to see if you are inside the target
+
+        if(ListEqual(mousepos,lastpos) )
+          {
+
+            continue <- (1 - ClickOn(mousepos,[gStartx+pos,gHomeY],slack,size, gTargHeight))
+
+          }
+         lastpos <- mousepos
+         Draw()
+         Wait(10)
+       }
+       endtime <- GetTime()
+        Wait(200)
+
+   } else {
+   ##Requires clicking to make placement.
+    x <- 0
+
+    while(not x)
+      {
+       mousepos<-WaitForDownClick()
+       mousepos <-  MoveCursor(mousepos)
+       x <-  ClickOn(mousepos,[gStartx+pos,gHomeY],slack,size, gTargHeight)
+       endtime <- GetTime()
+       clicks <- clicks + 1
+      }
+     }
+     FilePrint_(gFileOut,type+ "," +pos + "," + size + "," +slack+","+ gShowPreview  + "," +First(mousepos) + "," + Nth(mousepos,2) + "," + clicks + ",")
+     FilePrint(gFileOut,(endtime - start))
+
+   RemoveObject(targ,gWin)
+   RemoveObject(targ0,gWin)
+
+
+   Draw()
+
+
+  
+}
+
+
+
+
+define ListEqual(l1,l2)
+{
+  same <- 1
+  loop(i,Transpose([l1,l2]))
+   {
+     if(not (First(i) == Nth(i,2)))
+      {
+        same <- 0
+      }
+   }
+  return same
+}
+
+
+##Use rectangles for targets.
+##Determines whether you clicked on the target
+define ClickOn(mousepos, pos, slack,width, height)
+{
+
+  mouseX <- First(mousepos)  
+  mouseY <- Nth(mousepos,2)
+
+  xcenter <- First(pos)
+  ycenter <- Nth(pos,2)
+
+  ##The slack number gives you the range 
+  minX <-  xcenter-slack/2
+  maxX <-  xcenter+slack/2
+  minY <-  ycenter - height/2
+  maxY <-  ycenter + height/2
+ 
+  x <- First(mousepos)
+  y <- Second(mousepos)
+
+##test whether we hit the right spot
+  if( x <= maxX and x >= minX and y <= maxY and y >= minY)
+   {
+     ret <- 1
+   } else {
+     ret <- 0
+   }
+
+ return ret
+}
+
+define WaitForMouseMovement()
+{
+   lastpos <-GetMouseCursorPosition()
+   pos <-GetMouseCursorPosition()
+    
+   continue <- 1
+   while(ListEqual(lastpos,pos)) 
+    {
+        Wait(10)
+    	Draw()
+		lastpos <- pos
+        pos <- GetMouseCursorPosition()
+    }
+}
+
+
+define MoveCursor(pos)
+
+{
+  gCursor.x <- First(pos)
+
+##Use this to lock the y position
+  gCursor.y <- gHomeY
+
+## Use this to allow any y position.
+ ##  gCursor.y <- Nth(pos,2)
+  Draw()
+  return [gCursor.x,gCursor.y]
+}

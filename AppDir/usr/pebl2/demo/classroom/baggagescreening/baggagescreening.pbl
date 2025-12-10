@@ -1,0 +1,161 @@
+define Start(p)
+{
+
+  gWin <- MakeWindow("black")
+  gSleepEasy <- 1
+  name <- GetEasyInput("Enter data file basename:",gWin)
+  timeout <- 0
+
+  MakeDirectory("output")
+
+  while(timeout < 500)
+   {
+     timeout <- GetEasyInput("Enter time limit for decision in seconds (at least 0.5 s)",gWin)
+     timeout <- ToNumber(timeout)*1000
+   }
+  files <- Shuffle(GetDirectoryListing("stimuli"))
+
+  gMaxHeight <- gVideoHeight-200
+
+ ##Set up timer globals
+  timerBack <-  Rectangle(gVideoWidth/2,80,300,20,
+                    MakeColor("grey"),0)
+
+  timerFront <-  Rectangle(gVideoWidth/2,80,300,20,
+                           MakeColor("red"),1)
+  AddObject(timerFront,gWin)
+  AddObject(timerBack,gWin)
+
+ gTimer <- MakeCustomObject("timer")
+ gTimer.front <- timerFront
+ gTimer.back <- timerBack
+  error <- MakeImage("frowney-big.png")
+  AddObject(error,gWin)
+  Move(error,gVideoWidth/2,gVideoHeight/2)
+  Hide(error)
+
+  correct <- MakeImage("smiley-big.png")
+  AddObject(correct,gWin)
+  Move(correct,gVideoWidth/2,gVideoHeight/2)
+  Hide(correct)
+
+  ok <- EasyLabel("OK",gvideoWidth/2-100,50,gWin,40)  
+  bad <- EasylABEL("BAD",gvideoWidth/2+100,50,gWin,40)  
+
+  unsafes <- []
+  safes <- []
+  rts <- []
+  loop(i, Shuffle(files))
+   {
+
+      if(not IsDirectory("stimuli/"+i))
+      {
+ 
+           img <- MakeImage("stimuli/"+i)
+           AddObject(img,gWin)
+	   Move(img,gVideoWidth/2,gVideoheight/2)
+
+	   img.rotation <- Floor(Random()*4)*90
+           ReSize(img,gMaxheight)
+           dangerous <- SubString(i,1,1)=="x"
+           Draw()
+
+
+   	     timeend <- GetTime()+timeout
+	     done <- 0
+	     time0 <- GetTime()
+	     while(not done)
+	      {
+                resp <-    WaitForClickOnTargetWithTimeout([ok,bad],["ok","bad"],10)
+
+                if(resp=="<timeout>")
+         	 {
+ 	          UpdateTimer(timeend,timeout,gTimer)
+                  if(GetTime()>timeend)
+		     {
+		       done <- 1
+		     }
+                 }else{
+  		      done <- 1
+                 }
+              }
+	      rt <- GetTime()-time0
+	      PushOnEnd(rts,rt)	      
+	      
+	     if(dangerous)
+	      {
+		corr <- (resp == "bad")
+	      } else {
+		corr <- (resp == "ok")
+              }
+
+	      if(dangerous)
+		{
+		   PushOnEnd(unsafes,corr)
+		} else{
+		   PushOnEnd(safes,corr)
+		}
+		
+
+	   if(not corr)
+	    {
+	      Show(error)
+	      AddObject(error,gWin)
+	      Draw()
+	      Wait(500)
+	      Hide(error)
+	    }else{
+    	      Show(correct)
+	      AddObject(correct,gWin)
+	      Draw()
+	      Wait(500)
+	      Hide(correct)
+
+	    }
+
+
+       }
+    }
+
+
+    msg <- "Results:"+CR(1) + TimeStamp()+CR(1)
+    msg <- msg + "Deadline:                       " +timeout + CR(1)
+    msg <- msg + "Number of trials:               " +Length(safes)+Length(unsafes)+CR(1)
+    msg <- msg + "Number of safe bags:            " +Length(safes)+CR(1)
+    msg <- msg + "Number of unsafe bags:          " +Length(unsafes)+CR(1)
+    msg <- msg + "Pct safe bags incorrect:  (FA)  " +(1-Mean(safes))+CR(1)
+    msg <- msg + "Pct unsafe bags correct:  (HIT) " +(Mean(unsafes))+CR(1)
+    msg <- msg + "Mean RT:                       "+Mean(rts)+CR(1)
+
+  
+    out <- FileOpenAppend("output\baggage-report"+name+".txt")
+    FilePrint(out,msg)
+    MessageBox(msg+"Data available in file " + out.filename ,gWin)
+}
+
+
+
+
+
+define Resize(pic, height)
+{
+    scale <- Min([height/pic.width , height/pic.height ])
+
+    pic.zoomx <- Sign(pic.zoomX)*scale
+    pic.zoomy <- Sign(pic.zoomY)*scale
+
+}
+
+
+
+define UpdateTimer(endtime,maxtime,timer)
+{
+
+    prop <- Max([0,endTime - GetTime()])/maxtime
+    front <- gTimer.front
+    back <- gTimer.back
+    front.width <- back.width * prop
+    Draw()
+}
+
+

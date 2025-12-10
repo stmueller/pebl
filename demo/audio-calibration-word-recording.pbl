@@ -1,0 +1,212 @@
+## Audio Voice Key Calibration Tool
+##
+## Collects audio statistics during silence and speech to help
+## calibrate thresholds for voice key detection.
+##
+## Workflow:
+##   1. Record silence (2 seconds)
+##   2. For each word, show word, press space, say word, release space
+##   3. Display statistics comparison
+
+define Start(p)
+{
+    ## Initialize display
+    gWin <- MakeWindow("grey40")
+    gSleepEasy <- 1
+
+    gFont <- MakeFont(gPEBLBaseFont, 0, 20, MakeColor("white"), MakeColor("grey40"), 1)
+    gFontLarge <- MakeFont(gPEBLBaseFont, 0, 36, MakeColor("yellow"), MakeColor("grey40"), 1)
+
+    ## Instructions
+    instructions <- "Audio Voice Key Calibration" + CR(2) +
+                   "This tool will collect audio statistics during:" + CR(1) +
+                   "  1. Silence (background noise)" + CR(1) +
+                   "  2. Speech (you saying words)" + CR(2) +
+                   "Workflow:" + CR(1) +
+                   "  - First: Press RETURN to record 2 seconds of silence" + CR(1) +
+                   "  - Then: For each word shown:" + CR(1) +
+                   "    * Press RETURN (word appears)" + CR(1) +
+                   "    * Press and HOLD SPACE while saying the word" + CR(1) +
+                   "    * Release SPACE when done" + CR(1) +
+                   "    * Press RETURN to continue" + CR(2) +
+                   "Press any key to begin"
+
+    instrBox <- EasyTextBox(instructions, gVideoWidth/2-350, 100, gWin, 18, 700, 450)
+    Draw()
+    WaitForAnyKeyPress()
+    RemoveObject(instrBox, gWin)
+    Draw()
+
+    ## Start audio monitor with 2000ms ring buffer
+    gMonitor <- StartAudioMonitor(2000)
+
+    ## Collect silence baseline
+    silenceStats <- RecordSilence(gWin)
+
+    ## Words with different phonetic onsets
+    words <- ["WISCONSIN", "SUSPECT", "CHRISTMAS", "HARMONY", "APARTMENT"]
+
+    ## Collect speech statistics
+    speechResults <- []
+    loop(word, words)
+    {
+        result <- RecordWord(word, gWin)
+        speechResults <- Append(speechResults, result)
+    }
+
+    ## Stop monitoring
+    StopAudioMonitor(gMonitor)
+
+    ## Show summary comparison
+    ShowSummary(silenceStats, speechResults, gWin)
+}
+
+define RecordSilence(win)
+{
+    ## Show instructions
+    prompt <- MakeLabel("Press RETURN to record 2 seconds of SILENCE", gFont)
+    Move(prompt, gVideoWidth/2, gVideoHeight/2)
+    AddObject(prompt, win)
+    Draw()
+
+    ## Wait for return key
+    WaitForKeyPress("<return>")
+
+    ## Show recording status
+    SetText(prompt, "RECORDING SILENCE...")
+    Draw()
+
+    ## Record for 2 seconds
+    Wait(2000)
+
+    ## Get statistics from last 2 seconds
+    stats <- GetAudioStats(gMonitor, 2000)
+    energy <- First(stats)
+    power <- Nth(stats, 2)
+    rmse <- Third(stats)
+    signs <- Nth(stats, 4) * 10
+    directions <- Nth(stats, 5) * 10
+
+    ## Show complete
+    SetText(prompt, "COMPLETE - Press RETURN to continue")
+    Draw()
+    WaitForKeyPress("<return>")
+
+    ## Clean up
+    RemoveObject(prompt, win)
+    Draw()
+
+    ## Return statistics
+    return([energy, power, rmse, signs, directions])
+}
+
+define RecordWord(word, win)
+{
+    ## Show prompt
+    prompt <- MakeLabel("Press RETURN to see next word", gFont)
+    Move(prompt, gVideoWidth/2, gVideoHeight/2 + 100)
+    AddObject(prompt, win)
+    Draw()
+
+    ## Wait for return key
+    WaitForKeyPress("<return>")
+
+    ## Show word
+    wordLabel <- MakeLabel(word, gFontLarge)
+    Move(wordLabel, gVideoWidth/2, gVideoHeight/2 - 50)
+    AddObject(wordLabel, win)
+
+    SetText(prompt, "Press and HOLD SPACE while saying: " + word)
+    Draw()
+
+    ## Wait for space press
+    WaitForKeyDown(" ")
+    startTime <- GetTime()
+
+    ## Show recording
+    SetText(prompt, "RECORDING - Release SPACE when done")
+    Draw()
+
+    ## Wait for space release
+    WaitForKeyUp(" ")
+    endTime <- GetTime()
+    duration <- endTime - startTime
+
+    ## Get statistics from the recording period
+    stats <- GetAudioStats(gMonitor, duration)
+    energy <- First(stats)
+    power <- Nth(stats, 2)
+    rmse <- Third(stats)
+    signs <- Nth(stats, 4) * 10
+    directions <- Nth(stats, 5) * 10
+
+    ## Show complete
+    SetText(prompt, "COMPLETE - Press RETURN to continue")
+    Draw()
+    WaitForKeyPress("<return>")
+
+    ## Clean up
+    RemoveObject(wordLabel, win)
+    RemoveObject(prompt, win)
+    Draw()
+
+    ## Return word and statistics
+    return([word, energy, power, rmse, signs, directions, duration])
+}
+
+define ShowSummary(silenceStats, speechResults, win)
+{
+    ## Extract silence statistics
+    silEnergy <- First(silenceStats)
+    silPower <- Nth(silenceStats, 2)
+    silRMSE <- Third(silenceStats)
+    silSigns <- Nth(silenceStats, 4)
+    silDirections <- Nth(silenceStats, 5)
+
+    ## Calculate average speech statistics
+    numWords <- Length(speechResults)
+    sumEnergy <- 0
+    sumPower <- 0
+    sumRMSE <- 0
+    sumSigns <- 0
+    sumDirections <- 0
+
+    loop(result, speechResults)
+    {
+        sumEnergy <- sumEnergy + Nth(result, 2)
+        sumPower <- sumPower + Nth(result, 3)
+        sumRMSE <- sumRMSE + Nth(result, 4)
+        sumSigns <- sumSigns + Nth(result, 5)
+        sumDirections <- sumDirections + Nth(result, 6)
+    }
+
+    avgEnergy <- sumEnergy / numWords
+    avgPower <- sumPower / numWords
+    avgRMSE <- sumRMSE / numWords
+    avgSigns <- sumSigns / numWords
+    avgDirections <- sumDirections / numWords
+
+    ## Build summary text
+    summaryText <- "CALIBRATION RESULTS" + CR(2) +
+                  "Silence Statistics:" + CR(1) +
+                  "  Energy: " + Round(silEnergy, 3) + CR(1) +
+                  "  Power: " + Round(silPower, 3) + CR(1) +
+                  "  RMSE: " + Round(silRMSE, 3) + CR(1) +
+                  "  Sign Changes/sec: " + silSigns + CR(1) +
+                  "  Direction Changes/sec: " + silDirections + CR(2) +
+                  "Average Speech Statistics:" + CR(1) +
+                  "  Energy: " + Round(avgEnergy, 3) + CR(1) +
+                  "  Power: " + Round(avgPower, 3) + CR(1) +
+                  "  RMSE: " + Round(avgRMSE, 3) + CR(1) +
+                  "  Sign Changes/sec: " + Round(avgSigns, 0) + CR(1) +
+                  "  Direction Changes/sec: " + Round(avgDirections, 0) + CR(2) +
+                  "Recommendations:" + CR(1) +
+                  "  - Energy/Power threshold: " + Round(avgEnergy * 0.6, 3) + " to " + Round(avgEnergy * 0.8, 3) + CR(1) +
+                  "  - Speech has LOWER sign/direction changes" + CR(1) +
+                  "  - Silence has HIGHER sign/direction changes" + CR(2) +
+                  "Press any key to exit"
+
+    summaryBox <- EasyTextBox(summaryText, gVideoWidth/2-350, 100, win, 16, 700, 500)
+    Draw()
+    WaitForAnyKeyPress()
+}

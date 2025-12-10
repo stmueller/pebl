@@ -1,0 +1,434 @@
+## The PEBL SNARC task
+
+## SNARC Task. Participants is asked to make magnitude decision on numbers.
+##Dehaene, S., Bossini, S., & Giraux,
+##P. (1993). The mental representation of parity and number
+##magnitude. Journal of Experimental Psychology: General, 122(3),
+##371–396. http://doi.org/10.1037/0096-3445.122.3.371
+##
+## Task author:
+##  Laurent Schüpbach
+##
+
+define Start(p)
+{
+
+
+      gScriptName <- "PEBL SNARC Task"
+	##fallback parameters.
+	parpairs <- [["trialspernumber",20], #Must be even number
+		["cond",1], #Only for magnitude. Cond 1 means ABBA, 2 is BAAB. A small-left
+		["direction",1], #1 is horizontal decisions, 2 is radial
+		["middle",5], #Reference number
+		["start",1] #Start number for the sequence
+	]
+
+	# Take the default parameters if nothing is set
+	gParams <- CreateParameters(parpairs,gParamFile)
+
+	# Font size is proportional to resolution
+	gfontbig <- Round(gVideoWidth/10)
+	gfontsmall <- Round(gVideoWidth/50)
+
+
+
+	# If a joystick is plugged, use it
+	usejoystick <- GetNumJoysticks()
+	if(usejoystick>0)
+	{
+		gjoystick <- OpenJoystick(0) #start reading the joystick
+		Print("Using joystick")
+	}
+
+	# How many time each number is shown
+	# ABBA design, so in each 4 runs, half of this number is use.
+	trialBase <- ToInteger(gParams.trialspernumber/2)
+
+	# Which condition starts first.
+	# The training is the same as the first condition
+	if(gParams.cond==1)
+	{
+		condition <- [1,1,2,2,1]
+	} else {
+		condition <- [2,2,1,1,2]
+	}
+
+	# Training is run 0
+	run <- 0
+
+	# What are the smaller numbers and the bigger numbers
+	smaller <- Sequence(gParams.start,gParams.middle-1,1) # ex: 1,2,3,4
+	bigger <- Sequence(gParams.middle+1,2*gParams.middle-gParams.start,1) # ex: 6,7,8,9
+	numbers <- Merge(smaller,bigger)
+
+	#No rest in order to have better reaction time
+	gSleepEasy <- 1
+
+	## I see my red door and I want it painted black
+	## No colors anymore I want them to turn black
+	gwin <- MakeWindow("black")
+
+        if(gSubNum+""=="0")
+	{
+	   GetSubNum(gWin)
+	}
+
+        GetStrings(gLanguage)
+
+
+	#No mouse in here
+	ShowCursor(0)
+
+	#Create a .csv file with those headers
+	gFileOut <- GetNewDataFile(gSubNum,gWin,"snarc","csv",
+		"subNum,direction,run,cond,trial,middle,number,bigger,resp,corr,rt")
+
+	#Add a line in the runlog
+	log <- FileOpenAppend("data/runlog.txt")
+	FilePrint(log, gSubNum + "," + TimeStamp() + " SNARC started")
+
+	#Empty variables for the displayed results
+	datAcc <- [] #Accuracy
+	datRT <- [] #Reaction Time
+	datPF  <- [] #Bigger or smaller
+	datCond <- [] #Condition
+
+	##From here four times because of ABBA design
+	loop(cond,condition)
+	{
+		if(run==0) # If training run
+		{
+			triallist <- Shuffle(numbers) # Each number just once
+		} else { # If experimental run
+			triallist <- Flatten(ShuffleRepeat(numbers,trialBase)) #A few times
+		}
+
+		#Trial counter
+		trial <- 1
+
+		#In doubt, let's assume you're right
+		correct <- 1
+
+		##Show instructions on screen
+
+		#Run X of 4
+		nrun <- EasyLabel(run+"/4",gVideoWidth/20,Round(gVideoHeight/20),gWin,gfontsmall)
+
+		#Number : X (Text taken from specific translation)
+		mms <- EasyLabel(gStrings.number + gParams.middle,gVideoWidth/2,Round(gVideoHeight/10),gWin,gfontsmall)
+
+		#Task Instructions
+		instruct1 <- EasyLabel(gStrings.inst1,gVideoWidth/2,Round(gVideoHeight/2-gVideoHeight/5),gWin,gfontsmall)
+		instruct2 <- EasyLabel(gStrings.inst2,gVideoWidth/2,Round(gVideoHeight/2-gVideoHeight/10),gWin,gfontsmall)
+		instruct3 <- EasyLabel(gStrings.inst3+gParams.middle+".",gVideoWidth/2,Round(gVideoHeight/2),gWin,gfontsmall)
+
+		#Press any key to start
+		patience <- EasyLabel(gStrings.inst4,gVideoWidth/2,Round(gVideoHeight-gVideoHeight/10),gWin,gfontsmall)
+
+		#Different instruction depending on the condition
+		if(cond==1)
+		{
+			if(gParams.direction==1)
+			{
+				instructioncond <- (gStrings.left + gStrings.smaller + gParams.middle + ", " + gStrings.right + gStrings.bigger+ gParams.middle)
+			} else {
+				instructioncond <- (gStrings.up + gStrings.smaller + gParams.middle + ", " + gStrings.down + gStrings.bigger + gParams.middle)
+			}
+		} else {
+			if(gParams.direction==1)
+			{
+				instructioncond <- (gstrings.left + gSTrings.bigger + gParams.middle + ", " + gStrings.right + gStrings.smaller + gParams.middle)
+			} else {
+				instructioncond <- (gStrings.up + gStrings.bigger+ gParams.middle + ", " + gStrings.down + gStrings.smaller + gParams.middle)
+			}
+		}
+
+		instruct4 <- EasyLabel(instructioncond,gVideoWidth/2,gVideoHeight/2+gVideoHeight/10,gWin,gfontsmall)
+
+		#Draw and wait that the participant is ready
+		Draw()
+		WaitForAnyKeyPress()
+
+		#Prepare the error message for later
+		errormessage <- EasyLabel(gStrings.wrong,gVideoWidth/2,Round(gVideoHeight/10),gWin,gfontsmall)
+
+		#Hide the instructions and the error message
+		Hide(instruct1)
+		Hide(instruct2)
+		Hide(instruct3)
+		Hide(instruct4)
+		Hide(patience)
+		Hide(nrun)
+		Hide(mms)
+		Hide(errormessage)
+		Draw()
+
+		#Main loop for each trial
+		loop(st,triallist)
+		{
+			#if the last one is wrong, I let you know
+			if(not correct)
+			{
+				Show(errormessage)
+				Draw()
+				Wait(2000)
+				Hide(errormessage)
+				Draw()
+			}
+
+			#The trial functions are at the bottom of this file.
+			#Different if you use a joystick or not
+			if(usejoystick==0)
+			{
+				out <- Trialkey(st,cond) #First is the stimuli, Second is the condition
+			} else {
+				out <- Trialjoy(st,cond) #First is the stimuli day, Second is the condition
+			}
+
+			#out = resp,corr,rt
+			#Check if the trial was correct
+			correct <- Second(out)
+
+			#If the key that was pressed is esc, means I don't want to continue
+			if(First(out)=="<esc>")
+			{
+				Print("break signal")
+				break
+			}
+
+			#Record the results if training is finished
+			if(run>0)
+			{
+				#Record the results
+				outlist <- [gSubNum,gParams.direction,run,cond,trial,gParams.middle,st,st>gParams.middle,out]
+				FilePrint(gFileOut,ConcatenateList(Flatten(outlist),","))
+
+				#Other data for the summary:
+				PushOnEnd(datAcc,correct)
+				PushOnEnd(datRT,Third(out))
+				PushOnEnd(datPF,st>gParams.middle)
+				PushOnEnd(datCond,cond)
+			}
+
+			#Prepare next trial
+			trial <- trial + 1
+		}##End of the stimuli loop
+
+	run <- run + 1
+
+	if(First(out)=="<esc>")
+	  {
+	   break
+	  }
+
+	} #End of run loop
+
+	#Compute stats
+	levs <- Levels(datCond) #Conditions
+
+	#feedback will be displayed on the screen and saved as file
+	feedback <- TimeStamp() +CR(1) + "Participant: "+ gSubNum +CR(2)
+
+	#Moving the data around to filter them
+	datall <- Transpose([datRT,datAcc,datPF])
+
+	#Make the calculations according to condition
+	loop(i,levs)
+	{
+		#Take only that condition
+		subset <- Transpose(Filter(datAll,Match(datCond,i)))
+
+		#Which trial is bigger or smaller
+		filterP <- Match(Third(subset),0)
+		filterF <- Match(Third(subset),1)
+
+		#Which were right or wrong
+		accP <- Filter(Second(subset),filterP)
+		accF <- Filter(Second(subset),filterF)
+
+		#Make an accuracy average
+		accMeanP <- Mean(accP)
+		accMeanF <- Mean(accF)
+
+		#What are the reaction times
+		rtP <- Filter(First(subset),filterP)
+		rtF <- Filter(First(subset),filterF)
+
+		#Average reaction time of correct answers
+		rtMeanP <- Mean(Filter(rtP,accP))
+		rtMeanF <- Mean(Filter(rtF,accF))
+
+		#Write it nicely
+		feedback <- feedback + i + " Smaller     RT:"+ Round(rtmeanP) + "    Acc:" + Round(accMeanP,3) +CR(1)
+		feedback <- feedback + i + " Bigger      RT:"+ Round(rtmeanF) + "    Acc:" + Round(accMeanF,3) +CR(2)
+	} #loop results
+
+	#Save and display the feedback
+	out2 <- FileOpenWrite("data/"+gSubNum+"/report"+gSubNum+".txt")
+	FilePrint(out2,feedback)
+	Print(feedback)
+	MessageBox(feedback+gStrings.debrief,gWin)
+
+	#Let runlog know we are finished
+	FilePrint(log, gSubNum + "," + TimeStamp() + " SNARC completed")
+} #main experiment
+
+##Show the trial - version using a keyboard
+define Trialkey(stim,cond)
+{
+	#stim is the number
+	stimlab<- EasyLabel(ToString(stim),gVideoWidth/2,gVideoHeight/2,gWin,gfontbig)
+
+	#Show the number
+	Show(stimlab)
+	Draw()
+
+	#Start the counter as soon as the number is displayed
+	time1 <- GetTime()
+
+	#Are we doing the horizontal version?
+	if(gParams.direction==1)
+	{
+		resp <- WaitForListKeyPress(["<left>","<right>","<esc>"])
+	} else {
+		resp <- WaitForListKeyPress(["<up>","<down>","<esc>"])
+	}
+
+	#Stop the counter as soon as the answer is there
+	time2 <- GetTime()
+
+	#Hide everything for 20ms
+	Hide(stimlab)
+	Draw()
+	Wait(20)
+
+	#Score for correctness
+	if(gParams.direction==1)
+	{
+		if(cond==1)
+		{
+			if(stim<gParams.middle)
+			{
+				corr <- resp == "<left>"
+			} else {
+				corr  <- resp == "<right>"
+			}
+		} else { #condition not 1
+			if(stim<gParams.middle)
+			{
+				corr <- resp == "<right>"
+			} else {
+				corr  <- resp == "<left>"
+			}
+		}
+	} else { #direction not 1
+		if(cond==1)
+		{
+			if(stim<gParams.middle)
+			{
+				corr <- resp == "<up>"
+			} else {
+				corr  <- resp == "<down>"
+			}
+		} else {
+			if(stim<gParams.middle)
+			{
+				corr <- resp == "<down>"
+			} else {
+				corr  <- resp == "<up>"
+			}
+		}
+	}
+
+return [resp,corr,(time2-time1)]
+}
+
+#Show the trial - version using the joystick
+define Trialjoy(stim,cond)
+{
+	#Select the next trial
+	stimlab<- EasyLabel(ToString(stim),gVideoWidth/2,gVideoHeight/2,gWin,gfontbig)
+
+	#Prepare variables for the joystick
+	cont<-1 #continuous read until an answer is given
+	cont2 <- 0 #continuous read until the joystick is back to normal
+
+	#Show the day
+	Show(stimlab)
+	Draw()
+	#Get the time when the stimuli was shown
+	time1 <- GetTime()
+
+	while(cont) #Loop this until I tell otherwise
+	{
+		#Read the joystick values
+		val1x <- GetJoystickAxisState(gjoystick,1) #Read the x axis of the joystick
+		valbut1 <- GetJoystickButtonState(gjoystick,1) #Right button
+		valbut2 <- GetJoystickButtonState(gjoystick,2) #Left button
+
+		#Check if there's any answer
+		if(Abs(val1x)>10000 OR valbut1+valbut2>0)
+		{
+			#When was it answered?
+			time2 <- GetTime()
+			#Hide the day name when answered
+			Hide(stimlab)
+			Draw()
+
+			#Print("answered: joy=" + val1x + " but1=" + valbut1 + " but2=" + valbut2)
+
+			#Negative x or button 1 are on the right side when the joystick is with buttons facing the participant
+			if(valbut1>0 OR -10000>val1x) #right when joystick is backward... keys accessible
+			{
+				resp <- "<right>"
+				if(cond==1)
+				{
+					corr <- stim>gParams.middle
+				} else {
+					corr <- stim<gParams.middle
+				}
+			} else {
+				resp <- "<left>"
+				if(cond==1)
+				{
+					corr <- stim<gParams.middle
+				} else {
+					corr <- stim>gParams.middle
+				}
+			}
+
+			#The joystick was used
+			cont2<-1
+
+		}
+
+		#Run this until the participant isn't pressing the joystick anymore
+		while(cont2)
+		{
+			val1x <- GetJoystickAxisState(gjoystick,1)
+			valbut1 <- GetJoystickButtonState(gjoystick,1)
+			valbut2 <- GetJoystickButtonState(gjoystick,2)
+			#Both joystick and buttons should not be pressed
+			if(Abs(val1x)<2 AND valbut1+valbut2==0)
+			{
+				cont <- 0 #Leave the big loop
+				cont2 <- 0 #Leave the small loop
+			}
+		} #Release loop
+
+   } #Press loop
+
+   Wait(20)
+
+
+return [resp,corr,(time2-time1)]
+} #Trial joystick function
+
+
+
+
+
+define GetStrings(lang)
+{
+  gStrings <- GetTranslations("SNARC", lang)
+}

@@ -1,0 +1,298 @@
+define Start(p)
+{
+  gWin <- MakeWindow()
+
+  if(gSubNum+""=="0")
+  {
+    gSubNum <- GetSubNum(gWin)
+  }
+
+  ShowCursor(1)
+
+  ## Parameters
+  gNumPractice <- 5
+  gRepsPerCondition <- 10  ## repetitions of each size x quantity combination
+  gDotMin <- 10
+  gDotMax <- 100
+  gThreshold <- 55  ## boundary between "low" and "high"
+  gDisplayTime <- 1000  ## ms to show dots
+  gDotSizes <- [5, 10, 15]  ## small, medium, large
+  gDisplayRadius <- 300  ## radius of circular display area
+
+  ## Calculate total trials: 3 sizes x 2 quantities x reps
+  gNumTrials <- Length(gDotSizes) * 2 * gRepsPerCondition
+
+  ## Create data file
+  gFileOut <- GetNewDataFile(gSubNum,gWin,"dot_numerosity","csv",
+              "subnum,phase,trial,dotsize,numdots,response,correct,rt")
+
+  ## Instructions
+  inst <- "In this task, you will see a display of dots appear briefly.
+
+Your task is to decide if the number of dots is HIGH or LOW.
+
+The dots may vary in size, but you should only pay attention
+to the NUMBER of dots, not their size.
+
+After the dots disappear, click either HIGH or LOW.
+
+We will start with " + gNumPractice + " practice trials with feedback.
+
+Click anywhere to begin practice."
+
+  text <- EasyTextbox(inst,50,100,gWin,20,gVideoWidth-100,450)
+  Draw()
+  WaitForMouseButton()
+  Hide(text)
+
+  ## Run practice trials with feedback (random dot sizes)
+  loop(trial, Sequence(1,gNumPractice,1))
+  {
+    dotsize <- Nth(gDotSizes,RandomDiscrete(3))
+    RunTrial(trial,"practice",1,dotsize,[])
+  }
+
+  ## Second instructions
+  text.text <- "Good job! You have completed the practice trials.
+
+Now you will complete " + gNumTrials + " test trials.
+
+You will NOT receive feedback during the test.
+
+Try to respond as quickly and accurately as possible.
+
+Click anywhere to begin the test."
+  Show(text)
+  Draw()
+  WaitForMouseButton()
+  Hide(text)
+
+  ## Create balanced design: sizes x 2 quantities (high/low) x repetitions
+  triallist <- []
+  loop(rep, Sequence(1,gRepsPerCondition,1))
+  {
+    loop(size, gDotSizes)
+    {
+      ## Add one high trial
+      triallist <- Append(triallist, [size, "high"])
+      ## Add one low trial
+      triallist <- Append(triallist, [size, "low"])
+    }
+  }
+
+  ## Shuffle the trial list
+  triallist <- Shuffle(triallist)
+
+  ## Run test trials without feedback
+  trialnum <- 1
+  totalcorrect <- 0
+  totalrt <- 0
+
+  ## Initialize accumulators for conditions
+  highcorrect <- 0
+  lowcorrect <- 0
+  highrt <- 0
+  lowrt <- 0
+  highcount <- 0
+  lowcount <- 0
+
+  ## Initialize accumulators for dot sizes
+  sizecorrect <- [0,0,0]
+  sizert <- [0,0,0]
+  sizecount <- [0,0,0]
+
+  loop(trial, triallist)
+  {
+    dotsize <- First(trial)
+    quantity <- Nth(trial,2)
+    result <- RunTrial(trialnum,"test",0,dotsize,quantity)
+    corr <- First(result)
+    rt <- Nth(result,2)
+
+    totalcorrect <- totalcorrect + corr
+    totalrt <- totalrt + rt
+
+    ## Track by quantity
+    if(quantity == "high")
+    {
+      highcorrect <- highcorrect + corr
+      highrt <- highrt + rt
+      highcount <- highcount + 1
+    } else {
+      lowcorrect <- lowcorrect + corr
+      lowrt <- lowrt + rt
+      lowcount <- lowcount + 1
+    }
+
+    ## Track by dot size
+    sizeindex <- 1
+    loop(i, Sequence(1,Length(gDotSizes),1))
+    {
+      if(dotsize == Nth(gDotSizes,i))
+      {
+        sizeindex <- i
+      }
+    }
+    SetElement(sizecorrect, sizeindex, Nth(sizecorrect,sizeindex) + corr)
+    SetElement(sizert, sizeindex, Nth(sizert,sizeindex) + rt)
+    SetElement(sizecount, sizeindex, Nth(sizecount,sizeindex) + 1)
+
+    trialnum <- trialnum + 1
+  }
+
+  ## Calculate overall means
+  meanaccuracy <- Round(100 * totalcorrect / gNumTrials)
+  meanrt <- Round(totalrt / gNumTrials)
+
+  ## Calculate means by quantity
+  highaccuracy <- Round(100 * highcorrect / highcount)
+  lowaccuracy <- Round(100 * lowcorrect / lowcount)
+  highmeanrt <- Round(highrt / highcount)
+  lowmeanrt <- Round(lowrt / lowcount)
+
+  ## Calculate means by dot size
+  size1acc <- Round(100 * Nth(sizecorrect,1) / Nth(sizecount,1))
+  size2acc <- Round(100 * Nth(sizecorrect,2) / Nth(sizecount,2))
+  size3acc <- Round(100 * Nth(sizecorrect,3) / Nth(sizecount,3))
+  size1rt <- Round(Nth(sizert,1) / Nth(sizecount,1))
+  size2rt <- Round(Nth(sizert,2) / Nth(sizecount,2))
+  size3rt <- Round(Nth(sizert,3) / Nth(sizecount,3))
+
+  ## Debrief
+  text.text <- "Thank you for participating!
+
+Overall Results:
+  Accuracy: " + meanaccuracy + "%
+  Mean RT: " + meanrt + " ms
+
+By Quantity:
+  High: " + highaccuracy + "% accuracy, " + highmeanrt + " ms
+  Low:  " + lowaccuracy + "% accuracy, " + lowmeanrt + " ms
+
+By Dot Size:
+  Small (" + Nth(gDotSizes,1) + "px): " + size1acc + "% accuracy, " + size1rt + " ms
+  Medium (" + Nth(gDotSizes,2) + "px): " + size2acc + "% accuracy, " + size2rt + " ms
+  Large (" + Nth(gDotSizes,3) + "px): " + size3acc + "% accuracy, " + size3rt + " ms
+
+Click anywhere to exit."
+  Show(text)
+  Draw()
+  WaitForMouseButton()
+}
+
+define RunTrial(trialnum, phase, showfeedback, dotsize, quantity)
+{
+  ## Determine number of dots based on quantity if specified
+  if(IsList(quantity))
+  {
+    ## quantity not specified, randomize across full range
+    numdots <- RandomDiscrete(gDotMax - gDotMin + 1) + gDotMin - 1
+  } else {
+    ## quantity specified as "high" or "low"
+    if(quantity == "high")
+    {
+      ## Pick from high range
+      numdots <- RandomDiscrete(gDotMax - gThreshold + 1) + gThreshold - 1
+    } else {
+      ## Pick from low range
+      numdots <- RandomDiscrete(gThreshold - gDotMin) + gDotMin
+    }
+  }
+
+  ## Determine correct answer
+  if(numdots >= gThreshold)
+  {
+    correct_answer <- "HIGH"
+  } else {
+    correct_answer <- "LOW"
+  }
+
+  ## Create fixation
+  fix <- EasyLabel("+",gVideoWidth/2,gVideoHeight/2,gWin,30)
+  Draw()
+  Wait(500)
+  Hide(fix)
+
+  ## Create dots at random positions
+  dots <- []
+  centerX <- gVideoWidth/2
+  centerY <- gVideoHeight/2
+
+  ## Clear screen first
+  Draw()
+
+  loop(i, Sequence(1,numdots,1))
+  {
+    ## Random position within circular display area
+    ## Use sqrt for uniform distribution in circle
+    angle <- Random() * 2 * 3.14159265
+    radius <- Sqrt(Random()) * gDisplayRadius
+    x <- centerX + radius * Cos(angle)
+    y <- centerY + radius * Sin(angle)
+
+    dot <- Circle(x,y,dotsize,MakeColor("blue"),1)
+    AddObject(dot,gWin)
+    Show(dot)
+    dots <- Append(dots,dot)
+  }
+
+  ## Show dots
+  Draw()
+  starttime <- GetTime()
+  Wait(gDisplayTime)
+
+  ## Remove dots
+  RemoveObjects(dots,gWin)
+  Draw()
+
+  ## Create response buttons
+  buttonY <- gVideoHeight/2 + 250
+  labelLow <- EasyLabel("LOW",gVideoWidth/2 - 150,buttonY,gWin,30)
+  labelHigh <- EasyLabel("HIGH",gVideoWidth/2 + 150,buttonY,gWin,30)
+
+  buttons <- [labelLow,labelHigh]
+  Draw()
+
+  ## Wait for response
+  resp <- WaitForClickOnTarget(buttons,["LOW","HIGH"])
+  rt <- GetTime() - starttime
+
+  ## Check correctness
+  if(resp == correct_answer)
+  {
+    corr <- 1
+  } else {
+    corr <- 0
+  }
+
+  ## Record data
+  FilePrint(gFileOut,gSubNum + "," + phase + "," + trialnum + "," + dotsize + "," + numdots + "," + resp + "," + corr + "," + rt)
+
+  ## Show feedback if requested
+  if(showfeedback)
+  {
+    if(corr == 1)
+    {
+      feedbacktext <- "CORRECT!"
+      feedbackfont <- MakeFont("DejaVuSans.ttf",0,28,MakeColor("green"),MakeColor("black"),0)
+    } else {
+      feedbacktext <- "INCORRECT! The correct answer was " + correct_answer
+      feedbackfont <- MakeFont("DejaVuSans.ttf",0,28,MakeColor("red"),MakeColor("black"),0)
+    }
+
+    feedback <- MakeLabel(feedbacktext,feedbackfont)
+    AddObject(feedback,gWin)
+    Move(feedback,gVideoWidth/2,gVideoHeight/2)
+    Draw()
+    Wait(1500)
+    RemoveObject(feedback,gWin)
+  }
+
+  ## Cleanup
+  RemoveObjects(buttons,gWin)
+  Draw()
+  Wait(500)
+
+  ## Return correctness and RT for tracking
+  return [corr, rt]
+}

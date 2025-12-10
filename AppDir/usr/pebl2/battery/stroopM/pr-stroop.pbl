@@ -1,0 +1,369 @@
+
+define Start(par)
+{
+  ## Execute pebl with the -v command-line to specify subject number
+  ## If no -v option produced, the code below sets subnum arbitrarily to 0
+  gLanguage <- "es"
+	 #gWin <- MakeWindow("grey40") 
+	 gWin <- MakeWindow("black")
+	 gBlanco <- MakeColor("white")
+	 gSubNum <-GetSubNum(gWin)
+	 
+	gRojo <- MakeColor("red")
+	gAmarillo <- MakeColor("yellow")
+	gAzul <- MakeColor("blue")
+	gVerde <- MakeColor("green")
+    bg <- MakeColor("grey")
+  
+   #gfont <- MakeFont(gPEBLBaseFont,0,26,gBlanco , bg,0)
+   gfont <- MakeFont("Arial.ttf",0,26,gBlanco , bg,0)
+   #define gLabel and gWin global so that Trial can use them.
+   gLabel <- MakeLabel("Pulsa la tecla izquierda o la derecha, según el caso", gfont)
+   
+	gSubNum <- "Stroop_" + gSubNum + ".txt"
+   ## Begin experiment
+           	ShowCursor(0)     
+  ##Initialize Font and colors
+   gSleepEasy <- 1
+  
+   bg <- MakeColor("black")
+   fg <- MakeColor("white")
+ 
+    gInstructionsFont <- MakeFont(gPEBLBaseFont, 0, 18, fg, bg, 1)  
+	gHeaderFont       <- MakeFont(gPEBLBaseFont, 1, 36, gRojo , bg, 1)       
+ 
+   ## Make and place the instruction box, then hide it  
+   gInstructions <- MakeTextBox("", gInstructionsFont, 600, 400)
+   AddObject(gInstructions, gWin)
+   Move(gInstructions, gVideoWidth/2-300, gVideoHeight/2-200)
+   Hide(gInstructions)
+
+   ## Make and hide a header label
+   gHeader <- MakeLabel("",gHeaderFont)
+   AddObject(gHeader, gWin)
+   Move(gHeader, gVideoWidth/2, 100)
+   Hide(gHeader)
+	
+  	
+	instrucciones1 <- "En el centro de la pantalla irán apareciendo al azar palabras que, en su mayoría, son los nombres de cuatro colores: rojo, amarillo, azul y verde; pero el color de las letras con el que están escritas esas palabras, sólo en algunos casos coincidirá con el color nombrado.
+   
+   Por ejemplo:"
+   
+   
+   
+   
+   instrucciones11<-"   También aparecerán otros dos nombres de color, uno a cada lado, de modo que uno de ellos coincidirá con el color de la palabra mostrada:
+
+							
+
+
+Su tarea será, precisamente, la de  indicar este caso, es decir, EL COLOR EN QUE ESTÁ ESCRITA LA PALABRA, pulsando la tecla (derecha o izquierda) correspondiente al nombre de color coincidente.
+
+En el ejemplo, por tanto, tendría que pulsar la tecla 'derecha' en el primer caso (ROJO) y la tecla  'izquierda' en el segundo (AZUL)."
+ 
+   
+         
+   instrucciones2<-  "Como enseguida comprobará en una pequeña PRÁCTICA, la tarea requiere mucha atención porque la tendencia a leer las palabras (es decir, los nombres de los colores) interferirá con la identificación del color en el que están escritas (es decir, el color de los nombres). 
+
+Tenga en cuenta además, que aparecerán intercaladas otras palabras (que no son nombres de colores) para las cuales también tendrá que identificar el color en el que están escritas."
+
+instrucciones4 <- "ES IMPORTANTE QUE TRATE DE IR TAN RÁPIDO COMO PUEDA, PERO SIN COMETER ERRORES.
+Por consiguiente, tras pulsar la tecla correcta, deberá pulsar la barra espaciadora para pasar a la siguiente pantalla." 
+  
+  
+  
+ 
+   
+	gInstructions.text <- instrucciones1
+	Show(gInstructions)
+	fuenteRoja <- MakeFont(gPEBLBaseFont, 0, 26, gRojo , bg, 1) 
+	etiquetaRoja <- MakeLabel("rojo", fuenteRoja)
+	fuenteAzul <- MakeFont(gPEBLBaseFont, 0, 26, gAzul , bg, 1) 
+	etiquetaAzul <- MakeLabel("rojo", fuenteAzul)
+	AddObject(etiquetaRoja, gWin)
+   Move(etiquetaRoja, gVideoWidth/4, gVideoHeight/2)
+	AddObject(etiquetaAzul, gWin)
+   Move(etiquetaAzul, 5*gVideoWidth/8, gVideoHeight/2)
+	Show(etiquetaRoja)
+	Show(etiquetaAzul)
+	
+   Draw()
+   WaitForAnyKeyPress()
+   Hide(gInstructions)
+    Hide(etiquetaRoja)
+	Hide(etiquetaAzul)
+   Draw()
+   
+   gInstructions.text <- instrucciones11
+	Show(gInstructions)
+	fuenteRoja <- MakeFont(gPEBLBaseFont, 0, 26, gRojo , bg, 1) 
+	etiquetaRoja <- MakeLabel("rojo", fuenteRoja)
+	fuenteAzul <- MakeFont(gPEBLBaseFont, 0, 26, gAzul , bg, 1) 
+	etiquetaAzul <- MakeLabel("rojo", fuenteAzul)
+	fuenteBlanca <- MakeFont(gPEBLBaseFont, 0, 26, gBlanco , bg, 1) 
+	etiqueta <- MakeLabel ("amarillo         rojo                 azul        rojo",fuenteBlanca)
+	AddObject(etiqueta, gWin)	
+	Move (etiqueta,gVideoWidth/2, gVideoHeight/3)
+	AddObject(etiquetaRoja, gWin)
+   Move(etiquetaRoja, gVideoWidth/4 + 80, gVideoHeight/3)
+	AddObject(etiquetaAzul, gWin)
+   Move(etiquetaAzul, 5*gVideoWidth/8 + 80, gVideoHeight/3)
+	Show(etiquetaRoja)
+	Show(etiquetaAzul)
+	
+   Draw()
+   WaitForAnyKeyPress()
+   Hide(gInstructions)
+    Hide(etiquetaRoja)
+	Hide(etiquetaAzul)
+	Hide(etiqueta)
+   Draw()
+	
+	
+	gInstructions.text <- instrucciones2
+	Show(gInstructions)
+   Draw()
+   WaitForAnyKeyPress()
+   Hide(gInstructions)
+   Hide(etiquetaRoja)
+	Hide(etiquetaAzul)
+   Draw()
+   
+   datos <- FileReadTable("tablastroop.txt",";")
+ 
+   font <- MakeFont(gPEBLBaseFont,0,26, gBlanco, bg,0)
+   indicador <- MakeLabel(" F A S E   D E  P R Á C T I C A", font)
+   AddObject(indicador, gWin)
+   Move(indicador,400, 50)
+   SetText(gLabel, "Pulse [ESPACIO] para comenzar la práctica")
+   AddObject(gLabel, gWin)
+   Move (gLabel, gVideoWidth/2, gVideoHeight -100)
+   
+	 Draw()
+	 tecla <- WaitForListKeyPress([" ", "<esc>"])
+		
+			if (tecla <> " "){ 
+				breaks 
+			}
+				Hide (indicador)
+			Draw()
+
+ Practica()
+
+   gInstructions.text <- instrucciones4
+	Show(gInstructions)
+	SetText(gLabel,"<< PULSA ESPACIO PARA CONTINUAR >>")
+	Move(gLabel,gVideoWidth/2, gVideoHeight -100)
+	Show (gLabel)
+   Draw()
+   WaitForAnyKeyPress()
+   
+   Hide(gInstructions)
+   Hide(gLabel)
+   Draw()
+ 
+    gFileOut <- FileOpenWrite(gSubNum)
+ 
+	datos <- FileReadTable("tablastroop.txt",";")
+ 
+   font <- MakeFont(gPEBLBaseFont,0,26, gBlanco, bg,0)
+   indicador <- MakeLabel(" F A S E   E X P E R I M E N T A L", font)
+   AddObject(indicador, gWin)
+   Move(indicador,400, 50)
+	 Draw()
+	 tecla <- WaitForListKeyPress([" ", "<esc>"])
+		
+			if (tecla <> " "){ 
+				breaks 
+			}
+				Hide (indicador)
+			Draw()
+
+	Show(gLabel)
+
+	datos <- Shuffle(datos)
+   	
+    trial <- 1
+ 
+    loop(s,datos)
+    {
+        FilePrint_(gFileOut, trial + " ")
+			SetText(gLabel, "Pulsa [ESPACIO] para continuar")
+			Move(gLabel,400,500)
+			Show (gLabel)
+			Draw()
+			tecla <- WaitForListKeyPress([" ", "<esc>"])
+		
+			if (tecla <> " "){ 
+				breaks 
+			}
+				Hide (gLabel)
+			Draw()
+		
+		Trial (s)
+		
+        trial <- trial + 1
+     }
+	 
+  FileClose(gFileOut)
+
+  SetText(gLabel, "¡Gracias!  Pulsa cualquier tecla para finalizar")
+  Show(gLabel)
+  Draw()
+  WaitForAnyKeyPress()
+  	ShowCursor(1)
+}
+
+##################################################################################################
+##################################################################################################
+
+##define Trial(stimulus, condition)
+define Trial (stimulus)
+{
+	
+	palabra <- Nth(stimulus, 1)
+	color <- StripSpace(Nth(stimulus, 2))
+	opcionp <- StripSpace(Nth(stimulus, 3))
+	opcionq <- StripSpace(Nth(stimulus, 4))
+	opciones <- opcionp + " " + opcionq
+	rcorrecta <- StripSpace(Nth(stimulus, 5))
+	teclacorrecta <- StripSpace(Nth(stimulus, 6))
+	
+	fg <- gBlanco
+	bg <- MakeColor("black")
+	
+	if (color == "rojo"){
+		fg <- gRojo
+		}elseif(color=="azul"){
+		fg <- gAzul
+				}elseif(color=="amarillo"){
+		fg <- gAmarillo
+		}elseif(color=="verde"){
+		fg <- gVerde
+	}
+		
+	#gHeaderFont   <- MakeFont(gPEBLBaseFont, 0, 26, fg, bg, 1)      
+	gHeaderFont   <- MakeFont("Arial.ttf", 0, 26, fg, bg, 1) 
+   item <- MakeLabel(palabra, gHeaderFont)
+   AddObject(item,gWin)
+   ancho <- item.WIDTH
+   Move(item, gVideoWidth/2, gVideoHeight/2)
+   Show(item)
+ 
+	#gHeaderFont   <- MakeFont(gPEBLBaseFont, 0, 26, gblanco, bg, 1)   
+	gHeaderFont   <- MakeFont("Arial.ttf", 0, 26, gBlanco, bg, 1)
+   opcion1<- MakeLabel(opcionp,gHeaderFont)
+   AddObject(opcion1,gWin)
+   ancho1 <- opcion1.WIDTH
+   Move(opcion1, gVideoWidth/2 - ancho/2 - ancho1/2 - 10, gVideoHeight/2 )
+   Show(opcion1)
+   
+	opcion2 <- MakeLabel(opcionq,gHeaderFont)
+	AddObject(opcion2,gWin)
+	ancho2 <- opcion2.WIDTH
+	Move(opcion2, gVideoWidth/2 + ancho/2 +ancho2/2 + 10 , gVideoHeight/2  )
+	Show(opcion2)
+	
+	#opcion<- MakeLabel(opciones,gHeaderFont)
+	#AddObject(opcion,gWin)
+	#Move(opcion, gVideoWidth/2 , gVideoHeight/2 )
+	#Show(opcion)
+   
+	Draw()
+	
+	start <- GetTime()
+	response <- WaitForListKeyPress(["q","p"])
+	end <- GetTime()
+  
+  if (response <> teclacorrecta)
+  {
+	font <- MakeFont(gPEBLBaseFont,1,26,gBlanco , bg,0)
+	gLabel <- MakeLabel("I N C O R R E C T O", font)
+    AddObject(gLabel, gWin)
+    Move(gLabel,400,375)
+	Draw()
+	response <- response + " ERROR"
+	Wait(2000)
+  }  elseif (response== teclacorrecta){
+  response <- response + " ACIERTO"
+  }
+  rt <- end - start
+  FilePrint(gFileOut,stimulus + " "  + response + " " + rt )
+  
+}
+
+####################################################################################################################################################################################################
+##################################################################################################
+
+ define Initialize()
+{
+  ##Initialize Window, etc.
+  gWin <- MakeWindow("black")   
+            
+  ##Initialize Font and colors
+   gSleepEasy <- 1
+  
+   bg <- MakeColor("black")
+   fg <- MakeColor("white")
+ 
+    gInstructionsFont <- MakeFont(gPEBLBaseFont, 0, 18, fg, bg, 1)  
+	gHeaderFont       <- MakeFont(gPEBLBaseFont, 1, 36, fg, bg, 1)       
+ 
+   ## Make and place the instruction box, then hide it  
+   gInstructions <- MakeTextBox("", gInstructionsFont, 600, 400)
+   AddObject(gInstructions, gWin)
+   Move(gInstructions, gVideoWidth/2-300, gVideoHeight/2-200)
+   Hide(gInstructions)
+
+   ## Make and hide a header label
+   gHeader <- MakeLabel("",gHeaderFont)
+   AddObject(gHeader, gWin)
+   Move(gHeader, gVideoWidth/2, 100)
+   Hide(gHeader)
+ }
+
+ ##################################################################################################
+ ##################################################################################################
+ 
+ define Practica()
+ {
+    red <- MakeColor("red")
+    bg <- MakeColor("black")
+   
+   gFileOut <-FileOpenWrite("pr-" + gSubNum +".txt")
+   datos <- FileReadTable("tablastroop.txt",";")
+   datos <- Shuffle(datos)
+   	
+	#gfont <- MakeFont(gPEBLBaseFont,0,26,gRojo, bg,0)
+	
+    trial <- 1
+	font <- MakeFont(gPEBLBaseFont,0,26, gBlanco, bg,0)
+    while(trial<=10)
+    {
+		s <- Nth(datos, trial)
+        FilePrint_(gFileOut, trial + " ")
+			gLabel <- MakeLabel("Pulsa [ESPACIO] para continuar", font)
+			AddObject(gLabel, gWin)
+			Move(gLabel,400,500)
+			Show (gLabel)
+			Draw()
+			tecla <- WaitForListKeyPress([" ", "<esc>"])
+		
+			if (tecla <> " "){ 
+				breaks 
+			}
+				Hide (gLabel)
+			Draw()
+		
+		Trial (s)
+		
+        trial <- trial + 1
+		}
+	 
+  FileClose(gFileOut)
+
+  SetText(gLabel, " Pulsa cualquier tecla para comenzar la prueba")
+  Show(gLabel)
+  Draw()
+  WaitForAnyKeyPress()
+  }

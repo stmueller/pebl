@@ -1,0 +1,32 @@
+## Test direct property chain assignment (label.font.fgcolor <- MakeColor(...))
+
+define Start(p)
+{
+  gWin <- MakeWindow("black")
+
+  Print("Creating label...")
+  label <- EasyLabel("Test Label", 400, 300, gWin, 28)
+  label.font.bgcolor <- MakeColor("lightgray")
+  label.font.fgcolor <- MakeColor("black")
+  Draw()
+
+  Print("Initial creation successful. Press any key to continue.")
+  WaitForAnyKeyPress()
+
+  Print("Now trying direct property chain reassignment...")
+  Print("Attempting: label.font.fgcolor <- MakeColor(black)")
+  label.font.fgcolor <- MakeColor("black")
+  Draw()
+
+  Print("First reassignment successful!")
+  WaitForAnyKeyPress()
+
+  Print("Trying to change to red...")
+  label.font.fgcolor <- MakeColor("red")
+  Draw()
+
+  Print("Second reassignment successful!")
+  WaitForAnyKeyPress()
+
+  Print("Test complete - no crash")
+}

@@ -1,0 +1,35 @@
+## Test case that exactly mimics digitspan.pbl structure
+## Line 24: define Start(lPar)
+## Line 26: InitializeUpload()
+## Line 31: Initialize()
+##
+## Error: "gCallStack is empty in PEBL_FUNCTION_TAIL_LIBFUNCTION"
+## Error occurs at line 31 (the Initialize() call)
+
+define Start(lPar)
+{
+    Print("Start(lPar) called - mimicking digitspan.pbl")
+
+    ## Line 26 in digitspan.pbl
+    InitializeUpload()
+
+    Print("InitializeUpload() completed")
+
+    ## Line 31 in digitspan.pbl - THIS IS WHERE THE ERROR OCCURS
+    Print("About to call Initialize() - this triggers the error...")
+    Initialize()
+
+    Print("If you see this, the bug is FIXED!")
+}
+
+## This mimics the Initialize() function from digitspan.pbl
+define Initialize()
+{
+    Print("Inside Initialize() - setting up globals")
+
+    ## Just set some dummy variables like digitspan does
+    gWin <- MakeWindow()
+    gSubNum <- 0
+
+    Print("Initialize() complete")
+}

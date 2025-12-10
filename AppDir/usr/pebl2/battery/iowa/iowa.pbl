@@ -1,0 +1,752 @@
+ ## Copyright (c) 2006-2011 Shane T. Mueller
+ ## smueller@obereed.net
+ ##
+ ## Modified by Peter Bull (2012) to more closely resemble the
+ ## task described in Bechara, Damasio, Damasio, & Lee (1999).
+ ## See notes below Mueller's comments, and additional comments
+ ## throughout the code.
+ ##
+ ## PEBL Bechara's Gambling Task
+ ## (a version of the so-called Iowa Gambling Task)
+ ## This task is not officially endorsed by A. Bechara, A. Damasio,
+ ## or any other researchers or organizations affiliated with the
+ ## "Iowa" gambling task.
+ ##
+ ## Bechara, A., Damasio, A. R., Damasio, H., & Anderson,  S.W. (1994).
+ ## Insensitivity to future consequences following damage to human
+ ## prefrontal cortex. Cognition, 50, 7-15.
+ ##
+ ## In this procedure, subjects are given a $2000 loan to begin.
+ ## On each trial, they are given the choice of four decks,
+ ## (by hitting 1-4 on the keyboard) and after each card, they are
+ ## given a reward of some amount; after some cards, they are given
+ ## a reward and pay a penalty. When 100 cards have been selected,
+ ## the task is complete.
+ ##
+ ## The penalty/reward structure is identical to that in Bechara
+ ## et al. (1994), in which there were 40 cards per deck. Unlike the
+ ## real-world version, the deck is rotated on each draw, so that the
+ ## top card moves to the bottom of the 40-card deck, and so the
+ ## sequence will repeat after 40 cards in the original order, rather
+ ## than becoming exhausted after 40 draws.
+ ##
+ ## The variable shuffleDecks will shuffle the penalty decks
+ ## before the experiment. Shuffling is performed in 10-card epochs,
+ ## so that the penalty in 1-10 stay in 1-10, etc.
+ ##
+ ## For use with PEBL 0.10 or later
+ ## http://pebl.sf.net
+ ## Part of The PEBL Psychological Testing Battery
+ ##
+ ## Polish translation contributed by Artur Pilacinski
+ ## Chinese translation contributed by Ron Ye
+ ## French translation contributed by Vladimir Bogdanov
+ ## German trarnslation by Corinne Vonlaufen
+ ## Hungarian translation by Kriszta lakatos
+ ##
+ ## Sound effects courtesy of freeSFX:
+ ## http://www.freesfx.co.uk
+ ##
+ ## Additional notes by Peter Bull:
+ ##
+ ## Mueller's original version of this task had some minor errors in the
+ ## order of penalties in Deck 3 (second and fourth blocks). The errors
+ ## have been corrected in this revised version.
+ ##
+ ## In addition, this version has been modified to display red cards
+ ## for Decks 2 and 4 on some no-penalty trials, as in Bechara's task.
+ ##
+ ## In this version, when subjects run out of cash, rather than showing
+ ## negative winnings, their loan is automatically extended. The graph
+ ## has had the negative values removed, and a "borrowed" bar added.
+ ##
+ ## The feedback for wins and losses has been modified to be like Bechara's,
+ ## and smiley/sad faces added along with sounds. Bitmaps added for decks.
+ ##
+ ## The instruction screens have been modified so the wording is identical
+ ## to Bechara's. Recent research (e.g., Balodis et al., 2006) has shown
+ ## that the "hint" about staying away from the worst decks is critical to
+ ## obtaining above-chance performance in the IGT.
+
+define Start(lPar)
+{
+  ## Initialize upload system (works for both online and native)
+  InitializeUpload()
+
+  parpairs <- [["numtrials",100],
+                  ["DelayBetweenTrials",500],
+		  ["UseMouse",1],  ##Should we use the mouse or the keyboard?
+		  ["shuffledecks",0], ##whether decks should be shuffled default is off
+		  ["startvalue",2000],
+		  ["rewarddelay",2000],
+		  ["penaltydelay",2000],
+		  ["playsounds",1]
+                 ]
+
+
+  gParams <- CreateParameters(parpairs,gParamFile)
+
+
+  ## Define number of trials.
+  numtrials <- gParams.numtrials
+
+
+  ## Specify whether the mouse or keyboard should be used to respond.
+  gUseMouse <- gParams.usemouse
+
+
+  if(gUseMouse)
+  {
+    tag <- "-mouse"
+  } else
+  {
+    tag <- "-keyboard"
+  }
+
+  ## Program will crash if you specify something which doesn't have a
+  ## translation file.
+  gLanguage <- Lowercase(gLanguage)
+  
+    ## Tier 1: Check if gLanguage is explicitly set (non-empty)
+    if(gLanguage == "")
+    {
+      systemLocale <- GetSystemLocale()
+
+      if(systemLocale != "")
+      {
+        ## Extract language code from locale (e.g., "en_US" -> "EN", "zh_CN" -> "ZH")
+         gLanguage <- Lowercase(SubString(systemLocale, 1, 2))
+      }else{
+        gLanguage <- "en"
+      }
+
+    
+     ##now glanguage should be something.
+          fname <- "translations/labels-" + gLanguage + tag + ".txt"
+      if(not FileExists(fname))
+      {
+          fname <- "translations/labels-en" + tag + ".txt"
+ 
+      }
+
+    }
+
+
+
+  
+  textlist <- FileReadList(fname)
+  gFontNameMono <- gPEBLBaseFont     # defaults to gPEBLBaseFontMono
+  gFontNameBase <- gPEBLBaseFont     # defaults to gPEBLBaseFont
+
+  gSleepEasy <- 1
+  Initialize()
+
+  gDeckImageFile    <- "media/deck.png"
+  gRewardImageFile  <- "media/Smiley_Face.jpg"
+  gPenaltyImageFile <- "media/Sad_Face.jpg"
+
+  ## Define specific sounds for a win or loss.
+  gRewardSound  <- LoadSound("media/Sound_Win.ogg")
+  gPenaltySound <- LoadSound("media/Sound_Lose.ogg")
+
+  ## Optionally, define a range of sounds to be selected randomly.
+
+  ## Results are stored in tmpresults.dat.
+  if(gSubNum + "" == "0")
+  {
+    gSubNum <- GetSubNum(gWin)
+  }
+
+  ## Controls whether the decks are shuffled. Default is as in Bechara et al.
+  shuffleDecks <- gParams.shuffledecks
+
+  ## Specify the size of loans to the subject and the initial borrowings.
+  gLoan <- gparams.startvalue
+  gBorrow <- gLoan
+
+  ## Specify whether or not to display a counter showing the total winnings.
+  gDisplayCounter <- 0
+
+  ## Specify log file name and write column headings.
+#  gFileOut <- FileOpenWrite("Log IGT ID-" + gSubNum + ".txt")
+#  FilePrint(gFileOut, "Subject Trial Deck Win Lose Net Score Borrow Time RT")
+  ## results are stored in tmpresults.dat
+  gFileOut <- GetNewDataFile(gSubNum,gWin,"igtlog","csv",
+     "subNum,version,trialnum,chosendeck,win,lose,net,totalscore,borrow,time,rt")
+
+
+
+  #####################################################################
+  ## Now, generate stimuli/conditions.
+  ## Note: The flag -1 indicates a red deck but no penalty (Bechara
+  ## arranged equal numbers of red and black cards in each deck).
+  #####################################################################
+
+  deck1Pen <- [0,0,150,0,300,0,200,0,250,350,
+               0,350,0,250,200,0,300,150,0,0,
+               0,300,0,350,0,200,250,150,0,0,
+               350,200,250,0,0,0,150,300,0,0]
+
+  deck2Pen <- [-1,-1,0,-1,0,-1,0,0,1250,0, # Note: -1 signifies red card.
+               -1,-1,0,1250,0,-1,-1,0,0,0,
+               1250,0,-1,-1,0,-1,0,-1,0,0,
+               -1,1250,0,-1,0,-1,0,-1,0,0]
+
+  deck3Pen <- [0,0,50,0,50,0,50,0,50,50,
+               0,25,75,0,0,0,25,75,0,50,   # Note: error in original list.
+               0,0,0,50,25,50,0,0,75,50,
+               0,0,0,25,25,0,75,0,50,75]   # Note: error in original list.
+
+  deck4Pen <- [-1,0,-1,0,0,-1,-1,0,0,250,  # Note: -1 signifies red card.
+               -1,-1,0,0,-1,0,0,0,-1,250,
+               0,-1,0,0,-1,-1,-1,0,250,0,
+               0,-1,0,-1,250,-1,0,0,-1,0]
+
+  deck1Rew <- 100
+  deck2Rew <- 100
+  deck3Rew <- 50
+  deck4Rew <- 50
+
+  if(shuffleDecks)
+  {
+    deck1Pen <- EpochShuffle(deck1Pen)
+    deck2Pen <- EpochShuffle(deck2Pen)
+    deck3Pen <- EpochShuffle(deck3Pen)
+    deck4Pen <- EpochShuffle(deck4Pen)
+  }
+
+  #####################################################################
+  ## Begin presenting and collecting data.
+  #####################################################################
+
+
+  ## Give instructions & wait for subject to click mouse or press key.
+  inst1 <- Nth(textlist, 1)
+  inst2 <- Nth(textlist, 2)
+  inst3 <- Nth(textlist, 3)
+
+  if(gLanguage == "he")
+  {
+    gInstructions.direction <- (-1)
+    gFooter.direction <- (-1)
+  }
+
+  SetText(gInstructions, inst1)
+
+  Hide(gFooter)
+  Show(gInstructions)
+  Draw()
+
+  WaitForIt()
+  gInstructions.text <- inst2
+  Draw()
+
+  WaitForIt()
+  gInstructions.text <- inst3
+  Draw()
+
+  WaitForIt()
+  Hide(gInstructions)
+  Draw()
+
+  #####################################################################
+  ## Set up the basic graphical environment (decks, score, etc).
+  #####################################################################
+
+  colCard <- MakeColor("blue")
+  colGain <- gColBlack # Changed from green to match original IGT.
+  colLoss <- gColRed
+
+  # Added by Peter Bull so objects can be more easily moved around.
+  gBaseX <- gVideoWidth/2-225
+  gBaseY <- gVideoHeight/2+200
+
+  deck1 <- Rectangle(gBaseX,gBaseY,100,150,colCard,0)
+  deck2 <- Rectangle(gBaseX+150,gBaseY,100,150,colCard,0)
+  deck3 <- Rectangle(gBaseX+300,gBaseY,100,150,colCard,0)
+  deck4 <- Rectangle(gBaseX+450,gBaseY,100,150,colCard,0)
+
+  # Added by Peter Bull to display card deck bitmap within rectangles.
+  deck1img <- MakeImage(gDeckImageFile)
+  deck2img <- MakeImage(gDeckImageFile)
+  deck3img <- MakeImage(gDeckImageFile)
+  deck4img <- MakeImage(gDeckImageFile)
+
+  ## Add the smiley face and sad face images to the window.
+  gRewardImage  <- MakeImage(gRewardImageFile)
+  gPenaltyImage <- MakeImage(gPenaltyImageFile)
+
+  deck1g<- Rectangle(gBaseX,gBaseY,100,150,colGain,1)
+  deck2g<- Rectangle(gBaseX+150,gBaseY,100,150,colGain,1)
+  deck3g<- Rectangle(gBaseX+300,gBaseY,100,150,colGain,1)
+  deck4g<- Rectangle(gBaseX+450,gBaseY,100,150,colGain,1)
+
+  deck1l<- Rectangle(gBaseX,gBaseY,100,150,colLoss,1)
+  deck2l<- Rectangle(gBaseX+150,gBaseY,100,150,colLoss,1)
+  deck3l<- Rectangle(gBaseX+300,gBaseY,100,150,colLoss,1)
+  deck4l<- Rectangle(gBaseX+450,gBaseY,100,150,colLoss,1)
+
+  ## Pull the labels for each deck from translation file.
+  deck1label <- Nth(textlist, 4)
+  deck2label <- Nth(textlist, 5)
+  deck3label <- Nth(textlist, 6)
+  deck4label <- Nth(textlist, 7)
+
+  ## Make a label for each deck.
+  deck1text <- MakeLabel(deck1label, gHeaderFont)
+  deck2text <- MakeLabel(deck2label, gHeaderFont)
+  deck3text <- MakeLabel(deck3label, gHeaderFont)
+  deck4text <- MakeLabel(deck4label, gHeaderFont)
+
+  ## Create lists of the elements for easier management.
+  textUI <- [deck1text, deck2text, deck3text, deck4text]
+  deckUI <- [deck1, deck2, deck3, deck4]
+  imgUI  <- [deck1img, deck2img, deck3img, deck4img]
+  gui    <- [deck1g, deck2g, deck3g, deck4g,
+             deck1l, deck2l, deck3l, deck4l]
+
+  ## Add the deck outlines to the window.
+  loop(i, deckUI)
+  {
+    AddObject(i, gWin)
+  }
+
+  ## Add the deck images to the window.
+  AddObject(deck1img, gWin); Move(deck1img, gBaseX, gBaseY)
+  AddObject(deck2img, gWin); Move(deck2img, gBaseX+150, gBaseY)
+  AddObject(deck3img, gWin); Move(deck3img, gBaseX+300, gBaseY)
+  AddObject(deck4img, gWin); Move(deck4img, gBaseX+450, gBaseY)
+
+  ## Add the smiley face and sad face images to the window.
+  AddObject(gRewardImage, gWin); Move(gRewardImage, gVideoWidth/2-300, gVideoHeight/2-60); Hide(gRewardImage)
+  AddObject(gPenaltyImage, gWin); Move(gPenaltyImage, gVideoWidth/2-300, gVideoHeight/2-60); Hide(gPenaltyImage)
+
+  ## Add the card faces (red or black) to the window.
+  loop(i, gui)
+  {
+    AddObject(i, gWin)
+    Hide(i)
+  }
+
+  ## Label the decks.
+  x <- gBaseX
+  loop(i, textUI)
+  {
+    AddObject(i, gWin)
+    Move(i, x, gBaseY-100)
+    x <- x + 150
+  }
+
+  ## Turn the header "pick a card..." on during the task.
+  gHeader.text <- Nth(textlist, 8)
+  Show(gHeader)
+
+  ## Add the total display to the window.
+  gTotal <- gBorrow
+  totstring <- Nth(textlist, 9)
+  if(gDisplayCounter)
+  {
+    gTotalLabel <- MakeLabel(totstring + gTotal, gHeaderFont)
+  } else {
+    # gTotalLabel <- MakeLabel(totstring, gHeaderFont)
+    gTotalLabel <- MakeLabel("Winnings:", gHeaderFont) # Hack out currency symbol
+  }
+  AddObject(gTotalLabel, gWin)
+  Move(gTotalLabel, gVideoWidth/2, gVideoHeight/2-310)
+
+  textchoice  <- Nth(textlist, 10)
+  textreward  <- Nth(textlist, 11)
+  textpenalty <- Nth(textlist, 12)
+  textnetgain <- Nth(textlist, 13)
+
+  gFooter.text <- textreward + CR(1) + textpenalty
+
+  gui <- Flatten([gui, textUI, deckUI, imgUI, gHeader, gFooter, gTotalLabel])
+  earnings <- MakeEarningsGraph(gTotal)
+  Draw()
+
+  #####################################################################
+  ##  Main experimental trials loop.
+  #####################################################################
+
+  trialnum <- 1
+  while(trialnum <= numtrials)
+  {
+    time0 <- GetTime()
+
+	## Get a response from the subject (using mouse or keyboard).
+    ## Modified to allow use of ABCD or other labels (e.g., A'B'C'D' or EFGH).
+    if(gUseMouse)
+    {
+      resp <- WaitForClickOnTarget([deck1,deck2,deck3,deck4],
+                                   [deck1label,deck2label,deck3label,deck4label])
+    } else {
+      Draw()
+      key <- WaitForListKeyPress(["1","2","3","4"])
+      if(key == "1") {
+	    resp <- deck1label
+      } elseif(key == "2") {
+	    resp <- deck2label
+      } elseif(key == "3") {
+        resp <- deck3label
+      } elseif(key == "4") {
+        resp <- deck4label
+      }
+    }
+
+    time1 <- GetTime()
+    rt <- time1 - time0
+    Draw()
+
+    ## Depending on deck chosen, update net gain and select card color.
+    if(resp == deck1label)
+    {
+      reward <- deck1rew
+      penalty <- First(deck1pen)
+      if(penalty == -1) # The flag -1 indicates red card but no loss.
+      {
+		penalty <- 0
+        deckX <- deck1l
+      } elseif(penalty == 0) {
+        deckX <- deck1g
+      } else {
+        deckX <- deck1l
+      }
+      net <- reward - penalty
+      ## Move card to back of deck. Specify deck image to hide.
+      deck1pen <- Rotate(deck1pen, 1)
+	  deckXimg <- deck1img
+    } elseif(resp == deck2label) {
+      reward <- deck2rew
+      penalty <- First(deck2pen)
+      if(penalty == -1) # The flag -1 indicates red card but no loss.
+      {
+		penalty <- 0
+        deckX <- deck2l
+      } elseif(penalty == 0) {
+        deckX <- deck2g
+      } else {
+        deckX <- deck2l
+      }
+      net <- reward - penalty
+      ## Move card to back of deck. Specify deck image to hide.
+      deck2pen <- Rotate(deck2pen, 1)
+      deckXimg <- deck2img
+    } elseif(resp == deck3label) {
+      reward <- deck3rew
+      penalty <- First(deck3pen)
+      if(penalty == -1) # The flag -1 indicates red card but no loss.
+      {
+		penalty <- 0
+        deckX <- deck3l
+      } elseif(penalty == 0) {
+        deckX <- deck3g
+      } else {
+        deckX <- deck3l
+      }
+      net <- reward - penalty
+      ## Move card to back of deck. Specify deck image to hide.
+      deck3pen <- Rotate(deck3pen, 1)
+      deckXimg <- deck3img
+    } elseif(resp == deck4label) {
+      reward <- deck4rew
+      penalty <- First(deck4pen)
+      if(penalty == -1) # The flag -1 indicates red card but no loss.
+      {
+		penalty <- 0
+        deckX <- deck4l
+      } elseif(penalty == 0) {
+        deckX <- deck4g
+      } else {
+        deckX <- deck4l
+      }
+      net <- reward - penalty
+      ## Move card to back of deck. Specify deck image to hide.
+      deck4pen <- Rotate(deck4pen, 1)
+	  deckXimg <- deck4img
+    }
+
+    ## Specify the reward text (green).
+    gFooter.text <- textreward + reward + "!"
+    SetFont(gFooter, gCorrFont)
+
+	## Turn over a card from the chosen deck & display reward text.
+	Hide(deckXimg)
+    Show(deckX)
+    Hide(gHeader)
+    Show(gFooter)
+	Show(gRewardImage)
+    Draw()
+    # gRewardSounds <- Shuffle(gRewardSounds)
+    # PlayForeground(First(gRewardSounds))
+    if(gParams.playsounds)
+     {
+      PlayBackground(gRewardSound)
+     }
+
+    Wait(gparams.rewarddelay)
+
+    ## Display penalty, if imposed, in red text following reward.
+	if(penalty > 0)
+	{
+	  gFooter.text <- textpenalty + penalty + "!"
+	  SetFont(gFooter, gIncorrFont)
+	  Show(gFooter)
+	  Show(gPenaltyImage)
+      Draw()
+      # gPenaltySounds <- Shuffle(gPenaltySounds)
+      # PlayForeground(First(gPenaltySounds))
+      if(gParams.playsounds)
+       {
+         PlayBackground(gPenaltySound)
+       }
+      Wait(gParams.penaltydelay)
+    }
+
+	## Calculate the new total and update display.
+    ## If the total drops below zero, advance another loan.
+    gTotal <- gTotal + net
+	while(gTotal < 0)
+    {
+      gBorrow <- gBorrow + gLoan
+	  gTotal <- gTotal + gLoan
+    }
+    if(gDisplayCounter)
+    {
+      gTotalLabel.text <- totstring + gTotal
+    } else {
+      # gTotalLabel.text <- totstring
+      gTotalLabel.text <- "Winnings:" # Hack out currency symbol
+    }
+
+    ## Update the bar graph.
+	RemoveComplex(earnings)
+    earnings <- MakeEarningsGraph(gTotal)
+
+    ## Reset the window display for the next trial.
+    if(trialnum < numtrials)
+	{
+      Hide(deckX)
+	  Show(deckXimg)
+      Hide(gFooter)
+      Show(gHeader)
+	}
+    Hide(gRewardImage)
+    Hide(gPenaltyImage)
+    Draw()
+
+    ## Print out response data to the log file.
+    FilePrint_(gFileOut, gSubNum + ",V2," + trialnum + "," + resp + "," + reward + "," + penalty)
+    FilePrint(gFileOut, "," + net + "," + gTotal + "," + gBorrow + "," + time1 + "," + rt)
+
+    trialnum <- trialnum + 1
+  } # End of main while loop.
+
+  Wait(1000)
+
+  ## Remove all the graphical elements.
+  loop(i, gui)
+  {
+    Hide(i)
+  }
+
+  ## Close the log file.
+  FileClose(gFileOut)
+
+  ## Upload data file (works online, no-op on native)
+  datafile <- "data/" + gSubNum + "/igtlog-" + gSubNum + ".csv"
+  UploadFile(gSubNum, datafile, "/upload.json")
+
+  ## Show debriefing information.
+  feed1 <- Nth(textlist, 14)
+  feed2 <- Nth(textlist, 15)
+  feed3 <- Nth(textlist, 16)
+
+  ## Prefix debriefing info with "Congratulations!" if they did well.
+  if(gTotal > (gBorrow+numtrials*15))
+  {
+    feedback <- feed2 + " "
+  } else
+  {
+    feedback <- ""
+  }
+
+  feedback <- feedback + feed1 + (gTotal-gBorrow) + "."
+  feedback <- feedback + CR(2) + feed3
+
+  SetText(gInstructions, feedback)
+  Show(gInstructions)
+  RemoveComplex(earnings)
+  Draw()
+  WaitForKeyPress("<esc>")
+
+} # End of function Start().
+
+#####################################################################
+##  This is a standard initializer function that sets up typical
+##  objects used in experiments.
+#####################################################################
+
+define Initialize()
+{
+#  gVideoWidth <- 1024
+#  gVideoheight <- 768
+
+  ## Initialize window
+  gWin <- MakeWindow("white")
+
+  ## Initialize font and colors
+  bg  <- MakeColor("white")
+  bg1 <- MakeColor("white")
+  gFG <- MakeColor("black")
+
+  gColGreen <- MakeColor("forestgreen")
+  gColRed   <- MakeColor("red")
+  gColBlack <- MakeColor("black")
+
+  gStimFont         <- MakeFont(gFontNameMono, 0, 36, gfg, bg1, 0)
+  gCorrFont         <- MakeFont(gFontNameMono, 0, 36, gcolGreen, bg1, 0)
+  gIncorrFont       <- MakeFont(gFontNameMono, 0, 36, gcolRed, bg1, 0)
+  gInstructionsFont <- MakeFont(gFontNameBase, 0, 22, gfg, bg, 0)
+  gHeaderFont       <- MakeFont(gFontNameBase, 0, 28, gfg, bg, 0)
+  gGraphFont        <- MakeFont(gFontNameBase, 0, 15, gfg, bg,0)
+
+  ## Make and place the instruction box, then hide it.
+  gInstructions <- MakeTextBox("", gInstructionsFont, 600, 500)
+
+  Print("--------------------------------")
+  PrintPRoperties(gInstructions)
+
+  if(gLanguage=="he")
+  {
+    gInstructions.direction <- (-1)
+  }
+
+  ## Instructions are displayed before and after the trials.
+  AddObject(gInstructions, gWin)
+  Move(gInstructions, gVideoWidth/2-300, gVideoHeight/2-200)
+  Hide(gInstructions)
+
+  ## "Header" is the instruction to "pick a deck".
+  gHeader <- MakeLabel("", gHeaderFont)
+  AddObject(gHeader, gWin)
+  Move(gHeader, gVideoWidth/2, gVideoHeight/2+50)
+  Hide(gHeader)
+
+  ## "Footer" is the feedback showing amount won and lost in each trial.
+  ## Modified to use MakeLabel() instead of MakeTextBox() so text is centered.
+  gFooter <- MakeLabel("", gStimFont)
+  AddObject(gFooter, gWin)
+  Move(gFooter, gVideoWidth/2, gVideoHeight/2-60)
+
+} # End of function Initialize().
+
+#####################################################################
+## Shuffles in epochs of 10.
+## Requires a 40-item list.
+#####################################################################
+
+define EpochShuffle(list)
+{
+  order <- Flatten(
+  [Shuffle(Sequence(1,10,1)),
+   Shuffle(Sequence(11,20,1)),
+   Shuffle(Sequence(21,30,1)),
+   Shuffle(Sequence(31,40,1))])
+  return SortBy(list, order)
+} # End of function EpochShuffle().
+
+#####################################################################
+## Plots the graph.
+#####################################################################
+
+define MakeEarningsGraph(earnings)
+{
+  ## Basic parameters for plotting the graph at the top of the screen.
+  scale <- 14
+  height <- 20
+  width  <- earnings / scale
+  xcenter <- gVideoWidth/2 - 280
+  ycenter <- gVideoHeight/2 - 240
+
+  ## Determine which color to make the cash bar.
+  if(earnings < 0)
+  {
+    cashBarCol <- gColRed
+  } else {
+    cashBarCol <- gColGreen
+  }
+  ## Borrow bar is red.
+  borrowBarCol <- gColRed
+
+  ## Define the bar labels.
+  yvals <- [0, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000]
+
+  cashBar   <- Rectangle(xcenter+width/2, ycenter, width, height, cashBarCol, 1)
+  borrowBar <- Rectangle(xcenter+(gBorrow/scale)/2, ycenter+height+1,
+                                  gBorrow/scale, height, borrowBarCol, 1)
+  outline   <- Rectangle(gVideoWidth/2, ycenter+2,
+                         gVideoWidth-10, 75, MakeColor("grey"), 0)
+
+  AddObject(cashBar, gWin)
+  AddObject(borrowBar, gWin)
+  AddObject(outline, gWin)
+
+  ## Label the "cash" bar graph.
+  cashLabel <- MakeLabel("Cash", gGraphFont)
+  AddObject(cashLabel, gWin)
+  Move(cashLabel, xcenter-90, ycenter)
+  Show(cashLabel)
+
+  # Label the "borrowed" bar graph.
+  borrowLabel <- MakeLabel("Borrowed", gGraphFont)
+  AddObject(borrowLabel, gWin)
+  Move(borrowLabel, xcenter-73, ycenter+height+1)
+  Show(borrowLabel)
+
+  composite <- [outline, cashBar, borrowBar, cashLabel, borrowLabel]
+
+  ## Create all the labels, based on yvals. Add each label to the
+  ## appropriate location, and combine them all into a single
+  ## composite to make removal easier.
+  ##
+  ## These labels are all re-created each trial--they could be
+  ## static, which would be a little more efficient, but it is really
+  ## fast as is.
+  loop(i, yvals)
+  {
+    yy <- MakeLabel(i + "", gGraphFont)
+    AddObject(yy, gWin)
+    Move(yy, xcenter + (i/scale), ycenter - 20)
+    Show(yy)
+    composite <- Append(composite, yy)
+  }
+  return composite
+} # End of function MakeEarningsGraph().
+
+#####################################################################
+## Function used to remove bar graph.
+#####################################################################
+
+define RemoveComplex(x)
+{
+  loop(i,x)
+  {
+    RemoveObject(i, gWin)
+  }
+} # End of function RemoveComplex().
+
+#####################################################################
+## Monitors for mouse clicks or key presses.
+#####################################################################
+
+define WaitForIt()
+{
+  if(gUseMouse)
+  {
+    Draw()
+    WaitForDownClick()
+  } else {
+    WaitForAnyKeyPress()
+  }
+} # End of function WaitForIt().

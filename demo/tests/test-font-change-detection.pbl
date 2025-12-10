@@ -1,0 +1,40 @@
+## Test that font property changes are detected
+define Start(p)
+{
+    gWin <- MakeWindow("black")
+
+    font <- MakeFont("DejaVuSans.ttf", 0, 24, MakeColor("white"), MakeColor("black"), 1)
+    label <- MakeLabel("Test Text", font)
+    AddObject(label, gWin)
+
+    Print("Initial font size: " + label.font.size)
+    Print("Initial font color: " + label.font.fgcolor)
+
+    ## Test 1: Change font size via nested property
+    Print("")
+    Print("Test 1: Changing font size to 48...")
+    label.font.size <- 48
+    Draw()
+    Print("Font size after change: " + label.font.size)
+
+    ## Test 2: Change font color via nested property
+    Print("")
+    Print("Test 2: Changing font color to blue...")
+    label.font.fgcolor <- MakeColor("blue")
+    Draw()
+    Print("Font color after change: " + label.font.fgcolor)
+
+    ## Test 3: Change background color via nested property
+    Print("")
+    Print("Test 3: Changing bg color to yellow...")
+    label.font.bgcolor <- MakeColor("yellow")
+    Draw()
+    Print("BG color after change: " + label.font.bgcolor)
+
+    Print("")
+    Print("All tests completed successfully!")
+    Print("If there was no crash, the double-free bug is fixed.")
+    Print("Run test-font-nested-property.pbl to verify visual changes.")
+
+    return(0)
+}

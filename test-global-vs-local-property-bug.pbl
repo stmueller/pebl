@@ -1,0 +1,50 @@
+## Bug reproduction: Nested property assignment crashes on globals but not locals
+##
+## SUMMARY:
+## Assigning to nested properties (obj.prop.subprop <- value) works fine
+## for local variables but crashes when the base object is global.
+##
+## This appears to be a reference counting or memory management issue
+## in PEBLUtility::SetPropertyChain when operating on global variables.
+
+define Start(p)
+{
+  gWin <- MakeWindow("black")
+
+  Print("=== TEST 1: Local variable nested property assignment ===")
+  Print("Creating local label...")
+  localLabel <- EasyLabel("LOCAL", 400, 250, gWin, 28)
+  localLabel.font.bgcolor <- MakeColor("lightgray")
+  localLabel.font.fgcolor <- MakeColor("black")
+  Draw()
+
+  Print("Initial assignment successful. Press any key to reassign.")
+  WaitForAnyKeyPress()
+
+  Print("Reassigning localLabel.font.fgcolor...")
+  localLabel.font.fgcolor <- MakeColor("red")
+  Draw()
+
+  Print("SUCCESS: Local variable reassignment worked!")
+  Wait(1000)
+
+  Print("")
+  Print("=== TEST 2: Global variable nested property assignment ===")
+  Print("Creating global label...")
+  gGlobalLabel <- EasyLabel("GLOBAL", 400, 350, gWin, 28)
+  gGlobalLabel.font.bgcolor <- MakeColor("lightgray")
+  gGlobalLabel.font.fgcolor <- MakeColor("black")
+  Draw()
+
+  Print("Initial assignment successful. Press any key to reassign.")
+  WaitForAnyKeyPress()
+
+  Print("Reassigning gGlobalLabel.font.fgcolor...")
+  Print("This is expected to crash...")
+  gGlobalLabel.font.fgcolor <- MakeColor("red")
+  Draw()
+
+  Print("SUCCESS: Global variable reassignment worked!")
+  Print("(If you see this, the bug has been fixed!)")
+  WaitForAnyKeyPress()
+}

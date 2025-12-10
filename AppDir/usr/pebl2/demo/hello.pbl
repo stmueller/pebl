@@ -1,0 +1,81 @@
+define Start (lParameter)
+{      
+  
+  ##Make initial objects needed for display.
+  gWindow <- MakeWindow("grey")
+  gPic <- MakeImage("pebl.bmp")
+  
+  gSmiley <- MakeImage("smiley-big.png")
+  gFrowney <- MakeImage("frowney-big.png")
+  AddObject(gPic, gWindow)
+  AddObject(gSmiley, gWindow)
+  AddObject(gFrowney, gWindow)
+  
+  Move(gSmiley, 300,50)
+  Move(gFrowney, 300,50)
+  
+  lBG <- MakeColor("GREY")
+  lFG <- MakeColor("dodgerblue3")
+  lFont <- MakeFont(gPEBLBaseFont,0,22,lFG,lBG,0)
+  lText <- MakeLabel("Hello World", lFont)
+  
+  ##Initially place text here
+  Move(lText, 300,200)
+  ##Add text to the window.
+  AddObject(lText,gWindow)
+  ##Nothing appears until you draw!!!
+  Draw()
+
+  ##Uncomment to write a PNG file
+  # WritePNG("window.png",gwindow)
+  # WritePNG("smiles.png",gSmiley)
+  # WritePNG("text.png",lText)
+
+  
+  ##Set the positions of things
+  x <- 0
+  y <- 50
+  
+  ##The following loop enables simple animation.
+  i <- 1
+  while(i <= 350)
+    {
+      x <- x + 2
+      y <- y + 1
+      Move(lText,x, 25 * Sin(x / 25) + 300 - x/3)
+      Move(gPic, x, y)
+      
+
+#      PrintProperties(gPic)
+
+      if(Mod(i,50) == 0) 
+        {
+          Hide(gFrowney)
+          Show(gSmiley)
+        }
+      if(Mod(i,50) == 25)
+        {
+          Hide(gSmiley)
+          Show(gFrowney)
+        }
+      
+      Draw()	
+      Print(i+","+GetTime()+","+x+","+y)      
+      i <- i + 1
+      
+      
+    }
+  
+  ##Hide the sprites.
+  Hide(lText)
+  Hide(gPic)
+  
+  ##Make a new text label giving instructions about how to proceed
+  lText2 <-MakeLabel("Press a key  to continue.", lFont)
+  AddObject(lText2,gWindow)	
+  Move(lText2, 200, 300)	
+  Draw()
+
+  WaitForAnyKeyPress()
+
+}

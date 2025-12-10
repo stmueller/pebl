@@ -1,0 +1,24 @@
+## Test textbox bgcolor property
+define Start(p)
+{
+    gWin <- MakeWindow()
+
+    font <- MakeFont("DejaVuSans.ttf", 0, 18, MakeColor("black"), MakeColor("white"), 1)
+    tb <- MakeTextBox("Test text in textbox", font, 300, 100)
+    AddObject(tb, gWin)
+    Move(tb, gVideoWidth/2, gVideoHeight/2)
+    Draw()
+
+    Print("Initial textbox created with white background")
+    Print("  tb.font.bgcolor: " + tb.font.bgcolor)
+
+    WaitForAnyKeyPress()
+
+    Print("Setting tb.font.bgcolor <- MakeColor('yellow')")
+    tb.font.bgcolor <- MakeColor("yellow")
+    Draw()
+    Print("Did the background turn yellow? (Press key)")
+    WaitForAnyKeyPress()
+
+    return(0)
+}

@@ -59,6 +59,9 @@ PTextBox::PTextBox():
     InitializeProperty("NUMTEXTLINES",Variant(0));
     InitializeProperty("TEXTCOMPLETE",Variant(0));
     InitializeProperty("JUSTIFY",Variant("LEFT"));
+    InitializeProperty("ISADAPTIVE",Variant(false));
+    InitializeProperty("ADAPTIVEMODE",Variant("scalefont"));
+    InitializeProperty("REQUESTEDFONTSIZE",Variant(0));
 }
 
 
@@ -82,23 +85,30 @@ PTextBox::PTextBox(std::string text, int width, int height):
     InitializeProperty("NUMTEXTLINES",Variant(0));
     InitializeProperty("TEXTCOMPLETE",Variant(0));
     InitializeProperty("JUSTIFY",Variant("LEFT"));
+    InitializeProperty("ISADAPTIVE",Variant(false));
+    InitializeProperty("ADAPTIVEMODE",Variant("scalefont"));
+    InitializeProperty("REQUESTEDFONTSIZE",Variant(0));
 }
 
 
-PTextBox::PTextBox( PTextBox & text)
-
+PTextBox::PTextBox( PTextBox & text):
+    PTextObject(text.GetText()),
+    mEditable(false),
+    mCursorPos(0),
+    mCursorChanged(true),
+    mLineWrap(true),
+    mJustify(1)
 {
     mChanged = true;
-    mText = text.GetText();
-    mEditable = false;
-    mCursorPos = 0;
-    mLineWrap = true;
     InitializeProperty("NAME",Variant("<TEXTBOX>"));
     InitializeProperty("LINEWRAP",Variant(1));
     InitializeProperty("LINEHEIGHT",Variant(0));
     InitializeProperty("NUMTEXTLINES",Variant(0));
     InitializeProperty("TEXTCOMPLETE",Variant(0));
     InitializeProperty("JUSTIFY",Variant("LEFT"));
+    InitializeProperty("ISADAPTIVE",Variant(false));
+    InitializeProperty("ADAPTIVEMODE",Variant("scalefont"));
+    InitializeProperty("REQUESTEDFONTSIZE",Variant(0));
 }
 
 PTextBox::~PTextBox()
@@ -125,6 +135,13 @@ bool PTextBox::SetProperty(std::string name, Variant v)
     else if(name == "CURSORPOS") SetCursorPosition(v);
     else if(name == "LINEWRAP") SetLineWrap(v);
     else if(name == "JUSTIFY") SetJustify(v);
+    else if(name == "ISADAPTIVE" || name == "ADAPTIVEMODE" || name == "REQUESTEDFONTSIZE") {
+        // These properties are stored only in the property system
+        // Adaptive scaling is handled in PEBL code (UI.pbl)
+        // Store the property value and mark as changed
+        PEBLObjectBase::SetProperty(name, v);
+        mChanged = true;
+    }
     else return false;
     return true;
 }
@@ -154,7 +171,7 @@ ObjectValidationError PTextBox::ValidateProperty(std::string name, Variant v)con
 
 ObjectValidationError PTextBox::ValidateProperty(std::string name)const
 {
-    if(name == "CURSORPOS"| name=="LINEWRAP"| name == "JUSTIFY" | name == "NUMTEXTLINES" | name == "TEXTCOMPLETE")
+    if(name == "CURSORPOS"| name=="LINEWRAP"| name == "JUSTIFY" | name == "NUMTEXTLINES" | name == "TEXTCOMPLETE" | name == "ISADAPTIVE" | name == "ADAPTIVEMODE" | name == "REQUESTEDFONTSIZE")
         return OVE_VALID;
     else
         return PTextObject::ValidateProperty(name);

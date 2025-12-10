@@ -1,0 +1,479 @@
+#################################################################
+##  Test of Attentional Vigilance, (TOAV), Version 0.3
+##  PEBL's version of the  Test of Variables of Attention (TOVA)(tm),
+##  For use with PEBL 0.10 or later
+##  http://pebl.sf.net
+##  Part of  The PEBL Psychological Test Battery
+##  2006-02 Released into Public Domain
+##  by Shane T. Mueller, Ph.D. (smueller at obereed dot net)
+##
+##
+##
+##
+##  Implementation based on description in:
+##  Forbes, G. B. (1998). Clinical Utility of the Test of
+##      Variables of Attention (TOVA) in the Diagnosis of
+##      Attention-Deficit/Hyperactivity Disorder. Journal
+##      of Clinical Psychology, 54 (4), 461-476.
+##
+##  The following text is paraphrased from method section of above article:
+##  In this procedure, the test stimulus is a square containing a square hole
+##  near either the top or bottom edge.  Targets are holes on the top;
+##  subjects are to make responses when the target is on top and not on bottom.
+##
+##  Stimuli are presented for 100 ms, with SOA of 2000 ms.  The entire test
+##  takes 22.5 minutes.  For the first half, targets are present 22.5 % of
+##  the time, the second half present 77.5% of the time.
+##
+##  To approximate this schedule, we use 640 stimuli:
+##  In the first half of 320 stimuli, 72 signals and 248 non-signals.
+##  In the second half of 320 stimuli, 248 non-signals and 72 signals.
+##
+##  Norms are available in:
+##
+##  Greenberg, L. M. , & Waldman, I D. (1993). Developmental normative data
+##      on the Test of Variable of Attention (T.O.V.A. tm). Journal of Child
+##      Psychology and Psychiatry, 34, 1019-1030.
+##
+##  Notes:  Version 0.3 fixed problem in which responses were not
+##          detected. in 0.10
+##
+#################################################################
+
+define Start(lPar)
+{
+  ## Initialize upload system (works for both online and native)
+  InitializeUpload()
+
+  gScriptName <- "Test of Attentional Vigilance"
+
+  parpairs <- [["numRare",72],
+              ["numCommon",248],
+	      ["doheader",1]]
+
+  gParams <- CreateParameters(parpairs,"params/toav.pbl.par")
+
+
+
+  ## Initialize global objects for use later. Defined at end of file
+  Initialize()
+  gSleepEasy <- 1
+  if(gSubNum+""=="0")
+   {
+     gSubNum <- GetSubNum(gWin)
+   }
+
+  ShowCursor(0)
+
+   if(0)
+   {
+  if(IsAnyKeyDown())
+   {
+      gInstructions.text <- gStrings.keysup
+      Show(gInstructions)
+      Draw()
+      WaitForAllKeysUp()
+   }
+  }
+  ####################################################
+  ##  Now, generate stimuli/conditions
+  ####################################################
+
+   firsthalf <- Shuffle(Merge(Repeat(1,gParams.numRare), Repeat(0,gParams.numcommon)))
+   secondhalf <- Shuffle(Merge(Repeat(0,gparams.numrare), Repeat(1,gParams.numCommon)))
+
+   stim <- Merge(firsthalf,secondhalf)
+
+  ####################################################
+  ## Begin presenting and collecting data
+  ####################################################
+
+
+   ## Good researchers collect demographic data anonymously.
+   ##  GetNIMHDemographics(gSubNum, gWin, "avt-demographics.txt")
+
+
+  ##############################################
+  ##############################################
+  ##
+  ## Set up the basic  environment
+  ##
+
+   black  <- MakeColor("black")
+   white <- MakeColor("white")
+
+   gOuter <- Square(gVideoWidth/2,gVideoHeight/2,250,white,1)
+   #Targets are on top; foils are on bottom.
+   gInnerTarg <- Square(gVideoWidth/2,gVideoHeight/2 - 75,50,black,1)
+   gInnerFoil <- Square(gVideoWidth/2,gVideoHeight/2 + 75,50,black,1)
+
+
+   AddObject(gOuter,gWin)
+   AddObject(gInnerTarg,gWin)
+   AddObject(gInnerFoil,gWin)
+   Hide(gInnerTarg)
+   Hide(gInnerFoil)
+   Hide(gOuter)
+
+
+   ## Give instructions; wait for them to hit a key,
+   SetText(gInstructions,gStrings.inst1)
+   Show(gInstructions)
+   Draw()
+   WaitForAnyKeyPress()
+   DrawTarg()
+   gInstructions.Height <- 100
+   SetText(gInstructions, gStrings.inst2)
+   Draw()
+   WaitForAnyKeyPress()
+   Hide(gInnerTarg)
+   Show(gInnerFoil)
+   SetText(gInstructions, gstrings.inst3)
+
+   Draw()
+   WaitForAnyKeyPress()
+   DrawFoil()
+
+   gInstructions.Height <- 200
+   SetText(gInstructions, gStrings.inst4)
+   HideAll()
+   Draw()
+   WaitForKeyPress(" ")
+   Hide(gInstructions)
+   Draw()
+
+  if(gParams.doheader)
+  {
+    header <- EasyLabel(gStrings.header,gVideoWidth/2,100,gWin,25)
+  }
+
+
+
+  datafile <- GetNewDataFile(gSubNum,gWin,"toav","csv",
+        "sub,trial,targ,toofast,responded,corr,mult,time,rt")
+
+  reportfile <- GetnewdataFile(gSubNum,gWin,"toav-report","txt","")
+
+
+   ##
+   ## Global data structures which save data for analysis and
+   ## report at end of study. The variables are paired, for first-half
+   ## and second-half of the study.
+
+   rtCorr1 <- []
+   rtCorr2 <- []
+   rtInc1 <- []
+   rtInc2 <- []
+   ommissions1  <- 0   # Ommission error (failure to respond to target)
+   ommissions2  <- 0   #
+   commissions1 <- 0   # Commission error (false alarm to foil)
+   commissions2 <- 0   #
+   multiples1   <- 0   # multiple responses on a trial
+   multiples2   <- 0   #
+   antic1       <- 0   # too fast
+   antic2       <- 0   #
+   corrTarg1  <- 0     # Number of correct Targets
+   corrTarg2  <- 0     #
+   corrFoil1  <- 0     # Number of correct Foils
+   corrFoil2  <- 0     #
+   totalTrials1 <- 0   # Total Number of trials
+   totalTrials2 <- 0   #
+
+
+
+
+
+    half <- 1
+    Wait(2000)
+    trialnum <- 0
+    loop(i,stim)
+    {
+
+     ## The regime changes halfway through--keep track of this.
+     if(trialnum == gParams.numCommon+gParams.numRare)
+     {
+        half <- 2
+     }
+
+      resp1     <- 0  ## Was there a response during initial presentation?
+      resp2     <- 0  ## Was there a response during ISI
+      respMult  <- 0  ## were there multiple responses on trial?
+
+      timeStart <- GetTime()
+      if( i == 1)
+      {
+      ########################
+      ########################
+      ### Target
+      ###
+
+	  DrawTarg()
+      ##Initial presentation phase.
+      r1 <- WaitForListKeyPressWithTimeout([" "],100,1)
+      time1 <- GetTime()
+
+
+      HideAll()
+      if(not (r1 == " "))
+      {
+
+        r2 <- WaitForListKeyPressWithTimeout([" "],1850,1)
+        time2 <- GetTime()
+
+
+
+        remains <- 1850-(time2-time1)
+        rMult <- WaitForListKeyPressWithTimeout([" "],remains,1)
+
+        time3 <- GetTime()
+        Wait(1850 - (time3 - time1))
+
+      } else {
+
+        rMult <- WaitForListKeyPressWithTimeout([" "],1850,1)
+        time2 <- GetTime()
+
+        r2 <- 0
+        Wait(1850 - (time2- time1))
+        time3 <- GetTime()
+      }
+      } else {
+
+      ########################
+      ########################
+      ### Foil
+      ###
+
+	  DrawFoil()
+      r1 <- WaitForListKeyPressWithTimeout([" "],100,1)
+      time1 <- GetTime()
+
+      HideAll()
+      #If r1 is a not ' ', it was the 'timeout' signal, which means no response.
+      if(not (r1 == " "))
+      {
+
+        r2 <- WaitForListKeyPressWithTimeout([" "],1850,1)
+        time2 <- GetTime()
+
+        remains <- 1850-(time2-time1)
+
+        rMult <- WaitForListKeyPressWithTimeout([" "],remains,1)
+        time3 <- GetTime()
+
+        Wait(1850 - (time3-time1))
+
+      } else {
+        ## A response was made in phase 1.
+        rMult <- WaitForListKeyPressWithTimeout([" "],1850,1)
+        time2 <- GetTime()
+
+        r2 <- 0
+        Wait(1850 - (time2-time1))
+        time3 <- GetTime()
+      }
+
+
+      }
+
+     ##by default, start out rt as -1
+     rt <- -1
+
+
+     responded <- (r1 ==  " ") or  (r2 == " ")
+
+     mult <- (rmult == " ")
+
+     ##if r1 == 0, the key was struck during stimulus presentation.
+     if (r1 == " " )
+     {
+       toofast <- 1
+       rt <- (time1 - timeStart)
+
+     } else {
+      if(responded)
+      {
+        rt <- time2 - timeStart
+        toofast <- rt < 120
+      } else {
+
+        toofast <- 0
+      }
+
+     }
+
+     corr <- (i == responded)
+     FilePrint(datafile,gSubNum + "," + trialnum + "," + i + "," + toofast + "," +  responded + "," + corr + "," + mult + "," + timeStart + "," + rt)
+
+     ##Now, update counters/structures. based on the stats
+
+   if(half == 1)
+   {
+
+      totalTrials1 <- totalTrials1 + 1
+      ## i indicates target/foil trial
+      if(i)
+      {
+        corrTarg1 <- corrTarg1 + corr
+      } else {
+        corrFoil1 <- corrFoil1 + corr
+      }
+
+      if(responded)
+       {
+         if(corr)
+         {
+           rtCorr1 <- Append(rtCorr1, rt)
+         } else {
+           rtInc1  <- Append(rtInc1, rt)
+         }
+
+         commissions1 <- commissions1 + (1-corr)
+         multiples1   <- multiples1 + mult
+         antic1       <- antic1 + toofast
+       } else {
+
+         ommissions1 <- ommissions1 + (1-corr)
+       }
+
+
+   } else {
+
+      totalTrials2 <- totalTrials2 + 1
+       ## i indicates target/foil trial
+      if(i)
+      {
+        corrTarg2 <- corrTarg2 + corr
+      } else {
+        corrFoil2 <- corrFoil2 + corr
+      }
+
+      if(responded)
+       {
+         if(corr)
+         {
+           rtCorr2 <- Append(rtCorr2, rt)
+         } else {
+           rtInc2 <- Append(rtInc2, rt)
+         }
+         commissions2 <- commissions2 + (1-corr)
+         multiples2   <- multiples2 + mult
+         antic2       <- antic2 + toofast
+       } else {
+
+         ommissions2 <- ommissions2 + (1-corr)
+       }
+   }
+
+
+
+    trialNum <- trialNum + 1
+ }
+
+
+##Print out report
+   FilePrint(reportfile,"---------------------------------------------------")
+   FilePrint(reportfile," Report for PEBL Test of Attentional Vigilance")
+   FilePrint(reportfile,"  (TOAV) Version 0.1")
+   FilePrint(reportfile, " "+GetPEBLVersion())
+   FilePrint(reportfile, " "+TimeStamp())
+   FilePrint(reportfile, " Participant Code: " + gSubNum)
+
+   FilePrint(reportfile," http://pebl.sf.net")
+   FilePrint(reportfile,"---------------------------------------------------")
+   FilePrint(reportfile,"Statistic           Half 1     Half 2     Pooled")
+   FilePrint(reportfile,"---------------------------------------------------")
+   FilePrint(reportfile,"Total Trials       " + Format(totalTrials1,12) + Format(totalTrials2,12)   + (totalTrials1 + totalTrials2))
+   FilePrint(reportfile,"Correct Targets    " + Format(corrTarg1,12) +    Format(corrTarg2 ,12)     + (corrTarg1 + corrTarg2))
+   FilePrint(reportfile,"Correct Foils      " + Format(corrFoil1,12) +    Format(corrFoil2,12)      + (corrFoil1 + corrFoil2))
+   FilePrint(reportfile,"Correct Trials     " + Format((corrTarg1 + corrFoil1),12) + Format((corrTarg2 + corrFoil2),12) + (corrTarg1 + corrTarg2 + corrFoil1 + corrFoil2))
+   FilePrint(reportfile,"Commission Errors  " + Format(commissions1,12) + Format(commissions2,12)   + (commissions1 + commissions2))
+   FilePrint(reportfile,"Ommission Errors   " + Format(ommissions1,12)  + Format(ommissions2 ,12)   + (ommissions1 + ommissions2))
+   FilePrint(reportfile,"Correct RT Mean    " + Format(Round(Mean(rtCorr1)),12) + Format(Round(Mean(rtCorr2)),12) + Round(Mean(Merge(rtCorr1,rtCorr2))))
+   FilePrint(reportfile,"Error RT Mean      " + Format(Round(Mean(rtInc1)),12)  + Format(Round(Mean(rtInc2)),12) + Round(Mean(Merge(rtInc1,rtInc2))))
+   FilePrint(reportfile,"RT Mean            " + Format(Round(Mean(Merge(rtCorr1,rtInc1))),12)   + Format(Round(Mean(Merge(rtCorr2,rtInc2))),12) + Round(Mean(Flatten([rtCorr1,rtInc1, rtCorr2, rtInc2]))))
+   FilePrint(reportfile,"RT SD              " + Format(Round(StdDev(Merge(rtCorr1,rtInc1))),12) + Format(Round(StdDev(Merge(rtCorr2,rtInc2))),12) + Round(StdDev(Flatten([rtCorr1,rtInc1, rtCorr2, rtInc2]))))
+   FilePrint(reportfile,"Anticipations      " + Format(antic1,12)      + Format(antic2,12)          + (antic1 + antic2))
+   FilePrint(reportfile,"Multiple Responses " + Format(multiples1,12)  + Format(multiples2,12)      +  (multiples1 + multiples2))
+   FilePrint(reportfile,"---------------------------------------------------")
+
+
+
+   ##Now, show debriefing info.
+   SetText(gInstructions,gStrings.debrief+CR(1)+
+"  Report found in file: [toav-report-" +gSubNum  + ".dat]
+  Data found in file:   [toav-"  + gSubNum + ".dat]
+  (Press 'X' to finish experiment)")
+   Show(gInstructions)
+   Draw()
+
+   ## Upload data files (works online, no-op on native)
+   UploadFile(gSubNum, "data/" + gSubNum + "/toav-" + gSubNum + ".csv")
+   UploadFile(gSubNum, "data/" + gSubNum + "/toav-report-" + gSubNum + ".txt")
+
+   WaitForKeyPress("X")
+   ShowCursor(1)
+ }
+
+
+##  This is a standard initializer function that sets up typical
+##  objects used in experiments.
+define Initialize()
+{
+  ##Initialize Window, etc.
+  gWin <- MakeWindow("black")
+
+  ##Initialize Font and colors
+
+
+   fg <- MakeColor("black")
+   bg <- MakeColor("white")
+
+   gInstructionsFont <- MakeFont(gPEBLBaseFont,0,16, fg,bg,1)
+
+   ## Make and place the instruction box, then hide it
+   gInstructions <- MakeTextBox("", gInstructionsFont, 600,200)
+   AddObject(gInstructions, gWin)
+   Move(gInstructions, gVideoWidth/2-300, 10)
+   Hide(gInstructions)
+
+   GetStrings(gLanguage)
+
+ }
+
+
+
+define DrawTarg()
+{
+   Show(gOuter)
+   Show(gInnerTarg)
+   Hide(gInnerFoil)
+   Draw()
+}
+
+
+define DrawFoil()
+{
+   Show(gOuter)
+   Hide(gInnerTarg)
+   Show(gInnerFoil)
+   Draw()
+}
+
+define HideAll()
+{
+   Hide(gOuter)
+   Hide(gInnerTarg)
+   Hide(gInnerFoil)
+   Draw()
+}
+
+
+
+
+
+define GetStrings(language)
+{
+##Known trasnlations:  EN
+  gStrings <- GetTranslations("toav", language)
+}

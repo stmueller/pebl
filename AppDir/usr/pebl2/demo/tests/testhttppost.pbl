@@ -1,0 +1,77 @@
+## This tests the http post command.  It require a website
+## that has a minimal server running that will accept forms.
+
+
+define Start(p)
+{ 
+ gVideoWidth<-800
+ gVideoHeight <- 600
+ gWin <- MakeWindow()
+ head <- EasyLabel("PEBL http testing demo",gVideoWidth/2,50,gWin,24)
+
+  gStatus <- EasyTextBox("",50,100,gWin,16,gVideoWidth-100,gVideoHeight-150)
+ Draw()
+
+  server <- "www.obereed.net"
+  file <- "/latestpeblversion.txt"
+  file2 <- "/latestpeblversion2.txt"  ##does not exist
+
+#  resp <- GetHTTPFile(server,file,"latest.txt")
+#  Print("Should be 200:"+resp)
+#  resp2 <- GetHTTPFile(server,file2,"latest2.txt")
+#  Print("Should be 404:" +resp2)
+
+
+# resp3 <- GetHTTPFile(server,"test.html","test.html")
+# Print("Should be 400:" +resp3)
+
+  Print("Getting file " + file + " from server " + server)
+  resp <- GetHTTPText(server,file)
+  Print("This should be  200 if we succeeded:"+resp)
+#  resp2 <- GetHTTPText(server,file2)
+#  Print("Should be 404:" +resp2)
+
+files <- ["/house2.JPG","/scn.png"]
+if(1)
+ {
+   loop(i,files)
+    {
+
+      Print("Getting: " + i)
+      out <-  GetHTTPFile(server,i,"tmp.png")
+      Print("MD5:"+MD5File("tmp.png"))
+      Print("out:"+out)
+      if(out==200)
+      {
+         tmpimg <- MakeImage("tmp.png")
+	 AddObject(tmpimg,gWin)
+	 tmpimg.zoomX <- .3
+	 tmpimg.zoomY <- .3
+	 Move(tmpimg,500,400)
+	 
+	 Draw()
+      }
+     if(FileExists("tmp.png"))
+     {
+       DeleteFile("tmp.png")
+     }
+    }
+    
+  }
+
+  Print("Finished with demo test.  Press any key to continue")
+  WaitForAnyKeyPress()
+  
+}
+
+
+
+
+
+define Print(x)
+{
+   :Print(x)
+   gStatus.text <- x + CR(1) + gstatus.text
+   Wait(10)
+   Draw()
+}

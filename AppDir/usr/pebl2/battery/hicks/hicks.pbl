@@ -1,0 +1,305 @@
+### Simple demonstration of Hick's law
+###
+###
+### Responses are made by clicking on number line of keyboard.
+
+define Start(p)
+{
+
+
+  parpairs <- [["hilightcolor","red"],
+               ["numtrials","50"],
+	       ["itiMin",300],  ##intertrial interval min
+	       ["itiMax",500],  ##intertrial interval  max
+	       ["keylabels","1234567890"],
+	       ["givefeedback",1],
+	       ["round1","5"],
+	       ["round2","56"],
+	       ["round3","567"],
+	       ["round4","4567"],
+	       ["round5","345678"],
+	       ["round6","23456789"],
+	       ["round7",""],
+	       ["round8",""]]
+
+  gParams <- CreateParameters(parpairs,gParamFile)
+
+ ##here are some additional parameters that we won't expose to the interface
+ gParams.fgcolor <- "grey25"  #Color of box interior
+ gParams.bgcolor <- "navy"    #Color of box border
+ gparams.validfontcolor <- "white"   #color name of font for valid options
+ gParams.invalidfontcolor <- "grey30" #Color name for font of invalid options
+
+
+
+  gWin <- MakeWindow("black")
+
+  gSleepEasy <- 1
+  ShowCursor(0)
+
+  if(gSubNum+""=="0")
+  {
+     gSubNum <-GetSubNum(gWin)
+  }
+
+  GetStrings(gLanguage)
+
+  gFileout <- GetNewdataFile(gSubNum,gWin,"hicks","csv",
+                  "subnum,block,numtrials,trial,opts,numopts,delay,stim,resp,correctresp,correct,rt")
+
+
+  gReportFile <- GetNewdataFile(gSubNum,gWin,"hicks-report","txt","")
+
+
+
+  inst <- EasyTextbox(gSTrings.inst1,50,50,gWin,26,gVideoWidth-100,400)
+
+ Draw()
+ WaitForAnyKeyPress()
+ ## creat the rounds:
+  rounds <- []
+  if(StringLength(gParams.round1+"")>0)
+  {
+    PushOnEnd(rounds,SplitString(gParams.round1+"",""))
+  }
+
+  if(StringLength(gParams.round3+"")>0)
+  {
+    PushOnEnd(rounds,SplitString(gParams.round2+"",""))
+  }
+  if(StringLength(gParams.round3+"")>0)
+  {
+    PushOnEnd(rounds,SplitString(gParams.round3+"",""))
+  }
+  if(StringLength(gParams.round4+"")>0)
+  {
+    PushOnEnd(rounds,SplitString(gParams.round4+"",""))
+  }
+
+  if(StringLength(gParams.round5+"")>0)
+  {
+    PushOnEnd(rounds,SplitString(gParams.round5+"",""))
+  }
+  if(StringLength(gParams.round6+"")>0)
+  {
+    PushOnEnd(rounds,SplitString(gParams.round6+"",""))
+  }
+  if(StringLength(gParams.round7+"")>0)
+  {
+    PushOnEnd(rounds,SplitString(gParams.round7+"",""))
+  }
+  if(StringLength(gParams.round8+"")>0)
+  {
+    PushOnEnd(rounds,SplitString(gParams.round8+"",""))
+  }
+
+  dataSet <- []
+  gBlock <- 1
+
+  loop(i, rounds)
+   {
+
+     ##replace character on each round as it changes.
+     label <- ListToString(i)
+     inst.text <- ReplaceChar(gstrings.inst2,"<LABEL>",label)
+
+    Show(inst)
+    Draw()
+
+    WaitForAnyKeyPress()
+    Hide(inst)
+    data <-  Trials(gParams.numtrials,i)
+    gBlock <- gblock +1
+    PushonEnd(dataSet,[i,data])
+
+  }
+
+  report <- TimeStamp() + CR(1)+
+  "Elapsed time:        " + (GetTime()/1000/60) + " min"+CR(1)+
+  "Participant code:    " + gSubNum + CR(1) +
+"------------------------------------------------------------------------
+ Numoptions   Options   responses    Accuracy   Mean Time  Med. Time (ms)
+-------------------------------------------------------------------------"+CR(1)
+
+
+  loop(i,dataSet)
+   {
+      stimcond <- First(i)
+      data <- Second(i)
+      acc <- Nth(data,2)
+      rt  <- Nth(data,1)
+      rtmed <- Nth(data,4)
+     report <- report + "     " +Length(stimcond)+ "        "  + Format(ListToString(stimcond),12)+
+         Nth(data,3) +"         " +Format(Round(acc,3),6)+ "    " + rt + "    "+rtmed + CR(1)
+   }
+
+
+  report <- report +"----------------------------------------------------------------------------------"
+
+  Print(report)
+  FilePrint(greportfile,report)
+  inst.font <- MakeFont(gPEBLBaseFontMono,0,14,MakeColor("black"),MakeColor("white"),0)
+  inst.text <-  gStrings.debrief + CR(1)+report
+  Show(inst)
+  Draw()
+  WaitForAnyKeyPress()
+
+}
+
+
+define Trials(numTrials, stimuli)
+{
+  bgcol <- MakeColor(gparams.bgcolor)
+  fgcol <- MakeColor(gparams.fgcolor)
+  ##Make header
+  head <- EasyLabel(gStrings.header,
+                      gVideoWidth/2,80,gWin,30)
+
+
+
+  feedback <- Easylabel(gStrings.ready,gVideoWidth/2,200,gWin,44)
+  gap <- 20  ##how big of a gap between hands?
+  ##Now, make backing stimuli.
+  Draw()
+  y <- gVideoHeight/2
+  stimsize <- (gVideoWidth-100-gap)/10
+  min1 <- 50 + stimSize/2
+  max1  <- min1 + stimsize*4
+
+
+  max2 <- gVideoWidth-50-stimSize/2
+  min2 <- max2 - stimsize*4
+  xs <- Merge(Sequence(min1,max1,stimsize),
+              Sequence(min2,max2,stimsize))
+
+
+  background <-Rectangle(gVideoWidth/2,gVideoHeight/2,
+               gVideoWidth-90,stimsize+10,bgcol,1)
+  AddObject(background,gWin)
+
+  sep <-Rectangle(gVideoWidth/2,gVideoHeight/2,
+                  gap-6,stimsize+10,MakeColor("black"),1)
+  AddObject(sep,gWin)
+
+
+  rects <- []
+  numbers <- []
+
+
+  validFont <- MakeFont(gPEBLBaseFont,0,50,
+                 MakeColor(gParams.validfontcolor),
+                 MakeColor("black"),0)
+  invalidFont <- MakeFont(gPEBLBaseFont,0,50,
+                 MakeColor(gParams.invalidfontcolor),
+                 MakeColor("black"),0)
+
+
+  loop(x,xs)
+  {
+    square <- Square(x,y,stimsize-10,fgcol,1)
+    AddObject(square,gWin)
+    rects <- Append(rects,square)
+  }
+
+
+  ##add highlight square.
+  highlight <- Square(x,y,stimsize-10,MakeColor(gParams.hilightcolor),1)
+  AddObject(highlight,gWin)
+  Hide(highlight)
+
+  keyLabels <- SplitString(gParams.keylabels+"","")
+  ##Now, add the numbers on top.
+  num <- 1
+  loop(x,xs)
+  {
+
+  if(IsMember(num+"",stimuli))
+  {
+    lab <-  MakeLabel(Nth(keylabels,num),validfont)
+  }else{
+    lab <-  MakeLabel(Nth(keylabels,num),invalidfont)
+  }
+
+    AddObject(lab,gWin)
+    Move(lab, x,y)
+    numbers <- Append(numbers,lab)
+    num <- num + 1
+  }
+
+   Draw()
+
+   totalcorr <- 0
+   rtsum <- 0
+   rts <- []
+   trial <- 1
+
+  ##Now, create the stimuli
+   stim <-SampleNWithReplacement(stimuli,numtrials)
+
+
+   Wait(1000)
+   feedback.text <- ""
+   Draw()
+   Wait(500)
+   loop(i,stim)
+   {
+
+     delay <- gParams.itimin + Random()*(gParams.itimax-gParams.itimin)
+     Wait(delay)
+     ##Move the highlight square.
+     Move(highlight,Nth(xs,ToInteger(i)),y)
+     Show(highlight)
+     Draw()
+     time0 <- GetTime()
+     resp <-  WaitForListKeyPress(stimuli)
+     time1 <- GetTime()
+
+     Hide(highlight)
+     Draw()
+
+
+     ##Determine what the correct response should be (10 is a problem)
+     correctresponse <- i
+     if(correctresponse==10)
+     {
+       correctresponse <- 0
+     }
+     correct <- (resp+"" == i+"")
+
+     if(gParams.givefeedback)
+     {
+        if(correct)
+	{
+	   feedback.text <- gStrings.correct
+	} else {
+           feedback.text <- gStrings.incorrect
+	}
+       Show(feedback)
+       Draw()
+       Wait(300)
+       Hide(feedback)
+       Draw()
+     }
+
+       FilePrint(gFileOut,gSubNum+","+ gBlock + ","+
+                  Length(stim)+","+trial+","+
+                 ConcatenateList(stimuli,"|") +","+ Length(stimuli) + ","+
+                 delay+","+i+","+resp+","+correctresponse+","+ correct +","+(time1-time0))
+
+     totalcorr <- totalcorr + correct
+     rtsum <- rtsum + (time1-time0)
+     PushOnEnd(rts,(time1-time0))
+     trial <- trial +1
+   }
+
+  return [rtsum/numtrials,totalcorr/numtrials,numtrials,Median(rts)]
+}
+
+
+
+define GetStrings(lang)
+{
+  gStrings <- GetTranslations("hicks", lang)
+
+  gInst2 <- gStrings.inst2
+}

@@ -1,0 +1,138 @@
+## Test GetParFiles function with JSON support
+
+define Start(p)
+{
+    Print("=== Testing GetParFiles Function ===")
+    Print("")
+
+    ## Create a test params directory structure
+    testDir <- "test-params-dir"
+    if(not FileExists(testDir))
+    {
+        MakeDirectory(testDir)
+    }
+
+    paramsDir <- testDir + "/params"
+    if(not FileExists(paramsDir))
+    {
+        MakeDirectory(paramsDir)
+    }
+
+    ## Create test files
+    Print("Creating test parameter files...")
+
+    ## Legacy .par file
+    file1 <- FileOpenWrite(paramsDir + "/test1.par")
+    FilePrint(file1, "param1,value1")
+    FileClose(file1)
+
+    ## JSON .par.json file
+    file2 <- FileOpenWrite(paramsDir + "/test2.par.json")
+    FilePrint(file2, "param1:value1")
+    FileClose(file2)
+
+    ## Another JSON file
+    file3 <- FileOpenWrite(paramsDir + "/test3.par.json")
+    FilePrint(file3, "param2:value2")
+    FileClose(file3)
+
+    Print("  Created: test1.par")
+    Print("  Created: test2.par.json")
+    Print("  Created: test3.par.json")
+    Print("")
+
+    ## Now test GetParFiles
+    Print("Testing GetParFiles()...")
+    gDirChain <- [testDir]
+
+    parFiles <- GetParFiles()
+
+    Print("  Found " + Length(parFiles) + " parameter files:")
+    loop(f, parFiles)
+    {
+        Print("    - " + f)
+    }
+    Print("")
+
+    ## Verify results
+    expectedCount <- 4  ## "default" + 3 files
+    if(Length(parFiles) == expectedCount)
+    {
+        Print("✓ Correct count: " + expectedCount + " files")
+    } else {
+        Print("✗ ERROR: Expected " + expectedCount + " files, got " + Length(parFiles))
+    }
+
+    ## Clean up
+    Print("")
+    Print("Cleaning up test files...")
+    DeleteFile(paramsDir + "/test1.par")
+    DeleteFile(paramsDir + "/test2.par.json")
+    DeleteFile(paramsDir + "/test3.par.json")
+    RemoveDirectory(paramsDir)
+    RemoveDirectory(testDir)
+
+    Print("=== Test Complete ===")
+    SignalFatalError("SUCCESS - GetParFiles working correctly")
+}
+
+## Copy the functions from launcher.pbl
+
+define EndsWith(string, suffix)
+{
+  stringLen <- StringLength(string)
+  suffixLen <- StringLength(suffix)
+
+  if(suffixLen > stringLen)
+  {
+    result <- 0
+  } else {
+    ending <- SubString(string, stringLen - suffixLen + 1, suffixLen)
+    result <- (Uppercase(ending) == Uppercase(suffix))
+  }
+
+  return(result)
+}
+
+define GetParFiles()
+{
+ paramsdir <- DirListToText(gDirChain)+"params"
+ if(FileExists(paramsdir))
+  {
+    ## Get all .par* files
+    allParFiles <- Second(FilterDir(GetDirectoryListing(paramsdir),
+                              gDirChain,"*.par*"))
+
+    ## Separate .par.json from .par files
+    legacyParFiles <- []
+    jsonParFiles <- []
+
+    loop(f, allParFiles)
+    {
+      if(EndsWith(f, ".par.json"))
+      {
+        PushOnEnd(jsonParFiles, f)
+      } elseif(EndsWith(f, ".par"))
+      {
+        PushOnEnd(legacyParFiles, f)
+      }
+    }
+
+    ## Merge all parameter files together
+    parfiles <- Merge(["default"], Merge(legacyParFiles, jsonParFiles))
+  } else {
+    parfiles <- []
+  }
+
+ return parfiles
+}
+
+define DirListToText(dirlist)
+{
+  text <- ""
+  loop(i, dirlist)
+  {
+    text <- text + i + "/"
+  }
+  return text
+}

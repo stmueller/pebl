@@ -1,0 +1,54 @@
+## Test for negative default parameter values
+## This should FAIL with current lexer but SUCCEED after lexer update
+
+define Start(p)
+{
+    Print("=== TESTING NEGATIVE DEFAULT PARAMETERS ===")
+    Print("")
+
+    ## This function has a negative default parameter
+    ## Should fail with: "Error in function definition: default parameter value must be a data value"
+    Print("TEST: Calling function with negative default parameter")
+
+    result1 <- TestNegativeDefault()
+    Print("  TestNegativeDefault() = " + result1)
+    Print("  EXPECTED: -1")
+    Print("")
+
+    result2 <- TestNegativeDefault(5)
+    Print("  TestNegativeDefault(5) = " + result2)
+    Print("  EXPECTED: 5")
+    Print("")
+
+    result3 <- TestNegativeFloat()
+    Print("  TestNegativeFloat() = " + result3)
+    Print("  EXPECTED: -0.5")
+    Print("")
+
+    result4 <- TestNegativeFloat(2.5)
+    Print("  TestNegativeFloat(2.5) = " + result4)
+    Print("  EXPECTED: 2.5")
+    Print("")
+
+    Print("=== ALL TESTS PASSED ===")
+}
+
+## Function with negative integer default
+## This is the main case we're trying to fix
+define TestNegativeDefault(timeout: -1)
+{
+    return(timeout)
+}
+
+## Function with negative float default
+define TestNegativeFloat(value: -0.5)
+{
+    return(value)
+}
+
+## Function with multiple defaults including negative
+define TestMultipleDefaults(a: 10, b: -5, c: 0)
+{
+    result <- a + b + c
+    return(result)
+}

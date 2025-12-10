@@ -1,0 +1,347 @@
+define Start(p)
+{
+
+   gWin <- MakeWindow("black")
+   gSleepEasy <- 1
+
+   fileout <- FileOpenAppend("trackingdata.csv")
+
+   samplingfreq <- 0
+   gain <- 1.0
+   delay <- 0
+   noise <- 0
+   controlorder <- 0
+   continue <- 1
+   trial <- 1
+  while(continue)
+   {
+
+    samplingfreq <- VScaleInput("Sampling frequency (How many frames to skip?",0,40, samplingfreq,gVideoWidth/2,gVideoHeight/2,0,gWin)
+    gain  <- VSCaleInput("Gain to apply to input", .01,5,gain, gVideoWidth/2,gVideoHeight/2,1,gWin)
+    delay <- VSCaleInput("Delay (in steps)",         0,50,delay, gVideoWidth/2,gVideoHeight/2,0,gWin)
+    noise <- VScaleInput("Scale of noise added to control", 0,1,noise,gVideoWidth/2,gVideoHeight/2,1,gWin)
+
+
+   controlorder <- GetEasyChoice("Control order",["0 (direct mouse)","1 Mouse direction","2 Mouse push"],
+                                 [0,1,2],gWin)
+   WaitForMouseButton()
+   
+
+   out <-   Trial(20000,samplingfreq,gain,delay,noise,controlorder)
+   FilePrint(fileout,TimeStamp() + ","+trial+","+samplingfreq+","+gain+","+delay+","+noise+","+controlorder+","+First(out)+","+Second(out)+","+Third(out))
+    text <- "Performance on trial:"+TimeStamp()+CR(1)+
+     " Trial:                " + trial +CR(1)+
+     " trial time:           " + Third(out)+CR(1)+
+     " sampling freq:        " + samplingfreq +CR(1)+
+     " gain:                 " + gain +CR(1)+
+     " delay:                " + delay +CR(1)+
+     " noise:                " + noise +CR(1)+
+     " control order:        " + controlorder +CR(1)+
+     " mean deviation: (px)  " +First(out)
+
+    MessageBox(text,gWin)
+
+   continue <- GetEasyChoice("Continue? ",["yes","no"],[1,0],gWin)
+   trial<-trial + 1
+  }
+}
+
+
+define Trial(duration,samplingfreq,gain,delay,noise,controltype)
+{
+
+
+  label <- Easylabel("Click mouse to begin track recording",gVideoWidth/2,gVideoHeight/2+100,gWin,30)
+  ShowCursor(0)
+  homeX <-  gVideoWidth/2
+  homeY <- gVideoHeight/2
+  delaylist <- Repeat(homeX,delay+1)  
+  timestep <- 25
+
+  xbase <- gVideoWidth/2
+  ybase <- gVideoHeight/2+100
+  xscale <- 100   ##scale in pixels of oscillation. 
+  
+  tracker <-Circle(xbase,ybase,53,MakeColor("white"),0)
+  target <- Circle(xbase,ybase,50,MakeColor("red"),1)
+
+  ##Maps the controller input.
+  controller <- Rectangle(xbase, ybase-200,100,5,MakeColor("red"),1)
+  AddObject(controller,gWin)
+
+  contback <- Rectangle(xbase, ybase-200,402,7,MakeColor("white"),0)
+  AddObject(contback,gWin)
+
+  contlabel <- EasyLabel("Controller input strength",xbase,ybase-220,gWin,12)
+  trackerX <- xbase
+  targetX <- xbase
+
+  AddObject(tracker,gWin)  
+  AddObject(target,gWin)
+
+   speedtarget <- 55
+   maxspeed <- 100
+   minspeed <- 40
+   speedSensitivity <- .5
+   accelSensitivity <- .01
+   noisescale <- .2
+
+
+   decay <- .99995
+   speed <- 50
+
+   freq1 <- .1# RandomUniform(.2)+1
+   freq2 <- .5#RandomUniform(.3)+.3
+   freq3 <- .7#RandomUniform(.4)+.6
+ 
+  
+   Draw()
+   timeStart <- GetTime()
+   time <- timeStart
+   timescale <- .002  ## how ms scales to the sine wave
+
+   trackerstep <- 0  ##how far the tracker moves. Can be in non-whole pixels
+
+
+   maxlrspeed <- 10
+   speedstep <- .01*gain
+   lasttime <- GetTime()
+   delta <- 0
+   delta2 <- 0
+   deltaSum <- 0
+   adj <- 0   
+   count <- 0
+   cont <- 1
+   autopilot <- 0
+   autopilotthresh <- 5  ##don't adjust unless delta is this big.
+   deltas <- []
+
+   stayProb <- .3  ##probability of continuing previous action.
+    
+ 
+    ##on for 10 cycles, off for however many
+    showme <- Merge(Repeat(1,10),Repeat(0,samplingfreq))
+    nextswitch <- time + timestep
+
+    SetMouseCursorPosition(Round(homeX),Round(homeY))
+    state <- "pre"
+    while(cont)
+     {
+
+       click <-  WaitForMouseButtonWithTimeout(10)
+
+       if(not (click == "<timeout>"))
+       {
+        if(Fourth(click)=="<pressed>")
+	 {
+         if(state=="pre")
+	 {
+	  state <- "recording"
+	  trialStartTime <- GetTime()
+	  endtime <- GetTime()+duration
+	  label.y <- gVideoHeight/2-50
+          }elseif(state=="recording")
+	 {
+	   state <- "stop"
+	   cont <- 0
+          }
+       }
+
+      }
+
+     time <- GetTime()
+     if(state=="recording")
+      {
+       if(time > endtime)
+       {
+         cont <- 0
+       }
+      }
+
+       ##turn the target on or off
+       
+       if(time>nextswitch)
+       {
+          nextswitch <- nextswitch + timestep
+          showme <- Rotate(showme,1)
+       }
+
+       target.visible <- First(showme)
+       tracker.visible<- First(showme)
+
+       deltaT <- (time-lasttime)
+       stime <- timescale * (time-timestart)
+       xval <- xbase+(Sin(stime*freq1) + Sin(stime*freq2) + Sin(stime*freq3))*xscale
+       targetX <- xval
+       target.x <- targetX
+       delta0 <- trackerX - targetX
+
+       if(state=="recording")
+         {
+           PushOnEnd(deltas,delta0)
+           delta <- Abs(delta0)
+           deltaSum <- deltaSum+delta
+	   count <- count + 1
+            label.text <- "Time: " + ((Floor((endtime-time)/100)/10))
+         }
+
+
+       xy <- GetMouseCursorPosition()
+       ##get controller input
+
+       contrinput <-( First(xy)-xbase)/(gVideoWidth)##+1 to -1
+
+       ##add gain and noise. Gain is applied before AFTER noise here.
+       contrinput <- InRange(contrinput + RandomUniform(1)*noise * noisescale,-1,1)
+       contlabel.text <- contrinput+""
+
+       controller.width <- (Abs(contrinput))*400
+       controller.x <- xbase + Sign(contrinput)*controller.width/2
+
+
+
+      if(controltype==0)
+       {
+
+
+       ##0th order control--'direct' mouse position.
+       trackerx <-xbase + gain*contrinput*xscale*6
+       trackerx <- InRange(xbase-xscale*3,trackerX+trackerStep,xbase + xscale*3)
+
+       }elseif(controltype==1)
+       {
+      
+       ##first order.  Use sign around direction to make it a step control.
+
+#       direction <-Sign(contrinput)
+       trackerstep <- InRange(-maxlrspeed, (time-lasttime)*gain*speedsensitivity*contrinput,maxlrspeed)
+#Min([maxlrspeed, gain * (time-lasttime)* speedsensitivity*2])
+
+       trackerx <- InRange(xbase-xscale*3,trackerX+trackerStep,xbase + xscale*3)
+
+
+       }else{
+ 
+       ## Second order control.  Difference from midline should impact acceleration
+
+       direction <- Sign(First(xy)-trackerX)
+
+       ##update trackerstep--the speed.
+       trackerstep <- trackerstep + (contrinput * gain * (time-lasttime)* accelsensitivity)
+       trackerstep <- InRange(-maxlrspeed,trackerStep,maxlrspeed)
+       trackerx <- InRange(xbase-xscale*3,trackerX+trackerStep,xbase + xscale*3)
+
+
+       ##RESET VELOCITY if you hit boundary.
+       if(Abs(trackerx-xbase)>= xscale*3)
+       {
+          trackerstep <- 0
+       }
+
+
+
+       }
+
+        SetElement(delaylist,1,trackerx)
+	delaylist <- Rotate(delaylist,1)
+	tracker.x <- First(delaylist)
+
+
+
+       Draw()
+       lasttime <- time
+       time <- GetTime()
+
+      }
+      
+      delta2 <- deltaSum/count
+      return [delta2, count,(time-trialStartTime)]
+
+}
+
+
+define IfElse(condition,a,b)
+{
+   retval <- 0
+    if(condition)
+    {
+     retval <- a
+    }else{
+      retval <- b
+    }
+
+  return retval
+}
+
+define Roundoff(x,val)
+{
+   return  Round(x*10^val)/(10^val)
+}
+
+define InRange(value,min,max)
+{
+    return Min([ Max([value,min]),max])
+}
+
+define VSCaleInput(text,min,max,default,posx,posy,continuous,win)
+{
+   ##collect input on a visual scale.
+
+   bg <- Rectangle(gVideoWidth/2,gVideoheight/2,gVideoWidth,gVideoheight,MakeColor("black"),1)
+   AddObject(bg,win)
+   lab <- EasyLabel(text,posx,posy-50,gWin,20)
+
+   rectback <- Rectangle(posx,posy,300,40,MakeColor("white"),0)
+   AddObject(rectback,win)
+   thumb <- Rectangle(posx,posy,5,40,MakeColor("red"),1)
+   AddObject(thumb,win)
+
+
+
+   ok <- Easylabel("OK",posx,posy+100,win,14)
+   okback <- Rectangle(posx,posy+100,ok.width+20,ok.height+20,MakeColor("white"),0)
+   AddObject(okback,win)
+
+   mintext <- EasyLabel(min+"",rectback.x-rectback.width/2,rectback.y+rectback.height/2+20,win,14)
+   maxtext <- EasyLabel(max+"",rectback.x+rectback.width/2,rectback.y+rectback.height/2+20,win,14)
+   cont <- 1
+
+   value <- default
+   if(not continuous)
+   {
+   	  value <- Round(value)
+
+   }
+
+   thumb.x <- (rectback.x-rectback.width/2)+ value/(max-min) * rectback.width
+   
+   valtext <- EasyLabel("value="+value,rectback.x,rectback.y+rectback.height+10,win,14)
+   Draw()
+
+  while(cont)
+   {
+      click <- WaitForClickOnTarget([okback,rectback],[1,2])
+      if(click==1)
+      {
+        cont <- 0
+      } else{
+
+        value <- min + (max-min) * (First(gClick) - (rectback.x-rectback.width/2))/rectback.width
+        thumb.x <- First(gClick)
+        if(not continuous)
+	  {
+	  value <- Round(value)
+          thumb.x <- (rectback.x-rectback.width/2)+ value/(max-min) * rectback.width
+
+        }
+
+
+
+
+        valtext.text <- "value="+ value
+        Draw()
+     }
+   }
+     
+  return value
+}

@@ -1,0 +1,22 @@
+## Debug test to find where CreateLayout hangs
+
+define Start(p)
+{
+  Print("Step 1: Creating window...")
+  gWin <- MakeWindow("black")
+  Print("Step 2: Window created")
+
+  Print("Step 3: Loading layout config...")
+  config <- LoadLayoutConfig("test")
+  Print("Step 4: Config loaded: " + IsList(config))
+
+  Print("Step 5: Loading response modes...")
+  modes <- LoadResponseModes()
+  Print("Step 6: Modes loaded: " + IsList(modes))
+
+  Print("Step 7: Determining response mode...")
+  responseMode <- DetermineResponseMode(0, config, modes)
+  Print("Step 8: Response mode determined: " + IsList(responseMode))
+
+  Print("All steps completed!")
+}

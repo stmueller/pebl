@@ -108,7 +108,7 @@ bool PlatformWidget::Draw()
         {
             long unsigned int newWidth =  mWidth;
             long unsigned int newHeight = mHeight;
-            
+
             if(IsVisible())
                 {
                     //To draw a widget, draw each of the window's subwidgets

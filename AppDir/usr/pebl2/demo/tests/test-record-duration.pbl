@@ -1,0 +1,38 @@
+## Test RecordToBuffer() with optional duration parameter
+define Start(p)
+{
+   gVideoWidth <- 800
+   gVideoHeight <- 600
+   win <- MakeWindow("black")
+
+   Print("Test 1: 10-second buffer, record for 3 seconds")
+   Print("Creating 10-second audio buffer...")
+   buffer <- MakeAudioInputBuffer(10000)
+   Print("Buffer created successfully!")
+
+   Print("Recording audio for 3 seconds (specified duration)...")
+   RecordToBuffer(buffer, 3000)  ## Record for 3 seconds even though buffer is 10 seconds
+   Print("Recording complete!")
+
+   Print("Saving buffer to WAV file...")
+   SaveAudioToWaveFile("test-10s-buffer-3s-recording.wav", buffer)
+   Print("Done! Check test-10s-buffer-3s-recording.wav")
+   Print("")
+
+   Wait(1000)
+
+   Print("Test 2: 10-second buffer, record full duration (default)")
+   Print("Creating 10-second audio buffer...")
+   buffer2 <- MakeAudioInputBuffer(10000)
+   Print("Buffer created successfully!")
+
+   Print("Recording audio for 10 seconds (full buffer)...")
+   RecordToBuffer(buffer2)  ## No duration parameter - use full buffer
+   Print("Recording complete!")
+
+   Print("Saving buffer to WAV file...")
+   SaveAudioToWaveFile("test-10s-buffer-10s-recording.wav", buffer2)
+   Print("Done! Check test-10s-buffer-10s-recording.wav")
+
+   WaitForAnyKeyPress()
+}

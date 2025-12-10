@@ -1,0 +1,386 @@
+## This task is intended to demonstrate multi-task interference, 
+## along with multi-task non-interference.
+##
+##currently, no instructions or anything.
+
+define Start(p)
+{
+
+
+  ##Task 1: character naming.
+  ##you will hear words 1..4, and have to press 1..4 on keyboard
+  ##as fast as you can.
+
+  ##Task 2a: (interfering) size judgement (big vs small)
+  ##Task 2b: (non-interfering) shape judgment (small vs large)
+
+  gWin<- MakeWindow("black")
+  one <- LoadSound("01.wav")
+  two <- LoadSound("02.wav")
+  three <- LoadSound("03.wav")
+  four <- LoadSound("04.wav")
+
+
+
+
+  gAudioStim <- [one,two,three,four]
+
+
+   stim1a <- Circle(gVideoWidth/2,gVideoHeight/2,45,MakeColor("red"),1)  ##small
+   stim1b <- Square(gVideoWidth/2,gVideoHeight/2,80,MakeColor("red"),1) ##small
+   stim2a <- Circle(gVideoWidth/2,gVideoHeight/2,90,MakeColor("red"),1) #lg
+   stim2b <- Square(gVideoWidth/2,gVideoHeight/2,160,MakeColor("red"),1) #lg
+   stim1a.aa<-1
+   stim2a.aa<-1
+
+    AddObject(stim1a,gWin)
+    AddObject(stim1b,gWin)
+    AddObject(stim2a,gWin)
+    AddObject(stim2b,gWin)
+
+    Move(stim1a,gVideoWidth-150,150)
+    Move(stim1b,gVideoWidth-350,150)
+    Move(stim2a,gVideoWidth-150,450)
+    Move(stim2b,gVideoWidth-350,450)
+
+   lab1 <- EasyLabel("Small shapes", gVideoWidth-250,80,gWin,22)
+   lab2 <- EasyLabel("Large shapes", gVideoWidth-250,340,gWin,22)
+   MessageBox("In this task, you will respond to both sounds and shapes.  Sometimes, you will hear the numbers 'one' through 'four'. When you hear a number, press the number key at the top of the keyboard corresponding to that number.
+
+Sometimes you will see a shape. The shape might be a circle or a square, and might be small or large, like are shown on the right.  When you see a small shape, press the 9 key at the top of the keyboard. When you see a large shape, press the 0 key. Ignore whether the object is a circle or a square.  Press OK to continue.",gWin,30,
+   100,500,200,0)
+
+   gVisualStim <- [stim1a,stim1b,stim2a,stim2b]
+   RemoveObject(lab1,gWin)
+   RemoveObject(lab2,gWin)
+
+
+  loop(i,gVisualStim)
+  {
+    Move(i,gVideoWidth/2,gVideoHeight/2)
+    Hide(i)
+  }
+
+    gHeader <- EasyLabel("",gVideoWidth/2,100,gWin,40)
+    gFixation <- Easylabel("+",gVideoWidth/2,gVideoHeight/2,gWin,50)
+    gdim1Correct <- Easylabel("",gVideoWidth/2-200,gVideoHeight/2,gWin,30)
+    gdim2Correct <- Easylabel("",gVideoWidth/2+200,gVideoHeight/2,gWin,30)
+    gFooterAudio <- EasyLabel("Press number key for auditory stimulus",gVideoWidth/2,gVideoHeight-150,gWin,40)
+    gFooterColor <- EasyLabel("Press 9 for small and 0 for large",gVideoWidth/2,gVideoHeight-180,gWin,40)
+
+    MessageBox("Now, you will do some pure trials for the visual stimulus. Remember, for small shapes you press 9, and for large shapes you press 0",gWin)
+    Block(0,50,0,0,0)
+    MessageBox("Now, you will do some pure trials for the audio stimulus. Remember, press the keyboard number corresponding to the word you hear.",gWin)
+    Block(50,0,0,0,0)
+
+
+    MessageBox("Now, you will do some pure trials for the visual stimulus. On this block, you will sometimes hear the auditory stimulus.  If this happens, ignore it; only respond to the visual stimulus. Remember, for small shapes you press 9, and for large shapes you press 0",gWin)
+    Block(0,25,0,25,0)
+    MessageBox("Now, you will do some pure trials for the audio stimulus.  On this block, you will also sometimes see the visual stimulus.  If this happens, ignore it; only respond to the auditory stimulus. Remember, press the keyboard number corresponding to the word you hear.",gWin)
+    Block(25,0,25,0,0)
+
+    MessageBox("Now, you will do some pure trials for the audio stimulus. Remember, press the keyboard number corresponding to the word you hear.",gWin)
+    Block(20,0,0)
+    MessageBox("Now, you will do some pure trials for the visual stimulus. Remember, for small shapes you press 9, and for large shapes you press 0",gWin)
+    Block(0,20,0)
+
+    MessageBox("Now, you will do BOTH",gWin)
+    Block(0,0,0,0,50)
+}
+
+
+##  stim1puretrials is # of trials for stimulus 1 pure
+##  stim2puretrials is # of trials for stimulus 2 pure
+##  dualstim1 presents both stimulus but you respond to just stim1
+##  dualstim2 presents both stimulus but you respond to just stim2
+##  dualboth presents botd stimuli and you respond to both.
+
+## Note: you should not mix dualstim12 and dualboth, as this promotes
+##  inconsistent instructions.
+define Block(stim1puretrials,stim2puretrials,dualstim1:0,dualstim2:0,dualboth:0)
+{
+     if((dualboth==0))
+     {
+        ##single task.
+	gHeader.text <- "Single task: Make one response per stimulus"
+     }else{
+     	gHeader.text <- "Dual task: Make two responses per stimulus"
+     }
+
+    Draw()
+
+     trials1 <- Transpose(([ SampleNWithReplacement([1,2,3,4],stim1puretrials),
+                           Repeat(0,stim1puretrials)]))
+			   
+     trials2 <- Transpose([ Repeat(0,stim2puretrials),
+                            SampleNWithReplacement([1,2,3,4],stim2puretrials)])
+
+
+     trials3 <- Transpose(([ SampleNWithReplacement([1,2,3,4],dualstim1),
+                           Repeat(1,dualstim1)]))
+			   
+     trials4 <- Transpose([ Repeat(1,dualstim2),
+                            SampleNWithReplacement([1,2,3,4],dualstim2)])
+
+
+
+
+     trials5 <- Transpose([ SampleNWithReplacement([1,2,3,4],dualboth),
+                            SampleNWithReplacement([1,2,3,4],dualboth)])
+     
+     trials <-   Shuffle(FlattenN([trials1,trials2,trials3,trials4,trials5],1))
+
+    loop(i,trials)
+    {
+       Print(i)
+       out <-  Trial(First(i),Second(i),First(i)>0,Second(i)>0)
+       
+    }
+}
+
+
+## For dotask1/2, 0 indicates no stimulus/response
+##                1 indicates stimulus+response
+##                2 indicates stimulus but no response collected.
+
+define Trial(stimdimA,stimdimV,dotask1,dotask2)
+{
+
+  Show(gFixation)
+  Hide(gDim1Correct)
+  Hide(gDim2Correct)
+
+  Draw()
+  Wait(3000+1500*Random())
+   
+
+  ##0 SOA here!
+
+
+  resps1 <-Ifelse(dotask1==1, ["1","2","3","4"],[])
+  resps2 <- Ifelse(dotask2==1,["9","0"],[])
+
+  allresps <-   Merge(resps1,resps2)
+  if(Length(allresps)==0)
+  {
+     SignalFatalError("No responses programmed for trial")
+  }
+
+  if(dotask2>0)
+  {
+     Show(Nth(gVisualStim,stimdimV))
+  }
+  Hide(gFixation)
+  
+  Draw()
+  time0 <- GetTime()
+  if(dotask1>0)
+  {
+     PlayBackground(Nth(gAudioStim,stimdimA))
+  }
+
+
+ correctA <- 0
+ correctV <- 0
+ 
+  out <- GetResponses(resps1,resps2)
+
+  rtA <- First(out)
+  rtV <- Second(out)
+  respA <- Third(out)
+  respV <- Fourth(out)
+  toolong <- Fifth(out)
+  
+
+
+   correctA <- respA == (stimDimA+"")
+   correctV <- respV == (stimDimV+"")
+
+
+
+##now, we need to know whether we are correct for each one!
+  if(doTask1)
+   {
+
+   if(correctA)
+     {
+        gDim1Correct.text <- "Correct"
+      }else{
+        gDim1Correct.text <- "Incorrect"
+    }
+   }
+
+
+
+   if(doTask2>0)
+   {
+     ##dotask2 is size judgment. 9=small (stim 1 and 2), 0 = large ( 3 and 4)
+      if(respV=="9")
+      {
+         correctV <- ((stimdimV==1) or (stimdimV==2) )
+
+      } else {
+      
+         correctV <- ((stimdimV==3) or (stimdimV==4))
+
+      }
+   }else{
+
+       correctV <- "NA"
+   }
+
+
+   if(correctV)
+     {
+        gDim2Correct.text <- "Correct"
+      }else{
+        gDim2Correct.text <- "Incorrect"
+    }
+
+   if(stimdimA)
+    {
+       Show(gDim1Correct)
+    }
+
+
+   if(stimdimV)
+    {
+       Hide( Nth(gVisualStim,stimdimV))
+       Show(gDim2Correct)
+    }
+
+
+
+
+   Draw()
+   Wait(500)
+   Hide(gDim1Correct)
+   Hide(gDim2Correct)
+   Draw()
+
+   
+
+ return [time0,respA,rtA,correctA,respV,rtV,correctV,toolong]
+}
+
+
+define IfElse(ab,a,b)
+{
+  ret <- 0
+  if(ab)
+   {
+    ret <- a
+   } else {
+    ret <- b
+ }
+ return ret
+}
+
+
+
+define GetResponses(respsA,respsV,deadline:5000)
+{
+  Print("Getting: "+respsA + respsv)
+  doAudio <- Length(respsA)>0
+  doVisual <- Length(respsV)>0
+
+Print(doAudio)
+Print(doVisual)
+
+  now <- GetTime()
+  if(deadline>0)
+   {
+      RegisterEvent("<TIMER>", 1,now+deadline,"<GEQ>","ENDIT", ["<Timeout>"])
+   }
+   
+ if(doaudio)
+  {
+    loop(i,respsA)
+     {
+        Print("adding response: " + i)
+        RegisterEvent("<KEY_PRESS>",i,1,"<EQUAL>","PRESS1",[i])
+     }
+  }
+
+if(dovisual)
+{
+    loop(i,respsV)
+     {
+        Print("adding response: " + i)
+        RegisterEvent("<KEY_PRESS>",i,1,"<EQUAL>","PRESS2",[i])
+     }
+
+}
+
+
+  ##gPhase = 0: need two responses
+  ##gphase = 1: need one response
+  ##gphase = 2: responses collected.
+   
+  gPhase <- 2-doaudio-dovisual
+
+  Print("Start phase:" + gPhase)
+  gAudioResponded <- 0
+  gVisualResponded <- 0
+  gTimeOut <- 0
+  
+  gAudioTime <- 0
+  gVisualTime <- 0
+
+  gAudioResponse <- "NA"
+  gVisualResponse <- "NA"
+  time1 <- GetTime()
+ 
+  out <- StartEventLoop()
+
+  ClearEventLoop()
+
+ 
+
+  rtA <- Ifelse((gAudioTime-time1)  < 0, 0,(gAudioTime-time1))
+  rtV <- Ifelse((gVisualTime-time1) < 0, 0,(gVisualTime-time1))
+  return [rtA,rtV,gAudioResponse,gVisualResponse,gTimeout-time1]
+}
+
+
+
+define Endit(p1,p2)
+{
+   gTimeOut <- GetTime()
+   gKeepLooping <- 0
+   
+}
+
+define Press1(p,p2)
+{
+   if(not gAudioResponded)
+       {
+        gPhase <- gPhase + 1
+        gAudioResponded <- 1
+	gAudioTime <- GetTime()
+	gAudioResponse <- p
+       }
+  if(gPhase >= 2)
+   {
+     gKeepLooping <- 0
+   }
+   
+}
+
+
+define Press2(p,p2)
+{
+
+   if(not gVisualResponded)
+       {
+        gPhase <- gPhase + 1
+        gVisualResponded <- 1
+	gVisualTime <- GetTime()
+	gVisualResponse <- p
+       }
+  if(gPhase >= 2)
+   {
+     gKeepLooping <- 0
+   }
+   
+}

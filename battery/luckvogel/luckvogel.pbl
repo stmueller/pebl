@@ -22,7 +22,8 @@ define Start(p)
 	       ["givefeedback",1],
 	       ["blocksize",40],
 	       ["useAudiofeedback",1],
-               ["responsemode","auto"]  ##Response mode for Layout & Response System
+               ["responsemode","auto"],  ##Response mode for Layout & Response System
+               ["responselabels",["SAME","DIFFERENT"]]  ##Semantic labels for response modes
               ]
 
   gParams <- CreateParameters(parpairs,gParamFile)
@@ -70,7 +71,7 @@ define Start(p)
   gLayout <- CreateLayout("luckvogel", gWin, gParams)
   gLayout.header.visible <- 1
   gLayout.subheader.visible <- 1
-  gLayout.footer.text <- gStrings.footer
+  ## Footer text is now automatically set to semantic labels ("SAME | DIFFERENT")
 
   ## Show cursor only for mousetarget mode (not touchtarget - no cursor on touch screens)
   if(gLayout.responseMode.type == "mousetarget")

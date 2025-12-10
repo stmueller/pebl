@@ -1,0 +1,555 @@
+## User notes:
+## to match Miyake, offset should be 3.4 inches, with participants 18 inches from monitor.
+##
+##Note that with 4 options, guessing is 25%, but if you cheat,
+##and look to only one side, you can get close to 62%.  You may be able to detect this
+##with left vs right, but if they split LR you wouldn't.
+## Thus, you should monitor eye fixations, and make the task easy enough
+## that accuracy is above 65% by adjusting offset or timing.
+
+## Here are instructions from Miyake et al, from which this task is based.
+##
+##Antisaccade task. During each trial of the antisaccade task (adapted from Roberts, Hager,
+##& Heron, 1994), a fixation point was first presented in the middle of the computer screen for
+##a variable amount of time (one of nine times between 1500 and 3500 ms in 250-ms intervals).
+##A visual cue (0.4°) was then presented on one side of the screen (e.g., left) for 225 ms, followed
+##by the presentation of a target stimulus (2.0°) on the opposite side (e.g., right) for 150 ms
+##before being masked by gray cross-hatching. The visual cue was a black square, and the target
+##stimulus consisted of an arrow inside an open square. The participants’ task was to indicate
+##the direction of the arrow (left, up, or right) with a button press response. Given that the
+##arrow appeared for only 150 ms before being masked, participants were required to inhibit
+##the reflexive response of looking at the initial cue (a small black square) because doing so
+##would make it difficult to correctly identify the direction of the arrow. The cues and targets
+##were both presented 3.4 in. away from the fixation point (on opposite sides) and the participants
+##were seated 18 in. from the computer monitor (thus, the total subtended visual angle from cue
+##to target was approximately 21.4°). The participants practiced on 22 trials and then received 90
+##target trials. The proportion of target trials answered correctly served as the dependent measure.
+
+
+ ## sample with paper calibration--56 px stimulus size
+##scale (pixels/cm):         35.2941
+##offset:                    303.529
+##Pixels to eye              1613.65
+##One degree in pixels:      28.1663
+##stimulus sizes             11.2665/56.3326
+
+ 
+define Start(p)
+{
+
+   parpairs <- [["stimsize",35], ##size of arrow box or prompt box.
+                ["offset",200],  ##distance to target/prompt
+		        ["promptdelay",250],  ##time between prompt and arrow
+		        ["stimduration",150],##Time the arrow appear
+		        ["numPractice",22],
+		        ["numtrials",90],
+     	            ["usedown",1],
+                    ["calibratescreen","internal"]]  ##although miyake did not use this, up can be more easily discriminated from lr without a D
+
+   gparams <- CreateParameters(parpairs,gParamFile)
+   gSleepEasy <- 1
+   gWin <- MakeWindow("black")
+   InitializeUpload()  ## Initialize token-based hosting if upload.json exists
+
+   if(gSubNum+""=="0")
+    {
+     gSubNum <- GetSubNum(gWin)
+    }
+   GetStrings(gLanguage)
+   DoScreenCalibration(18)
+  
+   gScreensize <- gVideoWidth+ "x"+gVideoheight
+   MakeDirectory("data")
+
+   gFileOut <- GetNewDataFile(gSubNum,gWin,"antisaccade","csv",
+    "subnum,screensize,block,trial,direction,stim,fixationstart,delaytime,promptstart,arrowstart,maskstart,rt,corresp,resp,corr,bivalentcorr")
+
+   reportFile <- GetNewDataFile(gSubNum,gWin,"antisaccade-report","txt","")
+
+
+  gColor <- MakeColor("white")
+
+
+  
+  ##Let's create the fixation, cue square, and arrow stimuli.
+  ##
+  gPrompt <- Square(gVideoWidth/2,gVideoHeight/2,gParams.stimsize,gColor,0)
+  stimsize <- 55
+  gUp <- Arrow("U",gColor,stimsize)
+  gDown <- Arrow("D",gColor,stimsize)
+  gLeft <- Arrow("L",gColor,stimsize)
+  gRight <- Arrow("R",gColor,stimsize)
+  gFixation  <- Plus(gVideoWidth/2,gVideoheight/2,15,2,gColor)
+  gMask <- MakeMask(gColor,stimsize)
+
+  AddObject(gPrompt,gWin); Hide(gPrompt)
+
+  AddObject(gUp,gWin); Hide(gUp)
+  AddObject(gLeft,gWin);   Hide(gLeft)
+  AddObject(gRight,gWin);   Hide(gRight)
+  AddObject(gDown,gWin);   Hide(gDown)
+
+  AddObject(gFixation,gWin);   Hide(gFixation)
+  AddObject(gMask,gWin);   Hide(gMask)
+
+  footer <- Easylabel(gStrings.footer,gVideoWidth/2,gVideoHeight-150,gWin,30)
+
+
+  if(gParams.usedown)
+  {
+    gStim <- ["L","R","U","D"]
+    gKeys <- ["<left>","<right>","<up>","<down>"]
+  }else{
+    gStim <- ["L","R","U"]
+    gKeys <- ["<left>","<right>","<up>"]
+  }
+
+
+  MessageBox(gStrings.inst1,gWin,20)
+  ShowCursor(0)
+  trial <- 0
+  block <- "P"
+
+  loop(i,Sequence(1,10,1))
+   {
+      direction <- Sample([-1,1])
+      stim <- Sample(gStim)
+      out <-  Trial(direction,stim,500,500)
+      FilePrint_(gFileOut,gSubNum+","+gScreenSize+","+block+ ","+trial+","+direction+","+stim)
+      loop(j,out)
+      {
+        FilePrint_(gFileOut,","+j)
+      }
+      FilePrint(gFileOut,"")
+   }
+
+  MessageBox(gStrings.inst2,gWin)
+
+  ShowCursor(0)
+  loop(i,Sequence(1,gParams.numpractice,1))
+   {
+      direction <- Sample([-1,1])
+      stim <- Sample(gStim)
+      out <-  Trial(direction,stim,gParams.promptdelay,gParams.stimduration)
+      FilePrint_(gFileOut,gSubNum+","+gScreenSize+","+block+ ","+trial+","+direction+","+stim)
+      loop(j,out)
+      {
+        FilePrint_(gFileOut,","+j)
+      }
+      FilePrint(gFileOut,"")
+   }
+
+  MessageBox(gStrings.inst3,gWin)
+
+  ShowCursor(0)
+  trial <- 1
+  block <- "T"
+  data <- []
+  loop(i,Sequence(1,gParams.numtrials,1))
+  {
+      direction <- Sample([-1,1])
+      stim <- Sample(gStim)
+      out <-  Trial(direction,stim,gParams.promptdelay,gParams.stimduration)
+      PushOnEnd(data,out)
+
+
+      FilePrint_(gFileOut,gSubNum+","+gScreenSize+","+block+ ","+trial+","+direction+","+stim)
+      loop(j,out)
+      {
+        FilePrint_(gFileOut,","+j)
+      }
+      FilePrint(gFileOut,"")
+      trial <- trial + 1
+   }
+   tdat <- Transpose(data)
+   correct <- Mean(Nth(tdat,9))
+   correctBi <- Mean(Nth(tdat,10))
+   meanRT <- Mean(Nth(tdat,6))
+
+   FilePrint(reportFile,"PEBL Anti-saccade task result summary")
+   FilePrint(reportfile,TimeStamp())
+   FilePrint(reportfile,"Screen size:         "  + gScreenSize)
+   FilePrint(reportfile,"Participant code:    "  + gSubNum)
+   FilePrint(reportfile,"Accuracy:            " + correct)
+   FilePrint(reportfile,"Bivalent Accuracy:   " + correctBI)
+
+   FilePrint(reportfile,"Response time:       " + meanRT)
+   FilePrint(reportFile,"Note: Bivalent accuracy shows accuracy scored only for the correct direction (horizontal vs vertical).  Here, L is correct for either L or R.; etc.  Possibly, enough information is present to discriminate LR vs UD, but not between LR or UD."   )
+
+   FileClose(gFileOut)
+   FileClose(reportFile)
+
+   ##Upload data files
+   Print("Uploading data files...")
+   out <- UploadFile(gSubNum, gFileOut.filename); Print(out)
+   out <- UploadFile(gSubNum, reportFile.filename); Print(out)
+
+   MessageBox(gStrings.debrief+Round(correct,3),gWin)
+
+}
+
+
+
+##side should be -1 or +1
+##direction should be L, R, or U
+define Trial(side, direction,promptdelay, stimduration)
+{
+
+
+    Show(gFixation)
+    ##Move prompt to opposite side.
+    Move(gPrompt, gVideoWidth/2- side * gparams.offset,gVideoHeight/2)
+
+    arrow <- Lookup(direction,gStim,[gLeft,gRight,gUp,gDown])
+
+    Move(arrow,gVideoWidth/2+side*gParams.offset,gVideoHeight/2)
+    Move(gmask,gVideoWidth/2+side*gParams.offset,gVideoHeight/2)
+    delay <- 1250 + 250 * RandomDiscrete(9)
+    Hide(gPrompt)
+    Hide(arrow)
+
+    Draw()
+    time0a <- GetTime()
+
+    Wait(delay)
+    Hide(gFixation)
+    Show(gPrompt)
+    Draw()
+    time0b <- GetTime()
+    Wait(promptdelay)
+    Show(arrow)
+    Draw()
+    time0c <- GetTime()
+    ##we need to show the mask 'in the background' in case
+    ## we have a fast response.
+    RegisterEvent("<TIMER>", 1, GetTime()+stimduration,"<GEQ>","SHOWSTIM", [arrow,gmask])
+
+
+
+    time1 <- GetTime()
+    resp <-   WaitForListKeyPress(gKeys)
+    ShowStim(arrow,gMask)
+    time2 <- GetTime()
+
+
+    correctresp <- Lookup(direction,gStim,gKeys)
+    correct <- (correctresp == resp)
+
+    ##score whether you got lr or ud correct (i.e. up response would be correct if it were either up or down.
+
+
+    bivalentdir <- Lookup(direction,["L","R","U","D"],["h","h","v","v"])
+
+    bivalentresp <- Lookup(resp,["<left>","<right>","<up>","<down>"],
+                                ["h","h","v","v"])
+
+    bivalentcorr <- (bivalentdir==bivalentresp)
+    Hide(gMask)
+    Draw()
+
+    return [time0a,delay,time0b,time0c,time1,(time2-time1),correctresp,resp,correct,bivalentcorr]
+}
+
+
+
+##direction can be  "L" (left), "R" (right)
+## or "U" indicating up, "D" indicating down
+
+
+define Arrow(direction,fg,xsize)
+{
+
+    obj <- MakeCustomObject("arrow")
+
+    direction <- Uppercase(direction)
+
+    xmid <- Floor(xsize/2)+1
+    color <- MakeColor("black")
+    color.alpha <- 0
+
+    canv <- MakeCanvas(xsize+2,xsize+2,color)
+
+
+    border <- Square(xmid,xmid,xsize,fg,0)
+    AddObject(border,canv)
+
+   if(direction=="U")
+   {
+    xoff <- 0
+    yoff <- -1
+
+   }elseif(direction=="D")
+   {
+    xoff <- 0
+    yoff <- 1
+
+   }elseif(direction=="L")
+   {
+    xoff <- -1
+    yoff <- 0
+
+   }elseif(direction=="R")
+   {
+
+    xoff <- 1
+    yoff <- 0
+
+   }
+
+
+ if(direction=="L" or direction=="R")
+   {
+     line <- Rectangle(xmid,xmid,xsize-14,1,fg,1)
+   }else{
+     line <- Rectangle(xmid,xmid,1,xsize-14,fg,1)
+   }
+
+   AddObject(line,canv)
+
+
+
+    if(direction=="L"  or direction=="R")
+    {
+        trix <- [xoff*3,-xoff*3,-xoff*3]
+    	triy <- [0,3,-3]
+        head <- Polygon(xmid+xoff*(xsize/2-6),xmid,trix,triy,fg,1)
+	tail <- Circle(xmid-xoff*(xsize/2-6),xmid,2,fg,1)
+
+    }else{
+        trix <- [0,3,-3]
+    	triy <- [yoff*3,-yoff*3,-yoff*3]
+        head <- Polygon(xmid,xmid+yoff*(xsize/2-6),trix,triy,fg,1)
+	tail <- Circle(xmid,xmid-yoff*(xsize/2-6),2,fg,1)
+   }
+   head.aa <- 1
+   line.aa <- 1
+   tail.aa <- 1
+   
+  AddObject(head,canv)
+  AddObject(tail,canv)
+  
+  Draw(head)
+  Draw(tail)
+  Draw(border)
+  Draw(canv)
+  
+    obj.canv <- canv
+    obj.border<- border
+    obj.head <- head
+    obj.line <- line
+    obj.tail <- tail
+    obj.draw <- "DrawArrow"
+    obj.move <- "MoveArrow"
+    obj.addobject <- "AddArrow"
+    obj.show <- "ShowArrow"
+    obj.hide <- "HideArrow"
+
+    return obj
+}
+
+
+define DrawArrow(arrow)
+{
+  Draw(arrow.canv)
+}
+
+define MoveArrow(arrow,x,y)
+{
+  Move(arrow.canv,x,y)
+}
+
+define AddArrow(arrow,parent)
+{
+   AddObject(arrow.canv,parent)
+}
+
+define HideArrow(arrow)
+{
+  Hide(arrow.canv)
+}
+
+define ShowArrow(arrow)
+{
+  Show(arrow.canv)
+}
+
+
+define MakeMask(fg, size)
+{
+    xsize <- size
+    xmid <- Floor(xsize/2)+1
+    color <- MakeColor("black")
+    color.alpha <- 0
+
+    obj <- MakeCustomObject("mask")
+    #canvas is larger than the hatches
+    canv <- MakeCanvas(xsize+2,xsize+2,color)
+#    imprint <- Rectangle(xmid,xmid,xsize,xsize,fg,0)
+#    AddOBject(imprint,canv)
+#    Draw(imprint)
+
+
+hatches <- []
+
+
+
+   jump <- (xsize)/6
+   loop(y, Sequence(xmid-xsize/2,xmid+xsize/2,jump))
+     {
+
+    hatchlr <- Line(0,y,xsize,0,fg)
+    AddObject(hatchlr,canv)
+    PushOnEnd(hatches,hatchlr)
+
+    hatchud <- Line(y,0,0,xsize,fg)
+    AddObject(hatchud,canv)
+    PushOnEnd(hatches,hatchud)
+
+     }
+
+  obj.canv <- canv
+  obj.hatches <- hatches
+
+  obj.draw <- "DrawArrow"
+  obj.move <- "MoveArrow"
+  obj.AddObject <- "AddArrow"
+  obj.show <- "ShowArrow"
+  obj.hide <- "HideArrow"
+
+  return obj
+}
+
+##this removes the stimulus and shows the mask,
+##in the background while awaiting response.
+define ShowStim(arrow,mask,evt:0) # Show the cue(s)
+{
+    Hide(arrow)
+    Show(mask)
+    Draw()
+  return "<timeout>"
+}
+
+
+define DoScreenCalibration(eyedistance:18)
+{
+
+  notdone <- 1
+  while(notdone)
+  {
+
+  if(gParams.calibratescreen=="none")
+    {
+     ##no calibration. We'll just use parameterized values.
+     caldata <- 30
+     eyepixeldistance <- 45.72 * caldata      ##how many pixels away the eye is.
+     ##We need to calculate the distance of 3.4inches = 86mm on either side of fixation, based on screen resolution.
+     pixelsOffset <- 8.6 * caldata ##this is how many pixels on either side of fixation
+     stimsize <- gParams.stimsize
+     alertsize <- stimsize/5
+
+    }else {
+ 
+    
+     if(gParams.calibratescreen=="internal")
+     {
+      data <- CalibrateScreen(gWin)
+      calData <-data.pixelspermm*10
+      eyepixeldistance <- 45.72 * caldata      ##how many pixels away the eye is.
+
+
+
+     }elseif(gParams.calibratescreen=="user_entry")
+     {
+      lab <- EasyLabel("Enter calibration number obtained in pixels/cm (between 10 and 300)",gVideoWidth/2,gVideoHeight/2-50,gWin,22)
+      tb <- EasyTextBox("",gVideoWidth/2-100,gVideoHeight/2,gWin,15,200,50)
+      cont <- 1
+      Draw()
+       while(cont)
+       {
+        data <- GetInput(tb,"<return>")
+        calData <- ToNumber(data)
+         if(calData>10 and calData<300)
+         {
+          cont <- 0 
+         }
+        eyepixeldistance <- 45.72 * caldata      ##how many pixels away the eye is.
+	
+       RemoveObject(lab,gWin)
+       RemoveObject(tb,gWin)
+    
+     }}
+
+     ##caldata should be pixels/cm
+ 
+     ##We need to calculate the distance of 3.4inches = 86mm on either side of fixation, based on screen resolution.
+     pixelsOffset <- 8.6 * caldata ##this is how many pixels on either side of fixation
+
+     ##Eye distance is 18 inches or 45.72 cm
+     eyedistancecm <- eyedistance*2.54
+
+
+     ##stimulus is .4 degrees visual angle:
+     ##Now, we want to come up with a coefficient that transforms
+     ##pixels from center of screen to degrees visual angle.
+  ##tan(1) is the ratio of rise/run for 1 degree.
+  ##so, tan(theta0* eyepixeldistance )= the number of pixels in 1 degree visual angle.
+ 
+      degreesize <-  (Tan(DegToRad(1.0)) * eyepixeldistance)
+      stimsize <- degreesize*2.0
+      alertsize <- degreesize * .4
+   }
+
+   ##Show a standard that is 9 inches--1/2 the distance.
+   ## 
+    standard <- 9  ##draw nine inches
+    standardpix <- eyepixeldistance /2
+
+#     if(standardpix > gVideoWidth-100)
+#     {
+#       standardpix <- gVideoWidth-100
+#       standard <- 18*(standardpix/eyepixeldastance)
+#       
+#     }
+    ratio <- Round(eyepixeldistance/standardpix,2)
+
+    r <- Rectangle(gVideoWidth/2, gVideoHeight/2,standardpix,40,MakeColor("grey20"),1)
+    r2 <- Rectangle(gVideoWidth/2,gVideoHeight/2,standardpix,40,MakeColor("white"),0)
+
+   ##~7 inch line in middle:
+    line <- Line(gVideoWidth/2-pixelsoffset, gVideoHeight/2, 2*pixelsoffset,0,MakeColor("red"))
+    AddObject(r,gWin)
+    AddObject(r2,gWin)
+    AddObject(line,gWin)
+    Print("Eye distance in cm/in  "+eyeDistanceCM +"/"+eyeDistance)
+     
+     eyetext <- SubstituteStrings(gStrings.eyedistance,[["<DIST>",Round(standardpix,-1)],
+                                                        ["<DISTCM>",standard*2.54],
+							["<DISTIN>",standard],
+                                                        ["<EYEDIST>",Round(eyepixeldistance,-1)],
+							["<RATIO>",ratio]])
+    tb <- EasyTextBox(eyetext, gVideoWidth/2-400, r.y+50, gwin,22,800,300, "white","black")
+    
+    Draw()
+    resp <- WaitForListKeyPress(["Y","R"])
+    Print(resp)
+    notdone <- (Uppercase(resp) == "R")
+
+  }
+
+    
+   Print("scale (pixels/cm):         " + caldata + CR(1)+
+         "offset from center in px:  " + pixelsoffset + CR(1) +
+         "Pixels to eye              " + eyepixeldistance +CR(1)+
+         "One degree in pixels:      " + degreesize +CR(1)+
+         "stimulus sizes             " + alertsize +"/"+stimsize )
+
+   ##participant should sit 18 inches from monitor.
+
+}
+
+
+define GetStrings(lang)
+{
+   ##Known trasnlations: EN
+  gStrings <- GetTranslations("antisaccade", lang)
+}

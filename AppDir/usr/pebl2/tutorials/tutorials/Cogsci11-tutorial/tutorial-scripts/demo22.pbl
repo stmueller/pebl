@@ -1,0 +1,32 @@
+## Demo to save a pooled data file
+##
+
+define Start(p)
+{
+
+
+ if(not FileExists("pooled-data.csv"))
+  {
+    pooled <- FileOpenAppend("pooled-data.csv")
+    FilePrint(pooled,"subnum,timestamp,acc1,acc2,acc3,acc4,rt1,rt2,rt3,rt4")
+  } else {
+    pooled <- FileOpenAppend("pooled-data.csv")
+  }
+
+
+  aggAcc <- [1,2,3,4]
+  aggRT <- [200,300,400,600]
+
+ FilePrint_(pooled,gSubNum+","+TimeStamp())
+  loop(i,aggAcc)
+  {
+     FilePrint_(pooled,","+i)
+  }
+  loop(i,aggRT)
+  {
+     FilePrint_(pooled,","+i)
+  }
+  FilePrint(pooled,"") ##add end-of-line
+  FileClose(pooled)
+
+}

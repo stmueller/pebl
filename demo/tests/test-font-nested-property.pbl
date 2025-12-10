@@ -1,0 +1,60 @@
+## Test whether modifying font properties through nested access works with Draw()
+
+define Start(p)
+{
+    gWin <- MakeWindow()
+
+    ## Create a label with default font
+    label <- EasyLabel("Original Text Size 18", gVideoWidth/2, 100, gWin, 18)
+    Draw()
+    Print("Initial label created with size 18")
+    WaitForAnyKeyPress()
+
+    ## Test 1: Modify nested property, then call Draw(label)
+    Print("Test 1: Setting label.font.size <- 44, then calling Draw(label)")
+    label.font.size <- 44
+    Print("  Font size property in object: " + label.font.size)
+    Print("  Calling Draw(label)...")
+  #  Draw(label)
+    Print("  Does the text appear larger? (Press key)")
+    Draw()
+    WaitForAnyKeyPress()
+
+    ## Test 2: Modify nested property, then call global Draw()
+    Print("Test 2: Setting label.font.size <- 72, then calling Draw()")
+    label.font.size <- 72
+    label.font.fgcolor <- MakeColor("blue")
+    Print("  Font size property: " + label.font.size)
+    Print("  Calling Draw()...")
+    Draw()
+    Print("  Does the text appear even larger and blue? (Press key)")
+    WaitForAnyKeyPress()
+
+    ## Test 3: Replace whole font object, then call Draw(label)
+    Print("Test 3: Creating new font and setting label.font <- newFont, then Draw(label)")
+    newFont <- MakeFont("DejaVuSans.ttf", 0, 32, MakeColor("red"), MakeColor("white"), 1)
+    label.font <- newFont
+    Print("  Font object replaced")
+    Print("  Calling Draw(label)...")
+    Print("  Does text appear red on white at size 32? (Press key)")
+    Draw()
+    WaitForAnyKeyPress()
+
+    ## Test 4: No Draw() call at all - verify nothing changes
+    Print("Test 4: Setting label.font.size <- 100 WITHOUT calling Draw()")
+    label.font.size <- 100
+    Print("  Font size property: " + label.font.size)
+    Print("  NOT calling Draw() - text should still look the same")
+    Print("  (Press key)")
+    Draw()
+    WaitForAnyKeyPress()
+
+    ## Test 5: Now call Draw(label) to confirm the change was stored
+    Print("Test 5: Now calling Draw(label) after the previous change")
+    Draw(label)
+    Print("  Does text now appear huge at size 100? (Press key)")
+    Draw()
+    WaitForAnyKeyPress()
+
+    return(0)
+}

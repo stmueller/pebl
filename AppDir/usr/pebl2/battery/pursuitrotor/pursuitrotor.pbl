@@ -1,0 +1,238 @@
+###########################################################
+##  PEBL Pursuit Rotor Task, Version 0.1
+##
+##  A visual-manual dexterity tracking task.
+##  This is a computer implementation of the physical one popular in the mid
+##  20th century.
+##
+##
+##  Traditionally, physical task operated at a rate of 60 RPM (1/sec).
+##  This is exceedingly fast on computer with mouse control.  Control
+##  rate with gSpeed below (.1 or .2 seems reasonable)
+##
+##  Traditionally, results were given in 'time on target'.  For a
+##  trial of, say, 30 seconds, one determines how much of that time
+##  was a stylus touching the target.  We report this, as well as
+##  distance from target, for each sample. Sampling rate is at least
+##  1/10 ms.  Detailed data are saved in pursuitrotor-X.txt, and
+##  a summarized report appears in pursuitrotor-report-X.txt (as well
+##  as at the end of the study)
+##
+##  For use with PEBL 0.10 or later
+##  http://pebl.sf.net
+##  Part of  The PEBL Psychological Testing Battery
+##  2009-03 Released into Public Domain
+##  by Shane T. Mueller, Ph.D. (smueller at obereed dot net)
+##
+##
+##
+###########################################################
+##  Raw data file outputs:
+##  in pursuit-rotor-X.txt
+##  subnum trial sample abstime relative_time targx targy cursx cursy
+##  hit time_diff total_time miss_in_pixels total_misses
+##
+##
+##Assume 800x600 resolution with 17" screen to map onto above specs
+
+
+define Start(p)
+{
+   InitializeUpload()  ## Initialize token-based hosting if upload.json exists
+
+   gScriptName <- "PEBL Pursuit Rotor task"
+
+   ##Default parameter values, used if .par file does not exist.
+
+   parpairs <- [["trialtime",15],
+                ["trials",4],
+	        ["targsize",25],
+		["radius",253], ##RADIUS USED IN ORIGINAL
+	        ["speed",.1333333] #7.5 rotations/sec
+               ]
+
+   gParams <- CreateParameters(parpairs,gParamFile)
+
+   Init()
+   Draw()
+
+   ##create the output files.
+   header <-"subnum,trial,steps,timeNow,timeElapsed,targX,targY,mouseX,mouseY,inside,tdiff,totaltime,diff,totaldev"
+
+   gFileOut <- GetNewDataFile(gSubNum,gWin,"pursuitrotor","csv",header)
+   gReportOut <- GetNewDataFile(gSubNum,gWin,"pursuitrotor-report","txt","")
+
+
+   tmp <- ReplaceChar(gStrings.inst1,"<TRIALS>",gParams.trials)
+   tmp <- ReplaceChar(tmp,"<TRIALTIME>",gParams.trialtime)
+
+   inst <- EasyTextBox(tmp,gVideoWidth/2-200,gVideoHeight/2-100,gWin,15,400,200)
+   
+   Draw()
+   Wait(3000) ##this seems to catch a stray click when it appears and the instructions don't get shown.
+   
+   times<- []
+   trial <- 1
+
+   inst.text <- gSTrings.next
+   Hide(inst)
+
+   while(trial <= gParams.trials)
+    {
+     WaitForDownClick()
+     Hide(inst)
+     t <- Trial(gParams.trialtime, gSubnum + "," + trial)
+
+     times <- Append(times,t)
+     trial <- trial + 1
+     Show(inst)
+     Draw()
+    }
+
+
+
+   out  <-    Print("=====================================")
+   out <- out +  CR(1)+ Print("PEBL Pursuit Rotor task, Version 0.1")
+   out <- out +  CR(1)+ Print(TimeStamp())
+   out <- out +  CR(1)+ Print(GetPEBLVersion())
+   out <- out +  CR(1)+ Print("Participant code: " + gsubnum)
+   out <- out +  CR(1)+ Print("System type: " + GetSystemType())
+   out <- out +  CR(1)+ Print("=====================================")
+   out <- out +  CR(1)+ Print("Video Width:              " + gVideoWidth)
+   out <- out +  CR(1)+ Print("Video Height:             " + gVideoHeight)
+   out <- out +  CR(1)+ Print("Path radius:              " + gRadius)
+   out <- out +  CR(1)+ Print("Target radius:            " + gParams.TargSize)
+   out <- out +  CR(1)+ Print("Speed (rotations/sec):    " + gParams.Speed)
+   out <- out +  CR(1)+ Print("Total time per trial:     " + gParams.trialtime)
+   out <- out +  CR(1)+ Print("Number of trials:         " + gParams.trials)
+
+   out <- out +  CR(1)+ Print("=====================================")
+   out <- out +  CR(1)+ Print("Time on target:")
+   out <- out +  CR(1)+ Print("   Round       Time on target      Mean deviation (pixels)")
+    x <- 1
+
+   loop(i,times)
+    {
+   out <- out +   CR(1)+   Print("   Trial ["+ x+"]   " + Format(First(i),5) + "             " + Second(i))
+      x <- x + 1
+    }
+   out <- out + CR(1)+  Print("=====================================")
+
+   out <- out + CR(2) + gStrings.debrief
+   inst.text <- out
+   inst.width <- 700
+   inst.x <- 50
+   inst.height <- 500
+   inst.y <- 50
+   Print(out)
+   FilePrint(gReportOut,out)
+   FileClose(gFileOut)
+   FileClose(gReportOut)
+
+   ##Upload data files
+   Print("Uploading data files...")
+   out <- UploadFile(gSubNum, gFileOut.filename); Print(out)
+   out <- UploadFile(gSubNum, gReportOut.filename); Print(out)
+
+   Draw()
+   WaitForDownClick()
+}
+
+
+
+define Trial(timeinsecs,head)
+{
+  col1 <- MakeColor("red")
+  col2 <- MakeColor("darkred")
+  gTarg <- Circle(gHomeX+gRadius,gHomeY,gParams.TargSize,col2,1)
+  AddObject( gTarg,gWin)
+  SetMouseCursorPosition(Round(gHomeX+gRadius),gHomeY)
+  cont <- 1
+  steps <- 0
+  totaltime <- 0
+  totaldev <- 0
+
+  inst <- EasyLabel(gStrings.begin,gHomeX,gHomeY,gWin,22)
+  Draw()
+  WaitForClickOnTarget([gTarg],[0])
+  Hide(inst)
+  tNow <- GetTime()
+  t0 <- GetTime()
+  while(cont)
+  {
+
+    tLast <- tNow
+    tNow <- GetTime()
+    tDiff <- tNow -tLast
+    tElapsed <- tNow - t0
+    gTarg.x <- gHomeX+gRadius * Cos(tElapsed/1000*2*gPi*gParams.Speed)
+    gTarg.y <- gHomeY+gRadius * Sin(tElapsed/1000*2*gPi*gParams.Speed)
+
+
+    cont <- (tElapsed < timeinsecs*1000)
+    ##Just a check:
+    ## SetMouseCursorPosition(Round(gTarg.x), Round(gTarg.y))
+    mouse <- GetMouseCursorPosition()
+    inside <- Inside(mouse,gTarg)
+    if(inside)
+     {
+        gTarg.color <- col1
+     }else{
+       gTarg.color <- col2
+     }
+
+    Draw()
+    ##compute deviation on trial.
+    diff <- Dist(mouse,[gTarg.x,gTarg.y])
+    totaldev <- totaldev + diff
+
+    totaltime <- totaltime + tDiff*inside  #increment the elapsed time
+
+    FilePrint(gFileOut,head+ "," + steps + "," + tNow + "," + tElapsed  + "," +  gTarg.x + "," + gTarg.y + "," + First(mouse) +  "," +
+    Second(mouse) + "," +inside + "," + tdiff + "," + totaltime + "," + diff + "," + totaldev)
+    Wait(10)  ##Needed to allow mouse to sync.
+    steps <- steps + 1
+  }
+
+  RemoveObject(gTarg,gWin)
+  RemoveObject(inst,gWin)
+  Draw()
+  return [totaltime, totaldev/steps]
+}
+
+define Init()
+{
+  gPi <- 3.141596
+  gHomeX <-  Round(gVideoWidth/2)
+  gHomeY <- Round(gVideoHeight/2)
+
+  gWin <- MakeWindow()
+
+  gSleepEasy <- 1
+  if(gSubNum+""=="0")
+   {
+     gSubNum <- GetSubNum(gWin)
+   }
+
+
+  GetStrings(gLanguage)
+  ##These dimensions were taken from description of physical PR task:
+
+  gRadius <- gParams.radius
+
+  gback1 <- Circle(gHomeX,gHomeY,gRadius+10,MakeColor("grey40"),1)
+  AddObject(gback1,gWin)
+  gback2 <- Circle(gHomeX,gHomeY,gRadius-10,MakeColor("black"),1)
+  AddObject(gback2,gWin)
+
+
+  ##How many revolutions per second
+
+}
+
+
+define GetStrings(lang)
+{
+  gStrings <- GetTranslations("pursuitrotor",lang)
+
+}

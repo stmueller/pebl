@@ -1,0 +1,46 @@
+---
+title: "Analyze vocal statistics for voice key in PEBL"
+output: html_notebook
+---
+
+```{r}
+s0 <- read.csv("audio_calibration_1722_silence.csv")
+s1 <- read.csv("audio_calibration_1722_wisconsin.csv")
+s2 <- read.csv("audio_calibration_1722_apartment.csv")
+s3 <- read.csv("audio_calibration_1722_harmony.csv")
+s4 <- read.csv("audio_calibration_1722_suspect.csv")
+s5 <- read.csv("audio_calibration_1722_christmas.csv")
+s0$word <- "silence"
+s1$word <-"wisconsin"
+s2$word <- "apartment"
+s3$word <- "harmony"
+s4$word <- "suspect"
+s5$word <- "christmas"
+
+par(mfrow=c(1,2))
+max <- max(s1[,2:3])
+matplot(s1[,2:3],type="o",pch=16,cex=.4,ylim=c(0,max))
+matplot(s0[,2:3],type="o",pch=16,cex=.4,ylim=c(0,max))
+
+for(i in 1:5){
+  
+
+ if(0) {
+    print ("here i am")
+   } else {
+  print("no im not")
+}
+}
+```
+
+
+```{r, fig.width=8,fig.height=10}
+library(tidyverse)
+sall <- bind_rows(s1,s2,s3,s4,s5)
+noiseall <-s0[rep(1:nrow(s0),5),] 
+noiseall$word <- rep(c("wisconsin","apartment","harmony","suspect","christmas"),nrow(s0))
+noiseall$comp <- "Silence"
+sall$comp <- "Word"
+rbind(sall,noiseall) |> pivot_longer(cols=energy:directions_per_sec) |> 
+  ggplot(aes(x=time_ms,group=comp,color=comp,y=value)) + geom_line() + facet_wrap(word~name,scales='free',ncol=5) + theme_minimal()
+```

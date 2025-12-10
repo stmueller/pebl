@@ -1,0 +1,210 @@
+define Start(p)
+{
+
+  gWin <- MakeWindow("black")
+  gSleepEasy <- 1
+  ui <- []
+  tmp <- PlotFigure([1,3,5],[gVideoWidth/2+200,100],40,0,5, MakeColor("blue"))
+  PushOnENd(ui,tmp)
+  tmp <- PlotFigure([1,5,4],[gVideoWidth/2+400,100],40,0,5, MakeColor("blue"))
+  PushOnENd(ui,tmp)
+  tmp <- PlotFigure([1,2,5,4,3],[gVideoWidth/2+200,300],40,0,5, MakeColor("blue"))
+  PushOnENd(ui,tmp)
+  tmp <- PlotFigure([2,1,2,3,5,2],[gVideoWidth/2+400,300],40,0,5, MakeColor("blue"))
+  PushOnENd(ui,tmp)
+  tmp <- PlotFigure([1,2,3,5,4],[gVideoWidth/2+200,500],40,0,5, MakeColor("blue"))
+  PushOnENd(ui,tmp)
+  tmp <- PlotFigure([2,3,1,5,4],[gVideoWidth/2+400,500],40,0,5, MakeColor("blue"))
+  PushOnENd(ui,tmp)
+  MessageBox("In this task, you will see a set of random figures, like the ones you see on the right.  You will see them one at a time, and then be asked to produce as many of them as you can, in any order.  Try not to guess.", gWin,20,100,600,0)
+
+ RemoveObjects(tmp,gWin)
+#    out <- FigTrial(20)
+
+
+}
+
+##
+##
+define FiguralMemoryTrial(length,size:5,soa:2000)
+{
+  stimlist <- []
+
+  loop(i,length)
+  {
+   stim1 <- MakeStimulus(5)
+   PushOnEnd(stimlist,stim)
+   tmp <-PlotFigure(stim)
+
+
+   
+  }
+
+   ##do answer grid layout in a 4x3 grid.
+   width <- 800
+   height <- 600
+   left <- gVideoWidth/2-width/2
+   top <- gVideoHeigth/2-height/2
+   answerlayout <- LayoutGrid(left,left+width,top,top+height,
+                             4,3,0)
+
+
+   boxes <- []		  
+   loop(box,answerlayout)
+   {
+     box <- Square(First(box),Second(box),55,MakeColor("grey80"),1)
+     AddObject(box,gWin)
+     PushOnEnd(boxes,box)
+   }
+
+   count <- 1
+   stimuli <- []
+   while(count < length)
+   {
+     out <-  MakeStimulus()
+     ui <- PlotFigure(out, Nth(answerlayout,count),25,5,3,
+                               MakeColor("blue"))
+     PushOnEnd(stimuli,ui)
+     count <- count + 1
+     Wait(soa)
+  }
+
+}
+
+
+define MakeRandomStimulus(vertices)
+{
+ edges <- 2+RandomDiscrete(vertices+3)
+ return SampleNWithReplacement(Sequence(1,vertices,1),edges)
+}
+
+
+define FigFluencyTrial()
+{
+
+  centerX <- gVideoWidth/2+250
+  centerY <- gVideoHeight/2
+
+  xys <-MakePoints([centerX,centerY],200,5)
+
+  ##plot the dots:
+  col <- MakeColor("blue")
+  col2 <- MakeColor("navy")
+
+  pts <- []
+  ui <- []
+
+  loop(i,xys)
+  {
+    bg <- Circle(First(i),Second(i),25,col2,1)
+    pt <- Circle(First(i),Second(i),20,col,1)
+    bg.aa <- 1
+    pt.aa <- 1
+    
+    AddObject(bg,gWin)
+    AddObject(pt,gWin)
+    PushOnEnd(pts,bg)
+    PushOnEnd(ui,bg)
+    PushOnEnd(ui,pt)
+
+  }
+  hilight <- Circle(0,0,25,MakeColor("green4"),0)
+  hilight.aa <- 1
+  
+  AddObject(hilight,gWin)
+  Hide(hilight)
+  Draw()
+
+  ##Collect clicks on target to create a pattern.
+  done <- EasyLabel("Done",gVideoWidth/2,gVideoHeight-100,gWin,22)
+  doneback <- Rectangle(done.x,done.y,done.width+40,done.height+20,MakeColor("blue"),0)
+  AddObject(done,gWin)
+  AddObject(doneback,gWin)
+
+  targets <- Append(pts,done)
+  Draw()
+  cont <- 1
+  prev <- 0
+  clicksequence <- []
+  while(cont)
+   {
+     clicks  <- [1,2,3,4,5,0]
+     Draw()
+     out <-  WaitForClickOnTarget(targets,clicks)
+
+      if(out)
+      {
+
+        b <- Nth(xys,out)
+       	Move(hilight,First(b),Second(b))
+	Show(hilight)
+        PushOnEnd(clicksequence,out)
+        if(prev and (not prev==out))
+	{
+
+  	 #draw a line between previous and current.
+	 a <- Nth(xys,prev)
+
+         tl <- ThickLine(First(a),Second(a),
+                        First(b),Second(b),6,col2)
+	 AddObject(tl,gWin)
+	 Pushonend(ui,tl)
+
+	 Draw()	 
+
+      }
+         prev <- out
+      }else{
+        cont <- 0
+      }
+   }
+
+  return clicksequence
+}
+
+##this creates points of a hexagon suitable for the test.
+define MakePoints(center,radius,vertices)
+{
+  pi <- 3.14159
+   pts <- []
+
+   vertices <- Sequence(1/vertices,1,1/vertices)
+   loop(i,vertices)
+    {
+      PushOnEnd(pts,[First(center)+radius * Cos(2*pi*i),
+                     Second(center)+radius * Sin(2*pi*i)])
+
+    }
+    return pts
+}
+
+
+
+define PlotFigure(solution, center,radius,vertices,size,color)
+{
+  pts <- MakePoints(center,radius,vertices)
+  ui <- []
+
+  if(Length(solution)>1)
+   {
+   loop(i,Sequence(2,Length(solution),1))
+   {
+    a <- Nth(pts,Nth(solution,i-1))
+    b <- Nth(pts,Nth(solution,i))
+    tmp <- Line(First(a),Second(a),First(b)-First(a),Second(b)-Second(a),color)
+    AddObject(tmp,gWin)
+    PushOnEnd(ui,tmp)
+   }
+   }
+   if(Length(solution)>0)
+   {
+   loop(i,pts)
+   {
+    tmp <- Circle(First(i),Second(i),size,color,1)
+    tmp.aa <- 1
+    AddObject(tmp,gWin)
+    PushOnEnd(ui,tmp)
+   }
+  }
+  return ui
+}

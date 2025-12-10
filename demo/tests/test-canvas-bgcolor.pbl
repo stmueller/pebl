@@ -1,0 +1,40 @@
+## Test if canvas background color can be changed via nested properties
+define Start(p)
+{
+    gWin <- MakeWindow("white")
+
+    Print("Creating canvas with BLUE background")
+    canvas <- MakeCanvas(400, 300, MakeColor("blue"))
+    AddObject(canvas, gWin)
+    Move(canvas, gVideoWidth/2, gVideoHeight/2)
+    Draw()
+
+    Print("Canvas bgcolor: " + canvas.bgcolor.red + "," + canvas.bgcolor.green + "," + canvas.bgcolor.blue)
+    Wait(2000)
+
+    Print("Setting canvas.bgcolor.red <- 255 (blue -> magenta)")
+    canvas.bgcolor.red <- 255
+    Draw()
+
+    Print("Canvas bgcolor: " + canvas.bgcolor.red + "," + canvas.bgcolor.green + "," + canvas.bgcolor.blue)
+    Print("Does background look MAGENTA? (should be 255,0,255)")
+    Wait(2000)
+
+    Print("Setting canvas.bgcolor.green <- 255 (magenta -> white)")
+    canvas.bgcolor.green <- 255
+    Draw()
+
+    Print("Canvas bgcolor: " + canvas.bgcolor.red + "," + canvas.bgcolor.green + "," + canvas.bgcolor.blue)
+    Print("Does background look WHITE? (should be 255,255,255)")
+    Wait(2000)
+
+    Print("Setting canvas.bgcolor <- gold")
+    canvas.bgcolor <- MakeColor("gold")
+    Draw()
+
+    Print("Canvas bgcolor should now be GOLD")
+    Wait(2000)
+
+    Print("Test complete - press any key")
+    WaitForAnyKeyPress()
+}

@@ -1,0 +1,45 @@
+define Start(p)
+{ 
+
+  gVideoWidth <- 800
+  gVideoHeight <- 600
+   gWin <- MakeWindow("grey80")
+
+   textscroll <- MakeScrollingTextBox(FileReadText("stdout.txt"), 50,50,gWin,10,gVideoWidth-100,gVideoHeight-100,0)
+  done <- MakeButton("QUIT",400,25,gWin,150)
+  Draw()  
+
+  cont <- 1
+  items <- [done,textscroll]
+  file <- ""
+
+  newmd5  <- ""
+  while(cont)
+  {
+
+    resp <-  WaitForClickOnTargetWithTimeout(items,Sequence(1,Length(items),1),                                            500)
+
+    if(resp=="<timeout>")
+    {
+
+      oldmd5 <- newmd5
+      file <- FileReadText("stdout.txt")   
+      newmd5 <- MD5Sum(file)
+
+      if(not newmd5==oldmd5)
+      {
+        SetScrollingText(textscroll,file,0)
+        DrawScrollbox(textscroll)
+      }
+
+    }else{
+      obj <- Nth(items,resp)
+      CallFunction(obj.clickon,[obj,gClick])
+      #Exit condition:
+      cont <- resp>1
+
+    }
+     Draw()
+
+}}
+

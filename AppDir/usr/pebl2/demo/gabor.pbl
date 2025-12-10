@@ -1,0 +1,139 @@
+define Start(p)
+{
+
+
+     patchsize <- 80
+     bglev <- 20
+     sd <- 10
+   
+     
+     gWin <- MakeWindow("grey20")
+
+
+#     bg <- MakeCanvas(700,500,MakeColorRGB(bglev,bglev,bglev))
+#     AddObject(bg,gWin)
+#     Move(bg,gVideoWidth/2,gVideoHeight/2)
+
+     gSleepEasy <- 1
+     angles <- Sequence(0,6.283,6.283/10)
+
+     cans <- []
+     labs <- []
+     x <- 00
+    lab <- EasyLabel("Gabor patch demo",400,25,gWin,22) 
+    loop(i,angles)
+       {
+
+         t1 <- GetTime()
+     	 can <- MakeGabor(patchsize,gWin,8,sd,i,0,bglev)
+         t2 <- GetTime()
+         Print(t2-t1)
+         AddObject(can,gWin)
+         Move(can,50+x,95)
+         lab1 <- EasyLabel("Angle: " + i,50+x,170,gWin,12)
+         Draw()
+         x <- x + 120
+         cans <- Append(cans,can)
+         labs <- Append(labs,lab1)
+        }
+
+   cans2 <- []
+    x <- 0
+    freq <- Sequence(1,21,2)
+    loop(i,freq )
+       {
+
+         t1 <- GetTime()
+     	 can <- MakeGabor(patchsize,gWin,i,sd,0.25,0,bglev)
+         t2 <- GetTime()
+         Print(t2-t1)
+
+         AddObject(can,gWin)
+         Move(can,50+x,250)
+         lab1 <- EasyLabel("Freq: "+ i,50+x,310,gWin,12)
+         Draw()
+         x <- x + 120
+         cans2 <- Append(cans2,can)
+         labs <- Append(labs,lab1)
+        }
+
+    cans3 <- []
+    x <- 0
+    phases <- Sequence(0,6.283*2,6.283/5)
+    loop(i,phases )
+       {
+         phase <- 2*3.14159 * i/5
+
+         t1 <- GetTime()
+     	 can <- MakeGabor(patchsize,gWin,6,sd,0,i,bglev)
+         t2 <- GetTime()
+         Print(t2-t1)
+
+         AddObject(can,gWin)
+         Move(can,50+x,390)
+         lab1 <- EasyLabel("Phase: "+ Round(phase*100)/100,50+x,450,gWin,12)
+         Draw()
+         x <- x + 120
+         cans3 <- Append(cans3,can)
+         labs <- Append(labs,lab1)
+        }
+
+
+     lab.text <- "Demo complete. Press any key to see animation."   
+     Draw()
+
+	 WaitForAnyKeyPress()
+     loop(i,labs)
+     {
+       Hide(i)
+     }
+     loop(i,cans)
+     {
+       Hide(i)
+       Move(i,150,250)
+     }
+     loop(i,cans2)
+     {
+       Hide(i)
+       Move(i,350,250)
+     }
+
+     loop(i,cans3)
+     {
+       Hide(i)
+       Move(i,550,250)
+     }
+
+
+
+    lab.text <- "Press spacebar to repeat or X to exit."   
+    cont <- 1
+
+    animate <- Transpose([cans,cans2,cans3])
+    while(cont)
+    {
+     loop(i , animate)
+     {
+       loop(j,i)
+       {
+        Show(j)
+       }
+        Draw()
+        Wait(100)
+
+    
+       loop(j,i)
+       {
+         Hide(j)
+       }
+     }
+    Draw()
+
+    input <- WaitForListKeyPress([" ","X"])
+    if(input == "x")
+     {
+       cont <- 0
+     }	
+    }
+
+}

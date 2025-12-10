@@ -1,0 +1,507 @@
+##################################################
+##  PEBL Visual Search Task
+##  Part of the PEBL Test Battery, and the
+##  PEBL Cognitive Decathlon
+##
+## (c) 2010-2014 Shane T Mueller smueller@obereed.net
+##
+## This software may be used, adapted, altered, or
+## redistributed without consent of the author.
+##################################################
+
+define Start(p)
+{
+   gScriptName <- "PEBL Visual Search Task"
+
+  parpairs <- [["boxwidth",600],
+               ["boxheight",400],
+	       ["targ1","O"],
+	       ["targ2","X"],
+	       ["foil1","U"],
+	       ["foil2","D"],
+	       ["foil3","G"],
+	       ["foil4","C"],
+	       ["foil5","Q"],
+	       ["search1size",10],
+	       ["search2size",20],
+	       ["search3size",30],
+	       ["numtargs1",0],
+	       ["numtargs2",1],
+	       ["numtargs3",5],
+	       ["usetargs3",0],
+               ["targcol1","white"],#
+	       ["targcol2","green"],#
+	       ["foilcolor","white"],#
+	       ["reps", 5]
+              ]
+
+  gParams <- CreateParameters(parpairs,gParamFile)
+
+  gWin <- MakeWindow("black")
+  gSleepEasy <- 1
+
+  ##get subject code if you don't have one.
+  if(gSubNum+"" == "0")
+   {
+     gSubNum <- GetSubNum(gWin)
+   }
+
+
+  GetStrings(gLanguage)
+
+
+  gHomeX <- Round(gVideoWidth/2)
+  gHomeY <- Round(gVideoHeight/2)
+
+  gDisplayBoxSizeX <- gParams.boxwidth   ##pixels/side,centered
+  gDisplayBoxSizeY <- gParams.boxheight  ##pixels/side,centered
+
+
+   ##The following specify the conditions of the experiment.
+   targs  <- [gParams.targ1,gParams.targ2]
+   foils <- [gParams.foil1,gParams.foil2,
+             gParams.foil3,gParams.foil4,gParams.foil5]
+
+
+   foilcolor <- MakeColor(gParams.foilcolor)
+   searchsize <- [gParams.search1size,gParams.search2size,gParams.search3size]
+
+   numtargs <- [gParams.numtargs1,gParams.numtargs2]
+   if(gParams.usetargs3)
+   {
+     PushOnEnd(numtargs,gParams.numtargs3)
+   }
+
+   targcols <- [gParams.targcol1,gParams.targcol2]
+   reps  <- gParams.reps
+
+
+   gFileOut <- GetNewDataFile(gSubNum,gWin,"vsearch","csv",
+    "sub,trial,time,numtargs,size,targchar,targcol,stim,resp,corr,rt1,rt2")
+
+
+    MessageBox(ReplaceChar(gStrings.inst1,"<NONE>",gStrings.none),gWin)
+
+
+   ##These aggregate the conditions into a single design list.
+   sizes  <- (DesignFullCounterbalance(numtargs,searchsize))
+   bytargs <- DesignFullCounterbalance(targs,targcols)
+   sizebycolor <- DesignFullCounterbalance(sizes,bytargs)
+   design <- Shuffle(RepeatList(sizebycolor,reps))
+
+   numtrials <- Length(design)
+   triallab <- EasyLabel(SubstituteStrings(gStrings.trial,
+                                           [["<I>","1"],
+                                            ["<N>",numtrials]]),
+					 gVideoWidth-100,50,gWin,12)
+
+   ##canned practice trials.
+
+   MessageBox(gSTrings.inst2,gWin)
+   SearchTrial("X",["C","G","Q","U","D"], MakeColor("white"),MakeColor("white"),1,10)
+   SearchTrial("O",["C","G","Q","U","D"], MakeColor("white"),MakeColor("white"),0,10)
+   SearchTrial("X",["C","G","Q","U","D"], MakeColor("green"),MakeColor("white"),1,10)
+   SearchTrial("O",["C","G","Q","U","D"], MakeColor("green"),MakeColor("white"),0,10)
+
+   SearchTrial("X",["C","G","Q","U","D"], MakeColor("white"),MakeColor("white"),0,10)
+   SearchTrial("O",["C","G","Q","U","D"], MakeColor("white"),MakeColor("white"),1,10)
+   SearchTrial("X",["C","G","Q","U","D"], MakeColor("green"),MakeColor("white"),0,10)
+   SearchTrial("O",["C","G","Q","U","D"], MakeColor("green"),MakeColor("white"),1,10)
+
+   MessageBox(gStrings.inst3,gWin)
+
+   rts <- []
+   accs <- []
+
+  ##Move through each trial of the design.
+  trial <- 1
+  ##loop through each trial.
+  loop(i,design)
+   {
+
+     time <- GetTime()
+     numTargs <- First(First(i))
+     num      <- Second(First(i))
+     targ     <- First(Second(i))
+     targcol  <-  Second(Second(i))
+
+     out <- SearchTrial(targ,foils, MakeColor(targcol),foilcolor,numTargs,num)
+     FilePrint_(gFileOut,gSubNum + "," + trial + "," + time + "," + numTargs + "," + num + "," +targ + "," + targcol)
+     loop(j,SubList(out,3,Length(out)))
+      {
+         FilePrint_(gFileOut,"," + j )
+
+      }
+    FilePrint(gFileOut,"")
+    PushOnEnd(rts,Nth(out,6))
+    PushOnEnd(accs,Nth(out,5))
+
+    if(Mod(trial,40)==0)
+     {
+        Messagebox(gstrings.break,gWin)
+	Draw()
+	Wait(1000)
+	Draw()
+     }
+
+    trial <- trial + 1
+    triallab.text<- SubstituteStrings(gStrings.trial,
+                                           [["<I>",trial],
+                                            ["<N>",numtrials]])
+
+   }
+
+   #Now, compute search-time means for a simple report.
+   gSumFile <- FileOpenWrite("data/"+gSubNum+"/summary-"+gSubNum+".txt")
+
+
+   tdes <- Transpose(design)
+   dimsize <- Nth(tdes,1)
+   dimtargs <- Nth(tdes,2)
+
+   #dimcolors <- Nth(tdes,3)
+
+   newdat <- Transpose(Merge(tdes,[rts,accs]))
+
+targlevs <- Levels(dimtargs)
+
+out <-out + FilePrint(gSumFile,"----------------------------------------------")
+   out <- out + FilePrint(gSumfile,"Target   color    X   present  size   Mean(RT)   Mean(acc)")
+   out <- out + FilePrint(gSumFile,"----------------------------------------------")
+
+loop(target,targlevs) ##target
+   {
+
+
+      filter1 <- []
+      loop(d,dimtargs)
+      {
+         match <- (First(target)==First(d)) and (Second(target)==Second(d))
+         PushOnEnd(filter1,match)
+      }
+
+
+     ##match might be [0,0,0,0,0,0...] here
+
+     tmp1 <- Filter(newdat,filter1)
+
+     ##tmp1 might be empty here.
+
+      newcol <- Nth(Transpose(tmp1),3)
+      loop(color,Levels(newcol))  ##color
+        {
+
+         ##For each color, pick out the different sizes
+         tmp2 <- Filter(tmp1,Match(newcol,color))
+         newsize <- Nth(Transpose(tmp2),1)  ##match size
+         newsize2 <- Nth(Transpose(tmp2),2) ##match color
+          ##This matches the [0,10]; [5, 20] type stuff.
+
+         loop(size,Levels(newsize))
+	    {
+
+              filterSize <- []
+	      tmp3 <- []
+	      loop(sizei, newsize)
+	       {
+	          match <- (First(sizei)==First(size) and
+		                 Second(sizei)==Second(size))
+		  PushOnEnd(filterSize,match)
+	       }
+
+              tmp3 <-Filter(tmp2,filterSize)
+	      ttmp3 <- Transpose(tmp3)
+
+
+              tmprts <- Nth(ttmp3,3)
+	      tmpaccs <- Nth(ttmp3,4)
+              out <- out +FilePrint(gSumFile,First(target)+"  " + Second(target) + "   " + (color) +
+	              "  " + First(size)+"  " + Second(size) + "  " +Mean(tmprts) +"  " + Mean(tmpaccs))
+
+	    }
+
+      }
+   }
+
+  out <- out + FilePrint(gSumFile,"----------------------------------------------")
+  MessageBox(gStrings.debrief+""+out,gWin)
+}
+
+
+##  This runs a single search trial.
+##  targchars is a list of 'target' characters
+##  foilchars is a list of 'foil' characters.
+##  targcol and foilcol specify the colors of these.
+##  if absentoption == 1, there will be a 'NONE' button provided
+
+define SearchTrial(targChar, foilChars,targcol,foilcol,numtargs,num)
+{
+
+  ShowCursor(0)  #Get rid of the cursor
+
+  ##Some startup stuff
+  fontsize <- 30
+  targFont <- MakeFont(gPEBLBaseFont,0,fontsize,targCol,MakeColor("black"),1)
+  foilFont <- MakeFont(gPEBLBaseFont,0,fontsize,foilCol,MakeColor("black"),1)
+  bgcol   <- MakeColor("grey")
+
+  ##num is the total number in the display set.  We need to create a
+  ##list of stimulus characters exactly that long.
+
+  numfoils <- num - numtargs
+  foilset <- DesignBalancedSampling(foilChars,numfoils)
+
+ ##make a label for each target.
+ i <- 1
+ targs <- []
+ bgs <- []
+ targChars <- Repeat(targChar,numtargs)
+ if(numTargs > 0)
+  {
+   loop(t,targChars)
+    {
+    targ <- MakeLabel(t,targFont)
+    targs <- Append(targs,[targ,1])
+    bg   <- Circle(0,0,18,bgcol,0)
+    bg.aa <- 1
+    bgs   <- Append(bgs,bg)
+    }
+  } else {  #If there are no targets, we still need to display the search character
+    targ <- MakeLabel(targChar,targFont)
+  }
+
+##make label for each foil (and the backgrounds)
+ foils <- []
+ loop(f,foilset)
+  {
+    foil <- MakeLabel(f,foilFont)
+    bg   <- Circle(0,0,18,bgcol,0)
+    bg.aa <- 1
+    foils <- Append(foils,[foil,2])
+    bgs   <- Append(bgs,bg)
+  }
+
+   num <- Length(targs)+Length(foils)
+
+  #Compute the bounds of the display box
+   minx <- gHomeX-gDisplayBoxSizeX/2
+   maxx <- gHomeX+gDisplayBoxSizeX/2
+   miny <- gHomey-gDisplayBoxSizeY/2
+   maxy <- gHomey+gDisplayBoxSizeY/2
+
+   ##create the xy points
+   pts <- MakePoints(minx,maxx,miny,maxy,40,num)
+
+  complex <- Transpose(Append( Merge( Transpose( Merge(targs,foils)),
+                                 Transpose(pts)),bgs))
+
+   ##Add a 'none' button to the top, but hide it.
+    none <- EasyLabel(gStrings.none,gHomeX,50,gWin,fontsize)
+    noneback <-  Rectangle(gHomeX,50,140,60,MakeColor("grey"),0)
+    AddObject(none,gWin)
+    AddObject(noneback,gWin)
+    Hide(none)
+    Hide(noneback)
+
+   ##Show the target (in this case, the last target)
+   AddObject(targ,gWin)
+   Move(targ,gHomeX,gHomeY)
+   label <- EasyLabel(gStrings.target,gHomeX,gHomeY-80,gWin,fontsize)
+   Draw()
+   Wait(800)
+   Draw()
+   Hide(targ)
+
+  ##Add all the targets/foils to the specified positions
+   tmp <- []
+   backs <- []
+  loop(i,complex)
+  {
+
+    obj <- First(i)
+    x <- Third(i)
+    y <- Fourth(i)
+    back <- Fifth(i)
+
+    AddObject(obj,gWin)
+    AddObject(back,gWin)
+    Show(obj)
+    Hide(back)
+    Move(back,x,y)
+    Move(obj,x,y)
+    tmp <- Append(tmp,obj)
+    backs <- Append(backs,back)
+  }
+
+  label.y <- gVideoHeight-50
+  label.text <- gStrings.complete
+  Draw()
+  time1 <- GetTime()
+  WaitForDownClick()
+  time2 <- GetTime()
+  ShowCursor(1)
+  SetMouseCursorPosition(gHomeX,gHomeY)
+  Draw()
+
+  label.text <-gStrings.select
+  Show(label)
+  Show(none)
+  Show(noneback)
+  RemoveObjects(tmp,gWin)
+  ShowObjects(backs)
+  Draw()
+  time3 <- GetTime()
+  bgs <- Merge([noneback],bgs)
+
+
+  resp <-  WaitForClickOnTarget(bgs,Sequence(0,num,1))
+
+
+  time4 <- GetTime()
+  RemoveObjects(bgs,gWin)
+  RemoveObject(label,gWin)
+  RemoveObject(none,gWin)
+
+
+  if(numtargs==0)
+  {
+    RemoveObject(targ,gWin)
+  }
+  Draw()
+
+  if(numtargs == 0)
+    {
+       corr <- (resp == 0)
+    } else {
+       corr <- resp <= numtargs
+    }
+   display <- ListToString(Merge(targChars,foilset))
+
+  return [numtargs, num, display, resp, corr, (time2-time1),(time4-time3)]
+}
+
+
+define ShowObjects(list)
+{
+   loop(i,Flatten(list))
+   {
+     Show(i)
+   }
+}
+
+define MakePoints(xmin, xmax, ymin, ymax, tol, num)
+{
+
+   ##should you watch the points evolve?
+   watch <- 0
+
+
+   ##Note that it is possible to arrange the situation
+   ## so that the distribution will never be satisfied.  So, lets
+   ## set up a 'limit' at which point we give up and return the best
+   ## we have so far.
+
+   limit <- 100
+
+
+  ## First, just initialize num points.
+  pts <- []
+  i <- 1
+  while(i <= num)
+   {
+
+     x <- xmin + Random()*(xmax-xmin)
+     y <- ymin + Random()*(ymax-ymin)
+     pts <- Append(pts, [x,y])
+     i <- i + 1
+   }
+
+  #Now, check for the minimum distance between two points.
+   tries <- 1
+   minpair <-  GetMinDist(pts)
+
+
+   ##Move one point at a time
+   while(First(minpair) < tol and tries < limit)
+   {
+     pt1id <- Nth(minpair,2)
+     pt2id <- Nth(minpair,3)
+
+     pt1 <- Nth(pts,pt1id)
+     pt2 <- Nth(pts,pt2id)
+
+    #resample the 'bad' points
+
+     ##Half the time, try to move a little bit away from
+     ##the closest. Otherwise, do it randomly.
+
+
+     pt1 <-   [ xmin + Random()*(xmax-xmin),
+                  ymin + Random()*(ymax-ymin) ]
+
+
+     ##Reassemble pts
+     tmp <- RemoveSubset(pts,[pt1id])
+
+     ##See if this configuration is an improvement
+     testpts <- Merge(tmp,[pt1])
+     minpairtest <-  GetMinDist(testpts)
+
+     ##If we've made an improvement, use it, otherwise abandon it.
+     if(First(minpairtest) >= First(minpair))
+     {
+        minpair <- minpairtest
+        pts <- testpts
+     }
+     tries <- tries + 1
+
+   }
+
+
+
+  return Shuffle(pts)
+}
+
+define GetMinDist(pts)
+{
+   len <- Length(pts)
+   index1 <- 1
+   mindist <- Dist(First(pts),Nth(pts,2))
+   id1 <- 1
+   id2 <- 2
+
+   loop(i,pts)
+   {
+     pt1 <- i
+     index2 <- index1 + 1
+
+
+     if(index2 <= len)
+      {
+      rest <- SubList(pts,index2, Length(pts))
+      loop(j, rest)
+       {
+        d <- Dist(i,j)
+
+        if(d < mindist)
+        {
+          mindist <- d
+          id1 <- index1
+          id2 <- index2
+        }
+
+        index2 <- index2 + 1
+      }
+      }
+     index1  <- index1 + 1
+   }
+
+   return [mindist,id1,id2]
+}
+
+
+
+define GetStrings(lang)
+{
+  gStrings <- GetTranslations("vsearch", lang)
+}

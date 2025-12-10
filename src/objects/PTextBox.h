@@ -29,7 +29,7 @@
 
 #include "SDL.h"  //For Uint16 definitionx
 #include "PTextObject.h"
-#include "PFont.h"
+//#include "PFont.h"  Maybe not needed.
 #include "../utility/rc_ptrs.h"
 #include <string>
 
@@ -92,6 +92,10 @@ protected:
     bool mCursorChanged;  //True if cursor has moved.
     bool mLineWrap;       //Should lines get wrapped, or just truncated?
     Variant mJustify;    //left,right, or center
+
+    // Note: Adaptive textbox properties (ISADAPTIVE, ADAPTIVEMODE, REQUESTEDFONTSIZE)
+    // are stored ONLY in the property system, not as member variables.
+    // This avoids memory management issues and keeps implementation in PEBL code (UI.pbl)
 
 };
 

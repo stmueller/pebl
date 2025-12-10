@@ -1,0 +1,60 @@
+## Test adaptive textbox - C++ implementation
+##
+## This tests the new C++ adaptive rendering that automatically
+## re-adapts when properties change
+
+define Start(p)
+{
+    gWin <- MakeWindow("grey80")
+
+    ##  Test 1: Create adaptive textbox
+    Print("TEST 1: Creating adaptive textbox with long text")
+    longText <- "This is a very long piece of text that definitely will not fit in a small box at the original font size. The adaptive textbox should automatically reduce the font size until this text fits within the specified dimensions. This demonstrates the C++ adaptive rendering feature."
+
+    box1 <- AdaptiveTextBox(longText, 100, 100, gWin, 24, 300, 100, "scalefont")
+    Draw()
+
+    Print("Initial font size after adaptation: " + box1.font.size)
+    Print("Box dimensions: " + box1.width + "x" + box1.height)
+    Print("Lines rendered: " + box1.numTextLines)
+    Print("")
+
+    Wait(2000)
+
+    ## Test 2: Change text - should re-adapt
+    Print("TEST 2: Changing text - should re-adapt")
+    box1.text <- "Short text"
+    Draw()
+
+    Print("Font size after changing to short text: " + box1.font.size)
+    Print("Lines rendered: " + box1.numTextLines)
+    Print("")
+
+    Wait(2000)
+
+    ## Test 3: Change back to long text - should re-adapt again
+    Print("TEST 3: Changing back to long text - should re-adapt")
+    box1.text <- longText
+    Draw()
+
+    Print("Font size after changing back: " + box1.font.size)
+    Print("Lines rendered: " + box1.numTextLines)
+    Print("")
+
+    Wait(2000)
+
+    ##  Test 4: Create second adaptive textbox with different text
+    Print("TEST 4: Creating second adaptive textbox")
+    shortText <- "This is much shorter text that fits easily."
+    box2 <- AdaptiveTextBox(shortText, 100, 250, gWin, 20, 300, 80, "scalefont")
+    Draw()
+
+    Print("Second box font size: " + box2.font.size)
+    Print("Second box lines: " + box2.numTextLines)
+    Print("")
+
+    Wait(2000)
+
+    Print("SUCCESS: All tests completed")
+    WaitForAnyKeyPress()
+}

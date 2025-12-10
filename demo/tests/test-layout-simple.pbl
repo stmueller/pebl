@@ -1,0 +1,101 @@
+## Simple test of the Layout system
+## Tests basic CreateLayout() and property access
+
+define Start(p)
+{
+  ## Create window
+  gWin <- MakeWindow("black")
+
+  ## Test 1: CreateLayout()
+  Print("Test 1: Creating layout...")
+  ret <- CreateLayout("test")
+  Print("  CreateLayout returned: " + IsList(ret))
+
+  ## Test 2: Verify layout object exists
+  Print("Test 2: Checking gLayout exists...")
+  Print("  gLayout type check: " + IsList(gLayout))
+  if(not IsList(gLayout))
+  {
+    SignalFatalError("gLayout is not a list/object!")
+  }
+  Print("  gLayout exists: OK")
+
+  ## Test 3: Check nested properties
+  Print("Test 3: Checking nested properties...")
+  Print("  gLayout.scale = " + gLayout.scale)
+  Print("  gLayout.stimulusRegion.centerX = " + gLayout.stimulusRegion.centerX)
+  Print("  gLayout.stimulusRegion.centerY = " + gLayout.stimulusRegion.centerY)
+  Print("  Nested properties: OK")
+
+  ## Test 4: Modify properties
+  Print("Test 4: Modifying header...")
+  gLayout.header.text <- "Layout Test"
+  gLayout.header.visible <- 1
+  gLayout.header.font.fgcolor <- MakeColor("white")
+  Print("  Header properties: OK")
+
+  ## Test 5: Modify footer
+  Print("Test 5: Modifying footer...")
+  gLayout.footer.text <- "Press LEFT-SHIFT or RIGHT-SHIFT to test response"
+  gLayout.footer.visible <- 1
+  gLayout.footer.font.fgcolor <- MakeColor("lightgray")
+  Print("  Footer properties: OK")
+
+  ## Test 6: Check response labels
+  Print("Test 6: Checking response labels...")
+  Print("  Number of response labels: " + Length(gLayout.responseLabels))
+  if(Length(gLayout.responseLabels) == 0)
+  {
+    SignalFatalError("No response labels created!")
+  }
+  Print("  Response labels: OK")
+
+  ## Test 7: Draw everything
+  Print("Test 7: Drawing layout...")
+
+  ## Add a test stimulus
+  stim <- Circle(gLayout.stimulusRegion.centerX,
+                 gLayout.stimulusRegion.centerY,
+                 50, MakeColor("red"), 1)
+  AddObject(stim, gWin)
+
+  Draw()
+  Print("  Draw: OK")
+
+  ## Test 8: Wait for response
+  Print("Test 8: Waiting for response...")
+  Print("  (Press LEFT-SHIFT or RIGHT-SHIFT)")
+
+  resp <- WaitForLayoutResponse(gLayout, 10000)
+
+  Print("  Response: " + resp)
+
+  if(resp == "left")
+  {
+    Print("  Left response detected!")
+    FlashCorrect(Nth(gLayout.responseLabels, 1))
+  }
+  elseif(resp == "right")
+  {
+    Print("  Right response detected!")
+    FlashCorrect(Nth(gLayout.responseLabels, 2))
+  }  else {
+    Print("  Timeout!")
+    gLayout.footer.text <- "Timeout - no response detected"
+    gLayout.footer.font.fgcolor <- MakeColor("red")
+    Draw()
+    Wait(2000)
+  }
+
+  ## Test 9: Theme test
+  Print("Test 9: Testing dark theme...")
+  ApplyDarkTheme(gLayout)
+  gLayout.header.text <- "Dark Theme Applied"
+  Draw()
+  Wait(2000)
+
+  Print("")
+  Print("All tests passed!")
+  Print("Press any key to exit...")
+  WaitForAnyKeyPress()
+}

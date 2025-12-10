@@ -1,0 +1,538 @@
+## Audio Voice Key Calibration Tool
+##
+## Collects audio statistics during silence and speech to help
+## calibrate thresholds for voice key detection.
+##
+## Workflow:
+##   1. Record silence (2 seconds)
+##   2. For each word, show word, press space, say word, release space
+##   3. Display statistics comparison
+
+define Start(p)
+{
+    ## Initialize display
+    gWin <- MakeWindow("grey40")
+    gSleepEasy <- 1
+
+    gFont <- MakeFont(gPEBLBaseFont, 0, 20, MakeColor("white"), MakeColor("grey40"), 1)
+    gFontLarge <- MakeFont(gPEBLBaseFont, 0, 36, MakeColor("yellow"), MakeColor("grey40"), 1)
+
+    ## Instructions
+    instructions <- "Audio Voice Key Calibration" + CR(2) +
+                   "This tool will collect audio statistics during:" + CR(1) +
+                   "  1. Silence (background noise)" + CR(1) +
+                   "  2. Speech (you saying words)" + CR(2) +
+                   "Workflow:" + CR(1) +
+                   "  - First: Press RETURN to record 2 seconds of silence" + CR(1) +
+                   "  - Then: For each word shown:" + CR(1) +
+                   "    * Press RETURN (word appears)" + CR(1) +
+                   "    * Press and HOLD SPACE while saying the word" + CR(1) +
+                   "    * Release SPACE when done" + CR(1) +
+                   "    * Press RETURN to continue" + CR(2) +
+                   "Press any key to begin"
+
+    instrBox <- EasyTextBox(instructions, gVideoWidth/2-350, 100, gWin, 18, 700, 450)
+    Draw()
+    WaitForAnyKeyPress()
+    RemoveObject(instrBox, gWin)
+    Draw()
+
+    ## Create timestamp for this session
+    gTimestamp <- GetTime()
+
+    ## Start audio monitor with 2000ms ring buffer
+    gMonitor <- StartAudioMonitor(2000)
+
+    ## Collect silence baseline
+    silenceStats <- RecordSilence(gWin)
+    SaveRecordingCSV("silence", silenceStats)
+
+    ## Words with different phonetic onsets
+    words <- ["WISCONSIN", "SUSPECT", "CHRISTMAS", "HARMONY", "APARTMENT"]
+
+    ## Collect speech statistics
+    speechResults <- []
+    loop(word, words)
+    {
+        result <- RecordWord(word, gWin)
+        speechResults <- Append(speechResults, result)
+        SaveRecordingCSV(word, result)
+    }
+
+    ## Stop monitoring
+    StopAudioMonitor(gMonitor)
+
+    ## Show summary comparison
+    ShowSummary(silenceStats, speechResults, gWin)
+    WaitForKeyPress("X")
+}
+
+define RecordSilence(win)
+{
+    ## Show instructions
+    prompt <- MakeLabel("Press RETURN to record 2 seconds of SILENCE", gFont)
+    Move(prompt, gVideoWidth/2, gVideoHeight/2)
+    AddObject(prompt, win)
+    Draw()
+
+    ## Wait for return key
+    WaitForKeyPress("<return>")
+
+    ## Show recording status
+    SetText(prompt, "RECORDING SILENCE...")
+    Draw()
+
+    ## Collect stats every 10ms for 2 seconds
+    energyProfile <- []
+    powerProfile <- []
+    rmseProfile <- []
+    signsProfile <- []
+    directionsProfile <- []
+
+    numSamples <- 200  ## 2000ms / 10ms = 200 samples
+    loop(i, Sequence(1, numSamples, 1))
+    {
+        Wait(10)
+        stats <- GetAudioStats(gMonitor, 10)
+        energyProfile <- Append(energyProfile, First(stats))
+        powerProfile <- Append(powerProfile, Nth(stats, 2))
+        rmseProfile <- Append(rmseProfile, Third(stats))
+        signsProfile <- Append(signsProfile, Nth(stats, 4) * 100)
+        directionsProfile <- Append(directionsProfile, Nth(stats, 5) * 100)
+    }
+
+    ## Show complete
+    SetText(prompt, "COMPLETE - Press RETURN to continue")
+    Draw()
+    WaitForKeyPress("<return>")
+
+    ## Clean up
+    RemoveObject(prompt, win)
+    Draw()
+
+    ## Return time profiles for all statistics
+    return([energyProfile, powerProfile, rmseProfile, signsProfile, directionsProfile])
+}
+
+define RecordWord(word, win)
+{
+    ## Show prompt
+    prompt <- MakeLabel("Press RETURN to see next word", gFont)
+    Move(prompt, gVideoWidth/2, gVideoHeight/2 + 100)
+    AddObject(prompt, win)
+    Draw()
+
+    ## Wait for return key
+    WaitForKeyPress("<return>")
+
+    ## Show word
+    wordLabel <- MakeLabel(word, gFontLarge)
+    Move(wordLabel, gVideoWidth/2, gVideoHeight/2 - 50)
+    AddObject(wordLabel, win)
+
+    SetText(prompt, "Press SPACE to START recording, then say: " + word)
+    Draw()
+
+    ## Wait for first space press to start
+    WaitForKeyPress(" ")
+
+    ## Show recording
+    SetText(prompt, "RECORDING - Say the word, then press SPACE to STOP")
+    Draw()
+
+    ## Collect stats every 10ms until second space press
+    energyProfile <- []
+    powerProfile <- []
+    rmseProfile <- []
+    signsProfile <- []
+    directionsProfile <- []
+
+    ## Keep sampling until second space press
+    recording <- 1
+    while(recording)
+    {
+        ## Collect stats for this 10ms window
+        stats <- GetAudioStats(gMonitor, 10)
+        energyProfile <- Append(energyProfile, First(stats))
+        powerProfile <- Append(powerProfile, Nth(stats, 2))
+        rmseProfile <- Append(rmseProfile, Third(stats))
+        signsProfile <- Append(signsProfile, Nth(stats, 4) * 100)
+        directionsProfile <- Append(directionsProfile, Nth(stats, 5) * 100)
+
+        ## Check for space press with timeout
+        result <- WaitForListKeyPressWithTimeout([" "], 10)
+        if(result == " ")
+        {
+            recording <- 0
+        }
+    }
+
+    ## Show complete
+    SetText(prompt, "COMPLETE - Press RETURN to continue")
+    Draw()
+    WaitForKeyPress("<return>")
+
+    ## Clean up
+    RemoveObject(wordLabel, win)
+    RemoveObject(prompt, win)
+    Draw()
+
+    ## Return word and time profiles
+    return([word, energyProfile, powerProfile, rmseProfile, signsProfile, directionsProfile])
+}
+
+define ShowSummary(silenceStats, speechResults, win)
+{
+    ## Extract silence profiles
+    silEnergy <- First(silenceStats)
+    silPower <- Nth(silenceStats, 2)
+    silRMSE <- Third(silenceStats)
+    silSigns <- Nth(silenceStats, 4)
+    silDirections <- Nth(silenceStats, 5)
+
+    ## Collect all word profiles
+    allWords <- []
+    allEnergy <- [silEnergy]
+    allPower <- [silPower]
+    allRMSE <- [silRMSE]
+    allSigns <- [silSigns]
+    allDirections <- [silDirections]
+
+    loop(wordResult, speechResults)
+    {
+        allWords <- Append(allWords, First(wordResult))
+        allEnergy <- Append(allEnergy, Nth(wordResult, 2))
+        allPower <- Append(allPower, Nth(wordResult, 3))
+        allRMSE <- Append(allRMSE, Nth(wordResult, 4))
+        allSigns <- Append(allSigns, Nth(wordResult, 5))
+        allDirections <- Append(allDirections, Nth(wordResult, 6))
+    }
+
+    ## Find max for each metric across all samples
+    energyMax <- Ceiling(Max(Flatten(allEnergy)) * 1.2)
+    powerMax <- Ceiling(Max(Flatten(allPower)) * 1.2)
+    rmseMax <- Ceiling(Max(Flatten(allRMSE)) * 1.2)
+    signsMax <- Ceiling(Max(Flatten(allSigns)) * 1.2)
+    directionsMax <- Ceiling(Max(Flatten(allDirections)) * 1.2)
+
+    ## Graph parameters
+    graphWidth <- 230
+    graphHeight <- 100
+    spacing <- 15
+    labelWidth <- 120
+    col1X <- labelWidth + 50 + graphWidth/2
+    col2X <- col1X + graphWidth + spacing
+    col3X <- col2X + graphWidth + spacing
+    col4X <- col3X + graphWidth + spacing
+    col5X <- col4X + graphWidth + spacing
+    rowSpacing <- 20
+    startY <- 150
+
+    ## Hold references to all labels and plots so they don't fall out of scope
+    labels <- []
+    barplots <- []
+
+    ## Title
+    titleFont <- MakeFont(gPEBLBaseFont, 0, 18, MakeColor("white"), MakeColor("grey40"), 1)
+    titleLabel <- MakeLabel("Audio Statistics Time Profiles", titleFont)
+    Move(titleLabel, gVideoWidth/2, 50)
+    AddObject(titleLabel, win)
+    PushOnEnd(labels, titleLabel)
+
+    ## Column headers
+    headerFont <- MakeFont(gPEBLBaseFont, 0, 14, MakeColor("yellow"), MakeColor("grey40"), 1)
+
+    lab <- MakeLabel("Energy", headerFont)
+    Move(lab, col1X, startY - 35)
+    AddObject(lab, win)
+    PushOnEnd(labels, lab)
+
+    lab <- MakeLabel("Power", headerFont)
+    Move(lab, col2X, startY - 35)
+    AddObject(lab, win)
+    PushOnEnd(labels, lab)
+
+    lab <- MakeLabel("RMSE", headerFont)
+    Move(lab, col3X, startY - 35)
+    AddObject(lab, win)
+    PushOnEnd(labels, lab)
+
+    lab <- MakeLabel("Signs/s", headerFont)
+    Move(lab, col4X, startY - 35)
+    AddObject(lab, win)
+    PushOnEnd(labels, lab)
+
+    lab <- MakeLabel("Dirs/s", headerFont)
+    Move(lab, col5X, startY - 35)
+    AddObject(lab, win)
+    PushOnEnd(labels, lab)
+
+    ## Row labels and graphs
+    labelFont <- MakeFont(gPEBLBaseFont, 0, 14, MakeColor("white"), MakeColor("grey40"), 1)
+
+    ## Silence row
+    rowY <- startY
+    lab <- MakeLabel("Silence:", labelFont)
+    Move(lab, labelWidth/2 + 20, rowY)
+    AddObject(lab, win)
+    PushOnEnd(labels, lab)
+
+    plot <- BarPlot(silEnergy, "", "", "", win, graphWidth, graphHeight, energyMax)
+    AddObject(plot, win)
+    Move(plot, col1X, rowY)
+    PushOnEnd(barplots, plot)
+
+    plot <- BarPlot(silPower, "", "", "", win, graphWidth, graphHeight, powerMax)
+    AddObject(plot, win)
+    Move(plot, col2X, rowY)
+    PushOnEnd(barplots, plot)
+
+    plot <- BarPlot(silRMSE, "", "", "", win, graphWidth, graphHeight, rmseMax)
+    AddObject(plot, win)
+    Move(plot, col3X, rowY)
+    PushOnEnd(barplots, plot)
+
+    plot <- BarPlot(silSigns, "", "", "", win, graphWidth, graphHeight, signsMax)
+    AddObject(plot, win)
+    Move(plot, col4X, rowY)
+    PushOnEnd(barplots, plot)
+
+    plot <- BarPlot(silDirections, "", "", "", win, graphWidth, graphHeight, directionsMax)
+    AddObject(plot, win)
+    Move(plot, col5X, rowY)
+    PushOnEnd(barplots, plot)
+
+    ## Word rows
+    wordIndex <- 1
+    loop(wordResult, speechResults)
+    {
+        rowY <- startY + (graphHeight + rowSpacing) * wordIndex
+
+        word <- First(wordResult)
+        lab <- MakeLabel(word + ":", labelFont)
+        Move(lab, labelWidth/2 + 20, rowY)
+        AddObject(lab, win)
+        PushOnEnd(labels, lab)
+
+        wordEnergy <- Nth(wordResult, 2)
+        wordPower <- Nth(wordResult, 3)
+        wordRMSE <- Nth(wordResult, 4)
+        wordSigns <- Nth(wordResult, 5)
+        wordDirections <- Nth(wordResult, 6)
+
+        plot <- BarPlot(wordEnergy, "", "", "", win, graphWidth, graphHeight, energyMax)
+        AddObject(plot, win)
+        Move(plot, col1X, rowY)
+        PushOnEnd(barplots, plot)
+
+        plot <- BarPlot(wordPower, "", "", "", win, graphWidth, graphHeight, powerMax)
+        AddObject(plot, win)
+        Move(plot, col2X, rowY)
+        PushOnEnd(barplots, plot)
+
+        plot <- BarPlot(wordRMSE, "", "", "", win, graphWidth, graphHeight, rmseMax)
+        AddObject(plot, win)
+        Move(plot, col3X, rowY)
+        PushOnEnd(barplots, plot)
+
+        plot <- BarPlot(wordSigns, "", "", "", win, graphWidth, graphHeight, signsMax)
+        AddObject(plot, win)
+        Move(plot, col4X, rowY)
+        PushOnEnd(barplots, plot)
+
+        plot <- BarPlot(wordDirections, "", "", "", win, graphWidth, graphHeight, directionsMax)
+        AddObject(plot, win)
+        Move(plot, col5X, rowY)
+        PushOnEnd(barplots, plot)
+
+        wordIndex <- wordIndex + 1
+    }
+
+    ## Instructions
+    lab <- MakeLabel("Each bar = 10ms sample. Press X key to exit", labelFont)
+    Move(lab, gVideoWidth/2, rowY + graphHeight + 40)
+    AddObject(lab, win)
+    PushOnEnd(labels, lab)
+
+    Draw()
+    WaitForAnyKeyPress()
+}
+
+define BarPlot(data,labels,title,ylab,win,xsize:800,ysize:400,forcedMax:0)
+{
+    obj <- MakeCustomObject("bargraph")
+
+    ## Location of the min and max y in pixels
+    ybottom <- ysize*.8
+    ytop  <- ysize*.1
+    xbottom <- xsize*.2
+    xtop    <- xsize*.9
+
+    numpoints <- Length(data)
+    ## Parameters for how to draw picture
+    maxbarwidth <- Round(xsize/numpoints*.9)
+    minbarspace <- 5
+
+    ## Range of the data
+    datamin <- 0
+    datamax <- Max(data)
+
+    ## Data value max to plot
+    if(forcedMax > 0)
+    {
+        plotmax <- forcedMax
+    } else {
+        plotmax <- Ceiling(datamax * 1.2)
+    }
+    plotmin <- Min([0,datamin])
+
+    ## Numbers per pixel
+    scale <-  (ybottom-ytop)/(plotmax-plotmin)
+
+    numdat <- Length(data)
+    ## Compute 'real' plot width
+
+    barwidth <- Min([((xtop-xbottom-10) -  (numdat)*minbarspace)/numdat,maxbarwidth])
+    barspace <- ((xtop-xbottom-10) - numdat*barwidth)/(numdat)
+
+    bgcol <- MakeColor("grey90")
+    fgcol <- MakeColor("navyblue")
+    black <- MakeColor("black")
+    objs <- []
+
+    ## Make a background field
+    bg <- MakeCanvas(xsize,ysize, bgcol)
+    obj.bg <- bg
+    objs <- Append(objs,bg)
+
+    ## Make bars
+    curx <- xbottom+barwidth/2 + barspace/2
+    jumpx <- barwidth+barspace
+    loop(val,data)
+    {
+        hght <- scale*val
+        bar <- Rectangle(curx,ybottom-hght/2,barwidth,hght,fgcol,1)
+        AddObject(bar,bg)
+        PushOnEnd(objs,bar)
+        curx <- curx + jumpx
+    }
+
+    titlefontsize <- Round(ysize/12)
+    labfontsize <-Round(titlefontsize*.6)
+    ## Make a title
+    titlefont <- MakeFont(gPEBLBaseFont,0,titlefontsize,black,bgcol,0)
+    labfont <- MakeFont(gPEBLBaseFont,0,labfontsize,black,bgcol,0)
+    titlelab <- MakeLabel(title,titlefont)
+    AddObject(titlelab,bg)
+    Move(titlelab,xsize/2,ytop)
+    objs <- Append(objs,titlelab)
+
+    ## Make two axes
+    xaxis <- ThickLine(xbottom,ybottom, xtop, ybottom, 3, black)
+    yaxis <- ThickLine(xbottom,ybottom,xbottom,ytop,3,black)
+    AddObject(xaxis,bg)
+    AddObject(yaxis,bg)
+    objs <- Append(objs,xaxis)
+    objs <- Append(objs,yaxis)
+
+    ## Determine the tick unit
+    tick <- 10^Floor(LogN(plotmax/2,10))
+    i <- 0
+    curtick <- ybottom - tick * scale * i
+
+    while(curtick >= ytop)
+    {
+        val <- tick *i
+        lab <- MakeLabel(val+"",labfont)
+        AddObject(lab,bg)
+        Move(lab,xbottom-35,curtick)
+        objs <- Append(objs,lab)
+
+        tmp <- ThickLine(xbottom-10, curtick, xbottom, curtick, 2, black)
+        AddObject(tmp,bg)
+        objs <- Append(objs,tmp)
+
+        i <- i + 1
+        curtick <- ybottom - tick * scale * i
+    }
+
+    lab <- MakeLabel(ylab,titlefont)
+    lab.rotation <- 90
+    AddObject(lab,bg)
+    Move(lab,xbottom-80,(ytop+ybottom)/2)
+    objs <- Append(objs,lab)
+    obj.objs <- objs
+    obj.AddObject<- "AddBarplot"
+    obj.Move<- "MoveBarplot"
+    obj.Draw<- "DrawBarplot"
+
+    Draw(bg)
+    return(obj)
+}
+
+define AddBarPlot(barplot,win)
+{
+    AddObject(barplot.bg,win)
+}
+
+define MoveBarPlot(barplot,x,y)
+{
+    Move(barplot.bg,x,y)
+}
+
+define DrawBarPlot(obj)
+{
+    Draw(obj)
+}
+
+define SaveRecordingCSV(label, data)
+{
+    ## For silence: data = [energyProfile, powerProfile, rmseProfile, signsProfile, directionsProfile]
+    ## For words: data = [word, energyProfile, powerProfile, rmseProfile, signsProfile, directionsProfile]
+
+    ## Determine if this is silence or a word recording
+    if(IsList(First(data)))
+    {
+        ## Silence recording
+        energyProfile <- First(data)
+        powerProfile <- Nth(data, 2)
+        rmseProfile <- Third(data)
+        signsProfile <- Nth(data, 4)
+        directionsProfile <- Nth(data, 5)
+    } else {
+        ## Word recording - skip first element (word label)
+        energyProfile <- Nth(data, 2)
+        powerProfile <- Nth(data, 3)
+        rmseProfile <- Nth(data, 4)
+        signsProfile <- Nth(data, 5)
+        directionsProfile <- Nth(data, 6)
+    }
+
+    ## Create filename with timestamp
+    filename <- "audio_calibration_" + gTimestamp + "_" + Lowercase(label) + ".csv"
+
+    ## Open file for writing
+    fileOut <- FileOpenWrite(filename)
+
+    ## Write header
+    FilePrint(fileOut, "time_ms,energy,power,rmse,signs_per_sec,directions_per_sec")
+
+    ## Write data rows
+    numSamples <- Length(energyProfile)
+    loop(i, Sequence(1, numSamples, 1))
+    {
+        time <- (i - 1) * 10  ## 10ms per sample
+        energy <- Nth(energyProfile, i)
+        power <- Nth(powerProfile, i)
+        rmse <- Nth(rmseProfile, i)
+        signs <- Nth(signsProfile, i)
+        directions <- Nth(directionsProfile, i)
+
+        FilePrint(fileOut, time + "," + energy + "," + power + "," + rmse + "," + signs + "," + directions)
+    }
+
+    ## Close file
+    FileClose(fileOut)
+
+    Print("Saved: " + filename)
+}

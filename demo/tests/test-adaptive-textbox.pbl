@@ -1,0 +1,451 @@
+## AdaptiveTextBox - An adaptive textbox that can scale font or box to fit text
+## This is a test implementation before moving to UI.pbl or Utility.pbl
+
+##
+## AdaptiveTextBox creates a textbox that automatically adapts to fit its content
+##
+## Parameters:
+##   text: The text to display
+##   x, y: Position
+##   window: The parent window
+##   fontsize: Initial font size (will be reduced if adaptive="scalefont")
+##   width, height: Initial box dimensions
+##   adaptive: Adaptation strategy - 0 (none), "scalebox", or "scalefont"
+##   maxlines: Maximum number of lines allowed (default 30)
+##
+## Returns: A textbox object (potentially wrapped in a canvas if using scalebox)
+##
+define AdaptiveTextBox(text, x, y, window, fontsize, width, height, adaptive, maxlines:30)
+{
+    if(adaptive == 0)
+    {
+        ## No adaptation - just create a normal textbox
+        ret <-  EasyTextBox(text, x, y, window, fontsize, width, height)
+    }    elseif(adaptive == "scalebox")    {
+        ## Strategy: Expand box until text fits, then scale down to original size
+        ret <-  AdaptiveTextBox_ScaleBox(text, x, y, window, fontsize, width, height, maxlines)
+    }    elseif(adaptive == "scalefont")    {
+        ## Strategy: Reduce font size until text fits
+        ret <-  AdaptiveTextBox_ScaleFont(text, x, y, window, fontsize, width, height, maxlines)
+    }    else    {
+        Print("ERROR: AdaptiveTextBox - invalid adaptive parameter: " + adaptive)
+        Print("       Valid values: 0, 'scalebox', 'scalefont'")
+        ret <-  EasyTextBox(text, x, y, window, fontsize, width, height)
+    }
+    return ret
+}
+
+##
+## ScaleBox Strategy: Create a larger textbox that fits all the text,
+## then scale it down using zoomx/zoomy to fit the original dimensions
+##
+define AdaptiveTextBox_ScaleBox(text, x, y, window, fontsize, width, height, maxlines)
+{
+    ## First, create a box at the requested size to check if text fits
+    tempBox <- EasyTextBox(text, x, y, window, fontsize, width, height)
+
+    ## Check if all text is already rendered (textComplete = 1)
+    if(tempBox.textComplete == 1)
+    {
+        ## Text fits - no scaling needed
+        Print("AdaptiveTextBox_ScaleBox: Text fits at " + width + "x" + height)
+    }
+    else
+    {
+        ## Scale both width and height together to maintain aspect ratio
+        scale <- 1.0
+        maxScale <- 4.0
+        iteration <- 0
+        maxIterations <- 20
+
+        done <- 0
+        while(done == 0 and scale < maxScale and iteration < maxIterations)
+        {
+            iteration <- iteration + 1
+            scale <- scale * 1.1
+
+            ## Scale both width and height proportionally
+            tempBox.width <- Round(width * scale)
+            tempBox.height <- Round(height * scale)
+
+            ## Re-render
+            Draw(tempBox)
+
+            ## Check if text is complete AND has at least one extra line height of margin
+            heightNeeded <- tempBox.numTextLines * tempBox.lineHeight
+            heightWithMargin <- heightNeeded + tempBox.lineHeight
+
+            if(tempBox.textComplete == 1 and heightWithMargin <= tempBox.height)
+            {
+                done <- 1
+            }
+
+            if(0)  ## Debug output
+            {
+                Print("  Iteration " + iteration + ": scale=" + Round(scale*100)/100 +
+                      ", size=" + tempBox.width + "x" + tempBox.height +
+                      ", textComplete=" + tempBox.textComplete)
+            }
+        }
+
+        ## Calculate zoom factor to scale back to original size
+        ## Use equal zoom for both dimensions to preserve aspect ratio
+        zoom <- width / tempBox.width
+        tempBox.zoomX <- zoom
+        tempBox.zoomY <- zoom
+
+        ## Report results
+        if(tempBox.textComplete == 0)
+        {
+            Print("WARNING: AdaptiveTextBox_ScaleBox - reached max scale (" + maxScale + "x), text still truncated")
+        }
+        else
+        {
+            Print("AdaptiveTextBox_ScaleBox: " + tempBox.numTextLines + " lines, expanded " +
+                  tempBox.width + "x" + tempBox.height + " -> " + width + "x" + height +
+                  " (zoom: " + Round(zoom*100) + "%)")
+        }
+    }
+
+    return tempBox
+}
+
+##
+## ScaleFont Strategy: Iteratively reduce font size until text fits
+##
+define AdaptiveTextBox_ScaleFont(text, x, y, window, fontsize, width, height, maxlines)
+{
+    currentFontSize <- fontsize
+    minFontSize <- 8  ## Don't go below 8pt
+
+    ## First, create a VERY tall box to count ALL lines the text needs
+    tempBox <- EasyTextBox(text, x, y, window, currentFontSize, width, 10000)
+    totalLinesNeeded <- tempBox.numTextLines
+    lineHeight <- tempBox.lineHeight
+    RemoveObject(tempBox, window)
+
+    ## Create initial textbox at requested size
+    box <- EasyTextBox(text, x, y, window, currentFontSize, width, height)
+
+    ## Check if text already fits
+    heightNeeded <- totalLinesNeeded * lineHeight
+
+    needsAdaptation <- 1
+
+    if(heightNeeded <= height)
+    {
+        ## Text fits - no adaptation needed
+        Print("AdaptiveTextBox_ScaleFont: Text fits at " + currentFontSize + "pt")
+        needsAdaptation <- 0
+    }
+
+    ## Check if we exceed maxlines at current size
+    if(totalLinesNeeded > maxlines)
+    {
+        Print("WARNING: AdaptiveTextBox_ScaleFont - text requires " + totalLinesNeeded +
+              " lines, exceeds maxlines=" + maxlines)
+    }
+
+    ## Iteratively reduce font size until text fits
+    iteration <- 0
+    maxIterations <- 20  ## Prevent infinite loops
+
+    if(needsAdaptation)
+    {
+    ## Reduce font size until it fits
+    ## Start with a more aggressive reduction if we're way over
+    while(heightNeeded > height and currentFontSize > minFontSize and iteration < maxIterations)
+    {
+        iteration <- iteration + 1
+
+        ## Calculate how much we need to reduce
+        ## If we're way over, reduce more aggressively
+        ratio <- heightNeeded / height
+
+        if(ratio > 2.0)
+        {
+            ## Very far off - reduce by 20%
+            currentFontSize <- Max([Round(currentFontSize * 0.8), minFontSize])
+        }
+        elseif(ratio > 1.5)
+        {
+            ## Moderately far - reduce by 15%
+            currentFontSize <- Max([Round(currentFontSize * 0.85), minFontSize])
+        }        else        {
+            ## Close - reduce by 10%
+            currentFontSize <- Max([Round(currentFontSize * 0.9), minFontSize])
+        }
+
+        ## Create new textbox with smaller font
+        RemoveObject(box, window)
+
+        ## First check total lines needed with a tall temp box
+        tempBox2 <- EasyTextBox(text, x, y, window, currentFontSize, width, 10000)
+        totalLinesNeeded <- tempBox2.numTextLines
+        lineHeight <- tempBox2.lineHeight
+        RemoveObject(tempBox2, window)
+
+        ## Now create the actual box
+        box <- EasyTextBox(text, x, y, window, currentFontSize, width, height)
+
+        ## Recalculate height needed (layout changes with font size)
+        heightNeeded <- totalLinesNeeded * lineHeight
+
+        if(0)  ## Debug output
+        {
+            Print("  Iteration " + iteration + ": fontsize=" + currentFontSize +
+                  ", lines=" + box.numTextLines + ", heightNeeded=" + heightNeeded +
+                  ", ratio=" + Round(ratio*100)/100)
+        }
+    }
+
+    if(heightNeeded > height)
+    {
+        Print("WARNING: AdaptiveTextBox_ScaleFont - could not fit text")
+        Print("         Final: " + currentFontSize + "pt, " + box.numTextLines +
+              " lines, needs " + heightNeeded + "px vs " + height + "px available")
+    }    else    {
+        Print("AdaptiveTextBox_ScaleFont: Reduced font from " + fontsize + "pt to " +
+              currentFontSize + "pt (" + box.numTextLines + " lines)")
+    }
+    }  ## End if(needsAdaptation)
+
+    return box
+}
+
+
+##############################################################################
+## TEST SUITE
+##############################################################################
+
+define Start(lPar)
+{
+    gWin <- MakeWindow("black")
+
+    ## Test text samples
+    shortText <- "This is a short piece of text that should fit easily."
+
+    mediumText <- "This is a medium-length piece of text that might fit at larger font sizes but will need adaptation at smaller sizes or in narrow boxes. It contains enough words to demonstrate wrapping behavior across multiple lines."
+
+    longText <- "This is a very long piece of text designed to thoroughly test the adaptive textbox functionality. It contains many sentences with enough content to ensure that it will require significant adaptation in most scenarios. The purpose is to verify that both the scalebox and scalefont strategies work correctly when dealing with substantial amounts of text that would normally overflow a standard textbox. We want to see how well each strategy handles this challenging case and whether the iterative font scaling or box scaling produces acceptable results."
+
+    instructions <- "ADAPTIVE TEXTBOX TEST SUITE" + CR(2) +
+                   "This test demonstrates three adaptation strategies:" + CR(2) +
+                   "1. No adaptation (adaptive=0)" + CR(1) +
+                   "2. Scale box (adaptive='scalebox')" + CR(1) +
+                   "3. Scale font (adaptive='scalefont')" + CR(2) +
+                   "Press any key to continue through tests..."
+
+    instrBox <- EasyTextBox(instructions, 50, 50, gWin, 20, 700, 300)
+    Draw()
+    WaitForAnyKeyPress()
+    Hide(instrBox)
+
+    ##------------------------------------------------------------------------
+    ## TEST 1: Short text - should not need adaptation
+    ##------------------------------------------------------------------------
+    Print("=" + RepeatString("=", 70))
+    Print("TEST 1: Short text (should not need adaptation)")
+    Print("=" + RepeatString("=", 70))
+
+    y <- 50
+    spacing <- 160
+
+    ## No adaptation
+    label1 <- EasyLabel("No Adaptation:", 100, y + 60, gWin, 16)
+    box1 <- AdaptiveTextBox(shortText, 200, y, gWin, 24, 500, 120, 0)
+
+    y <- y + spacing
+    ## Scale box
+    label2 <- EasyLabel("Scale Box:", 100, y + 60, gWin, 16)
+    box2 <- AdaptiveTextBox(shortText, 200, y, gWin, 24, 500, 120, "scalebox")
+
+    y <- y + spacing
+    ## Scale font
+    label3 <- EasyLabel("Scale Font:", 100, y + 60, gWin, 16)
+    box3 <- AdaptiveTextBox(shortText, 200, y, gWin, 24, 500, 120, "scalefont")
+
+    Draw()
+    Print("Press any key for next test...")
+    WaitForAnyKeyPress()
+
+    ## Clean up
+    Hide(label1)
+    Hide(box1)
+    Hide(label2)
+    Hide(box2)
+    Hide(label3)
+    Hide(box3)
+
+    ##------------------------------------------------------------------------
+    ## TEST 2: Medium text in small box - needs adaptation
+    ##------------------------------------------------------------------------
+    Print("")
+    Print("=" + RepeatString("=", 70))
+    Print("TEST 2: Medium text in small box (needs adaptation)")
+    Print("=" + RepeatString("=", 70))
+
+    y <- 50
+
+    ## No adaptation - will overflow
+    Show(label1)
+    Move(label1, 100, y + 60)
+    box1 <- AdaptiveTextBox(mediumText, 200, y, gWin, 24, 500, 120, 0)
+
+    y <- y + spacing
+    ## Scale box
+    Show(label2)
+    Move(label2, 100, y + 60)
+    box2 <- AdaptiveTextBox(mediumText, 200, y, gWin, 24, 500, 120, "scalebox")
+
+    y <- y + spacing
+    ## Scale font
+    Show(label3)
+    Move(label3, 100, y + 60)
+    box3 <- AdaptiveTextBox(mediumText, 200, y, gWin, 24, 500, 120, "scalefont")
+
+    Draw()
+    Print("Press any key for next test...")
+    WaitForAnyKeyPress()
+
+    ## Clean up
+    Hide(box1)
+    Hide(box2)
+    Hide(box3)
+
+    ##------------------------------------------------------------------------
+    ## TEST 3: Long text in very small box - extreme adaptation needed
+    ##------------------------------------------------------------------------
+    Print("")
+    Print("=" + RepeatString("=", 70))
+    Print("TEST 3: Long text in very small box (extreme adaptation)")
+    Print("=" + RepeatString("=", 70))
+
+    y <- 50
+
+    ## No adaptation - severe overflow
+    Move(label1, 100, y + 50)
+    box1 <- AdaptiveTextBox(longText, 200, y, gWin, 32, 400, 100, 0)
+
+    y <- y + spacing
+    ## Scale box
+    Move(label2, 100, y + 50)
+    box2 <- AdaptiveTextBox(longText, 200, y, gWin, 32, 400, 100, "scalebox")
+
+    y <- y + spacing
+    ## Scale font
+    Move(label3, 100, y + 50)
+    box3 <- AdaptiveTextBox(longText, 200, y, gWin, 32, 400, 100, "scalefont")
+
+    Draw()
+    Print("Press any key for next test...")
+    WaitForAnyKeyPress()
+
+    ## Clean up
+    Hide(box1)
+    Hide(box2)
+    Hide(box3)
+
+    ##------------------------------------------------------------------------
+    ## TEST 4: Narrow box test - tests width wrapping
+    ##------------------------------------------------------------------------
+    Print("")
+    Print("=" + RepeatString("=", 70))
+    Print("TEST 4: Narrow boxes (tests wrapping behavior)")
+    Print("=" + RepeatString("=", 70))
+
+    y <- 50
+    narrowText <- "This text is in a very narrow column and should wrap many times to fit the available width."
+
+    ## No adaptation
+    Move(label1, 100, y + 75)
+    box1 <- AdaptiveTextBox(narrowText, 200, y, gWin, 20, 150, 150, 0)
+
+    y <- y + spacing
+    ## Scale box
+    Move(label2, 100, y + 75)
+    box2 <- AdaptiveTextBox(narrowText, 200, y, gWin, 20, 150, 150, "scalebox")
+
+    y <- y + spacing
+    ## Scale font
+    Move(label3, 100, y + 75)
+    box3 <- AdaptiveTextBox(narrowText, 200, y, gWin, 20, 150, 150, "scalefont")
+
+    Draw()
+    Print("Press any key for next test...")
+    WaitForAnyKeyPress()
+
+    ## Clean up
+    Hide(box1)
+    Hide(box2)
+    Hide(box3)
+
+    ##------------------------------------------------------------------------
+    ## TEST 5: MaxLines test
+    ##------------------------------------------------------------------------
+    Print("")
+    Print("=" + RepeatString("=", 70))
+    Print("TEST 5: MaxLines limit (maxlines=5)")
+    Print("=" + RepeatString("=", 70))
+
+    y <- 50
+
+    ## Hide label1 since we're only showing 2 tests
+    Hide(label1)
+
+    ## Scale box with maxlines
+    Show(label2)
+    label2.text <- "Scale Box (maxlines=5):"
+    Move(label2, 100, y + 50)
+    box2 <- AdaptiveTextBox(longText, 200, y, gWin, 24, 400, 100, "scalebox", 5)
+
+    y <- y + spacing
+    ## Scale font with maxlines
+    Show(label3)
+    label3.text <- "Scale Font (maxlines=5):"
+    Move(label3, 100, y + 50)
+    box3 <- AdaptiveTextBox(longText, 200, y, gWin, 24, 400, 100, "scalefont", 5)
+
+    Draw()
+    Print("Press any key to finish...")
+    WaitForAnyKeyPress()
+
+    ##------------------------------------------------------------------------
+    ## Summary
+    ##------------------------------------------------------------------------
+    Hide(label1)
+    Hide(label2)
+    Hide(label3)
+    Hide(box2)
+    Hide(box3)
+
+    summary <- "ADAPTIVE TEXTBOX TEST COMPLETE" + CR(2) +
+               "Summary of strategies:" + CR(2) +
+               "SCALEBOX:" + CR(1) +
+               "  + Maintains original font size" + CR(1) +
+               "  + Good for preserving text readability" + CR(1) +
+               "  - Creates larger internal box (uses more memory)" + CR(1) +
+               "  - Scaling can make text slightly blurry" + CR(2) +
+               "SCALEFONT:" + CR(1) +
+               "  + Maintains box dimensions exactly" + CR(1) +
+               "  + Text remains sharp (no scaling artifacts)" + CR(1) +
+               "  + More memory efficient" + CR(1) +
+               "  - Reduces text size (may hurt readability)" + CR(1) +
+               "  - Iterative process (slightly slower)" + CR(2) +
+               "Choose based on your needs!"
+
+    summaryBox <- EasyTextBox(summary, 100, 100, gWin, 18, 600, 400)
+    Draw()
+    WaitForAnyKeyPress()
+}
+
+## Helper function to repeat a string n times
+define RepeatString(str, n)
+{
+    result <- ""
+    loop(i, Sequence(1, n, 1))
+    {
+        result <- result + str
+    }
+    return result
+}

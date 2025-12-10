@@ -1,0 +1,241 @@
+## Audio Voice Key Calibration Tool - VU Meter Mode
+##
+## This script provides real-time visualization of audio statistics
+## to help calibrate thresholds for voice key detection.
+##
+## Shows five metrics with live VU meter bars:
+##   - Energy (mean absolute amplitude)
+##   - Power (RMS)
+##   - RMSE (root mean square successive difference)
+##   - Sign Changes/sec (lower for speech)
+##   - Direction Changes/sec (lower for speech)
+##
+## Usage:
+##   1. Speak normally when prompted
+##   2. Be silent when prompted
+##   3. Observe the metrics to determine good thresholds
+
+define Start(p)
+{
+    ## Initialize display
+    gWin <- MakeWindow("grey40")
+    gSleepEasy <- 1
+
+    ## Display parameters
+    barWidth <- 400
+    barHeight <- 40
+    labelX <- 200  ## Right-align labels at this X position
+    barStartX <- 210  ## Left edge of bars starts here
+    ySpacing <- 100
+    gFont <-  MakeFont(gPEBLBaseFont, 0, 16, MakeColor("white"), MakeColor("grey40"), 1)
+
+    ## Create labels for each metric (will be right-aligned)
+    energyLabel <- MakeLabel("Energy (speech onset):", gFont)
+    AddObject(energyLabel, gWin)
+    Move(energyLabel, labelX - energyLabel.width/2, 150)
+
+    powerLabel <- MakeLabel("Power (speech onset):", gFont)
+    AddObject(powerLabel, gWin)
+    Move(powerLabel, labelX - powerLabel.width/2, 150 + ySpacing)
+
+    rmseLabel <- MakeLabel("RMSE (noise sensitive):", gFont)
+    AddObject(rmseLabel, gWin)
+    Move(rmseLabel, labelX - rmseLabel.width/2, 150 + ySpacing * 2)
+
+    signsLabel <- MakeLabel("Sign Changes/sec:", gFont)
+    AddObject(signsLabel, gWin)
+    Move(signsLabel, labelX - signsLabel.width/2, 150 + ySpacing * 3)
+
+    directionsLabel <- MakeLabel("Direction Changes/sec:", gFont)
+    AddObject(directionsLabel, gWin)
+    Move(directionsLabel, labelX - directionsLabel.width/2, 150 + ySpacing * 4)
+
+    ## Create value displays (positioned to the right of bars)
+    gEnergyText <- MakeLabel("0.0", gFont)
+    Move(gEnergyText, barStartX + barWidth + 20, 150)
+    AddObject(gEnergyText, gWin)
+
+    gPowerText <- MakeLabel("0.0", gFont)
+    Move(gPowerText, barStartX + barWidth + 20, 150 + ySpacing)
+    AddObject(gPowerText, gWin)
+
+    gRMSEText <- MakeLabel("0.0", gFont)
+    Move(gRMSEText, barStartX + barWidth + 20, 150 + ySpacing * 2)
+    AddObject(gRMSEText, gWin)
+
+    gSignsText <- MakeLabel("0", gFont)
+    Move(gSignsText, barStartX + barWidth + 20, 150 + ySpacing * 3)
+    AddObject(gSignsText, gWin)
+
+    gDirectionsText <- MakeLabel("0", gFont)
+    Move(gDirectionsText, barStartX + barWidth + 20, 150 + ySpacing * 4)
+    AddObject(gDirectionsText, gWin)
+
+    ## Create rectangle bars for VU meter visualization
+    ## Start with minimal width, will be updated in main loop
+    gEnergyBar <- Rectangle(barStartX, 150, 10, barHeight, MakeColor("red"), 1)
+    AddObject(gEnergyBar, gWin)
+
+    gPowerBar <- Rectangle(barStartX, 150 + ySpacing, 10, barHeight, MakeColor("green"), 1)
+    AddObject(gPowerBar, gWin)
+
+    gRMSEBar <- Rectangle(barStartX, 150 + ySpacing * 2, 10, barHeight, MakeColor("blue"), 1)
+    AddObject(gRMSEBar, gWin)
+
+    gSignsBar <- Rectangle(barStartX, 150 + ySpacing * 3, 10, barHeight, MakeColor("orange"), 1)
+    AddObject(gSignsBar, gWin)
+
+    gDirectionsBar <- Rectangle(barStartX, 150 + ySpacing * 4, 10, barHeight, MakeColor("purple"), 1)
+    AddObject(gDirectionsBar, gWin)
+
+    ## Instructions
+    instructions <- "Audio Voice Key Calibration - VU Meter Mode" + CR(2) +
+                   "This tool displays real-time audio statistics." + CR(2) +
+                   "1. First, speak normally for a few seconds" + CR(1) +
+                   "2. Then be silent for a few seconds" + CR(1) +
+                   "3. Observe the values to choose good thresholds" + CR(2) +
+                   "Press SPACE to start monitoring" + CR(1) +
+                   "Press ESC to exit"
+
+    instrBox <- EasyTextBox(instructions, gVideoWidth/2-300,600,gWin,16,600,200)
+    Draw()
+    WaitForKeyPress(" ")
+
+    ## Remove instructions
+    RemoveObject(instrBox, gWin)
+    Draw()
+
+    ## Start audio monitor with 2000ms ring buffer
+    gMonitor <- StartAudioMonitor(2000)
+
+    ## Status display
+    gStatusLabel <- MakeLabel("MONITORING - Press ESC to stop", gFont)
+    Move(gStatusLabel, 400, 650)
+    AddObject(gStatusLabel, gWin)
+
+    ## Statistics tracking
+    gMaxEnergy <- 0
+    gMaxPower <- 0
+    gMaxRMSE <- 0
+    gMaxSigns <- 0
+    gMaxDirections <- 0
+
+    ## Min/Max displays
+    gMinMaxLabel <- Easytextbox("",gVideowidth/2+200,100,gWin,18,200,300)
+
+    ## Main monitoring loop
+    continue <- 1
+    while(continue)
+    {
+        ## Get audio stats from last 100ms
+        ## Returns: [energy, power, rmssd, signchanges, directions]
+        stats <- GetAudioStats(gMonitor, 100)
+        energy <- First(stats)
+        power <- Nth(stats, 2)
+        rmse <- Third(stats)
+        signs <- Nth(stats, 4)
+        directions <- Nth(stats, 5)
+
+        ## Update max values
+        if(energy > gMaxEnergy)
+        {
+            gMaxEnergy <- energy
+        }
+        if(power > gMaxPower)
+        {
+            gMaxPower <- power
+        }
+        if(rmse > gMaxRMSE)
+        {
+            gMaxRMSE <- rmse
+        }
+        ## Convert sign and direction changes to per-second rates
+        ## (stats are from 100ms window, so multiply by 10)
+        signsPerSec <- signs * 10
+        directionsPerSec <- directions * 10
+
+        ## Track max values for per-second rates
+        if(signsPerSec > gMaxSigns)
+        {
+            gMaxSigns <- signsPerSec
+        }
+        if(directionsPerSec > gMaxDirections)
+        {
+            gMaxDirections <- directionsPerSec
+        }
+
+        ## Update bar widths (scale based on observed max values)
+        ## Energy: 0-1.0 range, scale to full bar width at 1.0
+        gEnergyBar.width <- Max([10, Min([barWidth, energy * barWidth])])
+        MoveCorner(gEnergyBar, barStartX, 150)
+
+        ## Power: 0-1.0 range, scale to full bar width at 1.0
+        gPowerBar.width <- Max([10, Min([barWidth, power * barWidth])])
+        MoveCorner(gPowerBar, barStartX, 150 + ySpacing)
+
+        ## RMSE: 0-2.5 range (noise sensitive), scale to full bar width at 2.5
+        gRMSEBar.width <- Max([10, Min([barWidth, (rmse / 2.5) * barWidth])])
+        MoveCorner(gRMSEBar, barStartX, 150 + ySpacing * 2)
+
+        ## Sign Changes: scale to full bar at 10000/sec
+        gSignsBar.width <- Max([10, Min([barWidth, (signsPerSec / 10000) * barWidth])])
+        MoveCorner(gSignsBar, barStartX, 150 + ySpacing * 3)
+
+        ## Direction Changes: scale to full bar at 20000/sec
+        gDirectionsBar.width <- Max([10, Min([barWidth, (directionsPerSec / 20000) * barWidth])])
+        MoveCorner(gDirectionsBar, barStartX, 150 + ySpacing * 4)
+
+        ## Update text displays (show raw values with 3 decimal places for floats, per-second for counts)
+        SetText(gEnergyText, ""+Round(energy, 3) )
+        SetText(gPowerText,""+ Round(power, 3) )
+        SetText(gRMSEText,""+ Round(rmse, 3) )
+        SetText(gSignsText, ""+signsPerSec + "/s")
+        SetText(gDirectionsText, ""+directionsPerSec + "/s")
+
+        ## Update min/max display
+        minMaxText <- "Peak Values "+CR(1)+" Energy: " + Round(gMaxEnergy, 3) + CR(1)+
+                     "  Power: " + Round(gMaxPower, 3) + CR(1)+
+                     "  RMSE: " + Round(gMaxRMSE, 3) + CR(1)+
+                     "  Signs: " + gMaxSigns + CR(1)+
+                     "  Dirs: " + gMaxDirections
+        SetText(gMinMaxLabel, minMaxText)
+
+        Draw()
+
+        out <- WaitForListKeyPressWithTimeout(["<ESC>"],50)
+
+        ## Check for escape key
+        if(out == "<esc>")
+        {
+            continue <- 0
+        }
+
+        ## Update at ~20Hz (50ms delay)
+        Wait(50)
+    }
+
+    ## Stop monitoring
+    StopAudioMonitor(gMonitor)
+
+    ## Show summary
+    RemoveObject(gStatusLabel, gWin)
+    summaryText <- "Monitoring Stopped" + CR(2) +
+                  "Peak Values Observed:" + CR(1) +
+                  "  Energy (speech onset):      " + Round(gMaxEnergy, 3) + " (max ~1.0)" + CR(1) +
+                  "  Power (speech onset):       " + Round(gMaxPower, 3) + " (max ~1.0)" + CR(1) +
+                  "  RMSE (noise sensitive):     " + Round(gMaxRMSE, 3) + " (max ~2.5)" + CR(1) +
+                  "  Sign Changes/sec:           " + gMaxSigns + " (lower=speech, higher=noise)" + CR(1) +
+                  "  Direction Changes/sec:      " + gMaxDirections + " (lower=speech, higher=noise)" + CR(2) +
+                  "Recommendations:" + CR(1) +
+                  "- Use Energy or Power for voice onset detection" + CR(1) +
+                  "- Threshold ~50-70% of peak speech value" + CR(1) +
+                  "- RMSE helps distinguish continuous noise from speech" + CR(1) +
+                  "- LOWER sign/direction changes = organized sound (speech)" + CR(1) +
+                  "- HIGHER sign/direction changes = unorganized noise" + CR(2) +
+                  "Use these values in GetVocalResponseTime()" + CR(2) +
+                  "Press any key to exit"
+
+    summaryLabel <- EasyTextBox(summaryText, gVideoWidth/2-400,500,gWin,16,800,250)
+    Draw()
+    WaitForAnyKeyPress()
+}

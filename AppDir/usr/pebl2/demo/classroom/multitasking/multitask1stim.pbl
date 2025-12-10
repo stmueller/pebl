@@ -1,0 +1,462 @@
+## This task is intended to demonstrate multi-task interference, 
+## along with multi-task non-interference.
+##
+##
+## This version uses a single stimulus, requiring two simultaneous responses
+##  (shape and size)
+##
+
+define Start(p)
+{
+
+
+  ##Task 1: shape matching
+  ##Task 2: (interfering) size judgement (big vs small)
+
+
+
+  keys1 <- ["1","2"]
+  keys2 <- ["9","0"]
+  keysall <- Merge(keys1,keys2)
+  
+  gWin<- MakeWindow("black")
+  if(gSubNum+""=="0")
+   {
+     gSubNum <- GetSubNum(gWin)
+     
+   }
+   
+   gFileOut <- GetNewDataFile(gSubNum,gWin,"multitask-data","csv",
+  "subnum,block,type,trial,type,stim,time0,resp1,rt1,corr1,resp2,rt2,corr2,tooslow")
+
+   gblockFileOut <- GetNewDataFile(gSubNum,gWin,"multitask-block","txt",
+  "")
+
+
+  
+   stim1a <- Circle(gVideoWidth/2,gVideoHeight/2,40,MakeColor("red"),1)  ##small
+   stim1b <- Square(gVideoWidth/2,gVideoHeight/2,70,MakeColor("red"),1) ##small
+   stim2a <- Circle(gVideoWidth/2,gVideoHeight/2,90,MakeColor("red"),1) #lg
+   stim2b <- Square(gVideoWidth/2,gVideoHeight/2,160,MakeColor("red"),1) #lg
+   stim1a.aa<-1
+   stim2a.aa<-1
+
+    AddObject(stim1a,gWin)
+    AddObject(stim1b,gWin)
+    AddObject(stim2a,gWin)
+    AddObject(stim2b,gWin)
+
+    Move(stim1a,gVideoWidth-150,150)
+    Move(stim1b,gVideoWidth-350,150)
+    Move(stim2a,gVideoWidth-150,450)
+    Move(stim2b,gVideoWidth-350,450)
+
+   lab1 <- EasyLabel("Small shapes", gVideoWidth-250,80,gWin,22)
+   lab2 <- EasyLabel("Large shapes", gVideoWidth-250,340,gWin,22)
+   MessageBox("In this task, you will respond to either or both the shape and size of the stimulus. Sometimes, you will need to respond based on the shape.   When you see the object, press 1 for a circle, and 2 for a square, using your left hand.
+
+Sometimes you will respond to the size of the object. In this case, press the 9 for small shapes, and 0 for large shapes, using your right hand. Press OK to continue.",gWin,30,
+   100,500,200,0)
+
+   gVisualStim <- [stim1a,stim1b,stim2a,stim2b]
+
+   RemoveObject(lab1,gWin)
+   RemoveObject(lab2,gWin)
+
+
+  loop(i,gVisualStim)
+  {
+    Move(i,gVideoWidth/2,gVideoHeight/2)
+    Hide(i)
+  }
+
+    gHeader <- EasyLabel("",gVideoWidth/2,100,gWin,30)
+    gFixation <- Easylabel("+",gVideoWidth/2,gVideoHeight/2,gWin,60)
+    gdim1Correct <- Easylabel("",gVideoWidth/2-200,gVideoHeight/2,gWin,30)
+    gdim2Correct <- Easylabel("",gVideoWidth/2+200,gVideoHeight/2,gWin,30)
+    gFooterShape <- EasyLabel("Press 1 for circle and 2 for square",gVideoWidth/2,gVideoHeight-140,gWin,30)
+    gFooterSize <- EasyLabel("Press 9 for small and 0 for large",gVideoWidth/2,gVideoHeight-180,gWin,30)
+
+    gBlock <- 0
+    rounds <- 5
+    trialsperblock <- 25
+
+
+
+
+    MyMessageBox("Now, you answer BOTH, but you should try to make both responses AT THE SAME TIME.  press 1 for circles and 2 for squares while pressing 9 for small and 0 for large. Try to answer both as quickly and accurately as possible, but do not make one response until you are ready for both.",keysall)
+    CountDown(gWin)
+    out4 <-  Block(trialsperblock,4)
+
+
+
+   loop(round, rounds)
+     {
+
+    
+    MyMessageBox("Now, you will do some pure trials responding to the SHAPE of the object with your LEFT hand. 
+Remember, press 1 for circles and 2 for squares.",keys1)
+    CountDown(gWin)
+    out1 <- Block(trialsperblock,1)
+
+
+    MyMessageBox("Now, you will do some pure trials, responding to the SIZE of the object with your RIGHT hand. 
+Remember, for small shapes you press 9, and for large shapes you press 0",keys2)
+    CountDown(gWin)
+    out2 <- Block(trialsperblock,2)
+
+    MyMessageBox("Now, you answer BOTH.  press 1 for circles and 2 for squares while pressing 9 for small and 0 for large. Try to answer both as quickly and accurately as possible.",keysall)
+    CountDown(gWin)
+    out3 <-  Block(trialsperblock,3)
+
+
+    MyMessageBox("Now, you answer BOTH, but you should try to make both responses AT THE SAME TIME.  press 1 for circles and 2 for squares while pressing 9 for small and 0 for large. Try to answer both as quickly and accurately as possible, but do not make one response until you are ready for both.",keysall)
+    CountDown(gWin)
+    out4 <-  Block(trialsperblock,4)
+
+
+    feedback <- "Shape:              " +ConcatenateList(out1,Tab(1)+"    ")+CR(1) +
+                "Size:               "+ ConcatenateList(out2,Tab(1)+"    ")+CR(1) +
+                "Both:               "+ ConcatenateList(out3,Tab(1)+"    ")
+	        "Both together:      "+ ConcatenateList(out4,Tab(1)+"    ")
+    MessageBox(feedback+CR(1)+"You may take a short rest",gWin)
+     
+   }
+
+}
+
+
+##  stim1puretrials is # of trials for stimulus 1 pure
+##  stim2puretrials is # of trials for stimulus 2 pure
+##  dualstim1 presents both stimulus but you respond to just stim1
+##  dualstim2 presents both stimulus but you respond to just stim2
+##  dualboth presents botd stimuli and you respond to both.
+
+## Note: you should not mix dualstim12 and dualboth, as this promotes
+##  inconsistent instructions.
+define Block(trials,type)
+{
+    ShowCursor(0)
+    
+    gBlock <- gBlock + 1
+     if(type==1)
+     {
+        ##single task.
+	gHeader.text <- "Single task: Respond to SHAPE with left hand"
+	Hide(gFooterSize)
+	Show(gFooterShape)
+     }elseif(type==2)
+     {
+     	Show(gFooterSize)
+	Hide(gFooterShape)
+
+     	gHeader.text <- "Single task: Respond to SIZE with right hand"
+     }else{ ##3 or 4
+
+     	Show(gFooterSize)
+	Show(gFooterShape)
+       	gHeader.text <- "Dual task: Respond to SHAPE with left hand and  SIZE with right hand"
+     }
+
+    Draw()
+
+
+    trials <- DesignBalancedSampling([1,2,3,4],trials)
+    trial <- -Length(trials)
+
+    ##do 8  practice trials
+    prac <- Flatten(ShuffleRepeat([1,2,3,4],2))
+    loop(p,prac)
+    {
+      out <-  Trial(p,type)
+
+     if(type==4)
+     {
+      delta <- Abs(Nth(out,3)-Nth(out,6))
+      if(delta>50)
+       {
+          gFixation.text  <- "Respond at the same time"
+          Show(gFixation)
+	  Draw()
+	  Wait(1500)
+	  gFixation.text <- "+"
+      }
+     }
+      FilePrint(gFileOut,ConcatenateList(Merge([gSubNum,gblock,"PRACTICE",trial,type,p],out),","))
+      trial <- trial + 1
+    }
+
+
+
+     rts1 <- []
+     rts2 <- []
+     acc1 <- []
+     acc2 <- []
+     tooslows <- []
+     trial <- 1
+    loop(i,trials)
+    {
+       out <-  Trial(i,type)
+     if(type==4)
+     {
+      delta <- Abs(Nth(out,3)-Nth(out,6))
+      if(delta>50)
+      {
+          Show(gFixation)
+          gFixation.text  <- "Respond at the same time"
+	  Draw()
+	  Wait(1500)
+	  gFixation.text <- "+"
+      }
+     }
+
+       FilePrint(gFileOut,ConcatenateList(Merge([gSubNum,gblock,"TEST",trial,type,i],out),","))
+
+
+       PushOnEnd(rts1,Nth(out,3))
+       PushOnEnd(rts2,Nth(out,6))
+       PushOnEnd(acc1,Nth(out,4))
+       PushOnEnd(acc2,Nth(out,7))
+       PushOnEnd(tooslows,Nth(out,8))
+       trial <- trial + 1
+     }
+
+     FilePrint(gblockFileout,(Format(Round(Mean(rts1)),8)+ "  " +
+        Format(Round(Mean(rts2)),8) + "  " +
+	Format(Mean(acc1),5)  + "  " +
+	Format(Mean(acc2),5)  + "  " + Mean(tooslows)))
+
+    ShowCursor(1)
+  return  [Mean(rts1), Mean(rts2),Mean(acc1), Mean(acc2), Mean(tooslows)]
+
+}
+
+
+## For dotask1/2, 0 indicates no stimulus/response
+##                1 indicates stimulus+response
+##                2 indicates stimulus but no response collected.
+
+define Trial(stim,type)
+{
+
+  Show(gFixation)
+  Hide(gDim1Correct)
+  Hide(gDim2Correct)
+
+  Draw()
+  Wait(300+500*Random())
+   
+
+  ##0 SOA here!
+   dotask1 <- type==1 or type==3 or type==4
+   dotask2 <- type==2 or type==3 or type==4
+   
+
+  resps1 <- Ifelse(dotask1, ["1","2"],[])
+  resps2 <- Ifelse(dotask2,["9","0"],[])
+
+  allresps <-   Merge(resps1,resps2)
+  if(Length(allresps)==0)
+  {
+     SignalFatalError("No responses programmed for trial")
+  }
+
+  ##Now, figure out which image to show:
+  
+  stimObj <- Nth(gVisualStim,stim)
+
+
+  Show(stimObj)
+  Hide(gFixation)
+ 
+  Draw()
+  time0 <- GetTime()
+
+ correct1 <- 0
+ correct2 <- 0
+ 
+  out <- GetResponses(resps1,resps2)
+
+  rt1 <- First(out)
+  rt2 <- Second(out)
+  resp1 <- Third(out)
+  resp2 <- Fourth(out)
+  toolong <- Fifth(out)
+  
+
+   correct1 <- IfElse(stim==1 or stim==3,resp1 == "1",resp1=="2")
+   correct2 <- IfElse(stim==1 or stim==2,resp2 == "9",resp2=="0")
+
+
+  Hide(stimObj)
+##now, we need to know whether we are correct for each one!
+  if(doTask1)
+   {
+
+   if(correct1)
+     {
+        gDim1Correct.text <- "Correct"
+      }else{
+        gDim1Correct.text <- "Incorrect"
+    }
+
+       Show(gDim1Correct)
+   }
+
+
+
+   if(doTask2>0)
+   {
+     ##dotask2 is size judgment. 9=small (stim 1 and 2), 0 = large ( 3 and 4)
+
+
+
+   if(correct2)
+     {
+        gDim2Correct.text <- "Correct"
+      }else{
+        gDim2Correct.text <- "Incorrect"
+      }
+
+       Show(gDim2Correct)
+   }
+
+
+   Draw()
+   Wait(500)
+   Hide(gDim1Correct)
+   Hide(gDim2Correct)
+   Draw()
+
+   
+
+ return [time0,resp1,rt1,correct1,resp2,rt2,correct2,toolong]
+}
+
+
+define IfElse(ab,a,b)
+{
+  ret <- 0
+  if(ab)
+   {
+    ret <- a
+   } else {
+    ret <- b
+ }
+ return ret
+}
+
+
+
+define GetResponses(resps1,resps2,deadline:5000)
+{
+
+  doresp1 <- Length(resps1)>0
+  doresp2 <- Length(resps2)>0
+
+
+  now <- GetTime()
+  if(deadline>0)
+   {
+      RegisterEvent("<TIMER>", 1,now+deadline,"<GEQ>","ENDIT", ["<Timeout>"])
+   }
+   
+ if(doresp1)
+  {
+    loop(i,resps1)
+     {
+
+        RegisterEvent("<KEY_PRESS>",i,1,"<EQUAL>","PRESS1",[i])
+     }
+  }
+
+if(doresp2)
+{
+    loop(i,resps2)
+     {
+
+        RegisterEvent("<KEY_PRESS>",i,1,"<EQUAL>","PRESS2",[i])
+     }
+
+}
+
+
+  ##gPhase = 0: need two responses
+  ##gphase = 1: need one response
+  ##gphase = 2: responses collected.
+   
+  gPhase <- 2-doresp1-doresp2
+
+
+  gResponded1 <- 0
+  gResponded2 <- 0
+  gTimeOut <- 0
+  
+  gTime1 <- 0
+  gTime2 <- 0
+
+  gResponse1 <- "NA"
+  gResponse2 <- "NA"
+  time1 <- GetTime()
+ 
+  out <- StartEventLoop()
+
+  ClearEventLoop()
+
+ 
+
+  rt1 <- Ifelse((gTime1-time1)  < 0, 0,(gTime1-time1))
+  rt2 <- Ifelse((gTime2-time1) < 0, 0,(gTime2-time1))
+  return [rt1,rt2,gResponse1,gResponse2,(gTimeout-time1)<0]
+}
+
+
+
+define Endit(p1,p2)
+{
+   gTimeOut <- GetTime()
+   gKeepLooping <- 0
+   
+}
+
+define Press1(p,p2)
+{
+   if(not gResponded1)
+       {
+        gPhase <- gPhase + 1
+        gResponded1 <- 1
+	gTime1 <- GetTime()
+	gResponse1 <- p
+       }
+  if(gPhase >= 2)
+   {
+     gKeepLooping <- 0
+   }
+   
+}
+
+
+define Press2(p,p2)
+{
+
+   if(not gResponded2)
+       {
+        gPhase <- gPhase + 1
+        gResponded <- 1
+	gTime2 <- GetTime()
+	gResponse2 <- p
+       }
+  if(gPhase >= 2)
+   {
+     gKeepLooping <- 0
+   }
+   
+}
+
+define MyMessageBox(msg,keys)
+{
+   MessageBox(msg,gWin,
+     32,100,100,200,1,keys)
+}
+
+

@@ -1,0 +1,141 @@
+## Test for dependent default parameters
+## Tests the ability to reference earlier parameters in later default values
+
+define Start(p)
+{
+    Print("=== TESTING DEPENDENT DEFAULT PARAMETERS ===")
+    Print("")
+
+    ## Test 1: Simple negative default (baseline)
+    Print("TEST 1: Simple negative default")
+    result1 <- TestNegativeDefault()
+    Print("  TestNegativeDefault() = " + result1)
+    Print("  EXPECTED: -1")
+    Print("  PASS: " + (result1 == -1))
+    Print("")
+
+    ## Test 2: Reference previous parameter in default
+    Print("TEST 2: Reference previous parameter (data, min: Min(data))")
+    data1 <- [5, 2, 8, 1, 9, 3]
+    result2 <- TestMinDefault(data1)
+    Print("  TestMinDefault([5,2,8,1,9,3]) = " + result2)
+    Print("  EXPECTED: 1 (Min of list)")
+    Print("  PASS: " + (result2 == 1))
+    Print("")
+
+    ## Test 3: Override the dependent default
+    Print("TEST 3: Override dependent default with explicit value")
+    result3 <- TestMinDefault(data1, 0)
+    Print("  TestMinDefault([5,2,8,1,9,3], 0) = " + result3)
+    Print("  EXPECTED: 0 (explicitly provided)")
+    Print("  PASS: " + (result3 == 0))
+    Print("")
+
+    ## Test 4: Multiple dependent defaults
+    Print("TEST 4: Multiple dependent defaults (data, min: Min(data), max: Max(data))")
+    result4 <- TestMinMaxDefaults(data1)
+    minval <- First(result4)
+    maxval <- Second(result4)
+    Print("  TestMinMaxDefaults([5,2,8,1,9,3]) = [" + minval + ", " + maxval + "]")
+    Print("  EXPECTED: [1, 9]")
+    Print("  PASS: " + (minval == 1 and maxval == 9))
+    Print("")
+
+    ## Test 5: Later default references earlier default
+    Print("TEST 5: Later default references earlier default (a: 10, b: a * 2)")
+    result5 <- TestChainedDefaults()
+    Print("  TestChainedDefaults() = " + result5)
+    Print("  EXPECTED: 20 (a=10, b=a*2=20)")
+    Print("  PASS: " + (result5 == 20))
+    Print("")
+
+    ## Test 6: Override first but not second dependent default
+    Print("TEST 6: Override first parameter, second uses default based on first")
+    result6 <- TestChainedDefaults(5)
+    Print("  TestChainedDefaults(5) = " + result6)
+    Print("  EXPECTED: 10 (a=5, b=a*2=10)")
+    Print("  PASS: " + (result6 == 10))
+    Print("")
+
+    ## Test 7: Complex expression in default
+    Print("TEST 7: Complex expression (data, threshold: (Min(data) + Max(data)) / 2)")
+    result7 <- TestComplexDefault(data1)
+    Print("  TestComplexDefault([5,2,8,1,9,3]) = " + result7)
+    Print("  EXPECTED: 5 (midpoint of min=1 and max=9)")
+    Print("  PASS: " + (result7 == 5))
+    Print("")
+
+    ## Test 8: Reference parameter with arithmetic in default
+    Print("TEST 8: Arithmetic in default (n, limit: n - 1)")
+    result8 <- TestArithmeticDefault(10)
+    Print("  TestArithmeticDefault(10) = " + result8)
+    Print("  EXPECTED: 9 (n=10, limit=n-1=9)")
+    Print("  PASS: " + (result8 == 9))
+    Print("")
+
+    ## Test 9: Negative default with parameter reference
+    Print("TEST 9: Negative of parameter (val, negated: -val)")
+    result9 <- TestNegatedDefault(5)
+    Print("  TestNegatedDefault(5) = " + result9)
+    Print("  EXPECTED: -5 (val=5, negated=-val=-5)")
+    Print("  PASS: " + (result9 == -5))
+    Print("")
+
+    ## Test 10: Function call in default
+    Print("TEST 10: Function call in default (list, count: Length(list))")
+    result10 <- TestLengthDefault([1,2,3,4,5])
+    Print("  TestLengthDefault([1,2,3,4,5]) = " + result10)
+    Print("  EXPECTED: 5 (Length of list)")
+    Print("  PASS: " + (result10 == 5))
+    Print("")
+
+    Print("=== ALL TESTS COMPLETE ===")
+}
+
+## Test 1: Simple negative default
+define TestNegativeDefault(timeout: -1)
+{
+    return(timeout)
+}
+
+## Test 2: Default references previous parameter
+define TestMinDefault(data, minval: Min(data))
+{
+    return(minval)
+}
+
+## Test 3: Multiple dependent defaults
+define TestMinMaxDefaults(data, minval: Min(data), maxval: Max(data))
+{
+    return([minval, maxval])
+}
+
+## Test 4: Chained defaults - later default references earlier default
+define TestChainedDefaults(a: 10, b: a * 2)
+{
+    return(b)
+}
+
+## Test 5: Complex expression in default
+define TestComplexDefault(data, threshold: (Min(data) + Max(data)) / 2)
+{
+    return(threshold)
+}
+
+## Test 6: Arithmetic in default
+define TestArithmeticDefault(n, limit: n - 1)
+{
+    return(limit)
+}
+
+## Test 7: Negation of parameter
+define TestNegatedDefault(val, negated: -val)
+{
+    return(negated)
+}
+
+## Test 8: Function call in default
+define TestLengthDefault(list, count: Length(list))
+{
+    return(count)
+}

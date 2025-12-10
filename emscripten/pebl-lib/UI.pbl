@@ -2011,219 +2011,33 @@ define FilterList(list,filter)
  return out
 }
 ##
-## AdaptiveTextBox creates a textbox that automatically adapts to fit its content
-## using one of two strategies: scaling the box or scaling the font.
+## AdaptiveTextBox creates a textbox that automatically adapts to fit its content.
+## Now uses native C++ adaptive rendering for efficient font scaling.
 ##
 ## Parameters:
 ##   text: The text to display
-##   x, y: Position coordinates  
+##   x, y: Position coordinates
 ##   window: The parent window
-##   fontsize: Initial font size (will be reduced if adaptive="scalefont")
+##   fontsize: Initial font size (will be reduced automatically if adaptive enabled)
 ##   width, height: Target box dimensions
-##   adaptive: Adaptation strategy - 0 (none), "scalebox", or "scalefont"
-##   maxlines: Maximum number of lines allowed (default: 30)
+##   adaptive: 1 to enable C++ adaptive font scaling, 0 to disable
+##   maxlines: Maximum number of lines allowed (currently unused, reserved for future)
 ##
-## Returns: A textbox object
-##
-## Strategies:
-##   0 - No adaptation, creates standard textbox
-##   "scalebox" - Expands box to fit text, then scales down using zoom (preserves font size)
-##   "scalefont" - Reduces font size until text fits (preserves box dimensions)
+## Returns: A textbox object with adaptive rendering enabled
 ##
 define AdaptiveTextBox(text, x, y, window, fontsize, width, height, adaptive, maxlines:30)
 {
-    if(adaptive == 0)
+    ## Create standard textbox
+    tb <- EasyTextBox(text, x, y, window, fontsize, width, height)
+
+    ## Enable native C++ adaptive rendering if requested
+    ## Accepts either numeric (1/0) or string ("scalefont"/"scalebox") parameters
+    ## Both scalefont and scalebox now use the same C++ implementation
+    if(adaptive != 0 and adaptive != "")
     {
-        ## No adaptation - just create a normal textbox
-        ret <-  EasyTextBox(text, x, y, window, fontsize, width, height)
-    }    elseif(adaptive == "scalebox")    {
-        ## Strategy: Expand box until text fits, then scale down to original size
-        ret <-  AdaptiveTextBox_ScaleBox(text, x, y, window, fontsize, width, height, maxlines)
-    }    elseif(adaptive == "scalefont")    {
-        ## Strategy: Reduce font size until text fits
-        ret <-  AdaptiveTextBox_ScaleFont(text, x, y, window, fontsize, width, height, maxlines)
-    }    else    {
-        Print("ERROR: AdaptiveTextBox - invalid adaptive parameter: " + adaptive)
-        Print("       Valid values: 0, 'scalebox', 'scalefont'")
-        ret <-  EasyTextBox(text, x, y, window, fontsize, width, height)
+        tb.isAdaptive <- 1
     }
-    return ret
+
+    return tb
 }
 
-##
-## ScaleBox Strategy: Create a larger textbox that fits all the text,
-## then scale it down using zoomx/zoomy to fit the original dimensions
-##
-define AdaptiveTextBox_ScaleBox(text, x, y, window, fontsize, width, height, maxlines)
-{
-    ## First, create a box at the requested size to check if text fits
-    tempBox <- EasyTextBox(text, x, y, window, fontsize, width, height)
-
-    ## Check if all text is already rendered (textComplete = 1)
-    if(tempBox.textComplete == 1)
-    {
-        ## Text fits - no scaling needed
-        Print("AdaptiveTextBox_ScaleBox: Text fits at " + width + "x" + height)
-    }
-    else
-    {
-        ## Scale both width and height together to maintain aspect ratio
-        scale <- 1.0
-        maxScale <- 4.0
-        iteration <- 0
-        maxIterations <- 20
-
-        done <- 0
-        while(done == 0 and scale < maxScale and iteration < maxIterations)
-        {
-            iteration <- iteration + 1
-            scale <- scale * 1.1
-
-            ## Scale both width and height proportionally
-            tempBox.width <- Round(width * scale)
-            tempBox.height <- Round(height * scale)
-
-            ## Re-render
-            Draw(tempBox)
-
-            ## Check if text is complete AND has at least one extra line height of margin
-            heightNeeded <- tempBox.numTextLines * tempBox.lineHeight
-            heightWithMargin <- heightNeeded + tempBox.lineHeight
-
-            if(tempBox.textComplete == 1 and heightWithMargin <= tempBox.height)
-            {
-                done <- 1
-            }
-
-            if(0)  ## Debug output
-            {
-                Print("  Iteration " + iteration + ": scale=" + Round(scale*100)/100 +
-                      ", size=" + tempBox.width + "x" + tempBox.height +
-                      ", textComplete=" + tempBox.textComplete)
-            }
-        }
-
-        ## Calculate zoom factor to scale back to original size
-        ## Use equal zoom for both dimensions to preserve aspect ratio
-        zoom <- width / tempBox.width
-        tempBox.zoomX <- zoom
-        tempBox.zoomY <- zoom
-
-        ## Report results
-        if(tempBox.textComplete == 0)
-        {
-            Print("WARNING: AdaptiveTextBox_ScaleBox - reached max scale (" + maxScale + "x), text still truncated")
-        }
-        else
-        {
-            Print("AdaptiveTextBox_ScaleBox: " + tempBox.numTextLines + " lines, expanded " +
-                  tempBox.width + "x" + tempBox.height + " -> " + width + "x" + height +
-                  " (zoom: " + Round(zoom*100) + "%)")
-        }
-    }
-
-    return tempBox
-}
-
-##
-## ScaleFont Strategy: Iteratively reduce font size until text fits
-##
-define AdaptiveTextBox_ScaleFont(text, x, y, window, fontsize, width, height, maxlines)
-{
-    currentFontSize <- fontsize
-    minFontSize <- 8  ## Don't go below 8pt
-
-    ## First, create a VERY tall box to count ALL lines the text needs
-    tempBox <- EasyTextBox(text, x, y, window, currentFontSize, width, 10000)
-    totalLinesNeeded <- tempBox.numTextLines
-    lineHeight <- tempBox.lineHeight
-    RemoveObject(tempBox, window)
-
-    ## Create initial textbox at requested size
-    box <- EasyTextBox(text, x, y, window, currentFontSize, width, height)
-
-    ## Check if text already fits
-    heightNeeded <- totalLinesNeeded * lineHeight
-
-    needsAdaptation <- 1
-
-    if(heightNeeded <= height)
-    {
-        ## Text fits - no adaptation needed
-        Print("AdaptiveTextBox_ScaleFont: Text fits at " + currentFontSize + "pt")
-        needsAdaptation <- 0
-    }
-
-    ## Check if we exceed maxlines at current size
-    if(totalLinesNeeded > maxlines)
-    {
-        Print("WARNING: AdaptiveTextBox_ScaleFont - text requires " + totalLinesNeeded +
-              " lines, exceeds maxlines=" + maxlines)
-    }
-
-    ## Iteratively reduce font size until text fits
-    iteration <- 0
-    maxIterations <- 20  ## Prevent infinite loops
-
-    if(needsAdaptation)
-    {
-    ## Reduce font size until it fits
-    ## Start with a more aggressive reduction if we're way over
-    while(heightNeeded > height and currentFontSize > minFontSize and iteration < maxIterations)
-    {
-        iteration <- iteration + 1
-
-        ## Calculate how much we need to reduce
-        ## If we're way over, reduce more aggressively
-        ratio <- heightNeeded / height
-
-        if(ratio > 2.0)
-        {
-            ## Very far off - reduce by 20%
-            currentFontSize <- Max([Round(currentFontSize * 0.8), minFontSize])
-        }
-        elseif(ratio > 1.5)
-        {
-            ## Moderately far - reduce by 15%
-            currentFontSize <- Max([Round(currentFontSize * 0.85), minFontSize])
-        }        else        {
-            ## Close - reduce by 10%
-            currentFontSize <- Max([Round(currentFontSize * 0.9), minFontSize])
-        }
-
-        ## Create new textbox with smaller font
-        RemoveObject(box, window)
-
-        ## First check total lines needed with a tall temp box
-        tempBox2 <- EasyTextBox(text, x, y, window, currentFontSize, width, 10000)
-        totalLinesNeeded <- tempBox2.numTextLines
-        lineHeight <- tempBox2.lineHeight
-        RemoveObject(tempBox2, window)
-
-        ## Now create the actual box
-        box <- EasyTextBox(text, x, y, window, currentFontSize, width, height)
-
-        ## Recalculate height needed (layout changes with font size)
-        heightNeeded <- totalLinesNeeded * lineHeight
-
-        if(0)  ## Debug output
-        {
-            Print("  Iteration " + iteration + ": fontsize=" + currentFontSize +
-                  ", lines=" + box.numTextLines + ", heightNeeded=" + heightNeeded +
-                  ", ratio=" + Round(ratio*100)/100)
-        }
-    }
-
-    if(heightNeeded > height)
-    {
-        Print("WARNING: AdaptiveTextBox_ScaleFont - could not fit text")
-        Print("         Final: " + currentFontSize + "pt, " + box.numTextLines +
-              " lines, needs " + heightNeeded + "px vs " + height + "px available")
-    }    else    {
-        Print("AdaptiveTextBox_ScaleFont: Reduced font from " + fontsize + "pt to " +
-              currentFontSize + "pt (" + box.numTextLines + " lines)")
-    }
-    }  ## End if(needsAdaptation)
-
-    return box
-}

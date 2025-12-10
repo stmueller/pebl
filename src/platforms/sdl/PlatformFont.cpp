@@ -166,8 +166,10 @@ PlatformFont::PlatformFont(const std::string & filename, int style, int size, PC
     TTF_SetFontStyle(mTTF_Font, mFontStyle);
 
    //Translate PColor to SDLcolor for direct use in rendering.
-    mSDL_FGColor = SDLUtility::PColorToSDLColor(*mFontColor);
-    mSDL_BGColor = SDLUtility::PColorToSDLColor(*mBackgroundColor);
+    PColor* fgColor = GetFontColorPtr();
+    PColor* bgColor = GetBackgroundColorPtr();
+    if(fgColor) mSDL_FGColor = SDLUtility::PColorToSDLColor(*fgColor);
+    if(bgColor) mSDL_BGColor = SDLUtility::PColorToSDLColor(*bgColor);
 
 }
 
@@ -175,18 +177,15 @@ PlatformFont::PlatformFont(const std::string & filename, int style, int size, PC
 
 ///Copy constructor of PlatformFont:
  PlatformFont::PlatformFont(PlatformFont & font):
+    PFont(font),  // Chain to base class copy constructor which handles colors
     mChanged(false),
     mBuffer(NULL)
 
 {
-
     mFontFileName    = font.GetFontFileName();
     mFontStyle       = font.GetFontStyle();
     mFontSize        = font.GetFontSize();
-    mFontColor       = counted_ptr<PColor>(new PColor(font.GetFontColor()));
-    mBackgroundColor = counted_ptr<PColor>(new PColor(font.GetBackgroundColor()));
     mAntiAliased     = font.GetAntiAliased();
-
 
     //These convert above properties to sdl-specific font
     //Open the font.  Should do error checking here.
@@ -194,8 +193,10 @@ PlatformFont::PlatformFont(const std::string & filename, int style, int size, PC
     TTF_SetFontStyle(mTTF_Font, mFontStyle);
 
     //Translate PColor to SDLcolor for direct use in rendering.
-    mSDL_FGColor = SDLUtility::PColorToSDLColor(*mFontColor);
-    mSDL_BGColor = SDLUtility::PColorToSDLColor(*mBackgroundColor);
+    PColor* fgColor = GetFontColorPtr();
+    PColor* bgColor = GetBackgroundColorPtr();
+    if(fgColor) mSDL_FGColor = SDLUtility::PColorToSDLColor(*fgColor);
+    if(bgColor) mSDL_BGColor = SDLUtility::PColorToSDLColor(*bgColor);
 
 }
 
@@ -221,8 +222,9 @@ void PlatformFont::SetFontColor(PColor color)
     //Chain up to parent method
     PFont::SetFontColor(color);
 
-    //Set child member data.
-    mSDL_FGColor = SDLUtility::PColorToSDLColor(*mFontColor);
+    //Set child member data - retrieve from property map
+    PColor* fgColor = GetFontColorPtr();
+    if(fgColor) mSDL_FGColor = SDLUtility::PColorToSDLColor(*fgColor);
     mChanged = true;  // Mark font as changed to trigger re-rendering
 }
 
@@ -234,8 +236,9 @@ void PlatformFont::SetBackgroundColor(PColor color)
     //Chain up to parent method
     PFont::SetBackgroundColor(color);
 
-    //Set child member data.
-    mSDL_BGColor = SDLUtility::PColorToSDLColor(*mBackgroundColor);
+    //Set child member data - retrieve from property map
+    PColor* bgColor = GetBackgroundColorPtr();
+    if(bgColor) mSDL_BGColor = SDLUtility::PColorToSDLColor(*bgColor);
     mChanged = true;  // Mark font as changed to trigger re-rendering
 }
 
@@ -267,12 +270,15 @@ void PlatformFont::SetFontStyle(const int style)
 bool PlatformFont::HasChanged()
 {
     // Check if colors changed and update SDL cache if needed
-    if(mFontColor.get() && mFontColor->HasChanged())
+    PColor* fgColor = GetFontColorPtr();
+    PColor* bgColor = GetBackgroundColorPtr();
+
+    if(fgColor && fgColor->HasChanged())
     {
         UpdateSDLColors();
         return true;
     }
-    if(mBackgroundColor.get() && mBackgroundColor->HasChanged())
+    if(bgColor && bgColor->HasChanged())
     {
         UpdateSDLColors();
         return true;
@@ -284,20 +290,25 @@ bool PlatformFont::HasChanged()
 void PlatformFont::ClearChanged()
 {
     mChanged = false;
-    if(mFontColor.get()) mFontColor->ClearChanged();
-    if(mBackgroundColor.get()) mBackgroundColor->ClearChanged();
+    PColor* fgColor = GetFontColorPtr();
+    PColor* bgColor = GetBackgroundColorPtr();
+    if(fgColor) fgColor->ClearChanged();
+    if(bgColor) bgColor->ClearChanged();
 }
 
 ///Update SDL color cache from PColor objects
 void PlatformFont::UpdateSDLColors()
 {
-    if(mFontColor.get())
+    PColor* fgColor = GetFontColorPtr();
+    PColor* bgColor = GetBackgroundColorPtr();
+
+    if(fgColor)
     {
-        mSDL_FGColor = SDLUtility::PColorToSDLColor(*mFontColor);
+        mSDL_FGColor = SDLUtility::PColorToSDLColor(*fgColor);
     }
-    if(mBackgroundColor.get())
+    if(bgColor)
     {
-        mSDL_BGColor = SDLUtility::PColorToSDLColor(*mBackgroundColor);
+        mSDL_BGColor = SDLUtility::PColorToSDLColor(*bgColor);
     }
     mChanged = true;  // Mark font as changed so label re-renders
 }

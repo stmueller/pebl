@@ -72,6 +72,12 @@ define Start(p)
   gLayout.subheader.visible <- 1
   gLayout.footer.text <- gStrings.footer
 
+  ## Show cursor for click/touch target response modes
+  if(gLayout.responseMode.type == "mousetarget" or gLayout.responseMode.type == "touchtarget")
+  {
+    ShowCursor(1)
+  }
+
   gFileOut <- GetNewDataFile(gSubNum,gWin,"luckvogel","csv",
                "subnum,trial,abstime,prestime,delay,size,same,resp,corr,rt")
 

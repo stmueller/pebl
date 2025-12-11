@@ -535,8 +535,13 @@ void PlatformTextBox::FindBreaks()
     }
 
 
-    while( (totalheight < (unsigned int) mHeight  &&
-            newlinestart < mText.size()))
+    // Calculate line breaks until we either finish the text or exceed the height
+    // For adaptive mode, we need ALL breaks to know exact line count
+    // For normal mode, we can stop once we know text doesn't fit
+    Variant isAdaptiveVar = PEBLObjectBase::GetProperty("ISADAPTIVE");
+    bool isAdaptive = isAdaptiveVar.GetInteger() != 0;
+
+    while(newlinestart < mText.size())
         {
 
 
@@ -551,13 +556,20 @@ void PlatformTextBox::FindBreaks()
             mBreaks.push_back(newlinestart);
             linestart=newlinestart;
 
+            // If not adaptive and we've exceeded height with more text remaining,
+            // we know text doesn't fit - no need to calculate more breaks
+            if (!isAdaptive && totalheight > (unsigned int)mHeight && newlinestart < mText.size()) {
+                break;
+            }
+
         }
 
     //Update NUMTEXTLINES property to reflect the number of lines
     PEBLObjectBase::SetProperty("NUMTEXTLINES",Variant((int)mBreaks.size()));
 
     //Set TEXTCOMPLETE property: 1 if all text rendered, 0 if truncated
-    bool textComplete = (newlinestart >= mText.size());
+    //Text is complete only if we processed all text AND it fits in the height
+    bool textComplete = (newlinestart >= mText.size()) && (totalheight <= (unsigned int)mHeight);
     PEBLObjectBase::SetProperty("TEXTCOMPLETE",Variant(textComplete ? 1 : 0));
 }
 
@@ -1225,8 +1237,10 @@ bool PlatformTextBox::Draw()
                     int totalHeightNeeded = numLines * lineHeight;
 
                     if (totalHeightNeeded > mHeight) {
+                        // Calculate font size needed to fit all lines in available height
+                        // Use 0.98 safety factor to account for rounding and ensure text fits
                         double heightRatio = (double)mHeight / (double)totalHeightNeeded;
-                        targetSize = std::max((int)(currentFontSize * heightRatio * 0.85), minFontSize);
+                        targetSize = std::max((int)(currentFontSize * heightRatio * 0.98), minFontSize);
 
                         if (targetSize >= currentFontSize) {
                             targetSize = std::max(currentFontSize - 2, minFontSize);

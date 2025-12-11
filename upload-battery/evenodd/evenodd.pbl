@@ -1,0 +1,139 @@
+define Start(p)
+{
+   gWin <- MakeWindow("black")
+
+   parPairs <- [["reps",10],
+                ["isi",500],
+                ["minval",100],
+                ["maxval",999],
+                ["responsemode","auto"]]
+
+
+   gParams <- CreateParameters(parpairs,gParamFile)
+
+
+   GetStrings(gLanguage)
+
+   if(gSubNum+""=="0")
+    {
+      gSubNum <- GetSubNum(gWin)
+    }
+
+    header <- "subnum,trial,starttime,number,isodd,resp,corr,rt"
+    gFileOut <- GetNewDataFile(gSubNum,gWin,"evenodd","csv",header)
+
+   ## Create layout with response system
+   gLayout <- CreateLayout("evenodd", gWin, gParams)
+
+   ## Configure layout zones
+   gLayout.header.text <- gStrings.header
+   gLayout.subheader.visible <- 0
+   gLayout.footer.text <- gStrings.footer
+
+   Draw()
+
+  MessageBox(gStrings.inst1,gWin)
+
+  if(IsOdd(gParams.minval))
+  {
+    minOdd <- gParams.minval
+    minEven <- gParams.minval + 1
+  } else{
+    minOdd <- gParams.minval+1
+    minEven <- gParams.minval
+  }
+
+   ##Create the stimulus sequence we will use:
+   desOdd <- Sequence(minOdd,gParams.maxval,2)
+   desEven <- Sequence(minEven,gParams.maxval,2)
+
+   trialsOdd <- SampleN(desOdd,gParams.reps)
+   trialsEven <- SampleN(desEven,gParams.reps)
+
+
+
+    trials <- Shuffle(Merge(trialsOdd,trialsEven))
+
+
+     ##do some practice trials that aren't recorded:
+	 Trial(1)
+	 Wait(gParams.ISI)
+
+	 Trial(24)
+	 Wait(gParams.ISI)
+
+	 Trial(97)
+	 Wait(gParams.ISI)
+
+    rts <- []
+	corrs <- []
+
+   trial <- 1
+   loop(i,trials)
+   {
+     starttime <- GetTime()
+     out <-  Trial(i)
+     FilePrintList(gFileout,Merge([gSubNum,trial,starttime],out),",")
+     PushOnEnd(rts,Nth(out,5))
+     PushOnEnd(corrs,Nth(out,4))
+
+     trial <- trial + 1
+
+      Wait(gParams.isi)
+   }
+
+
+    meanRT <- Mean(rts)
+	medianRT <- Median(rts)
+	meanAcc <- Mean(corrs)
+
+	report <- "PEBL Even-Odd Test"+CR(1)+
+	"Participant:     "+ gSubNum + CR(1)+
+	TimeStamp() + CR(1)+
+	"Number of trials: " + Length(corrs) + CR(1)+
+	"Mean RT:          "+ meanRT + CR(1)+
+	"Median RT:        " + medianRT + CR(1)+
+	"Accuracy:         " + (meanACC * 100) + "%" + CR(1)
+
+	reportfile <- GetNewDataFile(gSubNum,gWin,"evenodd-report","txt","")
+	FilePrint(reportfile,report)
+
+   MessageBox(gStrings.debrief+ CR(2)+ report,gWin)
+}
+
+
+define Trial(number)
+{
+  ## Header and footer are already set in layout
+  ## Just create the stimulus in the center of the stimulus region
+  stim <- EasyLabel(number+"", gLayout.centerX, gLayout.centerY, gWin, 80)
+
+  Draw()
+  time1 <- GetTime()
+
+  ## Use layout response system (returns "left" or "right")
+  resp <- WaitForLayoutResponse(gLayout, 5000)
+
+  time2 <- GetTime()
+  rt <- (time2-time1)
+  odd <- IsOdd(number)
+
+  ## Semantic response mapping: left=odd, right=even
+  corr <- (odd and resp=="left") or ((not odd) and resp=="right")
+
+  Hide(stim)
+  Draw()
+
+  return [number, odd, resp, corr, rt]
+}
+
+define IsOdd(number)
+{
+    return Mod(number,2)
+}
+
+
+define GetStrings(lang)
+{
+  gStrings <- GetTranslations("evenodd", lang)
+}

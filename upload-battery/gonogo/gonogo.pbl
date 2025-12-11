@@ -21,12 +21,12 @@ define Start(p)
 	       ["numFoil", 1],  ##Number of 'R' trials per block
                ["stimtime",500],
 	       ["color","blue"], ##color of stimulus.
-               ["usemouse",1],     ##use mouse for response rather than keyboard
 	       ["useBJDP",1 ],    ##use 80% targets in both rounds, as in the original BJDP paper.
-               ["responsemode","auto"]]  ##Response mode for Layout & Response System
+               ["responsemode","spacebar"]]  ##Single-key response mode for go-nogo task
 
  gParams <- CreateParameters(parpairs,gParamFile)
-
+ PrintProperties(gParams)
+ 
  reps <-gParams.reps   ##number of repetitions of the PPPPR design
  gisi <- gParams.isi  ##inter-stimulus interval
 
@@ -49,6 +49,10 @@ define Start(p)
   gLayout.header.visible <- 0
   gLayout.subheader.visible <- 0
   gLayout.footer.visible <- 0
+
+  ## Make response label visible for visual feedback
+  gResponseLabel <- First(gLayout.responseLabels)
+  gResponseLabel.visible <- 1
 
    gFileOut <- GetNewDataFile(gSubNum,gWin,"gonogo","csv",
  "subnum,block,type,correctresponse,trial,choice,x,y,stim,present,response,responded,corr,starttime,rt")
@@ -76,7 +80,7 @@ define Start(p)
   practice <-  Shuffle(RepeatList(design,2))
 
   gBlock <- 0
-  MessageKeyBox(gInst1)
+  ShowInstructions(gInst1, gParams.pstim, gParams.rstim, gParams.color)
   CountDown(gWin)
   FilePrint(gLog, gSubNum + "," + gLanguage + "," + TimeStamp()+",GONOGO,ROUND1 Start")
   DoBlock(practice,gParams.pstim,"practice",gParams.color)
@@ -105,7 +109,7 @@ define Start(p)
 
 
     gBlock <- 2
-    MessageKeyBox(gInst3)
+    ShowInstructions(gInst3, gParams.rstim, gParams.pstim, gParams.color)
    CountDown(gWin)
    FilePrint(gLog, gSubNum + "," + gLanguage + "," + TimeStamp()+",GONOGO,ROUND3 Start")
    DoBlock(practice,gparams.rstim,"practice",gParams.color)
@@ -266,56 +270,31 @@ define Start(p)
 
 define DoBlock(trials,correctresponse,type,col:"blue")
 {
+  ## Create the stimulus grid using shared function
+  stimObjs <- CreateStimulusGrid(col, gLayout.centerX, gLayout.centerY)
+  lines <- First(stimObjs)
+  stars <- Second(stimObjs)
+  xys <- Third(stimObjs)
+  stim <- Fourth(stimObjs)
 
-  linecol <- MakeColor("darkgrey")
-  color <- MakeColor(col)
-  sizegrid <- 200
-  ## Use layout center for positioning
-  xhome <- gLayout.centerX
-  yhome <- gLayout.centerY
-   xs <- [xhome-sizegrid/2,xhome+sizegrid/2,xhome-sizegrid/2,xhome+sizegrid/2]
-   ys <-[yhome-sizegrid/2,yhome-sizegrid/2,yhome+sizegrid/2,yhome+sizegrid/2]
+  ## Show header and subheader with clearer instructions
+  gLayout.header.text <- SubstituteStrings(gStrings.header_respond_only, [["<TARG>", correctresponse]])
+  gLayout.header.visible <- 1
+  gLayout.subheader.visible <- 1
 
-  xys <- Transpose([xs,ys])
-
-   ##Make the grid
-   lines <- [ThickLine(xhome-sizegrid,yhome-sizegrid,xhome+sizegrid,yhome-sizegrid,5,linecol)]
-   lines <- Append(lines,ThickLine(xhome-sizegrid,yhome,xhome+sizegrid,yhome,5,linecol))
-   lines <- Append(lines,ThickLine(xhome-sizegrid,yhome+sizegrid,xhome+sizegrid,yhome+sizegrid,5,linecol))
-
-   lines <- Append(lines,ThickLine(xhome-sizegrid,yhome-sizegrid,xhome-sizegrid,yhome+sizegrid,5,linecol))
-   lines <- Append(lines,ThickLine(xhome,yhome-sizegrid,xhome,yhome+sizegrid,5,linecol))
-   lines <- Append(lines,ThickLine(xhome+sizegrid,yhome-sizegrid,xhome+sizegrid,yhome+sizegrid,5,linecol))
-
-  AddObjects(lines,gWin)
-
-  ##stim should be below the stars:
-  stim <- EasyLabel("",xhome,yhome, gWin,40)
-  Hide(stim)
-
-   stars <- []
-  pts <- MakeStarPoints(40,20,6)
-  loop(xy, xys)
-     {
-
-          shape <- Polygon(First(xy),Second(xy),First(pts),Second(pts),color,1)
- 	  AddObject(shape,gWin)
-	  shape.aa <- 1
-          stars <- Append(stars,shape)
-
-     }
-  head <- EasyLabel(gLab +correctresponse,xhome,20, gWin,30)
-
-
-   feedback <- EasyLabel("X",xhome,yhome,gWin,60)
+  ## Create feedback label at center
+  feedback <- EasyLabel("X", gLayout.centerX, gLayout.centerY, gWin, 60)
   Hide(feedback)
 
   #Wait some unspecified duration
   timenow <- GetTime()
   timeend <- timenow
   trial <- 1
+  totalTrials <- Length(trials)
   loop(i,trials)
   {
+     ## Update subheader with method and trial counter
+     gLayout.subheader.text <- gStrings.subheader_method + " [" + trial + "/" + totalTrials + "]"
 
      timeend <- timeEnd + gisi
      choice <- RandomDiscrete(4)
@@ -333,23 +312,26 @@ define DoBlock(trials,correctresponse,type,col:"blue")
 
       RegisterEvent("<TIMER>", 1, starttime+gParams.stimtime,"<GEQ>","HIDEME", [stim,star])
 
-      ## Use Layout & Response System (handles both mouse and keyboard)
+      ## Use Layout & Response System with spacebar mode
+      ## Returns "response" or "<timeout>"
       resp <- WaitForLayoutResponse(gLayout, gParams.isi-50)
-      ## Returns "<timeout>" or "left"/"right" depending on response
-
 
      endtime <- GetTime()
      HideMe(stim,star)
      ClearEventLoop()
 
-     ## Check if response was made (not timeout)
+     ## Check if response was made
      if(resp=="<timeout>")
         {
            resp <- "NONE"
            responded <- 0
         } else{
-           ## Response was made (either "left" or "right")
+           ## Response was made (spacebar pressed) - give visual feedback
            responded <- 1
+           ## Make label bold for 150ms as feedback
+           gResponseLabel.font.bold <- 1  ## Make font bold
+           Draw()
+           RegisterEvent("<TIMER>", 1, GetTime()+150, "<GEQ>", "UnboldLabel", [])
         }
 
 
@@ -397,6 +379,9 @@ define DoBlock(trials,correctresponse,type,col:"blue")
 
    RemoveObjects(stars,gWin)  ##these don't quite get cleaned up; maybe because of the
                               ##event-loop functions.
+   ## Hide header/subheader after block
+   gLayout.header.visible <- 0
+   gLayout.subheader.visible <- 0
    Draw()
 }
 
@@ -441,15 +426,144 @@ define GetStrings(lang)
 
 define MessageKeyBox(message)
 {
-
-  tb <- AdaptiveTextBox(message,100,100,gWin,28,gVideoWidth-200,gVideoHeight-200,"scalefont")
+  tb <- AdaptiveTextBox(message,100,100,gWin,24,gVideoWidth-200,gVideoHeight-200,"scalefont")
   Draw()
 
-  ## Use Layout & Response System (works with keyboard, mouse, and touch)
+  ## Use Layout & Response System - spacebar mode accepts any spacebar press
   WaitForLayoutResponse(gLayout)
 
   RemoveObject(tb,gWin)
+}
 
+## Display instructions with example stimulus
+## Cycles between target and foil every 2 seconds until spacebar is pressed
+define ShowInstructions(message, targetLetter, foilLetter, color)
+{
+  ## Show compact instructions in header region only (textboxes positioned by upper-left corner)
+  ## Keep height small (60px) to avoid overlapping with subheader
+  instBox <- AdaptiveTextBox(message, 50, 10, gWin, 16, gVideoWidth-100, 60, "scalefont")
+
+  ## Create example stimulus using shared function
+  stimObjs <- CreateStimulusGrid(color, gLayout.centerX, gLayout.centerY)
+  lines <- First(stimObjs)
+  stars <- Second(stimObjs)
+  xys <- Third(stimObjs)
+  stimLabel <- Fourth(stimObjs)
+
+  ## Position for letter (top-right quadrant, position 2)
+  xy <- Nth(xys, 2)
+  star <- Nth(stars, 2)
+
+  ## Set up subheader for instructions (closer to stimulus than footer)
+  gLayout.subheader.visible <- 1
+
+  ## Cycle between target and foil every 2 seconds
+  showingTarget <- 1
+  lastSwitch <- GetTime()
+
+  cont <- 1
+  while(cont)
+  {
+    currentTime <- GetTime()
+
+    ## Switch display every 2000ms
+    if(currentTime - lastSwitch >= 2000)
+    {
+      showingTarget <- 1 - showingTarget
+      lastSwitch <- currentTime
+    }
+
+    ## Update display based on current state
+    if(showingTarget)
+    {
+      Hide(star)
+      stimLabel.text <- targetLetter
+      Move(stimLabel, Round(First(xy)), Round(Second(xy)))
+      Show(stimLabel)
+      gLayout.subheader.text <- "RESPOND"
+    } else {
+      Hide(star)
+      stimLabel.text <- foilLetter
+      Move(stimLabel, Round(First(xy)), Round(Second(xy)))
+      Show(stimLabel)
+      gLayout.subheader.text <- "DON'T RESPOND"
+    }
+
+    Draw()
+
+    resp <- WaitForLayoutResponse(gLayout, 1000)
+    if(resp <> "<timeout>")
+    {
+      cont <- 0
+    }
+  }
+
+  ## Clean up
+  gLayout.subheader.visible <- 0
+  RemoveObject(instBox, gWin)
+  RemoveObjects(lines, gWin)
+  RemoveObjects(stars, gWin)
+  RemoveObject(stimLabel, gWin)
+  Draw()
+}
+
+
+## Create stimulus grid with stars
+## Returns [lines, stars, xys, stimLabel]
+define CreateStimulusGrid(col, xCenter, yCenter)
+{
+  linecol <- MakeColor("darkgrey")
+  color <- MakeColor(col)
+
+  ## Calculate adaptive grid size based on available stimulus area
+  ## Use the smaller of width/height to ensure grid fits, with margins
+  availableWidth <- gLayout.stimulusRegion.width - 40   ## 20px margin on each side
+  availableHeight <- gLayout.stimulusRegion.height - 40  ## 20px margin top/bottom
+  maxSize <- Min([availableWidth, availableHeight])
+
+  ## Grid extends from -sizegrid to +sizegrid, so divide by 2
+  ## Default 200 means grid spans 400px total, so cap at that
+  sizegrid <- Min([200, Round(maxSize / 2)])
+
+  ## Create grid lines
+  lines <- [ThickLine(xCenter-sizegrid, yCenter-sizegrid, xCenter+sizegrid, yCenter-sizegrid, 5, linecol)]
+  lines <- Append(lines, ThickLine(xCenter-sizegrid, yCenter, xCenter+sizegrid, yCenter, 5, linecol))
+  lines <- Append(lines, ThickLine(xCenter-sizegrid, yCenter+sizegrid, xCenter+sizegrid, yCenter+sizegrid, 5, linecol))
+
+  lines <- Append(lines, ThickLine(xCenter-sizegrid, yCenter-sizegrid, xCenter-sizegrid, yCenter+sizegrid, 5, linecol))
+  lines <- Append(lines, ThickLine(xCenter, yCenter-sizegrid, xCenter, yCenter+sizegrid, 5, linecol))
+  lines <- Append(lines, ThickLine(xCenter+sizegrid, yCenter-sizegrid, xCenter+sizegrid, yCenter+sizegrid, 5, linecol))
+
+  AddObjects(lines, gWin)
+
+  ## Calculate star positions (4 quadrants)
+  xs <- [xCenter-sizegrid/2, xCenter+sizegrid/2, xCenter-sizegrid/2, xCenter+sizegrid/2]
+  ys <- [yCenter-sizegrid/2, yCenter-sizegrid/2, yCenter+sizegrid/2, yCenter+sizegrid/2]
+  xys <- Transpose([xs, ys])
+
+  ## Scale star and font sizes proportionally to grid size
+  ## Base sizes: star outer=40, inner=20, font=40 for sizegrid=200
+  scale <- sizegrid / 200.0
+  starOuter <- Round(40 * scale)
+  starInner <- Round(20 * scale)
+  fontSize <- Round(40 * scale)
+
+  ## Create stars
+  stars <- []
+  pts <- MakeStarPoints(starOuter, starInner, 6)
+  loop(xy, xys)
+  {
+    shape <- Polygon(First(xy), Second(xy), First(pts), Second(pts), color, 1)
+    AddObject(shape, gWin)
+    shape.aa <- 1
+    stars <- Append(stars, shape)
+  }
+
+  ## Create stimulus label (hidden initially) with scaled font size
+  stim <- EasyLabel("", xCenter, yCenter, gWin, fontSize)
+  Hide(stim)
+
+  return([lines, stars, xys, stim])
 }
 
 
@@ -479,6 +593,18 @@ define HideMe(stim,star,evt:0)
  return "<REMOVE>"
 }
 
+
+define UnboldLabel(evt:0)
+{
+  ## Callback to return label to normal style after visual feedback
+  ## Guard condition prevents repeated execution - only unbold if currently bold
+  if(gResponseLabel.font.bold != 0)
+  {
+      gResponseLabel.font.bold <- 0  ## Set to normal (not bold)
+      Draw()
+  }
+  return "<REMOVE>"
+}
 
 
 define CollapseList (list)

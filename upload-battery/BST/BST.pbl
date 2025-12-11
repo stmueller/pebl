@@ -1,6 +1,6 @@
 ## Esposito's Bivalent Shape Task (BST)
 ##
-## Version 1.2
+## Version 1.1
 ## Developed by Shane T. Mueller & Alena Esposito
 ##
 ##
@@ -47,14 +47,12 @@ define Start(p)
 
    ##These default values are used if a .par file does not exist.
    parpairs <- [["userandom",1],
-                ["horizontaloffset",130],##Pixels from center line that the responses are placed
-                ["verticaloffset",150], ##Height of responses. Override for better control.
 		["timelimit",3000], ##Timeout in ms.
 		["usevideofeedback",1],
 		["useaudiofeedbackalways",0],
 		["useaudiofeedbackpractice",1],
 		["numtrials",20], ##How many trials per block?
-		["usemouse",1]]##Use mouse/touch input (1) versus keyboard (0)
+		["responsemode","keyboardShift"]]
 
    gparams <- CreateParameters(parpairs,gParamFile)
 
@@ -73,9 +71,6 @@ define Start(p)
       SeedRNG(1000)
     }
 
-   gResponseOffset <- gParams.horizontaloffset
-   gResponseY <- gVideoHeight/2+gParams.verticaloffset
-
    gResponseTimeLimit <- gParams.timelimit
 
    ##Give visual feedback of 'correct' and 'incorrect'
@@ -85,8 +80,6 @@ define Start(p)
    gUseAudioFeedbackPractice <- gParams.useaudiofeedbackpractice
 
    numTrials <- gParams.numtrials
-   gUseMouse <- gParams.usemouse
-
 
    gSleepEasy <- 1 ##Set from 0 to 1 to reserve batteries.
    if(gSubNum+""=="0")
@@ -94,17 +87,42 @@ define Start(p)
        gSubNum <- GetSubNum(gWin)
     }
 
+   ## Create Layout & Response System
+   gLayout <- CreateLayout("BST", gWin, gParams)
+
+   ## For mousetarget/touchtarget modes, hide response labels and set footer instruction
+   if(gLayout.responseMode.type == "mousetarget")
+   {
+       ## Hide the default response labels
+       loop(label, gLayout.responseLabels)
+       {
+           Hide(label)
+       }
+
+       ## Hide the border rectangles around response labels
+       loop(border, gLayout.responseBorders)
+       {
+           Hide(border)
+       }
+
+       ## Set footer text based on response mode (click vs tap)
+       if(gParams.responsemode == "touchtarget")
+       {
+           gLayout.footer.text <- gStrings.tap_shape
+       } else {
+           gLayout.footer.text <- gStrings.click_shape
+       }
+       gLayout.footer.visible <- 1
+   }
+
    fileOut <- GetNewDataFile(gSubNum,gWin,"BST","csv",
      "subnum,type,block,congruency,trial,stim,resp,corr,rt,tooslow")
 
-   inst <- EasyTextBox("",50,50,gWin,28,gVideoWidth-100,gVideoHeight-200)
-
-   if(gUseMouse)
-    {
-      ShowCursor(1)
-    }else{
-      ShowCursor(0)
-    }
+   ## Calculate instruction textbox dimensions (reused for all instruction screens)
+   ## Use available space: top margin + header + subheader zones
+   gInstHeight <- gLayout.zones.header.height + gLayout.zones.subheader.height + gLayout.config.margins.y
+   gInstY <- gLayout.config.margins.y
+   gInstWidth <- gVideoWidth - 40
 
 ########################################################
 ## Set up the images, sounds, and text labels on screen
@@ -154,26 +172,41 @@ define Start(p)
    Hide(picN2)
 
 
-   Move(picA1,gVideoWidth/2,gVideoHeight/2)
-   Move(picA2,gVideoWidth/2,gVideoHeight/2)
-   Move(picB1,gVideoWidth/2,gVideoHeight/2)
-   Move(picB2,gVideoWidth/2,gVideoHeight/2)
-   Move(picN1,gVideoWidth/2,gVideoHeight/2)
-   Move(picN2,gVideoWidth/2,gVideoHeight/2)
+   Move(picA1,gLayout.centerX,gLayout.centerY)
+   Move(picA2,gLayout.centerX,gLayout.centerY)
+   Move(picB1,gLayout.centerX,gLayout.centerY)
+   Move(picB2,gLayout.centerX,gLayout.centerY)
+   Move(picN1,gLayout.centerX,gLayout.centerY)
+   Move(picN2,gLayout.centerX,gLayout.centerY)
 
    gPics <- [picA1,picA2,picB1,picB2,picN1,picN2]
    label <- EasyLabel("",gVideoWidth/2,gVideoHeight-60,gWin,24)
 
-   ##Make the footer response images.
-   footA <- MakeImage(picnameA1)
-   footB <- MakeImage(picnameB1)
-   AddObject(footA,gWin)
-   AddObject(footB,gWin)
-   Move(footA, gVideoWidth/2-gResponseOffset,gResponseY)
-   Move(footB, gVideoWidth/2+gResponseOffset,gResponseY)
-   Scale(footA,100)
-   Scale(footB,100)
+   ## Create footer stimulus images
+   ## These show examples of the actual stimuli participants will see
+   ## These serve as visual references AND as click targets for mouse/touch modes
+   footA <- MakeImage(picnameA1)  ## Red circle (left response)
+   footB <- MakeImage(picnameB1)  ## Blue square (right response)
+   AddObject(footA, gWin)
+   AddObject(footB, gWin)
 
+   ## Position in stimulus region, below central stimulus, above response labels
+   ## Move them outward (200px from center) to avoid overlap with central stimulus
+   footerY <- gLayout.centerY + 120  ## Below center stimulus
+   footerLeftX <- gLayout.centerX - 200  ## 200 pixels left of center
+   footerRightX <- gLayout.centerX + 200  ## 200 pixels right of center
+
+   Move(footA, footerLeftX, footerY)
+   Move(footB, footerRightX, footerY)
+   Scale(footA, 120)  ## 50% larger than original 80px
+   Scale(footB, 120)  ## 50% larger than original 80px
+
+   ## Hide footer images initially (will show during trials)
+   Hide(footA)
+   Hide(footB)
+
+   ## Store as global for use as click targets
+   ## For mousetarget/touchtarget modes, these images become the clickable targets
    gFeet <- [footA, footB]
 
 ########################################################
@@ -182,19 +215,33 @@ define Start(p)
 ########################################################
 ########################################################
 
+  ## First instruction screen
+  inst <- AdaptiveTextBox(gStrings.inst1 + " " + gStrings.inst2 + " " + gStrings.continue,
+                          20, gInstY, gWin, 24, gInstWidth, gInstHeight, "scalefont")
+
+  ## Position and show central stimulus
+  Move(picB2, gLayout.centerX, gLayout.centerY)
   Show(picB2)
 
-  text1 <- gStrings.inst1
+  ## Show footer images below the central stimulus, above response labels
+  ## Response labels are already visible from Layout system
+  Show(footA)
+  Show(footB)
 
- if(gUseMouse)
+  Draw()
+
+  ## For mousetarget/touchtarget modes, use footer images as targets
+  ## For keyboard modes, use standard response system
+  if(gLayout.responseMode.type == "mousetarget")
   {
-    inst.text <- text1 + CR(1)+gStrings.instmouse
+      WaitForClickOnTarget(gFeet, [1, 2])
   } else {
-    inst.text <- text1 + CR(1)+gStrings.instkeys
+      WaitForLayoutResponse(gLayout, 0)
   }
- Draw()
- WaitForAnyKeyPress()
- Hide(picB2)
+
+  Hide(picB2)
+  ## Keep footA and footB visible - they remain on screen during trials
+  RemoveObject(inst, gWin)
 
 
 
@@ -204,19 +251,18 @@ define Start(p)
 
    trial <- 1
 
-
-   if(gUseMouse)
-   {
-   inst.text <- gStrings.inst2mouse
-
-   }else{
-   inst.text <- gStrings.inst2keys
-}
-
-   Show(inst)
+   inst <- AdaptiveTextBox(gStrings.practice_intro + " " + gStrings.continue,
+                           20, gInstY, gWin, 24, gInstWidth, gInstHeight, "scalefont")
    Draw()
-   WaitForAnyKeyPress()
-   Hide(inst)
+
+   if(gLayout.responseMode.type == "mousetarget")
+   {
+       WaitForClickOnTarget(gFeet, [1, 2])
+   } else {
+       WaitForLayoutResponse(gLayout, 0)
+   }
+
+   RemoveObject(inst, gWin)
    Draw()
 
 
@@ -227,15 +273,9 @@ define Start(p)
 
    block <- 0
 
+   label.text <- gStrings.label
 
-   if(gUseMouse)
-   {
-      label.text <- gStrings.labelmouse
-    }else{
-      label.text <- gStrings.labelkeys
-   }
-
-    if(gUseAudioFeedbackPractice)
+   if(gUseAudioFeedbackPractice)
      {
 gUseAudioFeedback <- 1
      }
@@ -273,19 +313,20 @@ if(trial > 6 and gUseAudioFeedbackPractice)
    block <- 1
    trial <- 1
 
-   if(gUseMouse)
+   inst <- AdaptiveTextBox(gStrings.block1 + " " + gStrings.continue,
+                           20, gInstY, gWin, 24, gInstWidth, gInstHeight, "scalefont")
+   label.text <- gStrings.label
+
+   Draw()
+
+   if(gLayout.responseMode.type == "mousetarget")
    {
-    inst.text <- gStrings.block1mouse
-    label.text <-gStrings.mouselab
-   }else{
-    inst.text <-  gStrings.block1keys
-    label.text <- gStrings.keyslab
+       WaitForClickOnTarget(gFeet, [1, 2])
+   } else {
+       WaitForLayoutResponse(gLayout, 0)
    }
 
-   Show(inst)
-   Draw()
-   WaitForAnyKeyPress()
-   Hide(inst)
+   RemoveObject(inst, gWin)
    Draw()
 
 # stimSequence <- Shuffle(RepeatList([5,6],Round(numtrials/2)))
@@ -318,19 +359,20 @@ if(trial > 6 and gUseAudioFeedbackPractice)
    block <- 2
    trial <- 1
 
-   if(gUseMouse)
-   {
-    inst.text <-gStrings.block2mouse
-    label.text <-gStrings.mouselab
-   }else{
-     inst.text <- gStrings.block2keys
-     label.text <- gStrings.keyslab
-}
+   inst <- AdaptiveTextBox(gStrings.block2 + " " + gStrings.continue,
+                           20, gInstY, gWin, 24, gInstWidth, gInstHeight, "scalefont")
+   label.text <- gStrings.label
 
-   Show(inst)
    Draw()
-   WaitForAnyKeyPress()
-   Hide(inst)
+
+   if(gLayout.responseMode.type == "mousetarget")
+   {
+       WaitForClickOnTarget(gFeet, [1, 2])
+   } else {
+       WaitForLayoutResponse(gLayout, 0)
+   }
+
+   RemoveObject(inst, gWin)
    Draw()
 
    ## stimSequence <- Shuffle(RepeatList([1,3],Round(numtrials/2)))
@@ -339,13 +381,13 @@ if(trial > 6 and gUseAudioFeedbackPractice)
    loop(i,stimSequence)
    {
       if(i ==2 or i == 4)
-{
+       {
            consistency <- -1
-}elseif(i==1 or i==3) {
+       }elseif(i==1 or i==3) {
            consistency <- 1
-}else{
-consistency <- 0
-          }
+       }else{
+            consistency <- 0
+      }
 
 
       out <- Trial(i,consistency)
@@ -363,20 +405,20 @@ consistency <- 0
    block <- 3
    trial <- 1
 
-   if(gUseMouse)
-   {
-    inst.text <-gStrings.block3mouse
-    label.text <-gStrings.mouselab
-   }else{
-     inst.text <- gStrings.block3keys
-     label.text <- gStrings.keyslab
-  }
+   inst <- AdaptiveTextBox(gStrings.block3 + " " + gStrings.continue,
+                           20, gInstY, gWin, 24, gInstWidth, gInstHeight, "scalefont")
+   label.text <- gStrings.label
 
-
-   Show(inst)
    Draw()
-   WaitForAnyKeyPress()
-   Hide(inst)
+
+   if(gLayout.responseMode.type == "mousetarget")
+   {
+       WaitForClickOnTarget(gFeet, [1, 2])
+   } else {
+       WaitForLayoutResponse(gLayout, 0)
+   }
+
+   RemoveObject(inst, gWin)
    Draw()
 
 ## stimSequence <- Shuffle(RepeatList([2,4],Round(numtrials/2)))
@@ -413,20 +455,20 @@ consistency <- 0
    block <- 4
    trial <- 1
 
-   if(gUseMouse)
-   {
-    inst.text <-gStrings.block4mouse
-    label.text <-gStrings.mouselab
-   }else{
-     inst.text <- gStrings.block4keys
-     label.text <- gStrings.keyslab
-  }
+   inst <- AdaptiveTextBox(gStrings.block4 + " " + gStrings.continue,
+                           20, gInstY, gWin, 24, gInstWidth, gInstHeight, "scalefont")
+   label.text <- gStrings.label
 
-
-   Show(inst)
    Draw()
-   WaitForAnyKeyPress()
-   Hide(inst)
+
+   if(gLayout.responseMode.type == "mousetarget")
+   {
+       WaitForClickOnTarget(gFeet, [1, 2])
+   } else {
+       WaitForLayoutResponse(gLayout, 0)
+   }
+
+   RemoveObject(inst, gWin)
    Draw()
 
 
@@ -545,8 +587,8 @@ report <- report + Print("------------------------------------------------------
 
 
    ShowCursor(1)
-   inst.text <- gStrings.debrief
-   Show(inst)
+   inst <- AdaptiveTextBox(gStrings.debrief,
+                           20, gInstY, gWin, 24, gInstWidth, gInstHeight, "scalefont")
    Draw()
 
    ## Upload data files (works online, no-op on native)
@@ -569,12 +611,15 @@ report <- report + Print("------------------------------------------------------
 
 define Trial(i,consistency)
 {
-    if(gUseMouse)
-     {
-         SetMouseCursorPosition(Round(gVideoWidth/2),Round(gVideoHeight/2))
-         Draw()
-     }
-     Wait(200)
+    ## Center cursor for all modes that might use mouse
+    ## On Linux/Wayland, SetMouseCursorPosition often fails or reports incorrect positions
+    ## Only reset cursor on Windows where it works reliably
+    if(GetSystemType() == "WINDOWS")
+    {
+        SetMouseCursorPosition(Round(gVideoWidth/2), Round(gVideoHeight/2))
+    }
+    Draw()
+    Wait(200)
 
     id <- i
     targ <- Nth(gPics,id)
@@ -585,12 +630,32 @@ define Trial(i,consistency)
     time1 <- GetTime()
 
     ##Collect the response:
-    if(gUseMouse)
-     {
-        resp <- WaitForClickOnTargetWithTimeout(gFeet,["<lshift>","<rshift>"],gResponseTimeLimit)
-     } else {
-        resp <- WaitForListKeyPressWithTimeout(["<lshift>","<rshift>"],gResponseTimeLimit,1)
-     }
+    ## For mousetarget/touchtarget modes, use footer images as click targets
+    ## For keyboard modes, use standard Layout & Response System
+    if(gLayout.responseMode.type == "mousetarget")
+    {
+        ## Use footer images (footA, footB) as click targets
+        ## Map clicks to semantic responses: footA=left, footB=right
+        if(gResponseTimeLimit == 0)
+        {
+            respIndex <- WaitForClickOnTarget(gFeet, [1, 2])
+        } else {
+            respIndex <- WaitForClickOnTargetWithTimeout(gFeet, [1, 2], gResponseTimeLimit)
+        }
+
+        ## Map index to semantic response
+        if(respIndex == "<timeout>")
+        {
+            resp <- "<timeout>"
+        } elseif(respIndex == 1) {
+            resp <- "left"
+        } elseif(respIndex == 2) {
+            resp <- "right"
+        }
+    } else {
+        ## Standard keyboard/mousebutton response modes
+        resp <- WaitForLayoutResponse(gLayout, gResponseTimeLimit)
+    }
     time2 <- GetTime()
 
 
@@ -618,7 +683,7 @@ define Trial(i,consistency)
        feedback <- gStrings.incorrect
       }
 
-    lab <- EasyLabel(feedback,gVideoWidth/2,gVideoHeight/2,gWin,44)
+    lab <- EasyLabel(feedback,gLayout.centerX,gLayout.centerY,gWin,44)
     Draw()
     Wait(250)
     Hide(lab)
@@ -644,37 +709,36 @@ if(gUseAudioFeedbackAlways or gUseAudioFeedback)
 
 ## This function scores whether the trial is correct, based on
 ## the response, the type, and the consistency.
-## It expects responses to be recorded as '<lshift>' and '<rshift>',
-## and so mouse responses must be recoded into these tokens.
+## It expects responses to be semantic tokens "left" or "right"
+## from the Layout & Response System.
 ##
-define ScoreTrial(resp,type, consistency)
+define ScoreTrial(resp, type, consistency)
 {
 
  if(IsList(resp))
    {
    corr <- 0
    } else {
-  if(consistency==1)
+  if(consistency == 1)
    {
-      if(resp == "<lshift>")
+      if(resp == "left")
        {
-           corr <- (type==1 or type==2 )
-       }else{
-           corr <- (type==3 or type==4 )
+           corr <- (type==1 or type==2)
+       } else {
+           corr <- (type==3 or type==4)
        }
-   } elseif(consistency==-1){
-      if(resp == "<lshift>")
+   } elseif(consistency == -1) {
+      if(resp == "left")
        {
-           corr <- (type==3 or type==4 )
-       }else{
-           corr <- (type==1 or type==2 )
+           corr <- (type==3 or type==4)
+       } else {
+           corr <- (type==1 or type==2)
        }
-   } elseif(consistency ==0) ##incorporate neutral (non-color) stimuli
-   {
-      if(resp == "<lshift>")
+   } elseif(consistency == 0) {  ## Neutral (non-color) stimuli
+      if(resp == "left")
        {
            corr <- (type==5)
-       }else{
+       } else {
            corr <- (type==6)
        }
    }

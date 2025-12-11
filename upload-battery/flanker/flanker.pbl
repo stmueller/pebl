@@ -83,6 +83,15 @@ define Start(p)
    gLayout.subheader.visible <- 0
    gLayout.footer.text <- gStrings.footer
 
+   ## Show cursor only for mousetarget mode (need to click on targets)
+   ## Hide cursor for keyboard, mousebutton, and touchtarget modes
+   if(gParams.responsemode == "mousetarget")
+   {
+     ShowCursor(1)
+   } else {
+     ShowCursor(0)
+   }
+
    FilePrint(gLog, gSubNum + "," + gLanguage + "," +  TimeStamp()+",FLANKER TASK,"+gResponseType+",INITIATED")
    DoInstructions()
    FilePrint(gLog, gSubNum + "," + gLanguage + "," + TimeStamp()+",FLANKER TASK,"+gResponseType+",PRACTICE BEGIN")
@@ -518,7 +527,6 @@ define Initialize()
   gResponseType <-"shiftkeys"  ##currently, changing this has no effect.
   gSleepEasy <- 1
   GetStrings(gLanguage)
-  ShowCursor(0)
 
 
   ## the yoffset is supposed to be 1.06 degrees above offset.
@@ -569,7 +577,7 @@ define MessageKeyBox(message)
                         gLayout.stimulusRegion.height - 40,
                         "scalefont")
   Draw()
-  WaitForAnyKeyPress()
+  WaitForLayoutResponse(gLayout)
   RemoveObject(tb,gWin)
 
 }
@@ -611,11 +619,11 @@ if(gParams.includedashtrials)
    l8 <- EasyLabel(gFooterL,gVideoWidth/2-200,yval,gWin,15)
 
    Draw()
-   WaitForAnyKeyPress()
+   WaitForLayoutResponse(gLayout)
 
    tb.text <- gInst3text
    Draw()
-   WaitForAnyKeyPress()
+   WaitForLayoutResponse(gLayout)
 
 }
 

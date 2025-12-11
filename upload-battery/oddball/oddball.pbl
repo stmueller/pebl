@@ -77,7 +77,28 @@ define Start(p)
    gLayout <- CreateLayout("oddball", gWin, gParams)
    gLayout.header.text <- gStrings.header
    gLayout.subheader.visible <- 1
-   gLayout.footer.text <- gStrings.footer
+
+   ## Override response labels to show CIRCLE/SQUARE instead of LEFT/RIGHT
+   leftLabel <- Nth(gLayout.responseLabels, 1)
+   leftLabel.text <- gStrings.footerL
+   rightLabel <- Nth(gLayout.responseLabels, 2)
+   rightLabel.text <- gStrings.footerR
+
+   ## Set footer to show the actual keys being used (from response mode)
+   ## Format: "LEFT_KEY                                    RIGHT_KEY"
+   leftKey <- Nth(gLayout.responseMode.labels, 1)
+   rightKey <- Nth(gLayout.responseMode.labels, 2)
+   gLayout.footer.text <- leftKey + "                                    " + rightKey
+   Show(gLayout.footer)
+
+   ## Show cursor only for mousetarget mode (need to click on targets)
+   ## Hide cursor for keyboard, mousebutton, and touchtarget modes
+   if(gParams.responsemode == "mousetarget")
+   {
+     ShowCursor(1)
+   } else {
+     ShowCursor(0)
+   }
 
    ##Make data files
 
@@ -96,7 +117,6 @@ define Start(p)
 
    if(flen==0)
     {
-      Print("empty pooled data file.  Adding header")
       FilePrint(gPooledFileOut, header)
     }
 
@@ -177,9 +197,6 @@ define Start(p)
 
    aggOddballRT <-SummaryStats(gRTs,gOddball)
    aggOddballAcc <-SummaryStats(gCorr,gOddball)
-
-   Print(aggOddballRT)
-   Print(aggOddballAcc)
 
    oddballcost<- Nth(Second(aggoddballRT),4)-Nth(First(aggoddballRT),4)
 
@@ -262,8 +279,10 @@ define Trial (stim,practice,trialend,totalTrials)
    gLayout.subheader.text <- "Trial " + gTrial + " of " + totalTrials
 
    time0 <- GetTime()
-   ##add the fixation right away.
-   fixation <- EasyLabel("+",gVideoWidth/2,gVideoHeight/2,gWin,40)
+
+   ## Center stimuli in stimulus region to avoid footer overlap
+   ycenter <- gLayout.stimulusRegion.y + gLayout.stimulusRegion.height/2
+   fixation <- EasyLabel("+",gVideoWidth/2,ycenter,gWin,40)
    ## Footer already set in layout
 
    Draw()
@@ -277,9 +296,9 @@ define Trial (stim,practice,trialend,totalTrials)
 
     if(targID==1)
       {
-	     stim <- Circle(xval, gVideoHeight/2,75,MakeColor("red"),1)
+	     stim <- Circle(xval, ycenter,75,MakeColor("red"),1)
       } else {
-	     stim <- Square(xval, gVideoHeight/2,150,MakeColor("red"),1)
+	     stim <- Square(xval, ycenter,150,MakeColor("red"),1)
       }
 
     AddObject(stim,gWin)
@@ -398,7 +417,6 @@ define Initialize()
   gResponseType <-"shiftkeys"  ##currently, changing this has no effect.
   gSleepEasy <- 1
   GetStrings(gLanguage)
-  ShowCursor(0)
 
   ##  The screen re
   ##
@@ -424,7 +442,6 @@ define Initialize()
 
   ##this is the vertical offset
   gOffset <-  Round(Tan(DegToRad(1.06)) * eyepixeldistance)
-  Print("using offset of "+gOffset)
 
    if(not FileExists("data"))
     {
@@ -452,40 +469,54 @@ define MessageKeyBox(message)
                         gLayout.stimulusRegion.height - 40,
                         "scalefont")
   Draw()
-  WaitForAnyKeyPress()
+  WaitForLayoutResponse(gLayout)
   RemoveObject(tb,gWin)
 
 }
 
 define DoInstructions()
 {
+   ## Hide header during instructions, but keep footer and response labels visible
+   gLayout.header.visible <- 0
+   Draw()
 
-   tb <- EasyTextbox(gInst1text,100,50,gWin,32,gVideoWidth-200,200)
+   ## Use AdaptiveTextBox at top of screen with small margin
+   ## Height of ~150 pixels for instructions, leaving room for stimuli below
+   ## Position from upper-left corner (x=20, y=20)
+   tb <- AdaptiveTextBox(gInst1text, 20,   20,
+                         gWin, 32, gVideoWidth - 40,  150,
+                         "scalefont")
 
-
-   fixation <- EasyLabel("+",gVideoWidth/2,gVideoHeight/2+100,gWin,40)
-   stim1 <- Circle(gVideoWidth/2-200, gVideoHeight/2+100,75,MakeColor("red"),1)
-   stim2 <- Square(gVideoWidth/2+200, gVideoHeight/2+100,150,MakeColor("red"),1)
-#   footer <- EasyLabel(gFooterL+"                   "+gFooterR,gVideoWidth/2,gVideoHeight-100,gWin,28)
+   ## Position stimuli below the textbox (textbox ends at ~170, place stimuli at ~300)
+   ycenter <- gLayout.centerY
+   xcenter <- gLayout.centerX
+   fixation <- EasyLabel("+",xcenter,ycenter,gWin,40)
+   ## First page shows typical case: circle left, square right (matching response labels)
+   stim1 <- Circle(xcenter-200, ycenter,75,MakeColor("red"),1)
+   stim2 <- Square(xcenter+200, ycenter,150,MakeColor("red"),1)
    AddObject(stim1,gWin)
    AddObject(stim2,gWin)
    Draw()
-   WaitForAnyKeyPress()
+   WaitForLayoutResponse(gLayout)
 
+   ## Second page shows oddball case: circle right, square left
    tb.text <- gInst2text
    stim1.x <- gVideoWidth/2+200
    stim2.x <- gVideoWidth/2-200
    Draw()
-   WaitForAnyKeyPress()
+   WaitForLayoutResponse(gLayout)
 
    tb.text <- gInst3text
    Draw()
-   WaitForAnyKeyPress()
+   WaitForLayoutResponse(gLayout)
    RemoveObject(stim1,gWin)
    RemoveObject(stim2,gWin)
    RemoveObject(fixation,gWin)
- #  RemoveObject(footer,gWin)
    RemoveObject(tb,gWin)
+
+   ## Restore header visibility (footer and response labels stayed visible)
+   gLayout.header.visible <- 1
+   Draw()
 }
 
 

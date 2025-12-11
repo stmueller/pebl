@@ -199,7 +199,7 @@ bool PlatformWidget::Draw()
                             //we sort of want to render to parent instead.
                             int result;
                             SDL_Texture * parenttexture =  dynamic_cast<PlatformWidget*>(mParent)->GetSDL_Texture();
-                            
+
                             if(parenttexture)
                                 {
                                     result = SDL_SetRenderTarget(mRenderer,parenttexture);
@@ -244,10 +244,10 @@ bool PlatformWidget::Draw()
                                             
                                         }
                                 } else{
-                                
-                                
-                                
-                                //SDL_SetTextureBlendMode(mTexture, SDL_BLENDMODE_BLEND);
+
+
+
+                                SDL_SetTextureBlendMode(mTexture, SDL_BLENDMODE_BLEND);
                                 result = SDL_RenderCopyEx(mRenderer, mTexture,
                                                           &fromRect, &toRect,
                                                           -mRotation,NULL,SDL_FLIP_NONE);

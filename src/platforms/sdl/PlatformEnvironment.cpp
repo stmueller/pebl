@@ -203,7 +203,6 @@ bool PlatformEnvironment::Draw()
                 (*p)->Draw();
         }
 
-
     return true;
 }
 

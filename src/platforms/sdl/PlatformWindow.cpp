@@ -499,9 +499,6 @@ bool PlatformWindow::Draw()
 
         }
 
-
-
-
     SDL_RenderPresent(mRenderer);//draw the window.
 
 

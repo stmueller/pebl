@@ -345,6 +345,7 @@ bool  PlatformTextBox::RenderText()
                                          (int)mTextureHeight);
             // Enable best quality filtering (anisotropic) for zoomed textures
             SDL_SetTextureScaleMode(mTexture, SDL_ScaleModeBest);
+            SDL_SetTextureBlendMode(mTexture, SDL_BLENDMODE_BLEND);
         }
     else
         {
@@ -353,6 +354,7 @@ bool  PlatformTextBox::RenderText()
                                          (int)mTextureWidth,(int)mTextureHeight);
             // Enable best quality filtering (anisotropic) for zoomed textures
             SDL_SetTextureScaleMode(mTexture, SDL_ScaleModeBest);
+            SDL_SetTextureBlendMode(mTexture, SDL_BLENDMODE_BLEND);
 
         }
 
@@ -1163,6 +1165,13 @@ bool PlatformTextBox::Draw()
         PWidget::SetBackgroundColor(GetPlatformFont()->GetBackgroundColor());
         mChanged = true;
         GetPlatformFont()->ClearChanged();
+    }
+
+    // CRITICAL: Always call FindBreaks() when text has changed
+    // This was in the backup version and is needed for proper rendering
+    if(mChanged)
+    {
+        FindBreaks();
     }
 
     if(mChanged)

@@ -35,7 +35,7 @@ define Start(p)
  
  MakeDirectory("data")
  gfileOut <- GetNewDataFile(gSubNum,gWin,"spatialdrawing","csv",
-                  "subid,abstime,trial,edits,deletes,edges,drawtime,standard,drawndiagram")
+                  "subid,abstime,trial,edits,deletes,edges,drawtime,standard,drawndiagram,overlap,missing,extra,total,completelycorrect,errorpct")
 
  #gfileHTMLReport <- GetNewDataFile(gSubNum,gWin,"spatialdrawing","html", "")
 
@@ -200,12 +200,12 @@ define HTMLTrailsOutput(dat)
 
 define DoSpatialGridTest()
 {
-   gstrings <-    ReadTranslationJSON("translations/"+Uppercase(gLanguage)+"/cube.json",gLanguage)
+   gstrings <- GetTranslations("spatialgrid", gLanguage)
 
    DoInstructions(gstrings.taskname,
                   gstrings.longinst,
-		  "translations/"+Uppercase(gLanguage)+"/"+gstrings.longinstimage,
-		  "translations/"+Uppercase(gLanguage)+"/"+gstrings.longinstsound)
+		  "translations/"+gstrings.longinstimage,
+		  "translations/"+gstrings.longinstsound)
 
 
 
@@ -636,9 +636,16 @@ define GridTrial(diagram,correctSolution,style:"orthographic",showfirst:1,text:"
   ##recode the diagram and the solution here.
   diagramtext <-   StringifyDiagram(correctsolution)
   solutiontext <-  StringifyDiagram(newdiagram)
-  score <- [edits,deletes,Length(newDiagram),time-starttime,diagramtext,solutiontext]
+
+  ## Score the drawing using the integrated scoring system
+  scores <- ScoreDrawing(diagramtext, solutiontext, style, 20)
+
+  ## Return trial data with scores: edits, deletes, edges, drawtime, standard, drawn,
+  ## overlap (common), missing, extra, total, completelycorrect (exactMatch), errorpct
+  result <- [edits, deletes, Length(newDiagram), time-starttime, diagramtext, solutiontext,
+             scores.common, scores.missing, scores.extra, scores.total, scores.exactMatch, scores.errorPct]
 #  Print(newdiagram)
-  return score
+  return result
 }
 
 define StringifyDiagram(diagram)
@@ -1669,4 +1676,379 @@ define WaitForClickOnGridTarget(mygrid,targetlist,keylist,style:"orthographic")
       
      } #end of while(wait)
   return ret
+}
+
+
+##============================================================================
+## SCORING FUNCTIONS
+##============================================================================
+## Integrated from score_spatial_drawings.pbl to score diagrams inline
+
+## Helper function to convert grid coordinates to linear index
+define GridToIndex(row, col, lgridsize)
+{
+  index <- (row - 1) * lgridsize + col
+  return(index)
+}
+
+## Check if a line segment is a valid isometric diagonal
+define IsIsometricDiagonal(startRow, startCol, endRow, endCol)
+{
+  result <- 0
+
+  ## Vertical or horizontal lines are not diagonals
+  if(startCol == endCol)
+  {
+    result <- 0
+  } else {
+    if(startRow == endRow)
+    {
+      result <- 0
+    } else {
+      ## Calculate deltas
+      deltaX <- endCol - startCol
+      deltaY <- endRow - startRow
+
+      ## Determine column step direction
+      colStep <- 1
+      if(deltaX < 0)
+      {
+        colStep <- -1
+      }
+
+      ## Simulate stepping through columns with parity-based row changes
+      currentCol <- startCol
+      currentRow <- startRow
+      numSteps <- Abs(deltaX)
+
+      i <- 0
+      while(i < numSteps)
+      {
+        prevCol <- currentCol
+        currentCol <- currentCol + colStep
+
+        ## Check parity transition
+        prevParity <- Mod(prevCol, 2)
+        newParity <- Mod(currentCol, 2)
+
+        ## Apply row changes based on direction and parity
+        if(deltaY > 0)
+        {
+          ## SE/SW diagonal: row should increase
+          ## Row increments on even→odd transition
+          if(prevParity == 0 and newParity == 1)
+          {
+            currentRow <- currentRow + 1
+          }
+        } else {
+          ## NE/NW diagonal: row should decrease
+          ## Row decrements on odd→even transition
+          if(prevParity == 1 and newParity == 0)
+          {
+            currentRow <- currentRow - 1
+          }
+        }
+
+        i <- i + 1
+      }
+
+      ## Check if we reached the target
+      if(currentRow == endRow and currentCol == endCol)
+      {
+        result <- 1
+      } else {
+        result <- 0
+      }
+    }
+  }
+
+  return(result)
+}
+
+## Parse diagram string into list of segments
+define ParseDiagram(diagramStr)
+{
+  segments <- []
+
+  if(StringLength(diagramStr) > 0)
+  {
+    ## Split by | to get individual segments
+    segStrs <- SplitString(diagramStr, "|")
+
+    loop(segStr, segStrs)
+    {
+      ## Split by ; to get start and end points
+      points <- SplitString(segStr, ";")
+      if(Length(points) == 2)
+      {
+        start <- ToNumber(First(points))
+        end <- ToNumber(Second(points))
+        PushOnEnd(segments, [start, end])
+      }
+    }
+  }
+
+  return(segments)
+}
+
+## Segment a graph by breaking lines at crossing points
+define SegmentGraph(segments, type, lgridsize)
+{
+  result <- []
+
+  loop(seg, segments)
+  {
+    start <- First(seg)
+    end <- Second(seg)
+
+    ## Break this segment into minimal sub-segments
+    subsegs <- ReduceSegment(start, end, lgridsize, type)
+
+    loop(subseg, subsegs)
+    {
+      PushOnEnd(result, subseg)
+    }
+  }
+
+  return(result)
+}
+
+## Reduce a segment to minimal sub-segments
+define ReduceSegment(start, end, lgridsize, type)
+{
+  ## Convert linear index to 2D coordinates
+  startRow <- Floor((start - 1) / lgridsize)
+  startCol <- Mod(start - 1, lgridsize)
+  endRow <- Floor((end - 1) / lgridsize)
+  endCol <- Mod(end - 1, lgridsize)
+
+  startX <- startCol
+  startY <- startRow
+  endX <- endCol
+  endY <- endRow
+
+  deltaX <- endX - startX
+  deltaY <- endY - startY
+
+  segments <- []
+
+  ## Special case: horizontal lines in isometric grids don't need segmentation
+  if(deltaY == 0 and type == "isometric")
+  {
+    segments <- [[start, end]]
+  } else {
+    ## Determine step size for segmentation
+    step <- 0
+
+    if(deltaX == 0 or deltaY == 0)
+    {
+      ## Vertical line or horizontal line in orthographic grid
+      step <- Max([Abs(deltaX), Abs(deltaY)])
+    } else {
+      ## Diagonal line
+      if(type == "isometric")
+      {
+        ## For isometric, check if this is a valid isometric diagonal
+        isValid <- IsIsometricDiagonal(startRow, startCol, endRow, endCol)
+
+        if(isValid)
+        {
+          step <- Abs(deltaX)
+        } else {
+          step <- 0
+        }
+      } else {
+        ## Orthographic grid - use GCD for diagonals
+        step <- GCD(Abs(deltaX), Abs(deltaY))
+      }
+    }
+
+    ## Generate segments
+    if(step == 0)
+    {
+      ## Can't segment - keep as single segment
+      segments <- [[start, end]]
+    } else {
+      ## Calculate step slope
+      stepX <- deltaX / step
+      stepY <- deltaY / step
+
+      ## Generate intermediate points
+      points <- []
+
+      if(type == "isometric" and stepX != 0 and stepY != 0)
+      {
+        ## Isometric diagonal - step by columns with parity-based row increments
+        currentCol <- startX
+        currentRow <- startY
+
+        i <- 0
+        while(i <= step)
+        {
+          index <- Floor(currentRow * lgridsize + currentCol + 1 + 0.5)
+          PushOnEnd(points, index)
+
+          if(i < step)
+          {
+            prevCol <- currentCol
+            currentCol <- currentCol + (stepX / Abs(stepX))
+
+            prevParity <- Mod(prevCol, 2)
+            newParity <- Mod(currentCol, 2)
+
+            if(stepY > 0)
+            {
+              ## SE diagonal: row increments on even→odd transition
+              if(prevParity == 0 and newParity == 1)
+              {
+                currentRow <- currentRow + 1
+              }
+            } else {
+              ## NE diagonal: row decrements on odd→even transition
+              if(prevParity == 1 and newParity == 0)
+              {
+                currentRow <- currentRow - 1
+              }
+            }
+          }
+
+          i <- i + 1
+        }
+      } else {
+        ## Vertical, horizontal, or orthographic - use linear interpolation
+        i <- 0
+        while(i <= step)
+        {
+          colRaw <- startX + i * stepX
+          rowRaw <- startY + i * stepY
+
+          colInt <- Floor(colRaw + 0.5)
+          rowInt <- Floor(rowRaw + 0.5)
+
+          index <- rowInt * lgridsize + colInt + 1
+          PushOnEnd(points, index)
+
+          i <- i + 1
+        }
+      }
+
+      ## Create segments from consecutive points
+      i <- 1
+      while(i < Length(points))
+      {
+        PushOnEnd(segments, [Nth(points, i), Nth(points, i+1)])
+        i <- i + 1
+      }
+
+      if(Length(segments) == 0)
+      {
+        segments <- [[start, end]]
+      }
+    }
+  }
+
+  return(segments)
+}
+
+## Normalize segments by sorting endpoints
+define NormalizeSegments(segments)
+{
+  result <- []
+
+  loop(seg, segments)
+  {
+    start <- First(seg)
+    end <- Second(seg)
+
+    normalized <- []
+    if(start <= end)
+    {
+      normalized <- [start, end]
+    } else {
+      normalized <- [end, start]
+    }
+
+    PushOnEnd(result, normalized)
+  }
+
+  return(result)
+}
+
+## Convert segments to string representations
+define SegmentsToStrings(segments)
+{
+  result <- []
+
+  loop(seg, segments)
+  {
+    str <- First(seg) + "-" + Second(seg)
+    PushOnEnd(result, str)
+  }
+
+  return(result)
+}
+
+## Main scoring function
+define ScoreDrawing(standard, drawn, type, lgridsize)
+{
+  ## Parse diagram strings into segment lists
+  standardSegs <- ParseDiagram(standard)
+  drawnSegs <- ParseDiagram(drawn)
+
+  ## Segment the graphs (break lines at crossing points)
+  standardSegmented <- SegmentGraph(standardSegs, type, lgridsize)
+  drawnSegmented <- SegmentGraph(drawnSegs, type, lgridsize)
+
+  ## Normalize segments (sort endpoints so order doesn't matter)
+  standardNorm <- NormalizeSegments(standardSegmented)
+  drawnNorm <- NormalizeSegments(drawnSegmented)
+
+  ## Convert to strings for comparison
+  standardStrs <- SegmentsToStrings(standardNorm)
+  drawnStrs <- SegmentsToStrings(drawnNorm)
+
+  ## Remove duplicates and sort
+  standardUnique <- Levels(standardStrs)
+  drawnUnique <- Levels(drawnStrs)
+
+  ## Compute set operations
+  commonNodes <- Intersect(standardUnique, drawnUnique)
+
+  ## Total for error rate calculation
+  total <- Length(standardUnique) + Length(drawnUnique)
+
+  ## Extra segments: in drawn but not in standard
+  extraSegs <- SetDifference(standardUnique, drawnUnique)
+  extra <- Length(extraSegs)
+
+  ## Missing segments: in standard but not in drawn
+  missingSegs <- SetDifference(drawnUnique, standardUnique)
+  missing <- Length(missingSegs)
+
+  ## Calculate metrics
+  errors <- extra + missing
+  exactMatch <- 0
+  if(errors == 0)
+  {
+    exactMatch <- 1
+  }
+
+  ## Calculate error percentage
+  errorPct <- 0
+  if(total > 0)
+  {
+    errorPct <- Round((errors / total) * 100, 2)
+  }
+
+  ## Create result object
+  result <- MakeCustomObject("score")
+  result.exactMatch <- exactMatch
+  result.errors <- errors
+  result.total <- total
+  result.common <- Length(commonNodes)
+  result.extra <- extra
+  result.missing <- missing
+  result.errorPct <- errorPct
+
+  return(result)
 }

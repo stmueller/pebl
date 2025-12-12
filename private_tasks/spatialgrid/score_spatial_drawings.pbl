@@ -1,0 +1,800 @@
+## Spatial Grid Drawing Scoring System
+## Scores diagram drawings by computing edit distance (additions + deletions)
+## Handles both orthographic and isometric grids
+
+## Helper function to convert grid coordinates to linear index
+## Assumes 1-indexed row and col (matching visual grid display)
+define GridToIndex(row, col, lgridsize)
+{
+  index <- (row - 1) * lgridsize + col
+  return(index)
+}
+
+## Check if a line segment is a valid isometric diagonal
+## Returns 1 if valid, 0 if not
+define IsIsometricDiagonal(startRow, startCol, endRow, endCol)
+{
+  result <- 0
+
+  ## Vertical or horizontal lines are not diagonals
+  if(startCol == endCol)
+  {
+    result <- 0
+  } else {
+    if(startRow == endRow)
+    {
+      result <- 0
+    } else {
+      ## Calculate deltas
+      deltaX <- endCol - startCol
+      deltaY <- endRow - startRow
+
+      ## Determine column step direction
+      colStep <- 1
+      if(deltaX < 0)
+      {
+        colStep <- -1
+      }
+
+      ## Simulate stepping through columns with parity-based row changes
+      currentCol <- startCol
+      currentRow <- startRow
+      numSteps <- Abs(deltaX)
+
+      i <- 0
+      while(i < numSteps)
+      {
+        prevCol <- currentCol
+        currentCol <- currentCol + colStep
+
+        ## Check parity transition
+        prevParity <- Mod(prevCol, 2)
+        newParity <- Mod(currentCol, 2)
+
+        ## Apply row changes based on direction and parity
+        if(deltaY > 0)
+        {
+          ## SE/SW diagonal: row should increase
+          ## Row increments on even→odd transition
+          if(prevParity == 0 and newParity == 1)
+          {
+            currentRow <- currentRow + 1
+          }
+        } else {
+          ## NE/NW diagonal: row should decrease
+          ## Row decrements on odd→even transition
+          if(prevParity == 1 and newParity == 0)
+          {
+            currentRow <- currentRow - 1
+          }
+        }
+
+        i <- i + 1
+      }
+
+      ## Check if we reached the target
+      if(currentRow == endRow and currentCol == endCol)
+      {
+        result <- 1
+      } else {
+        result <- 0
+      }
+    }
+  }
+
+  return(result)
+}
+
+define Start(p)
+{
+  ## Grid configuration
+  gGridSize <- 20  ## 20x20 grid
+
+  ## Display configuration - set to 1 to show visual comparison for each trial
+  gShowDisplay <- 0  ## 0 = no display, 1 = show visual comparison
+
+  ## Initialize window if display is enabled
+  gWin <- 0
+  if(gShowDisplay)
+  {
+    gWin <- MakeWindow("black")
+  }
+
+  ## Load data from CSV file
+  data <- ReadCSV("spatial_pooled.csv")
+
+  ## Output file for scored results
+  outFile <- FileOpenOverWrite("spatial_pooled_scored.csv")
+
+  ## Write header
+  header <- "subid,abstime,trial,edits,deletes,edges,drawtime,standard,drawndiagram,"
+  header <- header + "grid_type,exactMatch,errorRate,errors,total,common,extra,missing"
+  FilePrint(outFile, header)
+
+  ## Process each trial (skip header row)
+  trialNum <- 1
+  loop(i, SubList(data, 2, Length(data)))
+  {
+    Print("Processing trial " + trialNum + " of " + (Length(data)-1))
+
+    ## Parse row
+    subid <- Nth(i, 1)
+    abstime <- Nth(i, 2)
+    trial <- Nth(i, 3)
+    edits <- Nth(i, 4)
+    deletes <- Nth(i, 5)
+    edges <- Nth(i, 6)
+    drawtime <- Nth(i, 7)
+    standard <- Nth(i, 8)
+    drawn <- Nth(i, 9)
+
+    ## Determine grid type from trial number
+    ## Trials 1-5 are orthographic, 6-10 are isometric (based on spatialgrid.pbl)
+    gridType <- "orthographic"
+    if(ToNumber(trial) >= 6)
+    {
+      gridType <- "isometric"
+    }
+
+    ## Score the drawing
+    scores <- ScoreDrawing(standard, drawn, gridType, gGridSize)
+
+    ## Show visual comparison if enabled
+    if(gShowDisplay)
+    {
+      ShowVisualComparison(standard, drawn, gridType, gGridSize, scores, trial, subid)
+    }
+
+    ## Write results
+    outLine <- subid + "," + abstime + "," + trial + "," + edits + "," + deletes + "," +
+               edges + "," + drawtime + "," + Enquote(standard) + "," + Enquote(drawn) + ","
+    outLine <- outLine + gridType + "," + scores.exactMatch + "," + scores.errorRate + "," +
+               scores.errors + "," + scores.total + "," + scores.common + "," +
+               scores.extra + "," + scores.missing
+
+    FilePrint(outFile, outLine)
+
+    trialNum <- trialNum + 1
+  }
+
+  FileClose(outFile)
+  Print("Scoring complete! Results saved to spatial_pooled_scored.csv")
+}
+
+## Main scoring function
+## Compares two diagram strings and returns scoring metrics
+define ScoreDrawing(standard, drawn, gridType, lgridsize)
+{
+  ## Parse diagram strings into segment lists
+  standardSegs <- ParseDiagram(standard)
+  drawnSegs <- ParseDiagram(drawn)
+
+  ## Segment the graphs (break lines at crossing points)
+  standardSegmented <- SegmentGraph(standardSegs, gridType, lgridsize)
+  drawnSegmented <- SegmentGraph(drawnSegs, gridType, lgridsize)
+
+  ## Normalize segments (sort endpoints so order doesn't matter)
+  standardNorm <- NormalizeSegments(standardSegmented)
+  drawnNorm <- NormalizeSegments(drawnSegmented)
+
+  ## Convert to strings for comparison
+  standardStrs <- SegmentsToStrings(standardNorm)
+  drawnStrs <- SegmentsToStrings(drawnNorm)
+
+  ## Remove duplicates and sort
+  standardUnique <- Levels(standardStrs)
+  drawnUnique <- Levels(drawnStrs)
+
+  ## Compute set operations
+  commonNodes <- Intersect(standardUnique, drawnUnique)
+
+  ## Total for error rate calculation: sum of both figures
+  total <- Length(standardUnique) + Length(drawnUnique)
+
+  ## Extra segments: in drawn but not in standard
+  ## SetDifference(X, Y) returns items in Y not in X
+  ## So for "items in drawn not in standard": SetDifference(standardUnique, drawnUnique)
+  extraSegs <- SetDifference(standardUnique, drawnUnique)
+  extra <- Length(extraSegs)
+
+  ## Missing segments: in standard but not in drawn
+  ## For "items in standard not in drawn": SetDifference(drawnUnique, standardUnique)
+  missingSegs <- SetDifference(drawnUnique, standardUnique)
+  missing <- Length(missingSegs)
+
+  ## Calculate metrics
+  errors <- extra + missing
+  Print("Scoring: " + extra + " extra + " + missing + " missing = " + errors + " errors / " + total + " total segments")
+  exactMatch <- 0
+  if(errors == 0)
+  {
+    exactMatch <- 1
+  }
+
+  errorRate <- 0
+  if(total > 0)
+  {
+    errorRate <- errors / total
+  }
+
+  ## Create result object
+  result <- MakeCustomObject("score")
+  result.exactMatch <- exactMatch
+  result.errorRate <- Round(errorRate, 4)
+  result.errors <- errors
+  result.total <- total
+  result.common <- Length(commonNodes)
+  result.extra <- extra
+  result.missing <- missing
+  result.standardSegs <- standardUnique
+  result.drawnSegs <- drawnUnique
+
+  return(result)
+}
+
+## Parse diagram string into list of segments
+## Format: "66;76|76;336|336;326" → [[66,76], [76,336], [336,326]]
+define ParseDiagram(diagramStr)
+{
+  segments <- []
+
+  if(StringLength(diagramStr) > 0)
+  {
+    ## Split by | to get individual segments
+    segStrs <- SplitString(diagramStr, "|")
+
+    loop(segStr, segStrs)
+    {
+      ## Split by ; to get start and end points
+      points <- SplitString(segStr, ";")
+      if(Length(points) == 2)
+      {
+        start <- ToNumber(First(points))
+        end <- ToNumber(Second(points))
+        PushOnEnd(segments, [start, end])
+      }
+    }
+  }
+
+  return(segments)
+}
+
+## Segment a graph by breaking lines at crossing points
+## This ensures minimal-length segments
+define SegmentGraph(segments, gridType, lgridsize)
+{
+  result <- []
+
+  loop(seg, segments)
+  {
+    start <- First(seg)
+    end <- Second(seg)
+
+    ## Break this segment into minimal sub-segments
+    subsegs <- ReduceSegment(start, end, lgridsize, gridType)
+
+    loop(subseg, subsegs)
+    {
+      PushOnEnd(result, subseg)
+    }
+  }
+
+  return(result)
+}
+
+## Reduce a segment to minimal sub-segments using GCD approach
+## Based on R's reduceSegment function
+define ReduceSegment(start, end, lgridsize, type)
+{
+  ## Convert linear index to 2D coordinates
+  ## Indices are 1-based, so subtract 1 first
+  ## Then: row = Floor(index / width), col = Mod(index, width)
+  startRow <- Floor((start - 1) / lgridsize)
+  startCol <- Mod(start - 1, lgridsize)
+  endRow <- Floor((end - 1) / lgridsize)
+  endCol <- Mod(end - 1, lgridsize)
+
+  ## X is horizontal (column), Y is vertical (row)
+  ## Work in logical grid space (no offset) for segmentation
+  startX <- startCol
+  startY <- startRow
+  endX <- endCol
+  endY <- endRow
+
+  ## Calculate delta in logical grid space
+  deltaX <- endX - startX
+  deltaY <- endY - startY
+
+
+  segments <- []
+
+  ## Special case: horizontal lines in isometric grids don't need segmentation
+  ## (They visually zigzag but should stay as single segments)
+  if(deltaY == 0 and type == "isometric")
+  {
+    segments <- [[start, end]]
+  } else {
+    ## Determine step size for segmentation
+    step <- 0
+
+    if(deltaX == 0 or deltaY == 0)
+    {
+      ## Vertical line or horizontal line in orthographic grid
+      step <- Max([Abs(deltaX), Abs(deltaY)])
+    } else {
+      ## Diagonal line
+      if(type == "isometric")
+      {
+        ## For isometric, check if this is a valid isometric diagonal
+        isValid <- IsIsometricDiagonal(startRow, startCol, endRow, endCol)
+
+        if(isValid)
+        {
+          ## Valid isometric diagonal - step by columns
+          step <- Abs(deltaX)
+        } else {
+          ## Not a valid isometric diagonal - don't segment
+          step <- 0
+        }
+      } else {
+        ## Orthographic grid - use GCD for diagonals
+        step <- GCD(Abs(deltaX), Abs(deltaY))
+      }
+    }
+
+    ## Generate segments
+    if(step == 0)
+    {
+      ## Can't segment - keep as single segment
+      segments <- [[start, end]]
+    } else {
+    ## Calculate step slope (irreducible)
+    stepX <- deltaX / step
+    stepY <- deltaY / step
+
+    ## Generate intermediate points
+    points <- []
+
+    if(type == "isometric" and stepX != 0 and stepY != 0)
+    {
+      ## Isometric diagonal - step by columns with parity-based row increments
+      ## SE (stepY>0): row increments when odd→even, stays same when even→odd
+      ## NE (stepY<0): row stays same when odd→even, decrements when even→odd
+
+      currentCol <- startX
+      currentRow <- startY
+
+      i <- 0
+      while(i <= step)
+      {
+        ## Ensure index is integer by using Floor
+        index <- Floor(currentRow * lgridsize + currentCol + 1 + 0.5)
+        PushOnEnd(points, index)
+
+        if(i < step)
+        {
+          ## Move to next column
+          prevCol <- currentCol
+          currentCol <- currentCol + (stepX / Abs(stepX))  ## +1 or -1
+
+          ## Determine if row changes based on parity transition
+          prevParity <- Mod(prevCol, 2)
+          newParity <- Mod(currentCol, 2)
+
+          if(stepY > 0)
+          {
+            ## SE diagonal: row increments on even→odd transition
+            if(prevParity == 0 and newParity == 1)
+            {
+              currentRow <- currentRow + 1
+            }
+          } else {
+            ## NE diagonal: row decrements on odd→even transition
+            if(prevParity == 1 and newParity == 0)
+            {
+              currentRow <- currentRow - 1
+            }
+          }
+        }
+
+        i <- i + 1
+      }
+    } else {
+      ## Vertical, horizontal, or orthographic - use linear interpolation
+      i <- 0
+      while(i <= step)
+      {
+        colRaw <- startX + i * stepX
+        rowRaw <- startY + i * stepY
+
+        colInt <- Floor(colRaw + 0.5)
+        rowInt <- Floor(rowRaw + 0.5)
+
+        index <- rowInt * lgridsize + colInt + 1
+        PushOnEnd(points, index)
+
+        i <- i + 1
+      }
+    }
+
+    ## Create segments from consecutive points
+    i <- 1
+    while(i < Length(points))
+    {
+      PushOnEnd(segments, [Nth(points, i), Nth(points, i+1)])
+      i <- i + 1
+    }
+
+      ## Handle single-point case
+      if(Length(segments) == 0)
+      {
+        segments <- [[start, end]]
+      }
+    }
+  }
+
+  return(segments)
+}
+
+## Normalize segments by sorting endpoints
+## [76, 66] → [66, 76] so order doesn't matter
+define NormalizeSegments(segments)
+{
+  result <- []
+
+  loop(seg, segments)
+  {
+    start <- First(seg)
+    end <- Second(seg)
+
+    normalized <- []
+    if(start <= end)
+    {
+      normalized <- [start, end]
+    } else {
+      normalized <- [end, start]
+    }
+
+    PushOnEnd(result, normalized)
+  }
+
+  return(result)
+}
+
+## Convert segments to string representations for comparison
+## [[66, 76], [76, 86]] → ["66-76", "76-86"]
+define SegmentsToStrings(segments)
+{
+  result <- []
+
+  loop(seg, segments)
+  {
+    str <- First(seg) + "-" + Second(seg)
+    PushOnEnd(result, str)
+  }
+
+  return(result)
+}
+
+##============================================================================
+## VISUAL DISPLAY FUNCTIONS
+##============================================================================
+## Note: Set operations (Union, Intersect, SetDifference) now in Design.pbl
+## Note: GCD function now in Math.pbl
+
+## Display a visual comparison of standard vs drawn diagrams
+define ShowVisualComparison(standard, drawn, type, lgridSize, scores, trialNum, subId)
+{
+  titleFont <- MakeFont(gPEBLBaseFontMONO, 0, 32, MakeColor("white"), MakeColor("black"), 1)
+  infoFont <- MakeFont(gPEBLBaseFontMONO, 0, 20, MakeColor("white"), MakeColor("black"), 1)
+  smallFont <- MakeFont(gPEBLBaseFontMONO, 0, 16, MakeColor("grey70"), MakeColor("black"), 1)
+
+  ## Calculate grid position (centered)
+  gridLeft <- 200
+  gridRight <- gVideoWidth - 200
+  gridTop <- 150
+  gridBottom <- gVideoHeight - 150
+
+  ## Parse diagrams
+  standardSegs <- ParseDiagram(standard)
+  drawnSegs <- ParseDiagram(drawn)
+
+  ##==========================================================
+  ## FIRST DISPLAY: RAW (NON-SEGMENTED) VERSION
+  ##==========================================================
+  Draw()
+
+  title1 <- MakeLabel("Trial " + trialNum + " - Subject: " + subId + " [RAW]", titleFont)
+  AddObject(title1, gWin)
+  Move(title1, gVideoWidth/2, 40)
+
+  info1 <- "Grid Type: " + type + " | Raw segments (not yet segmented)"
+  infoLabel1 <- MakeLabel(info1, infoFont)
+  AddObject(infoLabel1, gWin)
+  Move(infoLabel1, gVideoWidth/2, 80)
+
+  legend1 <- "Yellow = Standard | Blue = Drawn"
+  legendLabel1 <- MakeLabel(legend1, smallFont)
+  AddObject(legendLabel1, gWin)
+  Move(legendLabel1, gVideoWidth/2, gVideoHeight - 80)
+
+  instructions1 <- "Press any key to see SEGMENTED version"
+  instLabel1 <- MakeLabel(instructions1, infoFont)
+  AddObject(instLabel1, gWin)
+  Move(instLabel1, gVideoWidth/2, gVideoHeight - 40)
+
+  ## Create grid
+  mygrid1 <- MakeDisplayGrid(gWin, lgridSize, lgridSize, gridLeft, gridRight,
+                           gridTop, gridBottom, 3, "grey30", type)
+
+  ## Draw RAW segments (not segmented)
+  allLines1 <- []
+
+  yellowColor <- MakeColorRGB(255, 255, 0)
+  standardLines1 <- DrawSegmentListThin(standardSegs, mygrid1, type, lgridSize, yellowColor, 3)
+  loop(line, standardLines1)
+  {
+    PushOnEnd(allLines1, line)
+  }
+
+  blueColor <- MakeColorRGB(100, 150, 255)
+  blueColor.alpha <- 128
+  drawnLines1 <- DrawSegmentListThin(drawnSegs, mygrid1, type, lgridSize, blueColor, 8)
+  loop(line, drawnLines1)
+  {
+    PushOnEnd(allLines1, line)
+  }
+
+  Draw()
+  WaitForAnyKeyPress()
+
+  ##==========================================================
+  ## SECOND DISPLAY: SEGMENTED VERSION
+  ##==========================================================
+  Draw()
+
+  title2 <- MakeLabel("Trial " + trialNum + " - Subject: " + subId + " [SEGMENTED]", titleFont)
+  AddObject(title2, gWin)
+  Move(title2, gVideoWidth/2, 40)
+
+  info2 <- "Grid Type: " + type + " | Errors: " + scores.errors + "/" + scores.total +
+          " | Error Rate: " + Round(scores.errorRate * 100, 1) + "%"
+  infoLabel2 <- MakeLabel(info2, infoFont)
+  AddObject(infoLabel2, gWin)
+  Move(infoLabel2, gVideoWidth/2, 80)
+
+  legend2 <- "Yellow = Standard | Blue = Drawn"
+  legendLabel2 <- MakeLabel(legend2, smallFont)
+  AddObject(legendLabel2, gWin)
+  Move(legendLabel2, gVideoWidth/2, gVideoHeight - 80)
+
+  instructions2 <- "Press any key to continue to next trial"
+  instLabel2 <- MakeLabel(instructions2, infoFont)
+  AddObject(instLabel2, gWin)
+  Move(instLabel2, gVideoWidth/2, gVideoHeight - 40)
+
+  ## Create grid
+  mygrid2 <- MakeDisplayGrid(gWin, lgridSize, lgridSize, gridLeft, gridRight,
+                           gridTop, gridBottom, 3, "grey30", type)
+
+  ## Segment the diagrams
+  standardSegmented <- SegmentGraph(standardSegs, type, lgridSize)
+  drawnSegmented <- SegmentGraph(drawnSegs, type, lgridSize)
+
+  ## Draw SEGMENTED segments
+  allLines2 <- []
+
+  standardLines2 <- DrawSegmentListThin(standardSegmented, mygrid2, type, lgridSize, yellowColor, 3)
+  loop(line, standardLines2)
+  {
+    PushOnEnd(allLines2, line)
+  }
+
+  drawnLines2 <- DrawSegmentListThin(drawnSegmented, mygrid2, type, lgridSize, blueColor, 8)
+  loop(line, drawnLines2)
+  {
+    PushOnEnd(allLines2, line)
+  }
+
+  Draw()
+  WaitForAnyKeyPress()
+
+  return(0)
+}
+
+## Create a display grid (copied from spatialgrid.pbl)
+define MakeDisplayGrid(win, width, height, xmin, xmax, ymin, ymax, circsize, color, style)
+{
+  yminTmp <- ymin
+  col <- MakeColor(color)
+
+  ## For isometric grids, column spacing should be about half to maintain proper aspect ratio
+  xDelta <- (xmax - xmin) / (width - 1)
+#  if(style == "isometric")
+#  {
+#    xDelta <- xDelta / 2
+#  }
+
+  yDelta <- (ymax - ymin) / (height - 1)
+
+  odd <- 1
+  points <- []
+  indexes <- []
+
+  loop(j, Sequence(1, height, 1))
+  {
+    loop(i, Sequence(1, width, 1))
+    {
+      if(style == "isometric")
+      {
+        if(odd)
+        {
+          ymin <- yminTmp + yDelta / 4
+        } else {
+          ymin <- yminTmp - yDelta / 4
+        }
+        odd <- 1 - odd
+      }
+
+      point <- Circle(xmin + xDelta * (i - 1), ymin + yDelta * (j - 1), circsize, col, 1)
+      point.aa <- 1
+      AddObject(point, win)
+      PushOnEnd(points, point)
+      PushOnEnd(indexes, [i, j])
+    }
+  }
+
+  gridObj <- MakeCustomObject("grid")
+  gridObj.points <- points
+  gridObj.indexes <- indexes
+  gridObj.xmin <- xmin
+  gridObj.xmax <- xmax
+  gridObj.ymin <- ymin
+  gridObj.ymax <- ymax
+  gridObj.xdelta <- xDelta
+  gridObj.ydelta <- yDelta
+  gridObj.width <- width
+  gridObj.height <- height
+  gridObj.win <- win
+
+  return(gridObj)
+}
+
+## Draw a list of segments in a single color with specified width
+## For semi-transparent effect, use lighter colors (high RGB values for blue)
+define DrawSegmentListThin(segments, mygrid, type, lgridSize, color, width)
+{
+  lines <- []
+  circles <- []
+
+  loop(seg, segments)
+  {
+    startIdx <- First(seg)
+    endIdx <- Second(seg)
+
+    ## Indices are already 1-based, no need to add 1
+    startPoint <- Nth(mygrid.points, startIdx)
+    startX <- startPoint.x
+    startY <- startPoint.y
+
+    endPoint <- Nth(mygrid.points, endIdx)
+    endX <- endPoint.x
+    endY <- endPoint.y
+
+    line <- ThickLine(startX, startY, endX, endY, width, color)
+    line.aa <- 1
+    AddObject(line, gWin)
+    PushOnEnd(lines, line)
+
+    ## Draw small circles at endpoints
+    startCirc <- Circle(startX, startY, width, color, 1)
+    startCirc.aa <- 1
+    AddObject(startCirc, gWin)
+    PushOnEnd(circles, startCirc)
+
+    endCirc <- Circle(endX, endY, width, color, 1)
+    endCirc.aa <- 1
+    AddObject(endCirc, gWin)
+    PushOnEnd(circles, endCirc)
+  }
+
+  ## Return both lines and circles
+  return(Merge(lines, circles))
+}
+
+## Draw segments with color coding based on correctness
+define DrawColorCodedSegments(standardSegs, drawnSegs, mygrid, type, lgridSize, scores)
+{
+  lines <- []
+
+  ## Get normalized segment strings for comparison
+  standardNorm <- NormalizeSegments(SegmentGraph(standardSegs, type, lgridSize))
+  drawnNorm <- NormalizeSegments(SegmentGraph(drawnSegs, type, lgridSize))
+
+  standardStrs <- SegmentsToStrings(standardNorm)
+  drawnStrs <- SegmentsToStrings(drawnNorm)
+
+  standardUnique <- Levels(standardStrs)
+  drawnUnique <- Levels(drawnStrs)
+
+  ## Draw drawn segments (correct in green, extra in red)
+  correctColor <- MakeColorRGB(0, 200, 0)
+  loop(seg, drawnSegs)
+  {
+    segNorm <- NormalizeSegments(SegmentGraph([seg], type, lgridSize))
+    segStrs <- Levels(SegmentsToStrings(segNorm))
+
+    isCorrect <- 0
+    loop(segStr, segStrs)
+    {
+      if(IsMember(segStr, standardUnique))
+      {
+        isCorrect <- 1
+      }
+    }
+
+    startIdx <- First(seg)
+    endIdx <- Second(seg)
+
+    ## Indices are already 1-based, no need to add 1
+    startPoint <- Nth(mygrid.points, startIdx)
+    startX <- startPoint.x
+    startY <- startPoint.y
+
+    endPoint <- Nth(mygrid.points, endIdx)
+    endX <- endPoint.x
+    endY <- endPoint.y
+
+    lineColor <- MakeColorRGB(200, 0, 0)
+    if(isCorrect)
+    {
+      lineColor <- correctColor
+    }
+
+    line <- ThickLine(startX, startY, endX, endY, 4, lineColor)
+    AddObject(line, gWin)
+    PushOnEnd(lines, line)
+  }
+
+  ## Draw missing segments (in standard but not drawn) - blue
+  missingColor <- MakeColorRGB(0, 100, 255)
+  loop(seg, standardSegs)
+  {
+    segNorm <- NormalizeSegments(SegmentGraph([seg], type, lgridSize))
+    segStrs <- Levels(SegmentsToStrings(segNorm))
+
+    isMissing <- 1
+    loop(segStr, segStrs)
+    {
+      if(IsMember(segStr, drawnUnique))
+      {
+        isMissing <- 0
+      }
+    }
+
+    if(isMissing)
+    {
+      startIdx <- First(seg)
+      endIdx <- Second(seg)
+
+      ## Indices are already 1-based, no need to add 1
+      startPoint <- Nth(mygrid.points, startIdx)
+      startX <- startPoint.x
+      startY <- startPoint.y
+
+      endPoint <- Nth(mygrid.points, endIdx)
+      endX <- endPoint.x
+      endY <- endPoint.y
+
+      line <- ThickLine(startX, startY, endX, endY, 3, missingColor)
+      line.aa <- 1
+      AddObject(line, gWin)
+      PushOnEnd(lines, line)
+    }
+  }
+
+  return(lines)
+}
+
+## Enquote() function is provided by Utility.pbl (PEBL standard library)
+## It adds quotes around a string for CSV output

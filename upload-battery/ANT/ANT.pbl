@@ -32,14 +32,16 @@
 define Start(p)
 {
 	gScriptName <- "PEBL ANT TASK"
-        gPANTVersion <- "1.1"
-	gBgColor <- "grey80"      # Background color
+        gPANTVersion <- "1.2"  ## Updated for Layout & Response System migration
+	gBgColor <- "white"       # Background color (changed from grey80 to white)
 	gFgColor <- "black"       # Foreground color
 	gWin <- MakeWindow(gBgColor)
 
 
         ##Set initial values to use if .par file does not exist.
         parpairs <- [["iti",4000],
+	             ["responsemode","auto"],
+		     ["responselabels",["LEFT","RIGHT"]],
 	             ["showfooter",0],
 		     ["leftresponse","<lshift>"],
 		     ["rightresponse","<rshift>"],
@@ -61,6 +63,30 @@ define Start(p)
 	 {
 	   gSubNum <- GetSubNum(gWin)
 	 }
+
+	## Create layout (AFTER GetSubNum to avoid footer showing during subject entry)
+	gLayout <- CreateLayout("ANT", gWin, gParams)
+
+	## Configure layout zones (AFTER CreateLayout)
+	gLayout.header.visible <- 0  ## ANT doesn't use header during trials
+	gLayout.subheader.visible <- 0  ## ANT doesn't use subheader
+	## Footer and response labels are automatically managed by layout system
+
+	## Show cursor for mouse-based modes, hide for keyboard modes
+	if(gParams.responsemode == "mousetarget")
+	{
+	    ShowCursor(1)  ## Show cursor for mouse modes
+	} else {
+	    ShowCursor(0)  ## Hide cursor for keyboard modes
+	}
+
+	## For mousetarget mode, show footer with custom instruction
+	if(gParams.responsemode == "mousetarget")
+	{
+	    gLayout.footer.visible <- 1
+	    gLayout.footer.text <- "Click on target to indicate left or right arrow"
+	}
+
 	header <- "subnum,block,trial,practice,cue,topbottom,targdir,flankercoherence,flankerdir,time0,delay,resp,corr,rt"
 	## Make data files
 
@@ -380,12 +406,9 @@ define Trial (stim,practice,endtime)
 {
 	time0 <- GetTime()
 
-	## Add the fixation right away
-	fixation <- EasyLabel("+",gVideoWidth/2,gVideoHeight/2,gWin,40)
-	if (gParams.ShowFooter) # Show footer switch
-	 {
-	   footer <- EasyLabel(gFooterL+"                   "+gFooterR,gVideoWidth/2,gVideoHeight-100,gWin,40)
-	 }
+	## Add the fixation right away (use layout center positioning)
+	fixation <- EasyLabel("+",gLayout.centerX,gLayout.centerY,gWin,40)
+	## Footer is now managed by layout system - no manual footer needed
 	Draw()
 
 	yoffset <- gOffset
@@ -396,9 +419,9 @@ define Trial (stim,practice,endtime)
 	flankerdir <- flankercoherence * targdir
 	if(topbottom=="hi")
 	 {
-	   ypos <- gVideoHeight/2-yoffset
+	   ypos <- gLayout.centerY-yoffset
      } else { # "lo"
-	   ypos <- gVideoHeight/2+yoffset
+	   ypos <- gLayout.centerY+yoffset
 	 }
 
 	## Create cue
@@ -411,23 +434,23 @@ define Trial (stim,practice,endtime)
 	   cueset <- []
 	 } elseif(cue==2)
 	 {
-	   back <-  Square(gVideoWidth/2,gVideoHeight/2,40,MakeColor(gBgColor),1)
+	   back <-  Square(gLayout.centerX,gLayout.centerY,40,MakeColor(gBgColor),1)
 	   AddObject(back,gWin)
-	   tmp<- EasyLabel(gCueChar,gVideoWidth/2,gVideoHeight/2,gWin,40)
+	   tmp<- EasyLabel(gCueChar,gLayout.centerX,gLayout.centerY,gWin,40)
 	   cueset <- [tmp,back]
 	 } elseif(cue==3) # double-cue
 	 {
-	   tmp1<- EasyLabel(gCueChar,gVideoWidth/2,gVideoHeight/2+yoffset,gWin,40)
-	   tmp2<- EasyLabel(gCueChar,gVideoWidth/2,gVideoHeight/2-yoffset,gWin,40)
+	   tmp1<- EasyLabel(gCueChar,gLayout.centerX,gLayout.centerY+yoffset,gWin,40)
+	   tmp2<- EasyLabel(gCueChar,gLayout.centerX,gLayout.centerY-yoffset,gWin,40)
 	   cueset <- [tmp1,tmp2]
 	 } else
 	 {
-	   tmp <- EasyLabel(gCueChar,gVideoWidth/2,ypos,gWin,40)
+	   tmp <- EasyLabel(gCueChar,gLayout.centerX,ypos,gWin,40)
 	   cueset <- [tmp]
 	 }
 	stim <- MakeStim([flankerdir,flankerdir,targdir,flankerdir,flankerdir])
 	AddObject(stim,gWin)
-	Move(stim,gVideoWidth/2,ypos)
+	Move(stim,gLayout.centerX,ypos)
 	Hide(stim)
 
 	## Now, how the trial sequence.
@@ -446,12 +469,14 @@ define Trial (stim,practice,endtime)
 	Show(stim)
 	Draw()
 	time2 <- GetTime()
-	resp <- WaitForListKeyPressWithTimeout([gParams.LeftResponse,gParams.RightResponse],1700,1)
+	## Use layout response system - returns semantic response ("left", "right", or "<timeout>")
+	resp <- WaitForLayoutResponse(gLayout, 1700)
 	time3 <- GetTime()
 	Hide(stim)
 
-	corr <- ((targdir ==1) and (resp == gParams.RightResponse)) or
-			((targdir ==-1) and (resp == gParams.LeftResponse))
+	## Update correctness logic to use semantic responses
+	corr <- ((targdir ==1) and (resp == "right")) or
+			((targdir ==-1) and (resp == "left"))
 	rt <- time3-time2
 	if(practice)
 	 {
@@ -656,7 +681,9 @@ define Initialize()
         gResponseType <-"shiftkeys"  ##currently, changing this has no effect.
 	gSleepEasy <- 1
 	GetStrings(gLanguage)
-	ShowCursor(0)
+
+	## Cursor visibility depends on response mode - will be set after layout created
+	## ShowCursor(0) moved to after CreateLayout
 
 	##  The screen resolution should be set automatically.
 	##
@@ -700,65 +727,79 @@ define Initialize()
 
 define MessageKeyBox(message)
 {
-	tb <- EasyTextBox(message,100,100,gWin,28,gVideoWidth-200,gVideoHeight-200)
+	## Use AdaptiveTextBox to fit within stimulus region and handle text overflow
+	tb <- AdaptiveTextBox(message,
+	                      gLayout.stimulusRegion.x + 20,
+	                      gLayout.stimulusRegion.y + 20,
+	                      gWin, 56,
+	                      gLayout.stimulusRegion.width - 40,
+	                      gLayout.stimulusRegion.height - 40,
+	                      "scalefont")
 	Draw()
-	WaitForAnyKeyPress()
+	## Use Layout & Response System - works with any response mode
+	WaitForLayoutResponse(gLayout)
 	RemoveObject(tb,gWin)
 } #- End MessageKeyBox
 
 define DoInstructions()
 {
-     midY  <- gVideoHeight/2
-     topY <- midY-50
-     bottomY <- midY +50
+     ## Use layout center for positioning
+     midY  <- gLayout.centerY
+     ## Use same positions as actual trials (gLayout.centerY ± gOffset)
+     topY <- gLayout.centerY - gOffset
+     bottomY <- gLayout.centerY + gOffset
 
-    ## First instruction block
-	tb <- EasyTextbox(gInst1text,100,50,gWin,16,gVideoWidth-200,200)
-	s1 <- MakeStim([1,1,1,1,1]);      AddObject(s1,gWin); Move(s1,gVideoWidth/2,300)
-	s2 <- MakeStim([-1,-1,-1,-1,-1]); AddObject(s2,gWin); Move(s2,gVideoWidth/2,340)
-	s3 <- MakeStim([0,0,1,0,0]);      AddObject(s3,gWin); Move(s3,gVideoWidth/2,380)
-	s4 <- MakeStim([0,0,-1,0,0]);     AddObject(s4,gWin); Move(s4,gVideoWidth/2,420)
-	s5 <- MakeStim([-1,-1,1,-1,-1]);  AddObject(s5,gWin); Move(s5,gVideoWidth/2,460)
-	s6 <- MakeStim([1,1,-1,1,1]);     AddObject(s6,gWin); Move(s6,gVideoWidth/2,500)
+    ## First instruction block - use header + subheader + upper stimulus region
+    ## Calculate available space for textbox (leaving room for stimuli below)
+    ## Stimuli need ~260px (6 stimuli * 40px spacing + margins)
+    textStartY <- gLayout.zones.header.y + 20
 
-	l1 <- EasyLabel(gFooterR,gVideoWidth/2+200,300,gWin,15)
-	l2 <- EasyLabel(gFooterL,gVideoWidth/2-200,340,gWin,15)
-	l3 <- EasyLabel(gFooterR,gVideoWidth/2+200,380,gWin,15)
-	l4 <- EasyLabel(gFooterL,gVideoWidth/2-200,420,gWin,15)
-	l5 <- EasyLabel(gFooterR,gVideoWidth/2+200,460,gWin,15)
-	l6 <- EasyLabel(gFooterL,gVideoWidth/2-200,500,gWin,15)
+    ## Calculate height: from header start to response zone, minus space for stimuli
+    textMaxHeight <- (gLayout.zones.response.y - 280) - textStartY
+
+    tb <- AdaptiveTextBox(gInst1text,
+                          gLayout.stimulusRegion.x + 20,
+                          textStartY,
+                          gWin, 32,
+                          gLayout.stimulusRegion.width - 40,
+                          textMaxHeight,
+                          "scalefont")
+
+	## Position stimuli just above response zone
+	stimStartY <- gLayout.zones.response.y - 260
+	s1 <- MakeStim([1,1,1,1,1]);      AddObject(s1,gWin); Move(s1,gLayout.centerX,stimStartY)
+	s2 <- MakeStim([-1,-1,-1,-1,-1]); AddObject(s2,gWin); Move(s2,gLayout.centerX,stimStartY + 40)
+	s3 <- MakeStim([0,0,1,0,0]);      AddObject(s3,gWin); Move(s3,gLayout.centerX,stimStartY + 80)
+	s4 <- MakeStim([0,0,-1,0,0]);     AddObject(s4,gWin); Move(s4,gLayout.centerX,stimStartY + 120)
+	s5 <- MakeStim([-1,-1,1,-1,-1]);  AddObject(s5,gWin); Move(s5,gLayout.centerX,stimStartY + 160)
+	s6 <- MakeStim([1,1,-1,1,1]);     AddObject(s6,gWin); Move(s6,gLayout.centerX,stimStartY + 200)
+
+	## Remove manual footer labels - layout system handles footer display
+	## Labels showing response semantics (LEFT/RIGHT) removed - now shown in layout footer
 	Draw()
-	WaitForAnyKeyPress()
+	## Use Layout & Response System - works with any response mode
+	WaitForLayoutResponse(gLayout)
 
 
     ## Second instruction block
 	tb.text <- gInst2text
 	Draw()
-	#   RemoveObjects([s1,s2,s4,s6],gWin)
-	#   RemoveObjects([l1,l2,l4,l6],gWin)
 
-	## items 1,3,6 are up, 2,4,5 are down.
-	Move(s1,gVideoWidth/2, topY)
-	Move(s2,gVideoWidth/2,  bottomY)
-	Move(s3,gVideoWidth/2,  topY)
-	Move(s4,gVideoWidth/2,  bottomY)
-	Move(s5,gVideoWidth/2,  bottomY)
-	Move(s6,gVideoWidth/2, topY)
+	## items 1,3,6 are up, 2,4,5 are down - use layout center
+	Move(s1,gLayout.centerX, topY)
+	Move(s2,gLayout.centerX,  bottomY)
+	Move(s3,gLayout.centerX,  topY)
+	Move(s4,gLayout.centerX,  bottomY)
+	Move(s5,gLayout.centerX,  bottomY)
+	Move(s6,gLayout.centerX, topY)
 
-        l1.y <- midY
-	l2.y <- midY
-	l3.y <- midY
-	l4.y <- midY
-	l5.y <- midY
-	l6.y <- midY
-
-
+        ## Hide stimuli initially
         ShowAll([s1,s2,s3,s4,s5,s6],0)
-        ShowAll([l1,l2,l3,l4,l5,l6],0)
 
-	fixation <- EasyLabel("+",gVideoWidth/2,midY,gWin,40)
+	fixation <- EasyLabel("+",gLayout.centerX,midY,gWin,40)
 	Draw()
-	WaitForAnyKeyPress()
+	## Use Layout & Response System - works with any response mode
+	WaitForLayoutResponse(gLayout)
 
 
 
@@ -769,9 +810,9 @@ define DoInstructions()
 	cuedown   <- MakeLabel(" ✶ ",font)
 	cuemiddle <- MakeLabel(" ✶ ",font)
 
-	AddObject(cueup,gWin); Move(cueup,gVideoWidth/2,topY)
-	AddObject(cuemiddle,gWin); Move(cuemiddle, gVideoWidth/2,midY)
-	AddObject(cuedown,gWin); Move(cuedown,gVideoWidth/2,bottomY)
+	AddObject(cueup,gWin); Move(cueup,gLayout.centerX,topY)
+	AddObject(cuemiddle,gWin); Move(cuemiddle, gLayout.centerX,midY)
+	AddObject(cuedown,gWin); Move(cuedown,gLayout.centerX,bottomY)
 
         cues <- [cueup,cuedown,cuemiddle]
 	ShowAll(cues,0)
@@ -787,37 +828,36 @@ define DoInstructions()
 
 	   ## Sample the cue/target/response
 	   ## Items 1,3,6 are up, 2,4,5 are down
-	   cue <- Sample([[[cueup],s1,l1],
-	                  [[cueup],s3,l3],
-			  [[cueup],s6,l6],
+	   ## Labels removed - footer displays response mapping
+	   cue <- Sample([[[cueup],s1],
+	                  [[cueup],s3],
+			  [[cueup],s6],
 
-			  [[cuedown],s2,l2],
-			  [[cuedown],s4,l4],
-			  [[cuedown],s5,l5],
+			  [[cuedown],s2],
+			  [[cuedown],s4],
+			  [[cuedown],s5],
 
-			  [[cueup,cuedown],s1,l1],
-			  [[cueup,cuedown],s4,l4],
-			  [[cueup,cuedown],s5,l5],
+			  [[cueup,cuedown],s1],
+			  [[cueup,cuedown],s4],
+			  [[cueup,cuedown],s5],
 
-                          [[cuemiddle],s2,l2],
-			  [[cuemiddle],s3,l3],
-			  [[cuemiddle],s6,l6]] )
+                          [[cuemiddle],s2],
+			  [[cuemiddle],s3],
+			  [[cuemiddle],s6]] )
 
 	   gShown1 <- 0
 	   gShown2 <- 0
 	   gShown3 <- 0
-	   gShown4 <- 0
 	   RegisterEvent("<TIMER>", 1, GetTime()+500,"<GEQ>","SHOW1", [First(cue)])
 	   RegisterEvent("<TIMER>", 1, GetTime()+600,"<GEQ>","SHOW2", [First(cue)])
 	   RegisterEvent("<TIMER>", 1, GetTime()+900,"<GEQ>","SHOW3", [Second(cue)])
-	   RegisterEvent("<TIMER>", 1, GetTime()+1900,"<GEQ>","SHOW4", [Third(cue)])
 
 
-	   resp <- WaitForListKeyPressWithTimeout([" "],gParams.ITI,1)
+	   ## Use Layout & Response System - accepts any valid response
+	   resp <- WaitForLayoutResponse(gLayout, gParams.ITI)
 	   Hide(Second(cue))
-	   Hide(Third(cue))
 	   Draw()
- 	   if(resp==" ")
+ 	   if(resp <> "<timeout>")
 		{
 		  cont <- 0
 		}
@@ -831,7 +871,8 @@ define DoInstructions()
        ## Third (last) instruction block
 	tb.text <- gInst3text
 	Draw()
-	WaitForAnyKeyPress()
+	## Use Layout & Response System - works with any response mode
+	WaitForLayoutResponse(gLayout)
 
 } #- End DoInstructions
 
@@ -872,16 +913,7 @@ define Show3(objects,evt) # Show the stimulus
   return "<timeout>"
 } #- Show3
 
-define Show4(object,evt) # Show the response
-{
-	if(not gShown4)
-	 {
-	   Show(object)
-	   Draw()
-	   gShown4 <- 1
-	 }
-  return "<timeout>"
-} #- End Show4
+## Show4 removed - no longer needed since labels are handled by layout system
 
 define WaitUntil(time)
 {
@@ -896,24 +928,21 @@ define GetStrings(lang)
 {
   gStrings <- GetTranslations("ANT", lang)
 
+  ## Set semantic response labels from translations (before CreateLayout is called)
+  gParams.responselabels <- [gStrings.footerL, gStrings.footerR]
+
    if(gParams.ShowNeutralFlankers)
         {
-
+          ## Updated to use generic "response key" language instead of hardcoded keys
           gInst1text <- gStrings.inst1neutrala+
-	                      gParams.LeftResponse+
-                 	      gStrings.inst1neutralb+
-   			                gParams.RightResponse+
+                        gStrings.inst1neutralb+
                         gStrings.inst1neutralc
-
 
          } else
 	    {
 	      gInst1text <- gStrings.inst1noneutrala+
-	                    gParams.LeftResponse+
-                 	    gStrings.inst1noneutralb+
-			                gParams.RightResponse+
-                            gStrings.inst1noneutralc
-
+                        gStrings.inst1noneutralb+
+                        gStrings.inst1noneutralc
 
            }
 
@@ -930,22 +959,16 @@ define GetStrings(lang)
         {
 	      gInst3text  <- gStrings.inst3text +
 	      		   gStrings.instrema+
-	                   gParams.LeftResponse+
 			   gStrings.instremb +
-			   gParams.RightResponse+
                            gStrings.instremc
-
 
         } else
 	    {
 
              gInst3text  <- gStrings.inst3textnoRT +
 	      		   gStrings.instrema+
-	                   gParams.LeftResponse+
 			   gStrings.instremb +
-			   gParams.RightResponse+
                            gStrings.instremc
-
 
         }
 	   gFooterl <- gStrings.footerL

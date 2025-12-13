@@ -1,7 +1,7 @@
 {
   "test": "ANT",
-  "version": "1.0",
-  "description": "ANT Test",
+  "version": "1.1",
+  "description": "ANT Test - Migrated to Layout & Response System",
   "parameters": [
     {
       "name": "iti",
@@ -10,10 +10,23 @@
       "description": "Inter-trial interval, in ms."
     },
     {
+      "name": "responsemode",
+      "type": "string",
+      "default": "auto",
+      "options": ["auto", "keyboardShift", "keyboardSafe", "mousetarget", "mousebutton"],
+      "description": "Response method: auto (platform-aware), keyboardShift (L/R shift), keyboardSafe (Z/slash for web), mousetarget (click targets), mousebutton (L/R mouse buttons)"
+    },
+    {
+      "name": "responselabels",
+      "type": "array",
+      "default": ["LEFT", "RIGHT"],
+      "description": "Semantic labels for left and right responses"
+    },
+    {
       "name": "showfooter",
       "type": "boolean",
-      "default": 1,
-      "description": "Show/hide footer (\"left-shift\" and \"right-shift\")---(showFooter 0 == hide / showFooter 1 == show)",
+      "default": 0,
+      "description": "[DEPRECATED - footer now managed by layout system] Show/hide footer",
       "options": [
         0,
         1
@@ -23,13 +36,13 @@
       "name": "leftresponse",
       "type": "string",
       "default": "<lshift>",
-      "description": "Left response key.  An alternative value is z."
+      "description": "[DEPRECATED - use responsemode instead] Left response key. Kept for backward compatibility."
     },
     {
       "name": "rightresponse",
       "type": "string",
       "default": "<rshift>",
-      "description": "Right response key. An alternative is /."
+      "description": "[DEPRECATED - use responsemode instead] Right response key. Kept for backward compatibility."
     },
     {
       "name": "reps",

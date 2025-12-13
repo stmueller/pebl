@@ -1,55 +1,74 @@
 {
+  "test": "ANT",
+  "version": "1.1",
+  "description": "ANT Test - Migrated to Layout & Response System",
   "parameters": [
     {
       "name": "iti",
       "type": "integer",
       "default": 4000,
-      "description": "Inter-trial interval in milliseconds"
+      "description": "Inter-trial interval, in ms."
+    },
+    {
+      "name": "responsemode",
+      "type": "string",
+      "default": "auto",
+      "options": ["auto", "keyboardShift", "keyboardSafe", "mousetarget", "mousebutton"],
+      "description": "Response method: auto (platform-aware), keyboardShift (L/R shift), keyboardSafe (Z/slash for web), mousetarget (click targets), mousebutton (L/R mouse buttons)"
+    },
+    {
+      "name": "responselabels",
+      "type": "array",
+      "default": ["LEFT", "RIGHT"],
+      "description": "Semantic labels for left and right responses"
     },
     {
       "name": "showfooter",
-      "type": "integer",
+      "type": "boolean",
       "default": 0,
-      "description": "Show footer with response keys (0=hide, 1=show)"
+      "description": "[DEPRECATED - footer now managed by layout system] Show/hide footer",
+      "options": [
+        0,
+        1
+      ]
     },
     {
       "name": "leftresponse",
       "type": "string",
       "default": "<lshift>",
-      "description": "Key for left response"
+      "description": "[DEPRECATED - use responsemode instead] Left response key. Kept for backward compatibility."
     },
     {
       "name": "rightresponse",
       "type": "string",
       "default": "<rshift>",
-      "description": "Key for right response"
-    },
-    {
-      "name": "showRT",
-      "type": "integer",
-      "default": 0,
-      "description": "Show reaction time in practice (0=hide, 1=show)"
+      "description": "[DEPRECATED - use responsemode instead] Right response key. Kept for backward compatibility."
     },
     {
       "name": "reps",
       "type": "integer",
       "default": 2,
-      "description": "Number of repetitions of design matrix"
+      "description": "Number of repetitions through the design (which is 4 cue conditions x 2 target locations x 2 target directions x 3 flanker conditions"
+    },
+    {
+      "name": "showRT",
+      "type": "boolean",
+      "default": 0,
+      "description": "Show/hide reaction time display in practice block (ShowRT <- 0 == hide / gShowRT <- 1 == show)",
+      "options": [
+        0,
+        1
+      ]
     },
     {
       "name": "showNeutralFlankers",
-      "type": "integer",
+      "type": "boolean",
       "default": 0,
-      "description": "Show neutral flankers as dashes (0=hide, 1=show)"
-    },
-    {
-      "name": "demo_override",
-      "type": "integer",
-      "default": 0,
-      "description": "Run short demo version (1=demo with 1 repetition, 0=full test)",
-      "options": {
-        "reps": 1
-      }
+      "description": "Show/hide neutral flankers (dashs in the neutral condition) (gShowNeutralFlankers <- 0 == hide / gShowNeutralFlankers <- 1 == show)",
+      "options": [
+        0,
+        1
+      ]
     }
   ]
 }

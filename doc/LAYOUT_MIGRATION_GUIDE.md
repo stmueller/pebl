@@ -37,6 +37,427 @@ The Layout & Response System provides:
 - Touch-friendly interfaces available
 - Configurable via parameters
 
+## Overall Migration Status
+
+**Last Updated**: December 13, 2025
+
+### Summary Statistics
+
+- **Total tests in upload-battery**: 52
+- **Fully migrated** (Layout + Response): 12 tests (23%)
+- **Ready to migrate** (both systems): 5 tests (10%)
+- **Need response mode extensions**: 6 tests (12%) - requires 4-choice grid or 4-way directional modes
+- **Layout-only migration**: 15 tests (29%) - includes Stroop tests (4-choice keyboard with verbal interference) and custom response tasks
+- **Not suitable for migration**: 14 tests (27%)
+
+**Realistic targets:**
+- **Full migration** (Layout + Response): 17 tests (33%) - 12 complete + 5 Category 1
+- **With response extensions**: 23 tests (44%) - add 6 Category 2 tests
+- **Layout-only migration**: 38 tests (73%) - add 15 Category 3 tests for UI consistency
+
+## Semantic Label Migration Status
+
+**Last Updated**: December 13, 2025
+
+The Layout & Response System was created on **December 4, 2025** (commit 0a55b63).
+The **semantic-first label architecture** (allowing task-specific labels like "SAME"/"DIFFERENT") was added on **December 9, 2025** (commit d5b40e6).
+
+### Migration Phases
+
+**Phase 1: Pre-semantic migrations (Dec 4-7, 2025)**
+Tests migrated to Layout & Response System but using generic directional semantics:
+- These tests showed: `"LEFT-SHIFT (LEFT)"` / `"RIGHT-SHIFT (RIGHT)"`
+- Required updating to show task-specific meanings
+
+**Phase 2: Semantic-first migrations (Dec 9-11, 2025)**
+Tests using true semantic labels with `responselabels` parameter:
+- **Completed**: luckvogel, evenodd, simon, BST, dotjudgment, flanker, manikin, gonogo
+- Shows task-specific labels: `"Z (SAME)"` / `"/ (DIFFERENT)"`, `"Z (ODD)"` / `"/ (EVEN)"`, etc.
+
+### Tests Needing Semantic Label Updates (11 tests)
+
+**Status Key:**
+- ✅ = Fully migrated with semantic labels, tested, and synced to upload-battery
+- 🔄 = In progress (code complete, testing in progress)
+- ⚠️ = Migrated to layout system, but needs semantic label update
+- ❌ = Not yet migrated
+
+| Test | Status | Current Labels | Should Be | Migration Date | Notes |
+|------|--------|----------------|-----------|----------------|-------|
+| **luckvogel** | ✅ | SAME / DIFFERENT | ✓ Correct | Dec 11, 2025 | Synced to upload-battery |
+| **evenodd** | ✅ | ODD / EVEN | ✓ Correct | Dec 11, 2025 | Synced to upload-battery |
+| **dotjudgment** | ✅ | LEFT / RIGHT | ✓ Correct (spatial) | Dec 6, 2025 | Synced to upload-battery |
+| **flanker** | ✅ | LEFT / RIGHT | ✓ Correct (directional) | Dec 6, 2025 | Synced to upload-battery |
+| **manikin** | ✅ | LEFT / RIGHT | ✓ Correct (spatial) | Dec 6, 2025 | Synced to upload-battery |
+| **simon** | ✅ | RED / BLUE | ✓ Correct | Dec 11, 2025 | Tested & synced to upload-battery |
+| **BST** | ✅ | CIRCLE / SQUARE | ✓ Correct | Dec 11, 2025 | Tested & synced to upload-battery |
+| **gonogo** | ✅ | GO (singlekey) | ✓ Correct | Dec 11, 2025 | 4 modes: spacebar, leftclick, touchscreen, clicktarget. Synced to upload-battery |
+| **oddball** | ✅ | CIRCLE / SQUARE | ✓ Correct | Dec 11, 2025 | Semantic labels, touchtarget fix. Synced to upload-battery |
+| **crt** | ✅ | LEFT / RIGHT | ✓ Correct (positional) | Dec 11, 2025 | Semantic-first architecture. Synced to upload-battery |
+| **wpt** | ✅ | RAIN / SUN | ✓ Correct | Dec 11, 2025 | Semantic labels with translated "Tap for" prefix for touchtarget mode. Synced to upload-battery |
+| **ANT** | ✅ | LEFT / RIGHT | ✓ Correct (directional) | Dec 13, 2025 | 8 translations updated (en, es, fr, de, it, nl, pt, br). 5 parameter files. Synced to upload-battery |
+| **template** | ⚠️ | LEFT / RIGHT | Example labels | Dec 4, 2025 | Needs semantic update |
+
+### How to Update Tests with Semantic Labels
+
+Tests marked ⚠️ need the `responselabels` parameter added. See luckvogel.pbl for reference implementation.
+
+**Step 1: Add responselabels to parameter schema**
+
+In `params/taskname.pbl.schema`:
+```pebl
+["responselabels", ["LABEL1", "LABEL2"]]
+```
+
+**Step 2: Add responselabels to translation files**
+
+Create translation keys for each language (en, es, fr, de, it, nl, pt):
+```json
+{
+  "LABEL1": "First Choice",
+  "LABEL2": "Second Choice"
+}
+```
+
+**Step 3: Set responselabels in Start() function**
+
+```pebl
+gParams.responselabels <- [gStrings.label1, gStrings.label2]
+```
+
+**Step 4: For dynamic labels (like luckvogel)**
+
+If labels need to change during execution:
+```pebl
+## Remove old labels
+loop(label, gLayout.responseLabels) { RemoveObject(label, gWin) }
+loop(border, gLayout.responseBorders) { RemoveObject(border, gWin) }
+
+## Update semantic labels
+gParams.responselabels <- [gStrings.newlabel1, gStrings.newlabel2]
+
+## Recreate labels
+gLayout <- CreateResponseLabels(gLayout, fontSize)
+Draw()
+```
+
+### Upload-battery/ Sync Status
+
+All 12 tests (except template) have been synced from battery/ to upload-battery/:
+- Synced: ANT, BST, crt, dotjudgment, evenodd, flanker, gonogo, luckvogel, manikin, oddball, simon, wpt
+- Last updated: Dec 13, 2025
+
+**Note**: When semantic labels are added to battery/ tests, they must be re-synced to upload-battery/.
+
+---
+
+## Remaining Tests Assessment
+
+This section provides a comprehensive assessment of all remaining upload-battery tests (41 tests) for migration feasibility. Tests are categorized by their compatibility with the Layout and Response systems.
+
+### Legend
+
+**Layout System Feasibility:**
+- ✅ **EASY** - Standard trial structure, can use header-subheader-stimulus-response-footer zones
+- ⚠️ **MODERATE** - Requires adaptation but feasible (e.g., complex layouts, multiple stimuli)
+- ❌ **DIFFICULT** - Custom layout requirements that don't fit zone model
+
+**Response System Feasibility:**
+- ✅ **COMPATIBLE** - Can use existing response modes (2-alternative, single-key, etc.)
+- 🔧 **NEEDS_EXTENSION** - Requires new response mode (e.g., 4-way directional, 4-choice grid)
+- ❌ **INCOMPATIBLE** - Fundamentally incompatible (mouse tracking, drag-and-drop, positional clicking)
+
+**Migration Priority:**
+- 🔴 **HIGH** - Commonly used, high impact
+- 🟡 **MEDIUM** - Moderately used, would benefit from migration
+- 🟢 **LOW** - Rarely used or limited benefit
+
+---
+
+### Category 1: Full Migration Ready - Standard 2-Alternative & Single-Response Tasks
+
+**Can migrate to both Layout AND Response systems with minimal effort**
+
+| Test | Priority | Layout | Response | Input Type | Notes |
+|------|----------|--------|----------|------------|-------|
+| ~~**ANT**~~ | ✅ **COMPLETE** | ✅ EASY | ✅ COMPATIBLE | kbd | **MIGRATED Dec 13, 2025** - 2-alt (left/right), 8 translations, 5 parameter files |
+| **TNT** | 🟡 MEDIUM | ✅ EASY | ✅ COMPATIBLE | kbd | 2-alt think/no-think (currently uses arrow keys semantically) |
+| **pcpt** | 🔴 HIGH | ✅ EASY | ✅ COMPATIBLE | kbd | Continuous performance task, single-key (like gonogo) |
+| **pcpt-ax** | 🟡 MEDIUM | ✅ EASY | ✅ COMPATIBLE | kbd | AX-CPT variant, single-key (like gonogo) |
+| **srt** | 🟡 MEDIUM | ✅ EASY | ✅ COMPATIBLE | kbd | Simple RT, single response |
+| **clocktest** | 🟡 MEDIUM | ⚠️ MODERATE | ✅ COMPATIBLE | kbd/mouse | Single response - challenge is scaling clock drawing canvas to fit stimulus region |
+
+**Migration Notes:**
+- All use standard trial structure with central stimulus
+- All keyboard-based with 1-2 response options (except clocktest which uses mouse for drawing)
+- Can use existing layout zones and response modes
+- **2-alternative tasks**: ~~ANT (COMPLETE)~~, TNT (verified via code inspection)
+- **Single-response tasks**: pcpt, pcpt-ax, srt, clocktest - use single-key mode like gonogo (spacebar, leftclick, touchscreen, or clicktarget)
+- **clocktest** uses single-key response mode; main challenge is scaling the clock drawing canvas to fit within stimulus region
+
+**Estimated effort**: 2-3 hours per test (3-4 hours for clocktest due to canvas scaling)
+
+**Completed**: ANT (Dec 13, 2025) - Includes 8 translations and 5 parameter files
+
+---
+
+### Category 2: Layout Migration + Response Mode Extension Needed
+
+**Can migrate to Layout system, but requires new response modes to be implemented first**
+
+| Test | Priority | Layout | Response | Input Type | Response Mode Needed | Notes |
+|------|----------|--------|----------|------------|---------------------|-------|
+| **bcst** | 🔴 HIGH | ✅ EASY | 🔧 NEEDS_EXTENSION | kbd (1-4 keys) | 4-choice grid | Card sorting - HAS keyboard variant with 4-choice response |
+| **iowa** | 🟡 MEDIUM | ✅ EASY | 🔧 NEEDS_EXTENSION | kbd (1-4 keys) | 4-choice grid | Gambling task - HAS keyboard variant with 4-choice response |
+| **maze** | 🔴 HIGH | ✅ EASY | 🔧 NEEDS_EXTENSION | kbd (arrows) | 4-way directional | Needs up/down/left/right arrows + on-screen buttons for touch |
+| **antisaccade** | 🔴 HIGH | ✅ EASY | 🔧 NEEDS_EXTENSION | kbd (arrows) | 4-way directional | Uses 3-4 arrow keys for directional judgments, timing critical |
+| **fourchoice** | 🟡 MEDIUM | ✅ EASY | 🔧 NEEDS_EXTENSION | kbd (4 keys) | 4-choice grid | 4-alternative forced choice |
+| **ppvt** | 🟢 LOW | ⚠️ MODERATE | 🔧 NEEDS_EXTENSION | mouse/kbd | 4-choice grid | Peabody picture vocabulary - 4-quadrant selection |
+
+**Migration Notes:**
+- **bcst** and **iowa**: Verified to have keyboard variants using `WaitForListKeyPress(["1","2","3","4"])` - good migration candidates once 4-choice mode implemented
+- **maze** and **antisaccade**: Require 4-way directional response mode (arrow keys + on-screen directional buttons)
+- **antisaccade**: Verified to use `["<left>","<right>","<up>","<down>"]` or 3-way variant - cannot use 2-alternative response system
+- **fourchoice**: Standard 4-alternative forced choice
+- All require new response mode implementations (see "Response Mode Extensions Needed" section below)
+
+**Estimated effort**:
+- Response mode development: 8-10 hours per mode (one-time, reusable)
+- Per-test migration: 2-3 hours each after mode implemented
+
+---
+
+### Category 3: Layout-Only Migration - Response System Incompatible
+
+**Can migrate to Layout system for header/footer zones, but must keep custom response handling**
+
+| Test | Priority | Layout | Response | Input Type | Notes |
+|------|----------|--------|----------|------------|-------|
+| **stroop-color** | 🔴 HIGH | ✅ EASY | ❌ INCOMPATIBLE | kbd (4 keys) | 4-alt color naming - requires verbal interference, keyboard-only (not suitable for mouse/touch) |
+| **stroop-number** | 🔴 HIGH | ✅ EASY | ❌ INCOMPATIBLE | kbd (4 keys) | 4-alt number naming - requires verbal interference, keyboard-only (not suitable for mouse/touch) |
+| **stroop-vic** | 🟡 MEDIUM | ✅ EASY | ❌ INCOMPATIBLE | kbd (4 keys) | 4-alt Stroop variant - requires verbal interference, keyboard-only (not suitable for mouse/touch) |
+| **switcher** | 🟡 MEDIUM | ✅ EASY | ❌ INCOMPATIBLE | mouse clicks | Task switching - requires mouse click response |
+| **ptrails** | 🔴 HIGH | ⚠️ MODERATE | ❌ INCOMPATIBLE | mouse clicks | Trails test - click sequence on numbered circles. Layout provides zones but stimuli cover full screen. |
+| **connections** | 🟡 MEDIUM | ⚠️ MODERATE | ❌ INCOMPATIBLE | mouse clicks | Matrix connections, complex grid layout |
+| **corsi** | 🟡 MEDIUM | ⚠️ MODERATE | ❌ INCOMPATIBLE | mouse clicks | Spatial span with click sequence |
+| **dspan** | 🟡 MEDIUM | ✅ EASY | ❌ INCOMPATIBLE | kbd (digits) | Digit span - needs numeric keypad input (10 keys) |
+| **toh** | 🟡 MEDIUM | ⚠️ MODERATE | ❌ INCOMPATIBLE | mouse clicks | Tower of Hanoi - drag/click disks |
+| **tol** | 🟡 MEDIUM | ⚠️ MODERATE | ❌ INCOMPATIBLE | mouse clicks | Tower of London - similar to ToH |
+| **bcst-64** | 🟡 MEDIUM | ⚠️ MODERATE | ❌ INCOMPATIBLE | mouse clicks | 64-card variant (no keyboard mode) |
+| **BART** | 🟡 MEDIUM | ⚠️ MODERATE | ❌ INCOMPATIBLE | mouse clicks | Balloon analog risk task - click to inflate |
+| **urns** | 🟢 LOW | ⚠️ MODERATE | ❌ INCOMPATIBLE | mouse clicks | Probabilistic choice task |
+| **tapping** | 🟡 MEDIUM | ✅ EASY | 🔧 NEEDS_EXTENSION | kbd (spacebar) | Rapid tapping task - could use single-key mode |
+| **timewall** | 🟡 MEDIUM | ✅ EASY | ❌ INCOMPATIBLE | kbd (spacebar holds) | Time estimation - requires precise timing of holds |
+
+**Migration Notes:**
+- **Stroop tests**: Require 4-choice keyboard input with verbal interference - NOT suitable for mouse/touch response modes
+- **Switcher**: Requires mouse click response - keep custom handling
+- **Other tasks**: Complex spatial layouts, positional clicking requirements, or specialized input
+- Layout system can provide header/footer but stimulus region may have limited utility for some tasks
+- Response system generally not applicable (positional clicking, complex sequences, specialized input, or verbal interference requirements)
+- **Recommendation**: Migrate to layout system for UI consistency, but keep custom response handling
+
+---
+
+### Category 4: Not Suitable for Migration - Fundamentally Incompatible
+
+**Tasks that should NOT be migrated due to fundamental incompatibilities**
+
+#### Mouse/Touch Tracking Required
+
+| Test | Priority | Layout | Response | Input Type | Notes |
+|------|----------|--------|----------|------------|-------|
+| **pursuitrotor** | 🟡 MEDIUM | ❌ DIFFICULT | ❌ INCOMPATIBLE | mouse tracking | Requires continuous mouse tracking of moving target |
+| **fitts** | 🟡 MEDIUM | ❌ DIFFICULT | ❌ INCOMPATIBLE | mouse movement | Fitts' law - requires precise mouse movement measurement |
+| **toav** | 🟢 LOW | ❌ DIFFICULT | ❌ INCOMPATIBLE | mouse movement | Time-on-task, mouse-based |
+
+#### Survey/Form-Based (Not Trial-Based)
+
+| Test | Priority | Layout | Response | Input Type | Notes |
+|------|----------|--------|----------|------------|-------|
+| **bigfive** | 🟢 LOW | N/A | N/A | mouse (forms) | Personality questionnaire |
+| **SSSQ** | 🟢 LOW | N/A | N/A | mouse (forms) | Survey - state self-esteem |
+| **SUS** | 🟢 LOW | N/A | N/A | mouse (forms) | System usability scale |
+| **tiredness** | 🟢 LOW | N/A | N/A | mouse (forms) | Fatigue questionnaire |
+| **TLX** | 🟢 LOW | N/A | N/A | mouse (forms) | NASA Task Load Index |
+| **VAScales** | 🟢 LOW | N/A | N/A | mouse (slider) | Visual analog scales |
+
+#### Specialized/Unique Requirements
+
+| Test | Priority | Layout | Response | Input Type | Notes |
+|------|----------|--------|----------|------------|-------|
+| **BNT** | 🟢 LOW | ⚠️ MODERATE | N/A | verbal/text | Boston Naming Test - requires verbal/typed responses |
+| **test-simple** | N/A | N/A | N/A | N/A | Test/demo file, not a real task |
+
+**Migration Notes:**
+- **Mouse tracking tasks**: Cannot be adapted to keyboard-only; layout system provides minimal benefit
+- **Surveys/questionnaires**: Use form/slider interfaces, not trial-based structure; incompatible with Layout/Response paradigm
+- **Specialized tasks**: Have unique requirements (verbal responses, text entry)
+- **Recommendation**: Do NOT migrate these tests
+
+---
+
+### Response Mode Extensions Needed
+
+To migrate Category 2 tests, the following response modes need to be implemented:
+
+#### 1. Four-Choice Grid Mode
+
+**For**: bcst, iowa, fourchoice, ppvt
+
+**Implementation**:
+- **Keyboard**: Number keys 1-4 or letter keys (Q/W/E/R)
+- **Mouse**: 2x2 grid of click targets in response zone
+- **Touch**: Same as mouse
+- **Semantic responses**: "choice1", "choice2", "choice3", "choice4" (or semantic labels like "deck1", "deck2", etc.)
+
+**Visual layout**: 2x2 grid of clickable targets in response zone
+
+**Estimated development**: 8-10 hours
+
+#### 2. Four-Way Directional Mode
+
+**For**: maze, antisaccade
+
+**Implementation**:
+- **Keyboard**: Arrow keys (up/down/left/right)
+- **Mouse**: 4 directional click targets in cross/compass pattern
+- **Touch**: Same as mouse
+- **Semantic responses**: "up", "down", "left", "right"
+
+**Visual layout**: Cross or compass pattern in response zone
+
+**Estimated development**: 8-10 hours
+
+#### 3. Numeric Keypad Mode (Optional, Low Priority)
+
+**For**: dspan (if migration desired)
+
+**Implementation**:
+- **Keyboard**: Number keys 0-9
+- **Mouse**: On-screen numeric keypad (3x4 grid)
+- **Touch**: Same as mouse
+- **Semantic responses**: "0" through "9"
+
+**Visual layout**: 3x4 numeric keypad in response zone
+
+**Estimated development**: 6-8 hours
+
+---
+
+### Migration Recommendations & Priorities
+
+#### Immediate Priority: Category 1 Tests (5 remaining)
+
+**Completed**:
+1. ✅ **ANT** - COMPLETE (Dec 13, 2025) - 2-alt attention network test with 8 translations
+
+**High priority** - Should migrate ASAP:
+2. **pcpt** - Continuous performance task, single-key (like gonogo)
+
+**Medium priority** - Should migrate soon:
+3. **TNT** - 2-alt think/no-think paradigm
+4. **pcpt-ax** - AX-CPT variant, single-key (like gonogo)
+5. **srt** - Simple RT, single response
+6. **clocktest** - Clock drawing test, single response (requires canvas scaling to stimulus region)
+
+**Estimated total effort**: 10-16 hours for remaining 5 tests
+
+#### Medium Priority: Category 2 Tests (6 tests - after response modes implemented)
+
+**Requires 4-choice grid mode first**:
+1. **bcst** - Card sorting (keyboard variant exists)
+2. **iowa** - Gambling task (keyboard variant exists)
+3. **fourchoice** - Standard 4-alternative choice
+
+**Requires 4-way directional mode first**:
+4. **maze** - Spatial navigation
+5. **antisaccade** - Directional judgment (timing critical, widely used)
+
+**Low priority**:
+6. **ppvt** - Picture vocabulary (rarely used)
+
+**Estimated total effort**:
+- Response mode development: 16-20 hours (both modes)
+- Test migrations: 12-18 hours (6 tests)
+- **Total**: 28-38 hours
+
+#### Lower Priority: Category 3 Tests (15 tests - layout-only)
+
+These tests can be migrated to use layout zones for UI consistency, but must keep custom response handling:
+
+**High priority (keyboard-only, 4-choice with verbal interference):**
+- **stroop-color**, **stroop-number**, **stroop-vic** - Require custom 4-choice keyboard handling, not suitable for response system
+
+**Medium priority (custom response requirements):**
+- **switcher**, **ptrails**, **connections**, **corsi**, **dspan**, **toh**, **tol**, **bcst-64**, **BART**, **urns**, **tapping**, **timewall**
+
+**Recommendation**: Defer until Category 1 and 2 are complete. Benefit is primarily UI consistency. Stroop tests are high priority due to widespread use.
+
+**Estimated effort**: 3-4 hours per test (layout adaptation only)
+
+#### Not Recommended: Category 4 Tests (14 tests)
+
+These tests should NOT be migrated:
+- Mouse tracking: pursuitrotor, fitts, toav
+- Surveys: bigfive, SSSQ, SUS, tiredness, TLX, VAScales
+- Specialized: BNT, test-simple
+
+---
+
+### Summary Statistics
+
+**Total upload-battery tests**: 52
+
+**Migration status breakdown:**
+- ✅ **Already migrated**: 12 tests (23%)
+- 🟢 **Category 1** (ready to migrate): 5 tests (10%)
+- 🟡 **Category 2** (needs response extensions): 6 tests (12%)
+- 🟠 **Category 3** (layout-only): 15 tests (29%)
+- 🔴 **Category 4** (not suitable): 14 tests (27%)
+
+**Realistic migration targets:**
+- **Full migration** (Layout + Response): 17 tests (33% of battery)
+  - 12 already complete + 5 Category 1
+- **With response mode extensions**: 23 tests (44% of battery)
+  - Add 6 Category 2 tests after implementing new modes
+- **Layout-only** (UI consistency): 38 tests (73% of battery)
+  - Add 15 Category 3 tests with custom response handling (includes high-value Stroop tests)
+
+**Not recommended for migration**: 14 tests (27% of battery)
+
+---
+
+### Next Steps
+
+**Phase 1: Complete Category 1 migrations (Immediate)**
+1. ✅ ANT - COMPLETE (Dec 13, 2025)
+2. Migrate TNT, pcpt, pcpt-ax, srt, clocktest (5 remaining)
+3. Use existing Layout & Response systems
+4. Estimated: 10-16 hours total
+5. **Impact**: Brings total to 17 fully-migrated tests (33% of battery)
+
+**Phase 2: Implement response mode extensions (Medium-term)**
+1. Develop 4-choice grid response mode
+2. Develop 4-way directional response mode
+3. Estimated: 16-20 hours total
+4. **Impact**: Enables migration of 5 additional high-value tests
+
+**Phase 3: Migrate Category 2 tests (After Phase 2)**
+1. Migrate bcst, iowa, fourchoice, maze, antisaccade (+ ppvt if desired)
+2. Estimated: 12-18 hours total
+3. **Impact**: Brings total to 23 fully-migrated tests (44% of battery)
+
+**Phase 4: Consider Category 3 layout-only migrations (Optional)**
+1. Migrate Stroop tests (high priority - widely used), switcher, ptrails, corsi, dspan, etc. for UI consistency
+2. Keep custom response handling (Stroop tests require 4-choice keyboard with verbal interference)
+3. Estimated: 45-60 hours total (15 tests)
+4. **Impact**: UI consistency across 73% of battery, including high-value Stroop tests
+
+**Key Principle**: Focus migration efforts on tests that provide clear benefits (platform compatibility, user configurability, consistent UX). Accept that ~27% of battery tests have specialized requirements that justify custom implementations.
+
+---
+
 ## Step-by-Step Migration Process
 
 ### Step 1: Add responsemode Parameter
@@ -246,6 +667,16 @@ Draw()
 
 ### Step 4: Replace Manual Labels with Layout Zones
 
+**CRITICAL: Replace ALL instances of `gVideoWidth/2` and `gVideoHeight/2` with layout positioning**
+
+This is a common migration mistake that will cause positioning errors. The layout system creates a stimulus region that excludes the header, subheader, response zone, and footer. Using `gVideoHeight/2` will position elements in the absolute center of the screen, which may be covered by the footer or response labels.
+
+**Common locations to check:**
+- Trial() function - stimulus positioning
+- DoInstructions() - demo stimuli and cue positioning
+- Any function that creates fixation crosses, feedback, or other centered elements
+- Any function that positions elements relative to screen dimensions
+
 **BEFORE (typical Trial() function):**
 ```pebl
 define Trial(stimulus)
@@ -254,6 +685,10 @@ define Trial(stimulus)
   header <- EasyLabel(gStrings.header, gVideoWidth/2, 100, gWin, 40)
   stim <- EasyLabel(stimulus, gVideoWidth/2, gVideoHeight/2, gWin, 80)
   footer <- EasyLabel(gStrings.footer, gVideoWidth/2, gVideoHeight-200, gWin, 30)
+
+  ## Cues and fixations also used old positioning
+  fixation <- EasyLabel("+", gVideoWidth/2, gVideoHeight/2, gWin, 40)
+  cueTop <- EasyLabel("*", gVideoWidth/2, gVideoHeight/2 - 50, gWin, 30)
 
   Draw()
   ## ... response collection ...
@@ -273,6 +708,10 @@ define Trial(stimulus)
   ## Just create stimulus in center of stimulus region
   stim <- EasyLabel(stimulus, gLayout.centerX, gLayout.centerY, gWin, 80)
 
+  ## ALL positioning should use layout coordinates
+  fixation <- EasyLabel("+", gLayout.centerX, gLayout.centerY, gWin, 40)
+  cueTop <- EasyLabel("*", gLayout.centerX, gLayout.centerY - 50, gWin, 30)
+
   Draw()
   ## ... response collection ...
 
@@ -283,8 +722,9 @@ define Trial(stimulus)
 
 **Key changes:**
 - Remove header/footer label creation (set once in `Start()`)
-- Use `gLayout.centerX` and `gLayout.centerY` instead of `gVideoWidth/2, gVideoHeight/2`
-- Alternatively: `gLayout.stimulusRegion.centerX/Y` (same values, more verbose)
+- **Replace `gVideoWidth/2` with `gLayout.centerX`** (or `gLayout.stimulusRegion.centerX`)
+- **Replace `gVideoHeight/2` with `gLayout.centerY`** (or `gLayout.stimulusRegion.centerY`)
+- Replace all screen-relative positioning with layout-relative positioning
 - Only hide/remove the stimulus object
 
 **Convenience note:** `gLayout.centerX` and `gLayout.centerY` are shorthand for `gLayout.stimulusRegion.centerX/Y`. Both work identically - use whichever you prefer. The top-level properties are provided as a convenient replacement for the common pattern of `gVideoWidth/2, gVideoHeight/2`.
@@ -755,6 +1195,7 @@ Use this checklist for every task migration:
 - [ ] **Font sizes doubled**: Instructions 32, MessageBox 56
 - [ ] **Manual footers removed**: No footer labels in DoInstructions()
 - [ ] **Footer cleanup**: RemoveObject() calls removed for manual footers
+- [ ] **CRITICAL: gVideoWidth/2 and gVideoHeight/2 replaced**: ALL instances replaced with gLayout.centerX/centerY (check Trial(), DoInstructions(), and any fixation/cue positioning)
 - [ ] **Files copied**: All changes copied from battery/ to upload-battery/
 
 ## Before/After Comparison

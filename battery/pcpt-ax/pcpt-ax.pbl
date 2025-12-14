@@ -18,8 +18,6 @@
 
 define Start(lPar)
 {
-  InitializeUpload()  ## Initialize token-based hosting if upload.json exists
-
   gScriptName <- "PEBL CPT-AX Task"
 
 
@@ -35,15 +33,44 @@ define Start(lPar)
 		["ayprob",0.1], ##probability of a AY trial
 		["byprob",0.1], ##probability of a BY trial
 		["givefeedback",0],
-		["pausebetweenblocks",0]
+		["pausebetweenblocks",0],
+		["responsemode","spacebar"]  ## Response mode: spacebar, leftclick, touchscreen, clicktarget
              ]
 
 
 
    gParams <- CreateParameters(parpairs,gParamFile)
 
+   ## Create layout - response labels come from response-modes.json
+   gLayout <- CreateLayout("pcpt-ax", gWin, gParams)
 
+   ## Make subheader visible for trial counter
+   gLayout.subheader.visible <- 1
 
+   ## Store response label for visual feedback (like pcpt)
+   if(Length(gLayout.responseLabels) > 0)
+   {
+     gResponseLabel <- First(gLayout.responseLabels)
+   }
+
+   ## For mousetarget modes: widen border to accommodate bold text feedback
+   if(Length(gLayout.responseBorders) > 0)
+   {
+     gResponseBorder <- First(gLayout.responseBorders)
+     gResponseBorder.width <- gResponseBorder.width + 50
+   }
+
+   ## Show cursor only for clicktarget mode
+   if(gParams.responsemode == "clicktarget")
+   {
+     ShowCursor(1)
+   } else {
+     ShowCursor(0)
+   }
+
+   ## Update stimulus and feedback positioning to use layout coordinates
+   Move(gStim, gLayout.centerX, gLayout.centerY)
+   Move(gFeedback, gLayout.centerX, gLayout.centerY)
 
       cycles   <-  gParams.cycles          ## Number of times the ISI cycle is repeated
       blockSize <- gParams.blocksize      ## Number of trials per block
@@ -115,7 +142,7 @@ define Start(lPar)
 
    Show(gInstructions)
    Draw()
-   WaitForKeyPress(" ")
+   WaitForLayoutResponse(gLayout)
    Hide(gInstructions)
    Draw()
 
@@ -156,16 +183,18 @@ define Start(lPar)
 
     Wait(1000)
     trialNum <- 0
+    totalTrials <- Length(trials2)  ## Total number of trials
 
     block <- 1
-    gHeader.text <- gHeader.text  
-    Show(gHeader2)
-    Show(gHeader)
+
+    ## Set layout header text
+    gLayout.header.text <- gHeaderText
+    gLayout.header.visible <- 1
+    gLayout.subheader.text <- gContinueText
 
     Draw()
-    WaitForAnyKeyPress()
-    ShowCursor(0)
-    gHeader.text  <- gheadertext
+    WaitForLayoutResponse(gLayout)
+
     Show(gStim)
     gstim.text <- "-----"
     Draw()
@@ -193,6 +222,9 @@ define Start(lPar)
       order <- Third(trial)
 
       trialNum <- trialNum + 1
+
+      ## Update trial counter in subheader
+      gLayout.subheader.text <- "Trial " + trialNum + " of " + totalTrials
 
        Hide(gFeedback)
 
@@ -223,20 +255,32 @@ define Start(lPar)
       ### Present Stimulus.
       ###
 
+      ## Defensive unbold before each trial
+      if(VariableExists("gResponseLabel"))
+      {
+        gResponseLabel.font.bold <- 0
+      }
+
       rt <- -1
       responded <- 0
       Show(gStim)
       Draw()
       time1 <- GetTime()
 
-      r1 <- WaitForListKeyPressWithTimeout([" "],gParams.isi,1)
-      Draw()
+      r1 <- WaitForLayoutResponse(gLayout, gParams.isi)
+
       time2 <- GetTime()
       Hide(gStim)
 
 
-      if(r1 == " ")  #if r1==" "  we pressed the key...
+      if(not (r1 == "<timeout>"))  #if we got a response
         {
+          ## Give visual feedback by bolding response label briefly
+          if(VariableExists("gResponseLabel"))
+          {
+            gResponseLabel.font.bold <- 1
+          }
+
           if(giveFeedback)
             {
              Show(gFeedback)
@@ -245,6 +289,13 @@ define Start(lPar)
              Hide(gFeedback)
             }
            Draw()
+
+          ## Schedule unbold for 150ms after response (non-blocking)
+          if(VariableExists("gResponseLabel"))
+          {
+            RegisterEvent("<TIMER>", 1, GetTime()+150, "<GEQ>", "UnboldLabel", [])
+          }
+
            rt <- time2-time1
            responded <- 1
            Wait(endtime - GetTime())
@@ -297,7 +348,7 @@ define Start(lPar)
           Show(gInstructions)
           Draw()
           Wait(500)
-          WaitForKeyPress(" ")
+          WaitForLayoutResponse(gLayout)
           Hide(gInstructions)
           Draw()
           Wait(1000)
@@ -369,6 +420,7 @@ define Start(lPar)
    PrintMe(reportfile, " "+GetPEBLVersion())
    PrintMe(reportfile, " "+TimeStamp())
    PrintMe(reportfile, " Participant Code: " + gSubNum)
+   PrintMe(reportfile, " Response mode: " + gParams.responsemode)
    PrintMe(reportfile, " Pause between blocks: " + pausebetweenblocks)
    PrintMe(reportfile,"--------------------------------------------------------")
    PrintMe(reportfile,"Statistic      ")
@@ -400,16 +452,11 @@ define Start(lPar)
           Rnd(corT/targ,4) +  "," +    Rnd(corF/Max([1,foil]),3)+ "," +
           MeanX(rtCorr))
 
-   ##Upload data files
-   Print("Uploading data files...")
-   out <- UploadFile(gSubNum, datafile.filename); Print(out)
-   out <- UploadFile(gSubNum, reportfile.filename); Print(out)
-
    ##Now, show debriefing info.
    SetText(gInstructions, gInstFinal)
    Show(gInstructions)
    Draw()
-   WaitForAnyKeyPress()
+   WaitForLayoutResponse(gLayout)
    ShowCursor(1)
  }
 
@@ -438,31 +485,21 @@ define Initialize()
    gStimFont <- MakeFont(gPEBLBaseFontMono,0,54, white, black,0)
    gCorrFont <-  MakeFont(gPEBLBaseFontMono,0,30, MakeColor("green"), black,0)
    gIncFont <-  MakeFont(gPEBLBaseFontMono,0,30, MakeColor("red"), black,0)
-   gHeadFont <- MakeFont(gPEBLBaseFont,0,22,white,black,0)
+   gHeadFont <- MakeFont(gPEBLBaseFont,0,30,white,black,0)
 
-   ## Make and place the instruction box, then hide it
-   gInstructions <- MakeTextBox("", gInstructionsFont, 600,300)
-   AddObject(gInstructions, gWin)
-   Move(gInstructions, gVideoWidth/2-300, gVideoHeight/2-150)
+   ## Make and place the instruction box with adaptive text, then hide it
+   ## Larger dimensions since no header/subheader during instructions
+   gInstructions <- AdaptiveTextBox("", gVideoWidth/2-400, gVideoHeight/2-300, gWin, 18, 800, 600, "scalefont")
    Hide(gInstructions)
 
    gStim <- MakeLabel("",gStimFont)
    AddObject(gStim, gWin)
-   Move(gStim, gVideoWidth/2, gVideoHeight/2)
+   Move(gStim, gVideoWidth/2, gVideoHeight/2)  ## Will be updated to layout coords after CreateLayout
    Hide(gStim)
-
-   gHeader <- MakeLabel(gHeaderText,gHeadFont)
-   AddObject(gHeader,gWin)
-   Move(gheader,gvideowidth/2,100)
-   Hide(gHeader)
-   gHeader2 <- MakeLabel(gStrings.press,gHeadFont)
-   AddObject(gHeader2,gWin)
-   Move(gheader2,gvideowidth/2,130)
-   Hide(gHeader2)
 
    gFeedback <- MakeLabel("-",gStimFont)
    AddObject(gFeedback, gWin)
-   Move(gFeedback, gVideoWidth/2, gVideoHeight/2)
+   Move(gFeedback, gVideoWidth/2, gVideoHeight/2)  ## Will be updated to layout coords after CreateLayout
    Hide(gFeedback)
    ShowCursor(0)
  }
@@ -509,23 +546,27 @@ define Rnd(num,sig)
 
 define GetStrings(lang)
 {
-
-  lang <- Uppercase(lang)
-  fname <- "translations/pcpt-ax.pbl-"+LowerCase(lang)+".json"
-
-  if(FileExists(fname))
-  {
-    gStrings <- ReadTranslationJSON(fname,lang)
-  } else
-  {
-    gStrings <- ReadTranslationJSON("translations/pcpt-ax.pbl-en.json",lang)
-  }
+  gStrings <- GetTranslations("pcpt-ax", lang)
 
    gInst1 <- gStrings.inst1
    gInst2 <- gStrings.ready
    gINstFinal <- gStrings.debrief
    gHeaderText <- gStrings.header
+   gContinueText <- gStrings.continue
 
+}
+
+
+define UnboldLabel(evt:0)
+{
+  ## Callback to return label to normal style after visual feedback
+  ## Guard condition prevents repeated execution - only unbold if currently bold
+  if(gResponseLabel.font.bold != 0)
+  {
+      gResponseLabel.font.bold <- 0  ## Set to normal (not bold)
+      Draw()
+  }
+  return "<REMOVE>"
 }
 
 

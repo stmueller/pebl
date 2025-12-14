@@ -22,19 +22,17 @@ define Start(p)
                ["stimtime",500],
 	       ["color","blue"], ##color of stimulus.
 	       ["useBJDP",1 ],    ##use 80% targets in both rounds, as in the original BJDP paper.
-               ["responsemode","spacebar"]]  ##Single-key response mode for go-nogo task
+               ["responsemode","spacebar"]]  ##Single-key response mode (spacebar, leftclick, touchscreen, clicktarget)
 
  gParams <- CreateParameters(parpairs,gParamFile)
  PrintProperties(gParams)
- 
+
  reps <-gParams.reps   ##number of repetitions of the PPPPR design
  gisi <- gParams.isi  ##inter-stimulus interval
 
   gWin <- MakeWindow("black")
 
   gSleepEasy <- 1
-
-  ShowCursor(0)
 
    ##Get subject code if we need to:
    if(gSubNum+""=="0")
@@ -44,15 +42,51 @@ define Start(p)
 
   GetStrings(gLanguage)
 
-  ## Create layout with response system
+  ## Set semantic label BEFORE CreateLayout so border is sized correctly
+  ## Must be set before CreateLayout because border size is calculated from label dimensions
+  if(gParams.responsemode == "spacebar")
+  {
+    gParams.responselabels <- [gStrings.label_spacebar]
+  } elseif(gParams.responsemode == "leftclick") {
+    gParams.responselabels <- [gStrings.label_leftclick]
+  } elseif(gParams.responsemode == "touchscreen") {
+    gParams.responselabels <- [gStrings.label_touchscreen]
+  } elseif(gParams.responsemode == "clicktarget") {
+    gParams.responselabels <- [gStrings.label_clicktarget]
+  } else {
+    ## Default fallback
+    gParams.responselabels <- [gStrings.respond_label]
+  }
+
+  ## Create layout with response system (determines actual mode)
   gLayout <- CreateLayout("gonogo", gWin, gParams)
+
+  ## Show/hide cursor based on response mode
+  if(gParams.responsemode == "clicktarget" or gParams.responsemode == "leftclick" or gParams.responsemode == "touchscreen")
+  {
+    ShowCursor(1)  ## Show cursor for mouse modes
+  } else {
+    ShowCursor(0)  ## Hide cursor for keyboard modes
+  }
+
+  ## Store reference to response label for feedback
+  if(Length(gLayout.responseLabels) > 0)
+  {
+    gResponseLabel <- First(gLayout.responseLabels)
+  }
+
+  ## For mousetarget modes: widen border to accommodate bold text feedback
+  ## (gonogo makes text bold on response, which expands it)
+  if(Length(gLayout.responseBorders) > 0)
+  {
+    gResponseBorder <- First(gLayout.responseBorders)
+    ## Add 50 pixels to width to accommodate bold text expansion
+    gResponseBorder.width <- gResponseBorder.width + 50
+  }
+
   gLayout.header.visible <- 0
   gLayout.subheader.visible <- 0
   gLayout.footer.visible <- 0
-
-  ## Make response label visible for visual feedback
-  gResponseLabel <- First(gLayout.responseLabels)
-  gResponseLabel.visible <- 1
 
    gFileOut <- GetNewDataFile(gSubNum,gWin,"gonogo","csv",
  "subnum,block,type,correctresponse,trial,choice,x,y,stim,present,response,responded,corr,starttime,rt")
@@ -480,13 +514,13 @@ define ShowInstructions(message, targetLetter, foilLetter, color)
       stimLabel.text <- targetLetter
       Move(stimLabel, Round(First(xy)), Round(Second(xy)))
       Show(stimLabel)
-      gLayout.subheader.text <- "RESPOND"
+      gLayout.subheader.text <- gStrings.cue_respond
     } else {
       Hide(star)
       stimLabel.text <- foilLetter
       Move(stimLabel, Round(First(xy)), Round(Second(xy)))
       Show(stimLabel)
-      gLayout.subheader.text <- "DON'T RESPOND"
+      gLayout.subheader.text <- gStrings.cue_dont_respond
     }
 
     Draw()

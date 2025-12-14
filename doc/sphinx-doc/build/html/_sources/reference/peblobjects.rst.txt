@@ -1305,7 +1305,161 @@ Saves a buffer, recorded using the GetAudioInputBuffer, to a .wav file for later
 
 **See Also:**
 
-:func:`GetVocalResponseTime()`, :func:`MakeAudioInputBuffer()`
+:func:`GetVocalResponseTime()`, :func:`MakeAudioInputBuffer()`, :func:`RecordToBuffer()`
+
+
+.. index:: RecordToBuffer
+
+RecordToBuffer()
+----------------
+
+*Records audio input to a pre-allocated buffer*
+
+**Description:**
+
+Records audio from the microphone directly into a pre-allocated audio buffer. This function allows precise control over recording duration and provides a synchronous recording interface. The buffer must be created first using :func:`MakeAudioInputBuffer()`. An optional duration parameter can specify recording time in milliseconds; if omitted, the function records for the full buffer duration. *ONLY AVAILABLE ON WINDOWS AND LINUX*.
+
+**Usage:**
+
+.. code-block:: pebl
+
+   RecordToBuffer(<buffer>)
+   RecordToBuffer(<buffer>, <duration_ms>)
+
+**Example:**
+
+.. code-block:: pebl
+
+   ## Record for full buffer duration (5 seconds)
+   buffer <- MakeAudioInputBuffer(5000)
+   RecordToBuffer(buffer)
+   SaveAudioToWaveFile("recording.wav", buffer)
+
+   ## Record for specific duration (3 seconds into 5 second buffer)
+   buffer <- MakeAudioInputBuffer(5000)
+   RecordToBuffer(buffer, 3000)
+   SaveAudioToWaveFile("recording-3s.wav", buffer)
+
+**See Also:**
+
+:func:`MakeAudioInputBuffer()`, :func:`SaveAudioToWaveFile()`, :func:`GetVocalResponseTime()`, :func:`StartAudioMonitor()`
+
+
+.. index:: StartAudioMonitor
+
+StartAudioMonitor()
+-------------------
+
+*Starts real-time audio monitoring with ring buffer*
+
+**Description:**
+
+Creates and starts an audio monitoring system that continuously records audio in a ring buffer. This is useful for real-time audio analysis, voice key calibration, and audio level visualization. The monitor runs in the background and can be queried with :func:`GetAudioStats()` to retrieve recent audio statistics. The monitor must be stopped with :func:`StopAudioMonitor()` to free audio hardware resources. *ONLY AVAILABLE ON WINDOWS AND LINUX*.
+
+**Usage:**
+
+.. code-block:: pebl
+
+   StartAudioMonitor(<buffer_size_ms>)
+
+**Example:**
+
+.. code-block:: pebl
+
+   ## Start monitoring with 3-second ring buffer
+   monitor <- StartAudioMonitor(3000)
+
+   ## Continuously check audio levels
+   loop(i, Sequence(1, 100, 1))
+   {
+       Wait(100)
+       stats <- GetAudioStats(monitor, 500)  ## Last 500ms
+       energy <- First(stats)
+       Print("Energy: " + energy)
+   }
+
+   StopAudioMonitor(monitor)
+
+**See Also:**
+
+:func:`StopAudioMonitor()`, :func:`GetAudioStats()`, :func:`GetVocalResponseTime()`
+
+
+.. index:: StopAudioMonitor
+
+StopAudioMonitor()
+------------------
+
+*Stops audio monitoring and releases audio hardware*
+
+**Description:**
+
+Stops an audio monitor created by :func:`StartAudioMonitor()` and releases the audio hardware. This function performs complete cleanup including pausing recording, closing the SDL audio device, and clearing global audio state. It is critical to call this function before starting other audio operations like :func:`GetVocalResponseTime()` to ensure the audio hardware is available. *ONLY AVAILABLE ON WINDOWS AND LINUX*.
+
+**Usage:**
+
+.. code-block:: pebl
+
+   StopAudioMonitor(<monitor>)
+
+**Example:**
+
+.. code-block:: pebl
+
+   ## Monitor audio for 10 seconds then stop
+   monitor <- StartAudioMonitor(2000)
+   Wait(10000)
+   StopAudioMonitor(monitor)
+
+   ## Now audio hardware is free for other operations
+   buffer <- MakeAudioInputBuffer(5000)
+   rt <- GetVocalResponseTime(buffer, 0.35, 200)
+
+**See Also:**
+
+:func:`StartAudioMonitor()`, :func:`GetAudioStats()`
+
+
+.. index:: GetAudioStats
+
+GetAudioStats()
+---------------
+
+*Retrieves audio statistics from monitoring buffer*
+
+**Description:**
+
+Returns audio statistics from the most recent N milliseconds of an audio monitor created by :func:`StartAudioMonitor()`. The function returns a list containing three values: [energy, power, rmssd]. Energy represents total signal energy, power represents average power, and rmssd (root mean square of successive differences) indicates signal variability. These statistics are useful for voice key calibration, detecting speech onset, and monitoring audio levels. *ONLY AVAILABLE ON WINDOWS AND LINUX*.
+
+**Usage:**
+
+.. code-block:: pebl
+
+   GetAudioStats(<monitor>, <window_ms>)
+
+**Example:**
+
+.. code-block:: pebl
+
+   ## Monitor and display real-time audio statistics
+   monitor <- StartAudioMonitor(5000)
+
+   loop(i, Sequence(1, 50, 1))
+   {
+       Wait(200)
+       stats <- GetAudioStats(monitor, 1000)  ## Last 1 second
+       energy <- First(stats)
+       power <- Nth(stats, 2)
+       rmssd <- Third(stats)
+
+       Print("Energy: " + energy + " Power: " + power + " RMSSD: " + rmssd)
+   }
+
+   StopAudioMonitor(monitor)
+
+**See Also:**
+
+:func:`StartAudioMonitor()`, :func:`StopAudioMonitor()`, :func:`GetVocalResponseTime()`
 
 
 .. index:: SetCursorPosition
@@ -1509,6 +1663,78 @@ Sets a a property of a custom object.   This works for custom or built-in object
 **See Also:**
 
 :func:`GetProperty()`, :func:`PropertyExists()`, :func:`GetPropertyList()`, :func:`MakeCustomObject()`, :func:`PrintProperties()`
+
+
+.. index:: SetPixel
+
+SetPixel()
+----------
+
+*Sets the color of a pixel at specified coordinates*
+
+**Description:**
+
+Sets the pixel at x,y to a particular color. SetPixel is primarily useful for images and canvases--labels and textboxes get re-rendered upon draw so any use of SetPixel will get overwritten when it gets drawn. It won't work on windows or shapes. This function can also be called using SetPoint().
+
+**Usage:**
+
+.. code-block:: pebl
+
+   SetPixel(<widget>, <x>, <y>, <color>)
+
+**Example:**
+
+.. code-block:: pebl
+
+   back <- MakeCanvas(50,50)
+   AddObject(back,gWin)
+   col <- MakeColor("green")
+   xy <- [[10,10],[10,11],[10,12],[10,13]]
+   loop(i,xy)
+   {
+      SetPixel(back, First(i), Second(i), col)
+   }
+   Draw()
+
+**See Also:**
+
+:func:`SetPoint()`, :func:`MakeGabor()`, :func:`MakeCanvas()`, :func:`GetPixelColor()`
+
+
+.. index:: SetPoint
+
+SetPoint()
+----------
+
+*Sets the color of a point at specified coordinates (alias for SetPixel)*
+
+**Description:**
+
+Sets the pixel at x,y to a particular color. SetPoint is an alias for SetPixel() and functions identically. It is primarily useful for images and canvases--labels and textboxes get re-rendered upon draw so any use of SetPoint will get overwritten when it gets drawn. It won't work on windows or shapes.
+
+**Usage:**
+
+.. code-block:: pebl
+
+   SetPoint(<widget>, <x>, <y>, <color>)
+
+**Example:**
+
+.. code-block:: pebl
+
+   back <- MakeCanvas(50,50)
+   AddObject(back,gWin)
+   col <- MakeColor("green")
+   xy <- [[10,10],[10,11],[10,12],[10,13]]
+   loop(i,xy)
+   {
+      SetPoint(back, First(i), Second(i), col)
+   }
+   Draw()
+
+**See Also:**
+
+:func:`SetPixel()`, :func:`MakeGabor()`, :func:`MakeCanvas()`, :func:`GetPixelColor()`
 
 
 .. index:: SetText

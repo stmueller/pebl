@@ -26,31 +26,20 @@ define Start(p)
                ["leftcolor","red"],
 	       ["rightcolor","blue"],
 	       ["responsemode","auto"],
-	       ["practicetrials",10]  ##number of practice trials before main test
+	       ["practicetrials",10],  ##number of practice trials before main test
+               ["responselabels",["RED","BLUE"]]  ##Semantic labels for response modes
                 ]
 
   gParams <- CreateParameters(parpairs,gParamFile)
+
+  ## Set semantic labels from color parameters (uppercased for display)
+  gParams.responselabels <- [Uppercase(gParams.leftcolor), Uppercase(gParams.rightcolor)]
 
   ## Create Layout & Response System (initial creation to get response mode)
   gLayout <- CreateLayout("simon", gWin, gParams)
   gLayout.header.visible <- 0  ## Hide header initially, show during trials
   gLayout.footer.visible <- 1  ## Footer with response labels
 
-  ## Customize response labels to include color information
-  ## Mousetarget: "click for [color]"
-  ## Keyboard/Mousebutton: "[original label] ([color])" to preserve key/button info
-  llab <- First(gLayout.responseLabels)
-  rlab <- Second(gLayout.responseLabels)
-
-  if(gLayout.responseMode.type == "mousetarget")
-  {
-     llab.text <- "click for " + gParams.leftcolor
-     rlab.text <- "click for " + gParams.rightcolor
-  } else {
-     ## Append color info to existing label (preserves key names like "LEFT-SHIFT")
-     llab.text <- llab.text + " (" + gParams.leftcolor + ")"
-     rlab.text <- rlab.text + " (" + gParams.rightcolor + ")"
-  }
   Draw()
 
   ## Create instruction textbox with mode-specific continuation message

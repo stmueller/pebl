@@ -67,18 +67,54 @@ define Start(p) {
         ["InstructionTextSize2", 25], # Text size for instructions
         ["TaskTextSize", 65], # Text size  for task
         ["InstructionDisplayTime", 5], # Display time of instructions with countdown
-        ["wrapat", 75], # Number of characters before wraping
-        [",vSpacing", 2],
-        ["escape", "<esp>"],
-        ["space", " "]] # Interligne
+        ["responsemode", "auto"], # Response mode: auto, keyboardShift, keyboardSafe, mousetarget, mousebutton
+        ["responselabels", ""]] # Will be set from translations
 
     gParams <- CreateParameters(parpairs, gParamFile)
+
+    ## Set response labels from translations (semantic meanings: NO, YES)
+    gParams.responselabels <- [gStrings.footerleft, gStrings.footerright]
 
     # #Get subject code if we need to:
         if (gSubNum + "" == "0") {
             gSubNum <- GetSubNum(gWin)
         }
     Draw()
+
+    ## Create layout - response labels come from response-modes.json
+    gLayout <- CreateLayout("TNT", gWin, gParams)
+    gLayout.subheader.visible <- 1  ## For trial counter
+    gLayout.footer.visible <- 1  ## Make footer visible
+
+    ## Set simple footer instruction based on response mode
+    if(gParams.responsemode == "keyboardShift" or gParams.responsemode == "keyboardSafe" or gParams.responsemode == "arrowLR" or gParams.responsemode == "auto")
+    {
+        gLayout.footer.text <- gStrings.footerkeyboard
+    } elseif(gParams.responsemode == "mousetarget")
+    {
+        gLayout.footer.text <- gStrings.footermousetarget
+    } elseif(gParams.responsemode == "touchtarget")
+    {
+        gLayout.footer.text <- gStrings.footertouchtarget
+    } elseif(gParams.responsemode == "mousebutton")
+    {
+        gLayout.footer.text <- gStrings.footermousebutton
+    }
+
+    ## Store response labels for bold animation
+    if(Length(gLayout.responseLabels) >= 2)
+    {
+        gResponseLabelLeft <- First(gLayout.responseLabels)
+        gResponseLabelRight <- Second(gLayout.responseLabels)
+    }
+
+    ## Show cursor only for mouse-based modes (not touch)
+    if(gParams.responsemode == "clicktarget" or gParams.responsemode == "mousetarget" or gParams.responsemode == "mousebutton")
+    {
+        ShowCursor(1)
+    } else {
+        ShowCursor(0)
+    }
 
     TNT()
 
@@ -163,8 +199,6 @@ define TNT() {
         totalRT_incorrect <- 0
         miss <- 0
 
-        footer <- EasyLabel(gstrings.footer, gVideoWidth / 2, gVideoHeight - 100, gWin, 40)
-
         zeroBackStimList <- [
             ["20+30", "10+25", "15+35", "10+15", "95-50", "35-25", "85-35", "95-20", "70-40", "95-25", "55-50", "40+10", 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1],
             ["60-20", "95-65", "25+25", "30+65", "10+40", "90-20", "85-20", "15+10", "95-45", "30+45", "60-50", "70-20", 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 1],
@@ -185,29 +219,26 @@ define TNT() {
         ] #Twoback1
 
 
-	header <- EasyLabel("", gVideoWidth/2,50,gWin,40)
-
-
         if (first_run == 1) {
 
-            inst <- EasyTextBox(gStrings.inst1+CR(1)+gstrings.reminder+CR(1)+gStrings.ready1, gVideoWidth / 2 - 350, 50, gWin, 20, 700, 500)
+            inst <- AdaptiveTextBox(gStrings.inst1+CR(1)+gstrings.reminder+CR(1)+gStrings.ready1+CR(1)+gSTrings.ready2, gLayout.centerX - 350, 50, gWin, 24, 700, 600, "scalefont")
             Show(inst)
             Draw()
-            WaitForAnyKeyPress()
+            WaitForLayoutResponse(gLayout, 300000)
             Hide(inst)
 
             #0-back example
-           header.text <- gstrings.headerzero
-            message <- EasyLabel(gstrings.zerobackprompt, gVideoWidth / 2, gVideoHeight / 2 - 100, gWin, gParams.InstructionTextSize)
+           gLayout.header.text <- gstrings.headerzero
+            message <- EasyLabel(gstrings.zerobackprompt, gLayout.centerX, gLayout.centerY - 100, gWin, gParams.InstructionTextSize)
             restTime <- 5
             while (restTime >= 1) {
-                countdown <- EasyLabel(ToString(restTime), gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                countdown <- EasyLabel(ToString(restTime), gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
                 Draw()
                 Wait(1000)
                 restTime <- restTime - 1
             }
-            countdown <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
-            message <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2 - 100, gWin, gParams.InstructionTextSize)
+            countdown <- EasyLabel("", gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
+            message <- EasyLabel("", gLayout.centerX, gLayout.centerY - 100, gWin, gParams.InstructionTextSize)
 
             listlength <- Length(zeroBackStimList)
             stim <- RandomDiscrete(listlength)
@@ -236,19 +267,45 @@ define TNT() {
             while (i <= gParams.numStimsAct) {
                 reacted <- 0
                 reaction <- 0
-                number <- EasyLabel(Nth(zeroBackStim, i), gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+
+                ## Defensive unbold before each trial
+                if(VariableExists("gResponseLabelLeft"))
+                {
+                    gResponseLabelLeft.font.bold <- 0
+                    gResponseLabelRight.font.bold <- 0
+                }
+
+                ## Update trial counter
+                gLayout.subheader.text <- "Trial " + i + " of " + gParams.numStimsAct
+
+                number <- EasyLabel(Nth(zeroBackStim, i), gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
                 Draw()
                 t0 <- GetTime()
-                resp <- WaitForListKeyPressWithTimeout(["<left>", "<right>"], gParams.StimulusDuration)
+                resp <- WaitForLayoutResponse(gLayout, gParams.StimulusDuration)
                 t1 <- GetTime()
                 target <- Nth(zeroBackStim, i + 12)
-                number <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                number <- EasyLabel("", gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
                 Draw()
 
                 if (resp != "<timeout>") {
                     reacted <- 1
                     rT <- t1 - t0
-                    if (resp == "<right>") {
+
+                    ## Give visual feedback by bolding appropriate response label
+                    if(VariableExists("gResponseLabelLeft"))
+                    {
+                        if(resp == "left")
+                        {
+                            gResponseLabelLeft.font.bold <- 1
+                            RegisterEvent("<TIMER>", 1, GetTime()+150, "<GEQ>", "UnboldLabels", [])
+                        } else {
+                            gResponseLabelRight.font.bold <- 1
+                            RegisterEvent("<TIMER>", 1, GetTime()+150, "<GEQ>", "UnboldLabels", [])
+                        }
+                        Draw()
+                    }
+
+                    if (resp == "right") {
                         reaction <- 1
                     }
                 }
@@ -285,51 +342,51 @@ define TNT() {
                 }
 
                 if (resp != "<timeout>" and corr == 1) {
-                    message <- EasyLabel(gstrings.correct, gVideoWidth / 2, gVideoHeight / 2, gWin, 60)
+                    message <- EasyLabel(gstrings.correct, gLayout.centerX, gLayout.centerY, gWin, 60)
                     Draw()
                     Wait(400)
-                    message <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, 60)
+                    message <- EasyLabel("", gLayout.centerX, gLayout.centerY, gWin, 60)
                     Draw()
                 }
                 if (resp != "<timeout>" and corr == 0) {
-                    message <- EasyLabel(gstrings.incorrect, gVideoWidth / 2, gVideoHeight / 2, gWin, 60)
+                    message <- EasyLabel(gstrings.incorrect, gLayout.centerX, gLayout.centerY, gWin, 60)
                     Draw()
                     Wait(400)
-                    message <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, 60)
+                    message <- EasyLabel("", gLayout.centerX, gLayout.centerY, gWin, 60)
                     Draw()
                 }
                 if (resp == "<timeout>") {
-                    message <- EasyLabel(gstrings.tooslow, gVideoWidth / 2, gVideoHeight / 2, gWin, 60)
+                    message <- EasyLabel(gstrings.tooslow, gLayout.centerX, gLayout.centerY, gWin, 60)
                     Draw()
                     Wait(400)
-                    message <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, 60)
+                    message <- EasyLabel("", gLayout.centerX, gLayout.centerY, gWin, 60)
                     Draw()
                 }
 
 
                 i <- i + 1
 
-                number <- EasyLabel("+", gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                number <- EasyLabel("+", gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
                 Draw()
                 Wait(gParams.isiTimeSecs)
 
-                number <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                number <- EasyLabel("", gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
                 Draw()
 
             }
 
-            header.text <- gstrings.headerone
+            gLayout.header.text <- gstrings.headerone
             #1-back example
-            message <- EasyLabel(gstrings.onebackprompt, gVideoWidth / 2, gVideoHeight / 2 - 100, gWin, gParams.InstructionTextSize)
+            message <- EasyLabel(gstrings.onebackprompt, gLayout.centerX, gLayout.centerY - 100, gWin, gParams.InstructionTextSize)
             restTime <- 5
             while (restTime >= 1) {
-                countdown <- EasyLabel(ToString(restTime), gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                countdown <- EasyLabel(ToString(restTime), gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
                 Draw()
                 Wait(1000)
                 restTime <- restTime - 1
             }
-            countdown <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
-            message <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2 - 100, gWin, gParams.InstructionTextSize)
+            countdown <- EasyLabel("", gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
+            message <- EasyLabel("", gLayout.centerX, gLayout.centerY - 100, gWin, gParams.InstructionTextSize)
 
             listlength <- Length(oneBackStimList)
             stim <- RandomDiscrete(listlength)
@@ -357,19 +414,45 @@ define TNT() {
             while (i <= gParams.numStimsAct) {
                 reacted <- 0
                 reaction <- 0
-                number <- EasyLabel(Nth(oneBackStim, i), gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+
+                ## Defensive unbold before each trial
+                if(VariableExists("gResponseLabelLeft"))
+                {
+                    gResponseLabelLeft.font.bold <- 0
+                    gResponseLabelRight.font.bold <- 0
+                }
+
+                ## Update trial counter
+                gLayout.subheader.text <- "Trial " + i + " of " + gParams.numStimsAct
+
+                number <- EasyLabel(Nth(oneBackStim, i), gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
                 Draw()
                 t0 <- GetTime()
-                resp <- WaitForListKeyPressWithTimeout(["<left>", "<right>"], gParams.StimulusDuration)
+                resp <- WaitForLayoutResponse(gLayout, gParams.StimulusDuration)
                 t1 <- GetTime()
                 target <- Nth(oneBackStim, i + 12)
-                number <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                number <- EasyLabel("", gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
                 Draw()
 
                 if (resp != "<timeout>") {
                     reacted <- 1
                     rT <- t1 - t0
-                    if (resp == "<right>") {
+
+                    ## Give visual feedback by bolding appropriate response label
+                    if(VariableExists("gResponseLabelLeft"))
+                    {
+                        if(resp == "left")
+                        {
+                            gResponseLabelLeft.font.bold <- 1
+                            RegisterEvent("<TIMER>", 1, GetTime()+150, "<GEQ>", "UnboldLabels", [])
+                        } else {
+                            gResponseLabelRight.font.bold <- 1
+                            RegisterEvent("<TIMER>", 1, GetTime()+150, "<GEQ>", "UnboldLabels", [])
+                        }
+                        Draw()
+                    }
+
+                    if (resp == "right") {
                         reaction <- 1
                     }
                 }
@@ -406,49 +489,49 @@ define TNT() {
                 }
 
                 if (resp != "<timeout>" and corr == 1 and i != 1) {
-                    message <- EasyLabel(gstrings.correct, gVideoWidth / 2, gVideoHeight / 2, gWin, 60)
+                    message <- EasyLabel(gstrings.correct, gLayout.centerX, gLayout.centerY, gWin, 60)
                     Draw()
                     Wait(400)
-                    message <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, 60)
+                    message <- EasyLabel("", gLayout.centerX, gLayout.centerY, gWin, 60)
                     Draw()
                 }
                 if (resp != "<timeout>" and corr == 0 and i != 1) {
-                    message <- EasyLabel(gstrings.incorrect, gVideoWidth / 2, gVideoHeight / 2, gWin, 60)
+                    message <- EasyLabel(gstrings.incorrect, gLayout.centerX, gLayout.centerY, gWin, 60)
                     Draw()
                     Wait(400)
-                    message <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, 60)
+                    message <- EasyLabel("", gLayout.centerX, gLayout.centerY, gWin, 60)
                     Draw()
                 }
                 if (resp == "<timeout>" and i != 1) {
-                    message <- EasyLabel(gstrings.tooslow, gVideoWidth / 2, gVideoHeight / 2, gWin, 60)
+                    message <- EasyLabel(gstrings.tooslow, gLayout.centerX, gLayout.centerY, gWin, 60)
                     Draw()
                     Wait(400)
-                    message <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, 60)
+                    message <- EasyLabel("", gLayout.centerX, gLayout.centerY, gWin, 60)
                     Draw()
                 }
                 i <- i + 1
 
-                number <- EasyLabel("+", gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                number <- EasyLabel("+", gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
                 Draw()
                 Wait(gParams.isiTimeSecs)
 
-                number <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                number <- EasyLabel("", gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
                 Draw()
 
             }
 
             # 2-back example
-            header.text <- gstrings.headertwo
-            message <- EasyLabel(gstrings.twobackprompt, gVideoWidth / 2, gVideoHeight / 2 - 100, gWin, gParams.InstructionTextSize)
+            gLayout.header.text <- gstrings.headertwo
+            message <- EasyLabel(gstrings.twobackprompt, gLayout.centerX, gLayout.centerY - 100, gWin, gParams.InstructionTextSize)
             restTime <- 5
             while (restTime >= 1) {
-                countdown <- EasyLabel(ToString(restTime), gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                countdown <- EasyLabel(ToString(restTime), gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
                 Draw()
                 Wait(1000)
                 restTime <- restTime - 1
             }
-            countdown <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
-            message <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2 - 100, gWin, gParams.InstructionTextSize)
+            countdown <- EasyLabel("", gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
+            message <- EasyLabel("", gLayout.centerX, gLayout.centerY - 100, gWin, gParams.InstructionTextSize)
 
             listlength <- Length(twoBackStimList)
             stim <- RandomDiscrete(listlength)
@@ -476,19 +559,45 @@ define TNT() {
             while (i <= gParams.numStimsAct) {
                 reacted <- 0
                 reaction <- 0
-                number <- EasyLabel(Nth(twoBackStim, i), gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+
+                ## Defensive unbold before each trial
+                if(VariableExists("gResponseLabelLeft"))
+                {
+                    gResponseLabelLeft.font.bold <- 0
+                    gResponseLabelRight.font.bold <- 0
+                }
+
+                ## Update trial counter
+                gLayout.subheader.text <- "Trial " + i + " of " + gParams.numStimsAct
+
+                number <- EasyLabel(Nth(twoBackStim, i), gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
                 Draw()
                 t0 <- GetTime()
-                resp <- WaitForListKeyPressWithTimeout(["<left>", "<right>"], gParams.StimulusDuration)
+                resp <- WaitForLayoutResponse(gLayout, gParams.StimulusDuration)
                 t1 <- GetTime()
                 target <- Nth(twoBackStim, i + 12)
-                number <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                number <- EasyLabel("", gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
                 Draw()
 
                 if (resp != "<timeout>") {
                     reacted <- 1
                     rT <- t1 - t0
-                    if (resp == "<right>") {
+
+                    ## Give visual feedback by bolding appropriate response label
+                    if(VariableExists("gResponseLabelLeft"))
+                    {
+                        if(resp == "left")
+                        {
+                            gResponseLabelLeft.font.bold <- 1
+                            RegisterEvent("<TIMER>", 1, GetTime()+150, "<GEQ>", "UnboldLabels", [])
+                        } else {
+                            gResponseLabelRight.font.bold <- 1
+                            RegisterEvent("<TIMER>", 1, GetTime()+150, "<GEQ>", "UnboldLabels", [])
+                        }
+                        Draw()
+                    }
+
+                    if (resp == "right") {
                         reaction <- 1
                     }
                 }
@@ -525,46 +634,46 @@ define TNT() {
                 }
 
                 if (resp != "<timeout>" and corr == 1 and i != 1 and i != 2) {
-                    message <- EasyLabel(gstrings.correct, gVideoWidth / 2, gVideoHeight / 2, gWin, 60)
+                    message <- EasyLabel(gstrings.correct, gLayout.centerX, gLayout.centerY, gWin, 60)
                     Draw()
                     Wait(400)
-                    message <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, 60)
+                    message <- EasyLabel("", gLayout.centerX, gLayout.centerY, gWin, 60)
                     Draw()
                 }
                 if (resp != "<timeout>" and corr == 0 and i != 1 and i != 2) {
-                    message <- EasyLabel(gstrings.incorrect, gVideoWidth / 2, gVideoHeight / 2, gWin, 60)
+                    message <- EasyLabel(gstrings.incorrect, gLayout.centerX, gLayout.centerY, gWin, 60)
                     Draw()
                     Wait(400)
-                    message <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, 60)
+                    message <- EasyLabel("", gLayout.centerX, gLayout.centerY, gWin, 60)
                     Draw()
                 }
                 if (resp == "<timeout>" and i != 1 and i != 2) {
-                    message <- EasyLabel(gstrings.tooslow, gVideoWidth / 2, gVideoHeight / 2, gWin, 60)
+                    message <- EasyLabel(gstrings.tooslow, gLayout.centerX, gLayout.centerY, gWin, 60)
                     Draw()
                     Wait(400)
-                    message <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, 60)
+                    message <- EasyLabel("", gLayout.centerX, gLayout.centerY, gWin, 60)
                     Draw()
                 }
                 i <- i + 1
 
-                number <- EasyLabel("+", gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                number <- EasyLabel("+", gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
                 Draw()
                 Wait(gParams.isiTimeSecs)
 
-                number <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                number <- EasyLabel("", gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
                 Draw()
 
             }
 
-            inst <- EasyTextBox(gstrings.inst2 +CR(1)+gstrings.reminder + CR(2)+gstrings.ready2,
-                          gVideoWidth / 2 - 350, 150, gWin, 20, 700, 500)
+            inst <- AdaptiveTextBox(gstrings.inst2 +CR(1)+gstrings.reminder + CR(2)+gstrings.ready2,
+                          gLayout.centerX - 350, 150, gWin, 20, 700, 500, "scalefont")
             Show(inst)
             Draw()
-            WaitForAnyKeyPress()
+            WaitForLayoutResponse(gLayout, 300000)
             Hide(inst)
         }
 
-        number <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+        number <- EasyLabel("", gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
 
 	
         Draw()
@@ -588,16 +697,16 @@ define TNT() {
 
         if (str == "Zer") {
 
-            message <- EasyLabel("0-Back trial will begin in", gVideoWidth / 2, gVideoHeight / 2 - 100, gWin, gParams.InstructionTextSize)
+            message <- EasyLabel("0-Back trial will begin in", gLayout.centerX, gLayout.centerY - 100, gWin, gParams.InstructionTextSize)
             restTime <- 5
             while (restTime >= 1) {
-                countdown <- EasyLabel(ToString(restTime), gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                countdown <- EasyLabel(ToString(restTime), gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
                 Draw()
                 Wait(1000)
                 restTime <- restTime - 1
             }
-            countdown <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
-            message <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2 - 100, gWin, gParams.InstructionTextSize)
+            countdown <- EasyLabel("", gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
+            message <- EasyLabel("", gLayout.centerX, gLayout.centerY - 100, gWin, gParams.InstructionTextSize)
 
             listlength <- Length(zeroBackStimList)
             stim <- RandomDiscrete(listlength)
@@ -620,26 +729,52 @@ define TNT() {
             respType <- 0
             corr <- 0
           Print("header here")
-            header.text <- gstrings.headerzero
+            gLayout.header.text <- gstrings.headerzero
 	    Draw()
-	    
+
             while (i <= gParams.numStimsAct) {
                 reacted <- 0
                 reaction <- 0
-                number <- EasyLabel(Nth(zeroBackStim, i), gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+
+                ## Defensive unbold before each trial
+                if(VariableExists("gResponseLabelLeft"))
+                {
+                    gResponseLabelLeft.font.bold <- 0
+                    gResponseLabelRight.font.bold <- 0
+                }
+
+                ## Update trial counter
+                gLayout.subheader.text <- "Trial " + i + " of " + gParams.numStimsAct
+
+                number <- EasyLabel(Nth(zeroBackStim, i), gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
                 Draw()
                 t0 <- GetTime()
-                resp <- WaitForListKeyPressWithTimeout(["<left>", "<right>"], gParams.StimulusDuration)
+                resp <- WaitForLayoutResponse(gLayout, gParams.StimulusDuration)
                 t1 <- GetTime()
                 target <- Nth(zeroBackStim, i + 12)
-                number <- EasyLabel("+", gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                number <- EasyLabel("+", gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
                 Draw()
                 Wait(gParams.isiTimeSecs)
 
                 if (resp != "<timeout>") {
                     reacted <- 1
                     rT <- t1 - t0
-                    if (resp == "<right>") {
+
+                    ## Give visual feedback by bolding appropriate response label
+                    if(VariableExists("gResponseLabelLeft"))
+                    {
+                        if(resp == "left")
+                        {
+                            gResponseLabelLeft.font.bold <- 1
+                            RegisterEvent("<TIMER>", 1, GetTime()+150, "<GEQ>", "UnboldLabels", [])
+                        } else {
+                            gResponseLabelRight.font.bold <- 1
+                            RegisterEvent("<TIMER>", 1, GetTime()+150, "<GEQ>", "UnboldLabels", [])
+                        }
+                        Draw()
+                    }
+
+                    if (resp == "right") {
                         reaction <- 1
                     }
                 }
@@ -684,17 +819,17 @@ define TNT() {
         }
         if (str == "One") {
 
-            message <- EasyLabel("1-Back trial will begin in", gVideoWidth / 2, gVideoHeight / 2 - 100, gWin, gParams.InstructionTextSize)
+            message <- EasyLabel("1-Back trial will begin in", gLayout.centerX, gLayout.centerY - 100, gWin, gParams.InstructionTextSize)
             restTime <- 5
             Print(restTime)
             while (restTime >= 1) {
-                countdown <- EasyLabel(ToString(restTime), gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                countdown <- EasyLabel(ToString(restTime), gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
                 Draw()
                 Wait(1000)
                 restTime <- restTime - 1
             }
-            countdown <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
-            message <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2 - 100, gWin, gParams.InstructionTextSize)
+            countdown <- EasyLabel("", gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
+            message <- EasyLabel("", gLayout.centerX, gLayout.centerY - 100, gWin, gParams.InstructionTextSize)
 
             listlength <- Length(oneBackStimList)
             stim <- RandomDiscrete(listlength)
@@ -715,19 +850,30 @@ define TNT() {
             rT <- 0
             respType <- 0
             corr <- 0
-            header.text <- gstrings.headerone
+            gLayout.header.text <- gstrings.headerone
 	    Draw()
-	    
+
             while (i <= gParams.numStimsAct) {
                 reacted <- 0
                 reaction <- 0
-                number <- EasyLabel(Nth(oneBackStim, i), gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+
+                ## Defensive unbold before each trial
+                if(VariableExists("gResponseLabelLeft"))
+                {
+                    gResponseLabelLeft.font.bold <- 0
+                    gResponseLabelRight.font.bold <- 0
+                }
+
+                ## Update trial counter
+                gLayout.subheader.text <- "Trial " + i + " of " + gParams.numStimsAct
+
+                number <- EasyLabel(Nth(oneBackStim, i), gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
                 Draw()
                 t0 <- GetTime()
-                resp <- WaitForListKeyPressWithTimeout(["<left>", "<right>"], gParams.StimulusDuration)
+                resp <- WaitForLayoutResponse(gLayout, gParams.StimulusDuration)
                 t1 <- GetTime()
                 target <- Nth(oneBackStim, i + 12)
-                number <- EasyLabel("+", gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                number <- EasyLabel("+", gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
                 Draw()
                 Wait(gParams.isiTimeSecs)
 
@@ -735,7 +881,22 @@ define TNT() {
                 if (resp != "<timeout>") {
                     reacted <- 1
                     rT <- t1 - t0
-                    if (resp == "<right>") {
+
+                    ## Give visual feedback by bolding appropriate response label
+                    if(VariableExists("gResponseLabelLeft"))
+                    {
+                        if(resp == "left")
+                        {
+                            gResponseLabelLeft.font.bold <- 1
+                            RegisterEvent("<TIMER>", 1, GetTime()+150, "<GEQ>", "UnboldLabels", [])
+                        } else {
+                            gResponseLabelRight.font.bold <- 1
+                            RegisterEvent("<TIMER>", 1, GetTime()+150, "<GEQ>", "UnboldLabels", [])
+                        }
+                        Draw()
+                    }
+
+                    if (resp == "right") {
                         reaction <- 1
                     }
                 }
@@ -780,17 +941,17 @@ define TNT() {
         }
         if (str == "Two") {
 
-            message <- EasyLabel("2-Back trial will begin in", gVideoWidth / 2, gVideoHeight / 2 - 100, gWin, gParams.InstructionTextSize)
+            message <- EasyLabel("2-Back trial will begin in", gLayout.centerX, gLayout.centerY - 100, gWin, gParams.InstructionTextSize)
             restTime <- 5
             Print(restTime)
             while (restTime >= 1) {
-                countdown <- EasyLabel(ToString(restTime), gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                countdown <- EasyLabel(ToString(restTime), gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
                 Draw()
                 Wait(1000)
                 restTime <- restTime - 1
             }
-            countdown <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
-            message <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2 - 100, gWin, gParams.InstructionTextSize)
+            countdown <- EasyLabel("", gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
+            message <- EasyLabel("", gLayout.centerX, gLayout.centerY - 100, gWin, gParams.InstructionTextSize)
 
             listlength <- Length(twoBackStimList)
             stim <- RandomDiscrete(listlength)
@@ -811,19 +972,30 @@ define TNT() {
             rT <- 0
             respType <- 0
             corr <- 0
-            header.text <- gstrings.headertwo
+            gLayout.header.text <- gstrings.headertwo
 	    Draw()
-	    
+
             while (i <= gParams.numStimsAct) {
                 reacted <- 0
                 reaction <- 0
-                number <- EasyLabel(Nth(twoBackStim, i), gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+
+                ## Defensive unbold before each trial
+                if(VariableExists("gResponseLabelLeft"))
+                {
+                    gResponseLabelLeft.font.bold <- 0
+                    gResponseLabelRight.font.bold <- 0
+                }
+
+                ## Update trial counter
+                gLayout.subheader.text <- "Trial " + i + " of " + gParams.numStimsAct
+
+                number <- EasyLabel(Nth(twoBackStim, i), gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
                 Draw()
                 t0 <- GetTime()
-                resp <- WaitForListKeyPressWithTimeout(["<left>", "<right>"], gParams.StimulusDuration)
+                resp <- WaitForLayoutResponse(gLayout, gParams.StimulusDuration)
                 t1 <- GetTime()
                 target <- Nth(twoBackStim, i + 12)
-                number <- EasyLabel("+", gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                number <- EasyLabel("+", gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
                 Draw()
                 Wait(gParams.isiTimeSecs)
 
@@ -831,7 +1003,22 @@ define TNT() {
                 if (resp != "<timeout>") {
                     reacted <- 1
                     rT <- t1 - t0
-                    if (resp == "<right>") {
+
+                    ## Give visual feedback by bolding appropriate response label
+                    if(VariableExists("gResponseLabelLeft"))
+                    {
+                        if(resp == "left")
+                        {
+                            gResponseLabelLeft.font.bold <- 1
+                            RegisterEvent("<TIMER>", 1, GetTime()+150, "<GEQ>", "UnboldLabels", [])
+                        } else {
+                            gResponseLabelRight.font.bold <- 1
+                            RegisterEvent("<TIMER>", 1, GetTime()+150, "<GEQ>", "UnboldLabels", [])
+                        }
+                        Draw()
+                    }
+
+                    if (resp == "right") {
                         reaction <- 1
                     }
                 }
@@ -877,11 +1064,11 @@ define TNT() {
 
 
         if (str == "Res") {
-            message <- EasyLabel (gstrings.rest, gVideoWidth / 2, gVideoHeight / 2 - 100, gWin, gParams.InstructionTextSize)
+            message <- EasyLabel (gstrings.rest, gLayout.centerX, gLayout.centerY - 100, gWin, gParams.InstructionTextSize)
             restTime <- gParams.numStimsRest * 3
             Print(restTime)
             while (restTime >= 1) {
-                countdown <- EasyLabel(ToString(restTime), gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                countdown <- EasyLabel(ToString(restTime), gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
                 Draw()
                 Wait(1000)
                 restTime <- restTime - 1
@@ -912,9 +1099,9 @@ define TNT() {
         bloc <- bloc + 1
     }
 
-	header.text <- gStrings.debrief
+	gLayout.header.text <- gStrings.debrief
 	Draw()
-	WaitForAnyKeyPress()
+	WaitForLayoutResponse(gLayout, 300000)
 }
 
 
@@ -926,4 +1113,17 @@ define TNT() {
 define GetStrings(lang)
 {
   gStrings <- GetTranslations("TNT", lang)
+}
+
+define UnboldLabels(evt:0)
+{
+  ## Callback to return both response labels to normal style after visual feedback
+  ## Guard condition prevents repeated execution
+  if(gResponseLabelLeft.font.bold != 0 or gResponseLabelRight.font.bold != 0)
+  {
+      gResponseLabelLeft.font.bold <- 0  ## Set to normal (not bold)
+      gResponseLabelRight.font.bold <- 0
+      Draw()
+  }
+  return "<REMOVE>"
 }

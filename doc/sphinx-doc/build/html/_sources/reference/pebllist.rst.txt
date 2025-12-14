@@ -775,7 +775,7 @@ Transpose()
 
 **Description:**
 
-Transposes or ``rotates'' a list of lists.  Each   sublist must be of the same length.
+Transposes or ``rotates`` a list of lists.  Each   sublist must be of the same length.
 
 **Usage:**
 
@@ -795,5 +795,3 @@ Transposes or ``rotates'' a list of lists.  Each   sublist must be of the same l
 **See Also:**
 
 :func:`Rotate()`
-
-================================================================================

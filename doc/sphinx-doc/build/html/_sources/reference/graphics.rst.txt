@@ -187,7 +187,7 @@ KaniszaPolygon()
 
 **Description:**
 
-Creates generic polygon, defined only by with ``pac-man'' circles at specified vertices.
+Creates generic polygon, defined only by with ``pac-man`` circles at specified vertices.
 
 **Usage:**
 
@@ -236,7 +236,7 @@ KaniszaSquare()
 
 **Description:**
 
-Creates generic Kanesza Square, one defined only by with ``pac-man'' circles at its vertices:    
+Creates generic Kanesza Square, one defined only by with ``pac-man`` circles at its vertices:    
 
 **Usage:**
 
@@ -551,7 +551,7 @@ NonOverlapLayout()
 
 **Description:**
 
-Creates a set of num points in a xy range, that have a (soft) minimum tolerance of 'tol' between points.  That is, to the extent possible, the returned points will have a minumum distance between them of ``<tol>``.  This may not be possible or be very difficult, and so after a limited number of attempts (by default, 100), the algorithm will return the current configuration, which may have some violations of the minimum tolerance rule, but it will usually be fairly good.    The algorithm works by initializing with a random set of points, then computing a pairwise distance matrix between all points, finding the closest two points, and resampling one of them until its minumum distance is larger than the current.  Thus, each internal iteration uniformly improves (or keeps the configuration the same), and the worst points are reconfigured first, so that even if a configuration that does not satisfy the constraints, it will usually be very close.  Internally, the function (located in pebl-lib/Graphics.pbl) has a variable that controls how many steps are taken, called ``limit'', which is set to 100.  For very compacted or very large iterations, this limit can be increased by editing the file or making a copy of the function.    The function usually returns fairly quickly, so it can often be used real-time between trials.  However, for complex enough configurations, it can take on the order of seconds; furthermore, more  complex configurations might take longer than less complex configurations, which could represent a potential confound (if more complex stimuli have longer ISIs).  Users should thus consider creating the configurations when the test is initialized, or created prior to the study and then saved out to a file for later use.   \newpage
+Creates a set of num points in a xy range, that have a (soft) minimum tolerance of 'tol' between points.  That is, to the extent possible, the returned points will have a minumum distance between them of ``<tol>``.  This may not be possible or be very difficult, and so after a limited number of attempts (by default, 100), the algorithm will return the current configuration, which may have some violations of the minimum tolerance rule, but it will usually be fairly good.    The algorithm works by initializing with a random set of points, then computing a pairwise distance matrix between all points, finding the closest two points, and resampling one of them until its minumum distance is larger than the current.  Thus, each internal iteration uniformly improves (or keeps the configuration the same), and the worst points are reconfigured first, so that even if a configuration that does not satisfy the constraints, it will usually be very close.  Internally, the function (located in pebl-lib/Graphics.pbl) has a variable that controls how many steps are taken, called ``limit``, which is set to 100.  For very compacted or very large iterations, this limit can be increased by editing the file or making a copy of the function.    The function usually returns fairly quickly, so it can often be used real-time between trials.  However, for complex enough configurations, it can take on the order of seconds; furthermore, more  complex configurations might take longer than less complex configurations, which could represent a potential confound (if more complex stimuli have longer ISIs).  Users should thus consider creating the configurations when the test is initialized, or created prior to the study and then saved out to a file for later use.   \newpage
 
 **Usage:**
 

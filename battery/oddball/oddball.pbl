@@ -78,12 +78,6 @@ define Start(p)
    gLayout.header.text <- gStrings.header
    gLayout.subheader.visible <- 1
 
-   ## Override response labels to show CIRCLE/SQUARE instead of LEFT/RIGHT
-   leftLabel <- Nth(gLayout.responseLabels, 1)
-   leftLabel.text <- gStrings.footerL
-   rightLabel <- Nth(gLayout.responseLabels, 2)
-   rightLabel.text <- gStrings.footerR
-
    ## Set footer to show the actual keys being used (from response mode)
    ## Format: "LEFT_KEY                                    RIGHT_KEY"
    leftKey <- Nth(gLayout.responseMode.labels, 1)
@@ -417,6 +411,9 @@ define Initialize()
   gResponseType <-"shiftkeys"  ##currently, changing this has no effect.
   gSleepEasy <- 1
   GetStrings(gLanguage)
+
+  ## Set response labels BEFORE CreateLayout so borders are sized correctly
+  gParams.responselabels <- [gStrings.footerL, gStrings.footerR]
 
   ##  The screen re
   ##

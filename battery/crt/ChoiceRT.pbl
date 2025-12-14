@@ -43,11 +43,13 @@ define Start(lPar)
    }
   GetStrings(gLanguage)
 
+  ## Set response labels BEFORE CreateLayout so borders are sized correctly
+  gParams.responselabels <- [gStrings.footerL, gStrings.footerR]
+
   ## Create layout with response system AFTER GetSubNum
   gLayout <- CreateLayout("ChoiceRT", gWindow, gParams)
   gLayout.header.text <- gStrings.header
   gLayout.subheader.visible <- 1
-  gLayout.footer.text <- gStrings.footer
 
   #Initialize Font and colors
   fg <- MakeColor("white")
@@ -82,8 +84,15 @@ define Start(lPar)
   Hide(breakbox)
   Draw()
   Wait(1000)
-  
-  ShowCursor(0)
+
+  ## Show cursor only for mousetarget mode (need to click on targets)
+  ## Hide cursor for keyboard, mousebutton, and touchtarget modes
+  if(gParams.responsemode == "mousetarget")
+  {
+    ShowCursor(1)
+  } else {
+    ShowCursor(0)
+  }
 
   trial <- 1
   ntrials <- Length(stimuli)

@@ -13,6 +13,7 @@ PEBL functions are organized by namespace. Click on any namespace below to see i
 
 * :doc:`PEBLEnvironment - System and Environment <reference/peblenvironment>`
 * :doc:`PEBLList - List Manipulation <reference/pebllist>`
+* :doc:`PEBLMath - Mathematical <reference/peblmath>`
 * :doc:`PEBLObjects - Graphics and Objects <reference/peblobjects>`
 * :doc:`PEBLStream - File and Network I/O <reference/peblstream>`
 * :doc:`PEBLString - String Manipulation <reference/peblstring>`
@@ -33,6 +34,7 @@ PEBL functions are organized by namespace. Click on any namespace below to see i
 
    Environment <reference/peblenvironment>
    Lists <reference/pebllist>
+   Math <reference/peblmath>
    Graphics & Objects <reference/peblobjects>
    File & Network <reference/peblstream>
    Strings <reference/peblstring>

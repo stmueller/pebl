@@ -28,6 +28,50 @@ it should also get called when you leave the window...
 
 
 
+.. index:: ClickCheckbox
+
+ClickCheckbox()
+---------------
+
+*Toggles checkbox state*
+
+**Description:**
+
+This 'clicks' a checkbox, changing its status (both the visual display and its .status property). Its state can also be set using the SetCheckBox() function. The text "ClickCheckBox" is by default bound to the .clickon property of any checkbox, enabling you to handle a number of graphical objects the same (see CallFunction example). The [x,y] coordinates are ignored, and so anything can be fed to them, but the standard approach is to use gClick, which is a global bound to the last click coordinates when WaitForClickOnTarget is used.
+
+**Usage:**
+
+.. code-block:: pebl
+
+   ClickCheckBox(obj, [x,y])
+
+**Example:**
+
+.. code-block:: pebl
+
+   ##The following creates a button, waits for you to click on it, and animates a button press
+
+   ok <- MakeCheckbox("OK?",400,250,gWin,150)
+   resp <- WaitForClickOnTarget([ok],[1])
+   ClickCheckBox(ok,gClick)
+   Draw()
+
+   ##You can handle a bunch of objects together using an idiom like this:
+
+   ok <- MakeCheckbox("OK?",400,250,gWin,150)
+   ok2 <- MakeCheckbox("Otherwise?",400,280,gWin,150)
+   checks  <- [ok,ok2]
+   resp <- WaitForClickOnTarget(checks,[1,2])
+   check <- Nth(checks,resp)
+   CallFunction(check.clickon,[check,gClick])
+   Draw()
+
+**See Also:**
+
+:func:`MakeCheckBox()`, :func:`SetCheckBox()`
+
+
+
 .. index:: ClickOnMenu
 
 ClickOnMenu()
@@ -118,6 +162,45 @@ Handles a click event on the a  ``ScrollBox``. This should be called after one c
 
 
 
+.. index:: CopyTextBox
+
+CopyTextBox()
+-------------
+
+*Copies textbox content to clipboard*
+
+**Description:**
+
+Copies the text content of a textbox to the system clipboard. This function is typically bound to a right-click menu on textboxes, allowing users to copy text for pasting into other applications or textboxes within PEBL.
+
+**Usage:**
+
+.. code-block:: pebl
+
+   CopyTextBox(menu, xy, box)
+
+**Example:**
+
+.. code-block:: pebl
+
+   ##Create a textbox with some text
+   font <- MakeFont("DejaVuSans.ttf", 0, 14, MakeColor("black"), MakeColor("white"), 1)
+   textbox <- MakeTextBox("Sample text to copy", font, 300, 100)
+   AddObject(textbox, gWin)
+   Move(textbox, 320, 240)
+   Draw()
+
+   ##Copy the textbox content (typically called from a right-click menu)
+   CopyTextBox(0, [0,0], textbox)
+
+   ##Now clipboard contains "Sample text to copy"
+
+**See Also:**
+
+:func:`PasteTextBox()`, :func:`CopyToClipboard()`, :func:`CopyFromClipboard()`, :func:`MakeTextBox()`
+
+
+
 .. index:: DrawPulldown
 
 DrawPulldown()
@@ -152,6 +235,46 @@ This handles layout/drawing of a pulldown box. This does not actually call Draw(
 **See Also:**
 
 :func:`MakePullDown()`, :func:`Pulldown()`, :func:`UpdatePulldown()`
+
+
+
+.. index:: DrawScrollbox
+
+DrawScrollbox()
+---------------
+
+*Redraws a scrollbox*
+
+**Description:**
+
+Redraws a ScrollBox. This is called by various internal functions, but should be used to handle redrawing if UpdateScrollbox is used. When things like the scrollbar, offset, and selected item change, this can be called directly. If the actual list is changed, UpdateScrollBox should be called first. Note that the redrawn scrollbox won't be changed on the screen until a Draw() command is issued.
+
+**Usage:**
+
+.. code-block:: pebl
+
+   DrawScrollBox(sb)
+
+**Example:**
+
+.. code-block:: pebl
+
+   sb <- MakeScrollBox(Sequence(1,50,1),"The numbers",40,40,gWin,12,150,500,3)
+   Draw()
+
+   resp <- WaitForClickOntarget([sb],[1])
+   CallFunction(sb.clickon,[sb,gClick])
+   ##Alternately: ClickOnScrollbox(sb,gClick)
+
+   ##change the selected items
+   sb.list <- Sequence(sb.selected,sb.selected+50,1)
+   UpdateScrollbox(sb)
+   DrawScrollbox(sb)
+   Draw()
+
+**See Also:**
+
+:func:`MakeScrollingTextBox()`, :func:`MakeScrollBox()`, :func:`UpdateScrollBox()`, :func:`ClickOnScrollBox()`
 
 
 
@@ -192,6 +315,43 @@ that link to the 'real' chain.
 .. code-block:: pebl
 
    define EditScrollboxValue(win,click,default,selected)
+
+
+
+.. index:: FilterList
+
+FilterList()
+------------
+
+*Filters a list by substring match*
+
+**Description:**
+
+Filters a list to include only items that contain a specified substring. This function searches each item in the list for the filter string and returns a new list containing only matching items. The search is case-sensitive and matches any occurrence of the filter string within each list item.
+
+**Usage:**
+
+.. code-block:: pebl
+
+   FilterList(list, filter)
+
+**Example:**
+
+.. code-block:: pebl
+
+   ##Filter a list of files to show only .txt files
+   files <- ["data1.txt", "data2.csv", "notes.txt", "readme.md"]
+   txtFiles <- FilterList(files, ".txt")
+   ##Returns: ["data1.txt", "notes.txt"]
+
+   ##Filter a list of names
+   names <- ["Alice", "Bob", "Charlie", "David"]
+   aNames <- FilterList(names, "a")
+   ##Returns: ["Charlie", "David"] (contains lowercase 'a')
+
+**See Also:**
+
+:func:`FindInString()`, :func:`SubString()`, :func:`Filter()`
 
 
 
@@ -300,6 +460,47 @@ Creates a button on a window that can be clicked and launches actions. The butto
 
 
 
+.. index:: MakeCheckbox
+
+MakeCheckbox()
+--------------
+
+*Creates a checkbox widget*
+
+**Description:**
+
+Creates a checkbox on a window that can be clicked and keeps track of its status. The checkbox uses a MakeButton object as its base. The checkbox button is always 20 pixels high (using images in media/images), with a rounded grey background. The label text will be shrunk to fit the width, although this should be avoided as it can look strange. It has a property 'clickon' that is bound to ClickCheckBox, which flips its state and updates the graphics. It has a property state which is either 0 or 1, depending on the state of the checkbox. Its initial state is 0. Its state can be set using the SetCheckBox() function.
+
+**Usage:**
+
+.. code-block:: pebl
+
+   MakeCheckBox(label, x, y, window, width)
+
+**Example:**
+
+.. code-block:: pebl
+
+   ##The following creates a button, waits for you to click on it, and animates a button press
+
+   ok <- MakeCheckbox("OK?",400,250,gWin,150)
+   resp <- WaitForClickOnTarget([ok],[1])
+   CallFunction(ok.clickon,[ok,gClick])
+   Draw()
+
+   ##Alternately:
+
+   ok <- MakeCheckbox("OK?",400,250,gWin,150)
+   resp <- WaitForClickOnTarget([ok],[1])
+   ClickCheckBox(ok,gClick)
+   Draw()
+
+**See Also:**
+
+:func:`ClickCheckBox()`, :func:`SetCheckBox()`
+
+
+
 .. index:: MakeMenu
 
 MakeMenu()
@@ -381,6 +582,46 @@ Creates a single menu containing a label, whose .clickon property is bound to so
 **See Also:**
 
 :func:`MakeMenu()`, :func:`OpenSubMenus()`, ``ClickOnMenu``
+
+
+
+.. index:: MakePulldown
+
+MakePulldown()
+--------------
+
+*Creates a pulldown selection list*
+
+**Description:**
+
+Creates a pulldown list that can be used to select an option. The closed version is always 20 pixels high. When opened, it will be by default 15 rows high, although this is made smaller if the pulldown is close to the bottom of the screen. A pulldown is a custom object made from images and text. It has a property 'clickon' that is bound to 'Pulldown'.
+
+**Usage:**
+
+.. code-block:: pebl
+
+   MakePulldown(options, x, y, window, fontsize, width, selected)
+
+**Parameters:**
+
+The options argument is a list of options you want to appear. x and y are the coordinates of the upper left corner, window is the name of the window (or other graphical object) it appears on, fontsize is the size of the font, and width is the width of the pulldown in pixels. The selected argument is the initial selected list item.
+
+Pulldown objects have a property .maxitems, that specify how many elements are displayed. If the list contains more than obj.maxitems, the pulldown will enable scrolling. A pulldown's click-on handler is by default bound to the 'Pulldown' function. When Pulldown(obj,mousexy) is called, it will pop open the pulldown, allow for a new option to be selected, and return. It returns the index of the selected object, but the selected index can also be accessed using obj.selected.
+
+**Example:**
+
+.. code-block:: pebl
+
+   ##See ui.pbl in the demo directory for examples of the use of pulldowns.
+   ##A basic example is:
+
+   options  <- MakePulldownButton(["A","B","C"],400,250,gWin,14,100,1)
+   resp <- WaitForClickOntarget([options],[1])
+   CallFunction(options.clickon,[options,gClick])
+
+**See Also:**
+
+:func:`PullDown()`, :func:`DrawPulldown()`, :func:`UpdatePulldown()`
 
 
 
@@ -548,6 +789,48 @@ Used by ClickOnMenu to open, display a submenu and get a click.
 
 
 
+.. index:: PasteTextBox
+
+PasteTextBox()
+--------------
+
+*Pastes clipboard content into textbox*
+
+**Description:**
+
+Pastes text from the system clipboard into a textbox, replacing its current content. This function is typically bound to a right-click menu on textboxes, allowing users to paste text from other applications or from previously copied PEBL textbox content. The textbox is automatically redrawn after pasting.
+
+**Usage:**
+
+.. code-block:: pebl
+
+   PasteTextBox(menu, xy, box)
+
+**Example:**
+
+.. code-block:: pebl
+
+   ##First, copy some text to clipboard
+   CopyToClipboard("Hello from PEBL!")
+
+   ##Create a textbox
+   font <- MakeFont("DejaVuSans.ttf", 0, 14, MakeColor("black"), MakeColor("white"), 1)
+   textbox <- MakeTextBox("", font, 300, 100)
+   AddObject(textbox, gWin)
+   Move(textbox, 320, 240)
+   Draw()
+
+   ##Paste clipboard content into the textbox (typically called from a right-click menu)
+   PasteTextBox(0, [0,0], textbox)
+
+   ##Now textbox.text contains "Hello from PEBL!"
+
+**See Also:**
+
+:func:`CopyTextBox()`, :func:`CopyToClipboard()`, :func:`CopyFromClipboard()`, :func:`MakeTextBox()`
+
+
+
 .. index:: PopUpEntryBox
 
 PopUpEntryBox()
@@ -575,6 +858,35 @@ Creates a small text-entry box at a specified location..
 **See Also:**
 
 ``MessageBox`` ``GetEasyInput``, ``PopUpMessageBox``
+
+
+
+.. index:: PopupMessageBox
+
+PopupMessageBox()
+-----------------
+
+*Creates a popup message box*
+
+**Description:**
+
+Creates a small 300x200 information box at the current cursor location, but also adjusts so it is on the screen. It must be dismissed by clicking the 'OK' button. Note that the function puts the box on the screen at the current mouse position. If you want control over where it goes, you need to use SetMouseCursorPosition immediately before the box is made.
+
+**Usage:**
+
+.. code-block:: pebl
+
+   PopUpMessageBox(<text>, <win>)
+
+**Example:**
+
+.. code-block:: pebl
+
+   subnum <- PopUpMessageBox("There has been an error.",gWin)
+
+**See Also:**
+
+:func:`MessageBox()`, :func:`GetEasyInput()`, :func:`PopUpEntryBox()`
 
 
 
@@ -630,6 +942,40 @@ Animates a button-pushing. It takes a button created using the MakeButton functi
 
 
 
+.. index:: Pulldown
+
+Pulldown()
+----------
+
+*Handles pulldown interaction*
+
+**Description:**
+
+This handles making a new selection on a pulldown box. This function is typically the primary way of interacting with a pulldown box. It will have the effect of opening the pulldown box, waiting for the user to select a new option, and then changing the selected option to whatever they click on.
+
+**Usage:**
+
+.. code-block:: pebl
+
+   Pulldown(object, [x,y])
+
+**Example:**
+
+.. code-block:: pebl
+
+   ##See ui.pbl in the demo directory for examples of the use of pulldowns.
+   ##A basic example is:
+
+   options  <- MakePulldownButton(["A","B","C"],400,250,gWin,14,100,1)
+   resp <- WaitForClickOntarget([options],[1])
+   newvalue <- Pulldown(options,gClick)
+
+**See Also:**
+
+:func:`MakePullDown()`, :func:`DrawPulldown()`, :func:`UpdatePulldown()`
+
+
+
 .. index:: SetScrollingText
 
 SetScrollingText()
@@ -670,6 +1016,42 @@ This updates the text in a ``ScrollingTextBox``. Because text must be parsed to 
 ``UpdateScrollBox``
 ``DrawScrollBox``
 ``ClickOnScrollBox``
+
+
+
+.. index:: SetCheckbox
+
+SetCheckbox()
+-------------
+
+*Sets checkbox state*
+
+**Description:**
+
+This sets the .status property of a checkbox and draws it. Its state can also be updated using the ClickCheckBox() function, which flips the current state.
+
+**Usage:**
+
+.. code-block:: pebl
+
+   SetCheckBox(obj, value)
+
+**Example:**
+
+.. code-block:: pebl
+
+   ok <- MakeCheckbox("OK?",400,250,gWin,150)
+   Draw()
+   SetCheckBox(ok,1)
+   Draw()
+   Wait(1000)
+   SetCheckbox(ok,0)
+   Draw()
+   Wait(1000)
+
+**See Also:**
+
+:func:`MakeCheckBox()`, :func:`ClickCheckBox()`
 
 
 
@@ -793,3 +1175,124 @@ This updates the layout of a ``ScrollBox``. It should be used if you manually ch
 ``MakeScrollBox``
 ``DrawScrollBox``
 ``ClickOnScrollBox``
+
+
+
+.. index:: VecPlus
+
+VecPlus()
+---------
+
+*Adds a scalar to all vector elements*
+
+**Description:**
+
+Adds a constant value to every element in a vector (list of numbers), returning a new vector with the results. This is a simple vector arithmetic operation useful for shifting or offsetting entire datasets.
+
+**Usage:**
+
+.. code-block:: pebl
+
+   VecPlus(vec, add)
+
+**Example:**
+
+.. code-block:: pebl
+
+   ##Shift a list of values by adding 10 to each
+   values <- [1, 2, 3, 4, 5]
+   shifted <- VecPlus(values, 10)
+   ##Returns: [11, 12, 13, 14, 15]
+
+   ##Offset coordinates
+   xCoords <- [100, 150, 200, 250]
+   xShifted <- VecPlus(xCoords, 50)
+   ##Returns: [150, 200, 250, 300]
+
+   ##Can be used with negative values
+   temps <- [72, 75, 68, 71]
+   adjusted <- VecPlus(temps, -32)
+   ##Returns: [40, 43, 36, 39]
+
+**See Also:**
+
+:func:`Sequence()`, :func:`Repeat()`, :func:`Rep()`
+
+
+.. index:: AdaptiveTextBox
+
+AdaptiveTextBox()
+-----------------
+
+*Creates a textbox that automatically adapts to fit content*
+
+**Description:**
+
+Creates a textbox that automatically adjusts to display text that doesn't fit in the specified dimensions. Two adaptation strategies are available: scaling the box (preserves font size) or scaling the font (preserves box size). Uses the new ``textComplete`` property to detect when all text has been rendered.
+
+**Usage:**
+
+.. code-block:: pebl
+
+   AdaptiveTextBox(text, x, y, window, fontsize, width, height, adaptive, maxlines)
+
+**Parameters:**
+
+- ``text``: The text content to display
+- ``x, y``: Position coordinates (upper-left corner)
+- ``window``: Parent window object
+- ``fontsize``: Initial font size in points
+- ``width, height``: Target box dimensions in pixels
+- ``adaptive``: Adaptation strategy - ``0`` (none), ``"scalebox"``, or ``"scalefont"``
+- ``maxlines``: Maximum number of lines allowed (default: 30)
+
+**Adaptation Strategies:**
+
+- ``0`` - No adaptation; creates standard textbox (text may overflow)
+- ``"scalebox"`` - Expands box to fit all text, then scales down using zoom to original size (preserves font size, uses SDL2 anisotropic filtering for quality)
+- ``"scalefont"`` - Iteratively reduces font size until text fits (preserves box dimensions exactly, minimum 8pt)
+
+**Examples:**
+
+.. code-block:: pebl
+
+   ##Create window
+   win <- MakeWindow("black")
+
+   ##Long instruction text that needs adaptation
+   instructions <- "Welcome to the experiment. Please read these instructions carefully. " +
+                   "This is a long text that demonstrates the adaptive textbox functionality. " +
+                   "The textbox will automatically adjust to fit all this content."
+
+   ##Use scalefont strategy - reduces font size to fit
+   box1 <- AdaptiveTextBox(instructions, 50, 50, win, 24, 400, 100, "scalefont")
+   
+   ##Use scalebox strategy - preserves font size, scales box down
+   box2 <- AdaptiveTextBox(instructions, 50, 200, win, 24, 400, 100, "scalebox")
+   
+   ##No adaptation - text may overflow
+   box3 <- AdaptiveTextBox(instructions, 50, 350, win, 24, 400, 100, 0)
+
+   Draw()
+
+**Strategy Comparison:**
+
+**ScaleBox:**
+
+- Maintains original font size (better for accessibility/readability)
+- Creates larger internal box, then scales down using zoom
+- High-quality rendering with SDL2 anisotropic filtering
+- Uses more memory (larger internal texture)
+- Visual size matches specified dimensions exactly
+
+**ScaleFont:**
+
+- Maintains box dimensions exactly as specified
+- Reduces font size iteratively (8pt minimum)
+- Text remains sharp (no scaling artifacts)
+- More memory efficient
+- May reduce readability if text is very long
+
+**See Also:**
+
+:func:`EasyTextBox()`, :func:`MakeTextBox()`, :func:`MakeScrollingTextBox()`

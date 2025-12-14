@@ -1,0 +1,85 @@
+define Start(p)
+{
+
+ a <- [1,2,3,4,5]
+ b <- [3,4,5,6]
+
+ union <- Union(a,b)
+ inter <-Intersect(a,b)
+ ##a not b
+ d1 <- SetDifference(inter,a)
+ d1a <- SetDifference(b,a)
+ ##B not A
+ d2 <- SetDifference(inter,b)
+ d2a <- SetDifference(a,b)
+
+
+Print("A:        " +a)
+Print("B:        "+b)
+Print("Union:    " + union)
+Print("Intesect: " + inter)
+Print("A not B:  " + d1)
+Print("B not A:  " + d2)
+Print("A not B2:  " + d1a)
+Print("B not A2:  " + d2a)
+
+}
+
+
+
+## Compute union of two lists (all unique elements)
+define Union(list1, list2)
+{
+  result <- Sort(list1)##really makes a copy.
+
+  loop(item, list2)
+  {
+    if(not IsMember(item, result))
+    {
+      PushOnEnd(result, item)
+    }
+  }
+
+  return(result)
+}
+
+## Compute intersection of two lists (common elements)
+define Intersect(list1, list2)
+{
+
+  result <- []
+  list2 <- Sort(list2)
+ 
+  loop(item,Sort(list1))
+  {
+    loop(i,Length(list2))
+    {
+      if(item == Nth(list2,i))
+      {
+         PushOnEnd(result, item)
+	 list2 <- RemoveSubset(list2,[i])
+	 break
+      }
+    }
+    
+
+  }
+
+  return(result)
+}
+
+## Compute set difference (elements in list1 not in list2)
+define SetDifference(list1, list2)
+{
+  result <- []
+
+  loop(item, list2)
+  {
+    if(not IsMember(item, list1))
+    {
+      PushOnEnd(result, item)
+    }
+  }
+
+  return(result)
+}

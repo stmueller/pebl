@@ -106,7 +106,7 @@ CR()
 
 **Description:**
 
-Produces ``<number>`` linefeeds which can be added to a   string and printed or saved to a file.  CR is an abbreviation for ``Carriage Return''.
+Produces ``<number>`` linefeeds which can be added to a   string and printed or saved to a file.  CR is an abbreviation for ``Carriage Return``.
 
 **Usage:**
 
@@ -584,6 +584,48 @@ Creates dialog to ask user to input a subject code
      }
    
    Note: gSubNum can also be set from the command line.
+
+
+
+.. index:: GetTranslations
+
+GetTranslations()
+-----------------
+
+*Loads multilingual translations with automatic language fallback*
+
+**Description:**
+
+Automatically loads translation strings for experiments from JSON translation files. Implements a three-tier fallback system: (1) uses explicitly specified language if file exists, (2) falls back to system locale language if available, (3) defaults to English if no other translations are found. Normalizes all language codes to lowercase 2-letter codes (e.g., "en", "es", "ar"). Returns a custom object with translated strings as properties that can be accessed throughout the experiment.
+
+**Usage:**
+
+.. code-block:: pebl
+
+   GetTranslations(testname, lang)
+
+**Example:**
+
+.. code-block:: pebl
+
+   ##Load translations with explicit language
+   gLanguage <- "es"  ##Spanish
+   gStrings <- GetTranslations("stroop", gLanguage)
+   MessageBox(gStrings.instructions, gWin)
+
+   ##Let it auto-detect from system locale
+   gLanguage <- ""  ##Empty means use system locale
+   gStrings <- GetTranslations("flanker", gLanguage)
+   ##Will try system language, fall back to English
+
+   ##Translation files are expected at:
+   ##translations/stroop.pbl-es.json
+   ##translations/stroop.pbl-en.json
+   ##etc.
+
+**See Also:**
+
+:func:`ReadTranslationJSON()`, :func:`ReadTranslation()`, :func:`GetSystemLocale()`, :func:`Lowercase()`
 
 
 
@@ -1559,34 +1601,39 @@ GetDirectory()
 
 **Description:**
 
-Extracts and returns the directory portion of a file path, including the trailing separator. The function splits the path by the specified separator and returns all but the last component (the filename). Useful for getting the parent directory of a file or for constructing new file paths in the same directory.
+Extracts and returns the directory portion of a file path, including the trailing separator. The function automatically detects the appropriate separator based on the platform (backslash for Windows, forward slash for Unix/Linux/Mac). Returns all but the last component (the filename). Useful for getting the parent directory of a file or for constructing new file paths in the same directory.
 
 **Usage:**
 
 .. code-block:: pebl
 
-   define GetDirectory(filepath, separator: "/")
+   define GetDirectory(filepath)
 
 **Example:**
 
 .. code-block:: pebl
 
 
-   # Unix-style paths
+   # Extract directory from file path
    dir <- GetDirectory("data/experiment/results.csv")
    Print(dir)
-   # Result: "data/experiment/"
+   # Result: "data/experiment/" (on Unix/Linux/Mac)
 
-   # Windows-style paths
-   dir <- GetDirectory("C:\Users\Lab\data\subject01.txt", "\")
+   # Works automatically on Windows too
+   dir <- GetDirectory("C:\Users\Lab\data\subject01.txt")
    Print(dir)
-   # Result: "C:\Users\Lab\data\"
+   # Result: "C:\Users\Lab\data\" (on Windows)
 
    # Use with other path operations
    filepath <- "results/trial-data.csv"
    directory <- GetDirectory(filepath)
    newfile <- directory + "summary-data.csv"
    # newfile is "results/summary-data.csv"
+
+   # Common use case: creating pooled data files
+   fileOut <- GetNewDataFile(gSubnum, gWin, "test", "csv", "header")
+   dir <- GetDirectory(fileOut.filename) + "../"
+   pooledFile <- FileOpenAppend(dir + "pooled-results.csv")
 
 
 **See Also:**

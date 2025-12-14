@@ -6,13 +6,17 @@ define Start(p)
                 ["isi",500],
                 ["minval",100],
                 ["maxval",999],
-                ["responsemode","auto"]]
+                ["responsemode","auto"],
+                ["responselabels",["ODD","EVEN"]]]  ##Semantic labels for response modes
 
 
    gParams <- CreateParameters(parpairs,gParamFile)
 
 
    GetStrings(gLanguage)
+
+   ## Set semantic labels from translation strings
+   gParams.responselabels <- [gStrings.odd, gStrings.even]
 
    if(gSubNum+""=="0")
     {
@@ -30,9 +34,18 @@ define Start(p)
    gLayout.subheader.visible <- 0
    gLayout.footer.text <- gStrings.footer
 
+   ## Hide cursor for keyboard and mousebutton modes
+   ## Show cursor only for mousetarget mode (not touchtarget - no cursor on touch screens)
+   if(gLayout.responseMode.type == "mousetarget")
+   {
+     ShowCursor(1)
+   } else {
+     ShowCursor(0)
+   }
+
    Draw()
 
-  MessageBox(gStrings.inst1,gWin)
+  ShowInstructions(gStrings.inst1)
 
   if(IsOdd(gParams.minval))
   {
@@ -98,7 +111,42 @@ define Start(p)
 	reportfile <- GetNewDataFile(gSubNum,gWin,"evenodd-report","txt","")
 	FilePrint(reportfile,report)
 
-   MessageBox(gStrings.debrief+ CR(2)+ report,gWin)
+   ShowInstructions(gStrings.debrief+ CR(2)+ report)
+}
+
+
+define ShowInstructions(message)
+{
+  ## Display instructions within stimulus region with response labels visible
+  instWidth <- 750
+  instX <- gVideoWidth/2 - instWidth/2
+  instY <- gLayout.stimulusRegion.y + 20
+  instHeight <- gLayout.stimulusRegion.height - 40
+
+  ## Create adaptive textbox in instruction area
+  inst <- AdaptiveTextBox(message,
+                          instX,
+                          instY,
+                          gWin, 32,
+                          instWidth,
+                          instHeight,
+                          "scalefont")
+
+  Draw()
+
+  ## Wait for any response compatible with current mode
+  if(gLayout.responseMode.type == "keyboard" or
+     gLayout.responseMode.type == "keyboardShift" or
+     gLayout.responseMode.type == "keyboardSafe" or
+     gLayout.responseMode.type == "singlekey")
+  {
+    WaitForAnyKeyPress()
+  } else {
+    ## Mouse/touch modes - use WaitForDownClick to avoid upclick passthrough
+    WaitForDownClick()
+  }
+
+  RemoveObject(inst, gWin)
 }
 
 

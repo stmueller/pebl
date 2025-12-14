@@ -759,7 +759,7 @@ define Insert(list, item, pos)
 define Rest(list)
 {
   if(not IsList(list))
-   { 
+   {
      SignalFatalError("Rest(<list>) must be given a list as argument")
    }
   if(Length(list)<2)
@@ -769,4 +769,65 @@ define Rest(list)
       ret <- SubList(list,2,Length(list))
 }
   return ret
+}
+
+##============================================================================
+## SET OPERATIONS
+##============================================================================
+
+## Compute union of two lists (all unique elements)
+## Returns a sorted list containing all elements that appear in either list
+define Union(list1, list2)
+{
+  result <- Sort(list1)  ## really makes a copy
+
+  loop(item, list2)
+  {
+    if(not IsMember(item, result))
+    {
+      PushOnEnd(result, item)
+    }
+  }
+
+  return(result)
+}
+
+## Compute intersection of two lists (common elements)
+## Returns a list containing only elements that appear in both lists
+define Intersect(list1, list2)
+{
+  result <- []
+  list2 <- Sort(list2)
+
+  loop(item, Sort(list1))
+  {
+    loop(i, Length(list2))
+    {
+      if(item == Nth(list2, i))
+      {
+        PushOnEnd(result, item)
+        list2 <- RemoveSubset(list2, [i])
+        break
+      }
+    }
+  }
+
+  return(result)
+}
+
+## Compute set difference (elements in list2 not in list1)
+## Returns elements that are in list2 but not in list1
+define SetDifference(list1, list2)
+{
+  result <- []
+
+  loop(item, list2)
+  {
+    if(not IsMember(item, list1))
+    {
+      PushOnEnd(result, item)
+    }
+  }
+
+  return(result)
 }

@@ -28,14 +28,21 @@ define Start(p)
    gSubNum <- GetSubNum(gWin)
   }
 
-
   GetStrings(gLanguage)
+
+  ## Set response labels BEFORE CreateLayout so borders are sized correctly
+  ## For touchtarget mode, add "Tap for" prefix (translated)
+  if(gParams.responsemode == "touchtarget")
+  {
+    gParams.responselabels <- [gStrings.tap_for + " " + gStrings.footerL, gStrings.tap_for + " " + gStrings.footerR]
+  } else {
+    gParams.responselabels <- [gStrings.footerL, gStrings.footerR]
+  }
 
   ## Create layout with response system AFTER GetSubNum
   gLayout <- CreateLayout("wpt", gWin, gParams)
   gLayout.header.visible <- 0
   gLayout.subheader.visible <- 1
-  gLayout.footer.text <- gStrings.footer
 
   gFileOut <- GetNewDataFile(gSubNum,gWin,"wpt","csv","subnum,trial,config,c1,c2,c3,c4,sampleprob,rainprob,prob2,time,rt,resp,outcome,correct")
 
@@ -124,11 +131,20 @@ stimtable <- [["A", 0,0,0,1,0.14, 0.15],
   gLayout.footer.visible <- 1
   ShowAll(gCards,1)
   Draw()
-  WaitForAnyKeyPress()
+  WaitForLayoutResponse(gLayout)
 
   ShowAll(gCards,0)
   Hide(inst)
   Draw()
+
+  ## Show cursor only for mousetarget mode (need to click on targets)
+  ## Hide cursor for keyboard, mousebutton, and touchtarget modes
+  if(gParams.responsemode == "mousetarget")
+  {
+    ShowCursor(1)
+  } else {
+    ShowCursor(0)
+  }
 
 
 
@@ -155,7 +171,12 @@ stimtable <- [["A", 0,0,0,1,0.14, 0.15],
 
    if(Mod(trial,gParams.blocksize)==0)
    {
-     MessageBox(gStrings.break,gWin)
+     inst.text <- gStrings.break
+     Show(inst)
+     Draw()
+     WaitForLayoutResponse(gLayout)
+     Hide(inst)
+     Draw()
    }
 
    trial <- trial + 1
@@ -168,7 +189,10 @@ stimtable <- [["A", 0,0,0,1,0.14, 0.15],
    Print("Uploading data files...")
    out <- UploadFile(gSubNum, gFileOut.filename); Print(out)
 
-   MessageBox(gStrings.debrief,gWin)
+   inst.text <- gStrings.debrief
+   Show(inst)
+   Draw()
+   WaitForLayoutResponse(gLayout)
 }
 
 define Trial(cards,prob)

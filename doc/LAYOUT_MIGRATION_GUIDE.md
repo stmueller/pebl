@@ -39,19 +39,19 @@ The Layout & Response System provides:
 
 ## Overall Migration Status
 
-**Last Updated**: December 13, 2025
+**Last Updated**: December 14, 2025
 
 ### Summary Statistics
 
 - **Total tests in upload-battery**: 52
-- **Fully migrated** (Layout + Response): 12 tests (23%)
-- **Ready to migrate** (both systems): 5 tests (10%)
+- **Fully migrated** (Layout + Response): 14 tests (27%)
+- **Ready to migrate** (both systems): 3 tests (6%)
 - **Need response mode extensions**: 6 tests (12%) - requires 4-choice grid or 4-way directional modes
 - **Layout-only migration**: 15 tests (29%) - includes Stroop tests (4-choice keyboard with verbal interference) and custom response tasks
 - **Not suitable for migration**: 14 tests (27%)
 
 **Realistic targets:**
-- **Full migration** (Layout + Response): 17 tests (33%) - 12 complete + 5 Category 1
+- **Full migration** (Layout + Response): 17 tests (33%) - 14 complete + 3 Category 1
 - **With response extensions**: 23 tests (44%) - add 6 Category 2 tests
 - **Layout-only migration**: 38 tests (73%) - add 15 Category 3 tests for UI consistency
 
@@ -96,6 +96,7 @@ Tests using true semantic labels with `responselabels` parameter:
 | **crt** | ✅ | LEFT / RIGHT | ✓ Correct (positional) | Dec 11, 2025 | Semantic-first architecture. Synced to upload-battery |
 | **wpt** | ✅ | RAIN / SUN | ✓ Correct | Dec 11, 2025 | Semantic labels with translated "Tap for" prefix for touchtarget mode. Synced to upload-battery |
 | **ANT** | ✅ | LEFT / RIGHT | ✓ Correct (directional) | Dec 13, 2025 | 8 translations updated (en, es, fr, de, it, nl, pt, br). 5 parameter files. Synced to upload-battery |
+| **pcpt** | ✅ | GO (singlekey) | ✓ Correct | Dec 14, 2025 | 10 translations (de, en, es, fr, he, hr, it, nl, pt, tr). 4 modes (spacebar/leftclick/touchscreen/clicktarget). Non-blocking visual feedback. Parameterized letters. Synced to upload-battery |
 | **template** | ⚠️ | LEFT / RIGHT | Example labels | Dec 4, 2025 | Needs semantic update |
 
 ### How to Update Tests with Semantic Labels
@@ -143,9 +144,9 @@ Draw()
 
 ### Upload-battery/ Sync Status
 
-All 12 tests (except template) have been synced from battery/ to upload-battery/:
-- Synced: ANT, BST, crt, dotjudgment, evenodd, flanker, gonogo, luckvogel, manikin, oddball, simon, wpt
-- Last updated: Dec 13, 2025
+All 13 tests (except template) have been synced from battery/ to upload-battery/:
+- Synced: ANT, BST, crt, dotjudgment, evenodd, flanker, gonogo, luckvogel, manikin, oddball, pcpt, simon, srt, wpt
+- Last updated: Dec 14, 2025
 
 **Note**: When semantic labels are added to battery/ tests, they must be re-synced to upload-battery/.
 
@@ -181,10 +182,10 @@ This section provides a comprehensive assessment of all remaining upload-battery
 | Test | Priority | Layout | Response | Input Type | Notes |
 |------|----------|--------|----------|------------|-------|
 | ~~**ANT**~~ | ✅ **COMPLETE** | ✅ EASY | ✅ COMPATIBLE | kbd | **MIGRATED Dec 13, 2025** - 2-alt (left/right), 8 translations, 5 parameter files |
+| ~~**srt**~~ | ✅ **COMPLETE** | ✅ EASY | ✅ COMPATIBLE | kbd | **MIGRATED Dec 14, 2025** - Single-key response, 4 modes (spacebar/leftclick/touchscreen/clicktarget), 7 translations, trial counter, visual feedback |
+| ~~**pcpt**~~ | ✅ **COMPLETE** | ✅ EASY | ✅ COMPATIBLE | kbd | **MIGRATED Dec 14, 2025** - Single-key CPT, 4 modes, 10 translations, non-blocking visual feedback, parameterized letters |
 | **TNT** | 🟡 MEDIUM | ✅ EASY | ✅ COMPATIBLE | kbd | 2-alt think/no-think (currently uses arrow keys semantically) |
-| **pcpt** | 🔴 HIGH | ✅ EASY | ✅ COMPATIBLE | kbd | Continuous performance task, single-key (like gonogo) |
 | **pcpt-ax** | 🟡 MEDIUM | ✅ EASY | ✅ COMPATIBLE | kbd | AX-CPT variant, single-key (like gonogo) |
-| **srt** | 🟡 MEDIUM | ✅ EASY | ✅ COMPATIBLE | kbd | Simple RT, single response |
 | **clocktest** | 🟡 MEDIUM | ⚠️ MODERATE | ✅ COMPATIBLE | kbd/mouse | Single response - challenge is scaling clock drawing canvas to fit stimulus region |
 
 **Migration Notes:**
@@ -192,12 +193,15 @@ This section provides a comprehensive assessment of all remaining upload-battery
 - All keyboard-based with 1-2 response options (except clocktest which uses mouse for drawing)
 - Can use existing layout zones and response modes
 - **2-alternative tasks**: ~~ANT (COMPLETE)~~, TNT (verified via code inspection)
-- **Single-response tasks**: pcpt, pcpt-ax, srt, clocktest - use single-key mode like gonogo (spacebar, leftclick, touchscreen, or clicktarget)
+- **Single-response tasks**: ~~srt (COMPLETE)~~, pcpt, pcpt-ax, clocktest - use single-key mode like gonogo (spacebar, leftclick, touchscreen, or clicktarget)
 - **clocktest** uses single-key response mode; main challenge is scaling the clock drawing canvas to fit within stimulus region
 
 **Estimated effort**: 2-3 hours per test (3-4 hours for clocktest due to canvas scaling)
 
-**Completed**: ANT (Dec 13, 2025) - Includes 8 translations and 5 parameter files
+**Completed**:
+- ANT (Dec 13, 2025) - 2-alt task with 8 translations and 5 parameter files
+- srt (Dec 14, 2025) - Single-key task with 4 response modes, 7 translations, trial counter, visual feedback
+- pcpt (Dec 14, 2025) - Single-key CPT with 4 modes, 10 translations, non-blocking visual feedback, parameterized target/foil letters
 
 ---
 
@@ -347,21 +351,19 @@ To migrate Category 2 tests, the following response modes need to be implemented
 
 ### Migration Recommendations & Priorities
 
-#### Immediate Priority: Category 1 Tests (5 remaining)
+#### Immediate Priority: Category 1 Tests (4 remaining)
 
 **Completed**:
 1. ✅ **ANT** - COMPLETE (Dec 13, 2025) - 2-alt attention network test with 8 translations
-
-**High priority** - Should migrate ASAP:
-2. **pcpt** - Continuous performance task, single-key (like gonogo)
+2. ✅ **srt** - COMPLETE (Dec 14, 2025) - Simple RT with 4 response modes, 7 translations, trial counter, visual feedback
+3. ✅ **pcpt** - COMPLETE (Dec 14, 2025) - Continuous performance task with 4 modes, 10 translations, non-blocking visual feedback
 
 **Medium priority** - Should migrate soon:
 3. **TNT** - 2-alt think/no-think paradigm
 4. **pcpt-ax** - AX-CPT variant, single-key (like gonogo)
-5. **srt** - Simple RT, single response
-6. **clocktest** - Clock drawing test, single response (requires canvas scaling to stimulus region)
+5. **clocktest** - Clock drawing test, single response (requires canvas scaling to stimulus region)
 
-**Estimated total effort**: 10-16 hours for remaining 5 tests
+**Estimated total effort**: 6-10 hours for remaining 3 tests
 
 #### Medium Priority: Category 2 Tests (6 tests - after response modes implemented)
 
@@ -410,15 +412,15 @@ These tests should NOT be migrated:
 **Total upload-battery tests**: 52
 
 **Migration status breakdown:**
-- ✅ **Already migrated**: 12 tests (23%)
-- 🟢 **Category 1** (ready to migrate): 5 tests (10%)
+- ✅ **Already migrated**: 14 tests (27%)
+- 🟢 **Category 1** (ready to migrate): 3 tests (6%)
 - 🟡 **Category 2** (needs response extensions): 6 tests (12%)
 - 🟠 **Category 3** (layout-only): 15 tests (29%)
 - 🔴 **Category 4** (not suitable): 14 tests (27%)
 
 **Realistic migration targets:**
 - **Full migration** (Layout + Response): 17 tests (33% of battery)
-  - 12 already complete + 5 Category 1
+  - 14 already complete + 3 Category 1
 - **With response mode extensions**: 23 tests (44% of battery)
   - Add 6 Category 2 tests after implementing new modes
 - **Layout-only** (UI consistency): 38 tests (73% of battery)
@@ -432,10 +434,12 @@ These tests should NOT be migrated:
 
 **Phase 1: Complete Category 1 migrations (Immediate)**
 1. ✅ ANT - COMPLETE (Dec 13, 2025)
-2. Migrate TNT, pcpt, pcpt-ax, srt, clocktest (5 remaining)
-3. Use existing Layout & Response systems
-4. Estimated: 10-16 hours total
-5. **Impact**: Brings total to 17 fully-migrated tests (33% of battery)
+2. ✅ srt - COMPLETE (Dec 14, 2025)
+3. ✅ pcpt - COMPLETE (Dec 14, 2025)
+4. Migrate TNT, pcpt-ax, clocktest (3 remaining)
+5. Use existing Layout & Response systems
+6. Estimated: 6-10 hours total
+7. **Impact**: Brings total to 17 fully-migrated tests (33% of battery)
 
 **Phase 2: Implement response mode extensions (Medium-term)**
 1. Develop 4-choice grid response mode

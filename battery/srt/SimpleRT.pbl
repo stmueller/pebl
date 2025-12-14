@@ -34,7 +34,7 @@ define Start(lPar)
   ## Parameters/Variables controlling experiment
   ##
 
-  parpairs <- [["blocks",2],       ## The number of trial blocks
+  parpairs <- [["blocks",4],       ## The number of trial blocks
                ["blocklength",50], ## The number of trials per block
 	       ["delayMin",250],   ## Smallest delay
 	       ["delayMax",2500],  ## longest delay
@@ -42,14 +42,9 @@ define Start(lPar)
 	       ["stimulus","X"],    ##Stimulus character
 	       ["toofastThresh",150], ##too fast
 	       ["tooslowThresh",3000],  ##Too slow time
-	       ["responsekey","X"]]         ##Response key to use.
-#	       ["responsekey","mousebutton"]]         ##Response key to use.
+	       ["responsemode","spacebar"]]  ##Response mode: spacebar, leftclick, touchscreen, clicktarget
 
   gParams <- CreateParameters(parpairs,gParamFile)
-
-
-  gUseMouse <-   gParams.responsekey == "mousebutton"
-
 
   blocks <- gParams.blocks
   blocklength <- gParams.blocklength
@@ -88,9 +83,34 @@ define Start(lPar)
      gSubNum <- GetSubNum(gWin)
    }
 
-   GetStrings(gLanguage)
+  GetStrings(gLanguage)
 
-  ShowCursor(0)
+  ## Create layout - response labels come from response-modes.json
+  gLayout <- CreateLayout("SimpleRT", gWin, gParams)
+
+  ## Make subheader visible for trial counter
+  gLayout.subheader.visible <- 1
+
+  ## Store response label for visual feedback (like gonogo)
+  if(Length(gLayout.responseLabels) > 0)
+  {
+    gResponseLabel <- First(gLayout.responseLabels)
+  }
+
+  ## For mousetarget modes: widen border to accommodate bold text feedback
+  if(Length(gLayout.responseBorders) > 0)
+  {
+    gResponseBorder <- First(gLayout.responseBorders)
+    gResponseBorder.width <- gResponseBorder.width + 50
+  }
+
+  ## Show cursor only for clicktarget mode
+  if(gParams.responsemode == "clicktarget")
+  {
+    ShowCursor(1)
+  } else {
+    ShowCursor(0)
+  }
   ## The delays are pre-generated to make it easier to control things,
   ## like sequential dependencies, distributions, fixed delays, etc.
   delayseq <- Shuffle(DesignBalancedSampling(delays, numtrials))
@@ -98,20 +118,11 @@ define Start(lPar)
   gFileOut <- GetNewDataFile(gSubNum,gWin,"srt","csv",
     "subNum,block,trial,time0,delay,delay2,rt,resp1,resp2")
 
-  ##Update the translations.
-  if(gUseMouse){
-      tmp <- ReplaceChar(gStrings.inst,"<RESP>",gStrings.mouse)
-  }else{
-      tmp <- ReplaceChar(gStrings.inst,"<RESP>",gStrings.keyboard)
-  }
-   tmp <- ReplaceChar(tmp,"<RESPKEY>",gParams.responsekey)
-   tmp <- ReplaceChar(tmp,"<STIM>",stimulus)
-
-
-
-  tmp <- ReplaceChar(tmp,"<BLOCKS>",blocks)
-  tmp <- ReplaceChar(tmp,"<BLOCKLENGTH>",blocklength)
-  gInstructions.text <- tmp
+  ## Update instruction text with experiment parameters
+  gInstructions.text <- SubstituteStrings(gStrings.inst,
+    [["<STIM>",stimulus],
+     ["<BLOCKS>",blocks],
+     ["<BLOCKLENGTH>",blocklength]])
 
   gStim.text <- stimulus
 
@@ -120,7 +131,7 @@ define Start(lPar)
 
   Show(gInstructions)
   Draw()
-  WaitForAnyKeyPress()
+  WaitForLayoutResponse(gLayout)
   Hide(gInstructions)
   Draw()
   gInstructions.text <- gStrings.break
@@ -136,6 +147,9 @@ define Start(lPar)
   {
   trial <- trial + 1
 
+  ## Update trial counter in subheader
+  gLayout.subheader.text <- "Trial " + trial + " of " + numtrials
+
   ## Give a break every blocklength trials.
   if(Mod(trial, blocklength) ==1 and trial > 1)
   {
@@ -143,7 +157,7 @@ define Start(lPar)
      gInstructions.visible<- 1
      Draw()
      Wait(1000)
-     WaitForAnyKeyPress()
+     WaitForLayoutResponse(gLayout)
      gInstructions.visible<- 0
      Draw()
      trial <- 1
@@ -152,75 +166,47 @@ define Start(lPar)
 
   time0 <- GetTime()
 
+  ## Reset response label to non-bold before each trial (defensive)
+  if(VariableExists("gResponseLabel"))
+  {
+    gResponseLabel.font.bold <- 0
+  }
+
   Draw()
 
-  toofast <- 0
-
-  if(gUseMouse)
-  {
-
-      cont <- 1
-      while(cont)
-      {
-         resp1 <- WaitForMouseButtonWithTimeout(delay)
-        ##this will return a 4-part list if clicked or "<timeout>" if not.
-       if(resp1=="<timeout>")
-       {
-        cont <- 0
-       }elseif(IsList(resp1))
-       {
-        if(Fourth(resp1) == "<pressed>")
-	{
-	 cont <- 0
-	}
-       }
-      }
-      
-
-      ## So, for non-timeouts, just translate to response key so we
-      ## can use the same code below.
-       if(not (resp1=="<timeout>"))
-            {
-	        toofast <- 1
-                resp1 <- Third(resp1) + "-" + Fourth(resp1)
-            }
-
-      }else{
-      ##Keyboard entry
-      resp1 <- WaitForListKeyPressWithTimeout([gParams.responsekey], delay,1)
-      if(resp1 == LowerCase(gParams.responsekey))
-      {
-       toofast <- 1
-      }
-  }
+  ## Wait for response during delay period (anticipation check)
+  resp1 <- WaitForLayoutResponse(gLayout, delay)
   time1 <- GetTime()
 
-
-
-  if(toofast)
+  toofast <- 0
+  if(not (resp1 == "<timeout>"))
   {
-    ##too fast!
-    Wait(delay - (time1-time0))
+    ## They responded during the delay - too fast!
+    toofast <- 1
+    Wait(delay - (time1-time0))  ## Complete the delay
   } else {
     resp1 <- "NO_RESPONSE"
   }
 
-
-  ##Now the stimuli really have appeared.
+  ## Now the stimulus really has appeared
   Show(gStim)
   Draw()
   time2 <- GetTime()
 
-  if(gUseMouse)
-  {
-     resp2 <- WaitForDownClick()
-     resp2 <- Third(resp2) + "-" + Fourth(resp2)
-     
-  }else{
-     resp2 <- WaitForKeyPress(gParams.responsekey)
-  }
+  ## Wait for response to the actual stimulus
+  resp2 <- WaitForLayoutResponse(gLayout)
   time3 <- GetTime()
-   Hide(gStim)
+
+  ## Give visual feedback by bolding response label briefly
+  if(VariableExists("gResponseLabel"))
+  {
+    gResponseLabel.font.bold <- 1
+    Draw()
+    Wait(150)  ## Keep bold for 150ms
+    gResponseLabel.font.bold <- 0
+  }
+
+  Hide(gStim)
   Draw()
 
   FilePrint(gFileOut, gSubNum + "," + block + "," + trial + "," +  time0 +"," + delay + "," + (time1-time0) + "," + (time3-time2) + "," + resp1 + "," + resp2)
@@ -259,7 +245,7 @@ define Start(lPar)
    FilePrint(reportfile," http://pebl.sf.net")
    FilePrint(reportfile, " Participant Code: " + gSubNum)
    FilePrint(reportfile,"Stimulus:  " + gParams.stimulus)
-   FilePrint(reportfile,"Response:  " + gParams.responsekey) 
+   FilePrint(reportfile,"Response mode:  " + gParams.responsemode) 
    FilePrint(reportfile,"------------------------------------------------------")
    FilePrint(reportfile,"Statistic                 Value")
    FilePrint(reportfile,"------------------------------------------------------")
@@ -308,7 +294,7 @@ define Start(lPar)
    SetText(gInstructions, gStrings.debrief)
    Show(gInstructions)
    Draw()
-   WaitForAnyKeyPress()
+   WaitForLayoutResponse(gLayout)
    ShowCursor(1)
 
 }
@@ -330,10 +316,8 @@ define Initialize()
    gInstructionsFont <- MakeFont(gPEBLBaseFont,0,18, fg,bg2,1)
    gStimFont         <- MakeFont(gPEBLBaseFont, 0,48,fg,bg,1)
 
-   ## Make and place the instruction box, then hide it
-   gInstructions <- MakeTextBox("", gInstructionsFont, 600,300)
-   AddObject(gInstructions, gWin)
-   Move(gInstructions, gVideoWidth/2-300, gVideoHeight/2-150)
+   ## Make and place the instruction box with adaptive text, then hide it
+   gInstructions <- AdaptiveTextBox("", gVideoWidth/2-300, gVideoHeight/2-150, gWin, 18, 600, 300, "scalefont")
    Hide(gInstructions)
 
    ## Make and hide stimulus
@@ -394,6 +378,21 @@ define AggregateRTs(rts, delays)
  return stats
 }
 
+
+define UnboldLabel(evt:0)
+{
+  ## Callback to return label to normal style after visual feedback
+  ## Guard condition prevents repeated execution - only unbold if currently bold
+  if(VariableExists("gResponseLabel"))
+  {
+    if(gResponseLabel.font.bold != 0)
+    {
+      gResponseLabel.font.bold <- 0  ## Set to normal (not bold)
+      Draw()
+    }
+  }
+  return "<REMOVE>"
+}
 
 define GetStrings(lang)
 {

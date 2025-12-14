@@ -63,17 +63,46 @@ define Start(lPar)
 		["blocksize",20],
 		["prestime",250],
 		["targprob",0.1],
+		["targetletters","ABCDEFGHIJLMOPQRSU"],  ## The go letters (respond to these)
+		["foilletter","X"],  ## The no-go letter (do not respond to this)
 		["givefeedback",0],
 		["pausebetweenblocks",0],
 		["proportionalfoil",1],
    #if set to 1, will use exactly 90% foils;
    #if set to 0, will generate a foil with 90% probability on each trial
+   		["responsemode","spacebar"],  ## Response mode: spacebar, leftclick, touchscreen, clicktarget
    		["usefooter",1]
              ]
 
    gParams <- CreateParameters(parpairs,gParamFile)
    GetStrings(gLanguage)
 
+  ## Create layout - response labels come from response-modes.json
+  gLayout <- CreateLayout("PCPT", gWin, gParams)
+
+  ## Make subheader visible for trial counter
+  gLayout.subheader.visible <- 1
+
+  ## Store response label for visual feedback (like SimpleRT)
+  if(Length(gLayout.responseLabels) > 0)
+  {
+    gResponseLabel <- First(gLayout.responseLabels)
+  }
+
+  ## For mousetarget modes: widen border to accommodate bold text feedback
+  if(Length(gLayout.responseBorders) > 0)
+  {
+    gResponseBorder <- First(gLayout.responseBorders)
+    gResponseBorder.width <- gResponseBorder.width + 50
+  }
+
+  ## Show cursor only for clicktarget mode
+  if(gParams.responsemode == "clicktarget")
+  {
+    ShowCursor(1)
+  } else {
+    ShowCursor(0)
+  }
 
   testType <- gParams.testType
 
@@ -87,12 +116,16 @@ define Start(lPar)
       isiVals   <- [1000,2000,4000]       ## isi values;
       probX     <- gParams.targprob
 
-      letters     <- ["A","B","C","D","E","F","G","H","I",
-	               "J","L","M","O","P","Q","R","S","U"]
+      ## Split target letters string into individual letters
+      letters     <- SplitString(gParams.targetletters, "")
       numBlocks <- cycles * Length(isiVals)
 
       giveFeedback <- gParams.givefeedback
       pauseBetweenBlocks <- gParams.pausebetweenblocks
+      foilLetter <- gParams.foilletter
+
+      ## Add task-specific instruction to footer using parameterized foil letter
+      gLayout.footer.text <- gLayout.footer.text + " (all letters BUT " + foilLetter + ")"
 
       proportionalFoil <- gParams.proportionalfoil
 
@@ -106,6 +139,7 @@ define Start(lPar)
 
 
      targnum <- Round(blocksize*.9)
+     numtrials <- numBlocks * blockSize  ## Total number of trials
 
    } else {
     SignalfatalError("Test type unimplemented")
@@ -124,7 +158,7 @@ define Start(lPar)
 
    Show(gInstructions)
    Draw()
-   WaitForKeyPress(" ")
+   WaitForLayoutResponse(gLayout)
    Hide(gInstructions)
    Draw()
 
@@ -173,13 +207,7 @@ define Start(lPar)
    corF2000 <- 0
    corF4000 <- 0
 
-
-
-   if(gParams.usefooter)
-   {
-      gFooter <- EasyLabel(gStrings.footer,gVideoWidth/2,gVideoHeight-150,gWin,18)
-   }
-
+   ## Footer is now handled automatically by Layout system
 
     Wait(1000)
     trialNum <- 0
@@ -191,7 +219,7 @@ define Start(lPar)
       blocktrial <- 1
 
      ##Create a new blockstim for each round
-     blockstim <-  Shuffle(Merge(SampleN(letters,targnum),Repeat("X",blocksize-targnum)))
+     blockstim <-  Shuffle(Merge(SampleN(letters,targnum),Repeat(foilLetter,blocksize-targnum)))
      Print(blockstim)
 
      while(blocktrial <= blocksize)
@@ -201,6 +229,10 @@ define Start(lPar)
 
        trialNum <- trialNum + 1
        blocktrial<- blocktrial + 1
+
+       ## Update trial counter in subheader
+       gLayout.subheader.text <- "Trial " + trialNum + " of " + numtrials
+
        Hide(gFeedback)
 
 
@@ -227,7 +259,7 @@ define Start(lPar)
           Show(gInstructions)
           Draw()
           Wait(500)
-          WaitForKeyPress(" ")
+          WaitForLayoutResponse(gLayout)
           Hide(gInstructions)
           Draw()
           Wait(1000)
@@ -240,7 +272,7 @@ define Start(lPar)
       ##Pre-set the feedback:
       if(giveFeedback)
       {
-        if(stim == "X")
+        if(stim == foilLetter)
         {
           SetFont(gFeedback, gIncFont)
           gFeedback.text <- "-"
@@ -253,24 +285,33 @@ define Start(lPar)
       timeStart <- GetTime()
       endTime   <- timeStart + isi
 
-
-
-
       ########################
       ### Present Stimulus.
       ###
+
+      ## Defensive unbold before each trial
+      if(VariableExists("gResponseLabel"))
+      {
+        gResponseLabel.font.bold <- 0
+      }
 
       rt <- -1
       responded <- 0
       Show(gStim)
       Draw()
       time1 <- GetTime()
-      r1 <- WaitForListKeyPressWithTimeout([" "],presTime,1)
+      r1 <- WaitForLayoutResponse(gLayout, presTime)
 
       time2 <- GetTime()
       Hide(gStim)
-      if(r1 == " ")  #if r1==" "  we pressed the key before it disappeared
+      if(not (r1 == "<timeout>"))  #if we got a response before stimulus disappeared
         {
+          ## Give visual feedback by bolding response label briefly
+          if(VariableExists("gResponseLabel"))
+          {
+            gResponseLabel.font.bold <- 1
+          }
+
           if(giveFeedback)
             {
              Show(gFeedback)
@@ -279,6 +320,13 @@ define Start(lPar)
              Hide(gFeedback)
             }
            Draw()
+
+          ## Schedule unbold for 150ms after response (non-blocking)
+          if(VariableExists("gResponseLabel"))
+          {
+            RegisterEvent("<TIMER>", 1, GetTime()+150, "<GEQ>", "UnboldLabel", [])
+          }
+
            rt <- time2-time1
            responded <- 1
 	       Wait(endtime - GetTime())
@@ -286,10 +334,16 @@ define Start(lPar)
         } else {
           Draw()
           #if we haven't hit the key before the stimulus disappeared, do so now.
-          r2 <- WaitForListKeyPressWithTimeout([" "],endTime - GetTime(),1)
+          r2 <- WaitForLayoutResponse(gLayout, endTime - GetTime())
           time3 <- GetTime()
-          if(r2 == " ")  #if r2== " " we pressed the key
+          if(not (r2 == "<timeout>"))  #if we got a response
           {
+            ## Give visual feedback by bolding response label briefly
+            if(VariableExists("gResponseLabel"))
+            {
+              gResponseLabel.font.bold <- 1
+            }
+
             if(giveFeedback)
              {
                Show(gFeedback)
@@ -299,6 +353,13 @@ define Start(lPar)
              }
 
             Draw()
+
+            ## Schedule unbold for 150ms after response (non-blocking)
+            if(VariableExists("gResponseLabel"))
+            {
+              RegisterEvent("<TIMER>", 1, GetTime()+150, "<GEQ>", "UnboldLabel", [])
+            }
+
             rt <- time3-time1
             responded <- 1
             Wait(endtime - GetTime())
@@ -307,7 +368,7 @@ define Start(lPar)
        }
 
      #Score trial as correct or incorrect.
-     if(stim == "X")
+     if(stim == foilLetter)
      {
        corr <- 1-responded
      } else {
@@ -322,7 +383,7 @@ define Start(lPar)
     ##Update the correct targets/foils counters
      if(isi == 1000)
      {
-       if(stim == "X")
+       if(stim == foilLetter)
        {
          corF1000 <- corF1000+corr
 
@@ -349,7 +410,7 @@ define Start(lPar)
 
      } elseif(isi == 2000)
      {
-       if(stim == "X")
+       if(stim == foilLetter)
        {
          corF2000 <- corF2000+corr
        }else{
@@ -374,7 +435,7 @@ define Start(lPar)
 
 
      } elseif( isi == 4000) {
-       if(stim == "X")
+       if(stim == foilLetter)
        {
          corF4000 <- corF4000+corr
        }else{
@@ -473,6 +534,7 @@ define Start(lPar)
    PrintMe(reportfile, " "+GetPEBLVersion())
    PrintMe(reportfile, " "+TimeStamp())
    PrintMe(reportfile, " Participant Code: " + gSubNum)
+   PrintMe(reportfile, " Response mode: " + gParams.responsemode)
    PrintMe(reportfile, " Pause between blocks: " + pausebetweenblocks)
    PrintMe(reportfile,"--------------------------------------------------------")
    PrintMe(reportfile,"Statistic        ISI:   1000" + Tab(1) +"2000"  + Tab(1) + "4000" + Tab(1) + "Pooled")
@@ -526,7 +588,7 @@ define Start(lPar)
    SetText(gInstructions, gInstFinal)
    Show(gInstructions)
    Draw()
-   WaitForKeyPress("X")
+   WaitForLayoutResponse(gLayout)
    ShowCursor(1)
  }
 
@@ -554,10 +616,8 @@ define Initialize()
    gCorrFont <-  MakeFont(gPEBLBaseFontMono,0,30, MakeColor("green"), black,1)
    gIncFont <-  MakeFont(gPEBLBaseFontMono,0,30, MakeColor("red"), black,1)
 
-   ## Make and place the instruction box, then hide it
-   gInstructions <- MakeTextBox("", gInstructionsFont, 600,300)
-   AddObject(gInstructions, gWin)
-   Move(gInstructions, gVideoWidth/2-300, gVideoHeight/2-150)
+   ## Make and place the instruction box with adaptive text, then hide it
+   gInstructions <- AdaptiveTextBox("", gVideoWidth/2-300, gVideoHeight/2-150, gWin, 18, 600, 300, "scalefont")
    Hide(gInstructions)
 
    gStim <- MakeLabel("",gStimFont)
@@ -619,4 +679,17 @@ define GetStrings(lang)
   gInst2 <- gStrings.inst2
   gInstFinal <- gStrings.debrief
 
+}
+
+
+define UnboldLabel(evt:0)
+{
+  ## Callback to return label to normal style after visual feedback
+  ## Guard condition prevents repeated execution - only unbold if currently bold
+  if(gResponseLabel.font.bold != 0)
+  {
+      gResponseLabel.font.bold <- 0  ## Set to normal (not bold)
+      Draw()
+  }
+  return "<REMOVE>"
 }

@@ -609,16 +609,10 @@ define LoadResponseModes()
     if(FileExists(modesPath))
     {
         modes <- ParseJSON(FileReadText(modesPath))
-        Print("DEBUG: Parsed JSON from response-modes.json:")
-        PrintProperties(modes)
         result <- modes.modes
-        Print("DEBUG: Extracted modes.modes:")
-        PrintProperties(result)
     }
     else
     {
-        Print("DEBUG: response-modes.json not found at: " + modesPath)
-        Print("DEBUG: Using hardcoded defaults")
         ## Return hardcoded defaults
         result <- GetDefaultResponseModes()
     }
@@ -948,31 +942,48 @@ define CreateResponseLabels(layout, fontSize)
 
     loop(i, numLabels)
     {
+        ## For mousetarget: create border first (so it's behind the label)
         if(mode.type == "mousetarget")
         {
-            ## For mousetarget: create border rectangle first
-            ## Estimate label width (approximate: 10 pixels per character)
-            labelText <- Nth(displayLabels, i)
-            estimatedWidth <- Round(StringLength(labelText) * fontSize * 0.6)
-            estimatedHeight <- fontSize + 10
+            ## Create temporary label to measure text dimensions
+            tempFont <- MakeFont(gPEBLBaseFont, 0, fontSize,
+                                  MakeColor("black"), bgcolor, 0)
+            tempLabel <- MakeLabel(Nth(displayLabels, i), tempFont)
+            AddObject(tempLabel, win)
 
-            ## Create filled rectangle with border
+            ## Get actual label dimensions
+            labelWidth <- tempLabel.width
+            labelHeight <- tempLabel.height
+
+            ## Remove temp label
+            RemoveObject(tempLabel, win)
+
+            ## Minimum button size
+            minWidth <- 120
+            minHeight <- 50
+
+            ## Use larger of minimum size or label size + margin
+            borderWidth <- Max([minWidth, labelWidth + (padding * 2)])
+            borderHeight <- Max([minHeight, labelHeight + (padding * 2)])
+
+            ## Create filled rectangle with border (add to window FIRST so it's behind)
             border <- Rectangle(spacing * i, centerY,
-                               estimatedWidth + (padding * 2),
-                               estimatedHeight + (padding * 2),
+                               borderWidth, borderHeight,
                                borderColor, 1)
             AddObject(border, win)
             PushOnEnd(borders, border)
+        }
 
-            ## Label with black text on light grey background (button-style)
+        ## Now create the actual label (added after border, so it's on top)
+        ## For mousetarget: use black text on lightgray for high contrast button appearance
+        if(mode.type == "mousetarget")
+        {
             labelFont <- MakeFont(gPEBLBaseFont, 0, fontSize,
-                                  MakeColor("black"), MakeColor("lightgray"), 0)
+                                  MakeColor("black"), bgcolor, 0)
         } else {
-            ## Keyboard modes: simple transparent label
             labelFont <- MakeFont(gPEBLBaseFont, 0, fontSize,
                                   fgcol, bgcolor, 0)
         }
-
         label <- MakeLabel(Nth(displayLabels, i), labelFont)
         AddObject(label, win)
         Move(label, spacing * i, centerY)
@@ -983,8 +994,13 @@ define CreateResponseLabels(layout, fontSize)
     layout.responseLabels <- labels
     layout.responseBorders <- borders  ## Store borders for cleanup/styling
 
-    ## Set footer to pure semantic labels
-    layout.footer.text <- JoinStrings(semanticLabels, " | ")
+    ## Set footer text - use footerInstruction if available, otherwise show labels
+    if(PropertyExists(mode, "footerInstruction"))
+    {
+        layout.footer.text <- mode.footerInstruction
+    } else {
+        layout.footer.text <- JoinStrings(displayLabels, " | ")
+    }
 
     return(layout)
 }
@@ -1016,13 +1032,33 @@ define FormatLabelsForMode(mode, semanticLabels)
     }
     elseif(mode.type == "mousebutton")
     {
-        ## Format: "BUTTON (semantic)"
+        ## Format: "BUTTON (semantic)" or just semantic for single-button modes
+        ## Use mode.labels if available, otherwise fall back to GetButtonName
         loop(i, Length(mode.buttons))
         {
             buttonNum <- Nth(mode.buttons, i)
-            buttonName <- GetButtonName(buttonNum)
             semantic <- Nth(semanticLabels, i)
-            PushOnEnd(displayLabels, buttonName + " (" + semantic + ")")
+
+            ## For single-button modes, just show the semantic label
+            if(Length(mode.buttons) == 1)
+            {
+                ## Single button - use label from mode if available, otherwise semantic
+                if(PropertyExists(mode, "labels") and Length(mode.labels) > 0)
+                {
+                    PushOnEnd(displayLabels, Nth(mode.labels, i))
+                } else {
+                    PushOnEnd(displayLabels, semantic)
+                }
+            } else {
+                ## Multiple buttons - show "BUTTON (semantic)" format
+                if(PropertyExists(mode, "labels") and Length(mode.labels) > 0)
+                {
+                    buttonName <- Nth(mode.labels, i)
+                } else {
+                    buttonName <- GetButtonName(buttonNum)
+                }
+                PushOnEnd(displayLabels, buttonName + " (" + semantic + ")")
+            }
         }
     }
     elseif(mode.type == "mousetarget")
@@ -1204,6 +1240,9 @@ define JoinStrings(list, separator)
     if(Length(list) == 0)
     {
         result <- ""
+    } elseif(Length(list) == 1) {
+        ## Single element - no separator needed
+        result <- First(list)
     } else {
         result <- First(list)
         loop(i, Sequence(2, Length(list), 1))

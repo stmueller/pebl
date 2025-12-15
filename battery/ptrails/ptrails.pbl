@@ -58,6 +58,8 @@ define Start(p)
    fieldWidth <- gParams.fieldwidth
    fieldHeight <- gParams.fieldheight
 
+  ## Field positioning using Layout zones instead of absolute screen center
+  ## (gLayout will be created after GetStrings, values updated after CreateLayout)
   gxmin <- gVideoWidth/2 - fieldWidth/2
   gxmax <- gVideoWidth/2 + fieldWidth/2
   gymin <- gVideoHeight/2 - fieldHeight/2
@@ -74,6 +76,29 @@ define Start(p)
 
   GetStrings(gLanguage)
 
+  ## Create layout - responseMode=0 for layout-only (no response system)
+  gLayout <- CreateLayout("ptrails", gWin, 0)
+
+  ## Configure layout: header only, hide everything else to maximize stimulus region
+  gLayout.header.visible <- 1
+  gLayout.subheader.visible <- 0
+  gLayout.footer.visible <- 0  ## Hide footer - not used in this task
+
+  ## Hide response labels if they exist (shouldn't with responseMode=0, but hide explicitly)
+  if(IsList(gLayout.responseLabels))
+  {
+    loop(label, gLayout.responseLabels)
+    {
+      Hide(label)
+    }
+  }
+
+  ## Recalculate field bounds using Layout center instead of absolute screen center
+  gxmin <- gLayout.centerX - fieldWidth/2
+  gxmax <- gLayout.centerX + fieldWidth/2
+  gymin <- gLayout.centerY - fieldHeight/2
+  gymax <- gLayout.centerY + fieldHeight/2
+
   gStimColor <- MakeColor("darkblue")
   gAccentColor <- MakeColor("yellow")
   gstimFont <-  MakeFont(gPEBLBaseFontMono,0,18,gAccentColor,gStimColor,1)
@@ -86,14 +111,19 @@ define Start(p)
   gSumFile <- GetNewDataFile(gSubNum,gWin,"ptrails-summary","csv",
               "sub,type,distance,studytime,totaltime,mediantime,targs,clicks,acc")
 
+  ## Use AdaptiveTextBox constrained to stimulus region to avoid overlap with header
+  tb <- AdaptiveTextBox(gStrings.inst+CR(1)+gStrings.begin,
+                        gLayout.stimulusRegion.x + 20,
+                        gLayout.stimulusRegion.y + 20,
+                        gWin, 20,
+                        gLayout.stimulusRegion.width - 40,
+                        gLayout.stimulusRegion.height - 40,
+                        "scalefont")
+  Draw()
 
-   tb  <- EasyTextBox(gStrings.inst,20,20,gWin,20,gVideoWidth-40,500)
-   Draw()
+  ## gFooter removed - using gLayout.footer instead (currently hidden)
 
-   gFooter <- EasyLabel("",gVideoWidth/2,gVideoHeight-25,gWin,16)
-
-
-   ptA <- []
+  ptA <- []
    ptB <- []
    ptC <- []
    tmp <- ""
@@ -102,8 +132,9 @@ define Start(p)
    while(Length(ptA) < gParams.numtrials)
     {
       tmp <- tmp + "*"
-      gFooter.text <- "Initializing ["+Format(tmp,gParams.numtrials)+"]"
-      Draw()
+      ## Initialization progress removed - not essential
+      ## gFooter.text <- "Initializing ["+Format(tmp,gParams.numtrials)+"]"
+      ## Draw()
 
       ##create the points first
       pts <- NonOverlapLayout(gxmin, gxmax, gymin, gymax, gtol, gParams.NumTargs)
@@ -189,8 +220,8 @@ define Start(p)
       trial<- trial + 1
     }
 
-   gFooter.text <- "Initialization complete. " + gStrings.begin
-    tb.text <- tb.text + CR(2) + gStrings.begin
+   ## Footer removed - add begin message to instruction textbox instead
+#   tb.text <- tb.text + CR(2) + gStrings.begin
    Draw()
    WaitForDownClick()
    Hide(tb)
@@ -216,7 +247,7 @@ define Start(p)
 
 
    trial <- 1
-   gHeader <- EasyLabel("",gVideoWidth/2,20,gWin,40)
+   ## gHeader removed - using gLayout.header instead
    typeLabels <- ["numbers","alternating numbers and letters","letters"]
 
 
@@ -229,13 +260,14 @@ define Start(p)
       if(gParams.DoPractice)
       {
 
-        tmppts <- NonOverlapLayout(gVideoWidth/2-100,gVideoWidth/2+100,gVideoHeight/2-100,gVideoHeight/2+100, gtol, 4)
-	gHeader.text <-gStrings.practice+Nth(typeLabels,(Nth(types,i)))
-	Show(gHeader)
+        tmppts <- NonOverlapLayout(gLayout.centerX-100,gLayout.centerX+100,gLayout.centerY-100,gLayout.centerY+100, gtol, 4)
+	gLayout.header.text <- gStrings.practice + Nth(typeLabels,(Nth(types,i)))
+	## Header already visible by default
 	Draw()
 	gTrial <- trial + "P"
         Trial(tmppts,Nth(types,i))
-        Hide(gHeader)
+        gLayout.header.visible <- 0  ## Hide header after practice
+
       }
 
       gTrial <- trial
@@ -315,10 +347,14 @@ define Trial(pts,type)
      msg <- gStrings.type3
    }
 
-   gFooter.text <- gStrings.begin + msg
-   Draw()
-   WaitForDownClick()
-   gFooter.text <- msg
+   ## Footer removed - trial instructions not displayed during trials
+   ## (Keeps maximum space for 700×500 field)
+    ## Show "ready to begin" message in subheader after practice
+    gLayout.subheader.text <- gStrings.begin
+    gLayout.subheader.visible <- 1
+    Draw()
+    WaitForDownClick()
+    gLayout.subheader.visible <- 0
 
    stimObjects <-  PlotTargets(pts,gParams.TargSize,stim)
    stimLines <- []
@@ -478,42 +514,7 @@ define PlotTargets(pts,size,labels)
 
 
 
-define GetMinDist(pts)
-{
-   len <- Length(pts)
-   index1 <- 1
-   mindist <- Dist(First(pts),Nth(pts,2))
-   id1 <- 1
-   id2 <- 2
-
-   loop(i,pts)
-   {
-     pt1 <- i
-     index2 <- index1 + 1
-
-
-     if(index2 <= len)
-      {
-      rest <- SubList(pts,index2, Length(pts))
-      loop(j, rest)
-       {
-        d <- Dist(i,j)
-
-        if(d < mindist)
-        {
-          mindist <- d
-          id1 <- index1
-          id2 <- index2
-        }
-
-        index2 <- index2 + 1
-      }
-      }
-     index1  <- index1 + 1
-   }
-
-   return [mindist,id1,id2]
-}
+## GetMinDist is now in pebl-lib/Graphics.pbl
 
 
 define AddTarget(pos,letter,size,type)
@@ -561,82 +562,13 @@ define AddObjects(list,win)
    }
 }
 
-define VecTimes(a,b)
-{
-   tmp <- Transpose([a,b])
-   out <- []
-   loop(i,tmp)
-   {
-     out <- Append(out, First(i) * Nth(i,2))
-   }
-  return out
-}
-
-define VecSum(a,b)
-{
-   tmp <- Transpose([a,b])
-   out <- []
-   loop(i,tmp)
-   {
-     out <- Append(out, First(i) + Nth(i,2))
-   }
-  return out
-}
-
-define Dist(a,b)
-{
-  return Sqrt((First(a)- First(b))^2 + (Nth(a,2) - Nth(b,2))^2)
-}
+## VecTimes, VecSum, and Dist are now in pebl-lib/Math.pbl
 
 
 
 
-##  This function takes a list of anything, and a list of indexes
-##  specifying the items to extract from the list.  The indexes can
-##  be in any order, but the extracted list will be in the order
-##  of the original list.  Items that are not numbers less than or
-##  equal to the length of the list will be ignored.
-define RemoveSubset(list, items)
-{
-   #Check the arguments to insure they are the proper type
-    if(not IsList(list))
-	{
-	    SignalFatalError("First argument of function [RemoveSubset(<list>,<list>)] is not a list")
-	}
-    if(not IsList(items))
-	{
-	    SignalFatalError("First argument of function [RemoveSubset(<list>,<list>)] is not a list")
-	}
-
-
-    returnList <- []      #Make an initial blank list to return
-    index <- 1            #keep track of the index
-    loop(i, list)
-    {
-	#If the index is in the items list, add it to the return list
-	if(not IsMember(index, items))
-	{
-	    returnList <- Append(returnList, i)
-	}
-	index <- index + 1
-    }
-
-    return returnList
-}
-
-define WaitForDownClick()
-{
-   continue <- 1
-   while(continue)
-    {
-	x <- WaitForMouseButton()
-        if(Nth(x,4) == "<pressed>")
-        {
-         continue <- 0
-        }
-    }
-     return x
-}
+## RemoveSubset and WaitForDownClick are now in pebl-lib
+## (Design.pbl and Utility.pbl respectively)
 
 
 
@@ -836,30 +768,7 @@ define DrawPath(path,pts)
 }
 
 
-define Insert(list, item, pos)
-{
-   if(pos == 0)
-    {
-      new <- Merge([item],list)
-    } elseif(pos >= Length(list))
-    {
-      new <- Append(list, item)
-
-    }else {
-
-      new <- FlattenN([SubList(list,1,pos),
-                      [item],
-                      SubList(list,pos+1,Length(list))],1)
-   }
-
-  return new
-}
-
-
-define Rest(list)
-{
-  return SubList(list,2,Length(list))
-}
+## Insert and Rest are now in pebl-lib/Design.pbl
 
 
 
@@ -946,12 +855,14 @@ define FlipVert(pts)
 }
 
 
-define ArgMin(list)
+## ArgMax - returns index of maximum value in list
+define ArgMax(list)
 {
    indexes <- Sequence(1,Length(list),1)
    return Nth(SortBy(indexes, list), Length(list))
 }
 
+## ArgMin - returns index of minimum value in list
 define ArgMin(list)
 {
    indexes <- Sequence(1,Length(list),1)
@@ -983,12 +894,12 @@ define Center(xys, centerX:"",centerY:"")
 
   if(centerX=="")
     {
-     centerX <- gVideoWidth/2
+     centerX <- gLayout.centerX
     }
 
    if(centerY == "")
    {
-    centerY <- gVideoHeight/2
+    centerY <- gLayout.centerY
    }
 
 

@@ -39,7 +39,7 @@ The Layout & Response System provides:
 
 ## Overall Migration Status
 
-**Last Updated**: December 15, 2025 (ppvt migration complete - all 7 Category 1 tests migrated)
+**Last Updated**: December 15, 2025 (ptrails Category 3 migration complete - first mouse-based task migrated)
 
 ### Summary Statistics
 
@@ -249,9 +249,9 @@ This section provides a comprehensive assessment of all remaining upload-battery
 |------|----------|--------|----------|------------|-------|
 | ~~**stroop-color**~~ | ✅ **COMPLETE** | ✅ EASY | ❌ INCOMPATIBLE | kbd (4 keys) | **MIGRATED Dec 14, 2025** - Layout-only migration, custom 4-choice response handling retained |
 | ~~**stroop-number**~~ | ✅ **COMPLETE** | ✅ EASY | ❌ INCOMPATIBLE | kbd (4 keys) | **MIGRATED Dec 14, 2025** - Layout-only migration, custom 4-choice response handling retained |
+| ~~**ptrails**~~ | ✅ **COMPLETE** | ✅ EASY | ❌ INCOMPATIBLE | mouse clicks | **MIGRATED Dec 15, 2025** - Trailmaking test with header-only layout (responseMode=0), 700×500 field maintained, 8 duplicate functions removed (VecTimes/VecSum/Dist→Math.pbl, RemoveSubset/Insert/Rest→Design.pbl, WaitForDownClick→Utility.pbl, GetMinDist→Graphics.pbl), ArgMin/ArgMax bug fixed |
 | **stroop-vic** | 🟡 MEDIUM | ✅ EASY | ❌ INCOMPATIBLE | kbd (4 keys) | 4-alt Stroop variant - requires verbal interference, keyboard-only (not suitable for mouse/touch) |
 | **switcher** | 🟡 MEDIUM | ✅ EASY | ❌ INCOMPATIBLE | mouse clicks | Task switching - requires mouse click response |
-| **ptrails** | 🔴 HIGH | ⚠️ MODERATE | ❌ INCOMPATIBLE | mouse clicks | Trails test - click sequence on numbered circles. Layout provides zones but stimuli cover full screen. |
 | **connections** | 🟡 MEDIUM | ⚠️ MODERATE | ❌ INCOMPATIBLE | mouse clicks | Matrix connections, complex grid layout |
 | **corsi** | 🟡 MEDIUM | ⚠️ MODERATE | ❌ INCOMPATIBLE | mouse clicks | Spatial span with click sequence |
 | **dspan** | 🟡 MEDIUM | ✅ EASY | ❌ INCOMPATIBLE | kbd (digits) | Digit span - needs numeric keypad input (10 keys) |
@@ -603,9 +603,9 @@ bin/pebl2 battery/taskname/taskname.pbl -s 1 --pfile params/taskname-arrowLR.par
 **Total upload-battery tests**: 52
 
 **Migration status breakdown:**
-- ✅ **Already migrated**: 18 tests (35%) - **All 7 Category 1 tests complete** ✅
+- ✅ **Already migrated**: 21 tests (40%) - **All 7 Category 1 tests + 3 Category 3 tests complete** ✅
 - 🟡 **Category 2** (needs response extensions): 5 tests (10%)
-- 🟠 **Category 3** (layout-only): 15 tests (29%)
+- 🟠 **Category 3** (layout-only): 12 tests remaining (23%)
 - 🔴 **Category 4** (not suitable): 14 tests (27%)
 
 **Realistic migration targets:**
@@ -613,8 +613,9 @@ bin/pebl2 battery/taskname/taskname.pbl -s 1 --pfile params/taskname-arrowLR.par
   - All 7 Category 1 tests complete (35%)
 - **With response mode extensions**: 23 tests (44% of battery)
   - Add 5 Category 2 tests after implementing new modes (4-choice grid, 4-way directional)
-- **Layout-only** (UI consistency): 38 tests (73% of battery)
-  - Add 15 Category 3 tests with custom response handling (includes high-value Stroop tests)
+- **Layout-only** (UI consistency): 33 tests (63% of battery) - **3 of 15 complete** 🔄
+  - Completed: stroop-color, stroop-number, ptrails (Dec 14-15, 2025)
+  - Remaining: 12 Category 3 tests with custom response handling
 
 **Not recommended for migration**: 14 tests (27% of battery)
 

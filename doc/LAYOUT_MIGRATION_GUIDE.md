@@ -39,16 +39,15 @@ The Layout & Response System provides:
 
 ## Overall Migration Status
 
-**Last Updated**: December 14, 2025 (clocktest migration complete, multi-language response mode labels added)
+**Last Updated**: December 15, 2025 (ppvt migration complete - all 7 Category 1 tests migrated)
 
 ### Summary Statistics
 
 - **Total tests in upload-battery**: 52
-- **Fully migrated** (Layout + Response): 17 tests (33%) - **6 of 7 Category 1 tests complete**
+- **Fully migrated** (Layout + Response): 18 tests (35%) - **All 7 Category 1 tests complete** ✅
 - **Need response mode extensions**: 5 tests (10%) - requires 4-choice grid or 4-way directional modes
 - **Layout-only migration**: 15 tests (29%) - includes Stroop tests (4-choice keyboard with verbal interference) and custom response tasks
 - **Not suitable for migration**: 14 tests (27%)
-- **Category 1 remaining**: 1 test (ppvt/PVT) - ready for migration
 
 **Available response modes:**
 - **2-option modes**: auto, keyboardShift, keyboardSafe, arrowLR, mousetarget, touchtarget, mousebutton
@@ -56,13 +55,13 @@ The Layout & Response System provides:
 - **Specialized modes**: mouseOnly (for drawing/clicking tasks)
 
 **Migration achievements:**
-- **Full migration** (Layout + Response): 17 tests (33%) - **6 of 7 complete Dec 14, 2025** (ppvt remaining)
-- **With response extensions**: 23 tests (44%) - add 5 Category 2 tests + ppvt (next phase)
+- **Full migration** (Layout + Response): 18 tests (35%) - **All 7 Category 1 tests complete Dec 15, 2025** ✅
+- **With response extensions**: 23 tests (44%) - add 5 Category 2 tests (next phase)
 - **Layout-only migration**: 38 tests (73%) - add 15 Category 3 tests for UI consistency (optional phase)
 
 ## Semantic Label Migration Status
 
-**Last Updated**: December 13, 2025
+**Last Updated**: December 15, 2025
 
 The Layout & Response System was created on **December 4, 2025** (commit 0a55b63).
 The **semantic-first label architecture** (allowing task-specific labels like "SAME"/"DIFFERENT") was added on **December 9, 2025** (commit d5b40e6).
@@ -103,6 +102,7 @@ Tests using true semantic labels with `responselabels` parameter:
 | **ANT** | ✅ | LEFT / RIGHT | ✓ Correct (directional) | Dec 13, 2025 | 8 translations updated (en, es, fr, de, it, nl, pt, br). 6 parameter files (added arrowLR Dec 14). Synced to upload-battery |
 | **pcpt** | ✅ | GO (singlekey) | ✓ Correct | Dec 14, 2025 | 10 translations (de, en, es, fr, he, hr, it, nl, pt, tr). 4 modes (spacebar/leftclick/touchscreen/clicktarget). Non-blocking visual feedback. Parameterized letters. Synced to upload-battery |
 | **TNT** | ✅ | NO / YES | ✓ Correct | Dec 14, 2025 | Dynamic semantic labels (NO/YES), arrowLR mode, 7 translations (de, en, es, fr, it, nl, pt). Synced to upload-battery |
+| **ppvt** | ✅ | GO (singlekey) | ✓ Correct | Dec 15, 2025 | PVT (Psychomotor Vigilance Task), 4 modes (spacebar/leftclick/touchscreen/clicktarget), 11 translations (de, en, es, fr, he, hr, it, nl, pt, se, tr). Synced to upload-battery |
 | **template** | ⚠️ | LEFT / RIGHT | Example labels | Dec 4, 2025 | Needs semantic update |
 
 ### How to Update Tests with Semantic Labels
@@ -150,9 +150,9 @@ Draw()
 
 ### Upload-battery/ Sync Status
 
-All 15 tests (except template) have been synced from battery/ to upload-battery/:
-- Synced: ANT, BST, crt, dotjudgment, evenodd, flanker, gonogo, luckvogel, manikin, oddball, pcpt, pcpt-ax, simon, srt, TNT, wpt
-- Last updated: Dec 14, 2025
+All 18 fully-migrated tests (except template) have been synced from battery/ to upload-battery/:
+- Synced: ANT, BST, clocktest, crt, dotjudgment, evenodd, flanker, gonogo, luckvogel, manikin, oddball, pcpt, pcpt-ax, ppvt, simon, srt, TNT, wpt
+- Last updated: Dec 15, 2025
 
 **Note**: When semantic labels are added to battery/ tests, they must be re-synced to upload-battery/.
 
@@ -193,28 +193,26 @@ This section provides a comprehensive assessment of all remaining upload-battery
 | ~~**pcpt-ax**~~ | ✅ **COMPLETE** | ✅ EASY | ✅ COMPATIBLE | kbd | **MIGRATED Dec 14, 2025** - AX-CPT variant, single-key (4 modes), 10 translations, non-blocking visual feedback, larger instruction textbox |
 | ~~**TNT**~~ | ✅ **COMPLETE** | ✅ EASY | ✅ COMPATIBLE | kbd | **MIGRATED Dec 14, 2025** - 2-alt think/no-think, arrowLR mode, dynamic semantic labels, 7 translations |
 | ~~**clocktest**~~ | ✅ **COMPLETE** | ⚠️ MODERATE | ✅ COMPATIBLE | kbd/mouse | **MIGRATED Dec 14, 2025** - Mackworth Clock vigilance task, 3 modes (spacebar/leftclick/touchscreen), custom zones (500px stimulus), 7 translations, clock scaling with 240px max radius |
-| **ppvt** | 🔴 HIGH | ✅ EASY | ✅ COMPATIBLE | kbd/mouse | PVT (Psychomotor Vigilance Task) - single-response task, identical pattern to gonogo/pcpt/srt |
+| ~~**ppvt**~~ | ✅ **COMPLETE** | ✅ EASY | ✅ COMPATIBLE | kbd/mouse | **MIGRATED Dec 15, 2025** - PVT (Psychomotor Vigilance Task), 4 modes (spacebar/leftclick/touchscreen/clicktarget), 11 translations, platform-independent instructions |
 
 **Migration Notes:**
 - All use standard trial structure with central stimulus
 - All keyboard-based with 1-2 response options
 - Can use existing layout zones and response modes
 - **2-alternative tasks**: ~~ANT (COMPLETE)~~, ~~TNT (COMPLETE)~~
-- **Single-response tasks**: ~~srt (COMPLETE)~~, ~~pcpt (COMPLETE)~~, ~~pcpt-ax (COMPLETE)~~, ~~clocktest (COMPLETE)~~, **ppvt (ready for migration)** - use single-key mode like gonogo (spacebar, leftclick, touchscreen, or clicktarget)
+- **Single-response tasks**: ~~srt (COMPLETE)~~, ~~pcpt (COMPLETE)~~, ~~pcpt-ax (COMPLETE)~~, ~~clocktest (COMPLETE)~~, ~~ppvt (COMPLETE)~~ - use single-key mode like gonogo (spacebar, leftclick, touchscreen, or clicktarget)
 
 **Estimated effort**: 2-3 hours per test (3-4 hours for clocktest due to canvas scaling)
 **Note**: ppvt incorrectly listed as "Peabody Picture Vocabulary Test" in earlier versions - it's actually PVT (Psychomotor Vigilance Task), a simple single-response RT task
 
-**Category 1 Completed Migrations** (6 of 7 tests complete as of Dec 14, 2025):
+**Category 1 Completed Migrations** (All 7 tests complete as of Dec 15, 2025) ✅:
 - ANT (Dec 13, 2025) - 2-alt task with 8 translations and 5 parameter files. arrowLR added Dec 14, 2025
 - srt (Dec 14, 2025) - Single-key task with 4 response modes, 7 translations, trial counter, visual feedback
 - pcpt (Dec 14, 2025) - Single-key CPT with 4 modes, 10 translations, non-blocking visual feedback, parameterized target/foil letters
 - pcpt-ax (Dec 14, 2025) - AX-CPT variant with 4 modes, 10 translations, non-blocking visual feedback, larger instruction textbox (800×600)
 - TNT (Dec 14, 2025) - 2-alt think/no-think with arrowLR mode, dynamic semantic labels (NO/YES), 7 translations
 - clocktest (Dec 14, 2025) - Mackworth Clock vigilance task with 3 modes (spacebar/leftclick/touchscreen), custom zones maximizing clock space (500px stimulus on 800x600), 7 translations, adaptive clock radius (240px max, scales down proportionally for small screens)
-
-**Category 1 Remaining** (1 test):
-- **ppvt** - PVT (Psychomotor Vigilance Task), single-response RT task ready for migration
+- ppvt (Dec 15, 2025) - PVT (Psychomotor Vigilance Task) with 4 modes (spacebar/leftclick/touchscreen/clicktarget), 11 translations (de, en, es, fr, he, hr, it, nl, pt, se, tr), platform-independent instructions
 
 ---
 
@@ -240,8 +238,6 @@ This section provides a comprehensive assessment of all remaining upload-battery
 **Estimated effort**:
 - Response mode development: 8-10 hours per mode (one-time, reusable)
 - Per-test migration: 2-3 hours each after mode implemented
-
-**Note**: ppvt was previously listed here but has been reclassified to Category 1 - it's actually PVT (Psychomotor Vigilance Task), a single-response task
 
 ---
 
@@ -435,7 +431,7 @@ To migrate Category 2 tests, the following response modes need to be implemented
 
 #### 1. Four-Choice Grid Mode
 
-**For**: bcst, iowa, fourchoice, ppvt
+**For**: bcst, iowa, fourchoice
 
 **Implementation**:
 - **Keyboard**: Number keys 1-4 or letter keys (Q/W/E/R)
@@ -479,18 +475,16 @@ To migrate Category 2 tests, the following response modes need to be implemented
 
 ### Migration Recommendations & Priorities
 
-#### ✅ Category 1 Tests - 6 of 7 Complete (Dec 14, 2025)
+#### ✅ Category 1 Tests - All 7 Complete (Dec 15, 2025) ✅
 
-**Completed (6 tests)**:
+**All tests completed**:
 1. ✅ **ANT** - COMPLETE (Dec 13, 2025) - 2-alt attention network test with 8 translations. arrowLR added Dec 14, 2025
 2. ✅ **srt** - COMPLETE (Dec 14, 2025) - Simple RT with 4 response modes, 7 translations, trial counter, visual feedback
 3. ✅ **pcpt** - COMPLETE (Dec 14, 2025) - Continuous performance task with 4 modes, 10 translations, non-blocking visual feedback
 4. ✅ **pcpt-ax** - COMPLETE (Dec 14, 2025) - AX-CPT variant with 4 modes, 10 translations, non-blocking visual feedback, larger instruction textbox
 5. ✅ **TNT** - COMPLETE (Dec 14, 2025) - 2-alt think/no-think with arrowLR mode, dynamic semantic labels (NO/YES), 7 translations
 6. ✅ **clocktest** - COMPLETE (Dec 14, 2025) - Mackworth Clock vigilance task with 3 modes (spacebar/leftclick/touchscreen), custom zones (500px stimulus on 800x600), 7 translations, adaptive clock radius (240px max)
-
-**Remaining (1 test)**:
-7. **ppvt** - PVT (Psychomotor Vigilance Task), single-response RT task, ready for migration
+7. ✅ **ppvt** - COMPLETE (Dec 15, 2025) - PVT (Psychomotor Vigilance Task) with 4 modes (spacebar/leftclick/touchscreen/clicktarget), 11 translations, platform-independent instructions
 
 #### Medium Priority: Category 2 Tests (5 tests - after response modes implemented)
 
@@ -609,15 +603,14 @@ bin/pebl2 battery/taskname/taskname.pbl -s 1 --pfile params/taskname-arrowLR.par
 **Total upload-battery tests**: 52
 
 **Migration status breakdown:**
-- ✅ **Already migrated**: 17 tests (33%) - **6 of 7 Category 1 tests complete**
+- ✅ **Already migrated**: 18 tests (35%) - **All 7 Category 1 tests complete** ✅
 - 🟡 **Category 2** (needs response extensions): 5 tests (10%)
 - 🟠 **Category 3** (layout-only): 15 tests (29%)
 - 🔴 **Category 4** (not suitable): 14 tests (27%)
-- ⏳ **Category 1 remaining**: 1 test (ppvt) - ready for migration
 
 **Realistic migration targets:**
-- **Full migration** (Layout + Response): 18 tests (35% of battery)
-  - 17 tests complete (33%), ppvt ready for migration (2%)
+- **Full migration** (Layout + Response): 18 tests (35% of battery) ✅ **COMPLETE**
+  - All 7 Category 1 tests complete (35%)
 - **With response mode extensions**: 23 tests (44% of battery)
   - Add 5 Category 2 tests after implementing new modes (4-choice grid, 4-way directional)
 - **Layout-only** (UI consistency): 38 tests (73% of battery)
@@ -629,16 +622,16 @@ bin/pebl2 battery/taskname/taskname.pbl -s 1 --pfile params/taskname-arrowLR.par
 
 ### Next Steps
 
-**Phase 1: Complete Category 1 migrations - ⏳ IN PROGRESS (6 of 7 complete)**
+**Phase 1: Complete Category 1 migrations - ✅ COMPLETE (All 7 tests migrated)**
 1. ✅ ANT - COMPLETE (Dec 13, 2025)
 2. ✅ srt - COMPLETE (Dec 14, 2025)
 3. ✅ pcpt - COMPLETE (Dec 14, 2025)
 4. ✅ pcpt-ax - COMPLETE (Dec 14, 2025)
 5. ✅ TNT - COMPLETE (Dec 14, 2025)
 6. ✅ clocktest - COMPLETE (Dec 14, 2025)
-7. ⏳ **ppvt** - PVT (Psychomotor Vigilance Task), ready for migration
-8. **Status**: 17 of 18 Category 1 tests complete (94%)
-9. **Achievement**: Full multi-platform support for nearly all standard 2-choice and single-response tasks
+7. ✅ ppvt - COMPLETE (Dec 15, 2025)
+8. **Status**: All 18 Category 1 tests complete (100%) ✅
+9. **Achievement**: Full multi-platform support for ALL standard 2-choice and single-response tasks
 
 **Phase 2: Implement response mode extensions (Medium-term)**
 1. Develop 4-choice grid response mode

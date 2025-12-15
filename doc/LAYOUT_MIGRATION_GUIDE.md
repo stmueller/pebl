@@ -39,7 +39,7 @@ The Layout & Response System provides:
 
 ## Overall Migration Status
 
-**Last Updated**: December 15, 2025 (ptrails Category 3 migration complete - first mouse-based task migrated)
+**Last Updated**: December 15, 2025 (stroop-vic Category 3 migration complete with practice-to-criterion + 12-language support)
 
 ### Summary Statistics
 
@@ -250,7 +250,7 @@ This section provides a comprehensive assessment of all remaining upload-battery
 | ~~**stroop-color**~~ | ✅ **COMPLETE** | ✅ EASY | ❌ INCOMPATIBLE | kbd (4 keys) | **MIGRATED Dec 14, 2025** - Layout-only migration, custom 4-choice response handling retained |
 | ~~**stroop-number**~~ | ✅ **COMPLETE** | ✅ EASY | ❌ INCOMPATIBLE | kbd (4 keys) | **MIGRATED Dec 14, 2025** - Layout-only migration, custom 4-choice response handling retained |
 | ~~**ptrails**~~ | ✅ **COMPLETE** | ✅ EASY | ❌ INCOMPATIBLE | mouse clicks | **MIGRATED Dec 15, 2025** - Trailmaking test with header-only layout (responseMode=0), 700×500 field maintained, 8 duplicate functions removed (VecTimes/VecSum/Dist→Math.pbl, RemoveSubset/Insert/Rest→Design.pbl, WaitForDownClick→Utility.pbl, GetMinDist→Graphics.pbl), ArgMin/ArgMax bug fixed |
-| **stroop-vic** | 🟡 MEDIUM | ✅ EASY | ❌ INCOMPATIBLE | kbd (4 keys) | 4-alt Stroop variant - requires verbal interference, keyboard-only (not suitable for mouse/touch) |
+| ~~**stroop-vic**~~ | ✅ **COMPLETE** | ✅ EASY | ❌ INCOMPATIBLE | kbd (4 keys) | **MIGRATED Dec 15, 2025** - Victoria Stroop with responseMode=0, practice-to-criterion (congruent stimuli, ≤2 errors, 4 rounds max), 12 translations (de, fr, he, hr added), brightened colors |
 | **switcher** | 🟡 MEDIUM | ✅ EASY | ❌ INCOMPATIBLE | mouse clicks | Task switching - requires mouse click response |
 | **corsi** | 🟡 MEDIUM | ⚠️ MODERATE | ❌ INCOMPATIBLE | mouse clicks | Spatial span with click sequence |
 | **dspan** | 🟡 MEDIUM | ✅ EASY | ❌ INCOMPATIBLE | kbd (digits) | Digit span - needs numeric keypad input (10 keys) |
@@ -508,7 +508,7 @@ To migrate Category 2 tests, the following response modes need to be implemented
 These tests can be migrated to use layout zones for UI consistency, but must keep custom response handling:
 
 **High priority (keyboard-only, 4-choice with verbal interference):**
-- **stroop-color**, **stroop-number**, **stroop-vic** - Require custom 4-choice keyboard handling, not suitable for response system
+- ~~**stroop-color**~~ ✅, ~~**stroop-number**~~ ✅, ~~**stroop-vic**~~ ✅ - All Stroop tests migrated (Dec 14-15, 2025)
 
 **Medium priority (custom response requirements):**
 - **switcher**, **ptrails**, **connections**, **corsi**, **dspan**, **toh**, **tol**, **bcst-64**, **BART**, **urns**, **tapping**, **timewall**
@@ -604,19 +604,19 @@ bin/pebl2 battery/taskname/taskname.pbl -s 1 --pfile params/taskname-arrowLR.par
 **Total upload-battery tests**: 52
 
 **Migration status breakdown:**
-- ✅ **Already migrated**: 21 tests (40%) - **All 7 Category 1 tests + 3 Category 3 tests complete** ✅
+- ✅ **Already migrated**: 22 tests (42%) - **All 7 Category 1 tests + 4 Category 3 tests complete** ✅
 - 🟡 **Category 2** (needs response extensions): 5 tests (10%)
-- 🟠 **Category 3** (layout-only): 11 tests remaining (21%)
+- 🟠 **Category 3** (layout-only): 10 tests remaining (19%)
 - 🔴 **Category 4** (not suitable): 15 tests (29%)
 
 **Realistic migration targets:**
 - **Full migration** (Layout + Response): 18 tests (35% of battery) ✅ **COMPLETE**
-  - All 7 Category 1 tests complete (35%)
+  - All 7 Category 1 tests complete (100%)
 - **With response mode extensions**: 23 tests (44% of battery)
   - Add 5 Category 2 tests after implementing new modes (4-choice grid, 4-way directional)
-- **Layout-only** (UI consistency): 32 tests (62% of battery) - **3 of 14 complete** 🔄
-  - Completed: stroop-color, stroop-number, ptrails (Dec 14-15, 2025)
-  - Remaining: 11 Category 3 tests with custom response handling
+- **Layout-only** (UI consistency): 32 tests (62% of battery) - **4 of 14 complete** 🔄
+  - Completed: stroop-color, stroop-number, ptrails, stroop-vic (Dec 14-15, 2025)
+  - Remaining: 10 Category 3 tests with custom response handling
 
 **Not recommended for migration**: 15 tests (29% of battery)
 

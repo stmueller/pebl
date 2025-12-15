@@ -598,26 +598,139 @@ define LoadLayoutConfig(testName)
 }
 
 
-define LoadResponseModes()
+define MergeResponseModeTranslations(baseModes, overrideModes)
 {
-    ## Loads response mode definitions from JSON file
-    ## Falls back to hardcoded defaults if file not found
+    ## Merges translation overrides into base response modes
+    ##
+    ## Override files contain only translated strings for each mode:
+    ##   - labels: Array of translated label strings
+    ##   - footerInstruction: Translated footer instruction string
+    ##
+    ## All other properties (type, keys, buttons, semantic, platforms, etc.)
+    ## are preserved from the base modes
+    ##
+    ## Arguments:
+    ##   baseModes: Base modes object with complete structure
+    ##   overrideModes: Override modes object with translated strings only
+    ##
+    ## Returns:
+    ##   Merged modes object with translations applied
 
-    modesPath <- gPEBLBasePath + "media/settings/response-modes.json"
-    result <- 0
+    ## Get list of all mode names from base
+    modeNames <- GetPropertyList(baseModes)
 
-    if(FileExists(modesPath))
+    ## For each mode, check if override exists and merge translations
+    loop(modeName, modeNames)
     {
-        modes <- ParseJSON(FileReadText(modesPath))
-        result <- modes.modes
-    }
-    else
-    {
-        ## Return hardcoded defaults
-        result <- GetDefaultResponseModes()
+        baseMode <- GetProperty(baseModes, modeName)
+
+        ## Check if override exists for this mode
+        if(PropertyExists(overrideModes, modeName))
+        {
+            overrideMode <- GetProperty(overrideModes, modeName)
+
+            ## Override labels if provided
+            if(PropertyExists(overrideMode, "labels"))
+            {
+                baseMode.labels <- overrideMode.labels
+            }
+
+            ## Override footerInstruction if provided
+            if(PropertyExists(overrideMode, "footerInstruction"))
+            {
+                baseMode.footerInstruction <- overrideMode.footerInstruction
+            }
+
+            ## Update the mode in baseModes
+            SetProperty(baseModes, modeName, baseMode)
+        }
     }
 
-    return(result)
+    return(baseModes)
+}
+
+
+define LoadResponseModes(lang:gLanguage)
+{
+    ## Loads response mode definitions using base+override pattern
+    ##
+    ## Architecture:
+    ## 1. Always load baseline English file (complete structure)
+    ## 2. Use 3-tier fallback to find language override file
+    ## 3. Merge language-specific translations into base
+    ##
+    ## Override files contain only translated strings:
+    ##   - labels: ["TRANSLATED_LABEL1", "TRANSLATED_LABEL2"]
+    ##   - footerInstruction: "Translated instruction text"
+    ##
+    ## Arguments:
+    ##   lang: Two-letter language code (default: gLanguage)
+    ##
+    ## Returns:
+    ##   Response modes object with translated labels and footerInstructions
+
+    ## Step 1: Always load baseline English file
+    basePath <- gPEBLBasePath + "media/settings/response-modes.json"
+    baseModes <- 0
+
+    if(FileExists(basePath))
+    {
+        baseData <- ParseJSON(FileReadText(basePath))
+        baseModes <- baseData.modes
+    } else {
+        ## Fall back to hardcoded defaults if base file not found
+        baseModes <- GetDefaultResponseModes()
+    }
+
+    ## Step 2: Load language override file using 3-tier fallback
+    lang <- Lowercase(lang)
+    overrideModes <- 0
+
+    ## Tier 1: Try explicit language if provided
+    if(lang != "" and lang != "en")
+    {
+        overridePath <- gPEBLBasePath + "media/settings/response-modes/response-modes-" + lang + ".json"
+
+        if(FileExists(overridePath))
+        {
+            overrideData <- ParseJSON(FileReadText(overridePath))
+            overrideModes <- overrideData.modes
+        } else {
+            lang <- ""  ## Language file not available, fall back
+        }
+    }
+
+    ## Tier 2: Try system locale if lang was empty or is English
+    if((lang == "" or lang == "en") and overrideModes == 0)
+    {
+        systemLocale <- GetSystemLocale()
+
+        if(systemLocale != "")
+        {
+            ## Extract language code from locale (e.g., "en_US" -> "en")
+            lang <- Lowercase(SubString(systemLocale, 1, 2))
+
+            ## Only load override if not English
+            if(lang != "en")
+            {
+                overridePath <- gPEBLBasePath + "media/settings/response-modes/response-modes-" + lang + ".json"
+
+                if(FileExists(overridePath))
+                {
+                    overrideData <- ParseJSON(FileReadText(overridePath))
+                    overrideModes <- overrideData.modes
+                }
+            }
+        }
+    }
+
+    ## Step 3: Merge language overrides into base modes
+    if(overrideModes != 0)
+    {
+        baseModes <- MergeResponseModeTranslations(baseModes, overrideModes)
+    }
+
+    return(baseModes)
 }
 
 
@@ -1022,12 +1135,34 @@ define FormatLabelsForMode(mode, semanticLabels)
 
     if(mode.type == "keyboard")
     {
-        ## Format: "KEY (semantic)"
-        loop(i, Length(mode.keys))
+        ## Format: symmetric with keys on inside for 2-option modes
+        ## For 2-option: "semantic key" (left) and "key semantic" (right)
+        ## For other modes: "key (semantic)"
+
+        numKeys <- Length(mode.keys)
+
+        if(numKeys == 2)
         {
-            key <- FormatKeyName(Nth(mode.keys, i))
-            semantic <- Nth(semanticLabels, i)
-            PushOnEnd(displayLabels, key + " (" + semantic + ")")
+            ## Two-option mode: symmetric layout with keys on inside
+            ## Left label: semantic key
+            key <- FormatKeyName(Nth(mode.keys, 1))
+            semantic <- Nth(semanticLabels, 1)
+            PushOnEnd(displayLabels, semantic + " " + key)
+
+            ## Right label: key semantic
+            key <- FormatKeyName(Nth(mode.keys, 2))
+            semantic <- Nth(semanticLabels, 2)
+            PushOnEnd(displayLabels, key + " " + semantic)
+        }
+        else
+        {
+            ## More than 2 options: use standard format "KEY (semantic)"
+            loop(i, numKeys)
+            {
+                key <- FormatKeyName(Nth(mode.keys, i))
+                semantic <- Nth(semanticLabels, i)
+                PushOnEnd(displayLabels, key + " (" + semantic + ")")
+            }
         }
     }
     elseif(mode.type == "mousebutton")
@@ -1068,8 +1203,13 @@ define FormatLabelsForMode(mode, semanticLabels)
     }
     elseif(mode.type == "singlekey")
     {
-        ## Single key modes: show semantic only
-        displayLabels <- semanticLabels
+        ## Single key modes: use label from mode if available, otherwise semantic
+        if(PropertyExists(mode, "labels") and Length(mode.labels) > 0)
+        {
+            displayLabels <- mode.labels
+        } else {
+            displayLabels <- semanticLabels
+        }
     }
     else
     {

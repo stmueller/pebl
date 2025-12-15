@@ -252,7 +252,6 @@ This section provides a comprehensive assessment of all remaining upload-battery
 | ~~**ptrails**~~ | ✅ **COMPLETE** | ✅ EASY | ❌ INCOMPATIBLE | mouse clicks | **MIGRATED Dec 15, 2025** - Trailmaking test with header-only layout (responseMode=0), 700×500 field maintained, 8 duplicate functions removed (VecTimes/VecSum/Dist→Math.pbl, RemoveSubset/Insert/Rest→Design.pbl, WaitForDownClick→Utility.pbl, GetMinDist→Graphics.pbl), ArgMin/ArgMax bug fixed |
 | **stroop-vic** | 🟡 MEDIUM | ✅ EASY | ❌ INCOMPATIBLE | kbd (4 keys) | 4-alt Stroop variant - requires verbal interference, keyboard-only (not suitable for mouse/touch) |
 | **switcher** | 🟡 MEDIUM | ✅ EASY | ❌ INCOMPATIBLE | mouse clicks | Task switching - requires mouse click response |
-| **connections** | 🟡 MEDIUM | ⚠️ MODERATE | ❌ INCOMPATIBLE | mouse clicks | Matrix connections, complex grid layout |
 | **corsi** | 🟡 MEDIUM | ⚠️ MODERATE | ❌ INCOMPATIBLE | mouse clicks | Spatial span with click sequence |
 | **dspan** | 🟡 MEDIUM | ✅ EASY | ❌ INCOMPATIBLE | kbd (digits) | Digit span - needs numeric keypad input (10 keys) |
 | **toh** | 🟡 MEDIUM | ⚠️ MODERATE | ❌ INCOMPATIBLE | mouse clicks | Tower of Hanoi - drag/click disks |
@@ -414,13 +413,15 @@ The Layout system creates these elements as `gLayout` properties:
 
 | Test | Priority | Layout | Response | Input Type | Notes |
 |------|----------|--------|----------|------------|-------|
+| **connections** | 🟡 MEDIUM | ⚠️ MODERATE | ❌ INCOMPATIBLE | mouse clicks | Matrix connections task - complex grid layout, works fine as-is |
 | **BNT** | 🟢 LOW | ⚠️ MODERATE | N/A | verbal/text | Boston Naming Test - requires verbal/typed responses |
 | **test-simple** | N/A | N/A | N/A | N/A | Test/demo file, not a real task |
 
 **Migration Notes:**
 - **Mouse tracking tasks**: Cannot be adapted to keyboard-only; layout system provides minimal benefit
 - **Surveys/questionnaires**: Use form/slider interfaces, not trial-based structure; incompatible with Layout/Response paradigm
-- **Specialized tasks**: Have unique requirements (verbal responses, text entry)
+- **Specialized tasks**: Have unique requirements (verbal responses, text entry, complex custom layouts)
+- **connections**: Works fine with current implementation, complex grid layout makes migration unnecessary
 - **Recommendation**: Do NOT migrate these tests
 
 ---
@@ -605,19 +606,19 @@ bin/pebl2 battery/taskname/taskname.pbl -s 1 --pfile params/taskname-arrowLR.par
 **Migration status breakdown:**
 - ✅ **Already migrated**: 21 tests (40%) - **All 7 Category 1 tests + 3 Category 3 tests complete** ✅
 - 🟡 **Category 2** (needs response extensions): 5 tests (10%)
-- 🟠 **Category 3** (layout-only): 12 tests remaining (23%)
-- 🔴 **Category 4** (not suitable): 14 tests (27%)
+- 🟠 **Category 3** (layout-only): 11 tests remaining (21%)
+- 🔴 **Category 4** (not suitable): 15 tests (29%)
 
 **Realistic migration targets:**
 - **Full migration** (Layout + Response): 18 tests (35% of battery) ✅ **COMPLETE**
   - All 7 Category 1 tests complete (35%)
 - **With response mode extensions**: 23 tests (44% of battery)
   - Add 5 Category 2 tests after implementing new modes (4-choice grid, 4-way directional)
-- **Layout-only** (UI consistency): 33 tests (63% of battery) - **3 of 15 complete** 🔄
+- **Layout-only** (UI consistency): 32 tests (62% of battery) - **3 of 14 complete** 🔄
   - Completed: stroop-color, stroop-number, ptrails (Dec 14-15, 2025)
-  - Remaining: 12 Category 3 tests with custom response handling
+  - Remaining: 11 Category 3 tests with custom response handling
 
-**Not recommended for migration**: 14 tests (27% of battery)
+**Not recommended for migration**: 15 tests (29% of battery)
 
 ---
 

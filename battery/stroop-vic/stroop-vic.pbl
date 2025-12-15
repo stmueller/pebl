@@ -12,6 +12,15 @@ define Start(p)
 ##  Turkish by Zeynel Baran
 ## Spanish by user Carlos from Ecuador
 
+  ##Initialize Window, etc.
+  gWin <- MakeWindow("grey40")
+
+
+  if(gSubNum+""=="0")
+   {
+     gSubNum <- GetSubNum(gWin)
+   }
+
    ## Initialize upload system (works for both online and native)
    InitializeUpload()
 
@@ -28,17 +37,9 @@ define Start(p)
    gColumns <- gParams.numcolumns
    gRows <-  gParams.numRows
    gTimeLimit <- gParams.timelimit
-   
-  
-   ## Uncomment to eliminate busy-wait (mostly for older machines or
-   ## laptops that might overheat.)
-   gSleepEasy <- 1
+
    Initialize()
 
-  if(gSubNum+""=="0")
-   {
-     gSubNum <- GetSubNum(gWin)
-   }
 
 
 
@@ -60,8 +61,8 @@ define Start(p)
 
    gBlack  <- MakeColor("black")
    gRed    <- MakeColor("red")
-   gGreen  <- MakeColor("darkgreen")
-   gBlue   <- MakeColor("navy")
+   gGreen  <- MakeColorRGB(20, 180, 20)  ## Brighter green (was "darkgreen")
+   gBlue   <- MakeColorRGB(30, 30, 200)  ## Slightly brighter blue (was "navy")
    gYellow <- MakeColor("yellow1")
 
    colors <- [gRed, gGreen, gBlue, gYellow]
@@ -107,15 +108,17 @@ define Start(p)
 
 
 
-   gInstructions.text <- gInst1
-
-
-   Show(gInstructions)
-   Hide(gHeader)
+   ## Use AdaptiveTextBox for instructions with larger font
+   tb <- AdaptiveTextBox(gStrings.inst,
+                         gLayout.stimulusRegion.x + 20,
+                         gLayout.stimulusRegion.y + 20,
+                         gWin, 24,
+                         gLayout.stimulusRegion.width - 40,
+                         gLayout.stimulusRegion.height - 40,
+                         "scalefont")
    Draw()
    WaitForAnyKeyPress()
-   Hide(gInstructions)
-   Show(gHeader)
+   RemoveObject(tb, gWin)
    Draw()
 
 
@@ -130,13 +133,86 @@ define Start(p)
    {
 
    ########################################################
-   ##Do the Dot naming  (block 1)
+   ## Practice-to-criterion: Congruent color-word stimuli
+   ## Continue until errors <= 2 or 4 rounds completed
+   ## This runs FIRST with keymap practice enabled
+   ########################################################
+
+   practiceRound <- 1
+   practiceErrors <- 999  ## Start high to ensure at least one round
+   maxPracticeRounds <- 4
+
+   while(practiceRound <= maxPracticeRounds and practiceErrors > 2)
+   {
+     ## Create congruent stimuli: color names in matching colors
+     ## This creates a proper mapping where each word matches its color
+     congruentStim <- []
+     loop(i, Sequence(1, gColumns*gRows, 1))
+     {
+       colorIndex <- Mod(i-1, 4) + 1  ## Cycle through 1,2,3,4
+       word <- Nth(gColorNames, colorIndex)
+       color <- Nth(gColors, colorIndex)
+       PushOnEnd(congruentStim, [word, color])
+     }
+
+     ## Shuffle and add type marker
+     congruentStim <- Shuffle(congruentStim)
+     congruentStim <- PasteTables(congruentStim, Transpose([Repeat("practice", gColumns*gRows)]))
+
+     ## Set block ID for data recording
+     gBlock <- "practice" + practiceRound
+
+     ## Show instruction for practice (first round) or failure feedback (subsequent rounds)
+     if(practiceRound == 1)
+     {
+       tb <- AdaptiveTextBox(gPracticeToCrit,
+                             gLayout.stimulusRegion.x + 20,
+                             gLayout.stimulusRegion.y + 20,
+                             gWin, 24,
+                             gLayout.stimulusRegion.width - 40,
+                             gLayout.stimulusRegion.height - 40,
+                             "scalefont")
+       Draw()
+       WaitForAnyKeyPress()
+       RemoveObject(tb, gWin)
+       Draw()
+     } else {
+       ## Show failure feedback for subsequent rounds
+       tb <- AdaptiveTextBox(gPracticeFailure,
+                             gLayout.stimulusRegion.x + 20,
+                             gLayout.stimulusRegion.y + 20,
+                             gWin, 24,
+                             gLayout.stimulusRegion.width - 40,
+                             gLayout.stimulusRegion.height - 40,
+                             "scalefont")
+       Draw()
+       WaitForAnyKeyPress()
+       Hide(tb)
+
+       Draw()
+     }
+
+     ## Run the practice block WITH keymap practice on first round
+     practiceOut <- Block(congruentStim, dotraining, gTimeLimit)
+     practiceErrors <- Fifth(practiceOut)  ## Extract error count
+
+     dotraining <- 0  ## Turn off keymap practice after first round
+     practiceRound <- practiceRound + 1
+   }
+
+   ########################################################
+   # Practice is complete. Do the Dot naming  (block 1)
 
 
   ########################################
   ## round 1 is "Part D": colored dots
 
-
+   Show(tb)
+   tb.text <- gInst1
+   Draw()
+   WaitForAnyKeyPress()
+   Hide(tb)
+   Draw()
 
   stim1 <-  PasteTables(ShuffleMe([0,0,0,0],gColors,1,gColumns*gRows),
                          Transpose([Repeat("d",gColumns*gRows)]))
@@ -144,17 +220,13 @@ define Start(p)
 
 
    gBlock <- 1
-   out1 <-   Block(stim1,dotraining,gTimeLimit)
+   out1 <-   Block(stim1,0,gTimeLimit)  ## dotraining=0, keymap practice already done
 
    resp1 <- First(out1)
    time1 <- Second(out1)
    intrusions1 <- Third(out1)
    corrects1 <- Fourth(out1)
    errors1 <- Fifth(out1)
-   
-   dotraining <- 0  ##only do training on the very first block
-
-
 
    ########################################################
    ##Do the word naming  (block 2)
@@ -172,14 +244,11 @@ define Start(p)
                        Transpose([Repeat("w",gColumns*gRows)]))
 
 
-
-   gInstructions.text <- gInst2
-   Show(gInstructions)
-   Hide(gHeader)
+   tb.text <- gInst2
+   Show(tb)
    Draw()
-   WaitForAnyKeyPress()
-   Hide(gInstructions)
-   Show(gHeader)
+   WaitForAnyKEyPress()
+   Hide(tb)
    Draw()
 
    gBlock <- 2
@@ -205,16 +274,12 @@ define Start(p)
                         Transpose([Repeat("c",gColumns*gRows)]))
 
 
-
-   gInstructions.text <- gInst3
-   Show(gInstructions)
-   Hide(gHeader)
+   tb.text <- gInst3
+   Show(tb)
    Draw()
-   WaitForAnyKeyPress()
-   Hide(gInstructions)
-   Show(gHeader)
+   WaitForAnyKEyPress()
+   Hide(tb)
    Draw()
-
 
    gBlock <- 3
    out3 <-  Block(stim3,0,gTimeLimit)
@@ -315,26 +380,12 @@ define PrintTable(file,table)
 ## timelimit:0 is no time limit
 define Block(stim,dotraining,timelimit: 0)
 {
-
-     red    <- gFontBlack
-     green  <- gFontBlack
-     blue   <- gFontBlack
-     yellow <- gFontBlack
-
-
-     foot1 <- MakeLabel("["+First(gKeys)+"] "+First(gColorNames),red)
-     foot2 <- MakeLabel("["+Second(gKeys)+"] "+Second(gColorNames),green)
-     foot3 <- MakeLabel("["+Third(gKeys)+"] "+Third(gColorNames),blue)
-     foot4 <- MakeLabel("["+Fourth(gKeys)+"] "+Fourth(gColorNames),yellow)
-
-
-   feet <- [foot1,foot2,foot3,foot4]
-   AddObject(foot1,gWin);   AddObject(foot2,gWin);
-   AddObject(foot3,gWin);   AddObject(foot4,gWin);
-   Move(foot1, gVideoWidth/2-300, gVideoHeight-100)
-   Move(foot2, gVideoWidth/2-100, gVideoHeight-100)
-   Move(foot3, gVideoWidth/2+100, gVideoHeight-100)
-   Move(foot4, gVideoWidth/2+300, gVideoHeight-100)
+   ## Build footer text with 4 color response options
+   gLayout.footer.text <- "["+First(gKeys)+"] "+First(gColorNames)+"     "+
+                          "["+Second(gKeys)+"] "+Second(gColorNames)+"     "+
+                          "["+Third(gKeys)+"] "+Third(gColorNames)+"     "+
+                          "["+Fourth(gKeys)+"] "+Fourth(gColorNames)
+   gLayout.footer.visible <- 1  ## Show footer now that we've set the text
 
 
 if(dotraining)
@@ -342,9 +393,14 @@ if(dotraining)
 
 ##Do the practice here:
    ##Lets do a little learning about the key mappings
-   gInstructions.text <- gPracticeText
-   Show(gInstructions)
-    patch <- Rectangle(gVideoWidth/2,gVideoHeight/2+60,300,100,MakeColor("black"),1)
+   tb <- AdaptiveTextBox(gPracticeText,
+                         gLayout.stimulusRegion.x + 20,
+                         gLayout.stimulusRegion.y + 20,
+                         gWin, 24,
+                         gLayout.stimulusRegion.width - 40,
+                         gLayout.stimulusRegion.height - 40,
+                         "scalefont")
+    patch <- Rectangle(gLayout.centerX,gLayout.centerY+60,300,100,MakeColor("black"),1)
     AddObject(patch,gWin)
     Draw()
     resp <- 1
@@ -364,25 +420,24 @@ if(dotraining)
       }
 
     RemoveObject(patch,gWin)
-    Hide(gInstructions)
+    RemoveObject(tb,gWin)
    }
 
-  Show(gHeader)
-   ##Create the grid layout.
+   ##Create the grid layout centered in stimulus region
    ##rectangle is 120 x 60
-   width <-  Min([120 * (gColumns),gVideoWidth-100])
-   height <- Min([60*gRows,gVideoHeight-100])
+   width <-  Min([120 * (gColumns), gLayout.stimulusRegion.width - 40])
+   height <- Min([60*gRows, gLayout.stimulusRegion.height - 40])
 
-   xypoints <- LayoutGrid(gVideoWidth/2-width/2,gVideoWidth/2+width/2,
-                          (gVideoHeight-height)/2,(gVideoHeight+height)/2,
+   xypoints <- LayoutGrid(gLayout.centerX-width/2, gLayout.centerX+width/2,
+                          gLayout.centerY-height/2, gLayout.centerY+height/2,
 			  gRows,gColumns,0)
 
     ##Wait at this point for the subject to press a key to begin.
-    gHeader.text <- gHeadBegin
+    gLayout.header.text <- gHeadBegin
     Draw()
 
     WaitForAnyKeyPress()
-    gHeader.text <- gHead
+    gLayout.header.text <- gHead
 
     time1 <- GetTime()
 
@@ -560,8 +615,6 @@ define Initialize()
 #  gVideoWidth  <-800
 #  gVideoHeight <- 600
 
-  ##Initialize Window, etc.
-  gWin <- MakeWindow("grey40")
   ShowCursor(0)
   ##Initialize Font and colors
 
@@ -571,31 +624,29 @@ define Initialize()
 
    Getstrings(gLanguage)
 
-   gInstructionsFont <- MakeFont(gPEBLBaseFont,0,18, fg,MakeColor("white"),1)
-   gHeaderFont       <- MakeFont(gPEBLBaseFont, 0,36,fg,gBG,1)
+   ## Create layout - responseMode=0 for layout-only (no response system)
+   gLayout <- CreateLayout("stroop-vic", gWin, 0)
+   gLayout.header.visible <- 1
+   gLayout.subheader.visible <- 0
+   gLayout.footer.visible <- 0  ## Hide footer initially, will show in Block() when we set the text
 
-   ## Make and place the instruction box, then hide it
-   gInstructions <- MakeTextBox("", gInstructionsFont, 600,300)
-   AddObject(gInstructions, gWin)
-   Move(gInstructions, gVideoWidth/2-300, gVideoHeight/2-150)
+   ## Hide response labels (we use custom 4-choice keyboard handling)
+   if(IsList(gLayout.responseLabels))
+   {
+     loop(label, gLayout.responseLabels)
+     {
+       Hide(label)
+     }
+   }
 
-   Show(gInstructions)
-
-   ## Make and hide a header label
-   gHeader <- MakeLabel("",gHeaderFont)
-   AddObject(gHeader,gWin)
-   Move(gHeader, gVideoWidth/2, 50)
-   Hide(gHeader)
-
-   gStimLabel <- MakeLabel("",gHeaderFont)
-   AddObject(gStimLabel,gWin)
-   Move(gStimLabel, gVideoWidth/2, gVideoHeight/2)
-   Hide(gStimLabel)
-
-   gFeedback <- MakeLabel("INCORRECT",gHeaderFont)
-   AddObject(gFeedback,gWin)
-   Move(gFeedback, gVideoWidth/2, gVideoHeight/2+70)
-   Hide(gFeedback)
+   ## Hide response borders if they exist
+   if(IsList(gLayout.responseBorders))
+   {
+     loop(border, gLayout.responseBorders)
+     {
+       Hide(border)
+     }
+   }
 
 }
 
@@ -621,6 +672,8 @@ define GetStrings(language)
    gWords <- [gStrings.word1,gStrings.word2,
               gStrings.word3,gStrings.word4]
   gPracticeText<-ReplaceChar(gStrings.practicetext,"<KEYSTRING>",keystring)
+  gPracticeToCrit <- gStrings.practicetocrit
+  gPracticeFailure <- gStrings.practicefailure
   gInst1 <- ReplaceChar(gStrings.inst1,"<KEYSTRING>",keystring)
   gInst2 <- ReplaceChar(gStrings.inst2,"<KEYSTRING>",keystring)
   gInst3 <- gStrings.inst3

@@ -60,26 +60,14 @@ define Start(p)
 
   gScriptName <- "Number Stroop Task"
 
-   parpairs <- [["responsetype","choose"],
-                ["scorerealtime",0],   ##for audio, set this to 1 to score real-time with keyboard.
-                                        ##otherwise, you need to go back through and code responses afterward.
+   parpairs <- [["responsetype","keyboard"],  ## Always use keyboard 1-2-3 keys
 
                  ["usepreset",1],   ## If set to 1, it will use the same sequence of stimuli every time.
-                                    ## If set to 0, it will regenerate randomly on each run.     ["nonpresettrials",28], ##If preset==0, use this many trials per condition per block
+                                    ## If set to 0, it will regenerate randomly on each run.
+                 ["nonpresettrials",28], ##If preset==0, use this many trials per condition per block
 
                  ["fixationTime",1000],    #time for the fixation cross
-                 ["responseTimeout",2000], #Time limit given for responding
-
-                  ## The voice key will trip when 55% of the last
-                  ## gVoiceKeyDuration 1-ms bins are above the threshold.
-                  ## Based on input power and microphone noise, you may
-                  ## need to adjust these parameters.
-                ["voicekeythreshold",.35],
-		["voiceKeyDuration", 200],
-   		["saveAudio",1],   ##Should the audio buffer be saved?
-
-   		["compressAudio", 0],   ##command to compress audio
-   		["compressor","oggenc "]
+                 ["responseTimeout",2000]  #Time limit given for responding
                ]
 
    gParams <- CreateParameters(parpairs,gParamFile)
@@ -89,29 +77,6 @@ define Start(p)
 
    Initialize()
 
-
-   if(gResponseType == "choose")
-   {
-
-
-      gResponseType <- GetEasyChoice(gStrings.choice1,
-                            [gStrings.choice2,
-                             gStrings.choice3,
-                             gStrings.choice4],
- 			   ["keyboard","keypad","audio"], gWin)
-    }
-
-   gScoreRealtime <- gParams.scorerealtime
-
-   gVoiceKeyThreshold <- gParams.voicekeythreshold
-   gVoiceKeyDuration  <- gParams.voicekeyduration
-
-   ##Should the audio buffer be saved?
-   gSaveAudio <- gParams.saveaudio
-
-   ##command to compress audio
-   gCompressAudio <- gParams.compressaudio
-   gCompressor <- gParams.compressor
 
 
    usePreset <- gParams.usepreset
@@ -155,15 +120,6 @@ define Start(p)
 
 
    FilePrint(gLog, gSubNum + "," + gLanguage + "," + TimeStamp()+",NUMERICAL STROOP,"+gResponseType+",STARTED")
-
-   ##Create a vocal buffer if we have one
-
-   if(gResponseType == "audio")
-    {
-	  Print("Making audio input buffer")
-	  ##3000/3500 doesn't seem to work in linux:???
-      gResponseBuffer <- MakeAudioInputBuffer(5000)
-    }
 
 
   ###############################
@@ -224,7 +180,8 @@ define Start(p)
 
    gInstructions.text <- gBreak1Text
    Show(gInstructions)
-   Hide(gFooter1);Hide(gFooter2)
+   Hide(gLayout.footer)
+   Hide(gResponseInstruction)
    Draw()
    WaitForAnyKeyPress()
    Hide(gInstructions)
@@ -243,7 +200,8 @@ define Start(p)
 
    gInstructions.text <- gBreak2Text
    Show(gInstructions)
-   Hide(gFooter1);Hide(gFooter2)
+   Hide(gLayout.footer)
+   Hide(gResponseInstruction)
    Draw()
    WaitForAnyKeyPress()
    Hide(gInstructions)
@@ -346,18 +304,12 @@ define DoTrial(stim,cond,code)
    type <- First(stim)
 
 
-   gFooter2.text <- gFooter2Text
-if(cond == "keyboard" or cond=="keypad")
-  {
+   ## Set response instruction in response zone and footer text in footer zone
+   SetAdaptiveLabel(gResponseInstruction, gFooter1textManual, gVideoWidth - 40)
+   Show(gResponseInstruction)
 
-   gFooter1.text <- gFooter1textManual
-   Show(gFooter1)
-   Show(gFooter2)
-}else{
-   gFooter1.text <- gFooter1textVocal
-   Show(gFooter1)
-   Show(gFooter2)
-}
+   gLayout.footer.text <- gFooter2Text
+   Show(gLayout.footer)
 
 
    gStimLabel.text <- "+"
@@ -370,92 +322,42 @@ if(cond == "keyboard" or cond=="keypad")
    Draw()
 
    time1 <- GetTime()
-   if(cond == "keyboard" or cond == "keypad")
-    {
 
+   ## Keyboard response (1-2-3 keys)
+   resp <-WaitForListKeyPressWithTimeout(gKeys,2000,1)
+   time2 <- GetTime()
+   if(resp=="<timeout>")   ##Check to see if there was a time-out.
+   {
+     gStimLabel.text <- gStrings.tooslow
+     Draw()
+     Wait(500)
+     responded <- 0
+   } else{
+     responded <- 1
+   }
 
-	    resp <-WaitForListKeyPressWithTimeout(gKeys,2000,1)
-        time2 <- GetTime()
-         if(resp=="<timeout>")   ##Check to see if there was a time-out.
-           {
-             gStimLabel.text <- gStrings.tooslow
-             Draw()
-             Wait(500)
-	     responded <- 0
-           } else{
-             responded <- 1
-           }
+   corr <- ToNumber(resp) == length
+   rt <-(time2-time1)
 
-	   corr <- ToNumber(resp) == length
-           rt <-(time2-time1)
+   ## Show feedback during practice only
+   if(gBlock == 0 and responded == 1)
+   {
+     if(corr)
+     {
+       gStimLabel.text <- gStrings.correct
+     } else {
+       gStimLabel.text <- gStrings.incorrect
+     }
+     Draw()
+     Wait(500)
+   }
 
-	out <- gSubNum + "," + cond + "," + code + "," + gBlock +","+ gTrial + "," +
-            Second(stim)+","+First(stim)+"," +responded+","+ resp + ","+corr+"," + time1 + ","+
-			rt+ ",0"+ "," +(time2-time1)
-
-    }elseif(cond=="audio")
-    {
-		Print("time1")
-	    resp0 <-  GetVocalResponseTime(gResponseBuffer,gVoiceKeyThreshold, gVoiceKeyDuration)
-#        Wait(300)
-#		resp0 <- [0,0,0,0,0]
-        time2 <- GetTime()
-		Print(resp0)
-        if(Third(resp0)==0)
-         {
-            gStimLabel.text <- gStrings.tooslow
-	    Draw()
-	    Wait(500)
-         }
-
-        rt <- First(resp0)
-        endtime  <- Second(resp0)
-	responded <- Third(resp0)
-
-
-     if( gScoreRealtime )
-      {
-        gFooter1.text <- gFooter1textManual2
-		Hide(gStimLabel)
-        Draw()
-
-
-       ##use the following for keypad entry:
-       ## resp <-WaitForListKeyPress(["<KP_1>","<KP_2>","<KP_3>","<KP_4>"])
-        resp <-WaitForListKeyPress([1,2,3,4])
-		corr <- ToNumber(resp)==length
-      } else {
-         #Use -1 as the non-score indicator.
-	     resp <- -1
-		 corr <- -1
-      }
-
-    	out <- gSubNum + "," + cond + "," + code + "," + gBlock +","+ gTrial + "," +
-            Second(stim)+","+First(stim)+"," +responded+","+ resp + ","+corr+"," + time1 + ","+
-			rt + ","+(endtime-rt) + "," +(time2-time1)
-
-
-	} else{
-     SignalFatalError("Unknown response type: "+cond)
-    }
+   out <- gSubNum + "," + cond + "," + code + "," + gBlock +","+ gTrial + "," +
+         Second(stim)+","+First(stim)+"," +responded+","+ resp + ","+corr+"," + time1 + ","+
+         rt+ ",0"+ "," +(time2-time1)
 
     Hide(gStimLabel)
     Draw()
-
-    if(cond=="audio" and gSaveAudio)
-         {
-            SaveAudioToWaveFile(fname,gResponseBuffer)
-			if(gCompressAudio)
-             {
-			    SystemCall(gCompressor + fname,"")
-				if(GetSystemType()=="LINUX" or GetSystemType()=="OSX")
-                 {
-     				SystemCall("rm "+fname,"")
-                 } else {
-     				SystemCall("del "+fname,"")
-                 }
-              }
-         }
 
 
     FilePrint(gFileOut,out)
@@ -599,6 +501,20 @@ define Initialize()
   ##Initialize Window, etc.
   gWin <- MakeWindow("grey40")
 
+  ## Create layout system (zones only, no response system)
+  CreateLayout("stroop-number", gWin, 0)
+
+  ## Hide Layout system's response labels (we don't use response system)
+  if(PropertyExists(gLayout, "responseLabels"))
+  {
+    loop(label, gLayout.responseLabels)
+    {
+      Hide(label)
+    }
+  }
+
+  ## Initially hide footer - we'll show it when needed in trials
+  Hide(gLayout.footer)
 
   ShowCursor(0)
   ##Initialize Font and colors
@@ -617,29 +533,28 @@ define Initialize()
    ## Make and place the instruction box, then hide it
    gInstructions <- MakeTextBox("", gInstructionsFont, 600,400)
    AddObject(gInstructions, gWin)
-   Move(gInstructions, gVideoWidth/2-300, 100)
+   Move(gInstructions, gLayout.centerX-300, 100)
    Hide(gInstructions)
 
    ## Make and hide a header label
    gHeader <- MakeLabel("",gStimFont)
    AddObject(gHeader,gWin)
-   Move(gHeader, gVideoWidth/2, 50)
+   Move(gHeader, gLayout.centerX, 50)
    Hide(gHeader)
 
    gStimLabel <- MakeLabel("",gStimFont)
    AddObject(gStimLabel,gWin)
-   Move(gStimLabel, gVideoWidth/2, gVideoHeight/2)
+   Move(gStimLabel, gLayout.centerX, gLayout.centerY)
    Hide(gStimLabel)
 
-   gFooter1 <- MakeLabel("",gHeaderFont)
-   AddObject(gFooter1,gWin)
-   Move(gFooter1, gVideoWidth/2, gVideoHeight-150)
-   Hide(gFooter1)
-
-   gFooter2 <- MakeLabel("",gHeaderFont)
-   AddObject(gFooter2,gWin)
-   Move(gFooter2, gVideoWidth/2, gVideoHeight-100)
-   Hide(gFooter2)
+   ## Create adaptive response instruction label in response zone
+   ## Start with scaled font size, will adapt if text is too wide
+   responseInstructionFontSize <- Round(20 * gLayout.scale)
+   responseInstructionFont <- MakeFont(gPEBLBaseFont, 0, responseInstructionFontSize, fg, gBG, 1)
+   gResponseInstruction <- MakeLabel("", responseInstructionFont)
+   AddObject(gResponseInstruction, gWin)
+   Move(gResponseInstruction, gLayout.centerX, gLayout.zones.response.y + (gLayout.zones.response.height / 2))
+   Hide(gResponseInstruction)
 
    if(not FileExists("data"))
     {
@@ -679,32 +594,14 @@ define GetStrings(language)
     gIncongruentStim <- ["11","111","2","222","3","33"]
     gCongruentStim  <- ["1","22","333"]
 
-   if(gResponseType=="keyboard")
-   {
-     gKeys <- [1,2,3]
-     keystring <-  gStrings.keyboardtext
-   } elseif(gResponseType=="keypad")
-   {
-     gKeys <- ["<KP_1>","<KP_2>","<KP_3>"]
-     keystring <-  gStrings.keypadtext
+   ## Always use keyboard 1-2-3
+   gKeys <- [1,2,3]
+   keystring <-  gStrings.keyboardtext
 
-   }else{
+   gInstructionsBase<-gStrings.instructionsbase
+   gKeyManual <- gStrings.keymanual1 + gStrings.choice2+ CR(1)+gStrings.keymanual2
 
-      gKeys <- [1,2,3]
-      keystring <- gStrings.voicetext
-   }
-
-    gInstructionsBase<-gStrings.instructionsbase
-    gKeyManual <- gStrings.keymanual1 + gResponseType+ CR(1)+gStrings.keymanual2
-    gKeyVocal <- gStrings.keyvocal
-
-
- if(gResponseType=="keyboard" or gResponseType=="keypad")
-  {
-    gInstructionsText <- gInstructionsBase+gKeyManual
-  }else{
-    gInstructionsText <- gInstructionsBase+gKeyVocal
-  }
+   gInstructionsText <- gInstructionsBase+gKeyManual
 
 
     gBreak1Text <- gStrings.break1text
@@ -714,8 +611,6 @@ define GetStrings(language)
    gTestHeaderText    <-  gStrings.testHeaderText
 
    gFooter1TextManual <- gStrings.press +" "+keystring+ CR(1)+gStrings.footer1textmanual
-   gFooter1TextManual2 <- gStrings.press+" " +keystring + CR(1)+gStrings.footer1textmanual2
-   gFooter1TextVocal <- gStrings.footer1textvocal1 +keystring+ CR(1)+gStrings.footer1textvocal2
    gFooter2Text <-gStrings.footer2text
 
    gExitText <-gStrings.exittext
@@ -736,4 +631,24 @@ define RepeatEnough(list,length)
 
 
    return SubList(tmp,1,length)
+}
+
+## Set label text and adapt font size if too wide for screen
+define SetAdaptiveLabel(label, text, maxWidth)
+{
+   label.text <- text
+
+   ## Check if text width exceeds maxWidth and reduce font if needed
+   textWidth <- label.width
+
+   if(textWidth > maxWidth)
+   {
+      ## Calculate scale factor needed
+      scaleFactor <- maxWidth / textWidth
+      newFontSize <- Max(10, Round(label.font.size * scaleFactor * 0.95))  ## 0.95 for padding
+
+      ## Create new font with reduced size
+      newFont <- MakeFont(gPEBLBaseFont, 0, newFontSize, label.font.fgcolor, label.font.bgcolor, 1)
+      label.font <- newFont
+   }
 }

@@ -263,7 +263,8 @@ define Start(p)
    gTooSlows        <- 0    ##too slow errors
    gInstructions.text <- gBreak1Text
    Show(gInstructions)
-   Hide(gFooter1);Hide(gFooter2);Hide(gFooter1a)
+   Hide(gLayout.footer)
+   Hide(gResponseInstruction)
    Draw()
    WaitForAnyKeyPress()
    Hide(gInstructions)
@@ -292,7 +293,8 @@ define Start(p)
 
    gInstructions.text <- gBreak2Text
    Show(gInstructions)
-   Hide(gFooter1);Hide(gFooter2);Hide(gFooter1a)
+   Hide(gLayout.footer)
+   Hide(gResponseInstruction)
    Draw()
    WaitForAnyKeyPress()
    Hide(gInstructions)
@@ -385,9 +387,10 @@ define Start(p)
    FileClose(gSumFileOut)
    FileClose(filesum)
 
-   UploadFile(gSubNum, "data/" + gSubNum + "/colstroop-" + gResponseType + "-" + gSubNum + ".csv")
-   UploadFile(gSubNum, "data/" + gSubNum + "/colstroop-" + gResponseType + "-summary-" + gSubNum + ".txt")
-   UploadFile(gSubNum, "data/colorstroop-sumall.csv")
+   settingsfile <- "/upload.json"
+   UploadFile(gSubNum, "data/" + gSubNum + "/colstroop-" + gResponseType + "-" + gSubNum + ".csv", settingsfile)
+   UploadFile(gSubNum, "data/" + gSubNum + "/colstroop-" + gResponseType + "-summary-" + gSubNum + ".txt", settingsfile)
+   UploadFile(gSubNum, "data/colorstroop-sumall.csv", settingsfile)
 }
 
 ###################################################
@@ -407,21 +410,17 @@ define DoTrial(stim,cond,code,timeout:3000,fixationtime:1000)
    ##Condition is the response type.
    type <- First(stim)
 
-   gFooter2.text <- gFooter2Text
+  ## Set response instruction in response zone and footer text in footer zone
   if(cond == "keyboard")
   {
-   gFooter1.text <- gFooter1textManual
-   gFooter1a.text <- ""
-   Show(gFooter1)
-   Show(gFooter1a)
-   Show(gFooter2)
+   SetAdaptiveLabel(gResponseInstruction, gFooter1textManual, gVideoWidth - 40)
   } else{
-   gFooter1.text <- gFooter1textVocal
-   gFooter1a.text <- ""
-   Show(gFooter1)
-   Show(gFooter1a)
-   Show(gFooter2)
+   SetAdaptiveLabel(gResponseInstruction, gFooter1textVocal, gVideoWidth - 40)
   }
+  Show(gResponseInstruction)
+
+  gLayout.footer.text <- gFooter2Text
+  Show(gLayout.footer)
 
 
    gStimLabel.text <- "+"
@@ -530,8 +529,8 @@ define DoTrial(stim,cond,code,timeout:3000,fixationtime:1000)
 
      if( gScoreRealtime )
       {
-        gFooter1.text <- gFooter1textManual2
-	gFooter1a.text <- ""
+        SetAdaptiveLabel(gResponseInstruction, gFooter1textManual2, gVideoWidth - 40)
+        Show(gResponseInstruction)
 	Hide(gStimLabel)
         Draw()
 
@@ -834,6 +833,20 @@ define Initialize()
   ##Initialize Window, etc.
   gWin <- MakeWindow("grey40")
 
+  ## Create layout system (zones only, no response system)
+  CreateLayout("stroop-color", gWin, 0)
+
+  ## Hide Layout system's response labels (we don't use response system)
+  if(PropertyExists(gLayout, "responseLabels"))
+  {
+    loop(label, gLayout.responseLabels)
+    {
+      Hide(label)
+    }
+  }
+
+  ## Initially hide footer - we'll show it when needed in trials
+  Hide(gLayout.footer)
 
   ShowCursor(0)
   ##Initialize Font and colors
@@ -854,34 +867,28 @@ define Initialize()
    ## Make and place the instruction box, then hide it
    gInstructions <- MakeTextBox("", gInstructionsFont, 600,400)
    AddObject(gInstructions, gWin)
-   Move(gInstructions, gVideoWidth/2-300, 100)
+   Move(gInstructions, gLayout.centerX-300, 100)
    Hide(gInstructions)
 
    ## Make and hide a header label
    gHeader <- MakeLabel("",gStimFont)
    AddObject(gHeader,gWin)
-   Move(gHeader, gVideoWidth/2, 50)
+   Move(gHeader, gLayout.centerX, 50)
    Hide(gHeader)
 
    gStimLabel <- MakeLabel("",gStimFont)
    AddObject(gStimLabel,gWin)
-   Move(gStimLabel, gVideoWidth/2, gVideoHeight/2)
+   Move(gStimLabel, gLayout.centerX, gLayout.centerY)
    Hide(gStimLabel)
 
-   gFooter1 <- MakeLabel("",gHeaderFont)
-   AddObject(gFooter1,gWin)
-   Move(gFooter1, gVideoWidth/2, gVideoHeight-150)
-   Hide(gFooter1)
-
-   gFooter1a <- MakeLabel("",gHeaderFont)
-   AddObject(gFooter1a,gWin)
-   Move(gFooter1a,gVideoWidth/2,gVideoHeight-125)
-   Hide(gFooter1a)
-
-   gFooter2 <- MakeLabel("",gHeaderFont)
-   AddObject(gFooter2,gWin)
-   Move(gFooter2, gVideoWidth/2, gVideoHeight-100)
-   Hide(gFooter2)
+   ## Create adaptive response instruction label in response zone
+   ## Start with scaled font size, will adapt if text is too wide
+   responseInstructionFontSize <- Round(20 * gLayout.scale)
+   responseInstructionFont <- MakeFont(gPEBLBaseFont, 0, responseInstructionFontSize, fg, gBG, 1)
+   gResponseInstruction <- MakeLabel("", responseInstructionFont)
+   AddObject(gResponseInstruction, gWin)
+   Move(gResponseInstruction, gLayout.centerX, gLayout.zones.response.y + (gLayout.zones.response.height / 2))
+   Hide(gResponseInstruction)
 
  if(not FileExists("data"))
     {
@@ -916,10 +923,11 @@ define Initialize()
 
 define GetStrings(language)
 {
-
 ##Known trasnlations:  EN, ES, TR
- gStrings <- GetTranslations("color-stroop", language)
+  gStrings <- GetTranslations("color-stroop", language)
 
+
+  #start with english for fallback, then redefine  for specific languages.
 
    ##Ignore the translation for now.
    gColorNames      <- [gStrings.color1,gSTrings.color2,gSTrings.color3,gStrings.color4]
@@ -990,6 +998,26 @@ define RepeatEnough(list,length)
    return SubList(tmp,1,length)
 }
 
+## Set label text and adapt font size if too wide for screen
+define SetAdaptiveLabel(label, text, maxWidth)
+{
+   label.text <- text
+
+   ## Check if text width exceeds maxWidth and reduce font if needed
+   textWidth <- label.width
+
+   if(textWidth > maxWidth)
+   {
+      ## Calculate scale factor needed
+      scaleFactor <- maxWidth / textWidth
+      newFontSize <- Max(10, Round(label.font.size * scaleFactor * 0.95))  ## 0.95 for padding
+
+      ## Create new font with reduced size
+      newFont <- MakeFont(gPEBLBaseFont, 0, newFontSize, label.font.fgcolor, label.font.bgcolor, 1)
+      label.font <- newFont
+   }
+}
+
 
 define DoPractice()
 {
@@ -999,15 +1027,17 @@ define DoPractice()
                    10,10,gWin,28,gVideoWidth-20,200)
 
     Show(instructions)
-    Show(gFooter1)
-    Show(gFooter2)
-    patch <- Rectangle(gVideoWidth/2,gVideoHeight/2+60,300,100,MakeColor("black"),1)
+    SetAdaptiveLabel(gResponseInstruction, gFooter1textManual, gVideoWidth - 40)
+    Show(gResponseInstruction)
+    gLayout.footer.text <- gFooter2Text
+    Show(gLayout.footer)
+    patch <- Rectangle(gLayout.centerX,gLayout.centerY+60,300,100,MakeColor("black"),1)
     AddObject(patch,gWin)
     Draw()
     resp <- 1
     patch.color <- gblack
     Draw()
-    tmp <- EasyLabel("",gVideoWidth/2,gVideoHeight/2+60,gWin,50)
+    tmp <- EasyLabel("",gLayout.centerX,gLayout.centerY+60,gWin,50)
     while(not (resp == 5))
       {
 

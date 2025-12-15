@@ -244,8 +244,8 @@ This section provides a comprehensive assessment of all remaining upload-battery
 
 | Test | Priority | Layout | Response | Input Type | Notes |
 |------|----------|--------|----------|------------|-------|
-| **stroop-color** | 🔴 HIGH | ✅ EASY | ❌ INCOMPATIBLE | kbd (4 keys) | 4-alt color naming - requires verbal interference, keyboard-only (not suitable for mouse/touch) |
-| **stroop-number** | 🔴 HIGH | ✅ EASY | ❌ INCOMPATIBLE | kbd (4 keys) | 4-alt number naming - requires verbal interference, keyboard-only (not suitable for mouse/touch) |
+| ~~**stroop-color**~~ | ✅ **COMPLETE** | ✅ EASY | ❌ INCOMPATIBLE | kbd (4 keys) | **MIGRATED Dec 14, 2025** - Layout-only migration, custom 4-choice response handling retained |
+| ~~**stroop-number**~~ | ✅ **COMPLETE** | ✅ EASY | ❌ INCOMPATIBLE | kbd (4 keys) | **MIGRATED Dec 14, 2025** - Layout-only migration, custom 4-choice response handling retained |
 | **stroop-vic** | 🟡 MEDIUM | ✅ EASY | ❌ INCOMPATIBLE | kbd (4 keys) | 4-alt Stroop variant - requires verbal interference, keyboard-only (not suitable for mouse/touch) |
 | **switcher** | 🟡 MEDIUM | ✅ EASY | ❌ INCOMPATIBLE | mouse clicks | Task switching - requires mouse click response |
 | **ptrails** | 🔴 HIGH | ⚠️ MODERATE | ❌ INCOMPATIBLE | mouse clicks | Trails test - click sequence on numbered circles. Layout provides zones but stimuli cover full screen. |
@@ -267,6 +267,120 @@ This section provides a comprehensive assessment of all remaining upload-battery
 - Layout system can provide header/footer but stimulus region may have limited utility for some tasks
 - Response system generally not applicable (positional clicking, complex sequences, specialized input, or verbal interference requirements)
 - **Recommendation**: Migrate to layout system for UI consistency, but keep custom response handling
+
+#### Important: Layout System Elements vs Custom Task Elements
+
+**CRITICAL DISTINCTION**: The Layout system creates elements as **properties of the gLayout object**, NOT as standalone global variables.
+
+**Layout system elements** (created by Layout system):
+- `gLayout.header` - Header label (available in all Layout modes)
+- `gLayout.subheader` - Subheader label (available in all Layout modes)
+- `gLayout.footer` - Footer label (available even with responseMode=0)
+- `gLayout.responseLabels` - Response label list (only with Response System, responseMode > 0)
+- `gLayout.responseBorders` - Response border list (only with Response System, responseMode > 0)
+
+**Custom task elements** (ONLY create when Layout doesn't provide them):
+- Task-specific stimulus labels in response zone (when not using Response System)
+- Specialized UI elements unique to your task
+- **Do NOT create**: `gFooter1`, `gFooter2`, `gHeader` - these duplicate Layout functionality
+
+**Key points:**
+
+1. **When using `CreateLayout(taskname, gWin, 0)` (responseMode=0 for Category 3 migrations):**
+   - The Layout system DOES create `gLayout.header`, `gLayout.subheader`, and `gLayout.footer`
+   - The Layout system does NOT create `gLayout.responseLabels` (requires Response System)
+   - **You SHOULD use `gLayout.footer.text` for footer content** - don't create custom footer labels
+
+2. **Custom task variables should ONLY be created when Layout doesn't provide them:**
+   - Don't create `gFooter1`, `gFooter2`, `gHeader` - these duplicate Layout functionality
+   - DO create custom elements when Layout doesn't provide them (e.g., response instruction labels in response zone)
+   - Position custom elements using Layout zones: `gLayout.zones.response.y`, etc.
+
+3. **For Category 3 layout-only migrations:**
+   - Call `CreateLayout(taskname, gWin, 0)` to get responsive zones
+   - Use `gLayout.centerX`, `gLayout.centerY` for positioning
+   - **Use `gLayout.footer.text` for footer content** (don't create custom footers)
+   - Only create custom elements when absolutely necessary (Layout doesn't provide them)
+
+**Example (Stroop tasks - CORRECTED):**
+```pebl
+## Category 3 migration: Layout zones only, no Response System
+CreateLayout("stroop-number", gWin, 0)  ## responseMode=0
+
+## Use Layout zones for responsive positioning
+Move(gStimLabel, gLayout.centerX, gLayout.centerY)
+
+## CORRECT: Use gLayout.footer for footer content (it DOES exist even with responseMode=0)
+gLayout.footer.text <- "Identify QUANTITY"
+Show(gLayout.footer)
+
+## Create custom labels ONLY when Layout doesn't provide them
+## For response instructions (Layout doesn't provide this without Response System)
+responseInstructionFont <- MakeFont(gPEBLBaseFont, 0, Round(20 * gLayout.scale), fg, gBG, 1)
+gResponseInstruction <- MakeLabel("", responseInstructionFont)
+AddObject(gResponseInstruction, gWin)
+Move(gResponseInstruction, gLayout.centerX, gLayout.zones.response.y + (gLayout.zones.response.height / 2))
+```
+
+**Common error:**
+```pebl
+## WRONG - creating custom footer when Layout provides one
+gFooter1 <- MakeLabel("footer text", gHeaderFont)
+Move(gFooter1, gLayout.centerX, gVideoHeight - 100)
+AddObject(gFooter1, gWin)
+
+## CORRECT - use Layout's footer
+gLayout.footer.text <- "footer text"
+Show(gLayout.footer)
+
+## The Layout system provides gLayout.footer even with responseMode=0
+## Don't create gFooter1, gFooter2, etc. - use gLayout.footer instead
+```
+
+#### CRITICAL LESSON LEARNED: Stroop Task Migrations (Dec 14, 2025)
+
+**During the stroop-color and stroop-number migrations, a fundamental misunderstanding of Category 3 migrations occurred that wasted significant time and effort.**
+
+**THE MISTAKE:**
+
+Initially, the Stroop tasks were migrated by:
+1. Calling `CreateLayout(taskname, gWin, 0)` to get responsive zones
+2. Creating **custom footer labels** (gFooter1, gFooter2, gFooter1a) positioned using Layout zones
+3. Treating the migration as "use Layout zones for positioning, but create all UI elements yourself"
+
+**This completely defeated the purpose of the Layout system migration.**
+
+**THE CORRECT APPROACH:**
+
+Even with `responseMode=0` (Category 3, no Response System), the Layout system **still provides gLayout.footer**. The correct migration pattern is:
+
+1. Call `CreateLayout(taskname, gWin, 0)` to get responsive zones
+2. **USE gLayout.footer for footer text** - set via `gLayout.footer.text <- "your text"`
+3. Only create custom elements when the Layout system doesn't provide them
+4. For the Stroop tasks, this meant:
+   - **Use gLayout.footer** for secondary info (e.g., "Identify QUANTITY")
+   - **Create custom gResponseInstruction label** for response zone (Layout doesn't provide this without Response System)
+   - Position custom labels using Layout zones: `gLayout.zones.response.y`, `gLayout.zones.response.height`
+
+**KEY PRINCIPLE:**
+
+**"Don't create custom UI elements when the Layout system provides them"**
+
+The Layout system creates these elements as `gLayout` properties:
+- `gLayout.header` - Available in all Layout modes
+- `gLayout.subheader` - Available in all Layout modes
+- `gLayout.footer` - **Available even with responseMode=0**
+- `gLayout.responseLabels` - Only with Response System (responseMode > 0)
+
+**Category 3 migrations should:**
+- ✅ Use `gLayout.header.text` for header content
+- ✅ Use `gLayout.subheader.text` for subheader content
+- ✅ Use `gLayout.footer.text` for footer content
+- ✅ Use Layout zones for positioning: `gLayout.centerX`, `gLayout.centerY`, `gLayout.zones.*`
+- ✅ Create custom elements ONLY when Layout doesn't provide them
+- ❌ Do NOT create gFooter1, gFooter2, or other custom UI elements that duplicate Layout functionality
+
+**This lesson applies to all Category 3 migrations going forward.**
 
 ---
 

@@ -39,21 +39,25 @@ The Layout & Response System provides:
 
 ## Overall Migration Status
 
-**Last Updated**: December 14, 2025
+**Last Updated**: December 14, 2025 (clocktest migration complete, multi-language response mode labels added)
 
 ### Summary Statistics
 
 - **Total tests in upload-battery**: 52
-- **Fully migrated** (Layout + Response): 15 tests (29%)
-- **Ready to migrate** (both systems): 2 tests (4%)
+- **Fully migrated** (Layout + Response): 17 tests (33%) - **✅ ALL Category 1 tests complete**
 - **Need response mode extensions**: 6 tests (12%) - requires 4-choice grid or 4-way directional modes
 - **Layout-only migration**: 15 tests (29%) - includes Stroop tests (4-choice keyboard with verbal interference) and custom response tasks
 - **Not suitable for migration**: 14 tests (27%)
 
-**Realistic targets:**
-- **Full migration** (Layout + Response): 17 tests (33%) - 15 complete + 2 Category 1
-- **With response extensions**: 23 tests (44%) - add 6 Category 2 tests
-- **Layout-only migration**: 38 tests (73%) - add 15 Category 3 tests for UI consistency
+**Available response modes:**
+- **2-option modes**: auto, keyboardShift, keyboardSafe, arrowLR, mousetarget, touchtarget, mousebutton
+- **Single-response modes**: spacebar, leftclick, touchscreen, clicktarget
+- **Specialized modes**: mouseOnly (for drawing/clicking tasks)
+
+**Migration achievements:**
+- **Full migration** (Layout + Response): 17 tests (33%) - **✅ ACHIEVED Dec 14, 2025**
+- **With response extensions**: 23 tests (44%) - add 6 Category 2 tests (next phase)
+- **Layout-only migration**: 38 tests (73%) - add 15 Category 3 tests for UI consistency (optional phase)
 
 ## Semantic Label Migration Status
 
@@ -84,19 +88,20 @@ Tests using true semantic labels with `responselabels` parameter:
 
 | Test | Status | Current Labels | Should Be | Migration Date | Notes |
 |------|--------|----------------|-----------|----------------|-------|
-| **luckvogel** | ✅ | SAME / DIFFERENT | ✓ Correct | Dec 11, 2025 | Synced to upload-battery |
-| **evenodd** | ✅ | ODD / EVEN | ✓ Correct | Dec 11, 2025 | Synced to upload-battery |
-| **dotjudgment** | ✅ | LEFT / RIGHT | ✓ Correct (spatial) | Dec 6, 2025 | Synced to upload-battery |
+| **luckvogel** | ✅ | SAME / DIFFERENT | ✓ Correct | Dec 11, 2025 | Synced to upload-battery. arrowLR added Dec 14, 2025 |
+| **evenodd** | ✅ | ODD / EVEN | ✓ Correct | Dec 11, 2025 | Synced to upload-battery. arrowLR added Dec 14, 2025 |
+| **dotjudgment** | ✅ | LEFT / RIGHT | ✓ Correct (spatial) | Dec 6, 2025 | Synced to upload-battery. arrowLR added Dec 14, 2025 |
 | **flanker** | ✅ | LEFT / RIGHT | ✓ Correct (directional) | Dec 6, 2025 | Synced to upload-battery |
-| **manikin** | ✅ | LEFT / RIGHT | ✓ Correct (spatial) | Dec 6, 2025 | Synced to upload-battery |
+| **manikin** | ✅ | LEFT / RIGHT | ✓ Correct (spatial) | Dec 6, 2025 | Synced to upload-battery. arrowLR added Dec 14, 2025 |
 | **simon** | ✅ | RED / BLUE | ✓ Correct | Dec 11, 2025 | Tested & synced to upload-battery |
 | **BST** | ✅ | CIRCLE / SQUARE | ✓ Correct | Dec 11, 2025 | Tested & synced to upload-battery |
 | **gonogo** | ✅ | GO (singlekey) | ✓ Correct | Dec 11, 2025 | 4 modes: spacebar, leftclick, touchscreen, clicktarget. Synced to upload-battery |
 | **oddball** | ✅ | CIRCLE / SQUARE | ✓ Correct | Dec 11, 2025 | Semantic labels, touchtarget fix. Synced to upload-battery |
 | **crt** | ✅ | LEFT / RIGHT | ✓ Correct (positional) | Dec 11, 2025 | Semantic-first architecture. Synced to upload-battery |
-| **wpt** | ✅ | RAIN / SUN | ✓ Correct | Dec 11, 2025 | Semantic labels with translated "Tap for" prefix for touchtarget mode. Synced to upload-battery |
-| **ANT** | ✅ | LEFT / RIGHT | ✓ Correct (directional) | Dec 13, 2025 | 8 translations updated (en, es, fr, de, it, nl, pt, br). 5 parameter files. Synced to upload-battery |
+| **wpt** | ✅ | RAIN / SUN | ✓ Correct | Dec 11, 2025 | Semantic labels with translated "Tap for" prefix for touchtarget mode. Synced to upload-battery. arrowLR added Dec 14, 2025 |
+| **ANT** | ✅ | LEFT / RIGHT | ✓ Correct (directional) | Dec 13, 2025 | 8 translations updated (en, es, fr, de, it, nl, pt, br). 6 parameter files (added arrowLR Dec 14). Synced to upload-battery |
 | **pcpt** | ✅ | GO (singlekey) | ✓ Correct | Dec 14, 2025 | 10 translations (de, en, es, fr, he, hr, it, nl, pt, tr). 4 modes (spacebar/leftclick/touchscreen/clicktarget). Non-blocking visual feedback. Parameterized letters. Synced to upload-battery |
+| **TNT** | ✅ | NO / YES | ✓ Correct | Dec 14, 2025 | Dynamic semantic labels (NO/YES), arrowLR mode, 7 translations (de, en, es, fr, it, nl, pt). Synced to upload-battery |
 | **template** | ⚠️ | LEFT / RIGHT | Example labels | Dec 4, 2025 | Needs semantic update |
 
 ### How to Update Tests with Semantic Labels
@@ -144,8 +149,8 @@ Draw()
 
 ### Upload-battery/ Sync Status
 
-All 14 tests (except template) have been synced from battery/ to upload-battery/:
-- Synced: ANT, BST, crt, dotjudgment, evenodd, flanker, gonogo, luckvogel, manikin, oddball, pcpt, pcpt-ax, simon, srt, wpt
+All 15 tests (except template) have been synced from battery/ to upload-battery/:
+- Synced: ANT, BST, crt, dotjudgment, evenodd, flanker, gonogo, luckvogel, manikin, oddball, pcpt, pcpt-ax, simon, srt, TNT, wpt
 - Last updated: Dec 14, 2025
 
 **Note**: When semantic labels are added to battery/ tests, they must be re-synced to upload-battery/.
@@ -185,24 +190,25 @@ This section provides a comprehensive assessment of all remaining upload-battery
 | ~~**srt**~~ | ✅ **COMPLETE** | ✅ EASY | ✅ COMPATIBLE | kbd | **MIGRATED Dec 14, 2025** - Single-key response, 4 modes (spacebar/leftclick/touchscreen/clicktarget), 7 translations, trial counter, visual feedback |
 | ~~**pcpt**~~ | ✅ **COMPLETE** | ✅ EASY | ✅ COMPATIBLE | kbd | **MIGRATED Dec 14, 2025** - Single-key CPT, 4 modes, 10 translations, non-blocking visual feedback, parameterized letters |
 | ~~**pcpt-ax**~~ | ✅ **COMPLETE** | ✅ EASY | ✅ COMPATIBLE | kbd | **MIGRATED Dec 14, 2025** - AX-CPT variant, single-key (4 modes), 10 translations, non-blocking visual feedback, larger instruction textbox |
-| **TNT** | 🟡 MEDIUM | ✅ EASY | ✅ COMPATIBLE | kbd | 2-alt think/no-think (currently uses arrow keys semantically) |
-| **clocktest** | 🟡 MEDIUM | ⚠️ MODERATE | ✅ COMPATIBLE | kbd/mouse | Single response - challenge is scaling clock drawing canvas to fit stimulus region |
+| ~~**TNT**~~ | ✅ **COMPLETE** | ✅ EASY | ✅ COMPATIBLE | kbd | **MIGRATED Dec 14, 2025** - 2-alt think/no-think, arrowLR mode, dynamic semantic labels, 7 translations |
+| ~~**clocktest**~~ | ✅ **COMPLETE** | ⚠️ MODERATE | ✅ COMPATIBLE | kbd/mouse | **MIGRATED Dec 14, 2025** - Mackworth Clock vigilance task, 3 modes (spacebar/leftclick/touchscreen), custom zones (500px stimulus), 7 translations, clock scaling with 240px max radius |
 
 **Migration Notes:**
 - All use standard trial structure with central stimulus
-- All keyboard-based with 1-2 response options (except clocktest which uses mouse for drawing)
+- All keyboard-based with 1-2 response options
 - Can use existing layout zones and response modes
-- **2-alternative tasks**: ~~ANT (COMPLETE)~~, TNT (verified via code inspection)
-- **Single-response tasks**: ~~srt (COMPLETE)~~, ~~pcpt (COMPLETE)~~, ~~pcpt-ax (COMPLETE)~~, clocktest - use single-key mode like gonogo (spacebar, leftclick, touchscreen, or clicktarget)
-- **clocktest** uses single-key response mode; main challenge is scaling the clock drawing canvas to fit within stimulus region
+- **2-alternative tasks**: ~~ANT (COMPLETE)~~, ~~TNT (COMPLETE)~~
+- **Single-response tasks**: ~~srt (COMPLETE)~~, ~~pcpt (COMPLETE)~~, ~~pcpt-ax (COMPLETE)~~, ~~clocktest (COMPLETE)~~ - use single-key mode like gonogo (spacebar, leftclick, touchscreen, or clicktarget)
 
 **Estimated effort**: 2-3 hours per test (3-4 hours for clocktest due to canvas scaling)
 
-**Completed**:
-- ANT (Dec 13, 2025) - 2-alt task with 8 translations and 5 parameter files
+**All Category 1 tests COMPLETE** (Dec 14, 2025):
+- ANT (Dec 13, 2025) - 2-alt task with 8 translations and 5 parameter files. arrowLR added Dec 14, 2025
 - srt (Dec 14, 2025) - Single-key task with 4 response modes, 7 translations, trial counter, visual feedback
 - pcpt (Dec 14, 2025) - Single-key CPT with 4 modes, 10 translations, non-blocking visual feedback, parameterized target/foil letters
 - pcpt-ax (Dec 14, 2025) - AX-CPT variant with 4 modes, 10 translations, non-blocking visual feedback, larger instruction textbox (800×600)
+- TNT (Dec 14, 2025) - 2-alt think/no-think with arrowLR mode, dynamic semantic labels (NO/YES), 7 translations
+- clocktest (Dec 14, 2025) - Mackworth Clock vigilance task with 3 modes (spacebar/leftclick/touchscreen), custom zones maximizing clock space (500px stimulus on 800x600), 7 translations, adaptive clock radius (240px max, scales down proportionally for small screens)
 
 ---
 
@@ -352,19 +358,15 @@ To migrate Category 2 tests, the following response modes need to be implemented
 
 ### Migration Recommendations & Priorities
 
-#### Immediate Priority: Category 1 Tests (4 remaining)
+#### ✅ Category 1 Tests - ALL COMPLETE (Dec 14, 2025)
 
-**Completed**:
-1. ✅ **ANT** - COMPLETE (Dec 13, 2025) - 2-alt attention network test with 8 translations
+**All 6 tests migrated**:
+1. ✅ **ANT** - COMPLETE (Dec 13, 2025) - 2-alt attention network test with 8 translations. arrowLR added Dec 14, 2025
 2. ✅ **srt** - COMPLETE (Dec 14, 2025) - Simple RT with 4 response modes, 7 translations, trial counter, visual feedback
 3. ✅ **pcpt** - COMPLETE (Dec 14, 2025) - Continuous performance task with 4 modes, 10 translations, non-blocking visual feedback
 4. ✅ **pcpt-ax** - COMPLETE (Dec 14, 2025) - AX-CPT variant with 4 modes, 10 translations, non-blocking visual feedback, larger instruction textbox
-
-**Medium priority** - Should migrate soon:
-5. **TNT** - 2-alt think/no-think paradigm
-6. **clocktest** - Clock drawing test, single response (requires canvas scaling to stimulus region)
-
-**Estimated total effort**: 4-7 hours for remaining 2 tests
+5. ✅ **TNT** - COMPLETE (Dec 14, 2025) - 2-alt think/no-think with arrowLR mode, dynamic semantic labels (NO/YES), 7 translations
+6. ✅ **clocktest** - COMPLETE (Dec 14, 2025) - Mackworth Clock vigilance task with 3 modes (spacebar/leftclick/touchscreen), custom zones (500px stimulus on 800x600), 7 translations, adaptive clock radius (240px max)
 
 #### Medium Priority: Category 2 Tests (6 tests - after response modes implemented)
 
@@ -408,22 +410,94 @@ These tests should NOT be migrated:
 
 ---
 
+### arrowLR Response Mode
+
+**Added**: December 14, 2025
+
+A new global response mode `arrowLR` was added to support 2-option tasks using left/right arrow keys. This mode is suitable for tasks where arrow keys provide a more intuitive directional response than shift keys.
+
+**Mode definition** (`media/settings/response-modes.json`):
+```json
+"arrowLR": {
+  "type": "keyboard",
+  "keys": ["<left>", "<right>"],
+  "labels": ["←", "→"],
+  "semantic": ["left", "right"],
+  "platforms": ["all"],
+  "comment": "Left/right arrow keys for two-option tasks"
+}
+```
+
+**Label formatting**: For 2-option keyboard modes (including arrowLR), labels are displayed symmetrically with keys on the inside:
+- Left label: `"semantic key"` (e.g., "NO ←", "ODD ←", "left ←")
+- Right label: `"key semantic"` (e.g., "→ YES", "→ EVEN", "→ right")
+
+This creates visual symmetry where the arrow keys point toward the center of the screen.
+
+**Tasks with arrowLR support** (as of Dec 14, 2025):
+- **ANT** - Attention Network Test (directional cues)
+- **BST** - Binary Search Task (spatial targets)
+- **crt** - Choice Reaction Time (positional stimuli)
+- **dotjudgment** - Dot Judgment (spatial comparison)
+- **evenodd** - Even/Odd Judgment (with semantic labels ODD/EVEN)
+- **flanker** - Eriksen Flanker Task (directional responses)
+- **luckvogel** - Luck & Vogel Visual Working Memory (same/different)
+- **manikin** - Manikin Test (spatial orientation)
+- **oddball** - Oddball Task (target detection)
+- **simon** - Simon Task (spatial congruency)
+- **TNT** - Think/No-Think Task (with semantic labels NO/YES)
+- **wpt** - Weather Prediction Task (rain/sun)
+
+**When to use arrowLR**:
+- Tasks with inherently directional or spatial responses (left/right, up/down concepts)
+- Tasks where arrow keys are more intuitive than alphabetic keys
+- As an alternative to shift keys for users who prefer arrow navigation
+- Tasks with semantic meanings that map well to left/right (odd/even, no/yes, same/different when combined with responselabels)
+
+**How to add arrowLR to a task**:
+
+1. Add `"arrowLR"` to the responsemode options in `params/taskname.pbl.schema.json`:
+```json
+{
+  "name": "responsemode",
+  "type": "string",
+  "default": "auto",
+  "options": ["auto", "keyboardShift", "keyboardSafe", "arrowLR", "mousetarget", "mousebutton"],
+  "description": "Response method: auto (platform-aware), keyboardShift (L/R shift), keyboardSafe (Z/slash for web), arrowLR (left/right arrows), mousetarget (click targets), mousebutton (L/R mouse buttons)"
+}
+```
+
+2. Create a parameter preset file `params/taskname-arrowLR.par.json`:
+```json
+{
+  "responsemode": "arrowLR"
+}
+```
+
+3. Test the task with arrowLR mode:
+```bash
+bin/pebl2 battery/taskname/taskname.pbl -s 1 --pfile params/taskname-arrowLR.par.json
+```
+
+**Note**: No changes to the main .pbl file are needed. The Layout & Response System automatically handles arrowLR mode when it's specified as the responsemode parameter.
+
+---
+
 ### Summary Statistics
 
 **Total upload-battery tests**: 52
 
 **Migration status breakdown:**
-- ✅ **Already migrated**: 15 tests (29%)
-- 🟢 **Category 1** (ready to migrate): 2 tests (4%)
+- ✅ **Already migrated**: 17 tests (33%) - **Category 1 COMPLETE!**
 - 🟡 **Category 2** (needs response extensions): 6 tests (12%)
 - 🟠 **Category 3** (layout-only): 15 tests (29%)
 - 🔴 **Category 4** (not suitable): 14 tests (27%)
 
 **Realistic migration targets:**
-- **Full migration** (Layout + Response): 17 tests (33% of battery)
-  - 15 already complete + 2 Category 1
+- **Full migration** (Layout + Response): 17 tests (33% of battery) - **✅ ACHIEVED Dec 14, 2025**
+  - All 17 Category 1 tests complete with multi-platform support
 - **With response mode extensions**: 23 tests (44% of battery)
-  - Add 6 Category 2 tests after implementing new modes
+  - Add 6 Category 2 tests after implementing new modes (4-choice grid, 4-way directional)
 - **Layout-only** (UI consistency): 38 tests (73% of battery)
   - Add 15 Category 3 tests with custom response handling (includes high-value Stroop tests)
 
@@ -433,15 +507,15 @@ These tests should NOT be migrated:
 
 ### Next Steps
 
-**Phase 1: Complete Category 1 migrations (Immediate)**
+**Phase 1: Complete Category 1 migrations - ✅ COMPLETE (Dec 14, 2025)**
 1. ✅ ANT - COMPLETE (Dec 13, 2025)
 2. ✅ srt - COMPLETE (Dec 14, 2025)
 3. ✅ pcpt - COMPLETE (Dec 14, 2025)
 4. ✅ pcpt-ax - COMPLETE (Dec 14, 2025)
-5. Migrate TNT, clocktest (2 remaining)
-6. Use existing Layout & Response systems
-7. Estimated: 4-7 hours total
-8. **Impact**: Brings total to 17 fully-migrated tests (33% of battery)
+5. ✅ TNT - COMPLETE (Dec 14, 2025)
+6. ✅ clocktest - COMPLETE (Dec 14, 2025)
+7. **Result**: All 17 Category 1 tests fully migrated (33% of battery)
+8. **Achievement**: Full multi-platform support for all standard 2-choice and single-response tasks
 
 **Phase 2: Implement response mode extensions (Medium-term)**
 1. Develop 4-choice grid response mode
@@ -479,7 +553,7 @@ Add a new parameter to your schema:
   "default": "auto",
   "options": ["auto", "keyboardShift", "keyboardSafe", "mousetarget", "mousebutton"],
   "label": "Response Mode",
-  "description": "Response method: auto (platform-aware), keyboardShift (L/R shift), keyboardSafe (Z/slash for web), mousetarget (click targets), mousebutton (L/R mouse buttons)"
+  "description": "Response method: auto (platform-aware), keyboardShift (L/R shift), keyboardSafe (Z/slash for web), arrowLR (left/right arrows), mousetarget (click targets), mousebutton (L/R mouse buttons)"
 }
 ```
 
@@ -1338,7 +1412,7 @@ define Trial(number)
       "name": "responsemode",
       "type": "string",
       "default": "auto",
-      "options": ["auto", "keyboardShift", "keyboardSafe", "mousetarget", "mousebutton"],
+      "options": ["auto", "keyboardShift", "keyboardSafe", "arrowLR", "mousetarget", "mousebutton"],
       "description": "Response method..."
     }
   ]

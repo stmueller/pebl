@@ -44,6 +44,15 @@
 
 define Start(lPar)
 {
+
+  gWin <- MakeWindow("black")
+
+  ## Get subject number BEFORE creating layout
+  if(gSubNum+""=="0")
+   {
+     gSubNum <- GetSubNum(gWin)
+   }
+
   InitializeUpload()  ## Initialize token-based hosting if upload.json exists
 
   gScriptName <- "PEBL PVT"
@@ -70,17 +79,64 @@ define Start(lPar)
                 ["TooFast",150],           ## trial is marked too fast if rt < 150 ms
                 ["Lapse", 500],             ## trial is marked lapse if it is > 500 ms
                 ["Sleepattack", 30000],           ## trial is 'sleep attack' if > 30 s
-                ["usemouse",0]
-               ]
+                ["responsemode","spacebar"]]  ## Single-key response mode (spacebar, leftclick, touchscreen, clicktarget)
 
 
 
     gParams <- CreateParameters(parpairs,gParamFile)
+   ## Create layout with response system (after GetStrings and Initialize)
+   gLayout <- CreateLayout("ppvt", gWin, gParams)
 
+  ## Initialize global objects for use later. Defined at end of file
+  Initialize()
 
    ##Set glanguage here to hard-code a language:
    ## gLanguage <- "EN"
    GetStrings(gLanguage)
+
+ 
+
+   ## DEBUG: Check what's in the response mode
+   Print("DEBUG: responseMode type = " + gLayout.responseMode.type)
+   Print("DEBUG: responseMode semantic = " + gLayout.responseMode.semantic)
+   Print("DEBUG: All properties in responseMode:")
+   Print(GetPropertyList(gLayout.responseMode))
+   if(PropertyExists(gLayout.responseMode, "labels"))
+   {
+     Print("DEBUG: responseMode labels = " + gLayout.responseMode.labels)
+   } else {
+     Print("DEBUG: responseMode labels property MISSING")
+   }
+   if(PropertyExists(gLayout.responseMode, "footerInstruction"))
+   {
+     Print("DEBUG: responseMode footerInstruction = " + gLayout.responseMode.footerInstruction)
+   } else {
+     Print("DEBUG: responseMode footerInstruction property MISSING")
+   }
+   if(PropertyExists(gLayout.responseMode, "footerinstruction"))
+   {
+     Print("DEBUG: responseMode footerinstruction (lowercase) = " + gLayout.responseMode.footerinstruction)
+   }
+
+   ## Now position objects using Layout zones
+   Move(gInstructions, gLayout.centerX-300, gLayout.centerY-150)
+   Move(gStim, gLayout.centerX, gLayout.centerY)
+   Move(gFixation, gLayout.centerX, gLayout.centerY)
+   Move(gFeedback, gLayout.centerX, gLayout.centerY)
+
+   ## Configure layout visibility - PVT doesn't use header/subheader
+   ## Footer shows automatic response instruction from response-modes.json
+   gLayout.header.visible <- 0
+   gLayout.subheader.visible <- 0
+   gLayout.footer.visible <- 1
+
+   ## Show/hide cursor based on response mode
+   if(gParams.responsemode == "clicktarget" or gParams.responsemode == "leftclick" or gParams.responsemode == "touchscreen")
+   {
+     ShowCursor(1)  ## Show cursor for mouse modes
+   } else {
+     ShowCursor(0)  ## Hide cursor for keyboard modes
+   }
 
    ##Type: 1 indicates a total time limit   (time is in totalTime);
    ##Type: 2 indicates a block-number limit (Number is in numBlocks);
@@ -118,9 +174,6 @@ define Start(lPar)
    gLapse   <- gParams.lapse             ## trial is marked lapse if it is > 500 ms
    gSleep   <- gParams.sleepattack       ## trial is 'sleep attack' if > 30 s
 
-  ## Initialize global objects for use later. Defined at end of file
-  Initialize()
-
    datafile <- GetNewDataFile(gSubNum,gWin,"ppvt","csv",
                    "sub,block,trial,ISI,ISIbin,abstime,rt,type")
 
@@ -130,11 +183,11 @@ define Start(lPar)
   ####################################################
   ## Begin presenting and collecting data
   ####################################################
-   ## Give instructions; wait for them to hit a key,
+   ## Give instructions; wait for response
    SetText(gInstructions,gInst1)
    Show(gInstructions)
    Draw()
-   WaitForKeyPress(" ")
+   WaitForLayoutResponse(gLayout)
    Hide(gInstructions)
    Draw()
 
@@ -143,16 +196,7 @@ define Start(lPar)
   ##
   ## Set up the basic  environment
   ##
-   footer <- Easylabel(gStrings.footer,gVideoWidth/2,gVideoHeight-150,gWin,25)
-
-  if(gParams.usemouse)
-   {
-    foot2 <- gStrings.footermouse
-   } else {
-    foot2 <- gStrings.footerkey
-   }
-
-   footer2 <- EasyLabel(foot2,gVideoWidth/2,gVideoHeight-120,gWin,20)
+  ## (Footer now handled by Layout system - configured in Start())
 
    ## data structures which save data for analysis and
    ## report at end of study.
@@ -327,45 +371,36 @@ define Start(lPar)
 define Initialize()
 {
   ##Initialize Window, etc.
-  gWin <- MakeWindow("black")
+
 
   ##Initialize Font and colors
 
-  if(gSubNum==0)
-   {
-     gSubNum <- GetSubNum(gWin)
-   }
-
-
    black <- MakeColor("black")
    white <- MakeColor("white")
-
 
    instructionsFont <- MakeFont(gPEBLBaseFont,0,16, black,white,1)
    stimFont <- MakeFont(gPEBLBaseFontMono,0,54, white, black,1)
    feedbackFont <- MakeFont(gPEBLBaseFont,0,30, white, black,1)
 
-   ## Make and place the instruction box, then hide it
+   ## Create objects and add to window (positioning happens in Start() after CreateLayout)
    gInstructions <- MakeTextBox("", instructionsFont, 600,300)
    AddObject(gInstructions, gWin)
-   Move(gInstructions, gVideoWidth/2-300, gVideoHeight/2-150)
    Hide(gInstructions)
 
-   gStim <- Circle(gVideoWidth/2,gVideoHeight/2,20,gColor,1)
+   ## Stimulus circle (positioned later using Layout coordinates)
+   gStim <- Circle(0, 0, 20, gColor, 1)
    AddObject(gStim, gWin)
    Hide(gStim)
 
+   ## Fixation cross (positioned later)
    gFixation <- MakeLabel("+",stimFont)
    AddObject(gFixation, gWin)
-   Move(gFixation, gVideoWidth/2, gVideoHeight/2)
    Hide(gFixation)
 
+   ## Feedback label (positioned later)
    gFeedback <- MakeLabel("",feedbackFont)
    AddObject(gFeedback,gWin)
-   Move(gFeedback, gVideoWidth/2, gVideoHeight/2)
    Hide(gFeedback)
-
-   ShowCursor(0)
  }
 
 ## This prints to both the file and the stdout.
@@ -508,19 +543,17 @@ define Rnd(num,sig)
 
 define GetResponse(isi)
 {
-      if(gParams.usemouse)
-      {
-       resp1 <- WaitForMouseButtonWithTimeout(isi)
+  ## Use Layout & Response System for platform-independent response collection
+  ## WaitForLayoutResponse returns semantic response ("go") or "<timeout>"
+  resp <- WaitForLayoutResponse(gLayout, isi)
 
-       if(resp1 !="<timeout>")  ##recode response to " "
-       {
-           resp1 <-" "
-       }
-      }else{
-
-          resp1 <- WaitForListKeyPressWithTimeout([" "],isi,1)
-
-      }
+  ## Convert semantic response to legacy format for backward compatibility
+  if(resp == "go")
+  {
+    resp1 <- " "
+  } else {
+    resp1 <- "<timeout>"
+  }
 
   return resp1
 }
@@ -531,16 +564,9 @@ define GetStrings(lang)
 {
   gStrings <- GetTranslations("ppvt", lang)
 
-
-  if(gParams.usemouse)
-   {
-    gInst1 <-gStrings.inst1mouse
-   }else{
-    gInst1 <-gStrings.inst1key
-   }
+  ## Use single platform-independent instruction
+  ## Layout system footer shows correct response method automatically
+  gInst1 <- gStrings.inst1
   gTooFastText <- gStrings.toofast
   gFinalInst <- gStrings.debrief
-
-
-
 }

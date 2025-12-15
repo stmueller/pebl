@@ -75,9 +75,11 @@ define Start(lPar)
   ##
 
   gSleepEasy <- 1
-  Initialize()
-  InitializeUpload()  ## Initialize token-based hosting if upload.json exists
+  ##Initialize Window, etc.
+  gWin <- MakeWindow()
 
+
+  
   if(gSubNum+""=="0")
    {
      gSubNum <- GetSubNum(gWin)
@@ -87,6 +89,8 @@ define Start(lPar)
 
   ## Create layout - response labels come from response-modes.json
   gLayout <- CreateLayout("SimpleRT", gWin, gParams)
+  Initialize()
+  InitializeUpload()  ## Initialize token-based hosting if upload.json exists
 
   ## Make subheader visible for trial counter
   gLayout.subheader.visible <- 1
@@ -304,8 +308,6 @@ define Start(lPar)
 ##  objects used in experiments.
 define Initialize()
 {
-  ##Initialize Window, etc.
-  gWin <- MakeWindow()
 
   ##Initialize Font and colors
    fg <- MakeColor("white")

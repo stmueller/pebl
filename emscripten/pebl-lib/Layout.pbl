@@ -65,16 +65,24 @@ define CreateLayout(testName, win, params:0)
     ## Create UI elements
     layout <- CreateLayoutElements(layout)
 
-    ## Create response labels
-    layout <- CreateResponseLabels(layout, Round(config.zones.response.fontSize * scale))
-
-    ## Hide footer if response mode requests it (e.g., touchtarget mode)
-    if(PropertyExists(responseMode, "hideFooter"))
+    ## Create response labels (only if mode is not "none")
+    if(responseMode.type != "none")
     {
-        if(responseMode.hideFooter)
+        layout <- CreateResponseLabels(layout, Round(config.zones.response.fontSize * scale))
+
+        ## Hide footer if response mode requests it (e.g., touchtarget mode)
+        if(PropertyExists(responseMode, "hideFooter"))
         {
-            layout.footer.visible <- 0
+            if(responseMode.hideFooter)
+            {
+                layout.footer.visible <- 0
+            }
         }
+    } else {
+        ## No response UI - set empty lists and hide footer
+        layout.responseLabels <- []
+        layout.responseBorders <- []
+        layout.footer.visible <- 0
     }
 
     ## Add top-level center coordinates for convenience

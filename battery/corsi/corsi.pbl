@@ -87,19 +87,67 @@ define Start(p)
   gHighlightColor <- MakeColor("khaki")
 
 
-  gScale <- 3                 ##scale between mm and pixels.
-  gTargetSize <- 30 * gScale
   gSleepEasy <- 1
   gWin <- MakeWindow("black")
-
-  gHomeX <- gVideoWidth/2
-  gHomeY <- gVideoHeight/2
 
 
   if(gSubNum+""=="0")
    {
      gSubNum <- GetSubNum(gWin)
    }
+
+  ## Create layout with "none" response mode (Category 3 migration)
+  gParams.responsemode <- "none"
+  gLayout <- CreateLayout("corsi", gWin, gParams)
+
+  ## Calculate adaptive scaling based on stimulus zone + response zone
+  ## Corsi field dimensions in mm (from Kessels et al 2000)
+  ## X range: 15-195mm (width = 180mm, center-to-center)
+  ## Y range: 20-155mm (height = 135mm, center-to-center)
+  ## Block size: 30mm (extends 15mm beyond centers on each side)
+  blockSizeMM <- 30
+  corsiWidthMM <- 180    ## 195 - 15 (center-to-center)
+  corsiHeightMM <- 135   ## 155 - 20 (center-to-center)
+
+  ## Total extent including block size extending beyond centers
+  ## Blocks extend from (15-15)mm to (195+15)mm in X = 0 to 210mm
+  ## Blocks extend from (20-15)mm to (155+15)mm in Y = 5 to 170mm
+  corsiTotalWidthMM <- corsiWidthMM + blockSizeMM   ## 210mm total extent
+  corsiTotalHeightMM <- corsiHeightMM + blockSizeMM  ## 165mm total extent
+
+  ## Calculate available space: stimulus region + response zone (DONE button goes in footer)
+  availWidth <- gLayout.stimulusRegion.width - 40   ## 20px margin each side
+  availHeight <- gLayout.stimulusRegion.height + gLayout.zones.response.height - 40
+
+  ## Calculate scaling factor based on total extent (including block size)
+  scaleFactorW <- availWidth / corsiTotalWidthMM
+  scaleFactorH <- availHeight / corsiTotalHeightMM
+
+  ## Use the constraining factor (smallest scale that fits)
+  gScale <- Min([scaleFactorW, scaleFactorH])
+  gTargetSize <- 30 * gScale
+
+  ## Calculate actual Corsi field dimensions using gScale
+  gCorsiWidth <- corsiWidthMM * gScale
+  gCorsiHeight <- corsiHeightMM * gScale
+
+  ## Calculate offsets to center the Corsi field in stimulus+response region
+  ## The Corsi coordinates range from 15-195mm in x and 20-155mm in y
+  ## So the center of the field in mm coordinates is:
+  corsiCenterMM_X <- 15 + corsiWidthMM/2   ## 15 + 90 = 105mm
+  corsiCenterMM_Y <- 20 + corsiHeightMM/2  ## 20 + 67.5 = 87.5mm
+
+  ## Horizontal centering
+  gCorsiOffX <- gLayout.centerx - corsiCenterMM_X * gScale
+
+  ## Vertical centering: center within stimulus + response zones
+  combinedHeight <- gLayout.stimulusRegion.height + gLayout.zones.response.height
+  combinedCenterY <- gLayout.stimulusRegion.y + combinedHeight/2
+  gCorsiOffY <- combinedCenterY - corsiCenterMM_Y * gScale
+
+  ## Use layout center points for general positioning
+  gHomeX <- gLayout.centerx
+  gHomeY <- combinedCenterY
 
 
 
@@ -134,7 +182,14 @@ define Start(p)
    FilePrint(gLogFile, gSubNum + "," + gLanguage + "," + TimeStamp()+",CORSI,"+dirlabel+",INITIATED")
   Draw()
 
-  inst <- EasyTextBox("",gHomeX-350,50,gWin,20,700,500)
+  ## Use AdaptiveTextBox for better instruction display with increased font size
+  inst <- AdaptiveTextBox("",
+                          gLayout.stimulusRegion.x + 20,
+                          gLayout.stimulusRegion.y + 20,
+                          gWin, 30,
+                          gLayout.stimulusRegion.width - 40,
+                          gLayout.stimulusRegion.height - 40,
+                          "scalefont")
 
 
 
@@ -162,18 +217,64 @@ define Start(p)
   ## reason to do otherwise.
   if(gParams.UseCorsiPoints)
    {
+      ## Use pre-calculated offsets to center Corsi field in stimulus region
+      targxy <- CorsiPoints(gCorsiOffX, gCorsiOffY, gScale)
 
-      ##The actual points range from 15 to 195,
-      ##and we want them centered at gHomeX.
-      ##Lets compute the x offset to make it work.
-      ##
-       width <- (195-15)*gScale
-       targxy <- CorsiPoints(gHomeX-width/2,30,gScale)
+      ## Debug: Print layout dimensions and target positions
+      Print("=== LAYOUT DIMENSIONS ===")
+      Print("Stimulus region: x=" + gLayout.stimulusRegion.x + " y=" + gLayout.stimulusRegion.y +
+            " w=" + gLayout.stimulusRegion.width + " h=" + gLayout.stimulusRegion.height)
+      Print("Response zone: y=" + gLayout.zones.response.y + " h=" + gLayout.zones.response.height)
+      Print("Combined height: " + (gLayout.stimulusRegion.height + gLayout.zones.response.height))
+      Print("Available space: w=" + availWidth + " h=" + availHeight)
+      Print("=== SCALING ===")
+      Print("Corsi dimensions (center-to-center): " + corsiWidthMM + "mm x " + corsiHeightMM + "mm")
+      Print("Corsi total extent (with blocks): " + corsiTotalWidthMM + "mm x " + corsiTotalHeightMM + "mm")
+      Print("Scale factor: " + gScale + " (from W=" + scaleFactorW + " H=" + scaleFactorH + ")")
+      Print("Block size in pixels: " + gTargetSize)
+      Print("Corsi field in pixels: w=" + gCorsiWidth + " h=" + gCorsiHeight)
+      Print("Corsi offset: x=" + gCorsiOffX + " y=" + gCorsiOffY)
+      Print("=== TARGET POSITIONS (centers) ===")
+      minY <- 99999
+      maxY <- -1
+      loop(i, Sequence(1,9,1))
+      {
+          pt <- Nth(targxy, i)
+          centerY <- Second(pt)
+          topEdge <- centerY - gTargetSize/2
+          bottomEdge <- centerY + gTargetSize/2
+          Print("Target " + i + ": center x=" + First(pt) + " y=" + centerY +
+                " (edges: top=" + Round(topEdge) + " bottom=" + Round(bottomEdge) + ")")
+          if(topEdge < minY) { minY <- topEdge }
+          if(bottomEdge > maxY) { maxY <- bottomEdge }
+      }
+      Print("=== BOUNDS CHECK ===")
+      Print("Left bound: " + gLayout.stimulusRegion.x)
+      Print("Right bound: " + (gLayout.stimulusRegion.x + gLayout.stimulusRegion.width))
+      Print("Top bound: " + gLayout.stimulusRegion.y)
+      Print("Bottom bound: " + (gLayout.zones.response.y + gLayout.zones.response.height))
+      Print("=== EXTENT CHECK ===")
+      Print("Topmost block edge: " + Round(minY))
+      Print("Bottommost block edge: " + Round(maxY))
+      if(minY < gLayout.stimulusRegion.y) {
+          Print("WARNING: Topmost block extends " + Round(gLayout.stimulusRegion.y - minY) + " pixels above top bound!")
+      }
+      bottomBound <- gLayout.zones.response.y + gLayout.zones.response.height
+      if(maxY > bottomBound) {
+          Print("WARNING: Bottommost block extends " + Round(maxY - bottomBound) + " pixels below bottom bound!")
+      }
+      if(minY >= gLayout.stimulusRegion.y and maxY <= bottomBound) {
+          Print("OK: All blocks fit within bounds")
+      }
 
    } else {
 
-
-      targxy <- MakePoints(gHomeX-300,gHomeX+300,30,gVideoHeight-100, gTargetSize*Sqrt(2),9)
+      ## Use stimulus region for random point generation
+      targxy <- MakePoints(gLayout.stimulusRegion.x + 20,
+                          gLayout.stimulusRegion.x + gLayout.stimulusRegion.width - 20,
+                          gLayout.stimulusRegion.y + 20,
+                          gLayout.stimulusRegion.y + gLayout.stimulusRegion.height - 20,
+                          gTargetSize*Sqrt(2),9)
    }
 
 
@@ -242,18 +343,17 @@ define Start(p)
 
       if(gParams.UseCorsiPoints)
       {
-
-      ##The actual points range from 15 to 195,
-      ##and we want them centered at gHomeX.
-      ##Lets compute the x offset to make it work.
-      ##
-       width <- (195-15)*gScale
-       targxy <- CorsiPoints(gHomeX-width/2,30,gScale)
+       ## Use pre-calculated offsets to center Corsi field in stimulus region
+       targxy <- CorsiPoints(gCorsiOffX, gCorsiOffY, gScale)
 
      } else {
 
-
-      targxy <- MakePoints(gHomeX-300,gHomeX+300,30,gVideoHeight-100, gTargetSize*Sqrt(2),9)
+      ## Use stimulus region for random point generation
+      targxy <- MakePoints(gLayout.stimulusRegion.x + 20,
+                          gLayout.stimulusRegion.x + gLayout.stimulusRegion.width - 20,
+                          gLayout.stimulusRegion.y + 20,
+                          gLayout.stimulusRegion.y + gLayout.stimulusRegion.height - 20,
+                          gTargetSize*Sqrt(2),9)
      }
 
 
@@ -357,7 +457,7 @@ define Trial(xy,stimseq, direction)
   len <- Length(stimseq)
 
   ##Make a ready signal.
-  warn <- EasyLabel(gReady,gHomeX,gHomeY,gWin,30)
+  warn <- EasyLabel(gReady, gLayout.centerx, gLayout.centery, gWin, 30)
   Draw()
   Wait(gParams.ITI)
   Hide(warn)
@@ -399,10 +499,25 @@ define Trial(xy,stimseq, direction)
 
   ####################################
   ##Now, collect responses.
-   done <- EasyLabel(gDone,gVideoWidth/2,gVideoHeight/2+gScale*80,gWin,33)
-   doneback <-   Rectangle(gVideoWidth/2,gVideoHeight/2+gScale*80 ,120,30,MakeColor("white"),0)
+   ## Position DONE button in response zone (Category 3 migration)
+  if(direction == -1)
+   {
+      gLayout.header.text <- gStrings.headerback
+   } else {
+      gLayout.header.text <- gStrings.headerforw
+   }
+   glayout.header.font.size <- 22
+   Show(gLayout.header)
+
+
+   ## Calculate center of response zone
+   doneX <- gLayout.centerx
+   doneY <- gLayout.zones.response.y + gLayout.zones.response.height+20
+   done <- EasyLabel(gDone, doneX, doneY, gWin, 40)
+   doneback <- Rectangle(doneX, doneY, done.width+20, done.height+10, MakeColor("white"), 0)
    AddObject(doneback,gWin)
-   SetMouseCursorPosition(Round(gVideoWidth/2),Round(gVideoHeight/2))
+   
+   SetMouseCursorPosition(Round(gLayout.centerx), Round(gLayout.centery))
    ShowCursor(1)
    Draw()
    time0 <- GetTime()
@@ -431,6 +546,7 @@ define Trial(xy,stimseq, direction)
        }
         Wait(250)
         Hide(targ)
+
         Draw()
         resps <- Append(resps,resp)
         rts <- Append(rts,(time2-time1))
@@ -439,7 +555,8 @@ define Trial(xy,stimseq, direction)
        i <- i +1
       }
    }
-
+	Hide(gLayout.header)
+	Draw()
 
   if(direction == -1)
    {
@@ -760,60 +877,10 @@ define GetMinDist(pts)
 
 
 
-##  This function takes a list of anything, and a list of indexes
-##  specifying the items to extract from the list.  The indexes can
-##  be in any order, but the extracted list will be in the order
-##  of the original list.  Items that are not numbers less than or
-##  equal to the length of the list will be ignored.
-define RemoveSubset(list, items)
-{
-   #Check the arguments to insure they are the proper type
-    if(not IsList(list))
-	{
-	    SignalFatalError("First argument of function [RemoveSubset(<list>,<list>)] is not a list")
-	}
-    if(not IsList(items))
-	{
-	    SignalFatalError("First argument of function [RemoveSubset(<list>,<list>)] is not a list")
-	}
-
-
-    returnList <- []      #Make an initial blank list to return
-    index <- 1            #keep track of the index
-    loop(i, list)
-    {
-	#If the index is in the items list, add it to the return list
-	if(not IsMember(index, items))
-	{
-	    returnList <- Append(returnList, i)
-	}
-	index <- index + 1
-    }
-
-    return returnList
-}
-
-define VecSum(a,b)
-{
-   tmp <- Transpose([a,b])
-   out <- []
-   loop(i,tmp)
-   {
-     out <- Append(out, First(i) + Nth(i,2))
-   }
-  return out
-}
-
-define VecTimes(a,b)
-{
-   tmp <- Transpose([a,b])
-   out <- []
-   loop(i,tmp)
-   {
-     out <- Append(out, First(i) * Nth(i,2))
-   }
-  return out
-}
+## Duplicate functions removed - using library versions:
+## - RemoveSubset() is available from Design.pbl
+## - VecSum() is available from Math.pbl
+## - VecTimes() is available from Math.pbl
 
 # Trials reported in: Kessels, R. P. C., van Zandvoort, M. J. E.,
 # Postma, A., Kappelle, L. J., & de Haan, E. H. F. (2000). The Corsi

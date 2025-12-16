@@ -162,6 +162,7 @@ namespace PEBLEnvironment
     Variant IsSquare(Variant v);
     Variant IsRectangle(Variant v);
     Variant IsCustomObject(Variant v);
+    Variant IsPEBLObject(Variant v);
     Variant PlayMovie(Variant v) ;
 
 }

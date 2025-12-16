@@ -517,6 +517,23 @@ bool Variant::Equal(const Variant & rhs) const
         {
             return (this->GetSignal() == rhs.GetSignal());
         }
+    else if (this->IsComplexData() && rhs.IsComplexData())
+        {
+            // Compare complex data objects by their underlying pointer addresses
+            // Two Variants are equal if they reference the SAME object instance
+            PComplexData* pcd1 = this->GetComplexData();
+            PComplexData* pcd2 = rhs.GetComplexData();
+
+            if(!pcd1 || !pcd2)
+                return false;  // One or both are null
+
+            // Get the underlying object pointers and compare
+            counted_ptr<PEBLObjectBase> obj1 = pcd1->GetObject();
+            counted_ptr<PEBLObjectBase> obj2 = pcd2->GetObject();
+
+            // Compare raw pointers - same object instance?
+            return (obj1.get() == obj2.get());
+        }
     return false;
 }
 

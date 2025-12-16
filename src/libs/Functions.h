@@ -397,6 +397,7 @@ namespace PEBLEnvironment
             {(char*)"ISWINDOW",                        IsWindow,           1,1},
             {(char*)"ISSHAPE",                         IsShape,            1,1},
             {(char*)"ISCUSTOMOBJECT",                  IsCustomObject,     1,1},
+            {(char*)"ISPEBLOBJECT",                    IsPEBLObject,       1,1},
             {(char*)"PLAYMOVIE",   PlayMovie,  1,1},
 
 

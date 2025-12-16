@@ -2406,3 +2406,65 @@ define IsDefined(varname)
   return VariableExists(varname)
 }
 
+
+## Recursively print object properties with indentation and circular reference detection
+## Overrides the compiled PrintProperties() function with an interpreted version
+## Parameters:
+##   obj - The object to inspect
+##   recursive:1 - Enable recursive traversal (1=yes, 0=no for top-level only)
+##   depth:5 - Maximum recursion depth (prevents infinite loops)
+##   indent:0 - Current indentation level (internal use)
+##   visited:[] - Track visited objects for circular reference detection (internal use)
+define PrintProperties(obj, recursive:1, depth:5, indent:0, visited:[])
+{
+    ## Handle non-objects
+    if(not IsPEBLObject(obj))
+    {
+        Print(Indent(indent) + obj)
+    } elseif(IsMember(obj, visited)) {
+        ## Check if already visited (circular reference)
+        Print(Indent(indent) + "[Circular reference to " + ("TYPE" + obj) + "]")
+    } elseif(indent >= depth) {
+        ## Check depth limit
+        Print(Indent(indent) + "[Max depth " + depth + " reached]")
+    } else {
+        ## Print object type header at top level
+        if(indent == 0)
+        {
+            Print("Object type: " + ("TYPE" + obj))
+            Print("Properties:")
+        }
+
+        ## Add object to visited list
+        visited <- Append(visited, obj)
+
+        ## Get and print properties
+        propNames <- GetPropertyList(obj)
+        loop(propName, propNames)
+        {
+            value <- GetProperty(obj, propName)
+            if(recursive and IsPEBLObject(value))
+            {
+                Print(Indent(indent) + propName + ": <" + ("TYPE" + value) + ">")
+                PrintProperties(value, recursive, depth, indent + 1, visited)
+            } else {
+                Print(Indent(indent) + propName + ": " + value)
+            }
+        }
+    }
+}
+
+## Helper function to create indentation strings
+define Indent(level)
+{
+    result <- ""
+    if(level > 0)
+    {
+        loop(i, Sequence(1, level, 1))
+        {
+            result <- result + "  "
+        }
+    }
+    return(result)
+}
+

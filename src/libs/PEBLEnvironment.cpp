@@ -2884,6 +2884,24 @@ Variant PEBLEnvironment::IsCustomObject(Variant v)
     return Variant(false);
 }
 
+// Check if value is a PEBL object with properties (font, color, widget, custom object, etc.)
+// Returns true for anything that has properties via GetPropertyList()
+// Excludes lists (which are ComplexData but have no properties)
+Variant PEBLEnvironment::IsPEBLObject(Variant v)
+{
+    PList * plist = v.GetComplexData()->GetList();
+    Variant v1 = plist->First();
+
+    // Must be ComplexData (excludes simple types like numbers/strings)
+    // But must NOT be a list (lists have no properties)
+    if (v1.IsComplexData() && !(v1.GetComplexData()->IsList()))
+    {
+        return Variant(true);
+    }
+
+    return Variant(false);
+}
+
 
 
 

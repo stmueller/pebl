@@ -833,20 +833,10 @@ define Initialize()
   ##Initialize Window, etc.
   gWin <- MakeWindow("grey40")
 
-  ## Create layout system (zones only, no response system)
-  CreateLayout("stroop-color", gWin, 0)
-
-  ## Hide Layout system's response labels (we don't use response system)
-  if(PropertyExists(gLayout, "responseLabels"))
-  {
-    loop(label, gLayout.responseLabels)
-    {
-      Hide(label)
-    }
-  }
-
-  ## Initially hide footer - we'll show it when needed in trials
-  Hide(gLayout.footer)
+  ## Create layout with responsemode="none" (layout zones only, no response UI)
+  gParams.responsemode <- "none"
+  CreateLayout("stroop-color", gWin, gParams)
+  ## Footer is hidden by "none" mode, will show when needed in trials
 
   ShowCursor(0)
   ##Initialize Font and colors

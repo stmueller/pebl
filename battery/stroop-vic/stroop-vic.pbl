@@ -624,29 +624,12 @@ define Initialize()
 
    Getstrings(gLanguage)
 
-   ## Create layout - responseMode=0 for layout-only (no response system)
-   gLayout <- CreateLayout("stroop-vic", gWin, 0)
+   ## Create layout with responsemode="none" (layout zones only, no response UI)
+   gParams.responsemode <- "none"
+   gLayout <- CreateLayout("stroop-vic", gWin, gParams)
    gLayout.header.visible <- 1
    gLayout.subheader.visible <- 0
-   gLayout.footer.visible <- 0  ## Hide footer initially, will show in Block() when we set the text
-
-   ## Hide response labels (we use custom 4-choice keyboard handling)
-   if(IsList(gLayout.responseLabels))
-   {
-     loop(label, gLayout.responseLabels)
-     {
-       Hide(label)
-     }
-   }
-
-   ## Hide response borders if they exist
-   if(IsList(gLayout.responseBorders))
-   {
-     loop(border, gLayout.responseBorders)
-     {
-       Hide(border)
-     }
-   }
+   ## Footer is hidden by "none" mode, will show in Block() when we set the text
 
 }
 

@@ -51,6 +51,7 @@
 #include <stdio.h>
 #include <string>
 #include <algorithm>
+#include <cmath>
 
 //Unicode/utf-8 handling.
 #include "../../../libs/utfcpp/source/utf8.h"
@@ -460,6 +461,14 @@ void PlatformTextBox::SetFont(counted_ptr<PEBLObjectBase> font)
     PComplexData * pcd = new PComplexData(mFontObject);
     PEBLObjectBase::SetProperty("FONT", Variant(pcd));
     delete pcd;
+
+    // Set requestedFontSize when font is set (needed for adaptive textbox scaling)
+    // Only set it if it hasn't been set before (is 0)
+    Variant currentRequestedSize = PEBLObjectBase::GetProperty("REQUESTEDFONTSIZE");
+    if (currentRequestedSize.GetInteger() == 0) {
+        int fontSize = GetPlatformFont()->GetFontSize();
+        PEBLObjectBase::SetProperty("REQUESTEDFONTSIZE", Variant(fontSize));
+    }
 
     PWidget::SetBackgroundColor(GetPlatformFont()->GetBackgroundColor());
     mChanged = true;
@@ -1232,18 +1241,30 @@ bool PlatformTextBox::Draw()
                 Variant numLinesVar = PEBLObjectBase::GetProperty("NUMTEXTLINES");
                 int numLines = numLinesVar.GetInteger();
 
-                if (numLines > 0 && mHeight > 0) {
+                if (numLines > 0 && mHeight > 0 && mWidth > 0) {
                     int lineHeight = GetPlatformFont()->GetTextHeight(mText);
-                    int totalHeightNeeded = numLines * lineHeight;
 
-                    if (totalHeightNeeded > mHeight) {
-                        // Calculate font size needed to fit all lines in available height
-                        // Use 0.98 safety factor to account for rounding and ensure text fits
-                        double heightRatio = (double)mHeight / (double)totalHeightNeeded;
-                        targetSize = std::max((int)(currentFontSize * heightRatio * 0.98), minFontSize);
+                    // Calculate area of box and area of current text
+                    int boxArea = mWidth * mHeight;
+                    int textArea = mWidth * (numLines * lineHeight);
 
+                    if (textArea > boxArea) {
+                        // On first iteration, use area-based calculation
+                        // On subsequent iterations, just decrement by 1
+                        if (iteration == 0) {
+                            // Text doesn't fit - use area ratio for initial estimate
+                            // Font area scales as size², so take square root of area ratio
+                            double areaRatio = (double)boxArea / (double)textArea;
+                            int estimatedSize = (int)(currentFontSize * std::sqrt(areaRatio));
+                            targetSize = std::max(estimatedSize, minFontSize);
+                        } else {
+                            // Subsequent iterations: decrement by 1 point
+                            targetSize = std::max(currentFontSize - 1, minFontSize);
+                        }
+
+                        // Safety: ensure we're actually shrinking, never growing
                         if (targetSize >= currentFontSize) {
-                            targetSize = std::max(currentFontSize - 2, minFontSize);
+                            targetSize = std::max(currentFontSize - 1, minFontSize);
                         }
                     }
                 }

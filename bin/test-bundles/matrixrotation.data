@@ -1,0 +1,673 @@
+#################################################################
+##  PEBL Matrix Rotation Task Version 0.2
+##
+##  For use with PEBL 0.09 or later
+##  http://pebl.sf.net
+##  Part of  The PEBL Psychological Test Battery
+##  2008 Released into Public Domain
+##  by Shane T. Mueller, Ph.D. (smueller at obereed dot net)
+##
+##  This is a simple version of the 'matrix rotation' task
+##  described in the UTC Test Battery test # 11
+##
+##  See: Perez, W. A. Masline, P. J., Ramsey, E. g., and Urban, K. E.,
+##       (1987). Unified tri-services cognitive performance assessment
+## 		 battery: Review and methodology.  DTIC AAMRL-TR-87-007.
+##
+##  See original versions by Phillips (1974) and Damos & Lyall (1984).
+##
+##  Phillips, W. A. (1974). On the Distinction Between Sensory Storage
+##    and Short Term Visual Memory, Perception and Psychophysics, 16,
+##     283-290.
+##
+##  Damos, D. L. and E. A. Lyall. (1984). The Effect of Asymmetric
+##    Transfer on Dual Task Assessment of Voice Technology,
+##	   Proceedings of the Human Factors Society 28th Annual Meeting,
+##     Volume 1, 21-26.
+##
+##
+#################################################################
+
+ define Start(p)
+{
+  ## Initialize upload system (works for both online and native)
+  InitializeUpload()
+
+  parpairs <- [["size",6], #Number of rows/columns in the matrix
+               ["givefeedback",1], ##whether to give feedback
+	       ["condsize",10], ##number of trials of each same/different
+	       ["squaresize",300], ##size of display square, in pixels.
+               ["numpractice",6], ##number of practice trials (3 same, 3 diff)
+               ["responsemode","keyboardShift"]]  ##Response mode for Layout & Response System
+
+  gParams <-CreateParameters(parpairs,gParamFile)
+
+  gSize <- gParams.size
+  giveFeedback <- gParams.givefeedback
+  condsize <- gParams.condsize
+
+  gSleepEasy <- 1
+  gScriptName <- "PEBL Matrix Rotation Test"
+  gWin <- MakeWindow()
+
+  ##Get subject code if we need to:
+   if(gSubNum+""=="0")
+    {
+        gSubNum <- GetSubNum(gWin)
+    }
+
+  GetStrings(gLanguage)
+
+  ## Create layout with response system AFTER GetSubNum
+  gParams.responselabels <- [gStrings.same, gStrings.different]
+  gLayout <- CreateLayout("matrixrotation", gWin, gParams)
+  gLayout.header.visible <- 0
+  gLayout.subheader.visible <- 0
+  gLayout.footer.visible <- 0
+
+  gLinecolor <- MakeColor("Black")
+  gCellempty <- MakeColor("grey20")
+  gCellFull  <-  MakeColor("orange")
+
+
+  gFileOut <- GetNewDataFile(gSubNum,gWin,"matrot","csv",
+        "subnum,trial,practice,samediff,dir,mat1,mat2,studytime,rt,resp,corr")
+
+  instruc <- gStrings.instruc
+
+  inst1 <-  gStrings.inst1
+
+  ##Provide initial instructions
+  ## Position in header/subheader region, max 1000px wide or window width - 50
+  instWidth <- Min([1000, gVideoWidth-50])
+  instHeight <- gLayout.stimulusRegion.y - 20  ## Height of header+subheader region
+  inst <- AdaptiveTextBox(instruc, gVideoWidth/2 - instWidth/2, 10, gWin, 20, instWidth, instHeight, "scalefont")
+
+  ## Show example stimuli in stimulus region
+  ## Create a sample matrix for demonstration
+  exampleMatrix <- MakeMatrix(gSize)
+
+  ## Display two examples side-by-side: same (rotated) and different (foil)
+  leftX <- gLayout.centerX - 200
+  rightX <- gLayout.centerX + 200
+  centerY <- gLayout.centerY
+
+  ## Example 1: SAME (left side) - show original and rotated version
+  exampleRotated <- RotateMatrix(exampleMatrix, "<right>")
+  exampleLeft <- DisplayMatrixAt(exampleMatrix, leftX - 80, centerY - 50, 150)
+  exampleLeftRotated <- DisplayMatrixAt(exampleRotated, leftX + 80, centerY - 50, 150)
+
+  ## Example 2: DIFFERENT (right side) - show original and foil
+  exampleFoil <- MakeFoil(exampleMatrix)
+  exampleRight <- DisplayMatrixAt(exampleMatrix, rightX - 80, centerY - 50, 150)
+  exampleRightFoil <- DisplayMatrixAt(exampleFoil, rightX + 80, centerY - 50, 150)
+
+  ## Labels
+  sameLabel <- EasyLabel("SAME (rotated)", leftX, centerY + 100, gWin, 18)
+  diffLabel <- EasyLabel("DIFFERENT (changed)", rightX, centerY + 100, gWin, 18)
+
+  Draw()
+
+  WaitForLayoutResponse(gLayout, 0)
+
+  ## Remove example stimuli
+  RemoveComplex(exampleLeft, gWin)
+  RemoveComplex(exampleLeftRotated, gWin)
+  RemoveComplex(exampleRight, gWin)
+  RemoveComplex(exampleRightFoil, gWin)
+  RemoveObject(sameLabel, gWin)
+  RemoveObject(diffLabel, gWin)
+  Hide(inst)
+  Draw()
+
+  ## Practice trials
+  if(gParams.numpractice > 0)
+  {
+    practiceConds <- Shuffle(Merge(Repeat("same",gParams.numpractice/2),
+                                    Repeat("diff",gParams.numpractice/2)))
+    trial <- 1
+    loop(cond, practiceConds)
+    {
+      RunTrial(cond, trial, 1, inst1, giveFeedback)
+      trial <- trial + 1
+    }
+
+    ## Pause before main block
+    inst.text <- gStrings.practiceComplete
+    Show(inst)
+    Draw()
+    WaitForLayoutResponse(gLayout, 0)
+    Hide(inst)
+  }
+
+  ## Main trials
+  conds <- Shuffle(Merge(Repeat("same",condsize),
+                          Repeat("diff",condsize)))
+
+  trial <- 1
+  loop(cond,conds)
+   {
+     RunTrial(cond, trial, 0, inst1, giveFeedback)
+     trial <- trial +1
+   }
+
+   inst.text <- gStrings.debrief
+   Show(inst)
+   Draw()
+   WaitForLayoutResponse(gLayout, 0)
+
+  ## Upload data files (works online, no-op on native)
+  UploadFile(gSubNum, gFileOut)
+
+}
+
+
+define DisplayMatrix(mat)
+{
+
+   xcells <- Length(mat)
+   ycells <- Length(First(mat))
+
+   xcenter <- gVideoWidth/2
+   ycenter <- gVideoHeight/2
+
+   xsize <- gParams.squaresize
+   ysize <- gParams.squaresize
+
+   upper <- ycenter-ysize/2
+   lower <- ycenter+ysize/2
+   left <- xcenter-xsize/2
+   right <- xcenter+xsize/2
+
+   xjump <- xsize/xcells
+   yjump <- ysize/ycells
+
+
+  complex <- []
+
+  #First, make the lines
+
+  ##draw the background square
+  back <- Rectangle(xcenter,ycenter,xsize,ysize,gcellempty,1)
+  AddObject(back,gWin)
+  complex <- Append(complex,back)
+
+  ##Draw the 'present' cells
+
+   row <- 1
+   loop(line, mat)
+     {
+        col <- 1
+        loop(cell,line)
+         {
+           if(cell==1)
+           {
+             x <- Rectangle(left+(col-.5)*xjump,upper+(row-.5)*yjump,xjump,yjump,gCellFull,1)
+             AddObject(x,gWin)
+             complex <- Append(complex,x)
+           }
+           col <- col +1
+         }
+      row <- row + 1
+     }
+
+
+  ##Finally, draw lines on top
+  loop(i,Sequence(0,xcells,1))
+  {
+    l <- Line(left,upper+yjump*i,xsize,0,gLinecolor)
+    AddObject(l,gWin)
+    complex <- Append(complex,l)
+  }
+
+  loop(i,Sequence(0,ycells,1))
+   {
+
+    l <- Line(left+xjump*i,upper,0,ysize,gLinecolor)
+    AddObject(l,gWin)
+    complex <- Append(complex,l)
+   }
+ return complex
+}
+
+## DisplayMatrixAt - display matrix at specific location and size
+define DisplayMatrixAt(mat, xcenter, ycenter, size)
+{
+   xcells <- Length(mat)
+   ycells <- Length(First(mat))
+
+   xsize <- size
+   ysize <- size
+
+   upper <- ycenter-ysize/2
+   lower <- ycenter+ysize/2
+   left <- xcenter-xsize/2
+   right <- xcenter+xsize/2
+
+   xjump <- xsize/xcells
+   yjump <- ysize/ycells
+
+  complex <- []
+
+  ##draw the background square
+  back <- Rectangle(xcenter,ycenter,xsize,ysize,gcellempty,1)
+  AddObject(back,gWin)
+  complex <- Append(complex,back)
+
+  ##Draw the 'present' cells
+   row <- 1
+   loop(line, mat)
+     {
+        col <- 1
+        loop(cell,line)
+         {
+           if(cell==1)
+           {
+             x <- Rectangle(left+(col-.5)*xjump,upper+(row-.5)*yjump,xjump,yjump,gCellFull,1)
+             AddObject(x,gWin)
+             complex <- Append(complex,x)
+           }
+           col <- col +1
+         }
+      row <- row + 1
+     }
+
+  ##Finally, draw lines on top
+  loop(i,Sequence(0,xcells,1))
+  {
+    l <- Line(left,upper+yjump*i,xsize,0,gLinecolor)
+    AddObject(l,gWin)
+    complex <- Append(complex,l)
+  }
+
+  loop(i,Sequence(0,ycells,1))
+   {
+    l <- Line(left+xjump*i,upper,0,ysize,gLinecolor)
+    AddObject(l,gWin)
+    complex <- Append(complex,l)
+   }
+ return complex
+}
+
+define MakeMatrix(p)
+{
+
+  good <- 0
+  while(not good)
+   {
+      tmp <- Shuffle(Sequence(1,gSize,1))
+      good <- CheckMatrix(tmp)
+   }
+
+  base <- Merge([1],Repeat(0,gSize-1))
+  mat <- []
+  loop(i,tmp)
+  {
+     mat <- Append(mat, Rotate(base,i-1))
+  }
+
+  return mat
+}
+
+define RemoveComplex(comp,win)
+{
+  loop(i,comp)
+  {
+    RemoveObject(i,win)
+  }
+}
+
+define RotateMatrix(mat,dir)
+{
+  if(dir == "<left>")
+  {
+   newmat <- Reverse(Transpose(mat))
+  } elseif(dir == "<right>") {
+   newmat <- Transpose(Reverse(mat))
+  } else {
+   newmat <- CopyMatrix(mat)
+  }
+
+  return newmat
+}
+
+
+define PrintMatrix(m)
+{
+  loop(i,m)
+  {
+    PrintList(i)
+  }
+}
+
+
+define CopyMatrix(m)
+{
+   newmat <- []
+   loop(i,m)
+   {
+    tmp <- []
+     loop(j,i)
+     {
+
+      tmp <- Append(tmp,j)
+     }
+     newmat <- Append(newmat,tmp)
+   }
+   return newmat
+}
+
+define MakeFoil(m)
+{
+
+  size <- Length(m)
+  bad <- 1
+  while(bad)
+  {
+ #Take one of the rows and move it to a new spot.
+  standard <- Sequence(1,size,1)
+  rows <- ChooseN(Sequence(1,size,1),2)
+  neword <- Replace(standard, [rows,Reverse(rows)])
+
+  try <- SortBy(m,neword)
+   if(CheckMatrix(try))
+     {
+       bad <- 0
+     }
+  }
+
+  return try
+}
+
+define MatrixEqual(m1,m2)
+{
+
+  equal <- 1
+  test <- Transpose([m1,m2])
+  loop(i,test)
+  {
+    ii <- Transpose(i)
+    loop(j, ii)
+    {
+      if(not (First(j) ==Nth(j,2)))
+       {
+            equal <- 0
+       }
+    }
+
+  }
+
+  return equal
+}
+
+
+define CheckMatrix(list)
+{
+
+  seq <- Sequence(1,Length(list),1)
+
+  ok <-1
+  if(list == seq or
+     list == Reverse(seq))
+   {
+    ok <- 0
+   }
+
+ return ok
+}
+
+
+
+
+
+## RunTrial - Execute a single trial of the matrix rotation task
+define RunTrial(cond, trialNum, isPractice, inst1, giveFeedback)
+{
+   ##Create test matrix
+   matrix <- MakeMatrix(gSize)
+
+   ##Choose the rotation direction for test matrix.
+   dir <- Sample(["<right>","<left>"])
+
+   starttime <- GetTime()
+   FilePrint_(gFileOut,gSubNum + "," + trialNum + "," + isPractice + "," + cond + "," + dir + "," )
+
+   if(cond =="same")
+    {
+      alt <- matrix
+    } else {
+      alt <- MakeFoil(matrix)
+    }
+    #Create the test matrix
+    test <- RotateMatrix(alt,dir)
+
+    FilePrint_(gFileOut,ConcatenateList(Flatten(matrix),",") + ",")
+    FilePrint_(gFileOut,ConcatenateList(Flatten(test),",")   + ",")
+
+ ##Present the study matrix
+    gLayout.footer.visible <- 1
+    gLayout.footer.text <- inst1
+
+    ## For mouse/touch modes, hide response targets during study matrix
+    isMouseMode <- IsMember(gParams.responsemode, ["mouseTarget", "touchTarget", "mouseButton"])
+    if(isMouseMode)
+    {
+      HideLayoutResponseWidgets(gLayout)
+    }
+
+    x <- DisplayMatrix(matrix)
+    Draw()
+
+    ## For mouse/touch modes, wait for any click; otherwise wait for proper response
+    if(isMouseMode)
+    {
+      WaitForMouseButton()
+    } else {
+      WaitForLayoutResponse(gLayout, 0)
+    }
+
+    t1 <- GetTime()
+    RemoveComplex(x,gWin)
+
+    ## For mouse/touch modes, show response targets again for test matrix
+    if(isMouseMode)
+    {
+      ShowLayoutResponseWidgets(gLayout)
+    }
+
+ ## Present the test matrix
+    gLayout.footer.text <- ""
+    x <- DisplayMatrix(test)
+    Draw()
+    resp <- WaitForLayoutResponse(gLayout, 0)
+    RemoveComplex(x,gWin)
+    t2 <- GetTime()
+
+    corr <- (resp == Lookup(cond,["same","diff"],["left","right"]))
+    FilePrint(gFileOut,(t1-starttime) + "," + (t2-t1) + "," + resp + "," + corr)
+
+    if(giveFeedback)
+    {
+        feedbackText <- gStrings.incorrect
+        if(corr)
+        {
+         feedbackText <- gStrings.correct
+        }
+        feedbackLabel <- EasyLabel(feedbackText, gVideoWidth/2, gVideoHeight/2, gWin, 64)
+        Draw()
+        Wait(800)
+        RemoveObject(feedbackLabel, gWin)
+    }
+}
+
+
+define GetStrings(lang)
+{
+  gStrings <- GetTranslations("matrixrotation",lang)
+
+}
+PEBL Matrix Rotation Task Version 0.2
+
+This is a simple version of the 'matrix rotation' task. A sort of mental rotation task.  Based on version described in the UTC Test Battery test # 11.  See also original versions by Phillips (1974) and Damos & Lyall (1984).
+{
+  "responsemode": "mouseButton"
+}
+{
+  "responsemode": "mouseTarget"
+}
+{
+  "responsemode": "touchTarget"
+}
+{
+  "test": "matrixrotation",
+  "version": "1.0",
+  "description": "MATRIXROTATION Test",
+  "parameters": [
+    {
+      "name": "size",
+      "type": "integer",
+      "default": 6,
+      "description": "Number of rows/columns in the matrix"
+    },
+    {
+      "name": "givefeedback",
+      "type": "boolean",
+      "default": 1,
+      "description": "whether to give feedback 1=yes; 0=no",
+      "options": [
+        0,
+        1
+      ]
+    },
+    {
+      "name": "condsize",
+      "type": "integer",
+      "default": 10,
+      "description": "number of trials of each same/different"
+    },
+    {
+      "name": "numpractice",
+      "type": "integer",
+      "default": 6,
+      "description": "number of practice trials (3 same, 3 diff)"
+    },
+    {
+      "name": "squaresize",
+      "type": "integer",
+      "default": 300,
+      "description": "size of display square, in pixels."
+    },
+    {
+      "name": "responsemode",
+      "type": "string",
+      "default": "keyboardShift",
+      "options": ["auto", "keyboardShift", "mouseTarget", "touchTarget", "mouseButton"],
+      "description": "Response input mode: auto=automatic detection, keyboardShift=left/right shift keys, mouseTarget=click on labeled targets, touchTarget=touch labeled targets, mouseButton=left/right mouse buttons"
+    },
+    {
+      "name": "responselabels",
+      "type": "list",
+      "default": ["SAME", "DIFFERENT"],
+      "description": "Semantic labels for left and right responses"
+    }
+  ]
+}{
+    "INSTRUC": "Dieser Test untersucht Ihre Fähigkeit, eine Figur mental zu drehen, um sie mit einer anderen zu vergleichen. Sie sehen ein 5x5-Raster, bei dem fünf Zellen beleuchtet sind. Sie sollten das Muster so schnell und genau wie möglich lernen und dann eine Antwort wie unten gezeigt geben, wenn Sie sicher sind, dass Sie das Muster kennen. Wenn Sie antworten, wird ein neues Muster angezeigt. Wenn das neue Muster dasselbe wie das alte Muster ist, aber um 90 Grad nach links oder rechts gedreht wurde, antworten Sie 'gleich' wie unten gezeigt. Wenn das Muster keine 90-Grad-Links- oder Rechtsdrehung des alten Musters ist, antworten Sie 'verschieden'. Sie beginnen mit einigen Übungsversuchen. Geben Sie eine Antwort, um zu beginnen",
+    "INST1": "Geben Sie eine Antwort, um die Testmatrix anzuzeigen",
+    "SAME": "GLEICH",
+    "DIFFERENT": "VERSCHIEDEN",
+    "CORRECT": "Richtig",
+    "INCORRECT": "Falsch",
+    "PRACTICECOMPLETE": "Übung abgeschlossen. Geben Sie eine Antwort, um mit dem Test zu beginnen.",
+    "DEBRIEF": "Dieser Test ist abgeschlossen. Geben Sie eine Antwort, um fortzufahren."
+}
+{
+    "INSTRUC": "This test examines your ability to mentally rotate one figure to compare it with another. You will see a 5 by 5 grid, with five of its cells lighted. You should learn the pattern as quickly and as accurately as possible, and then make a response shown below when you are sure you know the pattern. When you respond, a new pattern will be presented.   If the new pattern is the same as the old pattern, but turned 90 degrees to the left or right, respond 'same' as shown below.  If the pattern is not a 90 degree left or right rotation of the old pattern, respond 'different'. You will start with some practice trials. Make a response to begin",
+    "INST1": "Make a response to view test matrix",
+    "SAME": "SAME",
+    "DIFFERENT": "DIFFERENT",
+    "CORRECT": "Correct",
+    "INCORRECT": "Incorrect",
+    "PRACTICECOMPLETE": "Practice complete. Make a response to begin testing.",
+    "DEBRIEF": "This test is complete. Make a response to continue."
+}
+{
+    "INSTRUC": "Esta prueba examina su capacidad para rotar mentalmente una figura y compararla con otra. Verá una cuadrícula de 5 por 5, con cinco de sus celdas iluminadas. Debe aprender el patrón lo más rápida y precisamente posible, y luego dar una respuesta como se muestra a continuación cuando esté seguro de que conoce el patrón. Cuando responda, se presentará un nuevo patrón. Si el nuevo patrón es el mismo que el patrón anterior, pero girado 90 grados hacia la izquierda o derecha, responda 'igual' como se muestra a continuación. Si el patrón no es una rotación de 90 grados a la izquierda o derecha del patrón anterior, responda 'diferente'. Comenzará con algunos ensayos de práctica. Dé una respuesta para comenzar",
+    "INST1": "Dé una respuesta para ver la matriz de prueba",
+    "SAME": "IGUAL",
+    "DIFFERENT": "DIFERENTE",
+    "CORRECT": "Correcto",
+    "INCORRECT": "Incorrecto",
+    "PRACTICECOMPLETE": "Práctica completada. Dé una respuesta para comenzar la prueba.",
+    "DEBRIEF": "Esta prueba está completa. Dé una respuesta para continuar."
+}
+{
+    "INSTRUC": "Ce test examine votre capacité à faire pivoter mentalement une figure pour la comparer à une autre. Vous verrez une grille de 5 par 5, avec cinq de ses cellules allumées. Vous devez apprendre le motif aussi rapidement et précisément que possible, puis donner une réponse comme indiqué ci-dessous lorsque vous êtes sûr de connaître le motif. Lorsque vous répondez, un nouveau motif sera présenté. Si le nouveau motif est identique à l'ancien motif, mais tourné de 90 degrés vers la gauche ou la droite, répondez 'identique' comme indiqué ci-dessous. Si le motif n'est pas une rotation de 90 degrés à gauche ou à droite de l'ancien motif, répondez 'différent'. Vous commencerez par quelques essais de pratique. Donnez une réponse pour commencer",
+    "INST1": "Donnez une réponse pour voir la matrice de test",
+    "SAME": "IDENTIQUE",
+    "DIFFERENT": "DIFFÉRENT",
+    "CORRECT": "Correct",
+    "INCORRECT": "Incorrect",
+    "PRACTICECOMPLETE": "Pratique terminée. Donnez une réponse pour commencer le test.",
+    "DEBRIEF": "Ce test est terminé. Donnez une réponse pour continuer."
+}
+{
+    "INSTRUC": "מבחן זה בוחן את יכולתך לסובב מנטלית דמות אחת כדי להשוות אותה לאחרת. תראה רשת של 5 על 5, עם חמישה מתאיה מוארים. עליך ללמוד את התבנית במהירות ובדיוק ככל האפשר, ואז לתת תשובה כפי שמוצג למטה כאשר אתה בטוח שאתה מכיר את התבנית. כאשר אתה עונה, תבנית חדשה תוצג. אם התבנית החדשה זהה לתבנית הישנה, אך מסובבת 90 מעלות שמאלה או ימינה, ענה 'זהה' כפי שמוצג למטה. אם התבנית אינה סיבוב של 90 מעלות שמאלה או ימינה של התבנית הישנה, ענה 'שונה'. תתחיל עם כמה ניסויי תרגול. תן תשובה כדי להתחיל",
+    "INST1": "תן תשובה כדי לראות מטריצת בדיקה",
+    "SAME": "זהה",
+    "DIFFERENT": "שונה",
+    "CORRECT": "נכון",
+    "INCORRECT": "לא נכון",
+    "PRACTICECOMPLETE": "התרגול הושלם. תן תשובה כדי להתחיל את הבדיקה.",
+    "DEBRIEF": "מבחן זה הושלם. תן תשובה כדי להמשיך."
+}
+{
+    "INSTRUC": "Ovaj test ispituje vašu sposobnost mentalne rotacije jedne figure kako biste je usporedili s drugom. Vidjet ćete mrežu 5 puta 5, s pet osvijetljenih ćelija. Trebate naučiti uzorak što brže i točnije, a zatim dati odgovor kako je prikazano ispod kada ste sigurni da poznajete uzorak. Kada odgovorite, bit će prikazan novi uzorak. Ako je novi uzorak isti kao stari uzorak, ali okrenut 90 stupnjeva lijevo ili desno, odgovorite 'isto' kako je prikazano ispod. Ako uzorak nije rotacija od 90 stupnjeva lijevo ili desno starog uzorka, odgovorite 'različito'. Počet ćete s nekoliko pokusnih pokušaja. Dajte odgovor za početak",
+    "INST1": "Dajte odgovor za prikaz testne matrice",
+    "SAME": "ISTO",
+    "DIFFERENT": "RAZLIČITO",
+    "CORRECT": "Točno",
+    "INCORRECT": "Netočno",
+    "PRACTICECOMPLETE": "Vježba završena. Dajte odgovor za početak testiranja.",
+    "DEBRIEF": "Ovaj test je završen. Dajte odgovor za nastavak."
+}
+{
+    "INSTRUC": "Questo test esamina la tua capacità di ruotare mentalmente una figura per confrontarla con un'altra. Vedrai una griglia 5 per 5, con cinque delle sue celle illuminate. Dovresti imparare il pattern il più rapidamente e accuratamente possibile, e quindi dare una risposta come mostrato di seguito quando sei sicuro di conoscere il pattern. Quando rispondi, verrà presentato un nuovo pattern. Se il nuovo pattern è uguale al vecchio pattern, ma ruotato di 90 gradi a sinistra o a destra, rispondi 'uguale' come mostrato di seguito. Se il pattern non è una rotazione di 90 gradi a sinistra o a destra del vecchio pattern, rispondi 'diverso'. Inizierai con alcune prove di pratica. Dai una risposta per iniziare",
+    "INST1": "Dai una risposta per visualizzare la matrice di test",
+    "SAME": "UGUALE",
+    "DIFFERENT": "DIVERSO",
+    "CORRECT": "Corretto",
+    "INCORRECT": "Errato",
+    "PRACTICECOMPLETE": "Pratica completata. Dai una risposta per iniziare il test.",
+    "DEBRIEF": "Questo test è completo. Dai una risposta per continuare."
+}
+{
+    "INSTRUC": "Deze test onderzoekt uw vermogen om een figuur mentaal te draaien om deze met een andere te vergelijken. U ziet een raster van 5 bij 5, met vijf verlichte cellen. U moet het patroon zo snel en nauwkeurig mogelijk leren en vervolgens een antwoord geven zoals hieronder weergegeven wanneer u zeker weet dat u het patroon kent. Wanneer u antwoordt, wordt een nieuw patroon getoond. Als het nieuwe patroon hetzelfde is als het oude patroon, maar 90 graden naar links of rechts gedraaid, antwoordt u 'hetzelfde' zoals hieronder weergegeven. Als het patroon geen 90 graden rotatie naar links of rechts is van het oude patroon, antwoordt u 'anders'. U begint met enkele oefenpogingen. Geef een antwoord om te beginnen",
+    "INST1": "Geef een antwoord om de testmatrix te bekijken",
+    "SAME": "HETZELFDE",
+    "DIFFERENT": "ANDERS",
+    "CORRECT": "Correct",
+    "INCORRECT": "Onjuist",
+    "PRACTICECOMPLETE": "Oefening voltooid. Geef een antwoord om te beginnen met testen.",
+    "DEBRIEF": "Deze test is voltooid. Geef een antwoord om door te gaan."
+}
+{
+    "INSTRUC": "Este teste examina sua capacidade de girar mentalmente uma figura para compará-la com outra. Você verá uma grade 5 por 5, com cinco de suas células iluminadas. Você deve aprender o padrão o mais rápida e precisamente possível e, em seguida, dar uma resposta conforme mostrado abaixo quando tiver certeza de que conhece o padrão. Quando você responder, um novo padrão será apresentado. Se o novo padrão for o mesmo que o padrão antigo, mas girado 90 graus para a esquerda ou direita, responda 'igual' conforme mostrado abaixo. Se o padrão não for uma rotação de 90 graus para a esquerda ou direita do padrão antigo, responda 'diferente'. Você começará com algumas tentativas de prática. Dê uma resposta para começar",
+    "INST1": "Dê uma resposta para ver a matriz de teste",
+    "SAME": "IGUAL",
+    "DIFFERENT": "DIFERENTE",
+    "CORRECT": "Correto",
+    "INCORRECT": "Incorreto",
+    "PRACTICECOMPLETE": "Prática concluída. Dê uma resposta para começar o teste.",
+    "DEBRIEF": "Este teste está concluído. Dê uma resposta para continuar."
+}
+{
+    "INSTRUC": "Bu test, bir şekli zihinsel olarak döndürerek başka bir şekille karşılaştırma yeteneğinizi inceler. Beş hücresi aydınlatılmış 5'e 5'lik bir ızgara göreceksiniz. Deseni mümkün olduğunca hızlı ve doğru bir şekilde öğrenmeli ve ardından deseni bildiğinizden emin olduğunuzda aşağıda gösterildiği gibi bir yanıt vermelisiniz. Yanıt verdiğinizde yeni bir desen sunulacaktır. Yeni desen eski desenle aynıysa ancak 90 derece sola veya sağa döndürülmüşse, aşağıda gösterildiği gibi 'aynı' yanıtını verin. Desen eski desenin 90 derece sola veya sağa dönmesi değilse, 'farklı' yanıtını verin. Bazı deneme denemeleriyle başlayacaksınız. Başlamak için bir yanıt verin",
+    "INST1": "Test matrisini görmek için bir yanıt verin",
+    "SAME": "AYNI",
+    "DIFFERENT": "FARKLI",
+    "CORRECT": "Doğru",
+    "INCORRECT": "Yanlış",
+    "PRACTICECOMPLETE": "Alıştırma tamamlandı. Teste başlamak için bir yanıt verin.",
+    "DEBRIEF": "Bu test tamamlandı. Devam etmek için bir yanıt verin."
+}

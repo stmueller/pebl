@@ -177,7 +177,10 @@ if [ "$BUILD_TYPE" = "production" ]; then
                 --exclude='.*.swp' \
                 "$BATTERY_SRC/" "$BATTERY_DIR/"
 
-            # Then copy only example data files from data directories
+            # IMPORTANT: The --exclude='*/data/' above excludes ALL files in data directories,
+            # including example files. Previously, example files were named "example-data.csv"
+            # and this worked. After renaming to "*-example.*" pattern (Dec 2025), this broke.
+            # Solution: Second rsync pass to explicitly include only *-example.* files.
             echo "  Copying example data files..."
             rsync -av \
                 --include='*/' \

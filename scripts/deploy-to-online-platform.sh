@@ -181,8 +181,10 @@ if [ "$BUILD_TYPE" = "production" ]; then
             # including example files. Previously, example files were named "example-data.csv"
             # and this worked. After renaming to "*-example.*" pattern (Dec 2025), this broke.
             # Solution: Second rsync pass to explicitly include only *-example.* files.
+            # The --prune-empty-dirs prevents creating empty directory structures.
             echo "  Copying example data files..."
             rsync -av \
+                --prune-empty-dirs \
                 --include='*/' \
                 --include='*-example.*' \
                 --exclude='*' \

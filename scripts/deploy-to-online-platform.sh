@@ -160,11 +160,12 @@ if [ "$BUILD_TYPE" = "production" ]; then
     # Note: pebl-launcher.html is maintained directly in PEBLOnlinePlatform/runtime/
     # and is NOT copied from emscripten/ directory
 
-    # Copy battery tests (exclude data directories and backup files)
-    echo "Copying battery tests (excluding data directories and backup files)..."
+    # Copy battery tests (exclude data directories except example files)
+    echo "Copying battery tests (excluding data except example files and backup files)..."
     if [ -d "$BATTERY_SRC" ]; then
         if command -v rsync &> /dev/null; then
             # Use rsync if available (better for excluding patterns)
+            # First copy everything except data directories
             rsync -av \
                 --exclude='*/data/' \
                 --exclude='data/' \
@@ -174,6 +175,14 @@ if [ "$BUILD_TYPE" = "production" ]; then
                 --exclude='*.swp' \
                 --exclude='*.bak' \
                 --exclude='.*.swp' \
+                "$BATTERY_SRC/" "$BATTERY_DIR/"
+
+            # Then copy only example data files from data directories
+            echo "  Copying example data files..."
+            rsync -av \
+                --include='*/' \
+                --include='*-example.*' \
+                --exclude='*' \
                 "$BATTERY_SRC/" "$BATTERY_DIR/"
         else
             # Fallback to cp with find (exclude data directories and backup files)
@@ -187,6 +196,11 @@ if [ "$BUILD_TYPE" = "production" ]; then
                 -not -name '*.bak' \
                 -not -name '.*.swp' \
                 -exec cp --parents -v {} "$BATTERY_DIR/" \; 2>/dev/null || echo "  (No battery files to copy)"
+
+            # Copy example data files
+            echo "  Copying example data files..."
+            find "$BATTERY_SRC" -type f -path '*/data/*' -name '*-example.*' \
+                -exec bash -c 'target="$1"; target="${target#$2/}"; mkdir -p "$3/$(dirname "$target")"; cp -v "$1" "$3/$target"' _ {} "$BATTERY_SRC" "$BATTERY_DIR" \;
         fi
     else
         echo -e "${YELLOW}Warning: Battery source directory not found at $BATTERY_SRC${NC}"

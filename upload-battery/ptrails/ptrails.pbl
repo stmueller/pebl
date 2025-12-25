@@ -74,24 +74,17 @@ define Start(p)
      gSubNum <- GetSubNum(gWin)
    }
 
+  gStartTime <- GetTime()  ## Initialize start time for total time calculation in HTML report
   GetStrings(gLanguage)
 
-  ## Create layout - responseMode=0 for layout-only (no response system)
-  gLayout <- CreateLayout("ptrails", gWin, 0)
+  ## Set responsemode to "none" for layout-only (no response system)
+  gParams.responsemode <- "none"
+  gLayout <- CreateLayout("ptrails", gWin, gParams)
 
   ## Configure layout: header only, hide everything else to maximize stimulus region
   gLayout.header.visible <- 1
   gLayout.subheader.visible <- 0
-  gLayout.footer.visible <- 0  ## Hide footer - not used in this task
-
-  ## Hide response labels if they exist (shouldn't with responseMode=0, but hide explicitly)
-  if(IsList(gLayout.responseLabels))
-  {
-    loop(label, gLayout.responseLabels)
-    {
-      Hide(label)
-    }
-  }
+  ## Footer is automatically hidden by "none" mode
 
   ## Recalculate field bounds using Layout center instead of absolute screen center
   gxmin <- gLayout.centerX - fieldWidth/2
@@ -105,11 +98,11 @@ define Start(p)
   gclickedFont <- MakeFont(gPEBLBaseFontMono,1,18,MakeColor("grey35"),gStimColor,1)
 
   gFileOut <- GetNewDataFile(gSubNum,gWin,"ptrails","csv",
-     "subnum,trial,type,clicks,hits,clicktime,posx,posy,corr,id,rt,rt2")
+     "subnum,trial,blocktype,type,clicks,hits,clicktime,posx,posy,corr,id,rt,rt2")
 
 
   gSumFile <- GetNewDataFile(gSubNum,gWin,"ptrails-summary","csv",
-              "sub,type,distance,studytime,totaltime,mediantime,targs,clicks,acc")
+              "sub,blocktype,type,distance,studytime,totaltime,mediantime,targs,clicks,acc")
 
   ## Use AdaptiveTextBox constrained to stimulus region to avoid overlap with header
   tb <- AdaptiveTextBox(gStrings.inst+CR(1)+gStrings.begin,
@@ -244,11 +237,12 @@ define Start(p)
      types <- Merge([1,2,1,2],types)
    }
 
-
+  dat <- []
 
    trial <- 1
    ## gHeader removed - using gLayout.header instead
    typeLabels <- ["numbers","alternating numbers and letters","letters"]
+   gcondlabels <- ["number","alternating","letter"]
 
 
 
@@ -265,7 +259,7 @@ define Start(p)
 	## Header already visible by default
 	Draw()
 	gTrial <- trial + "P"
-        Trial(tmppts,Nth(types,i))
+        Trial(tmppts,Nth(types,i),"practice")
         gLayout.header.visible <- 0  ## Hide header after practice
 
       }
@@ -274,22 +268,28 @@ define Start(p)
 
 
 
-      Trial(Nth(pts,i),Nth(types,i))
+     datline <-  Trial(Nth(pts,i),Nth(types,i),"test")
+     PushOnEnd(dat,datline)
       trial <- trial + 1
     }
 
 
+  ## Generate HTML summary report
+  html <- CreateHTMLReport(dat)
+  reportfile <- GetNewDataFile(gSubNum,gWin,"ptrails-report","html","")
+  FilePrint_(reportfile, html)
+
   Print("uploading data")
-  settingsfile <- "/upload.json"
-  out <- UploadFile(gSubnum,gFileOut.filename,settingsfile);  Print(out)
-  out <- UploadFile(gSubnum,gSumFile.filename,settingsfile);  Print(out)
+  out <- UploadFile(gSubnum,gFileOut.filename);  Print(out)
+  out <- UploadFile(gSubnum,gSumFile.filename);  Print(out)
+  out <- UploadFile(gSubnum,reportfile.filename);  Print(out)
 
 
 
    tb.text<- gStrings.finish
    Show(tb)
    Draw()
-   WaitForAnyKeyPress()
+   WaitForDownClick()
 }
 
 
@@ -316,7 +316,7 @@ define ReitanPoints(type)
   return Center(pts)
 }
 
-define Trial(pts,type)
+define Trial(pts,type,practice)
 {
 
   num <- Length(pts)
@@ -347,14 +347,16 @@ define Trial(pts,type)
      msg <- gStrings.type3
    }
 
-   ## Footer removed - trial instructions not displayed during trials
-   ## (Keeps maximum space for 700×500 field)
-    ## Show "ready to begin" message in subheader after practice
-    gLayout.subheader.text <- gStrings.begin
-    gLayout.subheader.visible <- 1
-    Draw()
-    WaitForDownClick()
-    gLayout.subheader.visible <- 0
+   ## Display the trial type header
+   gLayout.header.text <- msg
+   gLayout.header.visible <- 1
+
+   ## Show "ready to begin" message in subheader
+   gLayout.subheader.text <- gStrings.begin
+   gLayout.subheader.visible <- 1
+   Draw()
+   WaitForDownClick()
+   gLayout.subheader.visible <- 0
 
    stimObjects <-  PlotTargets(pts,gParams.TargSize,stim)
    stimLines <- []
@@ -456,7 +458,9 @@ define Trial(pts,type)
            corr <- 0
          }
 
-        FilePrint(gFileOut,gSubNum +  ","+ gtrial + "," +type+","+ clicks + ","  + hits + "," + clicktime + "," + First(pos) + "," +   Nth(pos, 2) + "," +  corr + "," + id + "," + (clicktime - lastclick) + ","+ (clicktime-lastsucc))
+        FilePrintList(gFileOut, [gSubNum, gTrial, practice, Nth(gcondlabels,type),
+                                  clicks, hits, clicktime, First(pos), Nth(pos, 2),
+                                  corr, id, (clicktime - lastclick), (clicktime - lastsucc)], ",")
         lastclick <- clicktime
         if(corr)
           {
@@ -468,12 +472,17 @@ define Trial(pts,type)
 
   }
 
-   FilePrint(gSumFile,gSubNum + "," + type+ "," + dist + "," + studytime + "," + (clicktime - starttime) + ","  + Median(times) +   "," + hits + "," +clicks + "," + hits/clicks )
+   medtime <- Median(times)
+   acc <- hits/clicks
+   FilePrintList(gSumFile, [gSubNum, practice, Nth(gcondlabels,type), dist,
+                             studytime, (clicktime - starttime), medtime,
+                             hits, clicks, acc], ",")
 
 #   WritePNG("solution.png",gWin)
    RemoveObjects(stimObjects,gWin)
    RemoveObjects(stimLines,gWin)
 
+  return [Nth(gcondlabels,type),medtime,acc]
 }
 
 define ClickedOn(pos,targets)
@@ -920,7 +929,93 @@ define Center(xys, centerX:"",centerY:"")
 define GetStrings(lang)
 {
   gStrings <- GetTranslations("ptrails",lang)
-  
+
+}
+
+define CreateHTMLReport(dat)
+{
+  ## dat contains [type, medtime, acc] for each trial
+  ## Extract parallel lists for SummaryStats
+  types <- []
+  medtimes <- []
+  accs <- []
+
+  loop(trial, dat)
+  {
+    PushOnEnd(types, First(trial))
+    PushOnEnd(medtimes, Second(trial))
+    PushOnEnd(accs, Third(trial))
+  }
+
+  ## Calculate summary statistics by trial type using SummaryStats
+  timestats <- SummaryStats(medtimes, types)
+  accstats <- SummaryStats(accs, types)
+
+  ## Calculate total time
+  totalTime <- GetTime() - gStartTime
+
+  ## Read and embed CSS for portability (media/css is in search path)
+  cssContent <- FileReadText("paper.css")
+
+  ## Build HTML with embedded CSS
+  html <- "<html>
+<head>
+  <style>
+" + cssContent + "
+  </style>
+</head>
+<body>"
+
+  ## First page: Header and configuration info
+  html <- html + MakeDivPage(
+    H("Results from PEBL Trailmaking Test",1) +
+    P("<pre>Participant/Patient Code: " + gSubNum + "</pre>") +
+    P("<em>This test measures visual attention, processing speed, and executive function through sequential number and letter connecting tasks.</em>") +
+    HL() +
+    P(B("Test began: ") + TimeStamp()) +
+    P(B("Total time taken: ") + Round(totalTime/60000,2) + " min") +
+    HL() +
+    H("Test Configuration",3) +
+    P(B("Screen resolution: ") + gVideoWidth + " × " + gVideoHeight + " pixels") +
+    P(B("Field size: ") + gParams.fieldwidth + " × " + gParams.fieldheight + " pixels") +
+    P(B("Number of targets: ") + gParams.NumTargs) +
+    P(B("Trials per condition: ") + gParams.numtrials) +
+    P(B("Use letters: ") + gParams.useLetters) +
+    P(B("Practice trials: ") + gParams.doPractice) +
+    P(B("Draw lines: ") + gParams.DrawLines) +
+    P(B("Use shortest path: ") + gParams.useShortPath))
+
+  ## Second page: Summary statistics table
+  tablerows <- []
+  combined <- Transpose([timestats, accstats])
+  loop(pair, combined)
+  {
+    timestat <- First(pair)
+    accstat <- Second(pair)
+
+    trialtype <- First(timestat)
+    numtrials <- Second(timestat)
+    mediantime <- Third(timestat)
+    meantime <- Fourth(timestat)
+    sdtime <- Fifth(timestat)
+    meanacc <- Fourth(accstat)
+
+    ## Create row: [Type, N, Median Time, Mean Time, SD Time, Accuracy]
+    row <- [Uppercase(trialtype), numtrials, Round(mediantime),
+            Round(meantime), Round(sdtime), Round(100*meanacc) + "%"]
+    PushOnEnd(tablerows, row)
+  }
+
+  tableheader <- ["Trial Type", "N", "Median Time (ms)", "Mean Time (ms)", "SD Time (ms)", "Accuracy"]
+
+  html <- html + MakeDivPage(
+    H("Summary Statistics by Trial Type",2) +
+    P("Statistics calculated per target for each trial condition:") +
+    Table(tablerows, tableheader))
+
+  html <- html + "</body></html>"
+
+  return html
 }
 
 

@@ -1,0 +1,2203 @@
+TESTING PARAMETER FILES FOR SPANVARIANTS
+=========================================
+
+These .par.json files make it easy to test specific variants without running the full battery.
+
+USAGE:
+------
+Run PEBL with the -v option to load a parameter file:
+
+  bin/pebl2 battery/spanvariants/spanvariants.pbl -v parfile=battery/spanvariants/params/test-forward-digit.par.json
+
+Or from the spanvariants directory:
+
+  ../../bin/pebl2 spanvariants.pbl -v parfile=params/test-forward-digit.par.json
+
+
+AVAILABLE TEST FILES:
+---------------------
+
+1. test-forward-digit.par.json
+   - Tests only forward digit span
+   - Quick: upperbound=6, perlength=2
+   - Good for basic functionality testing
+
+2. test-letter-spans.par.json
+   - Tests forward and backward letter span
+   - Uses letters from letter_set parameter
+   - Tests audio support for letters
+
+3. test-ordering.par.json
+   - Tests all three ordering tasks (digit, letter, mixed)
+   - Quick version with reduced bounds
+
+4. test-mixed-spans.par.json
+   - Tests forward and backward mixed digit/letter spans
+   - Tests the most complex stimulus type
+
+5. test-video-only.par.json
+   - Tests with UseAudio=0 (video presentation only)
+   - Good for testing without audio files
+
+6. test-audio-only.par.json
+   - Tests with UseAudio=2 (audio-only presentation)
+   - Harder task, tests auditory working memory
+
+7. test-staircase.par.json
+   - Tests staircase (adaptive) method (version=3)
+   - Only 10 trials, quickly finds span
+
+8. test-all-quick.par.json
+   - Runs all 9 variants with reduced parameters
+   - Only 1 trial per length, shorter ISI/ITI
+   - Good for full system testing
+
+
+CUSTOMIZING:
+------------
+You can create your own .par.json file by copying one of these and modifying:
+
+- Set any task's _order parameter to 0 to skip it
+- Reduce upperbound/lowerbound to shorten testing
+- Reduce perlength to do fewer trials per length
+- Change UseAudio: 0=video, 1=audio+video, 2=audio-only
+- Change version: 1=low-to-high, 2=high-to-low, 3=staircase
+
+
+EXAMPLES:
+---------
+
+Test just forward digit span with audio+video:
+  -v parfile=params/test-forward-digit.par.json
+
+Test ordering tasks with audio only:
+  -v parfile=params/test-ordering.par.json -v UseAudio=2
+
+Test all variants quickly:
+  -v parfile=params/test-all-quick.par.json
+
+Override subject number:
+  -v parfile=params/test-forward-digit.par.json -v subnum=999
+forward_digit_order|1|Execution order for forward digit span (0=skip, else order number)
+backward_digit_order|2|Execution order for backward digit span (0=skip, else order number)
+forward_letter_order|3|Execution order for forward letter span (0=skip, else order number)
+backward_letter_order|4|Execution order for backward letter span (0=skip, else order number)
+forward_mixed_order|5|Execution order for forward mixed digit/letter span (0=skip, else order number)
+backward_mixed_order|6|Execution order for backward mixed digit/letter span (0=skip, else order number)
+digit_ordering_order|7|Execution order for digit ordering task (0=skip, else order number)
+letter_ordering_order|8|Execution order for letter ordering task (0=skip, else order number)
+mixed_ordering_order|9|Execution order for mixed ordering task (0=skip, else order number)
+input|keyboard|Input method: keyboard, keypad, or mouse
+UseAudio|1|Presentation mode: 0=video only, 1=audio+video, 2=audio only (works for digits and letters C,H,K,N,R,W,X,Y)
+AllowBackspace|1|Allow users to backspace over responses (1=yes, 0=no)
+AllowSkip|1|Allow users to skip over cells with '-' key (1=yes, 0=no)
+version|1|Test progression type (1=low-to-high, 2=high-to-low, 3=staircase)
+endearly|0|End list length when criterion is met (1=yes, 0=no)
+upperbound|9|The longest list length to test
+lowerbound|3|The shortest list length to test
+perlength|2|The number of trials at each length
+criterion|1|Number of correct trials needed to proceed to next length
+staircasestart|4|Starting list length for staircase method
+staircasetrials|16|Number of trials for staircase method
+ISI|1000|Inter-stimulus interval in milliseconds
+iti|1500|Inter-trial interval in milliseconds
+letter_set|CHKNPQRWXY|Set of letters to use for letter span tasks (easily distinguishable, audio support for C,H,K,N,R,W,X,Y)
+{
+  "forward_digit_order": 1,
+  "backward_digit_order": 2,
+  "forward_letter_order": 3,
+  "backward_letter_order": 4,
+  "forward_mixed_order": 5,
+  "backward_mixed_order": 6,
+  "digit_ordering_order": 7,
+  "letter_ordering_order": 8,
+  "mixed_ordering_order": 9,
+  "UseAudio": 1,
+  "version": 1,
+  "upperbound": 6,
+  "lowerbound": 3,
+  "perlength": 1,
+  "criterion": 1,
+  "ISI": 800,
+  "iti": 500
+}
+{
+  "forward_digit_order": 1,
+  "backward_digit_order": 0,
+  "forward_letter_order": 2,
+  "backward_letter_order": 0,
+  "forward_mixed_order": 0,
+  "backward_mixed_order": 0,
+  "digit_ordering_order": 0,
+  "letter_ordering_order": 0,
+  "mixed_ordering_order": 0,
+  "UseAudio": 2,
+  "version": 1,
+  "upperbound": 5,
+  "lowerbound": 3,
+  "perlength": 2,
+  "criterion": 1
+}
+{
+  "forward_digit_order": 1,
+  "backward_digit_order": 0,
+  "forward_letter_order": 0,
+  "backward_letter_order": 0,
+  "forward_mixed_order": 0,
+  "backward_mixed_order": 0,
+  "digit_ordering_order": 0,
+  "letter_ordering_order": 0,
+  "mixed_ordering_order": 0,
+  "UseAudio": 1,
+  "version": 1,
+  "upperbound": 6,
+  "lowerbound": 3,
+  "perlength": 2,
+  "criterion": 1,
+  "staircasetrials": 8
+}
+{
+  "forward_digit_order": 0,
+  "backward_digit_order": 0,
+  "forward_letter_order": 1,
+  "backward_letter_order": 2,
+  "forward_mixed_order": 0,
+  "backward_mixed_order": 0,
+  "digit_ordering_order": 0,
+  "letter_ordering_order": 0,
+  "mixed_ordering_order": 0,
+  "UseAudio": 1,
+  "version": 1,
+  "upperbound": 6,
+  "lowerbound": 3,
+  "perlength": 2,
+  "criterion": 1
+}
+{
+  "forward_digit_order": 0,
+  "backward_digit_order": 0,
+  "forward_letter_order": 0,
+  "backward_letter_order": 0,
+  "forward_mixed_order": 1,
+  "backward_mixed_order": 2,
+  "digit_ordering_order": 0,
+  "letter_ordering_order": 0,
+  "mixed_ordering_order": 0,
+  "UseAudio": 1,
+  "version": 1,
+  "upperbound": 6,
+  "lowerbound": 3,
+  "perlength": 2,
+  "criterion": 1
+}
+{
+  "forward_digit_order": 0,
+  "backward_digit_order": 0,
+  "forward_letter_order": 0,
+  "backward_letter_order": 0,
+  "forward_mixed_order": 0,
+  "backward_mixed_order": 0,
+  "digit_ordering_order": 1,
+  "letter_ordering_order": 2,
+  "mixed_ordering_order": 3,
+  "UseAudio": 1,
+  "version": 1,
+  "upperbound": 6,
+  "lowerbound": 3,
+  "perlength": 2,
+  "criterion": 1
+}
+{
+  "forward_digit_order": 1,
+  "backward_digit_order": 0,
+  "forward_letter_order": 0,
+  "backward_letter_order": 0,
+  "forward_mixed_order": 0,
+  "backward_mixed_order": 0,
+  "digit_ordering_order": 0,
+  "letter_ordering_order": 0,
+  "mixed_ordering_order": 0,
+  "UseAudio": 1,
+  "version": 3,
+  "staircasestart": 4,
+  "staircasetrials": 10,
+  "upperbound": 9,
+  "lowerbound": 3
+}
+{
+  "forward_digit_order": 1,
+  "backward_digit_order": 0,
+  "forward_letter_order": 2,
+  "backward_letter_order": 0,
+  "forward_mixed_order": 0,
+  "backward_mixed_order": 0,
+  "digit_ordering_order": 0,
+  "letter_ordering_order": 0,
+  "mixed_ordering_order": 0,
+  "UseAudio": 0,
+  "version": 1,
+  "upperbound": 5,
+  "lowerbound": 3,
+  "perlength": 2,
+  "criterion": 1
+}
+###########################################################
+## Span Variants Test, Version 0.1
+## For use with PEBL 2.0 or later
+## http://pebl.sf.net
+## Part of  The PEBL Psychological Testing Battery
+## 2025 Released into Public Domain
+## by Shane T. Mueller, Ph.D. (smueller at obereed dot net)
+##
+## This test combines multiple working memory span variants commonly
+## used for cognitive self-assessment:
+##  - Forward/Backward Digit Span
+##  - Forward/Backward Letter Span (with subset of easily distinguishable letters)
+##  - Forward/Backward Mixed Span (digits and letters presented sequentially)
+##  - Digit Ordering (recall digits in numerical order)
+##  - Letter Ordering (recall letters in alphabetical order)
+##  - Mixed Ordering (recall digits then letters, each in order)
+##
+## Each variant can be enabled/disabled and ordered via parameters.
+## Based on the PEBL Digit Span test.
+###########################################################
+
+define Start(lPar)
+{
+  InitializeUpload()  ## Initialize token-based hosting if upload.json exists
+
+  ## Initialize global objects for use later. Defined at end of file
+  Initialize()
+
+  ##Get subject code if one has not been supplied
+  if(gSubNum+""=="0")
+  {
+   gSubNum <- GetSubNum(gWin)
+  }
+
+  parpairs <- [
+    ## Task ordering parameters (0=skip, else execution order)
+    ["forward_digit_order", 1],    ## Forward digit span
+    ["backward_digit_order", 2],   ## Backward digit span
+    ["forward_letter_order", 3],   ## Forward letter span
+    ["backward_letter_order", 4],  ## Backward letter span
+    ["forward_mixed_order", 5],    ## Forward mixed digit/letter span
+    ["backward_mixed_order", 6],   ## Backward mixed digit/letter span
+    ["digit_ordering_order", 7],   ## Digit ordering task
+    ["letter_ordering_order", 8],  ## Letter ordering task
+    ["mixed_ordering_order", 9],   ## Mixed digit/letter ordering
+
+    ## Display and input parameters
+    ["input","keyboard"],          ## keyboard, keypad, or mouse
+    ["UseAudio",1],                ## 0=video only, 1=audio+video, 2=audio only
+    ["AllowBackspace", 1],         ## Allow users to backspace over responses?
+    ["AllowSkip", 1],              ## Allow users to skip over cells?
+
+    ## Test progression parameters
+    ["version",1],                 ## 1=low-to-high; 2=high-to-low; 3=staircase
+    ["endearly",0],                ## End length when criterion met vs test all trials
+
+    ## Length and criterion parameters
+    ["upperbound", 9],             ## The longest list length
+    ["lowerbound", 3],             ## The shortest list length
+    ["perlength", 2],              ## The number of trials at each length
+    ["criterion", 1],              ## The number that must be correct to proceed
+    ["staircasestart", 4],         ## Starting point for staircase
+    ["staircasetrials", 16],       ## Number of staircase trials
+
+    ## Timing parameters
+    ["ISI", 1000],                 ## Inter-stimulus interval in ms
+    ["iti", 1500],                 ## Inter-trial interval in ms
+
+    ## Letter set for letter span tasks
+    ["letter_set", "CHKNPQRWXY"]   ## Easily distinguishable letters with audio support
+  ]
+
+  gParams <- CreateParameters(parpairs,gParamFile)
+
+  ## Setup input device
+  gInputDevice <- gParams.input
+  ShowCursor(1)
+
+  gUseAudio <- gParams.useaudio
+  gAllowBackspace <- gParams.allowbackspace
+  gAllowSkip      <- gParams.allowskip
+
+  ## Create data files
+  gFileOut <- GetNewDataFile(gSubNum,gWin,"spanvariants","csv",
+              "subnum,tasktype,direction,stimulus_type,trialnum,length,try,input,response,correct,resptime")
+  gReportFile <- GetNewDataFile(gSubNum,gWin,"spanvariants-report","txt","")
+  gPooledFile <- FileOpenAppend("data/pooled-spanvariants-" + gSubNum +".csv")
+
+  ## Build task list based on parameters
+  gTaskList <- []
+
+  if(gParams.forward_digit_order > 0)
+  {
+    gTaskList <- Append(gTaskList, [gParams.forward_digit_order, "forward", "digit"])
+  }
+  if(gParams.backward_digit_order > 0)
+  {
+    gTaskList <- Append(gTaskList, [gParams.backward_digit_order, "backward", "digit"])
+  }
+  if(gParams.forward_letter_order > 0)
+  {
+    gTaskList <- Append(gTaskList, [gParams.forward_letter_order, "forward", "letter"])
+  }
+  if(gParams.backward_letter_order > 0)
+  {
+    gTaskList <- Append(gTaskList, [gParams.backward_letter_order, "backward", "letter"])
+  }
+  if(gParams.forward_mixed_order > 0)
+  {
+    gTaskList <- Append(gTaskList, [gParams.forward_mixed_order, "forward", "mixed"])
+  }
+  if(gParams.backward_mixed_order > 0)
+  {
+    gTaskList <- Append(gTaskList, [gParams.backward_mixed_order, "backward", "mixed"])
+  }
+  if(gParams.digit_ordering_order > 0)
+  {
+    gTaskList <- Append(gTaskList, [gParams.digit_ordering_order, "ordering", "digit"])
+  }
+  if(gParams.letter_ordering_order > 0)
+  {
+    gTaskList <- Append(gTaskList, [gParams.letter_ordering_order, "ordering", "letter"])
+  }
+  if(gParams.mixed_ordering_order > 0)
+  {
+    gTaskList <- Append(gTaskList, [gParams.mixed_ordering_order, "ordering", "mixed"])
+  }
+
+  ## Sort tasks by their order values
+  gTaskList <- SortBy(gTaskList, First(Transpose(gTaskList)))
+
+  ## Load stimuli
+  gDigits <- FileReadList("Digits.txt")
+  gLetters <- SplitString(gParams.letter_set, "")
+
+  ## Load audio if enabled (modes 1 or 2)
+  gDigitSounds <- []
+  gLetterSounds <- []
+
+  if(gUseAudio > 0)
+  {
+    ## Load digit sounds (0-9)
+    loop(i, gDigits)
+    {
+      x <- LoadSound(i + ".ogg")
+      gDigitSounds <- Append(gDigitSounds, x)
+    }
+
+    ## Load letter sounds - all letters in letter_set
+    loop(letter, gLetters)
+    {
+      sound <- LoadSound(letter + ".ogg")
+      gLetterSounds <- Append(gLetterSounds, sound)
+    }
+
+    gReady <- LoadSound("ready.ogg")
+    gBeep  <- LoadSound("beep.ogg")
+    gCorrect <- LoadSound("correct.ogg")
+    gIncorrect <- LoadSound("incorrect.ogg")
+  }
+
+  ## Initialize results storage
+  gAllResults <- []
+
+  ## Run each task in sequence
+  loop(task, gTaskList)
+  {
+    taskOrder <- First(task)
+    taskDirection <- Nth(task, 2)
+    taskStimType <- Nth(task, 3)
+
+    result <- RunSpanTask(taskDirection, taskStimType)
+    gAllResults <- Append(gAllResults, result)
+  }
+
+  ## Close data files
+  FileClose(gFileOut)
+
+  ## Generate final report
+  report <- "PEBL Span Variants Test" + CR(1)
+  report <- report + "Participant: " + gSubNum + CR(1)
+  report <- report + Timestamp() + CR(2)
+
+  loop(result, gAllResults)
+  {
+    taskType <- First(result)
+    span <- Nth(result, 2)
+    correct <- Nth(result, 3)
+    report <- report + taskType + " span: " + span + " (total correct: " + correct + ")" + CR(1)
+  }
+
+  report <- report + CR(1) + "Total time: " + Round(GetTime()/1000/60,2) + " min"
+
+  FilePrint(gReportFile, report)
+
+  ## Show final feedback
+  feedback <- gStrings.debrief + CR(2) + report + CR(2) + gStrings.exit
+
+  SetText(gInstructions, feedback)
+  Show(gInstructions)
+  Draw()
+  WaitForIt()
+
+  ## Upload data files
+  Print("uploading data")
+  out <- UploadFile(gSubnum,gFileOut.filename)
+  Print(out)
+  out <- UploadFile(gSubnum,gReportFile.filename)
+  Print(out)
+  out <- UploadFile(gSubnum,gPooledFile.filename)
+  Print(out)
+
+  ShowCursor(1)
+}
+
+
+## Main function to run a single span task variant
+define RunSpanTask(direction, stimType)
+{
+  ## Get appropriate instructions
+  instKey <- Uppercase(direction + "_" + stimType + "_inst")
+  inst <- GetProperty(gStrings, instKey)
+
+  if(gAllowSkip)
+  {
+    inst <- inst + gStrings.instskip
+  } else {
+    inst <- inst + gStrings.instnoskip
+  }
+
+  if(gAllowBackspace)
+  {
+    inst <- inst + gStrings.instback
+  } else {
+    inst <- inst + gStrings.instnoback
+  }
+
+  ## Add version-specific instructions
+  if(gParams.version == 1) {
+    inst <- inst + gStrings.lth
+  } elseif(gParams.version == 2) {
+    inst <- inst + gStrings.htl
+  } else {
+    inst <- inst + gStrings.scs
+  }
+
+  SetText(gInstructions, inst)
+  Show(gInstructions)
+  Draw()
+  WaitForIt()
+  Hide(gInstructions)
+  Draw()
+
+  ## Set up stimuli for this task
+  if(stimType == "digit")
+  {
+    gStim <- gDigits
+  } elseif(stimType == "letter")
+  {
+    gStim <- gLetters
+  } else {  ## mixed
+    gStim <- Merge(gDigits, gLetters)
+  }
+
+  ## Determine starting length
+  if(gParams.version == 1) {
+    startLength <- gParams.lowerbound
+  } elseif(gParams.version == 2) {
+    startLength <- gParams.upperbound
+  } else {
+    startLength <- gParams.staircasestart
+  }
+
+  ## Run trials
+  trialnum <- 1
+  continue <- 1
+  currcorrect <- 0
+  try <- 0
+  length <- startLength
+  lengths <- []
+  sumCorrect <- 0
+
+  while(continue)
+  {
+    Wait(gParams.iti)
+
+    taskLabel <- direction + "_" + stimType
+    FilePrint_(gFileOut, gSubNum + "," + taskLabel + "," + direction + "," + stimType + "," + trialnum + "," + length + "," + try + ",")
+
+    if(direction == "ordering")
+    {
+      corr <- OrderingTrial(gStim, length, stimType)
+    } else {
+      corr <- SpanTrial(gStim, length, direction, stimType)
+    }
+
+    sumCorrect <- sumcorrect + corr
+
+    ## Update progression based on version
+    if(gParams.version == 1)
+    {
+      try <- try + 1
+      currcorrect <- currcorrect + corr
+
+      if(gParams.endearly)
+      {
+        if(currcorrect >= gParams.criterion)
+        {
+          length <- length + 1
+          currcorrect <- 0
+          try <- 0
+        } elseif(try >= gParams.perlength) {
+          continue <- 0
+        }
+      } else {
+        if(try >= gParams.perlength)
+        {
+          if(currcorrect >= gParams.criterion)
+          {
+            length <- length + 1
+            currcorrect <- 0
+            try <- 0
+          } else {
+            continue <- 0
+          }
+        }
+      }
+
+      if(length > gParams.upperbound)
+      {
+        continue <- 0
+      }
+
+    } elseif(gParams.version == 2) {
+
+      try <- try + 1
+      currcorrect <- currcorrect + corr
+
+      if(gParams.endearly) {
+        if(currcorrect >= gParams.criterion)
+        {
+          continue <- 0
+        } elseif(try >= gParams.perlength) {
+          length <- length - 1
+          currcorrect <- 0
+          try <- 0
+        }
+      } else {
+        if(try >= gParams.perlength) {
+          if(currcorrect == gParams.perlength)
+          {
+            continue <- 0
+          } else {
+            length <- length -1
+            currcorrect <- 0
+            try <- 0
+          }
+        }
+      }
+
+      if(length < gParams.lowerbound)
+      {
+        continue <- 0
+      }
+
+    } else {
+      ## Staircase
+      if(corr)
+      {
+        length <- Min([length + 1, gParams.upperbound])
+      } else {
+        length <- Max([gParams.lowerbound, length-1])
+      }
+      if(trialnum >= gParams.staircasetrials)
+      {
+        continue <- 0
+      }
+    }
+
+    if(trialnum > 4) {
+      lengths <- Append(lengths, length)
+    }
+
+    trialnum <- trialnum + 1
+  }
+
+  Hide(gHeader)
+  Draw()
+
+  ## Calculate final span
+  if(gParams.version == 1) {
+    finalSpan <- length - 1
+  } elseif(gParams.version == 2) {
+    finalSpan <- length + 1
+  } else {
+    finalSpan <- Mean(lengths)
+  }
+
+  ## Record to pooled file
+  FilePrint(gPooledFile, gSubNum + "," + TimeStamp() + "," + taskLabel + "," + finalSpan + "," + sumCorrect)
+
+  return([taskLabel, finalSpan, sumCorrect])
+}
+
+
+## Standard span trial (forward or backward)
+define SpanTrial(stimlist, length, direction, stimType)
+{
+  stimuli <- SampleN(stimlist, length)
+  string <- ListToString(stimuli)
+  dummy  <- Repeat("_", length)
+
+  gStimLabel.text <- gStrings.length + length
+  Show(gStimLabel)
+  Draw()
+
+  if(gUseAudio > 0)
+  {
+    PlayForeground(gReady)
+  }
+  Wait(800)
+  Hide(gStimLabel)
+  Draw()
+  Show(gStimLabel)
+  Wait(1000)
+
+  ## Present stimuli
+  loop(stim, stimuli)
+  {
+    FilePrint_(gFileOut, stim)
+
+    ## Mode 0: Video only
+    ## Mode 1: Audio + Video
+    ## Mode 2: Audio only
+    if(gUseAudio == 2)
+    {
+      ## Audio only - don't show text
+      gStimLabel.text <- ""
+    } else {
+      ## Video only or Audio+Video
+      gStimLabel.text <- stim
+    }
+    Draw()
+
+    ## Play audio if mode 1 or 2
+    if(gUseAudio > 0)
+    {
+      sound <- GetSoundForStim(stim, stimType)
+      if(not (sound == 0))
+      {
+        t1 <- GetTime()
+        PlayForeground(sound)
+        t2 <- GetTime()
+        Wait(gParams.isi - (t2 - t1))
+      } else {
+        ## No audio file available, just wait
+        Wait(gParams.isi)
+      }
+    } else {
+      Wait(gParams.isi)
+    }
+  }
+  FilePrint_(gFileOut, ",")
+
+  ## Get response
+  Hide(gStimLabel)
+  gStimLabel.text <- ListToString(dummy)
+  Draw()
+  if(gUseAudio > 0) {
+    PlayForeground(gBeep)
+  }
+
+  gHeader.text <- gStrings.header
+  Show(gHeader)
+  Show(gStimLabel)
+  Draw()
+
+  responseList <- []
+  position <- 1
+  time1 <- GetTime()
+
+  resptext <- GetTypedResponse(length, direction)
+  time2 <- GetTime()
+
+  ## Check correctness
+  if(ListToString(stimuli) == resptext)
+  {
+    corr <- 1
+  } else {
+    corr <- 0
+  }
+
+  FilePrint(gFileOut, resptext + "," + corr + "," + (time2-time1))
+
+  ## Show feedback
+  Wait(200)
+  gFeedback.text <- ListToString(stimuli)
+  Show(gFeedback)
+  Draw()
+  Wait(1500)
+
+  if(corr)
+  {
+    gFeedback.text <- gStrings.correct
+    if(gUseAudio > 0) {
+      PlayForeground(gCorrect)
+    }
+  } else {
+    gFeedback.text <- gStrings.incorrect
+    if(gUseAudio > 0) {
+      PlayForeground(gIncorrect)
+    }
+  }
+  Draw()
+  Wait(1500)
+
+  Hide(gFeedback)
+  Hide(gStimLabel)
+  Draw()
+
+  return(corr)
+}
+
+
+## Ordering trial - show scrambled items, user types them in order
+define OrderingTrial(stimlist, length, stimType)
+{
+  stimuli <- SampleN(stimlist, length)
+
+  ## Determine correct sorted order
+  if(stimType == "mixed")
+  {
+    ## For mixed: digits first (numerically sorted), then letters (alphabetically sorted)
+    digits <- []
+    letters <- []
+    loop(item, stimuli)
+    {
+      if(IsMember(item, gDigits))
+      {
+        digits <- Append(digits, item)
+      } else {
+        letters <- Append(letters, item)
+      }
+    }
+    correctOrder <- Merge(Sort(digits), Sort(letters))
+  } else {
+    correctOrder <- Sort(stimuli)
+  }
+
+  ## Shuffle until we get an order different from the correct answer
+  scrambled <- Shuffle(stimuli)
+  while(ListToString(scrambled) == ListToString(correctOrder))
+  {
+    scrambled <- Shuffle(stimuli)
+  }
+
+  dummy <- Repeat("_", length)
+
+  gStimLabel.text <- gStrings.ordering_length + length
+  Show(gStimLabel)
+  Draw()
+
+  if(gUseAudio > 0)
+  {
+    PlayForeground(gReady)
+  }
+  Wait(800)
+  Hide(gStimLabel)
+  Draw()
+  Show(gStimLabel)
+  Wait(1000)
+
+  ## Present scrambled stimuli one at a time (like span tasks)
+  loop(stim, scrambled)
+  {
+    FilePrint_(gFileOut, stim)
+
+    ## Mode 0: Video only
+    ## Mode 1: Audio + Video
+    ## Mode 2: Audio only
+    if(gUseAudio == 2)
+    {
+      ## Audio only - don't show text
+      gStimLabel.text <- ""
+    } else {
+      ## Video only or Audio+Video
+      gStimLabel.text <- stim
+    }
+    Draw()
+
+    ## Play audio if mode 1 or 2
+    if(gUseAudio > 0)
+    {
+      sound <- GetSoundForStim(stim, stimType)
+      if(not (sound == 0))
+      {
+        t1 <- GetTime()
+        PlayForeground(sound)
+        t2 <- GetTime()
+        Wait(gParams.isi - (t2 - t1))
+      } else {
+        ## No audio file available, just wait
+        Wait(gParams.isi)
+      }
+    } else {
+      Wait(gParams.isi)
+    }
+  }
+  FilePrint_(gFileOut, ",")
+
+  ## Get response
+  Hide(gStimLabel)
+  gStimLabel.text <- ListToString(dummy)
+  Draw()
+
+  gHeader.text <- gStrings.ordering_header
+  Show(gHeader)
+  Show(gStimLabel)
+  Draw()
+
+  time1 <- GetTime()
+  resptext <- GetTypedResponse(length, "forward")
+  time2 <- GetTime()
+
+  ## Check correctness
+  if(ListToString(correctOrder) == resptext)
+  {
+    corr <- 1
+  } else {
+    corr <- 0
+  }
+
+  FilePrint(gFileOut, resptext + "," + corr + "," + (time2-time1))
+
+  ## Show feedback
+  Wait(200)
+  gFeedback.text <- ListToString(correctOrder)
+  Show(gFeedback)
+  Draw()
+  Wait(1500)
+
+  if(corr)
+  {
+    gFeedback.text <- gStrings.correct
+  } else {
+    gFeedback.text <- gStrings.incorrect
+  }
+  Draw()
+  Wait(1500)
+
+  Hide(gFeedback)
+  Hide(gStimLabel)
+  Draw()
+
+  return(corr)
+}
+
+
+## Get typed response (reusable for both span and ordering tasks)
+define GetTypedResponse(length, direction)
+{
+  responseList <- []
+  position <- 1
+  resp <- ""
+
+  ## Set up valid responses based on input device
+  if(gInputDevice == "keyboard")
+  {
+    responses <- ["1","2","3","4","5","6","7","8","9","0","<return>","<kp_1>","<kp_2>","<kp_3>","<kp_4>","<kp_5>","<kp_6>",
+                  "<kp_7>","<kp_8>","<kp_9>","<kp_0>","<kp_enter>"]
+    ## Add letters for letter span tasks
+    responses <- Merge(responses, ["A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z"])
+
+  } elseif(gInputDevice == "keypad")
+  {
+    responses <- ["<kp_1>","<kp_2>","<kp_3>","<kp_4>","<kp_5>","<kp_6>",
+                  "<kp_7>","<kp_8>","<kp_9>","<kp_0>","<kp_enter>","<return>"]
+    responses <- Merge(responses, ["A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z"])
+  }
+
+  if(gInputDevice == "keyboard")
+  {
+    if(gAllowBackspace)
+    {
+      responses <- Append(responses, "<backspace>")
+    }
+    if(gAllowSkip)
+    {
+      responses <- Append(responses, "-")
+    }
+  }
+
+  while(not (resp == "<return>" or resp == "<kp_enter>"))
+  {
+    if(gInputDevice == "keyboard" or gInputDevice == "keypad")
+    {
+      resp <- WaitForListKeyPress(responses)
+
+    } elseif(gInputDevice == "mouse")
+    {
+      ## Mouse support not yet implemented for letters
+      resp <- "<return>"
+    }
+
+    if(resp == "<backspace>")
+    {
+      if(Length(responseList) == 1)
+      {
+        responseList <- []
+        position <- 1
+      } else {
+        if(direction == "forward")
+        {
+          responseList <- SubList(responseList, 1, Length(responseList)-1)
+          position <- position - 1
+        } else {
+          responseList <- SubList(responseList, 2, Length(responseList))
+          position <- position - 1
+        }
+      }
+
+    } elseif(resp == "<return>" or resp == "<kp_enter>") {
+      ## Done entering
+      33
+    } else {
+      if(position <= length)
+      {
+        position <- position + 1
+        ## Uppercase letters for consistent comparison
+        uppercaseResp <- Uppercase(resp)
+        if(direction == "forward")
+        {
+          responseList <- Append(responseList, uppercaseResp)
+        } else {
+          responseList <- Merge([uppercaseResp], responseList)
+        }
+      }
+    }
+
+    if(direction == "forward")
+    {
+      resptext <- ListToString(Merge(responseList, Repeat("_", (length - position + 1))))
+    } else {
+      resptext <- ListToString(Merge(Repeat("_", (length - position + 1)), responseList))
+    }
+
+    gStimLabel.text <- resptext
+    Draw()
+  }
+
+  return(resptext)
+}
+
+
+##  Standard initializer function
+define Initialize()
+{
+  gWin <- MakeWindow("black")
+
+  if(gSubNum == 0)
+  {
+    gSubNum <- GetSubNum(gWin)
+  }
+
+  GetStrings(gLanguage)
+
+  bg <- MakeColor("black")
+  bg1 <- MakeColor("grey20")
+  fg <- MakeColor("white")
+  bg2 <- MakeColor("grey20")
+
+  colGreen <- MakeColor("green")
+  colRed   <- MakeColor("red")
+
+  gStimFont         <- MakeFont(gPEBLBaseFontMono, 0, 56, fg, bg, 1)
+  gInstructionsFont <- MakeFont(gPEBLBaseFont, 0, 18, fg, bg2, 1)
+  gHeaderFont       <- MakeFont(gPEBLBaseFont, 0, 24, fg, bg, 1)
+
+  gInstructions <- MakeTextBox("", gInstructionsFont, 800, 500)
+  AddObject(gInstructions, gWin)
+  Move(gInstructions, gVideoWidth/2-400, gVideoHeight/2-250)
+  Hide(gInstructions)
+
+  gHeader <- MakeTextBox("", gHeaderFont, 600, 200)
+  AddObject(gHeader, gWin)
+  Move(gHeader, gVideoWidth/2-300, 50)
+  Hide(gHeader)
+
+  gStimLabel <- MakeLabel("", gStimFont)
+  AddObject(gStimLabel, gWin)
+  Move(gStimLabel, gVideoWidth/2, gVideoHeight/2)
+  Hide(gStimLabel)
+
+  gFeedback <- MakeLabel("", gStimFont)
+  AddObject(gFeedback, gWin)
+  Move(gFeedback, gVideoWidth/2, gVideoHeight/2+70)
+  Hide(gFeedback)
+}
+
+
+define WaitForIt()
+{
+  if(gInputDevice == "keyboard" or gInputDevice == "keypad")
+  {
+    WaitForAnyKeyPress()
+  } elseif(gInputDevice == "mouse")
+  {
+    WaitForDownClick()
+  }
+}
+
+
+define GetStrings(lang)
+{
+  gStrings <- GetTranslations("spanvariants", lang)
+  PrintProperties(gStrings)
+}
+
+
+## Get the sound object for a given stimulus
+define GetSoundForStim(stim, stimType)
+{
+  sound <- 0
+
+  if(stimType == "digit")
+  {
+    idx <- Match([stim], gDigits)
+    if(Length(idx) > 0 and Length(gDigitSounds) > 0)
+    {
+      pos <- First(idx)
+      if(pos > 0 and pos <= Length(gDigitSounds))
+      {
+        sound <- Nth(gDigitSounds, pos)
+      }
+    }
+  } elseif(stimType == "letter") {
+    idx <- Match([stim], gLetters)
+    if(Length(idx) > 0 and Length(gLetterSounds) > 0)
+    {
+      pos <- First(idx)
+      if(pos > 0 and pos <= Length(gLetterSounds))
+      {
+        sound <- Nth(gLetterSounds, pos)
+      }
+    }
+  } else {
+    ## Mixed - check if digit or letter
+    if(IsMember(stim, gDigits))
+    {
+      idx <- Match([stim], gDigits)
+      if(Length(idx) > 0 and Length(gDigitSounds) > 0)
+      {
+        pos <- First(idx)
+        if(pos > 0 and pos <= Length(gDigitSounds))
+        {
+          sound <- Nth(gDigitSounds, pos)
+        }
+      }
+    } else {
+      idx <- Match([stim], gLetters)
+      if(Length(idx) > 0 and Length(gLetterSounds) > 0)
+      {
+        pos <- First(idx)
+        if(pos > 0 and pos <= Length(gLetterSounds))
+        {
+          sound <- Nth(gLetterSounds, pos)
+        }
+      }
+    }
+  }
+
+  return(sound)
+}
+PEBL Span Variants Test
+Version 0.1
+
+OVERVIEW
+This test combines multiple working memory span variants commonly used by
+cognitive testing enthusiasts to assess their cognitive abilities. It allows
+running multiple span tasks in a single session with configurable ordering.
+
+TASK VARIANTS
+The test includes nine different span task variants:
+
+1. Forward Digit Span
+   - See digits one at a time, recall in same order
+   - Classic working memory measure
+
+2. Backward Digit Span
+   - See digits one at a time, recall in reverse order
+   - Tests working memory manipulation
+
+3. Forward Letter Span
+   - See letters one at a time, recall in same order
+   - Uses easily distinguishable letter set (ABCDFHKLMR by default)
+
+4. Backward Letter Span
+   - See letters one at a time, recall in reverse order
+   - Working memory manipulation with verbal stimuli
+
+5. Forward Mixed Span
+   - See digits and letters one at a time, recall in same order
+   - Tests working memory for mixed alphanumeric sequences
+
+6. Backward Mixed Span
+   - See digits and letters one at a time, recall in reverse order
+   - Tests manipulation of mixed alphanumeric information
+
+7. Digit Ordering
+   - See multiple digits simultaneously
+   - Recall them in numerical order (smallest to largest)
+   - Tests ability to manipulate and sequence information
+
+8. Letter Ordering
+   - See multiple letters simultaneously
+   - Recall them in alphabetical order
+   - Tests sequencing of verbal information
+
+9. Mixed Ordering
+   - See mix of digits and letters simultaneously
+   - Recall with digits first (numerical order), then letters (alphabetical)
+   - Tests dual sequencing and categorization
+
+CONFIGURATION
+Each variant can be enabled/disabled independently via parameters.
+Set the variant's order parameter to:
+  - 0 to skip that variant
+  - Any other number to specify execution order (1, 2, 3, etc.)
+
+The test will run enabled variants in ascending order based on their
+order parameter values.
+
+BASED ON
+This test extends the PEBL Digit Span task with additional variants
+and flexible configuration for cognitive self-assessment.
+
+REFERENCES
+Forward/backward digit span are traditional neuropsychological measures.
+Letter span and ordering tasks are commonly used in working memory research
+and cognitive training assessment.
+{
+  "FORWARD_DIGIT_INST": "نطاق الأرقام الأمامي\n\nسيتم عرض سلسلة من الأرقام، واحدة تلو الأخرى. مهمتك هي تذكرها وكتابتها بنفس الترتيب الذي رأيتها به.\n\nعلى سبيل المثال، إذا رأيت: 3 7 2 9\nيجب أن تكتب: 3729\n\n",
+
+  "BACKWARD_DIGIT_INST": "نطاق الأرقام العكسي\n\nسيتم عرض سلسلة من الأرقام، واحدة تلو الأخرى. مهمتك هي تذكرها وكتابتها بترتيب عكسي.\n\nعلى سبيل المثال، إذا رأيت: 3 7 2 9\nيجب أن تكتب: 9273\n\n",
+
+  "FORWARD_LETTER_INST": "نطاق الحروف الأمامي\n\nسيتم عرض سلسلة من الحروف، واحدة تلو الأخرى. مهمتك هي تذكرها وكتابتها بنفس الترتيب الذي رأيتها به.\n\nعلى سبيل المثال، إذا رأيت: K D B M\nيجب أن تكتب: KDBM\n\n",
+
+  "BACKWARD_LETTER_INST": "نطاق الحروف العكسي\n\nسيتم عرض سلسلة من الحروف، واحدة تلو الأخرى. مهمتك هي تذكرها وكتابتها بترتيب عكسي.\n\nعلى سبيل المثال، إذا رأيت: K D B M\nيجب أن تكتب: MBDK\n\n",
+
+  "FORWARD_MIXED_INST": "النطاق المختلط الأمامي\n\nسيتم عرض مزيج من الأرقام والحروف، واحدة تلو الأخرى. مهمتك هي تذكرها وكتابتها بنفس الترتيب الذي رأيتها به.\n\nعلى سبيل المثال، إذا رأيت: 3 K 7 D\nيجب أن تكتب: 3K7D\n\n",
+
+  "BACKWARD_MIXED_INST": "النطاق المختلط العكسي\n\nسيتم عرض مزيج من الأرقام والحروف، واحدة تلو الأخرى. مهمتك هي تذكرها وكتابتها بترتيب عكسي.\n\nعلى سبيل المثال، إذا رأيت: 3 K 7 D\nيجب أن تكتب: D7K3\n\n",
+
+  "ORDERING_DIGIT_INST": "ترتيب الأرقام\n\nسيتم عرض الأرقام واحدة تلو الأخرى. مهمتك هي تذكرها وكتابتها بترتيب رقمي من الأصغر إلى الأكبر.\n\nعلى سبيل المثال، إذا رأيت: 7، 2، 9، 3 (معروضة واحدة تلو الأخرى)\nيجب أن تكتب: 2379\n\n",
+
+  "ORDERING_LETTER_INST": "ترتيب الحروف\n\nسيتم عرض الحروف واحدة تلو الأخرى. مهمتك هي تذكرها وكتابتها بترتيب أبجدي.\n\nعلى سبيل المثال، إذا رأيت: K، D، M، B (معروضة واحدة تلو الأخرى)\nيجب أن تكتب: BDKM\n\n",
+
+  "ORDERING_MIXED_INST": "الترتيب المختلط\n\nسيتم عرض مزيج من الأرقام والحروف واحدة تلو الأخرى. مهمتك هي تذكرها وكتابتها مع الأرقام أولاً (بترتيب رقمي) ثم الحروف (بترتيب أبجدي).\n\nعلى سبيل المثال، إذا رأيت: K، 7، D، 2، M، 9 (معروضة واحدة تلو الأخرى)\nيجب أن تكتب: 279DKM\n\n",
+
+  "INSTSKIP": "إذا كنت لا تعرف ما يأتي بعد ذلك، يمكنك التخطي بالضغط على مفتاح '-'. حاول وضع العناصر في مواضعها الصحيحة.\n\n",
+
+  "INSTNOSKIP": "إذا كنت لا تعرف ما يأتي بعد ذلك، يجب عليك التخمين، ولكن حاول وضع العناصر في مواضعها الصحيحة.\n\n",
+
+  "INSTBACK": "إذا ارتكبت خطأ، يمكنك استخدام مفتاح الرجوع لإجراء تصحيح.\n\n",
+
+  "INSTNOBACK": "بمجرد إدخال عنصر، لا يمكنك الرجوع لتحرير إجاباتك.\n\n",
+
+  "LTH": "ستبدأ بقائمة قصيرة وتعمل حتى قوائم أطول. إذا تذكرت بشكل صحيح قوائم كافية بطول معين، فستنتقل إلى القائمة الأطول التالية.",
+
+  "HTL": "ستبدأ بقائمة طويلة وتنزل إلى قوائم أقصر. بعد محاولاتك في كل طول، ستنتقل إلى القائمة الأقصر التالية ما لم تتذكر جميع القوائم بشكل صحيح.",
+
+  "SCS": "ستبدأ بقائمة ذات طول متوسط. إذا تذكرتها بشكل صحيح، فإن قائمتك التالية ستكون أطول بعنصر واحد؛ إذا كانت غير صحيحة، أقصر بعنصر واحد. سيستمر هذا لعدة محاولات.",
+
+  "LENGTH": "الطول: ",
+
+  "ORDERING_LENGTH": "عدد العناصر: ",
+
+  "ORDERING_PROMPT": "رتب هذه:",
+
+  "HEADER": "اكتب إجابتك (0-9، A-Z)، اضغط على Enter عند الانتهاء",
+
+  "ORDERING_HEADER": "اكتب العناصر بالترتيب الصحيح، اضغط على Enter عند الانتهاء",
+
+  "CORRECT": "صحيح!",
+
+  "INCORRECT": "غير صحيح",
+
+  "DEBRIEF": "شكراً لك على إكمال اختبار متغيرات النطاق.\n\nنتائجك:",
+
+  "EXIT": "اضغط على أي مفتاح للخروج."
+}
+{
+  "FORWARD_DIGIT_INST": "সামনের দিকে সংখ্যা বিস্তার\n\nআপনাকে একবারে একটি করে সংখ্যার ক্রম দেখানো হবে। আপনার কাজ হল সেগুলি মনে রাখা এবং যে ক্রমে দেখেছেন সেই একই ক্রমে টাইপ করা।\n\nউদাহরণস্বরূপ, যদি আপনি দেখেন: 3 7 2 9\nআপনার টাইপ করা উচিত: 3729\n\n",
+
+  "BACKWARD_DIGIT_INST": "পেছনের দিকে সংখ্যা বিস্তার\n\nআপনাকে একবারে একটি করে সংখ্যার ক্রম দেখানো হবে। আপনার কাজ হল সেগুলি মনে রাখা এবং বিপরীত ক্রমে টাইপ করা।\n\nউদাহরণস্বরূপ, যদি আপনি দেখেন: 3 7 2 9\nআপনার টাইপ করা উচিত: 9273\n\n",
+
+  "FORWARD_LETTER_INST": "সামনের দিকে বর্ণ বিস্তার\n\nআপনাকে একবারে একটি করে বর্ণের ক্রম দেখানো হবে। আপনার কাজ হল সেগুলি মনে রাখা এবং যে ক্রমে দেখেছেন সেই একই ক্রমে টাইপ করা।\n\nউদাহরণস্বরূপ, যদি আপনি দেখেন: K D B M\nআপনার টাইপ করা উচিত: KDBM\n\n",
+
+  "BACKWARD_LETTER_INST": "পেছনের দিকে বর্ণ বিস্তার\n\nআপনাকে একবারে একটি করে বর্ণের ক্রম দেখানো হবে। আপনার কাজ হল সেগুলি মনে রাখা এবং বিপরীত ক্রমে টাইপ করা।\n\nউদাহরণস্বরূপ, যদি আপনি দেখেন: K D B M\nআপনার টাইপ করা উচিত: MBDK\n\n",
+
+  "FORWARD_MIXED_INST": "সামনের দিকে মিশ্র বিস্তার\n\nআপনাকে একবারে একটি করে সংখ্যা এবং বর্ণের মিশ্রণ দেখানো হবে। আপনার কাজ হল সেগুলি মনে রাখা এবং যে ক্রমে দেখেছেন সেই একই ক্রমে টাইপ করা।\n\nউদাহরণস্বরূপ, যদি আপনি দেখেন: 3 K 7 D\nআপনার টাইপ করা উচিত: 3K7D\n\n",
+
+  "BACKWARD_MIXED_INST": "পেছনের দিকে মিশ্র বিস্তার\n\nআপনাকে একবারে একটি করে সংখ্যা এবং বর্ণের মিশ্রণ দেখানো হবে। আপনার কাজ হল সেগুলি মনে রাখা এবং বিপরীত ক্রমে টাইপ করা।\n\nউদাহরণস্বরূপ, যদি আপনি দেখেন: 3 K 7 D\nআপনার টাইপ করা উচিত: D7K3\n\n",
+
+  "ORDERING_DIGIT_INST": "সংখ্যা সাজানো\n\nআপনাকে একবারে একটি করে সংখ্যা দেখানো হবে। আপনার কাজ হল সেগুলি মনে রাখা এবং ছোট থেকে বড় সংখ্যাগত ক্রমে টাইপ করা।\n\nউদাহরণস্বরূপ, যদি আপনি দেখেন: 7, 2, 9, 3 (একবারে একটি করে দেখানো)\nআপনার টাইপ করা উচিত: 2379\n\n",
+
+  "ORDERING_LETTER_INST": "বর্ণ সাজানো\n\nআপনাকে একবারে একটি করে বর্ণ দেখানো হবে। আপনার কাজ হল সেগুলি মনে রাখা এবং বর্ণানুক্রমিক ক্রমে টাইপ করা।\n\nউদাহরণস্বরূপ, যদি আপনি দেখেন: K, D, M, B (একবারে একটি করে দেখানো)\nআপনার টাইপ করা উচিত: BDKM\n\n",
+
+  "ORDERING_MIXED_INST": "মিশ্র সাজানো\n\nআপনাকে একবারে একটি করে সংখ্যা এবং বর্ণের মিশ্রণ দেখানো হবে। আপনার কাজ হল সেগুলি মনে রাখা এবং প্রথমে সংখ্যা (সংখ্যাগত ক্রমে) তারপর বর্ণ (বর্ণানুক্রমিক ক্রমে) টাইপ করা।\n\nউদাহরণস্বরূপ, যদি আপনি দেখেন: K, 7, D, 2, M, 9 (একবারে একটি করে দেখানো)\nআপনার টাইপ করা উচিত: 279DKM\n\n",
+
+  "INSTSKIP": "যদি আপনি না জানেন পরবর্তীতে কী আসবে, তাহলে '-' কী চেপে এড়িয়ে যেতে পারেন। আইটেমগুলিকে তাদের সঠিক অবস্থানে রাখার চেষ্টা করুন।\n\n",
+
+  "INSTNOSKIP": "যদি আপনি না জানেন পরবর্তীতে কী আসবে, তাহলে আপনাকে অনুমান করতে হবে, তবে আইটেমগুলিকে তাদের সঠিক অবস্থানে রাখার চেষ্টা করুন।\n\n",
+
+  "INSTBACK": "যদি আপনি ভুল করেন, তাহলে সংশোধনের জন্য ব্যাকস্পেস কী ব্যবহার করতে পারেন।\n\n",
+
+  "INSTNOBACK": "একবার আপনি একটি আইটেম প্রবেশ করালে, আপনার উত্তরগুলি সম্পাদনা করতে ফিরে যেতে পারবেন না।\n\n",
+
+  "LTH": "আপনি একটি ছোট তালিকা দিয়ে শুরু করবেন এবং দীর্ঘ তালিকায় কাজ করবেন। যদি আপনি একটি নির্দিষ্ট দৈর্ঘ্যের পর্যাপ্ত তালিকা সঠিকভাবে মনে রাখেন, তাহলে আপনি পরবর্তী দীর্ঘ তালিকায় যাবেন।",
+
+  "HTL": "আপনি একটি দীর্ঘ তালিকা দিয়ে শুরু করবেন এবং ছোট তালিকার দিকে কাজ করবেন। প্রতিটি দৈর্ঘ্যে আপনার প্রচেষ্টার পরে, আপনি পরবর্তী ছোট তালিকায় যাবেন যদি না আপনি সমস্ত তালিকা সঠিকভাবে মনে রাখেন।",
+
+  "SCS": "আপনি মাঝারি দৈর্ঘ্যের একটি তালিকা দিয়ে শুরু করবেন। যদি আপনি সঠিকভাবে মনে রাখেন, তাহলে আপনার পরবর্তী তালিকা একটি আইটেম দীর্ঘ হবে; যদি ভুল হয়, তাহলে একটি আইটেম ছোট হবে। এটি বেশ কয়েকটি প্রচেষ্টার জন্য চলতে থাকবে।",
+
+  "LENGTH": "দৈর্ঘ্য: ",
+
+  "ORDERING_LENGTH": "আইটেম সংখ্যা: ",
+
+  "ORDERING_PROMPT": "এগুলি সাজান:",
+
+  "HEADER": "আপনার উত্তর টাইপ করুন (0-9, A-Z), সম্পূর্ণ হলে Enter চাপুন",
+
+  "ORDERING_HEADER": "আইটেমগুলি সঠিক ক্রমে টাইপ করুন, সম্পূর্ণ হলে Enter চাপুন",
+
+  "CORRECT": "সঠিক!",
+
+  "INCORRECT": "ভুল",
+
+  "DEBRIEF": "বিস্তার বৈচিত্র্য পরীক্ষা সম্পূর্ণ করার জন্য ধন্যবাদ।\n\nআপনার ফলাফল:",
+
+  "EXIT": "প্রস্থান করতে যেকোনো কী চাপুন।"
+}
+{
+  "FORWARD_DIGIT_INST": "正序数字广度\n\n您将看到一系列数字，一次一个。您的任务是记住它们并按您看到的相同顺序输入。\n\n例如，如果您看到：3 7 2 9\n您应该输入：3729\n\n",
+
+  "BACKWARD_DIGIT_INST": "倒序数字广度\n\n您将看到一系列数字，一次一个。您的任务是记住它们并按相反顺序输入。\n\n例如，如果您看到：3 7 2 9\n您应该输入：9273\n\n",
+
+  "FORWARD_LETTER_INST": "正序字母广度\n\n您将看到一系列字母，一次一个。您的任务是记住它们并按您看到的相同顺序输入。\n\n例如，如果您看到：K D B M\n您应该输入：KDBM\n\n",
+
+  "BACKWARD_LETTER_INST": "倒序字母广度\n\n您将看到一系列字母，一次一个。您的任务是记住它们并按相反顺序输入。\n\n例如，如果您看到：K D B M\n您应该输入：MBDK\n\n",
+
+  "FORWARD_MIXED_INST": "正序混合广度\n\n您将看到数字和字母的混合，一次一个。您的任务是记住它们并按您看到的相同顺序输入。\n\n例如，如果您看到：3 K 7 D\n您应该输入：3K7D\n\n",
+
+  "BACKWARD_MIXED_INST": "倒序混合广度\n\n您将看到数字和字母的混合，一次一个。您的任务是记住它们并按相反顺序输入。\n\n例如，如果您看到：3 K 7 D\n您应该输入：D7K3\n\n",
+
+  "ORDERING_DIGIT_INST": "数字排序\n\n您将看到一系列数字，一次一个。您的任务是记住它们并按数字顺序从小到大输入。\n\n例如，如果您看到：7、2、9、3（一次显示一个）\n您应该输入：2379\n\n",
+
+  "ORDERING_LETTER_INST": "字母排序\n\n您将看到一系列字母，一次一个。您的任务是记住它们并按字母顺序输入。\n\n例如，如果您看到：K、D、M、B（一次显示一个）\n您应该输入：BDKM\n\n",
+
+  "ORDERING_MIXED_INST": "混合排序\n\n您将看到数字和字母的混合，一次一个。您的任务是记住它们并先输入数字（按数字顺序）然后输入字母（按字母顺序）。\n\n例如，如果您看到：K、7、D、2、M、9（一次显示一个）\n您应该输入：279DKM\n\n",
+
+  "INSTSKIP": "如果您不知道接下来是什么，可以按'-'键跳过。尽量将项目放在正确的位置。\n\n",
+
+  "INSTNOSKIP": "如果您不知道接下来是什么，您必须猜测，但要尽量将项目放在正确的位置。\n\n",
+
+  "INSTBACK": "如果您犯了错误，可以使用退格键进行更正。\n\n",
+
+  "INSTNOBACK": "一旦您输入了一个项目，就不能返回编辑您的答案。\n\n",
+
+  "LTH": "您将从一个短列表开始，逐步增加到较长的列表。如果您正确回忆了给定长度的足够多的列表，您将进入下一个较长的列表。",
+
+  "HTL": "您将从一个长列表开始，逐步减少到较短的列表。在每个长度的试验后，您将进入下一个较短的列表，除非您正确回忆了所有列表。",
+
+  "SCS": "您将从一个中等长度的列表开始。如果您正确回忆，下一个列表将增加一个项目；如果错误，将减少一个项目。这将持续几次试验。",
+
+  "LENGTH": "长度：",
+
+  "ORDERING_LENGTH": "项目数：",
+
+  "ORDERING_PROMPT": "将这些排序：",
+
+  "HEADER": "输入您的答案（0-9，A-Z），完成后按回车键",
+
+  "ORDERING_HEADER": "按正确顺序输入项目，完成后按回车键",
+
+  "CORRECT": "正确！",
+
+  "INCORRECT": "错误",
+
+  "DEBRIEF": "感谢您完成广度变体测试。\n\n您的结果：",
+
+  "EXIT": "按任意键退出。"
+}
+{
+  "FORWARD_DIGIT_INST": "VORWÄRTS ZAHLENSPANNE\n\nIhnen wird eine Sequenz von Ziffern nacheinander gezeigt. Ihre Aufgabe ist es, sich diese zu merken und sie IN DER GLEICHEN REIHENFOLGE einzugeben, wie Sie sie gesehen haben.\n\nZum Beispiel, wenn Sie sehen: 3 7 2 9\nSollten Sie eingeben: 3729\n\n",
+
+  "BACKWARD_DIGIT_INST": "RÜCKWÄRTS ZAHLENSPANNE\n\nIhnen wird eine Sequenz von Ziffern nacheinander gezeigt. Ihre Aufgabe ist es, sich diese zu merken und sie IN UMGEKEHRTER REIHENFOLGE einzugeben.\n\nZum Beispiel, wenn Sie sehen: 3 7 2 9\nSollten Sie eingeben: 9273\n\n",
+
+  "FORWARD_LETTER_INST": "VORWÄRTS BUCHSTABENSPANNE\n\nIhnen wird eine Sequenz von Buchstaben nacheinander gezeigt. Ihre Aufgabe ist es, sich diese zu merken und sie IN DER GLEICHEN REIHENFOLGE einzugeben, wie Sie sie gesehen haben.\n\nZum Beispiel, wenn Sie sehen: K D B M\nSollten Sie eingeben: KDBM\n\n",
+
+  "BACKWARD_LETTER_INST": "RÜCKWÄRTS BUCHSTABENSPANNE\n\nIhnen wird eine Sequenz von Buchstaben nacheinander gezeigt. Ihre Aufgabe ist es, sich diese zu merken und sie IN UMGEKEHRTER REIHENFOLGE einzugeben.\n\nZum Beispiel, wenn Sie sehen: K D B M\nSollten Sie eingeben: MBDK\n\n",
+
+  "FORWARD_MIXED_INST": "VORWÄRTS GEMISCHTE SPANNE\n\nIhnen wird eine Mischung aus Ziffern und Buchstaben nacheinander gezeigt. Ihre Aufgabe ist es, sich diese zu merken und sie IN DER GLEICHEN REIHENFOLGE einzugeben, wie Sie sie gesehen haben.\n\nZum Beispiel, wenn Sie sehen: 3 K 7 D\nSollten Sie eingeben: 3K7D\n\n",
+
+  "BACKWARD_MIXED_INST": "RÜCKWÄRTS GEMISCHTE SPANNE\n\nIhnen wird eine Mischung aus Ziffern und Buchstaben nacheinander gezeigt. Ihre Aufgabe ist es, sich diese zu merken und sie IN UMGEKEHRTER REIHENFOLGE einzugeben.\n\nZum Beispiel, wenn Sie sehen: 3 K 7 D\nSollten Sie eingeben: D7K3\n\n",
+
+  "ORDERING_DIGIT_INST": "ZAHLEN ORDNEN\n\nIhnen werden Ziffern nacheinander gezeigt. Ihre Aufgabe ist es, sich diese zu merken und sie IN NUMERISCHER REIHENFOLGE von der kleinsten zur größten einzugeben.\n\nZum Beispiel, wenn Sie sehen: 7, 2, 9, 3 (nacheinander gezeigt)\nSollten Sie eingeben: 2379\n\n",
+
+  "ORDERING_LETTER_INST": "BUCHSTABEN ORDNEN\n\nIhnen werden Buchstaben nacheinander gezeigt. Ihre Aufgabe ist es, sich diese zu merken und sie IN ALPHABETISCHER REIHENFOLGE einzugeben.\n\nZum Beispiel, wenn Sie sehen: K, D, M, B (nacheinander gezeigt)\nSollten Sie eingeben: BDKM\n\n",
+
+  "ORDERING_MIXED_INST": "GEMISCHTES ORDNEN\n\nIhnen wird eine Mischung aus Ziffern und Buchstaben nacheinander gezeigt. Ihre Aufgabe ist es, sich diese zu merken und sie mit ZIFFERN ZUERST (in numerischer Reihenfolge) gefolgt von BUCHSTABEN (in alphabetischer Reihenfolge) einzugeben.\n\nZum Beispiel, wenn Sie sehen: K, 7, D, 2, M, 9 (nacheinander gezeigt)\nSollten Sie eingeben: 279DKM\n\n",
+
+  "INSTSKIP": "Wenn Sie nicht wissen, was als nächstes kommt, können Sie es überspringen, indem Sie die '-' Taste drücken. Versuchen Sie, die Elemente an ihre korrekten Positionen zu setzen.\n\n",
+
+  "INSTNOSKIP": "Wenn Sie nicht wissen, was als nächstes kommt, müssen Sie raten, aber versuchen Sie, die Elemente an ihre korrekten Positionen zu setzen.\n\n",
+
+  "INSTBACK": "Wenn Sie einen Fehler machen, können Sie die Rücktaste verwenden, um eine Korrektur vorzunehmen.\n\n",
+
+  "INSTNOBACK": "Sobald Sie ein Element eingegeben haben, können Sie nicht zurückgehen, um Ihre Antworten zu bearbeiten.\n\n",
+
+  "LTH": "Sie beginnen mit einer kurzen Liste und arbeiten sich zu längeren Listen hoch. Wenn Sie genug Listen einer bestimmten Länge korrekt erinnern, gehen Sie zur nächsten längeren Liste über.",
+
+  "HTL": "Sie beginnen mit einer langen Liste und arbeiten sich zu kürzeren Listen herunter. Nach Ihren Versuchen bei jeder Länge gehen Sie zur nächsten kürzeren Liste über, es sei denn, Sie erinnern alle Listen korrekt.",
+
+  "SCS": "Sie beginnen mit einer mittellangen Liste. Wenn Sie sie korrekt erinnern, wird Ihre nächste Liste ein Element länger sein; wenn falsch, ein Element kürzer. Dies wird für mehrere Versuche fortgesetzt.",
+
+  "LENGTH": "Länge: ",
+
+  "ORDERING_LENGTH": "Anzahl der Elemente: ",
+
+  "ORDERING_PROMPT": "Ordnen Sie diese:",
+
+  "HEADER": "Geben Sie Ihre Antwort ein (0-9, A-Z), drücken Sie Enter wenn fertig",
+
+  "ORDERING_HEADER": "Geben Sie Elemente in korrekter Reihenfolge ein, drücken Sie Enter wenn fertig",
+
+  "CORRECT": "Richtig!",
+
+  "INCORRECT": "Falsch",
+
+  "DEBRIEF": "Vielen Dank für die Teilnahme am Spannen-Varianten-Test.\n\nIhre Ergebnisse:",
+
+  "EXIT": "Drücken Sie eine beliebige Taste zum Beenden."
+}
+{
+  "FORWARD_DIGIT_INST": "FORWARD DIGIT SPAN\n\nYou will be presented with a sequence of digits, one at a time. Your task is to remember them and type them back IN THE SAME ORDER you saw them.\n\nFor example, if you see: 3 7 2 9\nYou should type: 3729\n\n",
+
+  "BACKWARD_DIGIT_INST": "BACKWARD DIGIT SPAN\n\nYou will be presented with a sequence of digits, one at a time. Your task is to remember them and type them back IN REVERSE ORDER.\n\nFor example, if you see: 3 7 2 9\nYou should type: 9273\n\n",
+
+  "FORWARD_LETTER_INST": "FORWARD LETTER SPAN\n\nYou will be presented with a sequence of letters, one at a time. Your task is to remember them and type them back IN THE SAME ORDER you saw them.\n\nFor example, if you see: K D B M\nYou should type: KDBM\n\n",
+
+  "BACKWARD_LETTER_INST": "BACKWARD LETTER SPAN\n\nYou will be presented with a sequence of letters, one at a time. Your task is to remember them and type them back IN REVERSE ORDER.\n\nFor example, if you see: K D B M\nYou should type: MBDK\n\n",
+
+  "FORWARD_MIXED_INST": "FORWARD MIXED SPAN\n\nYou will be presented with a mix of digits and letters, one at a time. Your task is to remember them and type them back IN THE SAME ORDER you saw them.\n\nFor example, if you see: 3 K 7 D\nYou should type: 3K7D\n\n",
+
+  "BACKWARD_MIXED_INST": "BACKWARD MIXED SPAN\n\nYou will be presented with a mix of digits and letters, one at a time. Your task is to remember them and type them back IN REVERSE ORDER.\n\nFor example, if you see: 3 K 7 D\nYou should type: D7K3\n\n",
+
+  "ORDERING_DIGIT_INST": "DIGIT ORDERING\n\nYou will be presented with digits one at a time. Your task is to remember them and type them back IN NUMERICAL ORDER from smallest to largest.\n\nFor example, if you see: 7, 2, 9, 3 (shown one at a time)\nYou should type: 2379\n\n",
+
+  "ORDERING_LETTER_INST": "LETTER ORDERING\n\nYou will be presented with letters one at a time. Your task is to remember them and type them back IN ALPHABETICAL ORDER.\n\nFor example, if you see: K, D, M, B (shown one at a time)\nYou should type: BDKM\n\n",
+
+  "ORDERING_MIXED_INST": "MIXED ORDERING\n\nYou will be presented with a mix of digits and letters one at a time. Your task is to remember them and type them back with DIGITS FIRST (in numerical order) followed by LETTERS (in alphabetical order).\n\nFor example, if you see: K, 7, D, 2, M, 9 (shown one at a time)\nYou should type: 279DKM\n\n",
+
+  "INSTSKIP": "If you do not know what comes next, you can skip over it by typing the '-' key. Try to put items in their correct positions.\n\n",
+
+  "INSTNOSKIP": "If you do not know what comes next, you must guess, but try to put items in their correct positions.\n\n",
+
+  "INSTBACK": "If you make a mistake, you can use the backspace key to make a correction.\n\n",
+
+  "INSTNOBACK": "Once you enter an item, you cannot go back to edit your responses.\n\n",
+
+  "LTH": "You will start with a short list and work up to longer lists. If you correctly recall enough lists at a given length, you will move on to the next longest list.",
+
+  "HTL": "You will start with a long list and work down to shorter lists. After your trials at each length, you will move down to the next shorter list unless you recall all lists correctly.",
+
+  "SCS": "You will start with a medium-length list. If you recall it correctly, your next list will be one item longer; if incorrect, one item shorter. This will continue for several trials.",
+
+  "LENGTH": "Length: ",
+
+  "ORDERING_LENGTH": "Number of items: ",
+
+  "ORDERING_PROMPT": "Put these in order:",
+
+  "HEADER": "Type your response (0-9, A-Z), press Enter when complete",
+
+  "ORDERING_HEADER": "Type items in correct order, press Enter when complete",
+
+  "CORRECT": "Correct!",
+
+  "INCORRECT": "Incorrect",
+
+  "DEBRIEF": "Thank you for completing the Span Variants test.\n\nYour results:",
+
+  "EXIT": "Press any key to exit."
+}
+{
+  "FORWARD_DIGIT_INST": "AMPLITUD DE DÍGITOS HACIA ADELANTE\n\nSe le presentará una secuencia de dígitos, uno a la vez. Su tarea es recordarlos y escribirlos EN EL MISMO ORDEN en que los vio.\n\nPor ejemplo, si ve: 3 7 2 9\nDebe escribir: 3729\n\n",
+
+  "BACKWARD_DIGIT_INST": "AMPLITUD DE DÍGITOS HACIA ATRÁS\n\nSe le presentará una secuencia de dígitos, uno a la vez. Su tarea es recordarlos y escribirlos EN ORDEN INVERSO.\n\nPor ejemplo, si ve: 3 7 2 9\nDebe escribir: 9273\n\n",
+
+  "FORWARD_LETTER_INST": "AMPLITUD DE LETRAS HACIA ADELANTE\n\nSe le presentará una secuencia de letras, una a la vez. Su tarea es recordarlas y escribirlas EN EL MISMO ORDEN en que las vio.\n\nPor ejemplo, si ve: K D B M\nDebe escribir: KDBM\n\n",
+
+  "BACKWARD_LETTER_INST": "AMPLITUD DE LETRAS HACIA ATRÁS\n\nSe le presentará una secuencia de letras, una a la vez. Su tarea es recordarlas y escribirlas EN ORDEN INVERSO.\n\nPor ejemplo, si ve: K D B M\nDebe escribir: MBDK\n\n",
+
+  "FORWARD_MIXED_INST": "AMPLITUD MIXTA HACIA ADELANTE\n\nSe le presentará una mezcla de dígitos y letras, uno a la vez. Su tarea es recordarlos y escribirlos EN EL MISMO ORDEN en que los vio.\n\nPor ejemplo, si ve: 3 K 7 D\nDebe escribir: 3K7D\n\n",
+
+  "BACKWARD_MIXED_INST": "AMPLITUD MIXTA HACIA ATRÁS\n\nSe le presentará una mezcla de dígitos y letras, uno a la vez. Su tarea es recordarlos y escribirlos EN ORDEN INVERSO.\n\nPor ejemplo, si ve: 3 K 7 D\nDebe escribir: D7K3\n\n",
+
+  "ORDERING_DIGIT_INST": "ORDENACIÓN DE DÍGITOS\n\nSe le presentarán dígitos uno a la vez. Su tarea es recordarlos y escribirlos EN ORDEN NUMÉRICO de menor a mayor.\n\nPor ejemplo, si ve: 7, 2, 9, 3 (mostrados uno a la vez)\nDebe escribir: 2379\n\n",
+
+  "ORDERING_LETTER_INST": "ORDENACIÓN DE LETRAS\n\nSe le presentarán letras una a la vez. Su tarea es recordarlas y escribirlas EN ORDEN ALFABÉTICO.\n\nPor ejemplo, si ve: K, D, M, B (mostradas una a la vez)\nDebe escribir: BDKM\n\n",
+
+  "ORDERING_MIXED_INST": "ORDENACIÓN MIXTA\n\nSe le presentará una mezcla de dígitos y letras uno a la vez. Su tarea es recordarlos y escribirlos con los DÍGITOS PRIMERO (en orden numérico) seguidos de las LETRAS (en orden alfabético).\n\nPor ejemplo, si ve: K, 7, D, 2, M, 9 (mostrados uno a la vez)\nDebe escribir: 279DKM\n\n",
+
+  "INSTSKIP": "Si no sabe qué viene a continuación, puede omitirlo presionando la tecla '-'. Intente colocar los elementos en sus posiciones correctas.\n\n",
+
+  "INSTNOSKIP": "Si no sabe qué viene a continuación, debe adivinar, pero intente colocar los elementos en sus posiciones correctas.\n\n",
+
+  "INSTBACK": "Si comete un error, puede usar la tecla de retroceso para hacer una corrección.\n\n",
+
+  "INSTNOBACK": "Una vez que ingrese un elemento, no podrá volver para editar sus respuestas.\n\n",
+
+  "LTH": "Comenzará con una lista corta y avanzará a listas más largas. Si recuerda correctamente suficientes listas de una longitud determinada, pasará a la siguiente lista más larga.",
+
+  "HTL": "Comenzará con una lista larga y descenderá a listas más cortas. Después de sus intentos en cada longitud, descenderá a la siguiente lista más corta a menos que recuerde todas las listas correctamente.",
+
+  "SCS": "Comenzará con una lista de longitud media. Si la recuerda correctamente, su próxima lista será un elemento más larga; si es incorrecta, un elemento más corta. Esto continuará durante varios intentos.",
+
+  "LENGTH": "Longitud: ",
+
+  "ORDERING_LENGTH": "Número de elementos: ",
+
+  "ORDERING_PROMPT": "Ordene estos:",
+
+  "HEADER": "Escriba su respuesta (0-9, A-Z), presione Enter cuando termine",
+
+  "ORDERING_HEADER": "Escriba los elementos en el orden correcto, presione Enter cuando termine",
+
+  "CORRECT": "¡Correcto!",
+
+  "INCORRECT": "Incorrecto",
+
+  "DEBRIEF": "Gracias por completar la prueba de Variantes de Amplitud.\n\nSus resultados:",
+
+  "EXIT": "Presione cualquier tecla para salir."
+}
+{
+  "FORWARD_DIGIT_INST": "EMPAN DE CHIFFRES AVANT\n\nUne séquence de chiffres vous sera présentée, un à la fois. Votre tâche est de vous en souvenir et de les taper DANS LE MÊME ORDRE que vous les avez vus.\n\nPar exemple, si vous voyez : 3 7 2 9\nVous devriez taper : 3729\n\n",
+
+  "BACKWARD_DIGIT_INST": "EMPAN DE CHIFFRES ARRIÈRE\n\nUne séquence de chiffres vous sera présentée, un à la fois. Votre tâche est de vous en souvenir et de les taper EN ORDRE INVERSE.\n\nPar exemple, si vous voyez : 3 7 2 9\nVous devriez taper : 9273\n\n",
+
+  "FORWARD_LETTER_INST": "EMPAN DE LETTRES AVANT\n\nUne séquence de lettres vous sera présentée, une à la fois. Votre tâche est de vous en souvenir et de les taper DANS LE MÊME ORDRE que vous les avez vues.\n\nPar exemple, si vous voyez : K D B M\nVous devriez taper : KDBM\n\n",
+
+  "BACKWARD_LETTER_INST": "EMPAN DE LETTRES ARRIÈRE\n\nUne séquence de lettres vous sera présentée, une à la fois. Votre tâche est de vous en souvenir et de les taper EN ORDRE INVERSE.\n\nPar exemple, si vous voyez : K D B M\nVous devriez taper : MBDK\n\n",
+
+  "FORWARD_MIXED_INST": "EMPAN MIXTE AVANT\n\nUn mélange de chiffres et de lettres vous sera présenté, un à la fois. Votre tâche est de vous en souvenir et de les taper DANS LE MÊME ORDRE que vous les avez vus.\n\nPar exemple, si vous voyez : 3 K 7 D\nVous devriez taper : 3K7D\n\n",
+
+  "BACKWARD_MIXED_INST": "EMPAN MIXTE ARRIÈRE\n\nUn mélange de chiffres et de lettres vous sera présenté, un à la fois. Votre tâche est de vous en souvenir et de les taper EN ORDRE INVERSE.\n\nPar exemple, si vous voyez : 3 K 7 D\nVous devriez taper : D7K3\n\n",
+
+  "ORDERING_DIGIT_INST": "ORDRE DES CHIFFRES\n\nDes chiffres vous seront présentés un à la fois. Votre tâche est de vous en souvenir et de les taper EN ORDRE NUMÉRIQUE du plus petit au plus grand.\n\nPar exemple, si vous voyez : 7, 2, 9, 3 (montrés un à la fois)\nVous devriez taper : 2379\n\n",
+
+  "ORDERING_LETTER_INST": "ORDRE DES LETTRES\n\nDes lettres vous seront présentées une à la fois. Votre tâche est de vous en souvenir et de les taper EN ORDRE ALPHABÉTIQUE.\n\nPar exemple, si vous voyez : K, D, M, B (montrées une à la fois)\nVous devriez taper : BDKM\n\n",
+
+  "ORDERING_MIXED_INST": "ORDRE MIXTE\n\nUn mélange de chiffres et de lettres vous sera présenté un à la fois. Votre tâche est de vous en souvenir et de les taper avec les CHIFFRES D'ABORD (en ordre numérique) suivis des LETTRES (en ordre alphabétique).\n\nPar exemple, si vous voyez : K, 7, D, 2, M, 9 (montrés un à la fois)\nVous devriez taper : 279DKM\n\n",
+
+  "INSTSKIP": "Si vous ne savez pas ce qui vient ensuite, vous pouvez le sauter en tapant la touche '-'. Essayez de placer les éléments dans leurs positions correctes.\n\n",
+
+  "INSTNOSKIP": "Si vous ne savez pas ce qui vient ensuite, vous devez deviner, mais essayez de placer les éléments dans leurs positions correctes.\n\n",
+
+  "INSTBACK": "Si vous faites une erreur, vous pouvez utiliser la touche retour arrière pour faire une correction.\n\n",
+
+  "INSTNOBACK": "Une fois que vous entrez un élément, vous ne pouvez pas revenir en arrière pour modifier vos réponses.\n\n",
+
+  "LTH": "Vous commencerez avec une liste courte et travaillerez jusqu'à des listes plus longues. Si vous vous souvenez correctement de suffisamment de listes d'une longueur donnée, vous passerez à la liste la plus longue suivante.",
+
+  "HTL": "Vous commencerez avec une liste longue et descendrez vers des listes plus courtes. Après vos essais à chaque longueur, vous descendrez à la liste la plus courte suivante à moins que vous ne vous souveniez correctement de toutes les listes.",
+
+  "SCS": "Vous commencerez avec une liste de longueur moyenne. Si vous vous en souvenez correctement, votre prochaine liste sera d'un élément plus longue ; si incorrecte, d'un élément plus courte. Cela continuera pendant plusieurs essais.",
+
+  "LENGTH": "Longueur : ",
+
+  "ORDERING_LENGTH": "Nombre d'éléments : ",
+
+  "ORDERING_PROMPT": "Mettez-les dans l'ordre :",
+
+  "HEADER": "Tapez votre réponse (0-9, A-Z), appuyez sur Entrée quand terminé",
+
+  "ORDERING_HEADER": "Tapez les éléments dans le bon ordre, appuyez sur Entrée quand terminé",
+
+  "CORRECT": "Correct !",
+
+  "INCORRECT": "Incorrect",
+
+  "DEBRIEF": "Merci d'avoir complété le test de Variantes d'Empan.\n\nVos résultats :",
+
+  "EXIT": "Appuyez sur n'importe quelle touche pour quitter."
+}
+{
+  "FORWARD_DIGIT_INST": "आगे की ओर अंक विस्तार\n\nआपको एक बार में एक अंक का क्रम दिखाया जाएगा। आपका कार्य उन्हें याद रखना और उसी क्रम में टाइप करना है जिस क्रम में आपने उन्हें देखा था।\n\nउदाहरण के लिए, यदि आप देखते हैं: 3 7 2 9\nआपको टाइप करना चाहिए: 3729\n\n",
+
+  "BACKWARD_DIGIT_INST": "पीछे की ओर अंक विस्तार\n\nआपको एक बार में एक अंक का क्रम दिखाया जाएगा। आपका कार्य उन्हें याद रखना और उलटे क्रम में टाइप करना है।\n\nउदाहरण के लिए, यदि आप देखते हैं: 3 7 2 9\nआपको टाइप करना चाहिए: 9273\n\n",
+
+  "FORWARD_LETTER_INST": "आगे की ओर अक्षर विस्तार\n\nआपको एक बार में एक अक्षर का क्रम दिखाया जाएगा। आपका कार्य उन्हें याद रखना और उसी क्रम में टाइप करना है जिस क्रम में आपने उन्हें देखा था।\n\nउदाहरण के लिए, यदि आप देखते हैं: K D B M\nआपको टाइप करना चाहिए: KDBM\n\n",
+
+  "BACKWARD_LETTER_INST": "पीछे की ओर अक्षर विस्तार\n\nआपको एक बार में एक अक्षर का क्रम दिखाया जाएगा। आपका कार्य उन्हें याद रखना और उलटे क्रम में टाइप करना है।\n\nउदाहरण के लिए, यदि आप देखते हैं: K D B M\nआपको टाइप करना चाहिए: MBDK\n\n",
+
+  "FORWARD_MIXED_INST": "आगे की ओर मिश्रित विस्तार\n\nआपको एक बार में एक अंक और अक्षर का मिश्रण दिखाया जाएगा। आपका कार्य उन्हें याद रखना और उसी क्रम में टाइप करना है जिस क्रम में आपने उन्हें देखा था।\n\nउदाहरण के लिए, यदि आप देखते हैं: 3 K 7 D\nआपको टाइप करना चाहिए: 3K7D\n\n",
+
+  "BACKWARD_MIXED_INST": "पीछे की ओर मिश्रित विस्तार\n\nआपको एक बार में एक अंक और अक्षर का मिश्रण दिखाया जाएगा। आपका कार्य उन्हें याद रखना और उलटे क्रम में टाइप करना है।\n\nउदाहरण के लिए, यदि आप देखते हैं: 3 K 7 D\nआपको टाइप करना चाहिए: D7K3\n\n",
+
+  "ORDERING_DIGIT_INST": "अंकों का क्रमबद्धीकरण\n\nआपको एक बार में एक अंक दिखाया जाएगा। आपका कार्य उन्हें याद रखना और छोटे से बड़े संख्यात्मक क्रम में टाइप करना है।\n\nउदाहरण के लिए, यदि आप देखते हैं: 7, 2, 9, 3 (एक बार में एक दिखाया गया)\nआपको टाइप करना चाहिए: 2379\n\n",
+
+  "ORDERING_LETTER_INST": "अक्षरों का क्रमबद्धीकरण\n\nआपको एक बार में एक अक्षर दिखाया जाएगा। आपका कार्य उन्हें याद रखना और वर्णमाला क्रम में टाइप करना है।\n\nउदाहरण के लिए, यदि आप देखते हैं: K, D, M, B (एक बार में एक दिखाया गया)\nआपको टाइप करना चाहिए: BDKM\n\n",
+
+  "ORDERING_MIXED_INST": "मिश्रित क्रमबद्धीकरण\n\nआपको एक बार में एक अंक और अक्षर का मिश्रण दिखाया जाएगा। आपका कार्य उन्हें याद रखना और पहले अंक (संख्यात्मक क्रम में) फिर अक्षर (वर्णमाला क्रम में) टाइप करना है।\n\nउदाहरण के लिए, यदि आप देखते हैं: K, 7, D, 2, M, 9 (एक बार में एक दिखाया गया)\nआपको टाइप करना चाहिए: 279DKM\n\n",
+
+  "INSTSKIP": "यदि आप नहीं जानते कि आगे क्या आता है, तो आप '-' कुंजी दबाकर छोड़ सकते हैं। वस्तुओं को उनके सही स्थानों पर रखने का प्रयास करें।\n\n",
+
+  "INSTNOSKIP": "यदि आप नहीं जानते कि आगे क्या आता है, तो आपको अनुमान लगाना होगा, लेकिन वस्तुओं को उनके सही स्थानों पर रखने का प्रयास करें।\n\n",
+
+  "INSTBACK": "यदि आप गलती करते हैं, तो आप सुधार करने के लिए बैकस्पेस कुंजी का उपयोग कर सकते हैं।\n\n",
+
+  "INSTNOBACK": "एक बार जब आप एक वस्तु दर्ज कर देते हैं, तो आप अपने उत्तरों को संपादित करने के लिए वापस नहीं जा सकते।\n\n",
+
+  "LTH": "आप एक छोटी सूची से शुरू करेंगे और लंबी सूचियों तक काम करेंगे। यदि आप किसी दी गई लंबाई की पर्याप्त सूचियों को सही ढंग से याद करते हैं, तो आप अगली लंबी सूची में जाएंगे।",
+
+  "HTL": "आप एक लंबी सूची से शुरू करेंगे और छोटी सूचियों की ओर काम करेंगे। प्रत्येक लंबाई पर आपके प्रयासों के बाद, आप अगली छोटी सूची में जाएंगे जब तक कि आप सभी सूचियों को सही ढंग से याद नहीं करते।",
+
+  "SCS": "आप मध्यम लंबाई की सूची से शुरू करेंगे। यदि आप इसे सही ढंग से याद करते हैं, तो आपकी अगली सूची एक वस्तु लंबी होगी; यदि गलत है, तो एक वस्तु छोटी होगी। यह कई प्रयासों के लिए जारी रहेगा।",
+
+  "LENGTH": "लंबाई: ",
+
+  "ORDERING_LENGTH": "वस्तुओं की संख्या: ",
+
+  "ORDERING_PROMPT": "इन्हें क्रमबद्ध करें:",
+
+  "HEADER": "अपना उत्तर टाइप करें (0-9, A-Z), पूर्ण होने पर Enter दबाएं",
+
+  "ORDERING_HEADER": "वस्तुओं को सही क्रम में टाइप करें, पूर्ण होने पर Enter दबाएं",
+
+  "CORRECT": "सही!",
+
+  "INCORRECT": "गलत",
+
+  "DEBRIEF": "विस्तार भिन्नताएं परीक्षण पूरा करने के लिए धन्यवाद।\n\nआपके परिणाम:",
+
+  "EXIT": "बाहर निकलने के लिए कोई भी कुंजी दबाएं।"
+}
+{
+  "FORWARD_DIGIT_INST": "RASPON BROJEVA UNAPRIJED\n\nBit će vam prikazan niz brojeva, jedan po jedan. Vaš zadatak je zapamtiti ih i upisati ISTIM REDOSLIJEDOM kako ste ih vidjeli.\n\nNa primjer, ako vidite: 3 7 2 9\nTrebali biste upisati: 3729\n\n",
+
+  "BACKWARD_DIGIT_INST": "RASPON BROJEVA UNATRAG\n\nBit će vam prikazan niz brojeva, jedan po jedan. Vaš zadatak je zapamtiti ih i upisati OBRNUTIM REDOSLIJEDOM.\n\nNa primjer, ako vidite: 3 7 2 9\nTrebali biste upisati: 9273\n\n",
+
+  "FORWARD_LETTER_INST": "RASPON SLOVA UNAPRIJED\n\nBit će vam prikazan niz slova, jedno po jedno. Vaš zadatak je zapamtiti ih i upisati ISTIM REDOSLIJEDOM kako ste ih vidjeli.\n\nNa primjer, ako vidite: K D B M\nTrebali biste upisati: KDBM\n\n",
+
+  "BACKWARD_LETTER_INST": "RASPON SLOVA UNATRAG\n\nBit će vam prikazan niz slova, jedno po jedno. Vaš zadatak je zapamtiti ih i upisati OBRNUTIM REDOSLIJEDOM.\n\nNa primjer, ako vidite: K D B M\nTrebali biste upisati: MBDK\n\n",
+
+  "FORWARD_MIXED_INST": "MJEŠOVITI RASPON UNAPRIJED\n\nBit će vam prikazana mješavina brojeva i slova, jedan po jedan. Vaš zadatak je zapamtiti ih i upisati ISTIM REDOSLIJEDOM kako ste ih vidjeli.\n\nNa primjer, ako vidite: 3 K 7 D\nTrebali biste upisati: 3K7D\n\n",
+
+  "BACKWARD_MIXED_INST": "MJEŠOVITI RASPON UNATRAG\n\nBit će vam prikazana mješavina brojeva i slova, jedan po jedan. Vaš zadatak je zapamtiti ih i upisati OBRNUTIM REDOSLIJEDOM.\n\nNa primjer, ako vidite: 3 K 7 D\nTrebali biste upisati: D7K3\n\n",
+
+  "ORDERING_DIGIT_INST": "SORTIRANJE BROJEVA\n\nBit će vam prikazani brojevi jedan po jedan. Vaš zadatak je zapamtiti ih i upisati NUMERIČKIM REDOSLIJEDOM od najmanjeg do najvećeg.\n\nNa primjer, ako vidite: 7, 2, 9, 3 (prikazani jedan po jedan)\nTrebali biste upisati: 2379\n\n",
+
+  "ORDERING_LETTER_INST": "SORTIRANJE SLOVA\n\nBit će vam prikazana slova jedno po jedno. Vaš zadatak je zapamtiti ih i upisati ABECEDNIM REDOSLIJEDOM.\n\nNa primjer, ako vidite: K, D, M, B (prikazana jedno po jedno)\nTrebali biste upisati: BDKM\n\n",
+
+  "ORDERING_MIXED_INST": "MJEŠOVITO SORTIRANJE\n\nBit će vam prikazana mješavina brojeva i slova jedan po jedan. Vaš zadatak je zapamtiti ih i upisati s BROJEVIMA PRVI (numeričkim redoslijedom) nakon čega slijede SLOVA (abecednim redoslijedom).\n\nNa primjer, ako vidite: K, 7, D, 2, M, 9 (prikazani jedan po jedan)\nTrebali biste upisati: 279DKM\n\n",
+
+  "INSTSKIP": "Ako ne znate što dolazi sljedeće, možete preskočiti pritiskom na tipku '-'. Pokušajte staviti stavke na njihove točne pozicije.\n\n",
+
+  "INSTNOSKIP": "Ako ne znate što dolazi sljedeće, morate pogađati, ali pokušajte staviti stavke na njihove točne pozicije.\n\n",
+
+  "INSTBACK": "Ako napravite grešku, možete koristiti tipku backspace za ispravljanje.\n\n",
+
+  "INSTNOBACK": "Jednom kada unesete stavku, ne možete se vratiti za uređivanje svojih odgovora.\n\n",
+
+  "LTH": "Počet ćete s kratkom listom i raditi prema dužim listama. Ako se točno prisjetite dovoljno lista određene duljine, prijeći ćete na sljedeću dužu listu.",
+
+  "HTL": "Počet ćete s dugom listom i silaziti prema kraćim listama. Nakon vaših pokušaja na svakoj duljini, prijeći ćete na sljedeću kraću listu osim ako se ne prisjetite svih lista točno.",
+
+  "SCS": "Počet ćete s listom srednje duljine. Ako se točno prisjetite, vaša sljedeća lista bit će za jednu stavku duža; ako netočno, za jednu stavku kraća. Ovo će se nastaviti kroz nekoliko pokušaja.",
+
+  "LENGTH": "Duljina: ",
+
+  "ORDERING_LENGTH": "Broj stavki: ",
+
+  "ORDERING_PROMPT": "Sortirajte ove:",
+
+  "HEADER": "Upišite svoj odgovor (0-9, A-Z), pritisnite Enter kada završite",
+
+  "ORDERING_HEADER": "Upišite stavke točnim redoslijedom, pritisnite Enter kada završite",
+
+  "CORRECT": "Točno!",
+
+  "INCORRECT": "Netočno",
+
+  "DEBRIEF": "Hvala vam što ste dovršili test varijanti raspona.\n\nVaši rezultati:",
+
+  "EXIT": "Pritisnite bilo koju tipku za izlaz."
+}
+{
+  "FORWARD_DIGIT_INST": "SPAN DI CIFRE IN AVANTI\n\nTi verrà presentata una sequenza di cifre, una alla volta. Il tuo compito è ricordarle e digitarle NELLO STESSO ORDINE in cui le hai viste.\n\nAd esempio, se vedi: 3 7 2 9\nDovresti digitare: 3729\n\n",
+
+  "BACKWARD_DIGIT_INST": "SPAN DI CIFRE ALL'INDIETRO\n\nTi verrà presentata una sequenza di cifre, una alla volta. Il tuo compito è ricordarle e digitarle IN ORDINE INVERSO.\n\nAd esempio, se vedi: 3 7 2 9\nDovresti digitare: 9273\n\n",
+
+  "FORWARD_LETTER_INST": "SPAN DI LETTERE IN AVANTI\n\nTi verrà presentata una sequenza di lettere, una alla volta. Il tuo compito è ricordarle e digitarle NELLO STESSO ORDINE in cui le hai viste.\n\nAd esempio, se vedi: K D B M\nDovresti digitare: KDBM\n\n",
+
+  "BACKWARD_LETTER_INST": "SPAN DI LETTERE ALL'INDIETRO\n\nTi verrà presentata una sequenza di lettere, una alla volta. Il tuo compito è ricordarle e digitarle IN ORDINE INVERSO.\n\nAd esempio, se vedi: K D B M\nDovresti digitare: MBDK\n\n",
+
+  "FORWARD_MIXED_INST": "SPAN MISTO IN AVANTI\n\nTi verrà presentata una combinazione di cifre e lettere, una alla volta. Il tuo compito è ricordarle e digitarle NELLO STESSO ORDINE in cui le hai viste.\n\nAd esempio, se vedi: 3 K 7 D\nDovresti digitare: 3K7D\n\n",
+
+  "BACKWARD_MIXED_INST": "SPAN MISTO ALL'INDIETRO\n\nTi verrà presentata una combinazione di cifre e lettere, una alla volta. Il tuo compito è ricordarle e digitarle IN ORDINE INVERSO.\n\nAd esempio, se vedi: 3 K 7 D\nDovresti digitare: D7K3\n\n",
+
+  "ORDERING_DIGIT_INST": "ORDINAMENTO DI CIFRE\n\nTi verranno presentate delle cifre una alla volta. Il tuo compito è ricordarle e digitarle IN ORDINE NUMERICO dal più piccolo al più grande.\n\nAd esempio, se vedi: 7, 2, 9, 3 (mostrate una alla volta)\nDovresti digitare: 2379\n\n",
+
+  "ORDERING_LETTER_INST": "ORDINAMENTO DI LETTERE\n\nTi verranno presentate delle lettere una alla volta. Il tuo compito è ricordarle e digitarle IN ORDINE ALFABETICO.\n\nAd esempio, se vedi: K, D, M, B (mostrate una alla volta)\nDovresti digitare: BDKM\n\n",
+
+  "ORDERING_MIXED_INST": "ORDINAMENTO MISTO\n\nTi verrà presentata una combinazione di cifre e lettere una alla volta. Il tuo compito è ricordarle e digitarle con le CIFRE PER PRIME (in ordine numerico) seguite dalle LETTERE (in ordine alfabetico).\n\nAd esempio, se vedi: K, 7, D, 2, M, 9 (mostrate una alla volta)\nDovresti digitare: 279DKM\n\n",
+
+  "INSTSKIP": "Se non sai cosa viene dopo, puoi saltarlo digitando il tasto '-'. Cerca di mettere gli elementi nelle loro posizioni corrette.\n\n",
+
+  "INSTNOSKIP": "Se non sai cosa viene dopo, devi indovinare, ma cerca di mettere gli elementi nelle loro posizioni corrette.\n\n",
+
+  "INSTBACK": "Se commetti un errore, puoi usare il tasto backspace per fare una correzione.\n\n",
+
+  "INSTNOBACK": "Una volta inserito un elemento, non puoi tornare indietro per modificare le tue risposte.\n\n",
+
+  "LTH": "Inizierai con una lista breve e lavorerai fino a liste più lunghe. Se ricordi correttamente abbastanza liste di una determinata lunghezza, passerai alla lista più lunga successiva.",
+
+  "HTL": "Inizierai con una lista lunga e scenderai a liste più corte. Dopo i tuoi tentativi a ogni lunghezza, scenderai alla lista più corta successiva a meno che tu non ricordi tutte le liste correttamente.",
+
+  "SCS": "Inizierai con una lista di lunghezza media. Se la ricordi correttamente, la tua prossima lista sarà di un elemento più lunga; se sbagliata, di un elemento più corta. Questo continuerà per diversi tentativi.",
+
+  "LENGTH": "Lunghezza: ",
+
+  "ORDERING_LENGTH": "Numero di elementi: ",
+
+  "ORDERING_PROMPT": "Metti questi in ordine:",
+
+  "HEADER": "Digita la tua risposta (0-9, A-Z), premi Invio quando hai finito",
+
+  "ORDERING_HEADER": "Digita gli elementi nell'ordine corretto, premi Invio quando hai finito",
+
+  "CORRECT": "Corretto!",
+
+  "INCORRECT": "Errato",
+
+  "DEBRIEF": "Grazie per aver completato il test delle Varianti di Span.\n\nI tuoi risultati:",
+
+  "EXIT": "Premi un tasto qualsiasi per uscire."
+}
+{
+  "FORWARD_DIGIT_INST": "順唱数字スパン\n\n数字が1つずつ順番に表示されます。それらを覚えて、見た順番と同じ順序で入力してください。\n\n例えば、3 7 2 9 と表示された場合\n3729 と入力してください\n\n",
+
+  "BACKWARD_DIGIT_INST": "逆唱数字スパン\n\n数字が1つずつ順番に表示されます。それらを覚えて、逆の順序で入力してください。\n\n例えば、3 7 2 9 と表示された場合\n9273 と入力してください\n\n",
+
+  "FORWARD_LETTER_INST": "順唱文字スパン\n\n文字が1つずつ順番に表示されます。それらを覚えて、見た順番と同じ順序で入力してください。\n\n例えば、K D B M と表示された場合\nKDBM と入力してください\n\n",
+
+  "BACKWARD_LETTER_INST": "逆唱文字スパン\n\n文字が1つずつ順番に表示されます。それらを覚えて、逆の順序で入力してください。\n\n例えば、K D B M と表示された場合\nMBDK と入力してください\n\n",
+
+  "FORWARD_MIXED_INST": "順唱混合スパン\n\n数字と文字が混ざって1つずつ表示されます。それらを覚えて、見た順番と同じ順序で入力してください。\n\n例えば、3 K 7 D と表示された場合\n3K7D と入力してください\n\n",
+
+  "BACKWARD_MIXED_INST": "逆唱混合スパン\n\n数字と文字が混ざって1つずつ表示されます。それらを覚えて、逆の順序で入力してください。\n\n例えば、3 K 7 D と表示された場合\nD7K3 と入力してください\n\n",
+
+  "ORDERING_DIGIT_INST": "数字の並べ替え\n\n数字が1つずつ表示されます。それらを覚えて、小さい順に数値順序で入力してください。\n\n例えば、7、2、9、3 と1つずつ表示された場合\n2379 と入力してください\n\n",
+
+  "ORDERING_LETTER_INST": "文字の並べ替え\n\n文字が1つずつ表示されます。それらを覚えて、アルファベット順に入力してください。\n\n例えば、K、D、M、B と1つずつ表示された場合\nBDKM と入力してください\n\n",
+
+  "ORDERING_MIXED_INST": "混合の並べ替え\n\n数字と文字が混ざって1つずつ表示されます。それらを覚えて、数字を先に（数値順）、次に文字を（アルファベット順）入力してください。\n\n例えば、K、7、D、2、M、9 と1つずつ表示された場合\n279DKM と入力してください\n\n",
+
+  "INSTSKIP": "次が何かわからない場合は、'-'キーを押してスキップできます。項目を正しい位置に入れるようにしてください。\n\n",
+
+  "INSTNOSKIP": "次が何かわからない場合は、推測する必要がありますが、項目を正しい位置に入れるようにしてください。\n\n",
+
+  "INSTBACK": "間違えた場合は、バックスペースキーを使って訂正できます。\n\n",
+
+  "INSTNOBACK": "項目を入力したら、戻って回答を編集することはできません。\n\n",
+
+  "LTH": "短いリストから始めて、より長いリストへと進みます。特定の長さのリストを十分に正しく思い出すことができれば、次のより長いリストに進みます。",
+
+  "HTL": "長いリストから始めて、より短いリストへと進みます。各長さでの試行の後、すべてのリストを正しく思い出さない限り、次のより短いリストに進みます。",
+
+  "SCS": "中程度の長さのリストから始めます。正しく思い出せば、次のリストは1項目長くなり、間違えれば1項目短くなります。これを数回の試行続けます。",
+
+  "LENGTH": "長さ：",
+
+  "ORDERING_LENGTH": "項目数：",
+
+  "ORDERING_PROMPT": "これらを並べ替えてください：",
+
+  "HEADER": "回答を入力してください（0-9、A-Z）、完了したらEnterキーを押してください",
+
+  "ORDERING_HEADER": "項目を正しい順序で入力し、完了したらEnterキーを押してください",
+
+  "CORRECT": "正解！",
+
+  "INCORRECT": "不正解",
+
+  "DEBRIEF": "スパン変動テストを完了していただき、ありがとうございます。\n\nあなたの結果：",
+
+  "EXIT": "任意のキーを押して終了してください。"
+}
+{
+  "FORWARD_DIGIT_INST": "순방향 숫자 폭\n\n숫자가 하나씩 차례로 제시됩니다. 이를 기억하여 본 순서와 동일한 순서로 입력하십시오.\n\n예를 들어, 3 7 2 9를 보면\n3729를 입력해야 합니다\n\n",
+
+  "BACKWARD_DIGIT_INST": "역방향 숫자 폭\n\n숫자가 하나씩 차례로 제시됩니다. 이를 기억하여 역순으로 입력하십시오.\n\n예를 들어, 3 7 2 9를 보면\n9273을 입력해야 합니다\n\n",
+
+  "FORWARD_LETTER_INST": "순방향 문자 폭\n\n문자가 하나씩 차례로 제시됩니다. 이를 기억하여 본 순서와 동일한 순서로 입력하십시오.\n\n예를 들어, K D B M을 보면\nKDBM을 입력해야 합니다\n\n",
+
+  "BACKWARD_LETTER_INST": "역방향 문자 폭\n\n문자가 하나씩 차례로 제시됩니다. 이를 기억하여 역순으로 입력하십시오.\n\n예를 들어, K D B M을 보면\nMBDK를 입력해야 합니다\n\n",
+
+  "FORWARD_MIXED_INST": "순방향 혼합 폭\n\n숫자와 문자가 섞여서 하나씩 제시됩니다. 이를 기억하여 본 순서와 동일한 순서로 입력하십시오.\n\n예를 들어, 3 K 7 D를 보면\n3K7D를 입력해야 합니다\n\n",
+
+  "BACKWARD_MIXED_INST": "역방향 혼합 폭\n\n숫자와 문자가 섞여서 하나씩 제시됩니다. 이를 기억하여 역순으로 입력하십시오.\n\n예를 들어, 3 K 7 D를 보면\nD7K3을 입력해야 합니다\n\n",
+
+  "ORDERING_DIGIT_INST": "숫자 순서 정렬\n\n숫자가 하나씩 제시됩니다. 이를 기억하여 작은 것부터 큰 순서로 숫자 순으로 입력하십시오.\n\n예를 들어, 7, 2, 9, 3이 하나씩 표시되면\n2379를 입력해야 합니다\n\n",
+
+  "ORDERING_LETTER_INST": "문자 순서 정렬\n\n문자가 하나씩 제시됩니다. 이를 기억하여 알파벳 순서로 입력하십시오.\n\n예를 들어, K, D, M, B가 하나씩 표시되면\nBDKM을 입력해야 합니다\n\n",
+
+  "ORDERING_MIXED_INST": "혼합 순서 정렬\n\n숫자와 문자가 섞여서 하나씩 제시됩니다. 이를 기억하여 숫자를 먼저 (숫자 순으로) 입력한 다음 문자를 (알파벳 순으로) 입력하십시오.\n\n예를 들어, K, 7, D, 2, M, 9가 하나씩 표시되면\n279DKM을 입력해야 합니다\n\n",
+
+  "INSTSKIP": "다음에 무엇이 오는지 모르는 경우 '-' 키를 눌러 건너뛸 수 있습니다. 항목을 올바른 위치에 배치하도록 노력하십시오.\n\n",
+
+  "INSTNOSKIP": "다음에 무엇이 오는지 모르는 경우 추측해야 하지만 항목을 올바른 위치에 배치하도록 노력하십시오.\n\n",
+
+  "INSTBACK": "실수를 한 경우 백스페이스 키를 사용하여 수정할 수 있습니다.\n\n",
+
+  "INSTNOBACK": "항목을 입력한 후에는 돌아가서 답변을 편집할 수 없습니다.\n\n",
+
+  "LTH": "짧은 목록부터 시작하여 더 긴 목록으로 진행합니다. 특정 길이의 목록을 충분히 올바르게 기억하면 다음 긴 목록으로 이동합니다.",
+
+  "HTL": "긴 목록부터 시작하여 더 짧은 목록으로 진행합니다. 각 길이에서 시도한 후 모든 목록을 올바르게 기억하지 않는 한 다음 짧은 목록으로 이동합니다.",
+
+  "SCS": "중간 길이의 목록부터 시작합니다. 올바르게 기억하면 다음 목록은 한 항목 더 길어지고, 틀리면 한 항목 더 짧아집니다. 이는 여러 시도 동안 계속됩니다.",
+
+  "LENGTH": "길이: ",
+
+  "ORDERING_LENGTH": "항목 수: ",
+
+  "ORDERING_PROMPT": "이것들을 정렬하십시오:",
+
+  "HEADER": "답변을 입력하십시오 (0-9, A-Z), 완료되면 Enter를 누르십시오",
+
+  "ORDERING_HEADER": "항목을 올바른 순서로 입력하고 완료되면 Enter를 누르십시오",
+
+  "CORRECT": "정답!",
+
+  "INCORRECT": "오답",
+
+  "DEBRIEF": "폭 변형 테스트를 완료해 주셔서 감사합니다.\n\n결과:",
+
+  "EXIT": "종료하려면 아무 키나 누르십시오."
+}
+{
+  "FORWARD_DIGIT_INST": "SKAITMENŲ DIAPAZONAS PIRMYN\n\nJums bus pateikta skaitmenų seka, po vieną. Jūsų užduotis - atsiminti juos ir įvesti TA PAČIA TVARKA, kokia juos matėte.\n\nPavyzdžiui, jei matote: 3 7 2 9\nTurėtumėte įvesti: 3729\n\n",
+
+  "BACKWARD_DIGIT_INST": "SKAITMENŲ DIAPAZONAS ATGAL\n\nJums bus pateikta skaitmenų seka, po vieną. Jūsų užduotis - atsiminti juos ir įvesti ATVIRKŠTINE TVARKA.\n\nPavyzdžiui, jei matote: 3 7 2 9\nTurėtumėte įvesti: 9273\n\n",
+
+  "FORWARD_LETTER_INST": "RAIDŽIŲ DIAPAZONAS PIRMYN\n\nJums bus pateikta raidžių seka, po vieną. Jūsų užduotis - atsiminti jas ir įvesti TA PAČIA TVARKA, kokia jas matėte.\n\nPavyzdžiui, jei matote: K D B M\nTurėtumėte įvesti: KDBM\n\n",
+
+  "BACKWARD_LETTER_INST": "RAIDŽIŲ DIAPAZONAS ATGAL\n\nJums bus pateikta raidžių seka, po vieną. Jūsų užduotis - atsiminti jas ir įvesti ATVIRKŠTINE TVARKA.\n\nPavyzdžiui, jei matote: K D B M\nTurėtumėte įvesti: MBDK\n\n",
+
+  "FORWARD_MIXED_INST": "MIŠRUS DIAPAZONAS PIRMYN\n\nJums bus pateiktas skaitmenų ir raidžių mišinys, po vieną. Jūsų užduotis - atsiminti juos ir įvesti TA PAČIA TVARKA, kokia juos matėte.\n\nPavyzdžiui, jei matote: 3 K 7 D\nTurėtumėte įvesti: 3K7D\n\n",
+
+  "BACKWARD_MIXED_INST": "MIŠRUS DIAPAZONAS ATGAL\n\nJums bus pateiktas skaitmenų ir raidžių mišinys, po vieną. Jūsų užduotis - atsiminti juos ir įvesti ATVIRKŠTINE TVARKA.\n\nPavyzdžiui, jei matote: 3 K 7 D\nTurėtumėte įvesti: D7K3\n\n",
+
+  "ORDERING_DIGIT_INST": "SKAITMENŲ RIKIAVIMAS\n\nJums bus pateikti skaitmenys po vieną. Jūsų užduotis - atsiminti juos ir įvesti SKAITINE TVARKA nuo mažiausio iki didžiausio.\n\nPavyzdžiui, jei matote: 7, 2, 9, 3 (rodomi po vieną)\nTurėtumėte įvesti: 2379\n\n",
+
+  "ORDERING_LETTER_INST": "RAIDŽIŲ RIKIAVIMAS\n\nJums bus pateiktos raidės po vieną. Jūsų užduotis - atsiminti jas ir įvesti ABĖCĖLĖS TVARKA.\n\nPavyzdžiui, jei matote: K, D, M, B (rodomos po vieną)\nTurėtumėte įvesti: BDKM\n\n",
+
+  "ORDERING_MIXED_INST": "MIŠRUS RIKIAVIMAS\n\nJums bus pateiktas skaitmenų ir raidžių mišinys po vieną. Jūsų užduotis - atsiminti juos ir įvesti su SKAITMENIMIS PIRMA (skaitine tvarka), po to RAIDĖMIS (abėcėlės tvarka).\n\nPavyzdžiui, jei matote: K, 7, D, 2, M, 9 (rodomi po vieną)\nTurėtumėte įvesti: 279DKM\n\n",
+
+  "INSTSKIP": "Jei nežinote, kas eina toliau, galite praleisti paspausdami '-' klavišą. Stenkitės dėti elementus į teisingas pozicijas.\n\n",
+
+  "INSTNOSKIP": "Jei nežinote, kas eina toliau, turite spėti, bet stenkitės dėti elementus į teisingas pozicijas.\n\n",
+
+  "INSTBACK": "Jei padarote klaidą, galite naudoti backspace klavišą taisymui.\n\n",
+
+  "INSTNOBACK": "Kai įvesite elementą, negalite grįžti atgal redaguoti savo atsakymų.\n\n",
+
+  "LTH": "Pradėsite nuo trumpo sąrašo ir dirbsite link ilgesnių sąrašų. Jei teisingai prisiminsite pakankamai tam tikro ilgio sąrašų, pereisite prie kito ilgesnio sąrašo.",
+
+  "HTL": "Pradėsite nuo ilgo sąrašo ir eisite link trumpesnių sąrašų. Po jūsų bandymų kiekviename ilgyje, pereisite prie kito trumpesnio sąrašo, nebent teisingai prisiminsite visus sąrašus.",
+
+  "SCS": "Pradėsite nuo vidutinio ilgio sąrašo. Jei teisingai prisiminsite, jūsų kitas sąrašas bus vienu elementu ilgesnis; jei neteisingai, vienu elementu trumpesnis. Tai tęsis kelis bandymus.",
+
+  "LENGTH": "Ilgis: ",
+
+  "ORDERING_LENGTH": "Elementų skaičius: ",
+
+  "ORDERING_PROMPT": "Surikiuokite šiuos:",
+
+  "HEADER": "Įveskite savo atsakymą (0-9, A-Z), paspauskite Enter kai baigsite",
+
+  "ORDERING_HEADER": "Įveskite elementus teisinga tvarka, paspauskite Enter kai baigsite",
+
+  "CORRECT": "Teisingai!",
+
+  "INCORRECT": "Neteisingai",
+
+  "DEBRIEF": "Dėkojame už diapazonų variantų testo užbaigimą.\n\nJūsų rezultatai:",
+
+  "EXIT": "Paspauskite bet kurį klavišą išėjimui."
+}
+{
+  "FORWARD_DIGIT_INST": "VOORWAARTSE CIJFERREEKS\n\nEr wordt u een reeks cijfers getoond, één voor één. Uw taak is om deze te onthouden en in DEZELFDE VOLGORDE in te typen als u ze zag.\n\nBijvoorbeeld, als u ziet: 3 7 2 9\nMoet u typen: 3729\n\n",
+
+  "BACKWARD_DIGIT_INST": "ACHTERWAARTSE CIJFERREEKS\n\nEr wordt u een reeks cijfers getoond, één voor één. Uw taak is om deze te onthouden en in OMGEKEERDE VOLGORDE in te typen.\n\nBijvoorbeeld, als u ziet: 3 7 2 9\nMoet u typen: 9273\n\n",
+
+  "FORWARD_LETTER_INST": "VOORWAARTSE LETTERREEKS\n\nEr wordt u een reeks letters getoond, één voor één. Uw taak is om deze te onthouden en in DEZELFDE VOLGORDE in te typen als u ze zag.\n\nBijvoorbeeld, als u ziet: K D B M\nMoet u typen: KDBM\n\n",
+
+  "BACKWARD_LETTER_INST": "ACHTERWAARTSE LETTERREEKS\n\nEr wordt u een reeks letters getoond, één voor één. Uw taak is om deze te onthouden en in OMGEKEERDE VOLGORDE in te typen.\n\nBijvoorbeeld, als u ziet: K D B M\nMoet u typen: MBDK\n\n",
+
+  "FORWARD_MIXED_INST": "VOORWAARTSE GEMENGDE REEKS\n\nEr wordt u een mix van cijfers en letters getoond, één voor één. Uw taak is om deze te onthouden en in DEZELFDE VOLGORDE in te typen als u ze zag.\n\nBijvoorbeeld, als u ziet: 3 K 7 D\nMoet u typen: 3K7D\n\n",
+
+  "BACKWARD_MIXED_INST": "ACHTERWAARTSE GEMENGDE REEKS\n\nEr wordt u een mix van cijfers en letters getoond, één voor één. Uw taak is om deze te onthouden en in OMGEKEERDE VOLGORDE in te typen.\n\nBijvoorbeeld, als u ziet: 3 K 7 D\nMoet u typen: D7K3\n\n",
+
+  "ORDERING_DIGIT_INST": "CIJFERS ORDENEN\n\nEr worden u cijfers getoond, één voor één. Uw taak is om deze te onthouden en in NUMERIEKE VOLGORDE van klein naar groot in te typen.\n\nBijvoorbeeld, als u ziet: 7, 2, 9, 3 (één voor één getoond)\nMoet u typen: 2379\n\n",
+
+  "ORDERING_LETTER_INST": "LETTERS ORDENEN\n\nEr worden u letters getoond, één voor één. Uw taak is om deze te onthouden en in ALFABETISCHE VOLGORDE in te typen.\n\nBijvoorbeeld, als u ziet: K, D, M, B (één voor één getoond)\nMoet u typen: BDKM\n\n",
+
+  "ORDERING_MIXED_INST": "GEMENGD ORDENEN\n\nEr wordt u een mix van cijfers en letters getoond, één voor één. Uw taak is om deze te onthouden en in te typen met CIJFERS EERST (in numerieke volgorde) gevolgd door LETTERS (in alfabetische volgorde).\n\nBijvoorbeeld, als u ziet: K, 7, D, 2, M, 9 (één voor één getoond)\nMoet u typen: 279DKM\n\n",
+
+  "INSTSKIP": "Als u niet weet wat er volgt, kunt u het overslaan door op de '-' toets te drukken. Probeer items op hun juiste posities te plaatsen.\n\n",
+
+  "INSTNOSKIP": "Als u niet weet wat er volgt, moet u raden, maar probeer items op hun juiste posities te plaatsen.\n\n",
+
+  "INSTBACK": "Als u een fout maakt, kunt u de backspace-toets gebruiken om een correctie aan te brengen.\n\n",
+
+  "INSTNOBACK": "Zodra u een item invoert, kunt u niet meer teruggaan om uw antwoorden te bewerken.\n\n",
+
+  "LTH": "U begint met een korte lijst en werkt toe naar langere lijsten. Als u voldoende lijsten van een bepaalde lengte correct herinnert, gaat u naar de volgende langere lijst.",
+
+  "HTL": "U begint met een lange lijst en werkt af naar kortere lijsten. Na uw pogingen bij elke lengte, gaat u naar de volgende kortere lijst, tenzij u alle lijsten correct herinnert.",
+
+  "SCS": "U begint met een lijst van gemiddelde lengte. Als u deze correct herinnert, wordt uw volgende lijst één item langer; als incorrect, één item korter. Dit gaat door voor verschillende pogingen.",
+
+  "LENGTH": "Lengte: ",
+
+  "ORDERING_LENGTH": "Aantal items: ",
+
+  "ORDERING_PROMPT": "Zet deze in volgorde:",
+
+  "HEADER": "Typ uw antwoord (0-9, A-Z), druk op Enter wanneer klaar",
+
+  "ORDERING_HEADER": "Typ items in de juiste volgorde, druk op Enter wanneer klaar",
+
+  "CORRECT": "Correct!",
+
+  "INCORRECT": "Incorrect",
+
+  "DEBRIEF": "Bedankt voor het voltooien van de Reeks Varianten test.\n\nUw resultaten:",
+
+  "EXIT": "Druk op een willekeurige toets om af te sluiten."
+}
+{
+  "FORWARD_DIGIT_INST": "ROZPIĘTOŚĆ CYFR W PRZÓD\n\nZostanie Ci pokazana sekwencja cyfr, po jednej na raz. Twoim zadaniem jest zapamiętanie ich i wpisanie W TEJ SAMEJ KOLEJNOŚCI, w jakiej je widziałeś.\n\nNa przykład, jeśli zobaczysz: 3 7 2 9\nPowinienneś wpisać: 3729\n\n",
+
+  "BACKWARD_DIGIT_INST": "ROZPIĘTOŚĆ CYFR W TYŁ\n\nZostanie Ci pokazana sekwencja cyfr, po jednej na raz. Twoim zadaniem jest zapamiętanie ich i wpisanie W ODWROTNEJ KOLEJNOŚCI.\n\nNa przykład, jeśli zobaczysz: 3 7 2 9\nPowinienneś wpisać: 9273\n\n",
+
+  "FORWARD_LETTER_INST": "ROZPIĘTOŚĆ LITER W PRZÓD\n\nZostanie Ci pokazana sekwencja liter, po jednej na raz. Twoim zadaniem jest zapamiętanie ich i wpisanie W TEJ SAMEJ KOLEJNOŚCI, w jakiej je widziałeś.\n\nNa przykład, jeśli zobaczysz: K D B M\nPowinienneś wpisać: KDBM\n\n",
+
+  "BACKWARD_LETTER_INST": "ROZPIĘTOŚĆ LITER W TYŁ\n\nZostanie Ci pokazana sekwencja liter, po jednej na raz. Twoim zadaniem jest zapamiętanie ich i wpisanie W ODWROTNEJ KOLEJNOŚCI.\n\nNa przykład, jeśli zobaczysz: K D B M\nPowinienneś wpisać: MBDK\n\n",
+
+  "FORWARD_MIXED_INST": "ROZPIĘTOŚĆ MIESZANA W PRZÓD\n\nZostanie Ci pokazana mieszanka cyfr i liter, po jednej na raz. Twoim zadaniem jest zapamiętanie ich i wpisanie W TEJ SAMEJ KOLEJNOŚCI, w jakiej je widziałeś.\n\nNa przykład, jeśli zobaczysz: 3 K 7 D\nPowinienneś wpisać: 3K7D\n\n",
+
+  "BACKWARD_MIXED_INST": "ROZPIĘTOŚĆ MIESZANA W TYŁ\n\nZostanie Ci pokazana mieszanka cyfr i liter, po jednej na raz. Twoim zadaniem jest zapamiętanie ich i wpisanie W ODWROTNEJ KOLEJNOŚCI.\n\nNa przykład, jeśli zobaczysz: 3 K 7 D\nPowinienneś wpisać: D7K3\n\n",
+
+  "ORDERING_DIGIT_INST": "PORZĄDKOWANIE CYFR\n\nZostaną Ci pokazane cyfry, po jednej na raz. Twoim zadaniem jest zapamiętanie ich i wpisanie W PORZĄDKU NUMERYCZNYM od najmniejszej do największej.\n\nNa przykład, jeśli zobaczysz: 7, 2, 9, 3 (pokazane po jednej)\nPowinienneś wpisać: 2379\n\n",
+
+  "ORDERING_LETTER_INST": "PORZĄDKOWANIE LITER\n\nZostaną Ci pokazane litery, po jednej na raz. Twoim zadaniem jest zapamiętanie ich i wpisanie W PORZĄDKU ALFABETYCZNYM.\n\nNa przykład, jeśli zobaczysz: K, D, M, B (pokazane po jednej)\nPowinienneś wpisać: BDKM\n\n",
+
+  "ORDERING_MIXED_INST": "PORZĄDKOWANIE MIESZANE\n\nZostanie Ci pokazana mieszanka cyfr i liter, po jednej na raz. Twoim zadaniem jest zapamiętanie ich i wpisanie z CYFRAMI NAJPIERW (w porządku numerycznym), po których następują LITERY (w porządku alfabetycznym).\n\nNa przykład, jeśli zobaczysz: K, 7, D, 2, M, 9 (pokazane po jednej)\nPowinienneś wpisać: 279DKM\n\n",
+
+  "INSTSKIP": "Jeśli nie wiesz, co jest dalej, możesz pominąć, naciskając klawisz '-'. Staraj się umieszczać elementy na ich właściwych pozycjach.\n\n",
+
+  "INSTNOSKIP": "Jeśli nie wiesz, co jest dalej, musisz zgadywać, ale staraj się umieszczać elementy na ich właściwych pozycjach.\n\n",
+
+  "INSTBACK": "Jeśli popełnisz błąd, możesz użyć klawisza backspace, aby dokonać korekty.\n\n",
+
+  "INSTNOBACK": "Po wprowadzeniu elementu nie możesz cofnąć się, aby edytować swoje odpowiedzi.\n\n",
+
+  "LTH": "Zaczniesz od krótkiej listy i będziesz pracować w kierunku dłuższych list. Jeśli poprawnie przypomnisz sobie wystarczającą liczbę list o danej długości, przejdziesz do następnej dłuższej listy.",
+
+  "HTL": "Zaczniesz od długiej listy i będziesz schodzić do krótszych list. Po twoich próbach na każdej długości przejdziesz do następnej krótszej listy, chyba że przypomnisz sobie wszystkie listy poprawnie.",
+
+  "SCS": "Zaczniesz od listy średniej długości. Jeśli przypomnisz sobie poprawnie, twoja następna lista będzie o jeden element dłuższa; jeśli niepoprawnie, o jeden element krótsza. Będzie to trwać przez kilka prób.",
+
+  "LENGTH": "Długość: ",
+
+  "ORDERING_LENGTH": "Liczba elementów: ",
+
+  "ORDERING_PROMPT": "Uporządkuj te:",
+
+  "HEADER": "Wpisz swoją odpowiedź (0-9, A-Z), naciśnij Enter po zakończeniu",
+
+  "ORDERING_HEADER": "Wpisz elementy we właściwej kolejności, naciśnij Enter po zakończeniu",
+
+  "CORRECT": "Poprawnie!",
+
+  "INCORRECT": "Niepoprawnie",
+
+  "DEBRIEF": "Dziękujemy za ukończenie testu Wariantów Rozpiętości.\n\nTwoje wyniki:",
+
+  "EXIT": "Naciśnij dowolny klawisz, aby wyjść."
+}
+{
+  "FORWARD_DIGIT_INST": "AMPLITUDE DE DÍGITOS PARA FRENTE\n\nSerá apresentada uma sequência de dígitos, um de cada vez. Sua tarefa é lembrá-los e digitá-los NA MESMA ORDEM em que os viu.\n\nPor exemplo, se você vir: 3 7 2 9\nVocê deve digitar: 3729\n\n",
+
+  "BACKWARD_DIGIT_INST": "AMPLITUDE DE DÍGITOS PARA TRÁS\n\nSerá apresentada uma sequência de dígitos, um de cada vez. Sua tarefa é lembrá-los e digitá-los EM ORDEM INVERSA.\n\nPor exemplo, se você vir: 3 7 2 9\nVocê deve digitar: 9273\n\n",
+
+  "FORWARD_LETTER_INST": "AMPLITUDE DE LETRAS PARA FRENTE\n\nSerá apresentada uma sequência de letras, uma de cada vez. Sua tarefa é lembrá-las e digitá-las NA MESMA ORDEM em que as viu.\n\nPor exemplo, se você vir: K D B M\nVocê deve digitar: KDBM\n\n",
+
+  "BACKWARD_LETTER_INST": "AMPLITUDE DE LETRAS PARA TRÁS\n\nSerá apresentada uma sequência de letras, uma de cada vez. Sua tarefa é lembrá-las e digitá-las EM ORDEM INVERSA.\n\nPor exemplo, se você vir: K D B M\nVocê deve digitar: MBDK\n\n",
+
+  "FORWARD_MIXED_INST": "AMPLITUDE MISTA PARA FRENTE\n\nSerá apresentada uma mistura de dígitos e letras, um de cada vez. Sua tarefa é lembrá-los e digitá-los NA MESMA ORDEM em que os viu.\n\nPor exemplo, se você vir: 3 K 7 D\nVocê deve digitar: 3K7D\n\n",
+
+  "BACKWARD_MIXED_INST": "AMPLITUDE MISTA PARA TRÁS\n\nSerá apresentada uma mistura de dígitos e letras, um de cada vez. Sua tarefa é lembrá-los e digitá-los EM ORDEM INVERSA.\n\nPor exemplo, se você vir: 3 K 7 D\nVocê deve digitar: D7K3\n\n",
+
+  "ORDERING_DIGIT_INST": "ORDENAÇÃO DE DÍGITOS\n\nSerão apresentados dígitos um de cada vez. Sua tarefa é lembrá-los e digitá-los EM ORDEM NUMÉRICA do menor para o maior.\n\nPor exemplo, se você vir: 7, 2, 9, 3 (mostrados um de cada vez)\nVocê deve digitar: 2379\n\n",
+
+  "ORDERING_LETTER_INST": "ORDENAÇÃO DE LETRAS\n\nSerão apresentadas letras uma de cada vez. Sua tarefa é lembrá-las e digitá-las EM ORDEM ALFABÉTICA.\n\nPor exemplo, se você vir: K, D, M, B (mostradas uma de cada vez)\nVocê deve digitar: BDKM\n\n",
+
+  "ORDERING_MIXED_INST": "ORDENAÇÃO MISTA\n\nSerá apresentada uma mistura de dígitos e letras um de cada vez. Sua tarefa é lembrá-los e digitá-los com os DÍGITOS PRIMEIRO (em ordem numérica) seguidos pelas LETRAS (em ordem alfabética).\n\nPor exemplo, se você vir: K, 7, D, 2, M, 9 (mostrados um de cada vez)\nVocê deve digitar: 279DKM\n\n",
+
+  "INSTSKIP": "Se você não souber o que vem a seguir, pode pular pressionando a tecla '-'. Tente colocar os itens em suas posições corretas.\n\n",
+
+  "INSTNOSKIP": "Se você não souber o que vem a seguir, deve adivinhar, mas tente colocar os itens em suas posições corretas.\n\n",
+
+  "INSTBACK": "Se você cometer um erro, pode usar a tecla backspace para fazer uma correção.\n\n",
+
+  "INSTNOBACK": "Uma vez que você inserir um item, não poderá voltar para editar suas respostas.\n\n",
+
+  "LTH": "Você começará com uma lista curta e trabalhará até listas mais longas. Se você lembrar corretamente listas suficientes de um determinado comprimento, passará para a próxima lista mais longa.",
+
+  "HTL": "Você começará com uma lista longa e descerá para listas mais curtas. Após suas tentativas em cada comprimento, descerá para a próxima lista mais curta, a menos que se lembre de todas as listas corretamente.",
+
+  "SCS": "Você começará com uma lista de comprimento médio. Se você se lembrar corretamente, sua próxima lista será um item mais longa; se incorreta, um item mais curta. Isso continuará por várias tentativas.",
+
+  "LENGTH": "Comprimento: ",
+
+  "ORDERING_LENGTH": "Número de itens: ",
+
+  "ORDERING_PROMPT": "Coloque-os em ordem:",
+
+  "HEADER": "Digite sua resposta (0-9, A-Z), pressione Enter quando terminar",
+
+  "ORDERING_HEADER": "Digite os itens na ordem correta, pressione Enter quando terminar",
+
+  "CORRECT": "Correto!",
+
+  "INCORRECT": "Incorreto",
+
+  "DEBRIEF": "Obrigado por completar o teste de Variantes de Amplitude.\n\nSeus resultados:",
+
+  "EXIT": "Pressione qualquer tecla para sair."
+}
+{
+  "FORWARD_DIGIT_INST": "ПРЯМОЙ ОБЪЁМ ЦИФР\n\nВам будет показана последовательность цифр, по одной за раз. Ваша задача - запомнить их и ввести В ТОМ ЖЕ ПОРЯДКЕ, в котором вы их видели.\n\nНапример, если вы видите: 3 7 2 9\nВы должны ввести: 3729\n\n",
+
+  "BACKWARD_DIGIT_INST": "ОБРАТНЫЙ ОБЪЁМ ЦИФР\n\nВам будет показана последовательность цифр, по одной за раз. Ваша задача - запомнить их и ввести В ОБРАТНОМ ПОРЯДКЕ.\n\nНапример, если вы видите: 3 7 2 9\nВы должны ввести: 9273\n\n",
+
+  "FORWARD_LETTER_INST": "ПРЯМОЙ ОБЪЁМ БУКВ\n\nВам будет показана последовательность букв, по одной за раз. Ваша задача - запомнить их и ввести В ТОМ ЖЕ ПОРЯДКЕ, в котором вы их видели.\n\nНапример, если вы видите: K D B M\nВы должны ввести: KDBM\n\n",
+
+  "BACKWARD_LETTER_INST": "ОБРАТНЫЙ ОБЪЁМ БУКВ\n\nВам будет показана последовательность букв, по одной за раз. Ваша задача - запомнить их и ввести В ОБРАТНОМ ПОРЯДКЕ.\n\nНапример, если вы видите: K D B M\nВы должны ввести: MBDK\n\n",
+
+  "FORWARD_MIXED_INST": "ПРЯМОЙ СМЕШАННЫЙ ОБЪЁМ\n\nВам будет показана смесь цифр и букв, по одному за раз. Ваша задача - запомнить их и ввести В ТОМ ЖЕ ПОРЯДКЕ, в котором вы их видели.\n\nНапример, если вы видите: 3 K 7 D\nВы должны ввести: 3K7D\n\n",
+
+  "BACKWARD_MIXED_INST": "ОБРАТНЫЙ СМЕШАННЫЙ ОБЪЁМ\n\nВам будет показана смесь цифр и букв, по одному за раз. Ваша задача - запомнить их и ввести В ОБРАТНОМ ПОРЯДКЕ.\n\nНапример, если вы видите: 3 K 7 D\nВы должны ввести: D7K3\n\n",
+
+  "ORDERING_DIGIT_INST": "УПОРЯДОЧИВАНИЕ ЦИФР\n\nВам будут показаны цифры по одной за раз. Ваша задача - запомнить их и ввести В ЧИСЛОВОМ ПОРЯДКЕ от меньшего к большему.\n\nНапример, если вы видите: 7, 2, 9, 3 (показаны по одной)\nВы должны ввести: 2379\n\n",
+
+  "ORDERING_LETTER_INST": "УПОРЯДОЧИВАНИЕ БУКВ\n\nВам будут показаны буквы по одной за раз. Ваша задача - запомнить их и ввести В АЛФАВИТНОМ ПОРЯДКЕ.\n\nНапример, если вы видите: K, D, M, B (показаны по одной)\nВы должны ввести: BDKM\n\n",
+
+  "ORDERING_MIXED_INST": "СМЕШАННОЕ УПОРЯДОЧИВАНИЕ\n\nВам будет показана смесь цифр и букв по одному за раз. Ваша задача - запомнить их и ввести ЦИФРЫ СНАЧАЛА (в числовом порядке), затем БУКВЫ (в алфавитном порядке).\n\nНапример, если вы видите: K, 7, D, 2, M, 9 (показаны по одному)\nВы должны ввести: 279DKM\n\n",
+
+  "INSTSKIP": "Если вы не знаете, что идёт дальше, вы можете пропустить, нажав клавишу '-'. Постарайтесь поместить элементы в правильные позиции.\n\n",
+
+  "INSTNOSKIP": "Если вы не знаете, что идёт дальше, вы должны угадать, но постарайтесь поместить элементы в правильные позиции.\n\n",
+
+  "INSTBACK": "Если вы допустили ошибку, вы можете использовать клавишу backspace для исправления.\n\n",
+
+  "INSTNOBACK": "После ввода элемента вы не можете вернуться назад для редактирования ваших ответов.\n\n",
+
+  "LTH": "Вы начнёте с короткого списка и будете продвигаться к более длинным спискам. Если вы правильно вспомните достаточное количество списков определённой длины, вы перейдёте к следующему более длинному списку.",
+
+  "HTL": "Вы начнёте с длинного списка и будете продвигаться к более коротким спискам. После ваших попыток на каждой длине вы перейдёте к следующему более короткому списку, если не вспомните все списки правильно.",
+
+  "SCS": "Вы начнёте со списка средней длины. Если вы вспомните правильно, ваш следующий список будет на один элемент длиннее; если неправильно, на один элемент короче. Это будет продолжаться в течение нескольких попыток.",
+
+  "LENGTH": "Длина: ",
+
+  "ORDERING_LENGTH": "Количество элементов: ",
+
+  "ORDERING_PROMPT": "Упорядочьте эти:",
+
+  "HEADER": "Введите ваш ответ (0-9, A-Z), нажмите Enter когда закончите",
+
+  "ORDERING_HEADER": "Введите элементы в правильном порядке, нажмите Enter когда закончите",
+
+  "CORRECT": "Правильно!",
+
+  "INCORRECT": "Неправильно",
+
+  "DEBRIEF": "Спасибо за прохождение теста вариантов объёма.\n\nВаши результаты:",
+
+  "EXIT": "Нажмите любую клавишу для выхода."
+}
+{
+  "FORWARD_DIGIT_INST": "ช่วงตัวเลขไปข้างหน้า\n\nคุณจะได้เห็นลำดับของตัวเลขทีละหนึ่งตัว งานของคุณคือจำและพิมพ์ตัวเลขเหล่านั้นในลำดับเดียวกับที่คุณเห็น\n\nตัวอย่างเช่น ถ้าคุณเห็น: 3 7 2 9\nคุณควรพิมพ์: 3729\n\n",
+
+  "BACKWARD_DIGIT_INST": "ช่วงตัวเลขย้อนกลับ\n\nคุณจะได้เห็นลำดับของตัวเลขทีละหนึ่งตัว งานของคุณคือจำและพิมพ์ตัวเลขเหล่านั้นในลำดับย้อนกลับ\n\nตัวอย่างเช่น ถ้าคุณเห็น: 3 7 2 9\nคุณควรพิมพ์: 9273\n\n",
+
+  "FORWARD_LETTER_INST": "ช่วงตัวอักษรไปข้างหน้า\n\nคุณจะได้เห็นลำดับของตัวอักษรทีละหนึ่งตัว งานของคุณคือจำและพิมพ์ตัวอักษรเหล่านั้นในลำดับเดียวกับที่คุณเห็น\n\nตัวอย่างเช่น ถ้าคุณเห็น: K D B M\nคุณควรพิมพ์: KDBM\n\n",
+
+  "BACKWARD_LETTER_INST": "ช่วงตัวอักษรย้อนกลับ\n\nคุณจะได้เห็นลำดับของตัวอักษรทีละหนึ่งตัว งานของคุณคือจำและพิมพ์ตัวอักษรเหล่านั้นในลำดับย้อนกลับ\n\nตัวอย่างเช่น ถ้าคุณเห็น: K D B M\nคุณควรพิมพ์: MBDK\n\n",
+
+  "FORWARD_MIXED_INST": "ช่วงผสมไปข้างหน้า\n\nคุณจะได้เห็นตัวเลขและตัวอักษรผสมกันทีละหนึ่งตัว งานของคุณคือจำและพิมพ์สิ่งเหล่านั้นในลำดับเดียวกับที่คุณเห็น\n\nตัวอย่างเช่น ถ้าคุณเห็น: 3 K 7 D\nคุณควรพิมพ์: 3K7D\n\n",
+
+  "BACKWARD_MIXED_INST": "ช่วงผสมย้อนกลับ\n\nคุณจะได้เห็นตัวเลขและตัวอักษรผสมกันทีละหนึ่งตัว งานของคุณคือจำและพิมพ์สิ่งเหล่านั้นในลำดับย้อนกลับ\n\nตัวอย่างเช่น ถ้าคุณเห็น: 3 K 7 D\nคุณควรพิมพ์: D7K3\n\n",
+
+  "ORDERING_DIGIT_INST": "การจัดเรียงตัวเลข\n\nคุณจะได้เห็นตัวเลขทีละหนึ่งตัว งานของคุณคือจำและพิมพ์ตัวเลขเหล่านั้นตามลำดับตัวเลขจากน้อยไปมาก\n\nตัวอย่างเช่น ถ้าคุณเห็น: 7, 2, 9, 3 (แสดงทีละตัว)\nคุณควรพิมพ์: 2379\n\n",
+
+  "ORDERING_LETTER_INST": "การจัดเรียงตัวอักษร\n\nคุณจะได้เห็นตัวอักษรทีละหนึ่งตัว งานของคุณคือจำและพิมพ์ตัวอักษรเหล่านั้นตามลำดับตัวอักษร\n\nตัวอย่างเช่น ถ้าคุณเห็น: K, D, M, B (แสดงทีละตัว)\nคุณควรพิมพ์: BDKM\n\n",
+
+  "ORDERING_MIXED_INST": "การจัดเรียงแบบผสม\n\nคุณจะได้เห็นตัวเลขและตัวอักษรผสมกันทีละหนึ่งตัว งานของคุณคือจำและพิมพ์สิ่งเหล่านั้นโดยใส่ตัวเลขก่อน (ตามลำดับตัวเลข) ตามด้วยตัวอักษร (ตามลำดับตัวอักษร)\n\nตัวอย่างเช่น ถ้าคุณเห็น: K, 7, D, 2, M, 9 (แสดงทีละตัว)\nคุณควรพิมพ์: 279DKM\n\n",
+
+  "INSTSKIP": "ถ้าคุณไม่รู้ว่าตัวถัดไปคืออะไร คุณสามารถข้ามได้โดยกดปุ่ม '-' พยายามใส่รายการในตำแหน่งที่ถูกต้อง\n\n",
+
+  "INSTNOSKIP": "ถ้าคุณไม่รู้ว่าตัวถัดไปคืออะไร คุณต้องเดา แต่พยายามใส่รายการในตำแหน่งที่ถูกต้อง\n\n",
+
+  "INSTBACK": "ถ้าคุณทำผิด คุณสามารถใช้ปุ่ม backspace เพื่อแก้ไขได้\n\n",
+
+  "INSTNOBACK": "เมื่อคุณใส่รายการแล้ว คุณไม่สามารถย้อนกลับไปแก้ไขคำตอบของคุณได้\n\n",
+
+  "LTH": "คุณจะเริ่มด้วยรายการสั้นและทำงานไปยังรายการที่ยาวขึ้น ถ้าคุณจำรายการที่มีความยาวที่กำหนดได้ถูกต้องเพียงพอ คุณจะไปยังรายการที่ยาวขึ้นถัดไป",
+
+  "HTL": "คุณจะเริ่มด้วยรายการยาวและลงไปยังรายการที่สั้นลง หลังจากการทดลองของคุณในแต่ละความยาว คุณจะไปยังรายการที่สั้นลงถัดไปเว้นแต่คุณจำรายการทั้งหมดได้ถูกต้อง",
+
+  "SCS": "คุณจะเริ่มด้วยรายการที่มีความยาวปานกลาง ถ้าคุณจำได้ถูกต้อง รายการถัดไปของคุณจะยาวขึ้นหนึ่งรายการ ถ้าผิด จะสั้นลงหนึ่งรายการ สิ่งนี้จะดำเนินต่อไปหลายครั้ง",
+
+  "LENGTH": "ความยาว: ",
+
+  "ORDERING_LENGTH": "จำนวนรายการ: ",
+
+  "ORDERING_PROMPT": "จัดเรียงสิ่งเหล่านี้:",
+
+  "HEADER": "พิมพ์คำตอบของคุณ (0-9, A-Z) กด Enter เมื่อเสร็จสิ้น",
+
+  "ORDERING_HEADER": "พิมพ์รายการในลำดับที่ถูกต้อง กด Enter เมื่อเสร็จสิ้น",
+
+  "CORRECT": "ถูกต้อง!",
+
+  "INCORRECT": "ไม่ถูกต้อง",
+
+  "DEBRIEF": "ขอบคุณสำหรับการทำแบบทดสอบรูปแบบช่วงให้เสร็จสิ้น\n\nผลลัพธ์ของคุณ:",
+
+  "EXIT": "กดปุ่มใดก็ได้เพื่อออก"
+}
+{
+  "FORWARD_DIGIT_INST": "İLERİ RAKAMLARA YAYILMA\n\nSize birer birer bir rakam dizisi gösterilecektir. Göreviniz bunları hatırlamak ve gördüğünüz AYNI SIRADA yazmaktır.\n\nÖrneğin, şunu görürseniz: 3 7 2 9\nŞunu yazmalısınız: 3729\n\n",
+
+  "BACKWARD_DIGIT_INST": "GERİ RAKAMLARA YAYILMA\n\nSize birer birer bir rakam dizisi gösterilecektir. Göreviniz bunları hatırlamak ve TERS SIRADA yazmaktır.\n\nÖrneğin, şunu görürseniz: 3 7 2 9\nŞunu yazmalısınız: 9273\n\n",
+
+  "FORWARD_LETTER_INST": "İLERİ HARFLERE YAYILMA\n\nSize birer birer bir harf dizisi gösterilecektir. Göreviniz bunları hatırlamak ve gördüğünüz AYNI SIRADA yazmaktır.\n\nÖrneğin, şunu görürseniz: K D B M\nŞunu yazmalısınız: KDBM\n\n",
+
+  "BACKWARD_LETTER_INST": "GERİ HARFLERE YAYILMA\n\nSize birer birer bir harf dizisi gösterilecektir. Göreviniz bunları hatırlamak ve TERS SIRADA yazmaktır.\n\nÖrneğin, şunu görürseniz: K D B M\nŞunu yazmalısınız: MBDK\n\n",
+
+  "FORWARD_MIXED_INST": "İLERİ KARIŞIK YAYILMA\n\nSize birer birer rakam ve harf karışımı gösterilecektir. Göreviniz bunları hatırlamak ve gördüğünüz AYNI SIRADA yazmaktır.\n\nÖrneğin, şunu görürseniz: 3 K 7 D\nŞunu yazmalısınız: 3K7D\n\n",
+
+  "BACKWARD_MIXED_INST": "GERİ KARIŞIK YAYILMA\n\nSize birer birer rakam ve harf karışımı gösterilecektir. Göreviniz bunları hatırlamak ve TERS SIRADA yazmaktır.\n\nÖrneğin, şunu görürseniz: 3 K 7 D\nŞunu yazmalısınız: D7K3\n\n",
+
+  "ORDERING_DIGIT_INST": "RAKAM SIRALAMA\n\nSize birer birer rakamlar gösterilecektir. Göreviniz bunları hatırlamak ve küçükten büyüğe SAYISAL SIRADA yazmaktır.\n\nÖrneğin, şunu görürseniz: 7, 2, 9, 3 (birer birer gösterildi)\nŞunu yazmalısınız: 2379\n\n",
+
+  "ORDERING_LETTER_INST": "HARF SIRALAMA\n\nSize birer birer harfler gösterilecektir. Göreviniz bunları hatırlamak ve ALFABETİK SIRADA yazmaktır.\n\nÖrneğin, şunu görürseniz: K, D, M, B (birer birer gösterildi)\nŞunu yazmalısınız: BDKM\n\n",
+
+  "ORDERING_MIXED_INST": "KARIŞIK SIRALAMA\n\nSize birer birer rakam ve harf karışımı gösterilecektir. Göreviniz bunları hatırlamak ve ÖNCE RAKAMLARI (sayısal sırada) ardından HARFLERİ (alfabetik sırada) yazmaktır.\n\nÖrneğin, şunu görürseniz: K, 7, D, 2, M, 9 (birer birer gösterildi)\nŞunu yazmalısınız: 279DKM\n\n",
+
+  "INSTSKIP": "Sırada ne geldiğini bilmiyorsanız, '-' tuşuna basarak atlayabilirsiniz. Öğeleri doğru konumlarına yerleştirmeye çalışın.\n\n",
+
+  "INSTNOSKIP": "Sırada ne geldiğini bilmiyorsanız, tahmin etmelisiniz, ancak öğeleri doğru konumlarına yerleştirmeye çalışın.\n\n",
+
+  "INSTBACK": "Bir hata yaparsanız, düzeltme yapmak için geri tuşunu kullanabilirsiniz.\n\n",
+
+  "INSTNOBACK": "Bir öğe girdikten sonra, cevaplarınızı düzenlemek için geri dönemezsiniz.\n\n",
+
+  "LTH": "Kısa bir liste ile başlayacak ve daha uzun listelere doğru çalışacaksınız. Belirli bir uzunluktaki yeterli listeyi doğru hatırlarsanız, bir sonraki daha uzun listeye geçeceksiniz.",
+
+  "HTL": "Uzun bir liste ile başlayacak ve daha kısa listelere doğru ineceksiniz. Her uzunluktaki denemelerinizden sonra, tüm listeleri doğru hatırlamadığınız sürece bir sonraki daha kısa listeye geçeceksiniz.",
+
+  "SCS": "Orta uzunlukta bir liste ile başlayacaksınız. Doğru hatırlarsanız, bir sonraki listeniz bir öğe daha uzun olacak; yanlışsa, bir öğe daha kısa olacak. Bu birkaç deneme boyunca devam edecek.",
+
+  "LENGTH": "Uzunluk: ",
+
+  "ORDERING_LENGTH": "Öğe sayısı: ",
+
+  "ORDERING_PROMPT": "Bunları sıralayın:",
+
+  "HEADER": "Cevabınızı yazın (0-9, A-Z), bittiğinde Enter'a basın",
+
+  "ORDERING_HEADER": "Öğeleri doğru sırada yazın, bittiğinde Enter'a basın",
+
+  "CORRECT": "Doğru!",
+
+  "INCORRECT": "Yanlış",
+
+  "DEBRIEF": "Yayılma Varyantları testini tamamladığınız için teşekkür ederiz.\n\nSonuçlarınız:",
+
+  "EXIT": "Çıkmak için herhangi bir tuşa basın."
+}
+{
+  "FORWARD_DIGIT_INST": "KHOẢNG SỐ THUẬN\n\nBạn sẽ được trình bày một chuỗi các chữ số, mỗi lần một chữ số. Nhiệm vụ của bạn là ghi nhớ chúng và nhập lại THEO ĐÚNG THỨ TỰ mà bạn đã thấy.\n\nVí dụ, nếu bạn thấy: 3 7 2 9\nBạn nên nhập: 3729\n\n",
+
+  "BACKWARD_DIGIT_INST": "KHOẢNG SỐ NGHỊCH\n\nBạn sẽ được trình bày một chuỗi các chữ số, mỗi lần một chữ số. Nhiệm vụ của bạn là ghi nhớ chúng và nhập lại THEO THỨ TỰ NGƯỢC LẠI.\n\nVí dụ, nếu bạn thấy: 3 7 2 9\nBạn nên nhập: 9273\n\n",
+
+  "FORWARD_LETTER_INST": "KHOẢNG CHỮ CÁI THUẬN\n\nBạn sẽ được trình bày một chuỗi các chữ cái, mỗi lần một chữ cái. Nhiệm vụ của bạn là ghi nhớ chúng và nhập lại THEO ĐÚNG THỨ TỰ mà bạn đã thấy.\n\nVí dụ, nếu bạn thấy: K D B M\nBạn nên nhập: KDBM\n\n",
+
+  "BACKWARD_LETTER_INST": "KHOẢNG CHỮ CÁI NGHỊCH\n\nBạn sẽ được trình bày một chuỗi các chữ cái, mỗi lần một chữ cái. Nhiệm vụ của bạn là ghi nhớ chúng và nhập lại THEO THỨ TỰ NGƯỢC LẠI.\n\nVí dụ, nếu bạn thấy: K D B M\nBạn nên nhập: MBDK\n\n",
+
+  "FORWARD_MIXED_INST": "KHOẢNG HỖN HỢP THUẬN\n\nBạn sẽ được trình bày một hỗn hợp các chữ số và chữ cái, mỗi lần một ký tự. Nhiệm vụ của bạn là ghi nhớ chúng và nhập lại THEO ĐÚNG THỨ TỰ mà bạn đã thấy.\n\nVí dụ, nếu bạn thấy: 3 K 7 D\nBạn nên nhập: 3K7D\n\n",
+
+  "BACKWARD_MIXED_INST": "KHOẢNG HỖN HỢP NGHỊCH\n\nBạn sẽ được trình bày một hỗn hợp các chữ số và chữ cái, mỗi lần một ký tự. Nhiệm vụ của bạn là ghi nhớ chúng và nhập lại THEO THỨ TỰ NGƯỢC LẠI.\n\nVí dụ, nếu bạn thấy: 3 K 7 D\nBạn nên nhập: D7K3\n\n",
+
+  "ORDERING_DIGIT_INST": "SẮP XẾP SỐ\n\nBạn sẽ được trình bày các chữ số, mỗi lần một chữ số. Nhiệm vụ của bạn là ghi nhớ chúng và nhập lại THEO THỨ TỰ SỐ từ nhỏ đến lớn.\n\nVí dụ, nếu bạn thấy: 7, 2, 9, 3 (hiển thị từng cái một)\nBạn nên nhập: 2379\n\n",
+
+  "ORDERING_LETTER_INST": "SẮP XẾP CHỮ CÁI\n\nBạn sẽ được trình bày các chữ cái, mỗi lần một chữ cái. Nhiệm vụ của bạn là ghi nhớ chúng và nhập lại THEO THỨ TỰ ABC.\n\nVí dụ, nếu bạn thấy: K, D, M, B (hiển thị từng cái một)\nBạn nên nhập: BDKM\n\n",
+
+  "ORDERING_MIXED_INST": "SẮP XẾP HỖN HỢP\n\nBạn sẽ được trình bày một hỗn hợp các chữ số và chữ cái, mỗi lần một ký tự. Nhiệm vụ của bạn là ghi nhớ chúng và nhập lại với CHỮ SỐ TRƯỚC (theo thứ tự số) tiếp theo là CHỮ CÁI (theo thứ tự ABC).\n\nVí dụ, nếu bạn thấy: K, 7, D, 2, M, 9 (hiển thị từng cái một)\nBạn nên nhập: 279DKM\n\n",
+
+  "INSTSKIP": "Nếu bạn không biết tiếp theo là gì, bạn có thể bỏ qua bằng cách nhấn phím '-'. Cố gắng đặt các mục vào đúng vị trí của chúng.\n\n",
+
+  "INSTNOSKIP": "Nếu bạn không biết tiếp theo là gì, bạn phải đoán, nhưng cố gắng đặt các mục vào đúng vị trí của chúng.\n\n",
+
+  "INSTBACK": "Nếu bạn mắc lỗi, bạn có thể sử dụng phím backspace để sửa.\n\n",
+
+  "INSTNOBACK": "Khi bạn đã nhập một mục, bạn không thể quay lại để chỉnh sửa câu trả lời của mình.\n\n",
+
+  "LTH": "Bạn sẽ bắt đầu với một danh sách ngắn và tiến lên các danh sách dài hơn. Nếu bạn nhớ đúng đủ số danh sách có độ dài nhất định, bạn sẽ chuyển sang danh sách dài hơn tiếp theo.",
+
+  "HTL": "Bạn sẽ bắt đầu với một danh sách dài và đi xuống các danh sách ngắn hơn. Sau các lần thử của bạn ở mỗi độ dài, bạn sẽ chuyển xuống danh sách ngắn hơn tiếp theo trừ khi bạn nhớ đúng tất cả các danh sách.",
+
+  "SCS": "Bạn sẽ bắt đầu với một danh sách có độ dài trung bình. Nếu bạn nhớ đúng, danh sách tiếp theo của bạn sẽ dài hơn một mục; nếu sai, ngắn hơn một mục. Điều này sẽ tiếp tục trong vài lần thử.",
+
+  "LENGTH": "Độ dài: ",
+
+  "ORDERING_LENGTH": "Số lượng mục: ",
+
+  "ORDERING_PROMPT": "Sắp xếp những cái này:",
+
+  "HEADER": "Nhập câu trả lời của bạn (0-9, A-Z), nhấn Enter khi hoàn thành",
+
+  "ORDERING_HEADER": "Nhập các mục theo đúng thứ tự, nhấn Enter khi hoàn thành",
+
+  "CORRECT": "Đúng!",
+
+  "INCORRECT": "Sai",
+
+  "DEBRIEF": "Cảm ơn bạn đã hoàn thành bài kiểm tra Biến thể Khoảng.\n\nKết quả của bạn:",
+
+  "EXIT": "Nhấn bất kỳ phím nào để thoát."
+}

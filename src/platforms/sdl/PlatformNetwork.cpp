@@ -27,6 +27,7 @@
 #include "PlatformNetwork.h"
 #include "../../devices/PNetwork.h"
 #include "../../utility/PError.h"
+#include "../../libs/PEBLEnvironment.h"
 
 #ifdef PEBL_NETWORK
 
@@ -252,7 +253,7 @@ bool PlatformNetwork::Accept(int mstimeout)
     while(mSocket == NULL & SDL_GetTicks()<end )
         {
             mSocket = SDLNet_TCP_Accept(mListener);
-            SDL_Delay(1);//Wait a little bit so we don't peg the CPU
+            PEBLEnvironment::myTimer.Sleep(1);  // Wait to avoid burning CPU
         }
 
     //cout << "opened socket\n";
@@ -301,7 +302,7 @@ bool PlatformNetwork::Accept()
   while(mSocket == NULL)
       {
           mSocket = SDLNet_TCP_Accept(listener);
-          SDL_Delay(1);//Wait a little bit so we don't peg the CPU
+          PEBLEnvironment::myTimer.Sleep(1);  // Wait to avoid burning CPU
       }
 
   //cout << "opened socket\n";

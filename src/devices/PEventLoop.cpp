@@ -27,7 +27,11 @@
 #include "PEventLoop.h"
 #include "PDevice.h"
 #include "PEventQueue.h"
+#ifdef PEBL_VALIDATOR
+#include "../platforms/validator/PlatformEventQueue.h"
+#else
 #include "../platforms/sdl/PlatformEventQueue.h"
+#endif
 #include "../base/FunctionMap.h"
 
 #include "../apps/Globals.h"
@@ -449,34 +453,15 @@ PEvent PEventLoop::Loop()
             //Get rid of the top item in the event queue
             gEventQueue->PopEvent();
 
-            //This does a nano sleep function to avoid burning cpu, if the gSleepEasy variable is set.
-            //Probably is only available on unix.
-#if defined(PEBL_UNIX)
-
+            //Sleep to avoid burning CPU, if the gSleepEasy variable is set.
+            //Uses platform-specific sleep via PlatformTimer (nanosleep on Unix, SDL_Delay on Windows, etc.)
             if(myEval->gGlobalVariableMap.Exists("gSleepEasy") )
                 {
                     if(myEval->gGlobalVariableMap.RetrieveValue("gSleepEasy"))
                     {
-                        struct timespec a,b;
-                        a.tv_sec  = 0;   
-                        a.tv_nsec = 100000; //1 ms
-                        //int retval = nanosleep(&a,&b);
-                        nanosleep(&a,&b);
+                       PEBLEnvironment::myTimer.Sleep(1);  // 1ms sleep
                     }
                 }
-#endif
-
-#if defined(PEBL_WIN32)
-           if(myEval->gGlobalVariableMap.Exists("gSleepEasy") )
-                {
-                    if(myEval->gGlobalVariableMap.RetrieveValue("gSleepEasy"))
-                    {
-                       //Sleep(1);  //sleep about 1 ms(might be as much as 10)
-                       SDL_Delay(1);
-                    }
-                }
-
-#endif
 
            //recompute the stopping criterion
            if(mStates.size()==0) 

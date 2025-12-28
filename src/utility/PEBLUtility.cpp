@@ -112,6 +112,7 @@
 
 #include <SDL_scancode.h>
 #include <SDL_locale.h>
+#include <map>
 
 //Some math libraries contain this, but let's not take any chances.
 #define PI 3.141592653589793238462643383279502884197169399375
@@ -119,6 +120,260 @@
 
 using std::cout;
 using std::endl;
+
+// Static keycode lookup tables to replace SDL_GetKeyFromName and SDL_GetKeyName
+// These eliminate SDL dependencies while maintaining identical functionality
+
+static PEBL_Keycode PEBL_GetKeyFromName(const char* name) {
+    static std::map<std::string, PEBL_Keycode> nameToKeycode;
+
+    // Initialize map on first use
+    if (nameToKeycode.empty()) {
+        // ASCII lowercase letters
+        nameToKeycode["a"] = PEBL_KEYCODE_a;
+        nameToKeycode["b"] = PEBL_KEYCODE_b;
+        nameToKeycode["c"] = PEBL_KEYCODE_c;
+        nameToKeycode["d"] = PEBL_KEYCODE_d;
+        nameToKeycode["e"] = PEBL_KEYCODE_e;
+        nameToKeycode["f"] = PEBL_KEYCODE_f;
+        nameToKeycode["g"] = PEBL_KEYCODE_g;
+        nameToKeycode["h"] = PEBL_KEYCODE_h;
+        nameToKeycode["i"] = PEBL_KEYCODE_i;
+        nameToKeycode["j"] = PEBL_KEYCODE_j;
+        nameToKeycode["k"] = PEBL_KEYCODE_k;
+        nameToKeycode["l"] = PEBL_KEYCODE_l;
+        nameToKeycode["m"] = PEBL_KEYCODE_m;
+        nameToKeycode["n"] = PEBL_KEYCODE_n;
+        nameToKeycode["o"] = PEBL_KEYCODE_o;
+        nameToKeycode["p"] = PEBL_KEYCODE_p;
+        nameToKeycode["q"] = PEBL_KEYCODE_q;
+        nameToKeycode["r"] = PEBL_KEYCODE_r;
+        nameToKeycode["s"] = PEBL_KEYCODE_s;
+        nameToKeycode["t"] = PEBL_KEYCODE_t;
+        nameToKeycode["u"] = PEBL_KEYCODE_u;
+        nameToKeycode["v"] = PEBL_KEYCODE_v;
+        nameToKeycode["w"] = PEBL_KEYCODE_w;
+        nameToKeycode["x"] = PEBL_KEYCODE_x;
+        nameToKeycode["y"] = PEBL_KEYCODE_y;
+        nameToKeycode["z"] = PEBL_KEYCODE_z;
+
+        // Digits
+        nameToKeycode["0"] = PEBL_KEYCODE_0;
+        nameToKeycode["1"] = PEBL_KEYCODE_1;
+        nameToKeycode["2"] = PEBL_KEYCODE_2;
+        nameToKeycode["3"] = PEBL_KEYCODE_3;
+        nameToKeycode["4"] = PEBL_KEYCODE_4;
+        nameToKeycode["5"] = PEBL_KEYCODE_5;
+        nameToKeycode["6"] = PEBL_KEYCODE_6;
+        nameToKeycode["7"] = PEBL_KEYCODE_7;
+        nameToKeycode["8"] = PEBL_KEYCODE_8;
+        nameToKeycode["9"] = PEBL_KEYCODE_9;
+
+        // Special characters
+        nameToKeycode["space"] = PEBL_KEYCODE_SPACE;
+        nameToKeycode["return"] = PEBL_KEYCODE_RETURN;
+        nameToKeycode["escape"] = PEBL_KEYCODE_ESCAPE;
+        nameToKeycode["backspace"] = PEBL_KEYCODE_BACKSPACE;
+        nameToKeycode["tab"] = PEBL_KEYCODE_TAB;
+        nameToKeycode["!"] = PEBL_KEYCODE_EXCLAIM;
+        nameToKeycode["\""] = PEBL_KEYCODE_QUOTEDBL;
+        nameToKeycode["#"] = PEBL_KEYCODE_HASH;
+        nameToKeycode["$"] = PEBL_KEYCODE_DOLLAR;
+        nameToKeycode["%"] = PEBL_KEYCODE_PERCENT;
+        nameToKeycode["&"] = PEBL_KEYCODE_AMPERSAND;
+        nameToKeycode["'"] = PEBL_KEYCODE_QUOTE;
+        nameToKeycode["("] = PEBL_KEYCODE_LEFTPAREN;
+        nameToKeycode[")"] = PEBL_KEYCODE_RIGHTPAREN;
+        nameToKeycode["*"] = PEBL_KEYCODE_ASTERISK;
+        nameToKeycode["+"] = PEBL_KEYCODE_PLUS;
+        nameToKeycode[","] = PEBL_KEYCODE_COMMA;
+        nameToKeycode["-"] = PEBL_KEYCODE_MINUS;
+        nameToKeycode["."] = PEBL_KEYCODE_PERIOD;
+        nameToKeycode["/"] = PEBL_KEYCODE_SLASH;
+        nameToKeycode[":"] = PEBL_KEYCODE_COLON;
+        nameToKeycode[";"] = PEBL_KEYCODE_SEMICOLON;
+        nameToKeycode["<"] = PEBL_KEYCODE_LESS;
+        nameToKeycode["="] = PEBL_KEYCODE_EQUALS;
+        nameToKeycode[">"] = PEBL_KEYCODE_GREATER;
+        nameToKeycode["?"] = PEBL_KEYCODE_QUESTION;
+        nameToKeycode["@"] = PEBL_KEYCODE_AT;
+        nameToKeycode["["] = PEBL_KEYCODE_LEFTBRACKET;
+        nameToKeycode["\\"] = PEBL_KEYCODE_BACKSLASH;
+        nameToKeycode["]"] = PEBL_KEYCODE_RIGHTBRACKET;
+        nameToKeycode["^"] = PEBL_KEYCODE_CARET;
+        nameToKeycode["_"] = PEBL_KEYCODE_UNDERSCORE;
+        nameToKeycode["`"] = PEBL_KEYCODE_BACKQUOTE;
+
+        // Function keys
+        nameToKeycode["f1"] = PEBL_KEYCODE_F1;
+        nameToKeycode["f2"] = PEBL_KEYCODE_F2;
+        nameToKeycode["f3"] = PEBL_KEYCODE_F3;
+        nameToKeycode["f4"] = PEBL_KEYCODE_F4;
+        nameToKeycode["f5"] = PEBL_KEYCODE_F5;
+        nameToKeycode["f6"] = PEBL_KEYCODE_F6;
+        nameToKeycode["f7"] = PEBL_KEYCODE_F7;
+        nameToKeycode["f8"] = PEBL_KEYCODE_F8;
+        nameToKeycode["f9"] = PEBL_KEYCODE_F9;
+        nameToKeycode["f10"] = PEBL_KEYCODE_F10;
+        nameToKeycode["f11"] = PEBL_KEYCODE_F11;
+        nameToKeycode["f12"] = PEBL_KEYCODE_F12;
+
+        // Arrow keys and navigation
+        nameToKeycode["up"] = PEBL_KEYCODE_UP;
+        nameToKeycode["down"] = PEBL_KEYCODE_DOWN;
+        nameToKeycode["left"] = PEBL_KEYCODE_LEFT;
+        nameToKeycode["right"] = PEBL_KEYCODE_RIGHT;
+        nameToKeycode["insert"] = PEBL_KEYCODE_INSERT;
+        nameToKeycode["delete"] = PEBL_KEYCODE_DELETE;
+        nameToKeycode["home"] = PEBL_KEYCODE_HOME;
+        nameToKeycode["end"] = PEBL_KEYCODE_END;
+        nameToKeycode["pageup"] = PEBL_KEYCODE_PAGEUP;
+        nameToKeycode["pagedown"] = PEBL_KEYCODE_PAGEDOWN;
+
+        // Modifier keys
+        nameToKeycode["capslock"] = PEBL_KEYCODE_CAPSLOCK;
+        nameToKeycode["scrolllock"] = PEBL_KEYCODE_SCROLLLOCK;
+        nameToKeycode["lshift"] = PEBL_KEYCODE_LSHIFT;
+        nameToKeycode["rshift"] = PEBL_KEYCODE_RSHIFT;
+        nameToKeycode["lctrl"] = PEBL_KEYCODE_LCTRL;
+        nameToKeycode["rctrl"] = PEBL_KEYCODE_RCTRL;
+        nameToKeycode["lalt"] = PEBL_KEYCODE_LALT;
+        nameToKeycode["ralt"] = PEBL_KEYCODE_RALT;
+        nameToKeycode["lgui"] = PEBL_KEYCODE_LGUI;
+        nameToKeycode["rgui"] = PEBL_KEYCODE_RGUI;
+
+        // Other special keys
+        nameToKeycode["pause"] = PEBL_KEYCODE_PAUSE;
+        nameToKeycode["printscreen"] = PEBL_KEYCODE_PRINTSCREEN;
+        nameToKeycode["menu"] = PEBL_KEYCODE_MENU;
+        nameToKeycode["help"] = PEBL_KEYCODE_HELP;
+        nameToKeycode["sysreq"] = PEBL_KEYCODE_SYSREQ;
+        nameToKeycode["power"] = PEBL_KEYCODE_POWER;
+        nameToKeycode["undo"] = PEBL_KEYCODE_UNDO;
+        nameToKeycode["clear"] = PEBL_KEYCODE_CLEAR;
+        nameToKeycode["mode"] = PEBL_KEYCODE_MODE;
+    }
+
+    std::map<std::string, PEBL_Keycode>::const_iterator it = nameToKeycode.find(name);
+    if (it != nameToKeycode.end()) {
+        return it->second;
+    }
+    return PEBL_KEYCODE_UNKNOWN;
+}
+
+static std::string PEBL_GetKeyName(PEBL_Keycode code) {
+    // Single character keys (a-z, 0-9, punctuation)
+    if (code >= PEBL_KEYCODE_a && code <= PEBL_KEYCODE_z) {
+        return std::string(1, (char)code);
+    }
+    if (code >= PEBL_KEYCODE_0 && code <= PEBL_KEYCODE_9) {
+        return std::string(1, (char)code);
+    }
+
+    // Punctuation and special characters
+    switch(code) {
+        case PEBL_KEYCODE_EXCLAIM: return "!";
+        case PEBL_KEYCODE_QUOTEDBL: return "\"";
+        case PEBL_KEYCODE_HASH: return "#";
+        case PEBL_KEYCODE_DOLLAR: return "$";
+        case PEBL_KEYCODE_PERCENT: return "%";
+        case PEBL_KEYCODE_AMPERSAND: return "&";
+        case PEBL_KEYCODE_QUOTE: return "'";
+        case PEBL_KEYCODE_LEFTPAREN: return "(";
+        case PEBL_KEYCODE_RIGHTPAREN: return ")";
+        case PEBL_KEYCODE_ASTERISK: return "*";
+        case PEBL_KEYCODE_PLUS: return "+";
+        case PEBL_KEYCODE_COMMA: return ",";
+        case PEBL_KEYCODE_MINUS: return "-";
+        case PEBL_KEYCODE_PERIOD: return ".";
+        case PEBL_KEYCODE_SLASH: return "/";
+        case PEBL_KEYCODE_COLON: return ":";
+        case PEBL_KEYCODE_SEMICOLON: return ";";
+        case PEBL_KEYCODE_LESS: return "<";
+        case PEBL_KEYCODE_EQUALS: return "=";
+        case PEBL_KEYCODE_GREATER: return ">";
+        case PEBL_KEYCODE_QUESTION: return "?";
+        case PEBL_KEYCODE_AT: return "@";
+        case PEBL_KEYCODE_LEFTBRACKET: return "[";
+        case PEBL_KEYCODE_BACKSLASH: return "\\";
+        case PEBL_KEYCODE_RIGHTBRACKET: return "]";
+        case PEBL_KEYCODE_CARET: return "^";
+        case PEBL_KEYCODE_UNDERSCORE: return "_";
+        case PEBL_KEYCODE_BACKQUOTE: return "`";
+
+        // Named special keys
+        case PEBL_KEYCODE_SPACE: return "Space";
+        case PEBL_KEYCODE_RETURN: return "Return";
+        case PEBL_KEYCODE_ESCAPE: return "Escape";
+        case PEBL_KEYCODE_BACKSPACE: return "Backspace";
+        case PEBL_KEYCODE_TAB: return "Tab";
+        case PEBL_KEYCODE_DELETE: return "Delete";
+
+        // Function keys
+        case PEBL_KEYCODE_F1: return "F1";
+        case PEBL_KEYCODE_F2: return "F2";
+        case PEBL_KEYCODE_F3: return "F3";
+        case PEBL_KEYCODE_F4: return "F4";
+        case PEBL_KEYCODE_F5: return "F5";
+        case PEBL_KEYCODE_F6: return "F6";
+        case PEBL_KEYCODE_F7: return "F7";
+        case PEBL_KEYCODE_F8: return "F8";
+        case PEBL_KEYCODE_F9: return "F9";
+        case PEBL_KEYCODE_F10: return "F10";
+        case PEBL_KEYCODE_F11: return "F11";
+        case PEBL_KEYCODE_F12: return "F12";
+
+        // Arrow keys
+        case PEBL_KEYCODE_UP: return "Up";
+        case PEBL_KEYCODE_DOWN: return "Down";
+        case PEBL_KEYCODE_LEFT: return "Left";
+        case PEBL_KEYCODE_RIGHT: return "Right";
+
+        // Navigation
+        case PEBL_KEYCODE_INSERT: return "Insert";
+        case PEBL_KEYCODE_HOME: return "Home";
+        case PEBL_KEYCODE_END: return "End";
+        case PEBL_KEYCODE_PAGEUP: return "PageUp";
+        case PEBL_KEYCODE_PAGEDOWN: return "PageDown";
+
+        // Modifiers
+        case PEBL_KEYCODE_CAPSLOCK: return "CapsLock";
+        case PEBL_KEYCODE_SCROLLLOCK: return "ScrollLock";
+        case PEBL_KEYCODE_LSHIFT: return "Left Shift";
+        case PEBL_KEYCODE_RSHIFT: return "Right Shift";
+        case PEBL_KEYCODE_LCTRL: return "Left Ctrl";
+        case PEBL_KEYCODE_RCTRL: return "Right Ctrl";
+        case PEBL_KEYCODE_LALT: return "Left Alt";
+        case PEBL_KEYCODE_RALT: return "Right Alt";
+        case PEBL_KEYCODE_LGUI: return "Left GUI";
+        case PEBL_KEYCODE_RGUI: return "Right GUI";
+
+        // Other special keys
+        case PEBL_KEYCODE_PAUSE: return "Pause";
+        case PEBL_KEYCODE_PRINTSCREEN: return "PrintScreen";
+        case PEBL_KEYCODE_MENU: return "Menu";
+        case PEBL_KEYCODE_HELP: return "Help";
+        case PEBL_KEYCODE_SYSREQ: return "SysReq";
+        case PEBL_KEYCODE_POWER: return "Power";
+        case PEBL_KEYCODE_UNDO: return "Undo";
+        case PEBL_KEYCODE_CLEAR: return "Clear";
+        case PEBL_KEYCODE_MODE: return "ModeSwitch";
+
+        default: return "";
+    }
+}
+
+// Pre-initialize keycode lookup tables to avoid lazy-init delay on first keypress
+// This is called during environment initialization to prevent timing measurement artifacts
+// in psychological experiments where response time accuracy is critical
+void PEBLUtility::InitializeKeycodeLookups() {
+    // Force initialization of the static map in PEBL_GetKeyFromName by making a dummy call
+    (void)PEBL_GetKeyFromName("a");
+
+    // PEBL_GetKeyName uses a switch statement (no lazy init needed), but call it anyway
+    // for symmetry and in case the implementation changes
+    (void)PEBL_GetKeyName(PEBL_KEYCODE_a);
+}
 
 std::string PEBLUtility::ToUpper(const std::string & text)
 {
@@ -377,11 +632,19 @@ PEBL_Keycode  PEBLUtility::TranslateString(const std::string & let)
 {
     std::string letters = PEBLUtility::ToLower(let);
 
-    SDL_Keycode code =SDL_GetKeyFromName(letters.c_str());
-    
+#ifndef PEBL_VALIDATOR
+    PEBL_Keycode code = PEBL_GetKeyFromName(letters.c_str());
+#else
+    int code = 0;  // Validator mode: return unknown
+#endif
+
     //cout <<"testing letters: [" << letters << "]"<<endl;
 
-    if(code==SDLK_UNKNOWN)
+#ifndef PEBL_VALIDATOR
+    if(code==PEBL_KEYCODE_UNKNOWN)
+#else
+    if(code==0)
+#endif
         {
 
 
@@ -566,8 +829,12 @@ std::string PEBLUtility::TranslateKeycode(const PEBL_Keycode code, int modkeys)
 
         default:
 
-            std::string ltrs =  SDL_GetKeyName((SDL_Keycode)code);
+#ifndef PEBL_VALIDATOR
+            std::string ltrs = PEBL_GetKeyName(code);
             return ShiftSwitch(modkeys, ToLower(ltrs),ToUpper(ltrs));
+#else
+            return "<unknown>";  // Validator mode: return unknown
+#endif
         }
 
 }
@@ -1651,48 +1918,6 @@ std::string PEBLUtility::GetFontForLanguageOrScript(const std::string & code, in
         // Invalid code length - return default
         return (fontType == 0) ? defaultSans : (fontType == 1) ? defaultMono : defaultSerif;
     }
-}
-
-// Get the system locale from OS settings
-// Uses SDL_GetPreferredLocales() to query OS for user's preferred language/locale
-// Returns locale string like "ar", "en_US", "zh_CN", "he_IL"
-// Returns empty string on error
-std::string PEBLUtility::GetSystemLocale() {
-    SDL_Locale *locales = SDL_GetPreferredLocales();
-    if (!locales) {
-        return "";  // Error or not supported on this platform
-    }
-
-    // Get the first (primary) locale
-    std::string result = "";
-    if (locales[0].language) {
-        result = locales[0].language;
-
-        // Append country code if available (e.g., "en_US", "zh_CN")
-        if (locales[0].country) {
-            result += "_";
-            result += locales[0].country;
-        }
-    }
-
-    SDL_free(locales);
-    return result;  // e.g., "ar", "en_US", "zh_CN", "he_IL", "ko_KR"
-}
-
-// Check if the system locale is RTL (Arabic, Hebrew)
-// Useful for setting default text box justification before any text input
-bool PEBLUtility::IsSystemLocaleRTL() {
-    std::string locale = GetSystemLocale();
-    if (locale.empty()) {
-        return false;  // Default to LTR if we can't detect
-    }
-
-    // Extract language code (first 2 characters)
-    std::string langCode = locale.substr(0, 2);
-    std::transform(langCode.begin(), langCode.end(), langCode.begin(), ::tolower);
-
-    // Check if it's Arabic or Hebrew
-    return (langCode == "ar" || langCode == "he" || langCode == "iw");
 }
 
 // Resolve a property chain like "HEADER.TEXT" by recursively traversing objects

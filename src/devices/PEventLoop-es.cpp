@@ -248,17 +248,11 @@ PEvent PEventLoop::Loop()
 #endif
 
 #ifdef PEBL_EMSCRIPTEN
-        //Yield to browser to allow browser events to be processed
-        emscripten_sleep(10);
-#elif defined(PEBL_UNIX)
-        //Unix: nanosleep for 100 microseconds to avoid burning CPU
-        struct timespec a, b;
-        a.tv_sec = 0;
-        a.tv_nsec = 100000;  //100 microseconds
-        nanosleep(&a, &b);
-#elif defined(PEBL_WIN32)
-        //Windows: Use SDL_Delay
-        SDL_Delay(1);  //Sleep about 1 ms
+        // Emscripten: 10ms sleep tied to browser screen refresh
+        PEBLEnvironment::myTimer.Sleep(10);
+#else
+        // Unix/Windows: 1ms sleep via platform-specific implementation
+        PEBLEnvironment::myTimer.Sleep(1);
 #endif
     }
 

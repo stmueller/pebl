@@ -194,6 +194,7 @@ OBJECTS_DIR = src/objects
 DEVICES_DIR = src/devices
 PLATFORMS_DIR = src/platforms
 SDL_DIR = src/platforms/sdl
+VALIDATOR_DIR = src/platforms/validator
 UTIL_DIR = src/utility
 TEST_DIR = src/tests
 
@@ -380,6 +381,27 @@ PLATFORM_SDL_OBJ  = 	$(patsubst %.cpp, %.o, $(PLATFORM_SDL_SRC))
 PLATFORM_SDL_INC  = 	$(patsubst %.cpp, %.h, $(PLATFORM_SDL_SRC))
 
 
+# Validator platform sources (no SDL dependencies)
+PLATFORM_VALIDATOR_SRC = $(VALIDATOR_DIR)/PlatformEnvironment.cpp \
+			$(VALIDATOR_DIR)/PlatformWidget.cpp \
+			$(VALIDATOR_DIR)/PlatformWindow.cpp \
+			$(VALIDATOR_DIR)/PlatformImageBox.cpp \
+			$(VALIDATOR_DIR)/PlatformKeyboard.cpp \
+			$(VALIDATOR_DIR)/PlatformFont.cpp \
+			$(VALIDATOR_DIR)/PlatformLabel.cpp \
+			$(VALIDATOR_DIR)/PlatformTextBox.cpp \
+			$(VALIDATOR_DIR)/PlatformTimer.cpp \
+			$(VALIDATOR_DIR)/PlatformDrawObject.cpp \
+			$(VALIDATOR_DIR)/PlatformCanvas.cpp \
+			$(VALIDATOR_DIR)/PlatformEventQueue.cpp \
+			$(VALIDATOR_DIR)/PlatformAudioOut.cpp \
+			$(VALIDATOR_DIR)/PlatformNetwork.cpp \
+			$(VALIDATOR_DIR)/PlatformJoystick.cpp
+
+PLATFORM_VALIDATOR_OBJ = $(patsubst %.cpp, %.o, $(PLATFORM_VALIDATOR_SRC))
+PLATFORM_VALIDATOR_INC = $(patsubst %.cpp, %.h, $(PLATFORM_VALIDATOR_SRC))
+
+
 FUNCTIONLIB_SRC = $(LIBS_DIR)/PEBLMath.cpp \
 	  	  $(LIBS_DIR)/PEBLStream.cpp \
 		  $(LIBS_DIR)/PEBLObjects.cpp \
@@ -442,6 +464,7 @@ DIRS = \
 	$(OBJ_DIR)/$(DEVICES_DIR) \
 	$(OBJ_DIR)/$(PLATFORMS_DIR) \
 	$(OBJ_DIR)/$(SDL_DIR) \
+	$(OBJ_DIR)/$(VALIDATOR_DIR) \
 	$(OBJ_DIR)/$(UTIL_DIR) \
 	$(OBJ_DIR)/$(TEST_DIR) 
 
@@ -724,3 +747,93 @@ install:
 ifeq (.depend,$(wildcard .depend))
 include .depend
 endif
+
+## PEBL Validator target (no SDL dependencies)
+# Minimal utility sources (no HTTP, md5, happyhttp)
+VALIDATOR_UTIL_SRC = $(UTIL_DIR)/PEBLUtility.cpp \
+		$(UTIL_DIR)/PError.cpp \
+		$(UTIL_DIR)/BinReloc.cpp \
+		$(UTIL_DIR)/PEBLPath.cpp
+
+VALIDATOR_UTIL_OBJ = $(patsubst %.cpp, %.o, $(VALIDATOR_UTIL_SRC))
+
+# Validator sources - includes parser + device layer + platform implementations
+# This is essentially a full PEBL build minus the main PEBL.cpp file
+VALIDATOR_SRC = 	$(APPS_DIR)/PEBLValidator.cpp \
+			$(BASE_DIR)/grammar.tab.cpp \
+			$(BASE_DIR)/PNode.cpp \
+			$(BASE_DIR)/Variant.cpp \
+			$(BASE_DIR)/PEBLObject.cpp \
+			$(BASE_DIR)/PComplexData.cpp \
+			$(BASE_DIR)/PList.cpp \
+			$(BASE_DIR)/Evaluator.cpp \
+			$(BASE_DIR)/VariableMap.cpp \
+			$(BASE_DIR)/FunctionMap.cpp \
+			$(BASE_DIR)/Loader.cpp \
+			$(DEVICES_DIR)/PEventLoop.cpp \
+			$(DEVICES_DIR)/PDevice.cpp \
+			$(DEVICES_DIR)/PEventQueue.cpp \
+			$(DEVICES_DIR)/PEvent.cpp \
+			$(DEVICES_DIR)/PKeyboard.cpp \
+			$(DEVICES_DIR)/PTimer.cpp \
+			$(DEVICES_DIR)/DeviceState.cpp \
+			$(DEVICES_DIR)/PStream.cpp \
+			$(DEVICES_DIR)/PAudioOut.cpp \
+			$(DEVICES_DIR)/PNetwork.cpp \
+			$(DEVICES_DIR)/PJoystick.cpp \
+			$(DEVICES_DIR)/PParallelPort.cpp \
+			$(DEVICES_DIR)/PComPort.cpp \
+			$(DEVICES_DIR)/PEyeTracker.cpp \
+			$(UTIL_DIR)/PEBLUtility.cpp \
+			$(UTIL_DIR)/PEBLPath.cpp \
+			$(UTIL_DIR)/PError.cpp \
+			$(UTIL_DIR)/BinReloc.cpp \
+			$(UTIL_DIR)/md5.cpp \
+			$(UTIL_DIR)/PEBLHTTP.cpp \
+			$(UTIL_DIR)/happyhttp.cpp \
+			$(LIBS_DIR)/PEBLEnvironment.cpp \
+			$(LIBS_DIR)/PEBLMath.cpp \
+			$(LIBS_DIR)/PEBLStream.cpp \
+			$(LIBS_DIR)/PEBLObjects.cpp \
+			$(LIBS_DIR)/PEBLList.cpp \
+			$(LIBS_DIR)/PEBLString.cpp \
+			$(OBJECTS_DIR)/PEnvironment.cpp \
+			$(OBJECTS_DIR)/PCustomObject.cpp \
+			$(OBJECTS_DIR)/PWidget.cpp \
+			$(OBJECTS_DIR)/PColor.cpp \
+			$(OBJECTS_DIR)/PWindow.cpp \
+			$(OBJECTS_DIR)/PImageBox.cpp \
+			$(OBJECTS_DIR)/PCanvas.cpp \
+			$(OBJECTS_DIR)/PDrawObject.cpp \
+			$(OBJECTS_DIR)/PFont.cpp \
+			$(OBJECTS_DIR)/PTextObject.cpp \
+			$(OBJECTS_DIR)/PLabel.cpp \
+			$(OBJECTS_DIR)/PTextBox.cpp \
+			$(OBJECTS_DIR)/PMovie.cpp \
+			$(PLATFORM_VALIDATOR_SRC)
+
+VALIDATOR_OBJ = $(patsubst %.cpp, %.o, $(VALIDATOR_SRC))
+
+# Wrapper target
+validator:
+	$(MAKE) OBJ_DIR=obj-validator CC=$(CL) CXX=$(CLXX) validator-real
+
+# Real build target - minimal dependencies for validation
+# HTTP disabled but stub functions allow Transfer.pbl (used by 50+ tests) to load for validation
+validator-real: CC=$(CL)
+validator-real: CXX=$(CLXX)
+validator-real: USE_HTTP = 0
+validator-real: USE_PORTS = 0
+validator-real: USE_MIXER = 0
+validator-real: USE_NETWORK = 0
+validator-real: USE_AUDIOIN = 0
+validator-real: CXXFLAGS = $(CXXFLAGS0) $(CXXFLAGS_LINUX) -UPEBL_MIXER -UPEBL_NETWORK -UPEBL_PORTS -UPEBL_AUDIOIN -UPEBL_HTTP -DPEBL_VALIDATOR
+validator-real: $(DIRS) $(VALIDATOR_OBJ) $(BASE_DIR)/lex.yy.o
+	$(CXX) $(CXXFLAGS) -Wall -Wl,-rpath -Wl,LIBDIR $(DEBUGFLAGS) \
+	-Wno-write-strings \
+	-o $(BIN_DIR)/pebl-validator \
+	$(patsubst %.o, $(OBJ_DIR)/%.o, $(VALIDATOR_OBJ)) \
+	$(OBJ_DIR)/$(BASE_DIR)/lex.yy.o \
+	-lpthread
+
+.PHONY: validator validator-real

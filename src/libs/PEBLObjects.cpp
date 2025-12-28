@@ -59,6 +59,18 @@
 #include "../utility/PEBLUtility.h"
 #include "../utility/Defs.h"
 
+#ifdef PEBL_VALIDATOR
+#include "../platforms/validator/PlatformEnvironment.h"
+#include "../platforms/validator/PlatformWindow.h"
+#include "../platforms/validator/PlatformImageBox.h"
+#include "../platforms/validator/PlatformDrawObject.h"
+#include "../platforms/validator/PlatformLabel.h"
+#include "../platforms/validator/PlatformFont.h"
+#include "../platforms/validator/PlatformEventQueue.h"
+#include "../platforms/validator/PlatformTextBox.h"
+#include "../platforms/validator/PlatformCanvas.h"
+#include "../platforms/validator/PlatformAudioOut.h"
+#else
 #include "../platforms/sdl/PlatformEnvironment.h"
 #include "../platforms/sdl/PlatformWindow.h"
 #include "../platforms/sdl/PlatformImageBox.h"
@@ -72,6 +84,7 @@
 
 #ifdef PEBL_MOVIES
 #include "../platforms/sdl/PlatformMovie.h"
+#endif
 #endif
 
 
@@ -1368,7 +1381,7 @@ Variant PEBLObjects::RecordToBuffer(Variant v)
     std::cout << "Recording started...\n";
 
     // Wait for the specified/calculated duration
-    SDL_Delay(durationMs);
+    PEBLEnvironment::myTimer.Sleep(durationMs);
 
     // Pause recording (device remains open until myAudio is deleted)
     myAudio->PauseAudioMonitor();

@@ -239,6 +239,24 @@ int main(int argc, char *argv[]) {
             cerr << "Validating functions..." << endl;
             myLoader = new Loader();
             myLoader->LoadUserFunctions((OpNode*)head);
+
+            // Validate Start() function has exactly one parameter
+            PNode* startFunc = myLoader->GetMainPEBLFunction();
+            if (startFunc) {
+                OpNode* startOpNode = dynamic_cast<OpNode*>(startFunc);
+                if (startOpNode) {
+                    // For PEBL_FUNCTION nodes, left child is parameter list
+                    PNode* paramList = startOpNode->GetLeft();
+                    if (!paramList) {
+                        // Start() defined with no parameters: define Start()
+                        gErrors.push_back("Start() function must have exactly one parameter to receive command-line arguments (e.g., define Start(p))");
+                        gSyntaxValid = false;
+                    }
+                }
+            } else {
+                gWarnings.push_back("No Start() function found - PEBL scripts should define a Start() function as the entry point");
+            }
+
             myLoader->FindFunctions(head);
 
             // LoadLibraryFunctions() will throw exception on undefined functions in validator mode

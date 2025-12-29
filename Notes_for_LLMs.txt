@@ -71,6 +71,88 @@ NEVER RUN MAKE COMMANDS:
   - Simply suggest: "Would you like me to run 'make em-opt' to compile this?" or
     "I've made the changes. When you're ready, please run 'make em-opt' to compile."
 
+ALWAYS VALIDATE PEBL SYNTAX USING pebl-validator:
+  - ALWAYS run pebl-validator on PEBL code you write to verify syntax before the user tests it
+  - The validator checks syntax and function calls without executing the code
+  - This catches errors early and saves the user from runtime failures
+  - Location: bin/pebl-validator (built with 'make validator')
+
+HOW TO USE THE VALIDATOR:
+
+  Basic usage:
+    bin/pebl-validator <file.pbl>
+
+  JSON output (for programmatic parsing):
+    bin/pebl-validator <file.pbl> --json
+
+  Get help:
+    bin/pebl-validator --help
+
+WHAT THE VALIDATOR CHECKS:
+  ✓ Syntax errors (parse tree generation)
+  ✓ Undefined function calls (validates against all standard libraries)
+  ✓ Missing library functions (GetHTTPFile, etc.)
+  ✓ User-defined function calls
+  ✗ Does NOT check runtime logic, parameter types, or execution flow
+
+EXIT CODES:
+  0 = Valid syntax and all functions defined
+  1 = Invalid syntax or undefined functions
+  2 = Usage error
+
+OUTPUT FORMATS:
+
+  Text output (human-readable):
+    PEBL Validator Results
+    ======================
+    File: test.pbl
+
+    ✓ Syntax: VALID
+
+  JSON output (for automation):
+    {
+      "file": "test.pbl",
+      "syntax_valid": true,
+      "errors": [],
+      "warnings": []
+    }
+
+WHEN TO USE THE VALIDATOR:
+  1. AFTER writing new PEBL code - validate before suggesting user test it
+  2. AFTER modifying existing PEBL files - ensure changes are syntactically valid
+  3. BEFORE asking user to compile - catch syntax errors early
+  4. WHEN debugging - distinguish between syntax errors and logic errors
+
+EXAMPLES:
+
+  Valid file:
+    $ bin/pebl-validator demo/tests/test-simple.pbl --json
+    {"file": "demo/tests/test-simple.pbl", "syntax_valid": true, "errors": [], "warnings": []}
+
+  Invalid file (undefined function):
+    $ bin/pebl-validator test.pbl --json
+    {"file": "test.pbl", "syntax_valid": false,
+     "errors": ["Function [NOTAFUNCTION] not found in libraries..."]}
+
+  Syntax error:
+    $ bin/pebl-validator broken.pbl --json
+    {"file": "broken.pbl", "syntax_valid": false,
+     "errors": ["Parse failed - syntax error in file"]}
+
+INTEGRATION IN YOUR WORKFLOW:
+  1. Write PEBL code
+  2. Run validator: bin/pebl-validator yourfile.pbl --json 2>/dev/null
+  3. Check exit code ($? in bash) or parse JSON output
+  4. If valid: tell user the code is ready to test
+  5. If invalid: fix errors and repeat
+
+WHAT THE VALIDATOR DOES NOT REPLACE:
+  - Runtime testing (the validator does not execute code)
+  - Type checking (PEBL is dynamically typed)
+  - Logic validation (e.g., incorrect parameter values)
+  - Performance testing
+  - Cross-platform testing (native vs. Emscripten)
+
 EMSCRIPTEN BUILD CONFIGURATION
 --------------------------------
 

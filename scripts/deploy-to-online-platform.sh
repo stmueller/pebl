@@ -100,7 +100,7 @@ if [ "$BUILD_TYPE" = "production" ]; then
     # Package private_tasks into separate data file
     echo ""
     echo "Building private_uploads.data bundle..."
-    PRIVATE_TASKS_DIR="$SCRIPT_DIR/private_tasks"
+    PRIVATE_TASKS_DIR="$PEBL_DIR/private_tasks"  # Fixed: Use PEBL_DIR not SCRIPT_DIR
     PRIVATE_BATTERY_DIR="$ONLINE_PLATFORM_DIR/private_battery"
     FP="$PEBL_DIR/libs/emsdk/upstream/emscripten/tools/file_packager.py"
 

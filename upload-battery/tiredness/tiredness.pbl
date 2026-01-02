@@ -30,10 +30,10 @@ define Start(p)
 
   ## Load translations
   GetStrings(gLanguage)
-
+ 
 ## Save data using upload system
    gDatafile <- GetNewDataFile(gSubNum, gWin, "tiredness", "csv",
-                              "subnum,timestamp,KSS,KSSTime,reading,tv,public,passenger,lyingdown,talking,afterlunch,incar,average,totaltime")
+                              "subnum,timestamp,KSS,KSSTime,reading,tv,public,passenger,lyingdown,talking,incar,average,tirednesstime")
 
 
 
@@ -44,17 +44,24 @@ define Start(p)
       outKSS <-  DoKSS()
       kssTime <- GetTime()/1000
     }
-    if(gParams.DOTIREDNESS)
-   {
-      outTired <- DoTiredness()
-   }
 
-   outline <- gSubnum +"," + TimeStamp() +","+outKSS+","+outTiredness + (GetTime()/1000-ksstime)
+   tirednessStart <- GetTime()
+    if(gParams.DOTIREDNESS)
+    {
+      outTiredness <- DoTiredness()
+    }
+
+   outline <- gSubnum +"," + TimeStamp() +","+outKSS+","+outTiredness  + "," + (GetTime()-tirednessStart)
    FilePrint(gdatafile, outline)
    FileClose(gDatafile)
+   pooledfile <- "data/tiredness-pooled.csv"
+   pF <- FileOpenAppend(pooledFile)
+   FilePrint(pf,outline)
+   FileClose(pf)
+   
    ## Upload the data file
-   UploadFile(gSubnum,gdatafile)
-
+   Print("saving data to: " + gDataFile.filename) 
+   UploadFile(gSubnum,gdatafile.filename)
 }
 
 
@@ -78,7 +85,7 @@ define DoTiredness()
   scale <- 1.20
   maxscale <- gVideoWidth/850
   scale <- Min([scale,maxscale])
-  Print(scale)
+
   xs <- VecTimes([-350,-240,-130,-20,90,200,310],Repeat(scale,7))
 
   doit<- Transpose(Append(Transpose(scales),xs))
@@ -91,15 +98,13 @@ define DoTiredness()
   thumbs <- []
   loop(i,doit)
   {
-     Print("----")
-     Print(i)
-     out <-  PlotScale(Nth(i,5)+gVideoWidth/2,gVideoHeight/2+50,(i),gScaleHeight-100 )  
 
+     out <-  PlotScale(Nth(i,5)+gVideoWidth/2,gVideoHeight/2+50,(i),gScaleHeight-100 )  
      tmp <- Append(tmp,out)
-	 rect <- First(out)
-	 rects <- Append(rects,rect)
+     rect <- First(out)
+     rects <- Append(rects,rect)
      line <- Rectangle(Nth(i,5)+gVideoWidth/2,0,31,3,MakeColor("red"),1)
-	 thumbs <- Append(thumbs,line)
+     thumbs <- Append(thumbs,line)
   }
 
    Draw()
@@ -107,17 +112,20 @@ define DoTiredness()
    rated <- [0,0,0,0,0,0,0]
    ratings <- [0,0,0,0,0,0,0]
 
-
+   ##pick the first piec of out to get a box to extract the size
+   box <- First(out)
+   scaletop <- Floor(box.y - box.height/2)
 
    while (Sum(rated)<7)
     { 
+       click <- WaitForClickOnTarget(rects,Sequence(1,7,1))
+       y <- Second(gClick)
 
-	   click <- WaitForClickOnTarget(rects,Sequence(1,7,1))
+       ##the lower, the higher the rating.
+       prop <- Max([Min([1,(y-scaletop)/box.height]),0])
+       rating <-  Round((prop*20))  ##should be 0 to 20
 
-	   y <- Second(gClick)
-	   
-	   rating <- 21- Round(((y-400+gScaleheight/2)/gScaleheight)*20) 
-	   ylev <- (400 + gScaleheight/2) - (rating-1) * gScaleheight/20
+       ylev <- (scaletop) + (rating) * (box.height/20)+1
        tmpthumb <- Nth(thumbs,click)
        tmpthumb.y <- ylev
        AddObject(tmpthumb,gWin)
@@ -125,8 +133,9 @@ define DoTiredness()
        rated <- SpliceList(rated,1,click)
        ratings <- SpliceList(ratings,rating,click) 
        Draw()
+       
     }
-
+ 
 
     labelmain.text <- gStrings.complete_label
     doneback <- Rectangle(gVideoWidth/2,50,100,30,MakeColor("white"),0)
@@ -136,22 +145,26 @@ define DoTiredness()
     Draw()
 
    while (click < 8)
-    { 
+    {
+
+      Print(click)
 	
-	   click <- WaitForClickOnTarget(Append(rects,doneback),Sequence(1,8,1))
+	  click <- WaitForClickOnTarget(Append(rects,doneback),Sequence(1,8,1))
+	  if(click<=7)
+          {
+         y <- Second(gClick)   
+         ##the lower, the higher the rating.
+         prop <- Max([Min([1,(y-scaletop)/box.height]),0])
+         rating <-  Round((prop*20))  ##should be 0 to 20
+ 
+         ylev <- (scaletop) + (rating) * (box.height/20)+1
+         tmpthumb <- Nth(thumbs,click)
+         tmpthumb.y <- ylev
+         AddObject(tmpthumb,gWin)
 
-	   if(click<7)
-       {
- 	   y <- Second(gClick)
-	   
-	   rating <- 21- Round(((y-400+height/2)/height)*20) 
-	   ylev <- (400 + height/2) - (rating-1) * height/20
-       tmpthumb <- Nth(thumbs,click)
-       tmpthumb.y <- ylev
-       AddObject(tmpthumb,gWin)
 
-	   rated <- SpliceList(rated,1,click)
-	   ratings <- SpliceList(ratings,rating,click) 
+         rated <- SpliceList(rated,1,click)
+         ratings <- SpliceList(ratings,rating,click) 
 
       } 
        Draw()
@@ -160,14 +173,15 @@ define DoTiredness()
    Draw()
    outline <- ""
    sum <- 0
+   #recode the clicks so the top (almost certain) is 21 and the bottom is 1
    loop(i,ratings)
     {
-	  outline <- outline +","+i
+	  outline <- outline +(21-i)+","
 	  sum <- sum + ToNumber(i)
     }
 
-   average <- sum/8
-   outline <- outline + ","+ average +","
+   average <- sum/7
+   outline <- outline + average
 
    return outline
 }
@@ -198,8 +212,8 @@ define PlotScale(x,y,info,height)
 
    black <- MakeColor("black")
    darkgrey <- MakeColor("black")
-   font1 <-   MakeFont(gPEBLBaseFont,0,25,MakeColor("white"),darkgrey,1)
-   font <-   MakeFont(gPEBLBaseFont,0,12,MakeColor("white"),darkgrey,1)
+   font1 <-   MakeFont(gPEBLBaseFont,0,25,MakeColor("white"),darkgrey,0)
+   font <-   MakeFont(gPEBLBaseFont,0,12,MakeColor("white"),darkgrey,0)
 
    ##this is just the number.
    title <- MakeTextBox(First(info),font1, 41,30)
@@ -309,18 +323,19 @@ define GetStrings(lang)
 define DoKSS()
 {
 
+  startTime <- GetTime()
   taskname <- "KSS: Karolinska Sleep Scale"
 
   gNumPoints     <- gParams.KSSPoints
 
   
-  ## 取 KSS 锚定文本（避免全局数组初始化语法问题）
+
   gKSSLabels <- GetKSSLabels()##the labels for each tickmark.
 
-  ## ③ 标题改为 KSS 全称；④ 字号 +2（24->26）
+
   labelmain <- EasyLabel(gStrings.KSS_TITLE, gVideoWidth/2, 40, gWin, 26)
 
-  ## 单一维度：KSS
+
   scales <- [gStrings.KSS_QUESTION,
               gStrings.KSS_LOW,
               gStrings.KSS_HIGH,
@@ -366,7 +381,7 @@ define DoKSS()
      Draw()
   }
 
-  ## ④ DONE 字号 +2（18->20）
+
   labelmain.text <- gStrings.KSS_COMPLETE
 
   done <- EasyLabel(gStrings.KSS_DONE,  gVideoWidth/2,100,gWin,26)
@@ -400,17 +415,11 @@ define DoKSS()
 
   Draw()
 
-  outline <- "PEBL-KSS,"+TimeStamp()+","+gSubNum+","+taskname
-  loop(i,ratings)
-  {
-    outline <- outline + ","+i
-  }
-  outline <- outline + ","+GetTime()
-
-  MakeDirectory("data")
-  out <- FileOpenAppend("data/kss-data.csv")
-  FilePrint(out,outline)
+  outline <- rating +  ","+(GetTime() - starttime)
+  return outline
 }
+
+
 
 ## puts item into position on list
 define SpliceList(list,item,pos)
@@ -429,7 +438,7 @@ define SpliceList(list,item,pos)
   return tmp
 }
 
-## 绘制量表（支持任意点数），右侧锚定单行显示；④ 字号整体 +2（15->17, 12->14）
+
 define PlotScaleKSS(x,y,info,height)
 {
    black <- MakeColor("black")

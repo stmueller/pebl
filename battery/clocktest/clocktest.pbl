@@ -38,6 +38,7 @@ define Start(p)
 
 
   gParams <- CreateParameters(parpairs,gParamFile)
+  gParams.responsesemantics <- "gonogo"  ## Single-key response (respond to targets, ignore non-targets)
 
   gWin <- MakeWindow("black")
   gBasecolor <- MakeColor("white")
@@ -150,18 +151,19 @@ define Start(p)
 
 
   }
-  fileOut <- GetNewDataFile(gSubNum,gWin,"clock","csv",
-               "subnum,trial,ticker,sec,skip,resp,corr,starttime,rt,curtime")
-
-
 
   ## Show instructions at top of screen (small textbox ~100px high so clock is visible)
-  instBox <- AdaptiveTextBox(gStrings.inst1+"   " + gStrings.inst2, 50, 20, gWin, 18, gVideoWidth-100, 100, "scalefont")
+  instBox <- AdaptiveTextBox(gStrings.inst1, 50, 20, gWin, 18, gVideoWidth-100, 100, "scalefont")
+  Draw()
+  WaitForLayoutResponse(gLayout)
+  instBox.text <- gStrings.inst2
   Draw()
   WaitForLayoutResponse(gLayout)
   RemoveObject(instBox, gWin)
   Draw()
 
+  fileOut <- GetNewDataFile(gSubNum,gWin,"clock","csv",
+               "subnum,trial,ticker,sec,skip,resp,corr,starttime,rt,curtime")
 
   trial <- 1
   ticker <- 1

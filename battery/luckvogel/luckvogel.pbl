@@ -22,11 +22,11 @@ define Start(p)
 	       ["givefeedback",1],
 	       ["blocksize",40],
 	       ["useAudiofeedback",1],
-               ["responsemode","auto"],  ##Response mode for Layout & Response System
-               ["responselabels",["SAME","DIFFERENT"]]  ##Semantic labels for response modes
+               ["responsemode","auto"]  ##Response mode for Layout & Response System
               ]
 
   gParams <- CreateParameters(parpairs,gParamFile)
+  gParams.responsesemantics <- "2afc"
 
 
    gParams.length <- [gParams.length1,gParams.length2,gParams.length3,
@@ -67,11 +67,15 @@ define Start(p)
 
   GetStrings(gLanguage)
 
+  ## Set response labels to translated SAME/DIFFERENT
+  ## left = same (no change), right = different (change detected)
+  gParams.responselabels <- [gStrings.same, gStrings.different]
+
   ## Create layout with response system AFTER GetSubNum
   gLayout <- CreateLayout("luckvogel", gWin, gParams)
   gLayout.header.visible <- 1
   gLayout.subheader.visible <- 1
-  ## Footer text is now automatically set to semantic labels ("SAME | DIFFERENT")
+  gLayout.footer.text <- gStrings.footer
 
   ## Show cursor only for mousetarget mode (not touchtarget - no cursor on touch screens)
   if(gLayout.responseMode.type == "mousetarget")
@@ -129,32 +133,13 @@ define Start(p)
                               100,
                               "scalefont")
 
-   ## Set REPEAT/CONTINUE semantic labels for practice examples
-   ## Remove old labels
-   loop(label, gLayout.responseLabels)
-   {
-       RemoveObject(label, gWin)
-   }
-   loop(border, gLayout.responseBorders)
-   {
-       RemoveObject(border, gWin)
-   }
-
-   ## Update semantic labels
-   gParams.responselabels <- [gStrings.repeat, gStrings.continue]
-
-   ## Recreate labels with new semantics
-   gLayout <- CreateResponseLabels(gLayout, Round(gLayout.config.zones.response.fontSize * gLayout.scale))
-   gLayout.footer.visible <- 1
-   Draw()  ## Render new labels immediately
-
    displays <- MakeStimSet(5,"box",1)
    cont <- 1
    ShowAll(First(displays),1)
    Draw()
-   WaitForAnyContinue()
+   WaitForAnyKeyPress()
 
-   instbox.text <-  gStrings.continuesame
+   instbox.text <- instbox.text + gStrings.continue
    ShowAll(First(displays),0)
    Draw()
    Wait(1000)
@@ -171,12 +156,11 @@ define Start(p)
      Wait(1000)
      ShowAll(First(displays),1)
      Draw()
-     ## Use semantic layout response: "left" = REPEAT, "right" = CONTINUE
-     resp <-  WaitForLayoutResponse(gLayout, 0)
+     out <-  WaitForListKeyPress([" ","X"])
      ShowAll(First(displays),0)
      Draw()
      Wait(1000)
-     cont <- (resp=="left")  ## "left" semantic = REPEAT
+     cont <- (out==" ")
 
    }
 
@@ -184,9 +168,9 @@ define Start(p)
 
    gLayout.header.text <-gStrings.headerdifferent
    Draw()
-   WaitForAnyContinue()
+   WaitForAnyKeyPress()
 
-   instbox.text <- instbox.text +gStrings.continuedifferent
+   instbox.text <- instbox.text +gStrings.continue2
     cont <- 1
 
   while(cont)
@@ -200,48 +184,22 @@ define Start(p)
      Wait(1000)
      ShowAll(Second(displays),1)
      Draw()
-     ## Use semantic layout response: "left" = REPEAT, "right" = CONTINUE
-     resp <-  WaitForLayoutResponse(gLayout, 0)
+     out <-  WaitForListKeyPress([" ","X"])
      ShowAll(Second(displays),0)
      Draw()
      Wait(1000)
-     cont <- (resp=="left")  ## "left" semantic = REPEAT
+     cont <- (out==" ")
 
    }
 
 
    instbox.text <- gStrings.inst3
-   gLayout.header.text <- ""  ## Clear header for practice trials
+   gLayout.header.text <- gStrings.header
    gLayout.footer.visible <- 1
    Draw()
-   WaitForAnyContinue()
+   WaitForAnyKeyPress()
    Hide(instbox)
-
-
-   ## Switch to SAME/DIFFERENT semantic labels for test trials
-   ## Remove old labels
-   loop(label, gLayout.responseLabels)
-   {
-       RemoveObject(label, gWin)
-   }
-   loop(border, gLayout.responseBorders)
-   {
-       RemoveObject(border, gWin)
-   }
-
-   ## Update semantic labels
-   gParams.responselabels <- [gStrings.same, gStrings.different]
-
-   ## Recreate labels with new semantics
-   gLayout <- CreateResponseLabels(gLayout, Round(gLayout.config.zones.response.fontSize * gLayout.scale))
-   gLayout.footer.visible <- 1
-   Draw()  ## Render new labels immediately
-
    CountDown(gWin)
-
-
-
-
 
    loop(i,[1,0,1,0,0,1])
      {
@@ -255,7 +213,7 @@ define Start(p)
    instbox.text <-gStrings.inst4
    Show(instbox)
    Draw()
-   WaitForAnyContinue()
+   WaitForAnyKeyPress()
    Hide(instbox)
    CountDown(gWin)
 
@@ -280,7 +238,7 @@ define Start(p)
        Show(instbox)
        Draw()
        Hide(instbox)
-        WaitForAnyContinue()
+        WaitForAnyKeyPress()
         CountDown(gWin)
         out <-  TrialSquares(3,1,0,0)
         out <-  TrialSquares(3,0,0,0)
@@ -294,7 +252,7 @@ define Start(p)
   instbox.text <- gStrings.debrief
   Show(instbox)
   Draw()
-  WaitForAnyContinue()
+  WaitForAnyKeyPress()
 
   ## Upload data files (works online, no-op on native)
   out <- UploadFile(gSubNum, gFileOut.filename)
@@ -463,72 +421,4 @@ define ShowAll(set,onoff)
 define GetStrings(lang)
 {
   gStrings <- GetTranslations("luckvogel", lang)
-}
-
-define WaitForAnyContinue()
-{
-    ## Waits for any input compatible with current response mode
-    ## For keyboard modes: waits for any key press
-    ## For mouse/touch modes: waits for any mouse click
-
-    if(gLayout.responseMode.type == "keyboard" or gLayout.responseMode.type == "singlekey")
-    {
-        WaitForAnyKeyPress()
-    } else {
-        ## Mouse/touch modes - wait for any mouse button click
-        WaitForMouseButton()
-    }
-}
-
-define UpdateResponseLabels(layout, newLabels)
-{
-    ## Updates the response labels with new semantic meanings
-    ## Removes old labels, updates params, recreates labels with new semantics
-    ##
-    ## Args:
-    ##   layout: Layout object from CreateLayout
-    ##   newLabels: List of new semantic labels (e.g., ["REPEAT", "CONTINUE"] or ["SAME", "DIFFERENT"])
-    ##
-    ## Returns: Updated layout object
-
-    ## Get the font size from existing labels BEFORE removing them
-    ## Fall back to scaled default if needed
-    fontSize <- 20
-    if(Length(layout.responseLabels) > 0)
-    {
-        firstLabel <- First(layout.responseLabels)
-        fontSize <- firstLabel.font.size
-    }
-
-    ## Remove old labels from window
-    loop(label, layout.responseLabels)
-    {
-        RemoveObject(label, layout.win)
-    }
-
-    ## Remove old borders (if mousetarget mode)
-    if(Length(layout.responseBorders) > 0)
-    {
-        loop(border, layout.responseBorders)
-        {
-            RemoveObject(border, layout.win)
-        }
-    }
-
-    ## Update params with new semantic labels
-    layout.params.responselabels <- newLabels
-
-    ## Recreate labels with new semantics
-    layout <- CreateResponseLabels(layout, fontSize)
-
-    ## Hide footer if response mode requests it
-    if(PropertyExists(layout.responseMode, "hideFooter"))
-    {
-        if(layout.responseMode.hideFooter)
-        {
-            layout.footer.visible <- 0
-        }
-    }
-
-    return(layout)
 }

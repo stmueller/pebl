@@ -56,9 +56,7 @@ define Start(p)
 		["responselabels",["CIRCLE","SQUARE"]]]  ##Semantic labels for response modes
 
    gparams <- CreateParameters(parpairs,gParamFile)
-
-   ## Set semantic labels based on reference stimuli shapes (circle left, square right)
-   gParams.responselabels <- ["CIRCLE", "SQUARE"]
+   gParams.responsesemantics <- "2afc"  ## Two-alternative forced choice (circle vs square shape identification)
 
 
    ##Control parameters. Change the following values to
@@ -66,6 +64,10 @@ define Start(p)
    gWin <- MakeWindow("white")
 
    GetStrings(gLanguage)
+
+   ## Set semantic labels based on reference stimuli shapes (circle left, square right)
+   ## Use translated strings from gStrings
+   gParams.responselabels <- [gStrings.circle, gStrings.square]
 
    gUseRandom <- gParams.userandom ##set to 1 to make each test different
 

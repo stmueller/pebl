@@ -45,6 +45,7 @@ define Start(lPar)
 	       ["responsemode","spacebar"]]  ##Response mode: spacebar, leftclick, touchscreen, clicktarget
 
   gParams <- CreateParameters(parpairs,gParamFile)
+  gParams.responsesemantics <- "gonogo"
 
   blocks <- gParams.blocks
   blocklength <- gParams.blocklength
@@ -152,7 +153,8 @@ define Start(lPar)
   trial <- trial + 1
 
   ## Update trial counter in subheader
-  gLayout.subheader.text <- "Trial " + trial + " of " + numtrials
+  gLayout.subheader.text <- SubstituteStrings(gStrings.trialcounter,
+          [["<TRIAL>",trial],["<NTRIALS>",numtrials]])
 
   ## Give a break every blocklength trials.
   if(Mod(trial, blocklength) ==1 and trial > 1)

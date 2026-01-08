@@ -75,6 +75,7 @@ define Start(lPar)
              ]
 
    gParams <- CreateParameters(parpairs,gParamFile)
+   gParams.responsesemantics <- "gonogo"  ## Respond to targets (all letters except X), withhold for foils (X)
    GetStrings(gLanguage)
 
   ## Create layout - response labels come from response-modes.json
@@ -231,7 +232,7 @@ define Start(lPar)
        blocktrial<- blocktrial + 1
 
        ## Update trial counter in subheader
-       gLayout.subheader.text <- "Trial " + trialNum + " of " + numtrials
+       gLayout.subheader.text <- SubstituteStrings(gStrings.trial_counter, [["<NUM>", trialNum], ["<NUMTRIALS>", numtrials]])
 
        Hide(gFeedback)
 

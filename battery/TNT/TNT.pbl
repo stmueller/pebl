@@ -71,6 +71,7 @@ define Start(p) {
         ["responselabels", ""]] # Will be set from translations
 
     gParams <- CreateParameters(parpairs, gParamFile)
+    gParams.responsesemantics <- "2afc"
 
     ## Set response labels from translations (semantic meanings: NO, YES)
     gParams.responselabels <- [gStrings.footerleft, gStrings.footerright]
@@ -276,7 +277,7 @@ define TNT() {
                 }
 
                 ## Update trial counter
-                gLayout.subheader.text <- "Trial " + i + " of " + gParams.numStimsAct
+                gLayout.subheader.text <- SubstituteStrings(gStrings.trial_counter, [["<NUM>", i], ["<NUMTRIALS>", gParams.numStimsAct]])
 
                 number <- EasyLabel(Nth(zeroBackStim, i), gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
                 Draw()
@@ -423,7 +424,7 @@ define TNT() {
                 }
 
                 ## Update trial counter
-                gLayout.subheader.text <- "Trial " + i + " of " + gParams.numStimsAct
+                gLayout.subheader.text <- SubstituteStrings(gStrings.trial_counter, [["<NUM>", i], ["<NUMTRIALS>", gParams.numStimsAct]])
 
                 number <- EasyLabel(Nth(oneBackStim, i), gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
                 Draw()
@@ -568,7 +569,7 @@ define TNT() {
                 }
 
                 ## Update trial counter
-                gLayout.subheader.text <- "Trial " + i + " of " + gParams.numStimsAct
+                gLayout.subheader.text <- SubstituteStrings(gStrings.trial_counter, [["<NUM>", i], ["<NUMTRIALS>", gParams.numStimsAct]])
 
                 number <- EasyLabel(Nth(twoBackStim, i), gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
                 Draw()
@@ -744,7 +745,7 @@ define TNT() {
                 }
 
                 ## Update trial counter
-                gLayout.subheader.text <- "Trial " + i + " of " + gParams.numStimsAct
+                gLayout.subheader.text <- SubstituteStrings(gStrings.trial_counter, [["<NUM>", i], ["<NUMTRIALS>", gParams.numStimsAct]])
 
                 number <- EasyLabel(Nth(zeroBackStim, i), gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
                 Draw()
@@ -865,7 +866,7 @@ define TNT() {
                 }
 
                 ## Update trial counter
-                gLayout.subheader.text <- "Trial " + i + " of " + gParams.numStimsAct
+                gLayout.subheader.text <- SubstituteStrings(gStrings.trial_counter, [["<NUM>", i], ["<NUMTRIALS>", gParams.numStimsAct]])
 
                 number <- EasyLabel(Nth(oneBackStim, i), gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
                 Draw()
@@ -987,7 +988,7 @@ define TNT() {
                 }
 
                 ## Update trial counter
-                gLayout.subheader.text <- "Trial " + i + " of " + gParams.numStimsAct
+                gLayout.subheader.text <- SubstituteStrings(gStrings.trial_counter, [["<NUM>", i], ["<NUMTRIALS>", gParams.numStimsAct]])
 
                 number <- EasyLabel(Nth(twoBackStim, i), gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
                 Draw()

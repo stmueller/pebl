@@ -40,6 +40,7 @@ define Start(lPar)
 
 
    gParams <- CreateParameters(parpairs,gParamFile)
+   gParams.responsesemantics <- "gonogo"  ## Respond to AX targets, withhold for all other stimuli
 
    ## Create layout - response labels come from response-modes.json
    gLayout <- CreateLayout("pcpt-ax", gWin, gParams)
@@ -224,7 +225,7 @@ define Start(lPar)
       trialNum <- trialNum + 1
 
       ## Update trial counter in subheader
-      gLayout.subheader.text <- "Trial " + trialNum + " of " + totalTrials
+      gLayout.subheader.text <- SubstituteStrings(gStrings.trial_counter, [["<NUM>", trialNum], ["<NUMTRIALS>", totalTrials]])
 
        Hide(gFeedback)
 

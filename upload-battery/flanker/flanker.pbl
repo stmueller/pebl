@@ -46,6 +46,7 @@ define Start(p)
    gFgColor <- "white"       # Foreground color
 
     gParams <- CreateParameters(parpairs,gParamFile)
+    gParams.responsesemantics <- "2afc"
     gWin <- MakeWindow(gBgColor)
     Initialize()
 
@@ -81,7 +82,7 @@ define Start(p)
    gLayout <- CreateLayout("flanker", gWin, gParams)
    gLayout.header.text <- gStrings.header
    gLayout.subheader.visible <- 0
-   gLayout.footer.text <- gStrings.footer
+   ## Footer is automatically managed by layout system using responselabels
 
    ## Show cursor only for mousetarget mode (need to click on targets)
    ## Hide cursor for keyboard, mousebutton, and touchtarget modes
@@ -642,6 +643,9 @@ define WaitUntil(time)
 define GetStrings(language)
 {
   gStrings <- GetTranslations("flanker", language)
+
+  ## Set semantic response labels from translations (before CreateLayout is called)
+  gParams.responselabels <- [gStrings.footerL, gStrings.footerR]
 
   ## Assign to global variables for convenience
   gInst1text <- gStrings.inst1text

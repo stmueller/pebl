@@ -32,17 +32,16 @@ define Start(p)
 
    gParams <- CreateParameters(parpairs,gParamFile)
    gPreviewtime <- gParams.showPreview
-
-   PrintProperties(gParams)
+ 
    hard5 <- [1,9,10,13,19]
 
-
+   gScriptName <- "PEBL Maze task"
    InitializeUpload()  ## Initialize token-based hosting if upload.json exists
 
 
 
   gWin <- MakeWindow("black")
-   ##Get subject code if we need to:
+  ##Get subject code if we need to:
     if(gSubNum+""=="0")
      {
 	  gSubNum <- GetSubNum(gWin)
@@ -58,11 +57,19 @@ define Start(p)
 
   GetStrings(gLanguage)
 
+   ## Create layout with responsemode="none" (layout zones only, no response UI)
+   gParams.responsemode <- "none"
+   gLayout <- CreateLayout("maze", gWin, gParams)
+   gLayout.header.visible <- 1
+   gLayout.subheader.visible <- 0
+   ## Footer is hidden by "none" mode, will show when we set text
+
+
+   
   ##set the size here
     width <- gParams.mazeWidth   ## maze size
     height <- gParams.mazeHeight  ## maze size
 
-  
 
 
   gMazecenterX <- gVideoWidth/2
@@ -74,7 +81,7 @@ define Start(p)
   reseed <- Random()
 
   Setup()
-  inst <- EasyTextBox(gStrings.inst1,gVideoWidth/2-395,10,gWin,15,780,100)
+  inst <- AdaptiveTextBox(gStrings.inst1,gVideoWidth/2-395,10,gWin,20,780,200,"scalefont")
   SeedRNG(100)
 
   ## make a 'green' practice maze and show it:
@@ -128,6 +135,9 @@ define Start(p)
        mazeList <- Sequence(1,gParams.numproblems,1) ##dummy list IDS, we will reseed for each problem.
      }
 
+
+    ##fill the layout region with the maze.
+   mazeSize <- Max([gParams.mazepixelheight,gLayout.stimulusregion.height])
    loop(mazeid,mazelist)
    {
 
@@ -148,7 +158,7 @@ define Start(p)
    if(not (gParams.problemset=="random") and gParams.mazewidth==15 and gParams.mazeheight==15)
     {
         Print("reading problem ["+seed+"] from cache")
-        testmaze <- ReadMaze("mazes/maze-"+seed+".json",gmazeCenterX,gmazeCenterY)
+        testmaze <- ReadMaze("mazes/maze-"+seed+".json",gLayout.centerx,gLayout.centery)
         if(not PropertyExists(testmaze,"bestsolution"))
         {
 	  t1 <- GetTime()
@@ -158,10 +168,12 @@ define Start(p)
 
 
     }else{
+
+
         Print("making new maze:")
         testmaze <- MakeMaze(width,height,[1,1],[gParams.mazeheight,gParams.mazewidth],
-                           gVideoWidth/2,gVideoHeight/2+55,
-		           gParams.mazepixelwidth,gParams.mazepixelheight)
+                           gLayout.centerx,gLayout.centerY,mazeSize,mazeSize)
+			   
         if(not PropertyExists(testmaze,"bestsolution"))
         {
           t1 <- GetTime()
@@ -171,7 +183,7 @@ define Start(p)
 
     }
 
-   testmaze.id <-seed   ##record the seed here.
+       testmaze.id <-seed   ##record the seed here.
    
    ##temporare: save the maze file for caching here:
    ##SaveMaze(testmaze,"mazes/maze-"+testmaze.id+".jsonx",0)##append the maze
@@ -184,7 +196,7 @@ define Start(p)
   }
   
    Draw()
-   
+   ScaleMaze(testmaze,mazesize,mazesize)
    out <- DoMazeTrial(testmaze)
    FilePrint(gReportFile,out)
 #   MessageBox(out,gWin)
@@ -1124,20 +1136,23 @@ define RemoveObjects000(objs,win)
 
 
 
-define GetStrings(language)
+define GetStrings(lang)
 {
-
-  lang <- Uppercase(language)
-  fname <- "translations/maze.pbl-"+LowerCase(lang)+".json"
-
-  if(FileExists(fname))
-  {
-    gStrings <- ReadTranslationJSON(fname,lang)
-  } else
-  {
-    gStrings <- ReadTranslationJSON("translations/maze.pbl-en.json",lang)
-  }
-
-
+  gStrings <- GetTranslations("maze", lang)
 }
 
+##maze size and position on the screen is determined by properties:
+## x y (center)
+## xrange yrange
+## cellwidth cellheight (calculated)
+## top left
+define ScaleMaze(maze,xrange,yrange)
+{
+
+   maze.xrange <- xrange
+   maze.yrange <- yrange
+   maze.cellwidth <- xrange/maze.width
+   maze.cellheight <- yrange/maze.height
+   maze.top <- maze.y-yrange/2
+   maze.left <- maze.x-xrange/2
+}

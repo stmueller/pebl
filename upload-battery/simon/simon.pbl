@@ -31,10 +31,13 @@ define Start(p)
                 ]
 
   gParams <- CreateParameters(parpairs,gParamFile)
+  gParams.responsesemantics <- "2afc"
 
-  ## Set semantic labels from color parameters (uppercased for display)
-  gParams.responselabels <- [Uppercase(gParams.leftcolor), Uppercase(gParams.rightcolor)]
-
+  ## Set semantic labels from translated color names
+  gParams.responselabels <- [gStrings.leftcolorname, gStrings.rightcolorname]
+  Print("Parmateer values:" )
+  PrintProperties(gParams)
+  
   ## Create Layout & Response System (initial creation to get response mode)
   gLayout <- CreateLayout("simon", gWin, gParams)
   gLayout.header.visible <- 0  ## Hide header initially, show during trials
@@ -118,84 +121,46 @@ define Start(p)
 
 ##Do a little initial practice.
   ## Loop: pressing left/right (or clicking) shows corresponding stimulus
-  ## Spacebar (keyboard/mousebutton) or Continue button (mousetarget) exits practice
+  ## Spacebar (keyboard), middle button (mousebutton), or Continue button (mousetarget) exits practice
+
+  ## For mousetarget mode, show Continue button
   if(gLayout.responseMode.type == "mousetarget")
   {
-     ## Mouse/touch mode: show Continue button below instructions
-     ## Both stimuli start visible, clicking response boxes shows corresponding stimulus
-     ## Instructions remain visible until Continue is clicked
      Show(gContinueButtonBorder)
      Show(gContinueButton)
      Draw()
+  }
 
-     ## Practice loop: clicking left/right boxes shows stimuli, Continue button exits
-     wait1 <- 1
-     while(wait1)
+  ## Unified practice loop using Layout & Response System
+  practiceActive <- 1
+  while(practiceActive)
+  {
+     ## Use WaitForLayoutResponseOrExit to handle all response modes uniformly
+     resp <- WaitForLayoutResponseOrExit(gLayout, [gContinueButtonBorder])
+
+     if(resp == "exit")
      {
-        pos <- WaitForMouseButton()
-        if(Nth(pos,4)=="<pressed>")
-        {
-           ## Check if Continue button was clicked
-           if(Inside(pos, gContinueButtonBorder))
-           {
-              wait1 <- 0
-           }
-           ## Check if left response box was clicked
-           elseif(Inside(pos, First(gLayout.responseBorders)))
-           {
-              Hide(stimB)
-              Show(stimA)
-              Draw()
-           }
-           ## Check if right response box was clicked
-           elseif(Inside(pos, Second(gLayout.responseBorders)))
-           {
-              Hide(stimA)
-              Show(stimB)
-              Draw()
-           }
-        }
+        practiceActive <- 0
      }
-     Hide(gContinueButtonBorder)
-     Hide(gContinueButton)
-  } elseif(gLayout.responseMode.type == "mousebutton") {
-     ## Mousebutton mode: loop until middle mouse button pressed
-     ## Left click shows red, right click shows blue, middle button exits
-     resp <- ""
-     while(resp != "continue")
+     elseif(resp == "left")
      {
-        RegisterEvent("<MOUSE_BUTTON_PRESS>", 1, 1, "<EQUAL>", "PracticeMouseHandler", [[stimA, stimB]])
-        resp <- StartEventLoop()
-        ClearEventLoop()
-     }
-  } else {
-     ## Keyboard mode: loop until spacebar pressed
-     ## Left key shows red, right key shows blue
-     resp <- ""
-     while(resp != " ")
-     {
-        resp <- WaitForListKeyPress(Merge([" "], gLayout.responseMode.keys))
-        if(IsMember(resp, gLayout.responseMode.keys))
-        {
-           ## Map to semantic response
-           loop(i, Length(gLayout.responseMode.keys))
-           {
-              if(resp == Nth(gLayout.responseMode.keys, i))
-              {
-                 semResp <- Nth(gLayout.responseMode.semantic, i)
-                 if(semResp == "left")
-                 {
-                    Hide(stimB)
-                    Show(stimA)
-                 } elseif(semResp == "right") {
-                    Hide(stimA)
-                    Show(stimB)
-                 }
-              }
-           }
-        }
+        Hide(stimB)
+        Show(stimA)
         Draw()
      }
+     elseif(resp == "right")
+     {
+        Hide(stimA)
+        Show(stimB)
+        Draw()
+     }
+  }
+
+  ## Hide Continue button if it was shown
+  if(gLayout.responseMode.type == "mousetarget")
+  {
+     Hide(gContinueButtonBorder)
+     Hide(gContinueButton)
   }
 
   ## After interactive practice, hide and reposition stimuli to center for trials
@@ -220,13 +185,25 @@ define Start(p)
      {
         Show(gContinueButtonBorder)
         Show(gContinueButton)
-        Draw()
-        WaitForClickOnTarget([gContinueButtonBorder], [1])
+     }
+
+     Draw()
+     ## Wait for exit input only (ignore response button clicks)
+     continue <- 1
+     while(continue)
+     {
+        resp <- WaitForLayoutResponseOrExit(gLayout, [gContinueButtonBorder])
+        if(resp == "exit")
+        {
+           continue <- 0
+        }
+     }
+
+     ## Hide Continue button if it was shown
+     if(gLayout.responseMode.type == "mousetarget")
+     {
         Hide(gContinueButtonBorder)
         Hide(gContinueButton)
-     } else {
-        Draw()
-        WaitForAnyKeyPress()
      }
      Hide(gInstructions)
 
@@ -289,13 +266,25 @@ define Start(p)
      {
         Show(gContinueButtonBorder)
         Show(gContinueButton)
-        Draw()
-        WaitForClickOnTarget([gContinueButtonBorder], [1])
+     }
+
+     Draw()
+     ## Wait for exit input only (ignore response button clicks)
+     continue <- 1
+     while(continue)
+     {
+        resp <- WaitForLayoutResponseOrExit(gLayout, [gContinueButtonBorder])
+        if(resp == "exit")
+        {
+           continue <- 0
+        }
+     }
+
+     ## Hide Continue button if it was shown
+     if(gLayout.responseMode.type == "mousetarget")
+     {
         Hide(gContinueButtonBorder)
         Hide(gContinueButton)
-     } else {
-        Draw()
-        WaitForAnyKeyPress()
      }
      Hide(gInstructions)
      Show(status)
@@ -454,42 +443,6 @@ define Start(p)
 }
 
 
-## Helper function for mousebutton mode practice - handles mouse clicks
-## Shows stimulus when clicked, middle button exits
-define PracticeMouseHandler(targets, evt:0)
-{
-   buttonNum <- Third(evt)
-   result <- "<CONTINUE>"
-
-   ## Middle mouse button (button 2) exits practice
-   if(buttonNum == 2)
-   {
-      result <- "continue"
-   }
-   ## Check if button matches our response mode buttons (left/right)
-   elseif(IsMember(buttonNum, gLayout.responseMode.buttons))
-   {
-      ## Map button to semantic response
-      loop(i, Length(gLayout.responseMode.buttons))
-      {
-         if(buttonNum == Nth(gLayout.responseMode.buttons, i))
-         {
-            semResp <- Nth(gLayout.responseMode.semantic, i)
-            if(semResp == "left")
-            {
-               Hide(Second(targets))
-               Show(First(targets))
-            } elseif(semResp == "right") {
-               Hide(First(targets))
-               Show(Second(targets))
-            }
-         }
-      }
-      Draw()
-   }
-
-   return(result)
-}
 
 
 define GetStrings(lang)

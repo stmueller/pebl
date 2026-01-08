@@ -60,6 +60,7 @@ define Start(p)
                ]
 
    gParams <- CreateParameters(parpairs,gParamFile)
+   gParams.responsesemantics <- "2afc"  ## Two-alternative forced choice (Circle vs Square shape identification)
 
    numreps <- gParams.numreps
    soa <- gParams.soa
@@ -78,12 +79,9 @@ define Start(p)
    gLayout.header.text <- gStrings.header
    gLayout.subheader.visible <- 1
 
-   ## Set footer to show the actual keys being used (from response mode)
-   ## Format: "LEFT_KEY                                    RIGHT_KEY"
-   leftKey <- Nth(gLayout.responseMode.labels, 1)
-   rightKey <- Nth(gLayout.responseMode.labels, 2)
-   gLayout.footer.text <- leftKey + "                                    " + rightKey
-   Show(gLayout.footer)
+   ## Response labels are automatically created by Layout & Response System
+   ## for 2afc with responselabels ["CIRCLE", "SQUARE"]
+   gLayout.footer.visible <- 1
 
    ## Show cursor only for mousetarget mode (need to click on targets)
    ## Hide cursor for keyboard, mousebutton, and touchtarget modes

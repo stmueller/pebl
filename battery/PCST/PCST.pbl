@@ -2467,10 +2467,14 @@ define Img(filename,width)
 }
 define PageHead()
 {
+ ## Read and embed CSS for portability (media/css is in search path)
+ cssContent <- FileReadText("paper.css")
+
  out <-  "<html>
 <head>
-  <link rel='stylesheet' href='../../paper.css'>
-
+  <style>
+" + cssContent + "
+  </style>
 </head>
 <body>"+
 #<a href='#' onclick='window.print();return false;' title='Click to print this page'>Print this page</a>" +

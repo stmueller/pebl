@@ -30,6 +30,7 @@ define Start(p)
                ]
 
   gParams <- CreateParameters(parpairs,gParamFile)
+  gParams.responsesemantics <- "2afc"
 
   ##these were parameters to the global image creating function,
   ##but don't matter anymore because the image is hardcoded.
@@ -133,28 +134,14 @@ if(gParams.testtype== "dense")
 
    GetStrings(gLanguage)
 
-   ## Create Layout system first to determine actual response keys
+   ## Set response labels BEFORE CreateLayout so Layout system handles them
+   gParams.responselabels <- [gParams.stim1, gParams.stim2]
+
+   ## Create Layout system
    gLayout <- CreateLayout("globallocal", gWin, gParams)
    gLayout.header.visible <- 0
    gLayout.subheader.visible <- 1
    gLayout.subheader.y <-   gLayout.subheader.y +50
-
-   ## For keyboard mode, override the response label text with custom translations
-   ## that show which key maps to which stimulus
-   if(gLayout.responseMode.type == "keyboard")
-   {
-     ## Get the formatted key labels directly from responseMode
-     leftKeyLabel <- First(gLayout.responseMode.labels)
-     rightKeyLabel <- Second(gLayout.responseMode.labels)
-     ## Use translated strings with substitutions for both key label and stimulus
-     leftLabelText <- SubstituteStrings(gStrings.response_label_left, [["<KEY>", leftKeyLabel], ["<STIM>", gParams.stim1]])
-     rightLabelText <- SubstituteStrings(gStrings.response_label_right, [["<KEY>", rightKeyLabel], ["<STIM>", gParams.stim2]])
-     ## Update the actual label text
-     leftLabelObj <- First(gLayout.responseLabels)
-     rightLabelObj <- Second(gLayout.responseLabels)
-     leftLabelObj.text <- leftLabelText
-     rightLabelObj.text <- rightLabelText
-   }
 
    ## Create dedicated feedback label with readable size (independent of stimulus size)
    gFeedbackLabel <- EasyLabel("", gLayout.centerX, gLayout.centerY, gWin, 28)

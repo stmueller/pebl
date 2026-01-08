@@ -42,21 +42,11 @@ define Start(p)
 
   GetStrings(gLanguage)
 
-  ## Set semantic label BEFORE CreateLayout so border is sized correctly
-  ## Must be set before CreateLayout because border size is calculated from label dimensions
-  if(gParams.responsemode == "spacebar")
-  {
-    gParams.responselabels <- [gStrings.label_spacebar]
-  } elseif(gParams.responsemode == "leftclick") {
-    gParams.responselabels <- [gStrings.label_leftclick]
-  } elseif(gParams.responsemode == "touchscreen") {
-    gParams.responselabels <- [gStrings.label_touchscreen]
-  } elseif(gParams.responsemode == "clicktarget") {
-    gParams.responselabels <- [gStrings.label_clicktarget]
-  } else {
-    ## Default fallback
-    gParams.responselabels <- [gStrings.respond_label]
-  }
+  ## Specify semantic requirements for single-response go/no-go task
+  gParams.responsesemantics <- "gonogo"  ## Equivalent to ["response"]
+
+  ## Note: Response labels are automatically set by CreateLayout from centralized
+  ## response-modes system (media/settings/response-modes/*.json)
 
   ## Create layout with response system (determines actual mode)
   gLayout <- CreateLayout("gonogo", gWin, gParams)
@@ -86,7 +76,7 @@ define Start(p)
 
   gLayout.header.visible <- 0
   gLayout.subheader.visible <- 0
-  gLayout.footer.visible <- 0
+  ## Keep footer visible to show response mode instruction (e.g., "Press spacebar to respond")
 
    gFileOut <- GetNewDataFile(gSubNum,gWin,"gonogo","csv",
  "subnum,block,type,correctresponse,trial,choice,x,y,stim,present,response,responded,corr,starttime,rt")
@@ -326,8 +316,8 @@ define DoBlock(trials,correctresponse,type,col:"blue")
   totalTrials <- Length(trials)
   loop(i,trials)
   {
-     ## Update subheader with method and trial counter
-     gLayout.subheader.text <- gStrings.subheader_method + " [" + trial + "/" + totalTrials + "]"
+     ## Update subheader with trial counter
+     gLayout.subheader.text <- SubstituteStrings(gStrings.trial_counter, [["<NUM>", trial], ["<NUMTRIALS>", totalTrials]])
 
      timeend <- timeEnd + gisi
      choice <- RandomDiscrete(4)

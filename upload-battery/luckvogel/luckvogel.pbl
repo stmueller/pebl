@@ -26,6 +26,7 @@ define Start(p)
               ]
 
   gParams <- CreateParameters(parpairs,gParamFile)
+  gParams.responsesemantics <- "2afc"
 
 
    gParams.length <- [gParams.length1,gParams.length2,gParams.length3,
@@ -65,6 +66,10 @@ define Start(p)
    }
 
   GetStrings(gLanguage)
+
+  ## Set response labels to translated SAME/DIFFERENT
+  ## left = same (no change), right = different (change detected)
+  gParams.responselabels <- [gStrings.same, gStrings.different]
 
   ## Create layout with response system AFTER GetSubNum
   gLayout <- CreateLayout("luckvogel", gWin, gParams)

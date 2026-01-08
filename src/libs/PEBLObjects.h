@@ -27,7 +27,11 @@
 #ifndef __PEBLOBJECTS_H__
 #define __PEBLOBJECTS_H__
 
+#ifdef PEBL_VALIDATOR
+#include "../platforms/validator/PlatformEnvironment.h"
+#else
 #include "../platforms/sdl/PlatformEnvironment.h"
+#endif
 #include "../apps/Globals.h"
 
 class Variant;

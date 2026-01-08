@@ -1337,7 +1337,7 @@ bool PlatformTextBox::Draw()
 
 //Some key presses can only be handled by the platform-specific code.
 //Do this here.
-void PlatformTextBox::HandleKeyPress(int keycode, int modkeys)
+void PlatformTextBox::HandleKeyPress(int keycode, int modkeys, Uint16 unicode)
 {
 #if 0
     cout << "handling keypress in PlatformTextBox: " << keycode << endl;

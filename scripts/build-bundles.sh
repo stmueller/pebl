@@ -18,9 +18,12 @@
 #
 # Examples:
 #   ./scripts/build-bundles.sh              # Build everything
-#   ./scripts/build-bundles.sh pcst         # Build only PCST
-#   ./scripts/build-bundles.sh core         # Build only core bundle
+#   ./scripts/build-bundles.sh pcst         # Build only PCST bundle
+#   ./scripts/build-bundles.sh core-battery # Build only core battery
 #   ./scripts/build-bundles.sh --list       # List all configured bundles
+#
+# Note: The core runtime (pebl2.data with pebl-lib and media) is built by
+#       'make em-opt' in the Makefile, NOT by this script.
 #
 
 set -e  # Exit on error
@@ -90,12 +93,7 @@ fi
 list_bundles() {
     echo "Available bundles:"
     echo ""
-
-    # Core bundle
-    local core_name=$(jq -r '.bundles.core.name' "$CONFIG_FILE")
-    local core_desc=$(jq -r '.bundles.core.description' "$CONFIG_FILE")
-    echo -e "  ${CYAN}${core_name}${NC} (core runtime)"
-    echo "    $core_desc"
+    echo -e "  ${YELLOW}NOTE: Core runtime (pebl2.data) is built by 'make em-opt', not listed here${NC}"
     echo ""
 
     # Core battery bundle
@@ -287,16 +285,6 @@ fi
 echo ""
 
 BUNDLES_BUILT=0
-
-# Build core bundle
-core_bundle=$(jq -c '.bundles.core' "$CONFIG_FILE")
-if [ "$core_bundle" != "null" ]; then
-    core_name=$(echo "$core_bundle" | jq -r '.name')
-    if [ -z "$TARGET_BUNDLE" ] || [ "$TARGET_BUNDLE" = "$core_name" ] || [ "$TARGET_BUNDLE" = "core" ]; then
-        build_bundle "$core_bundle" "core"
-        BUNDLES_BUILT=$((BUNDLES_BUILT + 1))
-    fi
-fi
 
 # Build core battery bundle
 core_battery_bundle=$(jq -c '.bundles.core_battery' "$CONFIG_FILE")

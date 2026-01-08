@@ -26,14 +26,20 @@ define CreateLayout(testName, win, params:0)
     ##   testName: Name of the test (for loading custom config)
     ##   win: Window object to create layout in
     ##   params: Parameter object (optional) with:
-    ##     .responsemode - Response mode name (e.g., "spacebar", "auto")
+    ##     .responsemode - Response mode name (e.g., "spacebar", "auto", "userselect")
+    ##     .responsesemantics - Semantic requirements (e.g., ["left", "right"], ["response"])
+    ##     .responselabels - Display labels for responses (e.g., ["RED", "BLUE"])
     ##     .customkeys - Override keys (e.g., ["a", "b", "c"])
     ##     .customlabels - Override labels (e.g., ["Press A", "Press B", "Press C"])
-    ##     .customsemantic - Override semantic values (e.g., ["left", "center", "right"])
     ##
     ## Example (basic):
     ##   layout <- CreateLayout("simon", gWin, gParams)
     ##   layout.header.text <- "Simon Task"
+    ##
+    ## Example (explicit semantic requirements):
+    ##   gParams.responsemode <- "userselect"
+    ##   gParams.responsesemantics <- ["left", "right"]
+    ##   layout <- CreateLayout("mytest", gWin, gParams)
     ##
     ## Example (custom keys):
     ##   gParams.responsemode <- "singlekey"
@@ -45,8 +51,8 @@ define CreateLayout(testName, win, params:0)
     config <- LoadLayoutConfig(testName)
     modes <- LoadResponseModes()
 
-    ## Determine response mode
-    responseMode <- DetermineResponseMode(params, config, modes)
+    ## Determine response mode (pass win for userselect dialog)
+    responseMode <- DetermineResponseMode(params, config, modes, win)
 
     ## Calculate screen scale
     scale <- CalculateScreenScale(config, win)
@@ -232,6 +238,140 @@ define WaitForLayoutResponse(layout, timeout: 0)
         }
     } else {
         SignalFatalError("Unknown response mode: " + mode.type)
+    }
+
+    return(result)
+}
+
+
+define WaitForLayoutResponseOrExit(layout, exitTargets:0)
+{
+    ## Waits for response input OR exit input (for interactive practice modes)
+    ## Returns semantic response ("left", "right", etc.) or "exit"
+    ##
+    ## Args:
+    ##   layout: Layout object from CreateLayout()
+    ##   exitTargets: For mousetarget mode, list of clickable targets that trigger exit
+    ##                (default 0 = no exit targets, only response targets)
+    ##
+    ## Exit inputs:
+    ##   Keyboard modes: spacebar
+    ##   Mousebutton mode: middle button (2)
+    ##   Mousetarget mode: click on exitTargets (if provided)
+    ##
+    ## Example (interactive practice loop):
+    ##   while(practiceActive)
+    ##   {
+    ##      resp <- WaitForLayoutResponseOrExit(gLayout, [gContinueButtonBorder])
+    ##      if(resp == "exit") { practiceActive <- 0 }
+    ##      elseif(resp == "left") { ShowLeftStimulus() }
+    ##      elseif(resp == "right") { ShowRightStimulus() }
+    ##   }
+
+    mode <- layout.responseMode
+    result <- "exit"
+
+    if(mode.type == "keyboard")
+    {
+        ## Wait for response keys OR spacebar
+        resp <- WaitForListKeyPress(Merge([" "], mode.keys))
+
+        if(resp == " ")
+        {
+            result <- "exit"
+        } else {
+            ## Map to semantic (same logic as WaitForLayoutResponse)
+            loop(i, Length(mode.keys))
+            {
+                if(resp == Nth(mode.keys, i))
+                {
+                    result <- Nth(mode.semantic, i)
+                }
+            }
+        }
+    }
+    elseif(mode.type == "mousebutton")
+    {
+        ## Wait for any mouse button (including middle for exit)
+        continue <- 1
+        while(continue)
+        {
+            resp <- WaitForMouseButton()
+            buttonNum <- Third(resp)
+            buttonState <- Fourth(resp)
+
+            if(buttonState == "<pressed>")
+            {
+                ## Middle button (2) exits
+                if(buttonNum == 2)
+                {
+                    result <- "exit"
+                    continue <- 0
+                }
+                ## Check if it's a valid response button
+                elseif(IsMember(buttonNum, mode.buttons))
+                {
+                    loop(i, Length(mode.buttons))
+                    {
+                        if(buttonNum == Nth(mode.buttons, i))
+                        {
+                            result <- Nth(mode.semantic, i)
+                            continue <- 0
+                        }
+                    }
+                }
+                ## Otherwise keep waiting for valid input
+            }
+        }
+    }
+    elseif(mode.type == "mousetarget")
+    {
+        ## Wait for click on response targets OR exit targets
+        continue <- 1
+        while(continue)
+        {
+            pos <- WaitForMouseButton()
+            if(Nth(pos,4) == "<pressed>")
+            {
+                ## Check exit targets first (if provided)
+                if(exitTargets != 0)
+                {
+                    loop(target, exitTargets)
+                    {
+                        if(Inside(pos, target))
+                        {
+                            result <- "exit"
+                            continue <- 0
+                            break
+                        }
+                    }
+                }
+
+                ## If not exit, check response targets
+                if(continue)
+                {
+                    loop(i, Length(layout.responseBorders))
+                    {
+                        if(Inside(pos, Nth(layout.responseBorders, i)))
+                        {
+                            result <- Nth(mode.semantic, i)
+                            continue <- 0
+                            break
+                        }
+                    }
+                }
+            }
+        }
+    }
+    elseif(mode.type == "singlekey")
+    {
+        ## For singlekey modes, spacebar is the response, not an exit
+        ## Just use normal WaitForLayoutResponse
+        result <- WaitForLayoutResponse(layout)
+    }
+    else
+    {
+        SignalFatalError("WaitForLayoutResponseOrExit: Unknown response mode: " + mode.type)
     }
 
     return(result)
@@ -589,7 +729,7 @@ define LoadLayoutConfig(testName)
     else
     {
         ## Fall back to default config
-        defaultPath <- gPEBLBasePath + "media/settings/default-layout.json"
+        defaultPath <- gPEBLBasePath + "/media/settings/default-layout.json"
 
         if(FileExists(defaultPath))
         {
@@ -613,6 +753,7 @@ define MergeResponseModeTranslations(baseModes, overrideModes)
     ## Override files contain only translated strings for each mode:
     ##   - labels: Array of translated label strings
     ##   - footerInstruction: Translated footer instruction string
+    ##   - prompts: Object with prompt strings (for userselect mode)
     ##
     ## All other properties (type, keys, buttons, semantic, platforms, etc.)
     ## are preserved from the base modes
@@ -649,6 +790,12 @@ define MergeResponseModeTranslations(baseModes, overrideModes)
                 baseMode.footerInstruction <- overrideMode.footerInstruction
             }
 
+            ## Override prompts if provided (for userselect mode)
+            if(PropertyExists(overrideMode, "prompts"))
+            {
+                baseMode.prompts <- overrideMode.prompts
+            }
+
             ## Update the mode in baseModes
             SetProperty(baseModes, modeName, baseMode)
         }
@@ -670,39 +817,65 @@ define LoadResponseModes(lang:gLanguage)
     ## Override files contain only translated strings:
     ##   - labels: ["TRANSLATED_LABEL1", "TRANSLATED_LABEL2"]
     ##   - footerInstruction: "Translated instruction text"
+    ##   - keyNames: {"KEY": "TRANSLATED_KEY"}
     ##
     ## Arguments:
     ##   lang: Two-letter language code (default: gLanguage)
     ##
     ## Returns:
     ##   Response modes object with translated labels and footerInstructions
+    ##
+    ## Side effects:
+    ##   Sets global gKeyNames with translated key names
 
     ## Step 1: Always load baseline English file
-    basePath <- gPEBLBasePath + "media/settings/response-modes.json"
+    Print("DEBUG: gPEBLBasePath = [" + gPEBLBasePath + "]")
+    Print("DEBUG: GetSystemType() = " + GetSystemType())
+    basePath <- gPEBLBasePath + "/media/settings/response-modes.json"
+    Print("DEBUG: Computed basePath = [" + basePath + "]")
     baseModes <- 0
 
     if(FileExists(basePath))
     {
+        Print("DEBUG: FileExists returned TRUE, loading JSON...")
         baseData <- ParseJSON(FileReadText(basePath))
         baseModes <- baseData.modes
+        Print("DEBUG: Loaded " + Length(GetPropertyList(baseModes)) + " modes from JSON")
     } else {
+        Print("DEBUG: FileExists returned FALSE, using hardcoded defaults")
         ## Fall back to hardcoded defaults if base file not found
         baseModes <- GetDefaultResponseModes()
     }
 
+    ## Initialize global key names and semantic names (empty for English)
+    gKeyNames <- 0
+    gSemanticNames <- 0
+
     ## Step 2: Load language override file using 3-tier fallback
     lang <- Lowercase(lang)
     overrideModes <- 0
+    overrideKeyNames <- 0
+    overrideSemanticNames <- 0
 
     ## Tier 1: Try explicit language if provided
     if(lang != "" and lang != "en")
     {
-        overridePath <- gPEBLBasePath + "media/settings/response-modes/response-modes-" + lang + ".json"
+        overridePath <- gPEBLBasePath + "/media/settings/response-modes/response-modes-" + lang + ".json"
 
         if(FileExists(overridePath))
         {
             overrideData <- ParseJSON(FileReadText(overridePath))
             overrideModes <- overrideData.modes
+            ## Extract keyNames if present
+            if(PropertyExists(overrideData, "keyNames"))
+            {
+                overrideKeyNames <- overrideData.keyNames
+            }
+            ## Extract semanticNames if present
+            if(PropertyExists(overrideData, "semanticNames"))
+            {
+                overrideSemanticNames <- overrideData.semanticNames
+            }
         } else {
             lang <- ""  ## Language file not available, fall back
         }
@@ -721,12 +894,22 @@ define LoadResponseModes(lang:gLanguage)
             ## Only load override if not English
             if(lang != "en")
             {
-                overridePath <- gPEBLBasePath + "media/settings/response-modes/response-modes-" + lang + ".json"
+                overridePath <- gPEBLBasePath + "/media/settings/response-modes/response-modes-" + lang + ".json"
 
                 if(FileExists(overridePath))
                 {
                     overrideData <- ParseJSON(FileReadText(overridePath))
                     overrideModes <- overrideData.modes
+                    ## Extract keyNames if present
+                    if(PropertyExists(overrideData, "keyNames"))
+                    {
+                        overrideKeyNames <- overrideData.keyNames
+                    }
+                    ## Extract semanticNames if present
+                    if(PropertyExists(overrideData, "semanticNames"))
+                    {
+                        overrideSemanticNames <- overrideData.semanticNames
+                    }
                 }
             }
         }
@@ -738,11 +921,21 @@ define LoadResponseModes(lang:gLanguage)
         baseModes <- MergeResponseModeTranslations(baseModes, overrideModes)
     }
 
+    ## Step 4: Store key names and semantic names in globals for translation functions
+    if(overrideKeyNames != 0)
+    {
+        gKeyNames <- overrideKeyNames
+    }
+    if(overrideSemanticNames != 0)
+    {
+        gSemanticNames <- overrideSemanticNames
+    }
+
     return(baseModes)
 }
 
 
-define DetermineResponseMode(params, config, modes)
+define DetermineResponseMode(params, config, modes, win)
 {
     ## Determines which response mode to use based on parameters and platform
     ##
@@ -751,10 +944,19 @@ define DetermineResponseMode(params, config, modes)
     ##   2. Config default
     ##   3. "auto" platform detection
     ##
+    ## Semantic requirements:
+    ##   Tests specify WHAT responses they need via params.responsesemantics
+    ##   Response modes specify HOW to capture those responses
+    ##   If not specified, semantic values are inferred from default mode
+    ##
+    ## Special handling for "userselect":
+    ##   Shows dialog for user to select custom keys
+    ##   Caches selection in global gUserSelectedMode for session persistence
+    ##
     ## Custom key override:
     ##   If params.customkeys is provided, override mode's keys
     ##   If params.customlabels is provided, override mode's labels
-    ##   If params.customsemantic is provided, override mode's semantic
+    ##   If params.responsesemantics is provided, override mode's semantic
 
     ## Get requested mode name
     modeName <- "auto"
@@ -784,34 +986,208 @@ define DetermineResponseMode(params, config, modes)
         modeName <- GetPlatformResponseMode(modes)
     }
 
-    ## Get mode configuration
-    result <- 0
-    if(PropertyExists(modes, modeName))
+    ## Handle userselect mode - let user pick their own keys
+    if(modeName == "userselect")
     {
-        result <- GetProperty(modes, modeName)
+        ## Check if already selected this session (use global cache)
+        ## Initialize to 0 if not yet defined
+        if(not VariableExists("gUserSelectedMode"))
+        {
+            gUserSelectedMode <- 0
+        }
+
+        if(not gUserSelectedMode)
+        {
+            ## Get prompts from mode configuration
+            userselectMode <- GetProperty(modes, "userselect")
+            prompts <- userselectMode.prompts
+
+            ## Determine semantic requirements
+            ## Priority: 1) params.responsesemantics, 2) infer from default mode
+            semanticList <- GetSemanticRequirements(params, config, modes)
+
+            ## Show selection dialog with semantic list
+            gUserSelectedMode <- SelectCustomKeys(win, prompts, semanticList)
+        }
+
+        result <- gUserSelectedMode
+    } else {
+        ## Get mode configuration
+        result <- 0
+        if(PropertyExists(modes, modeName))
+        {
+            result <- GetProperty(modes, modeName)
+        }
+        else
+        {
+            SignalFatalError("Unknown response mode: " + modeName)
+        }
+
+        ## Apply custom overrides if provided
+        if(params != 0)
+        {
+            if(PropertyExists(params, "customkeys"))
+            {
+                result.keys <- params.customkeys
+            }
+
+            if(PropertyExists(params, "customlabels"))
+            {
+                result.labels <- params.customlabels
+            }
+
+            if(PropertyExists(params, "responsesemantics"))
+            {
+                semantic <- params.responsesemantics
+
+                ## If it's a list, use it directly
+                if(IsList(semantic))
+                {
+                    result.semantic <- semantic
+                }
+                ## If it's a string, look up canned definition
+                else
+                {
+                    expandedSemantic <- GetCannedSemantics(semantic)
+                    if(expandedSemantic)
+                    {
+                        result.semantic <- expandedSemantic
+                    }
+                    ## If unrecognized, keep mode's default semantic
+                }
+            }
+        }
+    }
+
+    return(result)
+}
+
+
+define GetSemanticRequirements(params, config, modes)
+{
+    ## Determines semantic requirements for response modes
+    ##
+    ## Priority:
+    ##   1. Explicit specification via params.responsesemantics (can be list or canned label)
+    ##   2. Infer from what the default response mode would be
+    ##   3. Fallback to ["left", "right"]
+    ##
+    ## Canned labels:
+    ##   "2afc" -> ["left", "right"]
+    ##   "gonogo" or "singlekey" -> ["response"]
+    ##   "4way" -> ["up", "down", "left", "right"]
+    ##   "numbers" -> ["1", "2", "3", "4", "5", "6", "7", "8", "9"]
+    ##
+    ## Args:
+    ##   params: Parameter object (may contain responsesemantics)
+    ##   config: Layout configuration
+    ##   modes: Response modes object
+    ##
+    ## Returns:
+    ##   List of semantic values (e.g., ["left", "right"], ["response"], etc.)
+
+    semanticList <- 0
+
+    ## Priority 1: Check if explicitly specified
+    if(params != 0)
+    {
+        if(PropertyExists(params, "responsesemantics"))
+        {
+            semantic <- params.responsesemantics
+
+            ## If it's a list, use it directly
+            if(IsList(semantic))
+            {
+                semanticList <- semantic
+            }
+            ## If it's a string, look up canned definition
+            else
+            {
+                semanticList <- GetCannedSemantics(semantic)
+            }
+        }
+    }
+
+    ## Priority 2: If not specified, infer from default mode
+    if(not semanticList)
+    {
+        ## Determine what mode would be used by default
+        defaultModeName <- "auto"
+
+        ## Check config defaults
+        if(PropertyExists(config, "responseDefaults"))
+        {
+            if(PropertyExists(config.responseDefaults, "type"))
+            {
+                defaultModeName <- config.responseDefaults.type
+            }
+        }
+
+        ## If still auto, do platform detection
+        if(defaultModeName == "auto")
+        {
+            defaultModeName <- GetPlatformResponseMode(modes)
+        }
+
+        ## Get the semantic list from that mode
+        if(PropertyExists(modes, defaultModeName))
+        {
+            defaultMode <- GetProperty(modes, defaultModeName)
+            if(PropertyExists(defaultMode, "semantic"))
+            {
+                semanticList <- defaultMode.semantic
+            }
+        }
+    }
+
+    ## Priority 3: Final fallback
+    if(not semanticList)
+    {
+        semanticList <- ["left", "right"]
+    }
+
+    return(semanticList)
+}
+
+
+define GetCannedSemantics(label)
+{
+    ## Returns semantic list for common response patterns
+    ##
+    ## Supported canned labels:
+    ##   "2afc" - Two-alternative forced choice (left/right)
+    ##   "gonogo" or "singlekey" - Single response (go/no-go tasks)
+    ##   "4way" - Four-way directional (up/down/left/right)
+    ##   "numbers" - Numeric responses (1-9)
+    ##
+    ## Args:
+    ##   label: String label for canned semantic pattern
+    ##
+    ## Returns:
+    ##   List of semantic values, or 0 if label not recognized
+
+    result <- 0
+
+    if(label == "2afc")
+    {
+        result <- ["left", "right"]
+    }
+    elseif(label == "gonogo" or label == "singlekey")
+    {
+        result <- ["response"]
+    }
+    elseif(label == "4way")
+    {
+        result <- ["up", "down", "left", "right"]
+    }
+    elseif(label == "numbers")
+    {
+        result <- ["1", "2", "3", "4", "5", "6", "7", "8", "9"]
     }
     else
     {
-        SignalFatalError("Unknown response mode: " + modeName)
-    }
-
-    ## Apply custom key overrides if provided
-    if(params != 0)
-    {
-        if(PropertyExists(params, "customkeys"))
-        {
-            result.keys <- params.customkeys
-        }
-
-        if(PropertyExists(params, "customlabels"))
-        {
-            result.labels <- params.customlabels
-        }
-
-        if(PropertyExists(params, "customsemantic"))
-        {
-            result.semantic <- params.customsemantic
-        }
+        ## Unknown label - return 0 to trigger fallback
+        result <- 0
     }
 
     return(result)
@@ -829,6 +1205,431 @@ define GetPlatformResponseMode(modes)
     if(GetSystemType() == "EMSCRIPTEN")
     {
         result <- "keyboardSafe"
+    }
+
+    return(result)
+}
+
+
+define ConvertNewlinesToCR(text)
+{
+    ## Converts \n sequences in prompt strings to CR() function calls
+    ## This is needed because JSON translations have literal \n but PEBL needs CR()
+    ##
+    ## Args:
+    ##   text: String containing \n sequences
+    ##
+    ## Returns:
+    ##   String with \n replaced by actual newlines via CR()
+
+    ## Use SubstituteStrings for cleaner multi-replacement
+    ## Order matters: replace \n\n before \n to avoid double-replacing
+    replacements <- [["\n\n", CR(2)], ["\n", CR(1)]]
+    result <- SubstituteStrings(text, replacements)
+
+    return(result)
+}
+
+
+define SelectCustomKeys(win, prompts, semanticList)
+{
+    ## Interactive key selection dialog for userselect mode
+    ## Returns custom mode configuration with user-selected keys
+    ##
+    ## Args:
+    ##   win: Window object to show dialog in
+    ##   prompts: Object with prompt strings from response-modes.json
+    ##   semanticList: List of semantic values (e.g., ["left", "right"] or ["respond"])
+
+    result <- 0
+    selectedKeys <- []
+    selectedLabels <- []
+    valid <- 0
+    numKeys <- Length(semanticList)
+
+    ## Loop until we get valid key selection
+    while(not valid)
+    {
+        selectedKeys <- []
+        selectedLabels <- []
+
+        ## Select each key in sequence
+        loop(i, numKeys)
+        {
+            semantic <- Nth(semanticList, i)
+            semanticUpper <- Uppercase(semantic)
+
+            ## Build prompt using translations when available
+            if(Length(selectedKeys) == 0)
+            {
+                ## First key - use selectResponse for single-key, selectLeft for multi-key
+                if(numKeys == 1 and PropertyExists(prompts, "selectResponse"))
+                {
+                    ## Single-key mode - use dedicated selectResponse prompt
+                    promptText <- ConvertNewlinesToCR(prompts.selectResponse)
+                }
+                elseif(PropertyExists(prompts, "selectLeft"))
+                {
+                    ## Multi-key mode - use selectLeft and substitute semantic
+                    promptText <- ConvertNewlinesToCR(prompts.selectLeft)
+                    ## Replace "LEFT" with actual semantic
+                    promptText <- ReplaceChar(promptText, "LEFT", semanticUpper)
+                } else {
+                    promptText <- "Press the key you want to use for " + semanticUpper + " responses"
+                }
+            } else {
+                ## Show already selected keys with translations
+                summary <- ""
+                loop(j, Length(selectedKeys))
+                {
+                    prevSemantic <- TranslateSemanticName(Nth(semanticList, j))
+                    prevLabel <- TranslateKeyName(Nth(selectedLabels, j))
+                    summary <- summary + prevSemantic + ": " + prevLabel + "    "
+                }
+
+                ## Subsequent keys - use selectRight if available, substitute semantic
+                if(PropertyExists(prompts, "selectRight"))
+                {
+                    nextPrompt <- ConvertNewlinesToCR(prompts.selectRight)
+                    ## Replace "RIGHT" with actual semantic
+                    nextPrompt <- ReplaceChar(nextPrompt, "RIGHT", semanticUpper)
+                    promptText <- summary + CR(2) + nextPrompt
+                } else {
+                    promptText <- summary + CR(2) + "Now press the key for " + semanticUpper + " responses"
+                }
+            }
+
+            textbox <- EasyTextBox(promptText, win.width/2-300, win.height/2-50, win, 20, 600, 150)
+            Draw()
+
+            key <- WaitForAnyKeyPress()
+
+            ## Validate key is allowed (reject modifier keys, allow arrows/space/etc)
+            if(not IsValidResponseKey(key))
+            {
+                SetText(textbox, ConvertNewlinesToCR(prompts.errorSpecialKey))
+                Draw()
+                WaitForAnyKeyPress()
+                RemoveObject(textbox, win)
+                Draw()
+                break  ## Start over
+            }
+
+            ## Validate not a duplicate
+            if(IsMember(key, selectedKeys))
+            {
+                if(PropertyExists(prompts, "errorSameKey"))
+                {
+                    SetText(textbox, ConvertNewlinesToCR(prompts.errorSameKey))
+                } else {
+                    SetText(textbox, "Keys must be different!" + CR(1) + "Press any key to try again")
+                }
+                Draw()
+                WaitForAnyKeyPress()
+                RemoveObject(textbox, win)
+                Draw()
+                break  ## Start over
+            }
+
+            ## Key is valid - add to list
+            PushOnEnd(selectedKeys, key)
+            PushOnEnd(selectedLabels, GetNiceKeyLabel(key))
+
+            RemoveObject(textbox, win)
+            Draw()
+        }
+
+        ## If we successfully selected all keys, do confirmation test
+        if(Length(selectedKeys) == numKeys)
+        {
+            ## Build confirmation prompt using translations when available
+            if(numKeys == 1 and PropertyExists(prompts, "confirmResponse"))
+            {
+                ## Single-key mode - use confirmResponse prompt with substitution
+                confirmText <- ConvertNewlinesToCR(prompts.confirmResponse)
+                ## Replace {KEY} placeholder with actual key label
+                confirmText <- ReplaceChar(confirmText, "{KEY}", First(selectedLabels))
+            }
+            elseif(numKeys == 2 and PropertyExists(prompts, "confirmKeys"))
+            {
+                ## Two-key mode - use translated confirmKeys prompt with substitutions
+                confirmText <- ConvertNewlinesToCR(prompts.confirmKeys)
+                ## Replace placeholders with actual values
+                replacements <- [["{LEFT}", First(selectedLabels)],
+                                  ["{RIGHT}", Second(selectedLabels)],
+                                  [" LEFT ", " " + Uppercase(First(semanticList)) + " "],
+                                  [" RIGHT ", " " + Uppercase(Second(semanticList)) + " "]]
+                confirmText <- SubstituteStrings(confirmText, replacements)
+            } else {
+                ## Fall back to generic confirmation
+                confirmText <- "Selected keys:" + CR(1)
+                loop(i, numKeys)
+                {
+                    confirmText <- confirmText + Uppercase(Nth(semanticList, i)) + ": " + Nth(selectedLabels, i) + CR(1)
+                }
+                confirmText <- confirmText + CR(1) + "Let's test them out!" + CR(1)
+                confirmText <- confirmText + "Press your " + Uppercase(First(semanticList)) + " key now"
+            }
+
+            textbox <- EasyTextBox(confirmText, win.width/2-300, win.height/2-100, win, 20, 600, 250)
+            Draw()
+
+            ## Test each key in sequence
+            allCorrect <- 1
+            loop(i, numKeys)
+            {
+                resp <- WaitForListKeyPress(selectedKeys)
+
+                ## Check if correct key was pressed
+                if(resp == Nth(selectedKeys, i))
+                {
+                    ## Correct!  Show next prompt or finish
+                    if(i < numKeys)
+                    {
+                        ## Use translated testRight prompt if available (2AFC only)
+                        if(numKeys == 2 and i == 1 and PropertyExists(prompts, "testRight"))
+                        {
+                            nextPrompt <- ConvertNewlinesToCR(prompts.testRight)
+                            ## Replace RIGHT with actual semantic
+                            nextPrompt <- ReplaceChar(nextPrompt, "RIGHT", Uppercase(Second(semanticList)))
+                            SetText(textbox, nextPrompt)
+                        } else {
+                            ## Generic next prompt
+                            nextSemantic <- Uppercase(Nth(semanticList, i + 1))
+                            SetText(textbox, "Good! Now press your " + nextSemantic + " key")
+                        }
+                        Draw()
+                    } else {
+                        ## All keys tested successfully!
+                        valid <- 1
+                    }
+                } else {
+                    ## Wrong key pressed - determine which key was expected and which was pressed
+                    if(numKeys == 2)
+                    {
+                        ## For 2AFC, use specific error messages
+                        expectedIndex <- i
+                        expectedSemantic <- Uppercase(Nth(semanticList, expectedIndex))
+
+                        ## Figure out which key was actually pressed
+                        pressedIndex <- 0
+                        loop(j, numKeys)
+                        {
+                            if(resp == Nth(selectedKeys, j))
+                            {
+                                pressedIndex <- j
+                            }
+                        }
+
+                        ## Use translated error messages
+                        if(expectedIndex == 1 and PropertyExists(prompts, "errorWrongLeft"))
+                        {
+                            ## Expected LEFT, got RIGHT
+                            errorText <- ConvertNewlinesToCR(prompts.errorWrongLeft)
+                            ## Replace semantic names
+                            errorText <- ReplaceChar(errorText, "LEFT", expectedSemantic)
+                            if(pressedIndex > 0)
+                            {
+                                pressedSemantic <- Uppercase(Nth(semanticList, pressedIndex))
+                                errorText <- ReplaceChar(errorText, "RIGHT", pressedSemantic)
+                            }
+                            SetText(textbox, errorText)
+                        }
+                        elseif(expectedIndex == 2 and PropertyExists(prompts, "errorWrongRight"))
+                        {
+                            ## Expected RIGHT, got LEFT
+                            errorText <- ConvertNewlinesToCR(prompts.errorWrongRight)
+                            ## Replace semantic names
+                            errorText <- ReplaceChar(errorText, "RIGHT", expectedSemantic)
+                            if(pressedIndex > 0)
+                            {
+                                pressedSemantic <- Uppercase(Nth(semanticList, pressedIndex))
+                                errorText <- ReplaceChar(errorText, "LEFT", pressedSemantic)
+                            }
+                            SetText(textbox, errorText)
+                        } else {
+                            ## Fallback
+                            SetText(textbox, "Wrong key!" + CR(1) + "Expected " + expectedSemantic + " key" + CR(1) + CR(1) + "Press any key to start over")
+                        }
+                    } else {
+                        ## Generic error for non-2AFC
+                        wrongSemantic <- Uppercase(Nth(semanticList, i))
+                        SetText(textbox, "Wrong key!" + CR(1) + "Expected " + wrongSemantic + " key" + CR(1) + CR(1) + "Press any key to start over")
+                    }
+                    Draw()
+                    WaitForAnyKeyPress()
+                    allCorrect <- 0
+                    break
+                }
+            }
+
+            RemoveObject(textbox, win)
+            Draw()
+        }
+    }
+
+    ## Build custom mode object with template labels
+    mode <- MakeCustomObject("Mode")
+    mode.type <- "keyboard"
+    mode.keys <- selectedKeys
+
+    ## Use template labels for userselect mode (same as predefined modes)
+    ## This allows FormatLabelsForMode to substitute <KEY> and <SEMANTIC> placeholders
+    ## Get template from prompts if available (for translations), otherwise use English default
+    templateString <- "<KEY> for <SEMANTIC>"  ## English fallback
+    if(PropertyExists(prompts, "labelTemplate"))
+    {
+        templateString <- prompts.labelTemplate
+    }
+
+    templateLabels <- []
+    loop(i, numKeys)
+    {
+        PushOnEnd(templateLabels, templateString)
+    }
+    mode.labels <- templateLabels
+    mode.semantic <- semanticList
+
+    ## Build footer instruction using templates if available
+    ## Need to translate the selected key labels for footer
+    translatedLabels <- []
+    loop(label, selectedLabels)
+    {
+        PushOnEnd(translatedLabels, TranslateKeyName(label))
+    }
+
+    if(numKeys == 1)
+    {
+        ## Single key footer
+        if(PropertyExists(prompts, "footerTemplateSingle"))
+        {
+            footerText <- prompts.footerTemplateSingle
+            footerText <- ReplaceChar(footerText, "{KEY1}", First(translatedLabels))
+            mode.footerInstruction <- footerText
+        } else {
+            mode.footerInstruction <- "Press " + First(translatedLabels)
+        }
+    } elseif(numKeys == 2) {
+        ## Two keys footer
+        if(PropertyExists(prompts, "footerTemplate"))
+        {
+            footerText <- prompts.footerTemplate
+            replacements <- [["{KEY1}", First(translatedLabels)],
+                              ["{KEY2}", Second(translatedLabels)]]
+            footerText <- SubstituteStrings(footerText, replacements)
+            mode.footerInstruction <- footerText
+        } else {
+            mode.footerInstruction <- "Press " + First(translatedLabels) + " or " + Second(translatedLabels)
+        }
+    } else {
+        ## Multiple keys footer (generic)
+        mode.footerInstruction <- "Press " + JoinStrings(translatedLabels, ", ")
+    }
+
+    result <- mode
+    return(result)
+}
+
+
+define IsValidResponseKey(key)
+{
+    ## Checks if a key is valid for userselect mode
+    ## Allows: regular letter/number keys, arrow keys, space, return, shift keys, alt keys
+    ## Rejects: ctrl keys, function keys, other problematic keys
+    ##
+    ## Args:
+    ##   key: Key string to validate
+    ##
+    ## Returns:
+    ##   1 if valid, 0 if invalid
+
+    result <- 1
+
+    ## Regular keys (not starting with <) are always valid
+    if(SubString(key, 1, 1) != "<")
+    {
+        result <- 1
+    } else {
+        ## Special key - check if it's an allowed type
+        ## Allowed special keys (including shift and alt modifiers)
+        allowedKeys <- ["<left>", "<right>", "<up>", "<down>",
+                        "<space>", "<return>", "<escape>",
+                        "<lshift>", "<rshift>", "<lalt>", "<ralt>",
+                        "<kp_enter>", "<kp_0>", "<kp_1>", "<kp_2>", "<kp_3>",
+                        "<kp_4>", "<kp_5>", "<kp_6>", "<kp_7>", "<kp_8>", "<kp_9>"]
+
+        if(IsMember(key, allowedKeys))
+        {
+            result <- 1
+        } else {
+            ## Not in allowed list - reject it
+            result <- 0
+        }
+    }
+
+    return(result)
+}
+
+
+define GetNiceKeyLabel(key)
+{
+    ## Converts a key string to a nice display label with translation support
+    ## For regular keys: "z" → "Z"
+    ## For special keys: uses same logic as FormatKeyName
+    ##
+    ## Args:
+    ##   key: Key string (e.g., "z", "<left>", "<space>", "a")
+    ##
+    ## Returns:
+    ##   Nicely formatted label string
+
+    result <- ""
+
+    ## Check for special keys first (same as FormatKeyName)
+    if(key == "<lshift>")
+    {
+        result <- TranslateKeyName("LEFT-SHIFT")
+    }
+    elseif(key == "<rshift>")
+    {
+        result <- TranslateKeyName("RIGHT-SHIFT")
+    }
+    elseif(key == "<lalt>")
+    {
+        result <- TranslateKeyName("LEFT-ALT")
+    }
+    elseif(key == "<ralt>")
+    {
+        result <- TranslateKeyName("RIGHT-ALT")
+    }
+    elseif(key == "<space>" or key == " ")
+    {
+        result <- TranslateKeyName("SPACEBAR")
+    }
+    elseif(key == "<return>")
+    {
+        result <- TranslateKeyName("ENTER")
+    }
+    elseif(key == "<left>")
+    {
+        result <- "←"
+    }
+    elseif(key == "<right>")
+    {
+        result <- "→"
+    }
+    elseif(key == "<up>")
+    {
+        result <- "↑"
+    }
+    elseif(key == "<down>")
+    {
+        result <- "↓"
+    }
+    else
+    {
+        ## Regular key - just uppercase it
+        result <- Uppercase(key)
     }
 
     return(result)
@@ -1024,12 +1825,12 @@ define CreateResponseLabels(layout, fontSize)
         }
     }
 
-    ## If not provided, default to capitalized semantic values
+    ## If not provided, default to translated semantic values
     if(Length(semanticLabels) == 0)
     {
         loop(sem, mode.semantic)
         {
-            PushOnEnd(semanticLabels, Uppercase(sem))
+            PushOnEnd(semanticLabels, TranslateSemanticName(sem))
         }
     }
 
@@ -1129,99 +1930,62 @@ define CreateResponseLabels(layout, fontSize)
 
 define FormatLabelsForMode(mode, semanticLabels)
 {
-    ## Formats semantic labels based on response mode type
-    ## Returns list of display labels
+    ## Formats semantic labels using template substitution
+    ## mode.labels contain templates with <KEY> and <SEMANTIC> placeholders
+    ##
+    ## Template system:
+    ##   <KEY> - replaced with key/button name (e.g., "Z", "LEFT-SHIFT", "LEFT-CLICK")
+    ##   <SEMANTIC> - replaced with semantic label (e.g., "H", "S", "SAME", "DIFFERENT")
+    ##
+    ## Example templates:
+    ##   "<KEY> for <SEMANTIC>" → "Z for H"
+    ##   "Click for <SEMANTIC>" → "Click for LEFT"
     ##
     ## Args:
-    ##   mode: Response mode object
-    ##   semanticLabels: List of semantic label strings (e.g., ["SAME", "DIFFERENT"])
+    ##   mode: Response mode object with .labels containing templates
+    ##   semanticLabels: List of semantic label strings (e.g., ["H", "S"] or ["SAME", "DIFFERENT"])
     ##
     ## Returns:
-    ##   List of formatted display labels
+    ##   List of formatted display labels with placeholders substituted
 
     displayLabels <- []
 
-    if(mode.type == "keyboard")
+    ## If mode has labels, use them as templates
+    if(PropertyExists(mode, "labels") and Length(mode.labels) > 0)
     {
-        ## Format: symmetric with keys on inside for 2-option modes
-        ## For 2-option: "semantic key" (left) and "key semantic" (right)
-        ## For other modes: "key (semantic)"
-
-        numKeys <- Length(mode.keys)
-
-        if(numKeys == 2)
+        loop(i, Length(mode.labels))
         {
-            ## Two-option mode: symmetric layout with keys on inside
-            ## Left label: semantic key
-            key <- FormatKeyName(Nth(mode.keys, 1))
-            semantic <- Nth(semanticLabels, 1)
-            PushOnEnd(displayLabels, semantic + " " + key)
-
-            ## Right label: key semantic
-            key <- FormatKeyName(Nth(mode.keys, 2))
-            semantic <- Nth(semanticLabels, 2)
-            PushOnEnd(displayLabels, key + " " + semantic)
-        }
-        else
-        {
-            ## More than 2 options: use standard format "KEY (semantic)"
-            loop(i, numKeys)
-            {
-                key <- FormatKeyName(Nth(mode.keys, i))
-                semantic <- Nth(semanticLabels, i)
-                PushOnEnd(displayLabels, key + " (" + semantic + ")")
-            }
-        }
-    }
-    elseif(mode.type == "mousebutton")
-    {
-        ## Format: "BUTTON (semantic)" or just semantic for single-button modes
-        ## Use mode.labels if available, otherwise fall back to GetButtonName
-        loop(i, Length(mode.buttons))
-        {
-            buttonNum <- Nth(mode.buttons, i)
+            template <- Nth(mode.labels, i)
             semantic <- Nth(semanticLabels, i)
 
-            ## For single-button modes, just show the semantic label
-            if(Length(mode.buttons) == 1)
+            ## Get key name based on mode type
+            keyName <- ""
+            if(mode.type == "keyboard")
             {
-                ## Single button - use label from mode if available, otherwise semantic
-                if(PropertyExists(mode, "labels") and Length(mode.labels) > 0)
-                {
-                    PushOnEnd(displayLabels, Nth(mode.labels, i))
-                } else {
-                    PushOnEnd(displayLabels, semantic)
-                }
-            } else {
-                ## Multiple buttons - show "BUTTON (semantic)" format
-                if(PropertyExists(mode, "labels") and Length(mode.labels) > 0)
-                {
-                    buttonName <- Nth(mode.labels, i)
-                } else {
-                    buttonName <- GetButtonName(buttonNum)
-                }
-                PushOnEnd(displayLabels, buttonName + " (" + semantic + ")")
+                keyName <- FormatKeyName(Nth(mode.keys, i))
             }
-        }
-    }
-    elseif(mode.type == "mousetarget")
-    {
-        ## Format: Just semantic (target is self-evident)
-        displayLabels <- semanticLabels
-    }
-    elseif(mode.type == "singlekey")
-    {
-        ## Single key modes: use label from mode if available, otherwise semantic
-        if(PropertyExists(mode, "labels") and Length(mode.labels) > 0)
-        {
-            displayLabels <- mode.labels
-        } else {
-            displayLabels <- semanticLabels
+            elseif(mode.type == "mousebutton")
+            {
+                buttonNum <- Nth(mode.buttons, i)
+                keyName <- TranslateKeyName(GetButtonName(buttonNum))
+            }
+            elseif(mode.type == "singlekey")
+            {
+                keyName <- FormatKeyName(Nth(mode.keys, i))
+            }
+            ## For mousetarget, no key name needed (targets are clickable areas)
+
+            ## Substitute placeholders
+            label <- template
+            label <- ReplaceChar(label, "<KEY>", keyName)
+            label <- ReplaceChar(label, "<SEMANTIC>", semantic)
+
+            PushOnEnd(displayLabels, label)
         }
     }
     else
     {
-        ## Unknown mode type - default to semantic only
+        ## Fallback if mode has no labels (shouldn't happen with new system)
         displayLabels <- semanticLabels
     }
 
@@ -1319,26 +2083,86 @@ define GetDefaultResponseModes()
 ## Semantic Label Formatting Functions
 ## ================================================================
 
+define TranslateKeyName(englishName)
+{
+    ## Translates key name using gKeyNames lookup table
+    ## Falls back to English if no translation available
+    ##
+    ## Args:
+    ##   englishName: English key name (e.g., "LEFT-SHIFT", "SPACEBAR")
+    ##
+    ## Returns:
+    ##   Translated key name, or original if no translation exists
+
+    result <- englishName
+
+    ## If gKeyNames exists and has a translation, use it
+    if(gKeyNames != 0)
+    {
+        if(PropertyExists(gKeyNames, englishName))
+        {
+            result <- GetProperty(gKeyNames, englishName)
+        }
+    }
+
+    return(result)
+}
+
+
+define TranslateSemanticName(semanticName)
+{
+    ## Translates semantic name using gSemanticNames lookup table
+    ## Falls back to uppercase English if no translation available
+    ##
+    ## Args:
+    ##   semanticName: Lowercase semantic name (e.g., "left", "right", "response")
+    ##
+    ## Returns:
+    ##   Translated uppercase semantic name, or uppercase English if no translation
+
+    result <- Uppercase(semanticName)
+
+    ## If gSemanticNames exists and has a translation, use it
+    if(gSemanticNames != 0)
+    {
+        if(PropertyExists(gSemanticNames, semanticName))
+        {
+            result <- GetProperty(gSemanticNames, semanticName)
+        }
+    }
+
+    return(result)
+}
+
+
 define FormatKeyName(key)
 {
-    ## Convert key codes to display names
+    ## Convert key codes to display names with translation support
     result <- ""
 
     if(key == "<lshift>")
     {
-        result <- "LEFT-SHIFT"
+        result <- TranslateKeyName("LEFT-SHIFT")
     }
     elseif(key == "<rshift>")
     {
-        result <- "RIGHT-SHIFT"
+        result <- TranslateKeyName("RIGHT-SHIFT")
+    }
+    elseif(key == "<lalt>")
+    {
+        result <- TranslateKeyName("LEFT-ALT")
+    }
+    elseif(key == "<ralt>")
+    {
+        result <- TranslateKeyName("RIGHT-ALT")
     }
     elseif(key == "<space>")
     {
-        result <- "SPACEBAR"
+        result <- TranslateKeyName("SPACEBAR")
     }
     elseif(key == "<return>")
     {
-        result <- "ENTER"
+        result <- TranslateKeyName("ENTER")
     }
     elseif(key == "<left>")
     {

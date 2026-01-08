@@ -159,12 +159,11 @@ namespace PEBLStream
             {(char*)"GETDATA", GetData,                       2,2},
             {(char*)"GETMYIPADDRESS", GetMyIPAddress,         1,1},
 
-#ifdef PEBL_HTTP
+            // HTTP functions - now always available (stub implementations when PEBL_HTTP not defined)
             {(char*)"GETHTTPFILE", GetHTTPFile,               4,4},
             {(char*)"GETHTTPTEXT", GetHTTPText,               3,3},
             {(char*)"POSTHTTP", PostHTTP,                     5,5},
             {(char*)"POSTHTTPFILE", PostHTTPFile,             6,6},
-#endif
 
             {(char*)"MD5SUM", MD5Sum,                         1,1},
             {(char*)"MD5FILE", MD5File,                        1,1},

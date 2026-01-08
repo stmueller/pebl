@@ -78,7 +78,7 @@ public:
 
 
     virtual bool Draw();
-    virtual void HandleKeyPress(int keycode, int modkey);
+    virtual void HandleKeyPress(int keycode, int modkeys, Uint16 unicode);
     virtual void HandleTextInput(std::string input);
     virtual std::string ObjectName()const{return "PlatformTextBox";} ;
     virtual int FindCursorPosition(long int x, long int y);

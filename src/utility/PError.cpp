@@ -31,7 +31,10 @@
 
 #include "../base/Variant.h"
 #include "../base/PComplexData.h"
+
+#ifndef PEBL_VALIDATOR
 #include "../platforms/sdl/SDLUtility.h"
+#endif
 
 #include <iostream>
 #include <string>
@@ -48,6 +51,12 @@ using std::endl;
 using std::string;
 
 extern PlatformEnvironment * myEnv;
+
+// Define and initialize the error dialog flag (defaults to true)
+bool PError::gShowErrorDialogs = true;
+
+// Define and initialize the validator mode flag (defaults to false)
+bool PError::gValidatorMode = false;
 
 
 void PError::SignalFatalError(const string & message)
@@ -79,15 +88,23 @@ void PError::SignalFatalError(const string & message)
     //At this point, we'd like to, if possible, make a
     //pop-up message box in an SDL window.
     cerr << errorMessage.GetString() << endl;
-        
-    if(myEnv)
-        {
 
+    // Only show GUI dialog if enabled (disabled for command-line tools)
+#ifndef PEBL_VALIDATOR
+    if(gShowErrorDialogs && myEnv)
+        {
             PlatformWindow* pw = dynamic_cast<PlatformWindow*>(myEnv->GetWindow(0));
             if(pw)
                 SDLUtility::PopupErrorBox(pw, errorMessage.GetString().c_str());
         }
+#endif
 
+    // In validator mode, throw exception instead of exiting
+    // This allows the validator to collect errors and continue
+    if(gValidatorMode)
+        {
+            throw std::runtime_error(errorMessage.GetString());
+        }
 
     raise(SIGTERM);
     exit(0);

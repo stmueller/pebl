@@ -37,11 +37,13 @@
 
 #include <fstream>
 #include <iostream>
+#include <algorithm>
 
 #include <list>
 #include <stdio.h>
 
 #include "../../utility/PError.h"
+#include "../../utility/PEBLUtility.h"
 
 #if defined PEBL_WIN32
 #include <windows.h>
@@ -168,6 +170,9 @@ void PlatformEnvironment::Initialize()
                 std::cerr << "  PNG support: YES" << endl;
             }
 
+        // Pre-initialize keycode lookup tables to avoid timing artifacts on first keypress
+        // This is critical for psychological experiments with accurate response time measurements
+        PEBLUtility::InitializeKeycodeLookups();
 
 #define PRINTCONSOLE 0
 #if PRINTCONSOLE
@@ -401,8 +406,49 @@ Variant PlatformEnvironment::GetScreenModes(int screen)
     counted_ptr<PEBLObjectBase> baselist2 = counted_ptr<PEBLObjectBase>(baselist);
     pcd = new PComplexData(baselist2);
     return Variant(pcd);
-
-
 }
+
+// Get the system locale from OS settings
+// Uses SDL_GetPreferredLocales() to query OS for user's preferred language/locale
+// Returns locale string like "ar", "en_US", "zh_CN", "he_IL"
+// Returns empty string on error
+std::string PlatformEnvironment::GetSystemLocale() {
+    SDL_Locale *locales = SDL_GetPreferredLocales();
+    if (!locales) {
+        return "";  // Error or not supported on this platform
+    }
+
+    // Get the first (primary) locale
+    std::string result = "";
+    if (locales[0].language) {
+        result = locales[0].language;
+
+        // Append country code if available (e.g., "en_US", "zh_CN")
+        if (locales[0].country) {
+            result += "_";
+            result += locales[0].country;
+        }
+    }
+
+    SDL_free(locales);
+    return result;  // e.g., "ar", "en_US", "zh_CN", "he_IL", "ko_KR"
+}
+
+// Check if the system locale is RTL (Arabic, Hebrew)
+// Useful for setting default text box justification before any text input
+bool PlatformEnvironment::IsSystemLocaleRTL() {
+    std::string locale = GetSystemLocale();
+    if (locale.empty()) {
+        return false;  // Default to LTR if we can't detect
+    }
+
+    // Extract language code (first 2 characters)
+    std::string langCode = locale.substr(0, 2);
+    std::transform(langCode.begin(), langCode.end(), langCode.begin(), ::tolower);
+
+    // Check if it's Arabic or Hebrew
+    return (langCode == "ar" || langCode == "he" || langCode == "iw");
+}
+
 
 

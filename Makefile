@@ -625,6 +625,32 @@ appimage-clean:
 	rm -f bin/pebl2-appimage
 	@echo "✓ AppImage artifacts cleaned"
 
+.PHONY: validator-appimage
+validator-appimage: validator
+	@echo "========================================="
+	@echo "Building PEBL Validator AppImage (full rebuild)"
+	@echo "========================================="
+	./build-validator-appimage.sh $(PEBL_VERSION)
+
+.PHONY: validator-appimage-fast
+validator-appimage-fast:
+	@echo "========================================="
+	@echo "Building PEBL Validator AppImage (using existing binary)"
+	@echo "========================================="
+	@if [ ! -f "bin/pebl-validator" ]; then \
+		echo "ERROR: bin/pebl-validator not found. Run 'make validator' or 'make validator-appimage' first."; \
+		exit 1; \
+	fi
+	./build-validator-appimage.sh $(PEBL_VERSION) --skip-build
+
+.PHONY: validator-appimage-clean
+validator-appimage-clean:
+	@echo "Cleaning validator AppImage build artifacts..."
+	rm -rf ValidatorAppDir
+	rm -f pebl-validator-*.AppImage
+	rm -f bin/pebl-validator-*.AppImage
+	@echo "✓ Validator AppImage artifacts cleaned"
+
 parse:
 	bison -d $(BASE_DIR)/grammar.y -o $(BASE_DIR)/grammar.tab.cpp
 	flex -o$(BASE_DIR)/lex.yy.c  $(BASE_DIR)/Pebl.l 
@@ -734,7 +760,7 @@ install:
 
 	# Create desktop file
 	mkdir -p $(DESTDIR)$(PREFIX)/share/applications/
-	sed -e 's|Exec=.*|Exec=$(PREFIX)/$(PEBLNAME)/bin/$(PEBLNAME)|' PEBL2.desktop > PEBL2.desktop.tmp
+	sed -e 's|Exec=.*|Exec=$(PREFIX)/$(PEBLNAME)/bin/$(PEBLNAME)|' installer/PEBL2.desktop > PEBL2.desktop.tmp
 	sed -e 's|Icon=.*|Icon=$(PREFIX)/$(PEBLNAME)/media/images/pebl2.png|' PEBL2.desktop.tmp > PEBL2.desktop.install
 	rm PEBL2.desktop.tmp
 	cp PEBL2.desktop.install $(DESTDIR)$(PREFIX)/share/applications/PEBL2.desktop

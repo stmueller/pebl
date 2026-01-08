@@ -44,6 +44,17 @@ using std::endl;
 using std::list;
 using std::string;
 
+#ifdef PEBL_EMSCRIPTEN
+#include "../platforms/sdl/PlatformEnvironment.h"
+extern PlatformEnvironment * myEnv;
+#elif defined(PEBL_VALIDATOR)
+#include "../platforms/validator/PlatformEnvironment.h"
+extern PlatformEnvironment * myEnv;
+#else
+#include "../platforms/sdl/PlatformEnvironment.h"
+extern PlatformEnvironment * myEnv;
+#endif
+
 
 
 
@@ -298,8 +309,8 @@ Variant PEBLString::GetFontForText(Variant v)
 // Returns empty string if detection fails
 Variant PEBLString::GetSystemLocale(Variant v)
 {
-    // No parameters needed - just query the OS
-    std::string locale = PEBLUtility::GetSystemLocale();
+    // No parameters needed - just query the OS via environment
+    std::string locale = myEnv->GetSystemLocale();
     return Variant(locale);
 }
 
@@ -309,8 +320,8 @@ Variant PEBLString::GetSystemLocale(Variant v)
 // Returns 1 if RTL, 0 if LTR
 Variant PEBLString::IsSystemLocaleRTL(Variant v)
 {
-    // No parameters needed - just query the OS
-    bool isRTL = PEBLUtility::IsSystemLocaleRTL();
+    // No parameters needed - just query the OS via environment
+    bool isRTL = myEnv->IsSystemLocaleRTL();
     return Variant((int)isRTL);
 }
 

@@ -284,9 +284,6 @@ int PEBLInterpret( int argc, std::vector<std::string> argv )
     //Set up the search path.
     Evaluator::gPath.Initialize(files);
 
-    //Add media/settings to search path for layout configuration files
-    Evaluator::gPath.AddToPathList("media/settings");
-
     cerr << "PATH:"  << Evaluator::gPath;
 
     //Add the built-in PEBL libraries to the files list.

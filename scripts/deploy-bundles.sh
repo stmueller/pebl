@@ -235,7 +235,15 @@ if [ "$test_bundle_count" -gt 0 ]; then
 
         # Check if we should deploy this bundle
         if [ -z "$TARGET_BUNDLE" ] || [ "$TARGET_BUNDLE" = "$name" ]; then
-            if deploy_bundle "$name" "$output_dir" "$TEST_BUNDLES_DIR" "test"; then
+            # Determine destination based on output_dir
+            # Bundles built in bin/test-bundles go to runtime/test-bundles
+            # Bundles built in bin go to runtime (for backward compatibility)
+            dest_dir="$TEST_BUNDLES_DIR"
+            if [ "$output_dir" = "bin" ]; then
+                dest_dir="$RUNTIME_DIR"
+            fi
+
+            if deploy_bundle "$name" "$output_dir" "$dest_dir" "test"; then
                 BUNDLES_DEPLOYED=$((BUNDLES_DEPLOYED + 1))
             else
                 BUNDLES_FAILED=$((BUNDLES_FAILED + 1))

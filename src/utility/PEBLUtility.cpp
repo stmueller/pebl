@@ -109,9 +109,6 @@
 #include "mman.h"
 #endif
 
-
-#include <SDL_scancode.h>
-#include <SDL_locale.h>
 #include <map>
 
 //Some math libraries contain this, but let's not take any chances.

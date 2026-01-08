@@ -82,6 +82,15 @@ namespace PError
     //will only print an error message.  If you use the variety with the PNode argument, the
     //message will report information about the original code, if it is available.
 
+    // Global flag to control whether to show GUI error dialogs
+    // Set to false for command-line tools like pebl-validator
+    // Defaults to true for normal PEBL execution
+    extern bool gShowErrorDialogs;
+
+    // Global flag to control validator mode
+    // When true, SignalFatalError throws exception instead of exiting
+    // Allows validator to collect errors and continue
+    extern bool gValidatorMode;
 
     void SignalFatalError(const std::string & message);
 

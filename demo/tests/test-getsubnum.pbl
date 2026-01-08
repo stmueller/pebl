@@ -1,66 +1,24 @@
-#!/usr/bin/env pebl2
-##############################################################
-## Test script for enhanced GetSubNum() function
-## Tests multilingual support and automatic locale detection
-##############################################################
+## Test simple textbox with GetInput
 
-define Start(lPar)
+define Start(p)
 {
-    gWin <- MakeWindow("grey")
+  gWin <- MakeWindow("black")
 
-    Print("=== GetSubNum() Enhanced Multilingual Test ===")
-    Print("")
+  Print("=== Simple textbox with GetInput() ===")
 
-    # Show current language settings
-    Print("Current gLanguage: [" + gLanguage + "]")
-    systemLocale <- GetSystemLocale()
-    Print("System locale: [" + systemLocale + "]")
-    isRTL <- IsSystemLocaleRTL()
-    Print("Is system locale RTL? " + isRTL)
-    Print("")
+  ## Create a simple textbox and use GetInput
+  prompt <- EasyLabel("Type your name and press ENTER:", gVideoWidth/2, 100, gWin, 20)
+  textbox <- EasyTextBox("all work and no play make jack a dull boy.", gVideoWidth/2-100, 150, gWin,16, 400, 150)
+  Draw()
 
-    # Test GetSubNum() with current settings
-    Print("Calling GetSubNum() - should use:")
-    if(gLanguage != "")
-    {
-        Print("  -> gLanguage (" + gLanguage + ")")
-    } else {
-        if(systemLocale != "")
-        {
-            systemLang <- Uppercase(SubString(systemLocale, 1, 2))
-            Print("  -> System locale (" + systemLang + ")")
-        } else {
-            Print("  -> English fallback")
-        }
-    }
-    Print("")
+  Print("Waiting for input...")
+  name <- GetInput(textbox, "<return>")
+  Print("Got name: " + name)
 
-    subnum <- GetSubNum(gWin)
-
-    Print("---")
-    Print("Participant ID entered: [" + subnum + "]")
-    Print("")
-
-    # Display results on screen
-    gFont <- MakeFont(gPEBLBaseFont, 0, 24, MakeColor("black"), MakeColor("grey"), 1)
-
-    y <- 250
-    result <- MakeLabel("Participant ID: " + subnum, gFont)
-    AddObject(result, gWin)
-    Move(result, gVideoWidth/2, y)
-
-    y <- y + 50
-    langInfo <- MakeLabel("Language: " + gLanguage + " | Locale: " + systemLocale, gFont)
-    AddObject(langInfo, gWin)
-    Move(langInfo, gVideoWidth/2, y)
-
-    y <- y + 80
-    instruction <- MakeLabel("Press any key to exit", gFont)
-    AddObject(instruction, gWin)
-    Move(instruction, gVideoWidth/2, y)
-
-    Draw()
-    WaitForAnyKeyPress()
-
-    Print("Test complete.")
+  ## Display what was entered
+  RemoveObject(textbox, gWin)
+  RemoveObject(prompt, gWin)
+  result <- EasyLabel("You entered: " + name, gVideoWidth/2, 200, gWin, 30)
+  Draw()
+  Wait(3000)
 }

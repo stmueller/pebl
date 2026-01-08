@@ -39,25 +39,25 @@ The Layout & Response System provides:
 
 ## Overall Migration Status
 
-**Last Updated**: December 15, 2025 (stroop-vic Category 3 migration complete with practice-to-criterion + 12-language support)
+**Last Updated**: December 16, 2025 (corsi Category 3 migration complete)
 
 ### Summary Statistics
 
 - **Total tests in upload-battery**: 52
 - **Fully migrated** (Layout + Response): 18 tests (35%) - **All 7 Category 1 tests complete** ✅
-- **Need response mode extensions**: 5 tests (10%) - requires 4-choice grid or 4-way directional modes
-- **Layout-only migration**: 15 tests (29%) - includes Stroop tests (4-choice keyboard with verbal interference) and custom response tasks
-- **Not suitable for migration**: 14 tests (27%)
+- **Need response mode extensions**: 2 tests (4%) - requires 4-way directional mode
+- **Layout-only migration**: 12 tests (23%) - **5 of 12 complete** (includes Stroop tests, Corsi, and custom response tasks)
+- **Not suitable for migration**: 20 tests (38%) - integrated interfaces, surveys, mouse tracking
 
 **Available response modes:**
-- **2-option modes**: auto, keyboardShift, keyboardSafe, arrowLR, mousetarget, touchtarget, mousebutton
+- **2-option modes**: auto, keyboardShift, keyboardSafe, arrowLR, mousetarget, touchtarget, mousebutton, **userselect** (new, Jan 2026)
 - **Single-response modes**: spacebar, leftclick, touchscreen, clicktarget
-- **Specialized modes**: mouseOnly (for drawing/clicking tasks)
+- **Specialized modes**: mouseOnly (for drawing/clicking tasks), none (for layout-only migrations)
 
 **Migration achievements:**
 - **Full migration** (Layout + Response): 18 tests (35%) - **All 7 Category 1 tests complete Dec 15, 2025** ✅
-- **With response extensions**: 23 tests (44%) - add 5 Category 2 tests (next phase)
-- **Layout-only migration**: 38 tests (73%) - add 15 Category 3 tests for UI consistency (optional phase)
+- **With response extensions**: 20 tests (38%) - add 2 Category 2 tests (maze, antisaccade) after 4-way directional mode
+- **Layout-only migration**: 28 tests (54%) - **5 of 12 Category 3 tests complete Dec 16, 2025** 🔄
 
 ## Semantic Label Migration Status
 
@@ -222,21 +222,16 @@ This section provides a comprehensive assessment of all remaining upload-battery
 
 | Test | Priority | Layout | Response | Input Type | Response Mode Needed | Notes |
 |------|----------|--------|----------|------------|---------------------|-------|
-| **bcst** | 🔴 HIGH | ✅ EASY | 🔧 NEEDS_EXTENSION | kbd (1-4 keys) | 4-choice grid | Card sorting - HAS keyboard variant with 4-choice response |
-| **iowa** | 🟡 MEDIUM | ✅ EASY | 🔧 NEEDS_EXTENSION | kbd (1-4 keys) | 4-choice grid | Gambling task - HAS keyboard variant with 4-choice response |
 | **maze** | 🔴 HIGH | ✅ EASY | 🔧 NEEDS_EXTENSION | kbd (arrows) | 4-way directional | Needs up/down/left/right arrows + on-screen buttons for touch |
 | **antisaccade** | 🔴 HIGH | ✅ EASY | 🔧 NEEDS_EXTENSION | kbd (arrows) | 4-way directional | Uses 3-4 arrow keys for directional judgments, timing critical |
-| **fourchoice** | 🟡 MEDIUM | ✅ EASY | 🔧 NEEDS_EXTENSION | kbd (4 keys) | 4-choice grid | 4-alternative forced choice |
 
 **Migration Notes:**
-- **bcst** and **iowa**: Verified to have keyboard variants using `WaitForListKeyPress(["1","2","3","4"])` - good migration candidates once 4-choice mode implemented
 - **maze** and **antisaccade**: Require 4-way directional response mode (arrow keys + on-screen directional buttons)
 - **antisaccade**: Verified to use `["<left>","<right>","<up>","<down>"]` or 3-way variant - cannot use 2-alternative response system
-- **fourchoice**: Standard 4-alternative forced choice
-- All require new response mode implementations (see "Response Mode Extensions Needed" section below)
+- Both require new response mode implementation (see "Response Mode Extensions Needed" section below)
 
 **Estimated effort**:
-- Response mode development: 8-10 hours per mode (one-time, reusable)
+- Response mode development: 8-10 hours (one-time, reusable)
 - Per-test migration: 2-3 hours each after mode implemented
 
 ---
@@ -252,10 +247,8 @@ This section provides a comprehensive assessment of all remaining upload-battery
 | ~~**ptrails**~~ | ✅ **COMPLETE** | ✅ EASY | ❌ INCOMPATIBLE | mouse clicks | **MIGRATED Dec 15, 2025** - Trailmaking test with header-only layout (responseMode=0), 700×500 field maintained, 8 duplicate functions removed (VecTimes/VecSum/Dist→Math.pbl, RemoveSubset/Insert/Rest→Design.pbl, WaitForDownClick→Utility.pbl, GetMinDist→Graphics.pbl), ArgMin/ArgMax bug fixed |
 | ~~**stroop-vic**~~ | ✅ **COMPLETE** | ✅ EASY | ❌ INCOMPATIBLE | kbd (4 keys) | **MIGRATED Dec 15, 2025** - Victoria Stroop with responseMode=0, practice-to-criterion (congruent stimuli, ≤2 errors, 4 rounds max), 12 translations (de, fr, he, hr added), brightened colors |
 | **switcher** | 🟡 MEDIUM | ✅ EASY | ❌ INCOMPATIBLE | mouse clicks | Task switching - requires mouse click response |
-| **corsi** | 🟡 MEDIUM | ⚠️ MODERATE | ❌ INCOMPATIBLE | mouse clicks | Spatial span with click sequence |
+| ~~**corsi**~~ | ✅ **COMPLETE** | ⚠️ MODERATE | ❌ INCOMPATIBLE | mouse clicks | **MIGRATED Dec 16, 2025** - Corsi Block Test with responseMode=0, adaptive instruction textbox |
 | **dspan** | 🟡 MEDIUM | ✅ EASY | ❌ INCOMPATIBLE | kbd (digits) | Digit span - needs numeric keypad input (10 keys) |
-| **toh** | 🟡 MEDIUM | ⚠️ MODERATE | ❌ INCOMPATIBLE | mouse clicks | Tower of Hanoi - drag/click disks |
-| **tol** | 🟡 MEDIUM | ⚠️ MODERATE | ❌ INCOMPATIBLE | mouse clicks | Tower of London - similar to ToH |
 | **bcst-64** | 🟡 MEDIUM | ⚠️ MODERATE | ❌ INCOMPATIBLE | mouse clicks | 64-card variant (no keyboard mode) |
 | **BART** | 🟡 MEDIUM | ⚠️ MODERATE | ❌ INCOMPATIBLE | mouse clicks | Balloon analog risk task - click to inflate |
 | **urns** | 🟢 LOW | ⚠️ MODERATE | ❌ INCOMPATIBLE | mouse clicks | Probabilistic choice task |
@@ -384,6 +377,115 @@ The Layout system creates these elements as `gLayout` properties:
 
 **This lesson applies to all Category 3 migrations going forward.**
 
+#### Using the "none" Response Mode (Dec 15, 2025)
+
+**Added December 15, 2025**: A new response mode `"none"` was added specifically for Category 3 migrations that use Layout zones but don't need any response UI elements.
+
+**What is the "none" mode?**
+
+The `"none"` response mode tells CreateLayout() to skip creating response labels and borders entirely. This eliminates the need for boilerplate cleanup code that was previously required when using `responseMode=0`.
+
+**When to use "none":**
+
+- Category 3 migrations (layout zones only, no Response System)
+- Tasks that handle responses directly with custom code (e.g., Stroop tests with 4-choice keyboard input)
+- Tasks that use mouse clicking on custom stimuli (e.g., ptrails)
+- Any task that needs Layout zones (header, footer, centerX/Y) but not response UI elements
+
+**How to use "none" mode:**
+
+**BEFORE (using responseMode=0, required manual cleanup):**
+```pebl
+## Old approach - pass 0 to CreateLayout
+CreateLayout("stroop-color", gWin, 0)
+
+## This created empty response label lists, but still showed footer
+## Manual cleanup was required:
+if(PropertyExists(gLayout, "responseLabels"))
+{
+  loop(label, gLayout.responseLabels)
+  {
+    Hide(label)
+  }
+}
+
+if(PropertyExists(gLayout, "responseBorders"))
+{
+  loop(border, gLayout.responseBorders)
+  {
+    Hide(border)
+  }
+}
+
+Hide(gLayout.footer)  ## Footer had to be hidden manually
+```
+
+**AFTER (using responsemode="none", no cleanup needed):**
+```pebl
+## New approach - set responsemode="none" in params
+gParams.responsemode <- "none"
+CreateLayout("stroop-color", gWin, gParams)
+
+## Footer is hidden by "none" mode
+## responseLabels and responseBorders are empty arrays
+## No cleanup code needed!
+```
+
+**Complete migration pattern:**
+
+```pebl
+define Start(p)
+{
+  gWin <- MakeWindow("black")
+
+  ## Load parameters (don't include responsemode in parpairs - we'll override it)
+  parpairs <- [["reps", 20], ["isi", 1000]]
+  gParams <- CreateParameters(parpairs, gParamFile)
+  GetStrings(gLanguage)
+
+  ## Get subject number, create data file, etc.
+  ## ...
+
+  ## Set responsemode to "none" for Category 3 migration
+  gParams.responsemode <- "none"
+
+  ## Create layout - no response UI will be created
+  gLayout <- CreateLayout("taskname", gWin, gParams)
+  gLayout.header.text <- gStrings.header
+  gLayout.subheader.visible <- 0
+  ## Footer is hidden by default with "none" mode
+  ## Show it when needed in trials:
+  ## gLayout.footer.text <- "some text"
+  ## Show(gLayout.footer)
+
+  Draw()
+}
+```
+
+**Benefits of "none" mode:**
+
+1. **Eliminates boilerplate**: No need for manual cleanup loops
+2. **Clearer intent**: Code explicitly says "this layout has no response UI"
+3. **Fewer errors**: Can't forget to hide response elements
+4. **Cleaner code**: Removed 11-18 lines of cleanup per task
+
+**Tasks migrated with "none" mode (Dec 15, 2025):**
+- **stroop-color**: Eliminated 11 lines of cleanup code
+- **stroop-number**: Eliminated 14 lines of cleanup code
+- **stroop-vic**: Eliminated 18 lines of cleanup code
+
+**Comparison: responseMode=0 vs responsemode="none":**
+
+| Feature | `responseMode=0` | `responsemode="none"` |
+|---------|------------------|----------------------|
+| Creates header/footer | ✅ Yes | ✅ Yes |
+| Creates response labels | ❌ No (empty list) | ❌ No (empty list) |
+| Footer visible by default | ⚠️ Yes (must hide manually) | ✅ No (hidden automatically) |
+| Cleanup code required | ❌ Yes (11-18 lines) | ✅ No |
+| Intent clarity | ⚠️ Ambiguous | ✅ Explicit |
+
+**Migration note**: The old pattern of passing `0` to CreateLayout still works (backward compatible), but the `responsemode="none"` pattern is now preferred for new Category 3 migrations.
+
 ---
 
 ### Category 4: Not Suitable for Migration - Fundamentally Incompatible
@@ -409,15 +511,26 @@ The Layout system creates these elements as `gLayout` properties:
 | **TLX** | 🟢 LOW | N/A | N/A | mouse (forms) | NASA Task Load Index |
 | **VAScales** | 🟢 LOW | N/A | N/A | mouse (slider) | Visual analog scales |
 
+#### Integrated Interface Tasks (Click Targets as Part of Task Interface)
+
+| Test | Priority | Layout | Response | Input Type | Notes |
+|------|----------|--------|----------|------------|-------|
+| **bcst** | 🔴 HIGH | ❌ DIFFICULT | ❌ INCOMPATIBLE | mouse clicks (4 targets) | Card sorting - 4 rectangles are integrated part of interface, keyboard variant is legacy |
+| **iowa** | 🟡 MEDIUM | ❌ DIFFICULT | ❌ INCOMPATIBLE | mouse clicks (4 targets) | Gambling task - 4 deck rectangles are integrated part of interface, keyboard variant is legacy |
+| **toh** | 🟡 MEDIUM | ❌ DIFFICULT | ❌ INCOMPATIBLE | mouse clicks (4 targets) | Tower of Hanoi - 4 peg targets integrated into task interface |
+| **tol** | 🟡 MEDIUM | ❌ DIFFICULT | ❌ INCOMPATIBLE | mouse clicks (4 targets) | Tower of London - 4 peg targets integrated into task interface |
+| **fourchoice** | 🟡 MEDIUM | ❌ DIFFICULT | ❌ INCOMPATIBLE | mouse clicks (4 targets) | 4-alternative forced choice with integrated click targets |
+
 #### Specialized/Unique Requirements
 
 | Test | Priority | Layout | Response | Input Type | Notes |
 |------|----------|--------|----------|------------|-------|
 | **connections** | 🟡 MEDIUM | ⚠️ MODERATE | ❌ INCOMPATIBLE | mouse clicks | Matrix connections task - complex grid layout, works fine as-is |
-| **BNT** | 🟢 LOW | ⚠️ MODERATE | N/A | verbal/text | Boston Naming Test - requires verbal/typed responses |
+| **BNT** | 🟢 LOW | ⚠️ MODERATE | N/A | verbal/text | Berlin Numeracy Test - requires verbal/typed responses |
 | **test-simple** | N/A | N/A | N/A | N/A | Test/demo file, not a real task |
 
 **Migration Notes:**
+- **Integrated interface tasks**: These tasks have click targets (rectangles, decks, pegs) as integral parts of the task interface, not as response options that could be abstracted. The zone-based layout model doesn't apply to these complex custom interfaces. Keyboard variants exist for some but are legacy features from before mouse support was available.
 - **Mouse tracking tasks**: Cannot be adapted to keyboard-only; layout system provides minimal benefit
 - **Surveys/questionnaires**: Use form/slider interfaces, not trial-based structure; incompatible with Layout/Response paradigm
 - **Specialized tasks**: Have unique requirements (verbal responses, text entry, complex custom layouts)
@@ -428,23 +541,9 @@ The Layout system creates these elements as `gLayout` properties:
 
 ### Response Mode Extensions Needed
 
-To migrate Category 2 tests, the following response modes need to be implemented:
+To migrate Category 2 tests, the following response mode needs to be implemented:
 
-#### 1. Four-Choice Grid Mode
-
-**For**: bcst, iowa, fourchoice
-
-**Implementation**:
-- **Keyboard**: Number keys 1-4 or letter keys (Q/W/E/R)
-- **Mouse**: 2x2 grid of click targets in response zone
-- **Touch**: Same as mouse
-- **Semantic responses**: "choice1", "choice2", "choice3", "choice4" (or semantic labels like "deck1", "deck2", etc.)
-
-**Visual layout**: 2x2 grid of clickable targets in response zone
-
-**Estimated development**: 8-10 hours
-
-#### 2. Four-Way Directional Mode
+#### Four-Way Directional Mode
 
 **For**: maze, antisaccade
 
@@ -458,19 +557,7 @@ To migrate Category 2 tests, the following response modes need to be implemented
 
 **Estimated development**: 8-10 hours
 
-#### 3. Numeric Keypad Mode (Optional, Low Priority)
-
-**For**: dspan (if migration desired)
-
-**Implementation**:
-- **Keyboard**: Number keys 0-9
-- **Mouse**: On-screen numeric keypad (3x4 grid)
-- **Touch**: Same as mouse
-- **Semantic responses**: "0" through "9"
-
-**Visual layout**: 3x4 numeric keypad in response zone
-
-**Estimated development**: 6-8 hours
+**Note**: Other previously-planned response modes (4-choice grid, numeric keypad) are no longer needed as the tasks that would have used them (bcst, iowa, fourchoice, toh, tol, dspan) have been moved to Category 4 (won't migrate) due to having integrated interface designs incompatible with the zone-based layout model.
 
 ---
 
@@ -487,23 +574,20 @@ To migrate Category 2 tests, the following response modes need to be implemented
 6. ✅ **clocktest** - COMPLETE (Dec 14, 2025) - Mackworth Clock vigilance task with 3 modes (spacebar/leftclick/touchscreen), custom zones (500px stimulus on 800x600), 7 translations, adaptive clock radius (240px max)
 7. ✅ **ppvt** - COMPLETE (Dec 15, 2025) - PVT (Psychomotor Vigilance Task) with 4 modes (spacebar/leftclick/touchscreen/clicktarget), 11 translations, platform-independent instructions
 
-#### Medium Priority: Category 2 Tests (5 tests - after response modes implemented)
-
-**Requires 4-choice grid mode first**:
-1. **bcst** - Card sorting (keyboard variant exists)
-2. **iowa** - Gambling task (keyboard variant exists)
-3. **fourchoice** - Standard 4-alternative choice
+#### Medium Priority: Category 2 Tests (2 tests - after response mode implemented)
 
 **Requires 4-way directional mode first**:
-4. **maze** - Spatial navigation
-5. **antisaccade** - Directional judgment (timing critical, widely used)
+1. **maze** - Spatial navigation
+2. **antisaccade** - Directional judgment (timing critical, widely used)
 
 **Estimated total effort**:
-- Response mode development: 16-20 hours (both modes)
-- Test migrations: 10-15 hours (5 tests)
-- **Total**: 26-35 hours
+- Response mode development: 8-10 hours (one-time, reusable)
+- Test migrations: 4-6 hours (2 tests)
+- **Total**: 12-16 hours
 
-#### Lower Priority: Category 3 Tests (15 tests - layout-only)
+**Note**: bcst, iowa, toh, tol, and fourchoice have been moved to Category 4 (won't migrate) as they have integrated click target interfaces incompatible with the zone-based layout model.
+
+#### Lower Priority: Category 3 Tests (12 tests - layout-only)
 
 These tests can be migrated to use layout zones for UI consistency, but must keep custom response handling:
 
@@ -511,18 +595,20 @@ These tests can be migrated to use layout zones for UI consistency, but must kee
 - ~~**stroop-color**~~ ✅, ~~**stroop-number**~~ ✅, ~~**stroop-vic**~~ ✅ - All Stroop tests migrated (Dec 14-15, 2025)
 
 **Medium priority (custom response requirements):**
-- **switcher**, **ptrails**, **connections**, **corsi**, **dspan**, **toh**, **tol**, **bcst-64**, **BART**, **urns**, **tapping**, **timewall**
+- ~~**ptrails**~~ ✅ (COMPLETE Dec 15, 2025)
+- **switcher**, **connections**, **corsi**, **dspan**, **bcst-64**, **BART**, **urns**, **tapping**, **timewall** (8 remaining)
 
-**Recommendation**: Defer until Category 1 and 2 are complete. Benefit is primarily UI consistency. Stroop tests are high priority due to widespread use.
+**Recommendation**: Defer until Category 1 and 2 are complete. Benefit is primarily UI consistency.
 
 **Estimated effort**: 3-4 hours per test (layout adaptation only)
 
-#### Not Recommended: Category 4 Tests (14 tests)
+#### Not Recommended: Category 4 Tests (19 tests)
 
 These tests should NOT be migrated:
+- Integrated interface tasks: bcst, iowa, toh, tol, fourchoice
 - Mouse tracking: pursuitrotor, fitts, toav
 - Surveys: bigfive, SSSQ, SUS, tiredness, TLX, VAScales
-- Specialized: BNT, test-simple
+- Specialized: connections, BNT, test-simple
 
 ---
 
@@ -604,21 +690,21 @@ bin/pebl2 battery/taskname/taskname.pbl -s 1 --pfile params/taskname-arrowLR.par
 **Total upload-battery tests**: 52
 
 **Migration status breakdown:**
-- ✅ **Already migrated**: 22 tests (42%) - **All 7 Category 1 tests + 4 Category 3 tests complete** ✅
-- 🟡 **Category 2** (needs response extensions): 5 tests (10%)
-- 🟠 **Category 3** (layout-only): 10 tests remaining (19%)
-- 🔴 **Category 4** (not suitable): 15 tests (29%)
+- ✅ **Already migrated**: 23 tests (44%) - **All 7 Category 1 tests + 5 Category 3 tests complete** ✅
+- 🟡 **Category 2** (needs response extensions): 2 tests (4%)
+- 🟠 **Category 3** (layout-only): 7 tests remaining (13%)
+- 🔴 **Category 4** (not suitable): 20 tests (38%)
 
 **Realistic migration targets:**
 - **Full migration** (Layout + Response): 18 tests (35% of battery) ✅ **COMPLETE**
   - All 7 Category 1 tests complete (100%)
-- **With response mode extensions**: 23 tests (44% of battery)
-  - Add 5 Category 2 tests after implementing new modes (4-choice grid, 4-way directional)
-- **Layout-only** (UI consistency): 32 tests (62% of battery) - **4 of 14 complete** 🔄
-  - Completed: stroop-color, stroop-number, ptrails, stroop-vic (Dec 14-15, 2025)
-  - Remaining: 10 Category 3 tests with custom response handling
+- **With response mode extensions**: 20 tests (38% of battery)
+  - Add 2 Category 2 tests after implementing 4-way directional mode
+- **Layout-only** (UI consistency): 28 tests (54% of battery) - **5 of 12 complete** 🔄
+  - Completed: stroop-color, stroop-number, ptrails, stroop-vic, corsi (Dec 14-16, 2025)
+  - Remaining: 7 Category 3 tests with custom response handling
 
-**Not recommended for migration**: 15 tests (29% of battery)
+**Not recommended for migration**: 20 tests (38% of battery)
 
 ---
 
@@ -635,60 +721,401 @@ bin/pebl2 battery/taskname/taskname.pbl -s 1 --pfile params/taskname-arrowLR.par
 8. **Status**: All 18 Category 1 tests complete (100%) ✅
 9. **Achievement**: Full multi-platform support for ALL standard 2-choice and single-response tasks
 
-**Phase 2: Implement response mode extensions (Medium-term)**
-1. Develop 4-choice grid response mode
-2. Develop 4-way directional response mode
-3. Estimated: 16-20 hours total
-4. **Impact**: Enables migration of 5 additional high-value tests
+**Phase 2: Implement response mode extension (Medium-term)**
+1. Develop 4-way directional response mode
+2. Estimated: 8-10 hours total
+3. **Impact**: Enables migration of 2 additional tests (maze, antisaccade)
 
 **Phase 3: Migrate Category 2 tests (After Phase 2)**
-1. Migrate bcst, iowa, fourchoice, maze, antisaccade
-2. Estimated: 10-15 hours total
-3. **Impact**: Brings total to 23 fully-migrated tests (44% of battery)
+1. Migrate maze, antisaccade
+2. Estimated: 4-6 hours total
+3. **Impact**: Brings total to 20 fully-migrated tests (38% of battery)
 
 **Phase 4: Consider Category 3 layout-only migrations (Optional)**
-1. Migrate Stroop tests (high priority - widely used), switcher, ptrails, corsi, dspan, etc. for UI consistency
-2. Keep custom response handling (Stroop tests require 4-choice keyboard with verbal interference)
-3. Estimated: 45-60 hours total (15 tests)
-4. **Impact**: UI consistency across 73% of battery, including high-value Stroop tests
+1. Migrate remaining Category 3 tests (switcher, corsi, dspan, bcst-64, BART, urns, tapping, timewall) for UI consistency
+2. Keep custom response handling
+3. Estimated: 24-32 hours total (8 tests)
+4. **Impact**: UI consistency across 54% of battery
 
-**Key Principle**: Focus migration efforts on tests that provide clear benefits (platform compatibility, user configurability, consistent UX). Accept that ~27% of battery tests have specialized requirements that justify custom implementations.
+**Key Principle**: Focus migration efforts on tests that provide clear benefits (platform compatibility, user configurability, consistent UX). Accept that ~38% of battery tests have specialized requirements (integrated interfaces, surveys, mouse tracking) that justify custom implementations or are fundamentally incompatible with the Layout/Response paradigm.
+
+---
+
+### userselect Response Mode
+
+**Added**: January 6, 2026
+
+The `userselect` response mode allows users to select their own response keys at runtime. This provides accessibility for users with non-QWERTY keyboard layouts (Dvorak, AZERTY, international keyboards) and users who prefer alternative key mappings.
+
+**Mode definition** (`media/settings/response-modes.json`):
+```json
+"userselect": {
+  "type": "userselect",
+  "platforms": ["all"],
+  "comment": "User selects their own keys at runtime - accessible for all keyboard layouts",
+  "prompts": {
+    "selectLeft": "Press the key you want to use for LEFT responses",
+    "selectRight": "Now press the key for RIGHT responses",
+    "errorSpecialKey": "That key cannot be used (modifier/function keys not allowed).\\n\\nPress any key to try again",
+    "errorSameKey": "Keys must be different!\\n\\nPress any key to try again",
+    "confirmKeys": "LEFT: {LEFT}    RIGHT: {RIGHT}\\n\\nLet's test them out!\\nPress your LEFT key now",
+    "testRight": "Good! Now press your RIGHT key",
+    "errorWrongLeft": "That was the RIGHT key, not the LEFT key!\\n\\nPress any key to start over",
+    "errorWrongRight": "That was the LEFT key, not the RIGHT key!\\n\\nPress any key to start over"
+  }
+}
+```
+
+**How it works:**
+
+1. **Interactive selection**: At the start of the task, users are prompted to select their own response keys
+2. **Key validation**: Blocks problematic keys (shift, ctrl, alt, function keys) but allows arrows, space, return, escape, and regular keys
+3. **Confirmation test**: Users practice their selected keys to confirm they work correctly
+4. **Session caching**: Selected keys persist across multiple tasks in the same session (stored in `gUserSelectedMode`)
+5. **Semantic adaptation**: Automatically adapts to the task's semantic requirements (left/right, response, up/down/left/right, etc.)
+
+**Allowed keys:**
+- Regular letter and number keys (a-z, 0-9)
+- Arrow keys (`<left>`, `<right>`, `<up>`, `<down>`)
+- Action keys (`<space>`, `<return>`, `<escape>`)
+- Keypad keys (`<kp_0>` through `<kp_9>`, `<kp_enter>`)
+
+**Blocked keys:**
+- Modifier keys (shift, ctrl, alt, meta)
+- Function keys (F1-F12)
+- Other special keys that may cause system conflicts
+
+**When to use userselect:**
+
+- Tasks that need to be accessible across different keyboard layouts
+- International deployments where QWERTY assumptions don't hold
+- Users with physical disabilities who need custom key mappings
+- Tasks where standard keyboard modes (shift keys, Z/slash, arrows) are not suitable
+- As an optional mode alongside standard keyboard modes for maximum flexibility
+
+**How to add userselect to a task:**
+
+1. Add `"userselect"` to the responsemode options in `params/taskname.pbl.schema.json`:
+```json
+{
+  "name": "responsemode",
+  "type": "string",
+  "default": "auto",
+  "options": ["auto", "keyboardShift", "keyboardSafe", "arrowLR", "userselect", "mousetarget", "mousebutton"],
+  "description": "Response method: auto (platform-aware), keyboardShift (L/R shift), keyboardSafe (Z/slash for web), arrowLR (left/right arrows), userselect (user-selected keys), mousetarget (click targets), mousebutton (L/R mouse buttons)"
+}
+```
+
+2. Create a parameter preset file `params/taskname-userselect.par.json`:
+```json
+{
+  "responsemode": "userselect"
+}
+```
+
+3. Test the task with userselect mode:
+```bash
+bin/pebl2 battery/taskname/taskname.pbl -s 1 --pfile params/taskname-userselect.par.json
+```
+
+**No changes to the main .pbl file are needed.** The Layout & Response System automatically handles userselect mode when specified as the responsemode parameter.
+
+**Session caching behavior:**
+
+When a user selects keys in userselect mode, the selection is cached in the global variable `gUserSelectedMode`. This means:
+- If multiple tasks use userselect in the same session, the user only needs to select keys once
+- Keys persist across task boundaries within a session
+- Starting a new PEBL session requires reselecting keys
+
+To force key reselection (useful for testing):
+```pebl
+## In Start() function, before CreateLayout()
+gUserSelectedMode <- 0  ## Clear cached selection
+```
+
+**Example usage in a battery:**
+
+```bash
+## User runs first task with userselect
+bin/pebl2 battery/simon/simon.pbl -s 1 --pfile params/simon-userselect.par.json
+## User selects keys: 'd' for left, 'k' for right
+
+## User runs second task - keys are already selected
+bin/pebl2 battery/flanker/flanker.pbl -s 1 --pfile params/flanker-userselect.par.json
+## No key selection needed - 'd' and 'k' are reused
+```
+
+---
+
+### responsesemantics Parameter
+
+**Added**: January 6, 2026
+
+The `responsesemantics` parameter allows tasks to explicitly specify WHAT responses they need, independent of HOW those responses are captured. This separates the semantic requirements from the input mode implementation.
+
+**IMPORTANT: Set in code, NOT in schema**
+
+`responsesemantics` is an **internal implementation detail** that should be set in your task code, NOT exposed as a user-settable parameter in the schema. Users don't need to configure semantic requirements - that's determined by your task design.
+
+**Key principle: Separation of WHAT and HOW**
+
+- **WHAT** (semantic requirements): Does the task need "left/right" responses? "response" for go/no-go? "up/down/left/right" for 4-way directional?
+- **HOW** (response mode): Are responses captured via keyboard? Mouse? Touch? User-selected keys?
+
+### Canned Semantic Labels
+
+For common response patterns, use canned labels instead of explicit lists:
+
+| Label | Expands To | Use Case |
+|-------|-----------|----------|
+| `"2afc"` | `["left", "right"]` | Two-alternative forced choice tasks |
+| `"gonogo"` or `"singlekey"` | `["response"]` | Go/no-go, continuous performance tasks |
+| `"4way"` | `["up", "down", "left", "right"]` | Directional navigation tasks (maze, antisaccade) |
+| `"numbers"` | `["1", "2", "3", "4", "5", "6", "7", "8", "9"]` | Multi-alternative numeric choice tasks |
+
+You can also use explicit lists for custom semantic labels:
+```pebl
+gParams.responsesemantics <- ["red", "blue"]      ## Custom colors
+gParams.responsesemantics <- ["same", "different"] ## Matching judgment
+gParams.responsesemantics <- ["odd", "even"]      ## Parity judgment
+```
+
+### Where to Set responsesemantics
+
+Set `responsesemantics` in your `Start()` function, AFTER `CreateParameters()` and BEFORE `CreateLayout()`:
+
+```pebl
+define Start(p)
+{
+  gWin <- MakeWindow("black")
+
+  ## Load parameters
+  parpairs <- [["reps", 10],
+               ["responsemode", "auto"]]
+  gParams <- CreateParameters(parpairs, gParamFile)
+
+  ## Set semantic requirements (NOT in schema!)
+  gParams.responsesemantics <- "2afc"  ## Or custom list
+
+  ## Create layout - userselect will use this
+  gLayout <- CreateLayout("taskname", gWin, gParams)
+}
+```
+
+### Real-World Examples
+
+**Example 1: manikin.pbl (2-alternative spatial task)**
+```pebl
+## After CreateParameters:
+gParams <- CreateParameters(parpairs, gParamFile)
+
+## Set semantic requirements - task measures left/right hand identification
+gParams.responsesemantics <- "2afc"  ## Or: ["left", "right"]
+
+## Create layout
+gLayout <- CreateLayout("manikin", gWin, gParams)
+
+## In trials: WaitForLayoutResponse() returns "left" or "right"
+## Works with ANY response mode (keyboard, mouse, touch, userselect)
+```
+
+**Example 2: gonogo.pbl (single-response go/no-go task)**
+```pebl
+## After CreateParameters:
+gParams <- CreateParameters(parpairs, gParamFile)
+
+## Set semantic requirements - task measures go responses only
+gParams.responsesemantics <- "gonogo"  ## Or: ["response"]
+
+## Create layout
+gLayout <- CreateLayout("gonogo", gWin, gParams)
+
+## In trials: WaitForLayoutResponse() returns "response" or "<timeout>"
+## Works with spacebar, leftclick, touchscreen, clicktarget modes
+```
+
+**Example 3: simon.pbl (2-alternative with interactive practice)**
+```pebl
+## After CreateParameters:
+gParams <- CreateParameters(parpairs, gParamFile)
+
+## Set semantic requirements - task measures color discrimination
+gParams.responsesemantics <- "2afc"  ## Primary task responses
+
+## Create layout
+gLayout <- CreateLayout("simon", gWin, gParams)
+
+## Interactive practice loop:
+resp <- WaitForLayoutResponseOrExit(gLayout, [gContinueButtonBorder])
+
+if(resp == "exit")
+{
+   ## Continue/advance workflow
+   practiceActive <- 0
+}
+elseif(resp == "left")
+{
+   ## Primary task response
+   Show(stimA)
+}
+elseif(resp == "right")
+{
+   ## Primary task response
+   Show(stimB)
+}
+```
+
+### CRITICAL: responsesemantics is for PRIMARY task responses ONLY
+
+**Do NOT include navigation controls in responsesemantics:**
+
+❌ **WRONG**: `gParams.responsesemantics <- ["left", "right", "continue"]`
+✅ **CORRECT**: `gParams.responsesemantics <- "2afc"`  ← Primary responses only
+
+**Navigation controls** (continue, exit, advance) are **separate infrastructure** provided by the Layout & Response System:
+
+- **Keyboard modes**: Spacebar advances/continues (standard convention)
+- **Mousebutton mode**: Middle button advances/continues
+- **Mousetarget mode**: Continue button click advances/continues
+
+These are handled automatically by `WaitForLayoutResponseOrExit()` and are NOT part of your task's semantic requirements.
+
+**Why this separation is important:**
+
+1. **Task semantics** = experimental responses you're measuring:
+   - "left" / "right" - spatial judgments
+   - "red" / "blue" - color discrimination
+   - "same" / "different" - matching judgments
+   - "response" - go/no-go detection
+
+2. **Navigation controls** = UI affordances, NOT experimental responses:
+   - Continue through instructions
+   - Exit from practice
+   - Advance between blocks
+   - These are interface elements, not data points
+
+### userselect Mode and responsesemantics
+
+When using userselect mode:
+
+1. **User selects keys for PRIMARY responses only** (the semantics you specify)
+2. **Continue/exit is ALWAYS spacebar** (standard keyboard convention, not user-selected)
+3. **Clear prompts** based on your semantic labels
+
+**Example with userselect:**
+```pebl
+gParams.responsemode <- "userselect"
+gParams.responsesemantics <- "2afc"
+gLayout <- CreateLayout("manikin", gWin, gParams)
+
+## Prompts user will see:
+## "Press the key you want to use for LEFT responses"  [user presses 'd']
+## "Press the key you want to use for RIGHT responses" [user presses 'k']
+
+## During task:
+resp <- WaitForLayoutResponse(gLayout)  ## Returns "left" or "right"
+
+## During instructions:
+resp <- WaitForLayoutResponseOrExit(gLayout, [exitTargets])
+## Spacebar still exits (not user-selected)
+```
+
+### Default Behavior (backward compatibility)
+
+If you DON'T set `responsesemantics`, the system infers it from the default response mode:
+
+```pebl
+## No explicit responsesemantics set
+gLayout <- CreateLayout("taskname", gWin, gParams)
+
+## System infers:
+## - If default mode is keyboardShift/keyboardSafe: ["left", "right"]
+## - If default mode is spacebar/leftclick: ["response"]
+## - Fallback: ["left", "right"]
+```
+
+**This maintains backward compatibility** - existing tasks work unchanged. But **best practice** is to set it explicitly for clarity.
+
+### Priority System
+
+The `GetSemanticRequirements()` function uses a 3-tier priority system:
+
+1. **Explicit specification** - If `params.responsesemantics` is set, use it
+2. **Infer from default mode** - Determine what the default response mode would be, extract its semantic list
+3. **Fallback** - Use `["left", "right"]` as last resort
+
+### Summary: Best Practices
+
+✅ **DO:**
+- Set `gParams.responsesemantics` in your task code
+- Use canned labels for common patterns (`"2afc"`, `"gonogo"`, `"4way"`)
+- Use custom lists for task-specific semantics (`["red", "blue"]`)
+- Include only primary task responses
+- Set AFTER CreateParameters, BEFORE CreateLayout
+
+❌ **DON'T:**
+- Add `responsesemantics` to your parameter schema (users shouldn't set this)
+- Include navigation controls in semantic list ("continue", "exit")
+- Mix task responses with UI affordances
+- Forget to set it when using userselect mode (it will work but prompts may be generic)
 
 ---
 
 ## Step-by-Step Migration Process
 
-### Step 1: Add responsemode Parameter
+### Step 1: Add responsemode Parameter and Set responsesemantics
 
 **File**: `params/taskname.pbl.schema.json`
 
-Add a new parameter to your schema:
+Add the responsemode parameter to your schema (users CAN configure this):
 
 ```json
 {
   "name": "responsemode",
   "type": "string",
   "default": "auto",
-  "options": ["auto", "keyboardShift", "keyboardSafe", "mousetarget", "mousebutton"],
+  "options": ["auto", "keyboardShift", "keyboardSafe", "arrowLR", "userselect", "mousetarget", "mousebutton"],
   "label": "Response Mode",
-  "description": "Response method: auto (platform-aware), keyboardShift (L/R shift), keyboardSafe (Z/slash for web), arrowLR (left/right arrows), mousetarget (click targets), mousebutton (L/R mouse buttons)"
+  "description": "Response method: auto (platform-aware), keyboardShift (L/R shift), keyboardSafe (Z/slash for web), arrowLR (left/right arrows), userselect (user-selected keys), mousetarget (click targets), mousebutton (L/R mouse buttons)"
 }
 ```
 
+**IMPORTANT: Do NOT add responsesemantics to schema**
+
+The `responsesemantics` parameter is an internal implementation detail that should be set in your task code, NOT exposed as a user-settable parameter. Users don't need to configure what semantic responses your task measures - that's determined by your experimental design.
+
 **File**: Main `.pbl` script (in `Start()` function)
 
-Add to parameter pairs:
+Add responsemode to parameter pairs, and set responsesemantics in code:
 
 ```pebl
 ## BEFORE
 parPairs <- [["reps", 10],
              ["isi", 500]]
 
+gParams <- CreateParameters(parpairs, gParamFile)
+
 ## AFTER
 parPairs <- [["reps", 10],
              ["isi", 500],
-             ["responsemode", "auto"]]  ## NEW
+             ["responsemode", "auto"]]  ## NEW - in schema
+
+gParams <- CreateParameters(parpairs, gParamFile)
+
+## Set semantic requirements (NOT in schema - in code!)
+gParams.responsesemantics <- "2afc"  ## Or: ["left", "right"]
+## Options: "2afc", "gonogo", "4way", "numbers", or custom list
+
+## Create layout - userselect will use responsesemantics
+gLayout <- CreateLayout("taskname", gWin, gParams)
 ```
+
+**Best practice**: Always set `responsesemantics` explicitly for:
+- Self-documentation (makes task requirements clear)
+- userselect mode (ensures correct prompts)
+- Future maintainability (no reliance on inference)
+
+**See the responsesemantics Parameter section above for detailed examples and canned labels.**
 
 ### Step 2: Create Layout in Start()
 
@@ -977,6 +1404,75 @@ tb <- AdaptiveTextBox(message,
                       gLayout.stimulusRegion.height - 40,
                       "scalefont")
 ```
+
+### Response Label Storage and Access
+
+**IMPORTANT**: When the Layout & Response System creates response labels, they are stored in multiple locations within the `gLayout` object. Understanding this architecture is essential if you need to customize response labels.
+
+**Response label storage locations:**
+
+1. **`gLayout.responseMode.keys`** - List of raw key codes
+   - Example: `["<lshift>", "<rshift>"]` for keyboard modes
+   - Example: `["<mouse_1>", "<mouse_3>"]` for mousebutton mode
+   - **Use when**: You need the actual key codes for `WaitForListKeyPress()` or event registration
+
+2. **`gLayout.responseMode.labels`** - List of formatted key names
+   - Example: `["left-shift", "right-shift"]` for keyboardShift mode
+   - Example: `["z", "/"]` for keyboardSafe mode
+   - Example: `["←", "→"]` for arrowLR mode
+   - **Use when**: You need human-readable key names for custom label text
+
+3. **`gLayout.responseLabels`** - List of label widget objects
+   - Example: `[leftLabelObject, rightLabelObject]`
+   - Each object has a `.text` property that can be read or modified
+   - **Use when**: You need to customize the displayed label text
+
+**Example: Customizing response labels for keyboard mode**
+
+This example shows how to customize response labels to show task-specific instructions with key names:
+
+```pebl
+## After CreateLayout(), customize labels for keyboard mode
+if(gLayout.responseMode.type == "keyboard")
+{
+  ## Get the formatted key labels from responseMode
+  leftKeyLabel <- First(gLayout.responseMode.labels)
+  rightKeyLabel <- Second(gLayout.responseMode.labels)
+
+  ## Create custom label text with substitutions
+  leftLabelText <- SubstituteStrings(gStrings.response_label_left,
+                                     [["<KEY>", leftKeyLabel],
+                                      ["<STIM>", gParams.stim1]])
+  rightLabelText <- SubstituteStrings(gStrings.response_label_right,
+                                      [["<KEY>", rightKeyLabel],
+                                       ["<STIM>", gParams.stim2]])
+
+  ## Update the actual label text
+  leftLabelObj <- First(gLayout.responseLabels)
+  rightLabelObj <- Second(gLayout.responseLabels)
+  leftLabelObj.text <- leftLabelText
+  rightLabelObj.text <- rightLabelText
+}
+```
+
+**Translation file (for the example above):**
+```json
+{
+  "RESPONSE_LABEL_LEFT": "'<KEY>' key for <STIM>",
+  "RESPONSE_LABEL_RIGHT": "'<KEY>' key for <STIM>"
+}
+```
+
+**Result**: For a task with stimuli H and S in keyboardShift mode, the labels would display as:
+- Left label: `'left-shift' key for H`
+- Right label: `'right-shift' key for S`
+
+**Key points:**
+
+- **Always use `gLayout.responseMode.labels`** for formatted key names - not `gLayout.responseMode.keys` (which contains raw codes like `"<lshift>"`)
+- **PEBL syntax limitation**: Cannot chain property access like `First(gLayout.responseLabels).text` - must extract to a variable first
+- **Customize only when needed**: The default labels are appropriate for most tasks. Only customize when you need task-specific instructions or key-to-stimulus mapping
+- **Mode-specific customization**: Check `gLayout.responseMode.type` before customizing - different modes may need different label formats
 
 ### Step 4: Replace Response Collection
 

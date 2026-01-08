@@ -9,8 +9,9 @@
     "keyboardShift": {
       "type": "keyboard",
       "keys": ["<lshift>", "<rshift>"],
-      "labels": ["LEFT-SHIFT", "RIGHT-SHIFT"],
+      "labels": ["<KEY> for <SEMANTIC>", "<KEY> for <SEMANTIC>"],
       "semantic": ["left", "right"],
+      "footerInstruction": "Use shift keys to respond",
       "platforms": ["native"],
       "comment": "Traditional - works on native, causes Sticky Keys in browser"
     },
@@ -18,39 +19,51 @@
     "keyboardSafe": {
       "type": "keyboard",
       "keys": ["z", "/"],
-      "labels": ["Z", "/"],
+      "labels": ["<KEY> for <SEMANTIC>", "<KEY> for <SEMANTIC>"],
       "semantic": ["left", "right"],
+      "footerInstruction": "Use keyboard to respond",
       "platforms": ["all"],
       "comment": "Browser-safe - no modifier keys"
+    },
+
+    "arrowLR": {
+      "type": "keyboard",
+      "keys": ["<left>", "<right>"],
+      "labels": ["<KEY> for <SEMANTIC>", "<KEY> for <SEMANTIC>"],
+      "semantic": ["left", "right"],
+      "footerInstruction": "Use arrow keys to respond",
+      "platforms": ["all"],
+      "comment": "Left/right arrow keys for two-option tasks"
     },
 
     "mousebutton": {
       "type": "mousebutton",
       "buttons": [1, 3],
-      "labels": ["LEFT-CLICK", "RIGHT-CLICK"],
+      "labels": ["<KEY> for <SEMANTIC>", "<KEY> for <SEMANTIC>"],
       "semantic": ["left", "right"],
+      "footerInstruction": "Use mouse buttons to respond",
       "platforms": ["all"],
       "comment": "Click anywhere with left/right mouse buttons"
     },
 
     "mousetarget": {
       "type": "mousetarget",
-      "labels": ["Click for LEFT", "Click for RIGHT"],
+      "labels": ["Click for <SEMANTIC>", "Click for <SEMANTIC>"],
       "semantic": ["left", "right"],
       "platforms": ["all"],
-      "hideFooter": true,
+      "footerInstruction": "Click targets to respond",
       "targetSize": {"desktop": 100, "tablet": 150, "phone": 200},
       "comment": "Click on visual targets (auto-sized by device)"
     },
 
     "touchtarget": {
       "type": "mousetarget",
-      "labels": ["Tap for LEFT", "Tap for RIGHT"],
+      "labels": ["Tap for <SEMANTIC>", "Tap for <SEMANTIC>"],
       "semantic": ["left", "right"],
       "platforms": ["all"],
-      "hideFooter": true,
+      "footerInstruction": "Tap targets to respond",
       "targetSize": {"desktop": 120, "tablet": 180, "phone": 240},
-      "comment": "Tap on visual targets for touchscreen (larger targets, no footer)"
+      "comment": "Tap on visual targets for touchscreen (larger targets)"
     },
 
     "arrow": {
@@ -74,8 +87,9 @@
     "spacebar": {
       "type": "singlekey",
       "keys": ["<space>"],
-      "labels": ["SPACEBAR"],
+      "labels": ["<KEY> for <SEMANTIC>"],
       "semantic": ["response"],
+      "footerInstruction": "Press spacebar to respond",
       "platforms": ["all"],
       "comment": "Single-key response for go-nogo and continuous performance tasks"
     },
@@ -83,8 +97,9 @@
     "leftclick": {
       "type": "mousebutton",
       "buttons": [1],
-      "labels": ["LEFT-CLICK"],
+      "labels": ["<KEY> for <SEMANTIC>"],
       "semantic": ["response"],
+      "footerInstruction": "Click anywhere to respond",
       "platforms": ["all"],
       "comment": "Single left-click response for go-nogo with mouse"
     },
@@ -92,16 +107,53 @@
     "touchscreen": {
       "type": "mousebutton",
       "buttons": [1],
-      "labels": ["TAP SCREEN"],
+      "labels": ["<KEY> for <SEMANTIC>"],
+      "semantic": ["response"],
+      "footerInstruction": "Tap screen to respond",
+      "platforms": ["all"],
+      "comment": "Single tap/touch response for go-nogo on touchscreen devices - accepts taps anywhere"
+    },
+
+    "clicktarget": {
+      "type": "mousetarget",
+      "labels": ["Click for <SEMANTIC>"],
       "semantic": ["response"],
       "platforms": ["all"],
-      "comment": "Single tap/touch response for go-nogo on touchscreen devices"
+      "footerInstruction": "Click target to respond",
+      "targetSize": {"desktop": 120, "tablet": 160, "phone": 200},
+      "comment": "Single clickable target for go-nogo with mouse"
     },
 
     "mouseOnly": {
       "type": "mouse-only",
       "platforms": ["all"],
       "comment": "Task handles mouse directly (e.g., drawing, clicking objects)"
+    },
+
+    "none": {
+      "type": "none",
+      "platforms": ["all"],
+      "comment": "No response UI - task handles responses directly or uses layout zones only (Category 3 migrations)"
+    },
+
+    "userselect": {
+      "type": "userselect",
+      "platforms": ["all"],
+      "comment": "User selects their own keys at runtime - accessible for all keyboard layouts",
+      "prompts": {
+        "selectResponse": "Press the key you want to use to respond",
+        "selectLeft": "Press the key you want to use for LEFT responses",
+        "selectRight": "Now press the key for RIGHT responses",
+        "confirmResponse": "Response key: {KEY}\n\nLet's test it out!\nPress your response key now",
+        "errorSpecialKey": "That key cannot be used (modifier/function keys not allowed).\n\nPress any key to try again",
+        "errorSameKey": "Keys must be different!\n\nPress any key to try again",
+        "confirmKeys": "LEFT: {LEFT}    RIGHT: {RIGHT}\n\nLet's test them out!\nPress your LEFT key now",
+        "testRight": "Good! Now press your RIGHT key",
+        "errorWrongLeft": "That was the RIGHT key, not the LEFT key!\n\nPress any key to start over",
+        "errorWrongRight": "That was the LEFT key, not the RIGHT key!\n\nPress any key to start over",
+        "footerTemplate": "Press {KEY1} or {KEY2}",
+        "footerTemplateSingle": "Press {KEY1}"
+      }
     }
   }
 }

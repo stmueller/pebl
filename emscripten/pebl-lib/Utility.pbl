@@ -1156,14 +1156,29 @@ define ReadCSV(filename)
 
 
     ##Add the line onto the table
-    if(not EndOfFile(file))
-     {
-	     table <- Append(table,line)
-     }
+    ## Skip blank lines (single empty or newline-only token)
+    ## but keep lines with multiple fields even if all empty (e.g., "," produces ["",""])
+    isBlankLine <- 0
+    if(Length(line) == 1)
+    {
+      token <- First(line)
+      if(token == "" or token == CR(1))
+      {
+        isBlankLine <- 1
+      }
+    }
 
-    #eat and discard the newline character
-    FileReadCharacter(file)
-    char <- FileReadCharacter(file)
+    if(not isBlankLine)
+    {
+      table <- Append(table,line)
+    }
+
+    #eat and discard the newline character (only if not at EOF)
+    if(not EndOfFile(file))
+    {
+      FileReadCharacter(file)
+      char <- FileReadCharacter(file)
+    }
 
 	}
 
@@ -1474,6 +1489,20 @@ define CountDown(win,usebg:1)
     SignalFatalError("CountDown(win) needs a window to be specified, not [" + win + "]")
   }
 
+    ## Use layout center if available, otherwise fall back to video center
+    centerX <- gVideoWidth/2
+    centerY <- gVideoHeight/2
+    if(VariableExists("gLayout"))
+    {
+      if(PropertyExists(gLayout,"centerx"))
+      {
+        centerX <- gLayout.centerX
+      }
+      if(PropertyExists(gLayout,"centery"))
+      {
+        centerY <- gLayout.centerY
+      }
+    }
 
     bgcol <- win.BGCOLOR
     if(useBG)
@@ -1482,7 +1511,7 @@ define CountDown(win,usebg:1)
       AddObject(rect,win)
     }
 
-    label <- EasyLabel("",gVideoWidth/2,gVideoHeight/2,win,100)
+    label <- EasyLabel("",centerX,centerY,win,100)
     labs <- [3,2,1]
     loop(i,labs)
      {
@@ -2089,8 +2118,15 @@ define InitializeUpload()
             ## for multi-test chains where each test gets a different participant ID
             gSubNum <- gParticipant
 
+            ## DEBUG: Check if SetWorkingDirectory is actually needed
+            ## PEBL may already set working directory to the script's directory
+            ## when called with full path to script
+            Print("InitializeUpload: Current working directory: " + GetWorkingDirectory())
+            Print("InitializeUpload: gTestName = " + gTestName)
+
+            ## COMMENTED OUT for testing - may not be needed
             ## Set working directory to the test directory so relative paths work
-            SetWorkingDirectory("/usr/local/share/pebl2/battery/" + gTestName)
+            # SetWorkingDirectory("/usr/local/share/pebl2/battery/" + gTestName)
 
             ## Create centralized data directory for MEMFS persistent storage
             ## Create directories one level at a time since MakeDirectory doesn't create parents
@@ -2420,7 +2456,7 @@ define PrintProperties(obj, recursive:1, depth:5, indent:0, visited:[])
     ## Handle non-objects
     if(not IsPEBLObject(obj))
     {
-        Print(Indent(indent) + obj)
+        Print(Indent(indent) + (obj + ""))
     } elseif(IsMember(obj, visited)) {
         ## Check if already visited (circular reference)
         Print(Indent(indent) + "[Circular reference to " + ("TYPE" + obj) + "]")
@@ -2448,7 +2484,7 @@ define PrintProperties(obj, recursive:1, depth:5, indent:0, visited:[])
                 Print(Indent(indent) + propName + ": <" + ("TYPE" + value) + ">")
                 PrintProperties(value, recursive, depth, indent + 1, visited)
             } else {
-                Print(Indent(indent) + propName + ": " + value)
+                Print(Indent(indent) + propName + ": " + (value + ""))
             }
         }
     }

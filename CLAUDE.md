@@ -36,7 +36,7 @@ make main              # Build native Linux executable (bin/pebl2)
 **WebAssembly/Emscripten Build:**
 ```bash
 make em                # Compile to WebAssembly (bin/pebl2.html, pebl2.js, pebl2.wasm)
-make fp                # Repackage data files after library changes (emscripten only)
+make em-opt            # Optimized production build with Asyncify
 ```
 
 **Other Targets:**
@@ -52,8 +52,8 @@ make doc               # Build PDF manual from LaTeX source
 - After modifying files in `pebl-lib/`, you must edit BOTH:
   - `pebl-lib/` (authoritative source)
   - `emscripten/pebl-lib/` (packaged into pebl2.data)
-  - Then run `make fp` to rebuild the data package
-- The `fp` target uses `file_packager.py` to bundle files into pebl2.data
+  - Then rebuild with `make em` or `make em-opt` to repackage the data
+- File packaging happens during compilation via `--preload-file` directives in Makefile
 - Parser changes require bison and flex installed
 
 ## Architecture
@@ -217,7 +217,7 @@ bin/pebl2 path/to/script.pbl -v subnum=123      # With subject number
 **When modifying standard library:**
 1. Edit both `pebl-lib/*.pbl` AND `emscripten/pebl-lib/*.pbl`
 2. For native: just run `bin/pebl2 test.pbl`
-3. For Emscripten: run `make fp` to repackage data files
+3. For Emscripten: run `make em-opt` to rebuild and repackage
 
 **When creating a new battery task:**
 1. Copy similar existing task from `battery/`

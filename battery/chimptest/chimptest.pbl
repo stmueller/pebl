@@ -1,0 +1,507 @@
+## PEBL Chimp Test (Number Working Memory Task)
+##
+## Based on the famous Ayumu chimp memory test
+## Participants see numbers briefly, then must click them in order
+## Tests visual/spatial working memory
+##
+## Version 1.0
+## (c) 2026 Shane T. Mueller
+
+define Start(p)
+{
+  ## Initialize upload system
+  InitializeUpload()
+
+  gScriptName <- "Chimp Test"
+
+  ## Define parameters
+  parpairs <- [["startNumbers", 4],      ## Start with this many numbers
+               ["maxNumbers", 9],         ## Maximum numbers to display
+               ["boxSizeDegrees", 1.0],   ## Size of number boxes in degrees visual angle
+               ["showDurations", [0]],    ## List of limited-hold durations for blocks (0=masking, >0=limited-hold)
+               ["practiceTrials", 3],     ## Number of practice trials
+               ["trialsPerLevel", 3],     ## Trials needed to advance
+               ["correctToAdvance", 2],   ## Correct trials needed to advance level
+               ["gridRows", 5],           ## Number of rows in grid
+               ["gridCols", 8],           ## Number of columns in grid
+               ["pixelsPerCm", 30.0],     ## Pixels per centimeter (overridden if calibrateScreen=="internal")
+               ["eyeDistance", 18.0],     ## Eye distance in inches
+               ["calibrateScreen", "internal"]] ## Screen calibration mode: "internal" or "none"
+
+  gParams <- CreateParameters(parpairs, gParamFile)
+
+  ## Setup window
+  gSleepEasy <- 1
+  gWin <- MakeWindow("black")
+  ShowCursor(1)
+
+  ## Get subject number
+  if(gSubNum+"" == "0")
+  {
+    gSubNum <- GetSubNum(gWin)
+  }
+
+  ## Load translations
+  GetStrings(gLanguage)
+
+  ## Screen calibration
+  ## Start with parameter values
+  gCalData <- gParams.pixelsPerCm
+  gEyeDistance <- gParams.eyeDistance
+  gScreenWidthPx <- gVideoWidth
+  gScreenHeightPx <- gVideoHeight
+
+  if(gParams.calibrateScreen == "internal")
+  {
+    ## Override with measured calibration
+    calResult <- CalibrateScreen(gWin)
+    gCalData <- calResult.pixelspermm * 10  ## Convert to pixels/cm
+  }
+
+  ## Calculate screen size in cm
+  gScreenWidthCm <- gVideoWidth / gCalData
+  gScreenHeightCm <- gVideoHeight / gCalData
+
+  ## Create layout (for zones only, not response system)
+  gLayout <- CreateLayout("chimptest", gWin, MakeParameterObject([["responsemode", "none"]]))
+  gLayout.header.visible <- 1
+  gLayout.header.text <- gStrings.header
+  gLayout.subheader.visible <- 1
+  gLayout.subheader.text <- gStrings.subheader
+  gLayout.footer.visible <- 1
+  gLayout.footer.text <- gStrings.footer
+
+  ## Calculate usable area within stimulus region
+  gStimX <- gLayout.stimulusRegion.x
+  gStimY <- gLayout.stimulusRegion.y
+  gStimWidth <- gLayout.stimulusRegion.width
+  gStimHeight <- gLayout.stimulusRegion.height
+
+  ## Calculate box size and grid layout
+  eyeDistanceCm <- gEyeDistance * 2.54  ## Convert inches to cm
+  eyePixelDistance <- eyeDistanceCm * gCalData  ## pixels to eye
+  gPixelsPerDegree <- Tan(DegToRad(1.0)) * eyePixelDistance  ## pixels per degree
+  gBoxSizeDegrees <- gParams.boxSizeDegrees  ## Target visual angle from parameters
+  targetBoxSize <- Round(gPixelsPerDegree * gBoxSizeDegrees)  ## Box size in pixels
+
+  ## Grid spacing (10% of box width)
+  gSpacing <- Round(targetBoxSize * 0.1)  ## pixels between boxes
+
+  ## Calculate grid dimensions needed
+  ## gridHeight = 5 boxes + 4 spaces + 2*margin
+  ## gridWidth = 8 boxes + 7 spaces + 2*margin
+  margin <- 20  ## margin around grid
+
+  neededHeight <- (gParams.gridRows * targetBoxSize) + ((gParams.gridRows - 1) * gSpacing) + (2 * margin)
+  neededWidth <- (gParams.gridCols * targetBoxSize) + ((gParams.gridCols - 1) * gSpacing) + (2 * margin)
+
+  ## Check if fits in stimulus region, scale down if needed
+  scaleFactorH <- 1.0
+  scaleFactorW <- 1.0
+
+  if(neededHeight > gStimHeight)
+  {
+    scaleFactorH <- gStimHeight / neededHeight
+  }
+  if(neededWidth > gStimWidth)
+  {
+    scaleFactorW <- gStimWidth / neededWidth
+  }
+
+  ## Use smaller scale factor (most constraining dimension)
+  scaleFactor <- Min([scaleFactorH, scaleFactorW])
+
+  ## Calculate final box size
+  gCalculatedBoxSize <- Round(targetBoxSize * scaleFactor)
+  gFinalSpacing <- Round(gSpacing * scaleFactor)
+  gMargin <- Round(margin * scaleFactor)
+
+  ## Calculate actual grid dimensions
+  gGridHeight <- (gParams.gridRows * gCalculatedBoxSize) + ((gParams.gridRows - 1) * gFinalSpacing)
+  gGridWidth <- (gParams.gridCols * gCalculatedBoxSize) + ((gParams.gridCols - 1) * gFinalSpacing)
+
+  ## Calculate font size proportional to box size (roughly 40% of box height)
+  gFontSize <- Max([12, Round(gCalculatedBoxSize * 0.4)])
+
+  ## Create data files
+  gFileOut <- GetNewDataFile(gSubNum, gWin, "chimptest-detail", "csv",
+    "subnum,trial,block,condition,showDuration,phase,level,numNumbers,clickNum,correct,clickX,clickY,targetNum,rt,pixelsPerCm,eyeDistanceCm,screenWidthCm,screenHeightCm,boxSizePixels,boxSizeDegrees,spacing")
+  gFileOutTrial <- GetNewDataFile(gSubNum, gWin, "chimptest-trial", "csv",
+    "subnum,trial,block,condition,showDuration,phase,level,stimPositions,respSequence,numCorrect,allCorrect,totalTime,pixelsPerCm,eyeDistanceCm,screenWidthCm,screenHeightCm,boxSizePixels,boxSizeDegrees,spacing")
+
+  ## Create grid positions (5 rows × 8 columns = 40 positions)
+  gGridPositions <- CreateGridPositions(gParams.gridRows, gParams.gridCols,
+                                        gStimX, gStimY, gStimWidth, gStimHeight)
+
+  ## Show instructions
+  inst <- AdaptiveTextBox(gStrings.instructions,
+                         gStimX + 20, gStimY + 20,
+                         gWin, 24,
+                         gStimWidth - 40, gStimHeight - 40,
+                         "scalefont")
+  Draw()
+  WaitForDownClick()
+  RemoveObject(inst, gWin)
+  Draw()
+
+  ## Practice phase (using first showDuration)
+  practiceShowDuration <- First(gParams.showDurations)
+  practiceCondition <- "self-timed"
+  if(practiceShowDuration > 0)
+  {
+    practiceCondition <- "timed"
+  }
+  currentLevel <- gParams.startNumbers
+  trialNum <- 1
+
+  gLayout.header.text <- gStrings.practiceHeader
+  Draw()
+
+  loop(i, Sequence(1, gParams.practiceTrials, 1))
+  {
+    result <- Trial(currentLevel, "practice", trialNum, practiceShowDuration, 0, practiceCondition)
+    trialNum <- trialNum + 1
+  }
+
+  ## Show ready message
+  inst <- AdaptiveTextBox(gStrings.ready,
+                         gStimX + 20, gStimY + 20,
+                         gWin, 24,
+                         gStimWidth - 40, gStimHeight - 40,
+                         "scalefont")
+  Draw()
+  WaitForDownClick()
+  RemoveObject(inst, gWin)
+
+  ## Main experiment - loop through blocks (one per showDuration)
+  trialNum <- 1
+  blockNum <- 0
+  allFinalLevels <- []
+
+  loop(showDuration, gParams.showDurations)
+  {
+    blockNum <- blockNum + 1
+
+    ## Determine condition label
+    condition <- "self-timed"
+    if(showDuration > 0)
+    {
+      condition <- "timed"
+    }
+
+    ## Show block instructions
+    if(Length(gParams.showDurations) > 1)
+    {
+      blockText <- SubstituteStrings(gStrings.blockInstructions, [["<BLOCK>", blockNum], ["<DURATION>", showDuration]])
+      inst <- AdaptiveTextBox(blockText,
+                             gStimX + 20, gStimY + 20,
+                             gWin, 24,
+                             gStimWidth - 40, gStimHeight - 40,
+                             "scalefont")
+      Draw()
+      WaitForDownClick()
+      RemoveObject(inst, gWin)
+    }
+
+    gLayout.header.text <- gStrings.testHeader
+    Draw()
+
+    ## Limited-hold tasks (showDuration > 0) use fixed 5 items
+    ## Masking task (showDuration = 0) uses adaptive staircase
+    if(showDuration > 0)
+    {
+      ## Limited-hold: Fixed at 5 items, multiple trials
+      numTrials <- 10
+      currentLevel <- 5
+      loop(i, Sequence(1, numTrials, 1))
+      {
+        result <- Trial(currentLevel, "test", trialNum, showDuration, blockNum, condition)
+        trialNum <- trialNum + 1
+      }
+      PushOnEnd(allFinalLevels, 5)
+    } else {
+      ## Masking task: Adaptive difficulty
+      currentLevel <- gParams.startNumbers
+      done <- 0
+
+      while(not done)
+      {
+        ## Run trials at this level
+        correctCount <- 0
+        loop(i, Sequence(1, gParams.trialsPerLevel, 1))
+        {
+          result <- Trial(currentLevel, "test", trialNum, showDuration, blockNum, condition)
+          allCorrect <- First(result)
+
+          if(allCorrect)
+          {
+            correctCount <- correctCount + 1
+          }
+
+          trialNum <- trialNum + 1
+        }
+
+        ## Check if player advances
+        if(correctCount >= gParams.correctToAdvance)
+        {
+          ## Advance to next level
+          currentLevel <- currentLevel + 1
+
+          if(currentLevel > gParams.maxNumbers)
+          {
+            done <- 1
+          }
+        } else {
+          ## Failed - end test
+          done <- 1
+        }
+      }
+
+      ## Calculate final level reached for this block
+      finalLevel <- currentLevel - 1
+      if(finalLevel < gParams.startNumbers)
+      {
+        finalLevel <- gParams.startNumbers
+      }
+      PushOnEnd(allFinalLevels, finalLevel)
+    }
+  }
+
+  ## Show debrief with results from all blocks
+  if(Length(gParams.showDurations) == 1)
+  {
+    debriefText <- SubstituteStrings(gStrings.debrief, [["<LEVEL>", First(allFinalLevels)]])
+  } else {
+    debriefText <- gStrings.debriefMultiBlock + CR(1)
+    loop(i, Sequence(1, Length(allFinalLevels), 1))
+    {
+      showDur <- Nth(gParams.showDurations, i)
+      level <- Nth(allFinalLevels, i)
+      debriefText <- debriefText + "Block " + i + " (" + showDur + "ms): Level " + level + CR(1)
+    }
+  }
+
+  inst <- AdaptiveTextBox(debriefText,
+                         gStimX + 20, gStimY + 20,
+                         gWin, 24,
+                         gStimWidth - 40, gStimHeight - 40,
+                         "scalefont")
+  Draw()
+  WaitForDownClick()
+
+  ## Upload data files
+  UploadFile(gSubNum, gFileOut.filename)
+  UploadFile(gSubNum, gFileOutTrial.filename)
+}
+
+
+## Run a single trial
+define Trial(numNumbers, phase, trialNum, showDuration, blockNum, condition)
+{
+  trialStartTime <- GetTime()
+
+  ## Randomly select grid positions for this trial
+  selectedIndices <- SampleN(Sequence(1, Length(gGridPositions), 1), numNumbers)
+  positions <- []
+  loop(idx, selectedIndices)
+  {
+    PushOnEnd(positions, Nth(gGridPositions, idx))
+  }
+
+  ## Create number labels and boxes
+  numberLabels <- []
+  boxRects <- []
+  boxTargets <- []
+
+  numberList <- Shuffle(Sequence(1, numNumbers, 1))
+
+  ## Track responses for trial summary
+  responseSequence <- []
+  numCorrectBeforeError <- 0
+
+  loop(i, Sequence(1, numNumbers, 1))
+  {
+    pos <- Nth(positions, i)
+    x <- First(pos)
+    y <- Second(pos)
+    number <- Nth(numberList, i)
+
+    ## Create white box background
+    box <- Rectangle(x, y, gCalculatedBoxSize, gCalculatedBoxSize, MakeColor("white"), 1)
+    AddObject(box, gWin)
+    PushOnEnd(boxRects, box)
+
+    ## Create number label (use calculated font size)
+    numFont <- MakeFont(gPEBLBaseFont, 0, gFontSize, MakeColor("black"), MakeColor("white"), 1)
+    numLabel <- MakeLabel(number + "", numFont)
+    AddObject(numLabel, gWin)
+    Move(numLabel, x, y)
+    PushOnEnd(numberLabels, numLabel)
+
+    ## Create invisible target rectangle for clicking
+    target <- Rectangle(x, y, gCalculatedBoxSize, gCalculatedBoxSize, MakeColor("white"), 0)
+    AddObject(target, gWin)
+    PushOnEnd(boxTargets, target)
+  }
+
+  ## Show numbers
+  Draw()
+
+  ## Now player must click in order (1, 2, 3, ...)
+  expectedNumber <- 1
+  allCorrect <- 1
+  clickNum <- 0
+  firstClickMade <- 0
+
+  ## If showDuration > 0, display briefly before allowing clicks (limited-hold task)
+  ## If showDuration = 0, numbers stay visible until first click (original masking task)
+  if(showDuration > 0)
+  {
+    Wait(showDuration)
+    ## Hide all numbers after preview
+    loop(label, numberLabels)
+    {
+      Hide(label)
+    }
+    Draw()
+    firstClickMade <- 1
+  }
+
+  while(expectedNumber <= numNumbers)
+  {
+    ## Wait for click on any target
+    startTime <- GetTime()
+    clickedIndex <- WaitForClickOnTarget(boxTargets, Sequence(1, numNumbers, 1))
+    clickTime <- GetTime()
+    rt <- clickTime - startTime
+
+    clickNum <- clickNum + 1
+
+    ## Get clicked position
+    clickedBox <- Nth(boxRects, clickedIndex)
+    clickX <- clickedBox.x
+    clickY <- clickedBox.y
+
+    ## Find which number was clicked
+    clickedNumber <- Nth(numberList, clickedIndex)
+
+    ## Track response sequence
+    PushOnEnd(responseSequence, clickedNumber)
+
+    ## Check if correct
+    correct <- (clickedNumber == expectedNumber)
+
+    if(not correct)
+    {
+      allCorrect <- 0
+    } else {
+      numCorrectBeforeError <- numCorrectBeforeError + 1
+    }
+
+    ## After first click, hide all remaining numbers (masking task)
+    if(firstClickMade == 0)
+    {
+      firstClickMade <- 1
+      loop(label, numberLabels)
+      {
+        Hide(label)
+      }
+    }
+
+    ## Change box color based on correctness
+    if(correct)
+    {
+      clickedBox.color <- MakeColor("green")
+    } else {
+      clickedBox.color <- MakeColor("red")
+    }
+
+    ## Remove the clicked target so it can't be clicked again
+    Hide(Nth(boxTargets, clickedIndex))
+
+    Draw()
+
+    ## Log this click
+    FilePrint(gFileOut, gSubNum + "," + trialNum + "," + blockNum + "," + condition + "," + showDuration + "," + phase + "," + numNumbers + "," + numNumbers + "," + clickNum + "," + correct + "," + clickX + "," + clickY + "," + clickedNumber + "," + rt + "," + gCalData + "," + (gEyeDistance * 2.54) + "," + gScreenWidthCm + "," + gScreenHeightCm + "," + gCalculatedBoxSize + "," + gBoxSizeDegrees + "," + gFinalSpacing)
+
+    ## If incorrect, stop trial
+    if(not correct)
+    {
+      Wait(500)
+      expectedNumber <- numNumbers + 1
+    } else {
+      expectedNumber <- expectedNumber + 1
+    }
+  }
+
+  ## Show feedback briefly if all correct
+  if(allCorrect)
+  {
+    Wait(300)
+  } else {
+    Wait(800)
+  }
+
+  ## Clean up objects
+  loop(label, numberLabels)
+  {
+    RemoveObject(label, gWin)
+  }
+  loop(box, boxRects)
+  {
+    RemoveObject(box, gWin)
+  }
+  loop(target, boxTargets)
+  {
+    RemoveObject(target, gWin)
+  }
+
+  Draw()
+  Wait(500)
+
+  ## Calculate total trial time
+  totalTime <- GetTime() - trialStartTime
+
+  ## Create semicolon-separated strings for stim positions and responses
+  stimPositionsStr <- ListToString(numberList, ";")
+  respSequenceStr <- ListToString(responseSequence, ";")
+
+  ## Write trial summary
+  FilePrint(gFileOutTrial, gSubNum + "," + trialNum + "," + blockNum + "," + condition + "," + showDuration + "," +
+            phase + "," + numNumbers + "," + stimPositionsStr + "," + respSequenceStr + "," +
+            numCorrectBeforeError + "," + allCorrect + "," + totalTime + "," +
+            gCalData + "," + (gEyeDistance * 2.54) + "," + gScreenWidthCm + "," + gScreenHeightCm + "," + gCalculatedBoxSize + "," + gBoxSizeDegrees + "," + gFinalSpacing)
+
+  return([allCorrect])
+}
+
+
+## Create grid of positions for number placement
+## Uses global variables: gCalculatedBoxSize, gFinalSpacing, gGridWidth, gGridHeight, gMargin
+define CreateGridPositions(rows, cols, regionX, regionY, regionWidth, regionHeight)
+{
+  ## Center the grid within the stimulus region
+  startX <- regionX + Round((regionWidth - gGridWidth) / 2)
+  startY <- regionY + Round((regionHeight - gGridHeight) / 2)
+
+  ## Create grid positions with equal spacing
+  positions <- []
+  loop(row, Sequence(0, rows - 1, 1))
+  {
+    loop(col, Sequence(0, cols - 1, 1))
+    {
+      x <- startX + (col * (gCalculatedBoxSize + gFinalSpacing))
+      y <- startY + (row * (gCalculatedBoxSize + gFinalSpacing))
+      PushOnEnd(positions, [x, y])
+    }
+  }
+
+  return(positions)
+}
+
+
+## Load translation strings
+define GetStrings(lang)
+{
+  gStrings <- GetTranslations("chimptest", lang)
+}

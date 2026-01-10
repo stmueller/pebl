@@ -597,7 +597,7 @@ deb:    main doc
 	epm -f deb $(PEBLNAME)
 
 .PHONY: appimage
-appimage: main
+appimage: main pebl-launcher validator
 	@echo "========================================="
 	@echo "Building PEBL AppImage (full rebuild)"
 	@echo "========================================="
@@ -606,10 +606,18 @@ appimage: main
 .PHONY: appimage-fast
 appimage-fast:
 	@echo "========================================="
-	@echo "Building PEBL AppImage (using existing binary)"
+	@echo "Building PEBL AppImage (using existing binaries)"
 	@echo "========================================="
 	@if [ ! -f "bin/$(PEBLNAME)" ]; then \
 		echo "ERROR: bin/$(PEBLNAME) not found. Run 'make main' or 'make appimage' first."; \
+		exit 1; \
+	fi
+	@if [ ! -f "bin/pebl-launcher" ]; then \
+		echo "ERROR: bin/pebl-launcher not found. Run 'make pebl-launcher' or 'make appimage' first."; \
+		exit 1; \
+	fi
+	@if [ ! -f "bin/pebl-validator" ]; then \
+		echo "ERROR: bin/pebl-validator not found. Run 'make validator' or 'make appimage' first."; \
 		exit 1; \
 	fi
 	./build-appimage.sh $(PEBL_VERSION) --skip-build

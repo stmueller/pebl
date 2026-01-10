@@ -32,6 +32,40 @@ A modern, native C++ launcher for PEBL experiments using SDL2 and Dear ImGui.
 - ✅ Process management (spawn child processes)
 - ✅ Configuration management
 
+## Dependencies
+
+### System Libraries
+Install via your package manager:
+
+**Ubuntu/Debian:**
+```bash
+sudo apt-get install libsdl2-dev libsdl2-image-dev
+```
+
+**Fedora/RHEL:**
+```bash
+sudo dnf install SDL2-devel SDL2_image-devel
+```
+
+### External Libraries (Manual Installation)
+
+#### Dear ImGui
+The launcher uses Dear ImGui for the user interface. Clone it into `libs/imgui/`:
+
+```bash
+cd libs/
+git clone https://github.com/ocornut/imgui.git
+cd imgui
+git checkout v1.90.1  # Or latest stable version
+```
+
+Required ImGui files (automatically compiled by Makefile):
+- `imgui.cpp`, `imgui_draw.cpp`, `imgui_widgets.cpp`, `imgui_tables.cpp`
+- `backends/imgui_impl_sdl2.cpp`, `backends/imgui_impl_sdlrenderer2.cpp`
+
+#### nlohmann/json
+The JSON library is already included as a single header file in `libs/json.hpp` (tracked in git).
+
 ## Building
 
 ### From Repository Root (Recommended)
@@ -47,8 +81,9 @@ make
 
 **Requirements:**
 - g++ with C++17 support
-- SDL2 development libraries
-- Dear ImGui (automatically included from libs/imgui)
+- SDL2 development libraries (libsdl2-dev, libsdl2-image-dev)
+- Dear ImGui (see installation above)
+- nlohmann/json (included in libs/json.hpp)
 
 **Output:**
 - Binary: `bin/pebl-launcher` (~7.4MB with study system)

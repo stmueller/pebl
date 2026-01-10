@@ -33,7 +33,7 @@ PREFIX = /usr/local/
 PEBLNAME = pebl2
 PEBLDIRNAME = "pebl2"
 EXECNAME = $(PEBLNAME)
-PEBL_VERSION = 2.2
+PEBL_VERSION = 2.3
 #USE_WAAVE=1       ##Optional; comment out to turn off waave multimedia library
 USE_NETWORK=1      ##Optional; comment out to turn off sdl_net library.
 ##USE_PORTS is set conditionally below based on target platform (native only, not emscripten)
@@ -729,8 +729,20 @@ install:
 	install -d $(DESTDIR)$(PREFIX)/$(PEBLNAME)/demo
 	install -d $(DESTDIR)$(PREFIX)/$(PEBLNAME)/tutorials
 
-	# Install executable
+	# Install executables
 	cp bin/$(PEBLNAME) $(DESTDIR)$(PREFIX)/$(PEBLNAME)/bin/$(PEBLNAME)
+
+	# Install launcher (if built)
+	@if [ -f "bin/pebl-launcher" ]; then \
+		echo "Installing pebl-launcher..."; \
+		cp bin/pebl-launcher $(DESTDIR)$(PREFIX)/$(PEBLNAME)/bin/pebl-launcher; \
+	fi
+
+	# Install validator (if built)
+	@if [ -f "bin/pebl-validator" ]; then \
+		echo "Installing pebl-validator..."; \
+		cp bin/pebl-validator $(DESTDIR)$(PREFIX)/$(PEBLNAME)/bin/pebl-validator; \
+	fi
 
 	# Install resources
 	cp -R tutorials/ $(DESTDIR)$(PREFIX)/$(PEBLNAME)/tutorials/
@@ -766,9 +778,15 @@ install:
 	cp PEBL2.desktop.install $(DESTDIR)$(PREFIX)/share/applications/PEBL2.desktop
 	rm PEBL2.desktop.install
 
-	# Optional: Create symlink in bin/ for PATH convenience
+	# Optional: Create symlinks in bin/ for PATH convenience
 	@mkdir -p $(DESTDIR)$(PREFIX)/bin
 	@ln -sf $(PREFIX)/$(PEBLNAME)/bin/$(PEBLNAME) $(DESTDIR)$(PREFIX)/bin/$(PEBLNAME) || true
+	@if [ -f "$(DESTDIR)$(PREFIX)/$(PEBLNAME)/bin/pebl-launcher" ]; then \
+		ln -sf $(PREFIX)/$(PEBLNAME)/bin/pebl-launcher $(DESTDIR)$(PREFIX)/bin/pebl-launcher || true; \
+	fi
+	@if [ -f "$(DESTDIR)$(PREFIX)/$(PEBLNAME)/bin/pebl-validator" ]; then \
+		ln -sf $(PREFIX)/$(PEBLNAME)/bin/pebl-validator $(DESTDIR)$(PREFIX)/bin/pebl-validator || true; \
+	fi
 
 ifeq (.depend,$(wildcard .depend))
 include .depend
@@ -863,3 +881,17 @@ validator-real: $(DIRS) $(VALIDATOR_OBJ) $(BASE_DIR)/lex.yy.o
 	-lpthread
 
 .PHONY: validator validator-real
+
+## PEBL Launcher target (SDL2 + ImGui GUI)
+pebl-launcher:
+	@echo "========================================="
+	@echo "Building PEBL Launcher"
+	@echo "========================================="
+	$(MAKE) -C src/apps/launcher all
+
+pebl-launcher-clean:
+	@echo "Cleaning launcher build artifacts..."
+	$(MAKE) -C src/apps/launcher clean
+	@echo "✓ Launcher artifacts cleaned"
+
+.PHONY: pebl-launcher pebl-launcher-clean

@@ -9,6 +9,7 @@
 #include "Chain.h"
 #include "WorkspaceManager.h"
 #include "SnapshotManager.h"
+#include "../../utility/BinReloc.h"
 #include "imgui.h"
 #include <SDL2/SDL_image.h>
 #include <cstring>
@@ -50,12 +51,15 @@ LauncherUI::LauncherUI(LauncherConfig* config, SDL_Renderer* renderer)
     , mShowNewChainDialog(false)
     , mShowStudySettingsDialog(false)
     , mShowFirstRunDialog(false)
+    , mShowEditParticipantCodeDialog(false)
     , mAddTestSubTab(0)
     , mQuickLaunchSelectedFile(-1)
 {
     // Initialize UI state from config
     std::strncpy(mSubjectCode, config->GetSubjectCode().c_str(), sizeof(mSubjectCode) - 1);
     mSubjectCode[sizeof(mSubjectCode) - 1] = '\0';
+    mParticipantCode[0] = '\0';
+    mStudyCode[0] = '\0';
     mQuickLaunchPath[0] = '\0';
     mQuickLaunchParamFile[0] = '\0';
 
@@ -274,6 +278,12 @@ void LauncherUI::Render(bool* p_open)
                 mRunningChain = false;
                 mCurrentChainItemIndex = -1;
 
+                // Increment participant counter for next run
+                if (mCurrentChain) {
+                    mCurrentChain->IncrementParticipantCounter();
+                    printf("Participant counter incremented to: %d\n", mCurrentChain->GetParticipantCounter());
+                }
+
                 // Clean up runner (output already accumulated)
                 if (mRunningExperiment) {
                     delete mRunningExperiment;
@@ -454,6 +464,11 @@ render_ui:
     // Show duplicate subject code warning if requested
     if (mShowDuplicateSubjectWarning) {
         ShowDuplicateSubjectWarning();
+    }
+
+    // Show edit participant code dialog if requested
+    if (mShowEditParticipantCodeDialog) {
+        ShowEditParticipantCodeDialog();
     }
 }
 
@@ -1183,14 +1198,17 @@ void LauncherUI::RenderChainTab()
     const char* currentChainName = mCurrentChain ? mCurrentChain->GetName().c_str() : "None";
     ImGui::PushItemWidth(250);
     if (ImGui::BeginCombo("##ChainSelect", currentChainName)) {
-        // "None" option
-        if (ImGui::Selectable("None", !mCurrentChain)) {
-            mCurrentChain.reset();
-        }
-
         // List chains from current study
         if (mCurrentStudy) {
             auto chainFiles = mCurrentStudy->GetChainFiles();
+
+            // Only show "None" option if no chains exist
+            if (chainFiles.empty()) {
+                if (ImGui::Selectable("None", !mCurrentChain)) {
+                    mCurrentChain.reset();
+                }
+            }
+
             for (size_t i = 0; i < chainFiles.size(); i++) {
                 std::string chainName = fs::path(chainFiles[i]).stem().string();
                 bool is_selected = (mCurrentChain &&
@@ -1202,6 +1220,11 @@ void LauncherUI::RenderChainTab()
                     LoadChain(fullChainPath);
                     printf("Loaded chain from dropdown: %s\n", chainName.c_str());
                 }
+            }
+        } else {
+            // No study loaded - show "None" option
+            if (ImGui::Selectable("None", !mCurrentChain)) {
+                mCurrentChain.reset();
             }
         }
         ImGui::EndCombo();
@@ -2137,6 +2160,13 @@ void LauncherUI::ScanExperimentDirectory(const std::string& path)
     try {
         for (const auto& entry : fs::recursive_directory_iterator(path)) {
             if (entry.is_regular_file() && entry.path().extension() == ".pbl") {
+                // Only include tests that have a .about.txt file
+                // This filters out helper scripts, stimulus generators, and experimental files
+                fs::path aboutPath = entry.path().parent_path() / (entry.path().filename().string() + ".about.txt");
+                if (!fs::exists(aboutPath)) {
+                    continue;  // Skip this .pbl file - not a proper battery test
+                }
+
                 ExperimentInfo info;
                 info.path = entry.path().string();
 
@@ -3355,6 +3385,13 @@ void LauncherUI::LoadStudy(const std::string& studyPath)
         // Save selected study to config
         mConfig->SetCurrentStudyPath(fullPath);
         mConfig->SaveConfig();
+
+        // Auto-load Main chain if it exists
+        std::string mainChainPath = fullPath + "/chains/Main.json";
+        if (fs::exists(mainChainPath)) {
+            LoadChain(mainChainPath);
+            printf("Auto-loaded Main chain\n");
+        }
     } else {
         printf("Failed to load study from: %s\n", fullPath.c_str());
 
@@ -3425,6 +3462,22 @@ void LauncherUI::AddTestToStudy()
         mCurrentStudy->Save();  // Save study-info.json
         printf("Added test to study: %s\n", test.testName.c_str());
 
+        // Also add to default "Main" chain if it exists
+        std::string mainChainPath = studyPath + "/chains/Main.json";
+        if (fs::exists(mainChainPath)) {
+            auto mainChain = Chain::LoadFromFile(mainChainPath);
+            if (mainChain) {
+                ChainItem item(ItemType::Test);
+                item.testName = test.testName;
+                item.paramVariant = "default";
+                item.language = "en";
+                item.randomGroup = 0;
+                mainChain->AddItem(item);
+                mainChain->Save();
+                printf("Added test to Main chain\n");
+            }
+        }
+
     } catch (const fs::filesystem_error& e) {
         printf("Error copying test files: %s\n", e.what());
     }
@@ -3487,6 +3540,22 @@ void LauncherUI::AddTestFromFile(const std::string& filePath)
         mCurrentStudy->AddTest(test);
         mCurrentStudy->Save();  // Save study-info.json
         printf("Added test from file to study: %s\n", testName.c_str());
+
+        // Also add to default "Main" chain if it exists
+        std::string mainChainPath = studyPath + "/chains/Main.json";
+        if (fs::exists(mainChainPath)) {
+            auto mainChain = Chain::LoadFromFile(mainChainPath);
+            if (mainChain) {
+                ChainItem item(ItemType::Test);
+                item.testName = testName;
+                item.paramVariant = "default";
+                item.language = "en";
+                item.randomGroup = 0;
+                mainChain->AddItem(item);
+                mainChain->Save();
+                printf("Added test to Main chain\n");
+            }
+        }
 
     } catch (const fs::filesystem_error& e) {
         printf("Error copying test files: %s\n", e.what());
@@ -4277,6 +4346,21 @@ void LauncherUI::RenderBatteryBrowser()
         ImGui::Separator();
         ImGui::Spacing();
 
+        // Add to Study button (at top)
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.7f, 0.2f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.3f, 0.8f, 0.3f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.1f, 0.6f, 0.1f, 1.0f));
+
+        if (ImGui::Button("Add to Study", ImVec2(-1, 40))) {
+            AddTestToStudy();
+        }
+
+        ImGui::PopStyleColor(3);
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
         // Screenshot
         if (mScreenshotTexture) {
             float aspectRatio = (float)mScreenshotHeight / (float)mScreenshotWidth;
@@ -4328,21 +4412,6 @@ void LauncherUI::RenderBatteryBrowser()
                 }
             }
         }
-
-        ImGui::Spacing();
-        ImGui::Separator();
-        ImGui::Spacing();
-
-        // Add to Study button
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.7f, 0.2f, 1.0f));
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.3f, 0.8f, 0.3f, 1.0f));
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.1f, 0.6f, 0.1f, 1.0f));
-
-        if (ImGui::Button("Add to Study", ImVec2(-1, 40))) {
-            AddTestToStudy();
-        }
-
-        ImGui::PopStyleColor(3);
     }
 
     ImGui::EndChild();
@@ -4452,12 +4521,80 @@ void LauncherUI::RenderRunTab()
     ImGui::Separator();
     ImGui::Spacing();
 
-    // Subject code
-    ImGui::Text("Subject Code:");
-    ImGui::SameLine();
-    ImGui::PushItemWidth(200);
-    ImGui::InputText("##SubjectCode", mSubjectCode, sizeof(mSubjectCode));
-    ImGui::PopItemWidth();
+    // Participant code - two-part editable field
+    if (mCurrentStudy && mCurrentChain) {
+        // Initialize study code if not set
+        if (mStudyCode[0] == '\0') {
+            std::string studyCode = mCurrentStudy->GetStudyCode();
+            std::strncpy(mStudyCode, studyCode.c_str(), sizeof(mStudyCode) - 1);
+            mStudyCode[sizeof(mStudyCode) - 1] = '\0';
+        }
+
+        // Get current counter
+        int counter = mCurrentChain->GetParticipantCounter();
+        char counterStr[16];
+        snprintf(counterStr, sizeof(counterStr), "%d", counter);
+
+        ImGui::Text("Participant Code:");
+        ImGui::SameLine();
+
+        // Study code prefix (editable)
+        ImGui::PushItemWidth(80);
+        if (ImGui::InputText("##StudyCodePrefix", mStudyCode, sizeof(mStudyCode))) {
+            // Study code edited - no need to save yet, just updates the display
+        }
+        ImGui::PopItemWidth();
+
+        ImGui::SameLine();
+        ImGui::Text("_");
+        ImGui::SameLine();
+
+        // Counter number (editable with validation)
+        ImGui::PushItemWidth(80);
+        static char counterBuffer[16] = "";
+        static bool counterBufferInitialized = false;
+
+        // Initialize counter buffer on first render or when chain changes
+        if (!counterBufferInitialized || strcmp(counterBuffer, counterStr) != 0) {
+            strncpy(counterBuffer, counterStr, sizeof(counterBuffer) - 1);
+            counterBuffer[sizeof(counterBuffer) - 1] = '\0';
+            counterBufferInitialized = true;
+        }
+
+        if (ImGui::InputText("##CounterNumber", counterBuffer, sizeof(counterBuffer), ImGuiInputTextFlags_CharsDecimal)) {
+            // Validate and update counter
+            if (strlen(counterBuffer) > 0) {
+                int newCounter = atoi(counterBuffer);
+                if (newCounter < 1) newCounter = 1;
+                mCurrentChain->SetParticipantCounter(newCounter);
+                mCurrentChain->Save();
+                // Update buffer to reflect validated value
+                snprintf(counterBuffer, sizeof(counterBuffer), "%d", newCounter);
+            }
+        }
+        ImGui::PopItemWidth();
+
+        ImGui::SameLine();
+        ImGui::Text("=");
+        ImGui::SameLine();
+
+        // Combined result (read-only display)
+        std::string participantCode = std::string(mStudyCode) + "_" + counterBuffer;
+        ImGui::TextColored(ImVec4(0.6f, 1.0f, 0.6f, 1.0f), "%s", participantCode.c_str());
+
+        // Update internal fields for compatibility
+        std::strncpy(mParticipantCode, participantCode.c_str(), sizeof(mParticipantCode) - 1);
+        mParticipantCode[sizeof(mParticipantCode) - 1] = '\0';
+        std::strncpy(mSubjectCode, mParticipantCode, sizeof(mSubjectCode) - 1);
+        mSubjectCode[sizeof(mSubjectCode) - 1] = '\0';
+    } else {
+        // Fallback: no study/chain loaded
+        ImGui::Text("Participant Code:");
+        ImGui::SameLine();
+        ImGui::PushItemWidth(200);
+        ImGui::InputText("##ParticipantCodeFallback", mSubjectCode, sizeof(mSubjectCode));
+        ImGui::PopItemWidth();
+    }
 
     // Check if subject code already exists and show warning
     if (mCurrentChain && strlen(mSubjectCode) > 0) {
@@ -4721,9 +4858,18 @@ void LauncherUI::RenderQuickLaunchTab()
     // Current directory display (read-only)
     ImGui::Text("Directory:");
     ImGui::SameLine();
-    ImGui::PushItemWidth(-1);
+    ImGui::PushItemWidth(-100);  // Leave room for browse button
     ImGui::InputText("##QuickLaunchDir", &mQuickLaunchDirectory[0], 512, ImGuiInputTextFlags_ReadOnly);
     ImGui::PopItemWidth();
+    ImGui::SameLine();
+    if (ImGui::Button("Browse...", ImVec2(90, 0))) {
+        std::string dir = OpenDirectoryDialog("Select Directory for Quick Launch");
+        if (!dir.empty()) {
+            mQuickLaunchDirectory = dir;
+            mQuickLaunchSelectedFile = -1;
+            mQuickLaunchPath[0] = '\0';
+        }
+    }
 
     ImGui::Spacing();
 
@@ -5200,6 +5346,7 @@ void LauncherUI::ShowFirstRunDialog()
         ImGui::TextWrapped("This workspace will contain:");
         ImGui::BulletText("my_studies/ - Your study projects");
         ImGui::BulletText("snapshots/ - Study backups and imports");
+        ImGui::BulletText("battery/ - 100+ psychological test tasks");
         ImGui::BulletText("doc/ - Documentation");
         ImGui::BulletText("demo/ - Example experiments");
         ImGui::BulletText("tutorial/ - Tutorial materials");
@@ -5208,7 +5355,7 @@ void LauncherUI::ShowFirstRunDialog()
         ImGui::Separator();
         ImGui::Spacing();
 
-        ImGui::TextWrapped("The battery of tests will remain in the installation directory and will not be copied.");
+        ImGui::TextWrapped("Resources will be copied from the installation. This may take a minute on first run.");
 
         ImGui::Spacing();
         ImGui::Separator();
@@ -5224,18 +5371,63 @@ void LauncherUI::ShowFirstRunDialog()
             if (!mWorkspace->Initialize()) {
                 printf("ERROR: Failed to initialize workspace\n");
             } else {
-                // Copy resources from installation
-                std::string batteryPath = mConfig->GetBatteryPath();
-                if (!batteryPath.empty()) {
-                    // Derive installation path from battery path
-                    // Battery is at /path/to/pebl2/battery, so installation is /path/to/pebl2
-                    size_t lastSlash = batteryPath.find_last_of("/\\");
-                    if (lastSlash != std::string::npos) {
-                        std::string installPath = batteryPath.substr(0, lastSlash);
-                        printf("Initializing workspace at: %s\n", mWorkspace->GetWorkspacePath().c_str());
-                        printf("Copying resources from: %s\n", installPath.c_str());
-                        mWorkspace->CopyResources(installPath);
+                // Find installation path using BinReloc (AppImage-compatible)
+                std::string installPath;
+
+                #ifdef ENABLE_BINRELOC
+                // Use BinReloc to find installation prefix
+                BrInitError error;
+                if (br_init(&error) != 0) {
+                    char* prefix = br_find_prefix(PREFIX);
+                    if (prefix) {
+                        installPath = std::string(prefix) + "/pebl2";
+                        free(prefix);
+                        printf("BinReloc found installation at: %s\n", installPath.c_str());
                     }
+                }
+                #endif
+
+                // Fallback 1: Try to find pebl2 executable via /proc/self/exe
+                if (installPath.empty()) {
+                    char exePath[1024];
+                    ssize_t len = readlink("/proc/self/exe", exePath, sizeof(exePath) - 1);
+                    if (len != -1) {
+                        exePath[len] = '\0';
+                        std::string path(exePath);
+                        size_t lastSlash = path.find_last_of('/');
+                        if (lastSlash != std::string::npos) {
+                            installPath = path.substr(0, lastSlash);
+                            // If we're in bin/, go up one level
+                            if (installPath.find("/bin") != std::string::npos) {
+                                lastSlash = installPath.find_last_of('/');
+                                if (lastSlash != std::string::npos) {
+                                    installPath = installPath.substr(0, lastSlash);
+                                }
+                            }
+                            printf("/proc/self/exe derived installation at: %s\n", installPath.c_str());
+                        }
+                    }
+                }
+
+                // Fallback 2: Use battery path from config
+                if (installPath.empty()) {
+                    std::string batteryPath = mConfig->GetBatteryPath();
+                    if (!batteryPath.empty()) {
+                        size_t lastSlash = batteryPath.find_last_of("/\\");
+                        if (lastSlash != std::string::npos) {
+                            installPath = batteryPath.substr(0, lastSlash);
+                            printf("Config derived installation at: %s\n", installPath.c_str());
+                        }
+                    }
+                }
+
+                // Copy resources if we found installation
+                if (!installPath.empty()) {
+                    printf("Initializing workspace at: %s\n", mWorkspace->GetWorkspacePath().c_str());
+                    printf("Copying resources from: %s\n", installPath.c_str());
+                    mWorkspace->CopyResources(installPath);
+                } else {
+                    printf("WARNING: Could not determine installation path - resources not copied\n");
                 }
             }
 
@@ -5306,6 +5498,70 @@ void LauncherUI::ShowDuplicateSubjectWarning()
             ImGui::CloseCurrentPopup();
         }
         ImGui::PopStyleColor(3);
+
+        ImGui::EndPopup();
+    }
+}
+
+void LauncherUI::ShowEditParticipantCodeDialog()
+{
+    ImGui::OpenPopup("Edit Participant Code");
+
+    // Center dialog
+    ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+    ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+    ImGui::SetNextWindowSize(ImVec2(500, 250), ImGuiCond_Appearing);
+
+    if (ImGui::BeginPopupModal("Edit Participant Code", &mShowEditParticipantCodeDialog, 0))
+    {
+        ImGui::TextColored(ImVec4(0.4f, 0.7f, 1.0f, 1.0f), "Edit Participant Code Components");
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        ImGui::TextWrapped("The participant code is generated from: STUDYCODE_COUNTER");
+        ImGui::TextWrapped("Edit the study code (4 characters) and counter separately below.");
+        ImGui::Spacing();
+
+        // Study code (4 characters)
+        ImGui::Text("Study Code (4 chars):");
+        ImGui::SameLine();
+        ImGui::PushItemWidth(100);
+        ImGui::InputText("##StudyCode", mStudyCode, sizeof(mStudyCode));
+        ImGui::PopItemWidth();
+
+        ImGui::Spacing();
+
+        // Participant counter
+        if (mCurrentChain) {
+            int counter = mCurrentChain->GetParticipantCounter();
+            ImGui::Text("Counter:");
+            ImGui::SameLine();
+            ImGui::PushItemWidth(100);
+            if (ImGui::InputInt("##Counter", &counter)) {
+                if (counter < 1) counter = 1;
+                mCurrentChain->SetParticipantCounter(counter);
+                mCurrentChain->Save();
+            }
+            ImGui::PopItemWidth();
+
+            ImGui::Spacing();
+
+            // Preview
+            std::string preview = std::string(mStudyCode) + "_" + std::to_string(counter);
+            ImGui::TextColored(ImVec4(0.6f, 0.8f, 0.6f, 1.0f), "Preview:");
+            ImGui::SameLine();
+            ImGui::Text("%s", preview.c_str());
+        }
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        // Buttons
+        if (ImGui::Button("Done", ImVec2(120, 0))) {
+            mShowEditParticipantCodeDialog = false;
+            ImGui::CloseCurrentPopup();
+        }
 
         ImGui::EndPopup();
     }

@@ -19,6 +19,7 @@
 #include <random>
 #include <filesystem>
 #include <fstream>
+#include <numeric>
 #include <dirent.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -54,7 +55,51 @@ LauncherUI::LauncherUI(LauncherConfig* config, SDL_Renderer* renderer)
     , mShowEditParticipantCodeDialog(false)
     , mAddTestSubTab(0)
     , mQuickLaunchSelectedFile(-1)
+    , mShowCodeEditor(false)
 {
+    // Configure PEBL syntax highlighting based on doc/pebl.lang
+    auto lang = TextEditor::LanguageDefinition();
+
+    lang.mName = "PEBL";
+
+    // PEBL keywords (case-insensitive in actual language, but TextEditor is case-sensitive)
+    // Include both cases for common usage
+    lang.mKeywords = {
+        "if", "If", "IF",
+        "elseif", "ElseIf", "ELSEIF",
+        "else", "Else", "ELSE",
+        "loop", "Loop", "LOOP",
+        "while", "While", "WHILE",
+        "return", "Return", "RETURN",
+        "define", "Define", "DEFINE",
+        "and", "And", "AND",
+        "or", "Or", "OR",
+        "not", "Not", "NOT",
+        "break", "Break", "BREAK"
+    };
+
+    // PEBL uses # for single-line comments (shell-like)
+    lang.mSingleLineComment = "#";
+    lang.mCommentStart = "";  // No multi-line comments in PEBL
+    lang.mCommentEnd = "";
+
+    // PEBL-specific token regex patterns (regex, palette index)
+    lang.mTokenRegexStrings = {
+        { "\\b[0-9]*\\.[0-9]+\\b", TextEditor::PaletteIndex::Number },  // Floats first
+        { "\\b[0-9]+\\b", TextEditor::PaletteIndex::Number },           // Then integers
+        { "\\bg[A-Za-z0-9_]*(\\.[A-Za-z0-9_]+)?\\b", TextEditor::PaletteIndex::Identifier },  // Global variables
+        { "\\b[a-fh-z][A-Za-z0-9_]*(\\.[A-Za-z0-9_]+)?\\b", TextEditor::PaletteIndex::Identifier },  // Local variables
+        { ":?[A-Z][A-Za-z0-9_]*(?=\\s*\\()", TextEditor::PaletteIndex::KnownIdentifier },  // Function names
+        { "<-", TextEditor::PaletteIndex::Preprocessor },  // Assignment operator
+    };
+
+    lang.mCaseSensitive = true;  // For variable names (g vs others)
+    lang.mAutoIndentation = true;
+
+    mCodeEditor.SetLanguageDefinition(lang);
+    mCodeEditor.SetShowWhitespaces(false);
+    mCodeEditor.SetTabSize(4);
+    mCodeEditor.SetPalette(TextEditor::GetDarkPalette());
     // Initialize UI state from config
     std::strncpy(mSubjectCode, config->GetSubjectCode().c_str(), sizeof(mSubjectCode) - 1);
     mSubjectCode[sizeof(mSubjectCode) - 1] = '\0';
@@ -135,6 +180,12 @@ LauncherUI::LauncherUI(LauncherConfig* config, SDL_Renderer* renderer)
     mTestEditor.language[0] = '\0';
     mTestEditor.randomGroup = 0;  // No randomization by default
 
+    // Initialize translation editor state
+    mTranslationEditor.show = false;
+    mTranslationEditor.testIndex = -1;
+    mTranslationEditor.language[0] = '\0';
+    mTranslationEditor.testPath = "";
+
     // Initialize variant naming dialog
     mVariantName[0] = '\0';
 
@@ -154,6 +205,9 @@ LauncherUI::LauncherUI(LauncherConfig* config, SDL_Renderer* renderer)
         batteryPath = mExperimentDir;
     }
 
+    // Store battery path for template loading
+    mBatteryPath = batteryPath;
+
     if (!batteryPath.empty() && batteryPath.length() < sizeof(mExperimentDir)) {
         std::strncpy(mExperimentDir, batteryPath.c_str(), sizeof(mExperimentDir) - 1);
         mExperimentDir[sizeof(mExperimentDir) - 1] = '\0';
@@ -161,6 +215,9 @@ LauncherUI::LauncherUI(LauncherConfig* config, SDL_Renderer* renderer)
         printf("Scanned battery directory: %s - found %zu tests\n",
                batteryPath.c_str(), mExperiments.size());
     }
+
+    // Scan templates directory
+    ScanTemplates();
 
     // Restore previously selected study and chain
     std::string lastStudyPath = config->GetCurrentStudyPath();
@@ -318,9 +375,9 @@ render_ui:
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(30, 8));   // Larger horizontal and vertical padding
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(12, 8));    // More spacing around tabs
     ImGui::PushStyleVar(ImGuiStyleVar_TabRounding, 8.0f);             // Rounded corners for pill effect
-    ImGui::PushStyleColor(ImGuiCol_Tab, ImVec4(0.25f, 0.45f, 0.70f, 1.0f));           // Darker blue for inactive
+    ImGui::PushStyleColor(ImGuiCol_Tab, ImVec4(0.35f, 0.40f, 0.48f, 1.0f));           // Darker blue for inactive
     ImGui::PushStyleColor(ImGuiCol_TabHovered, ImVec4(0.35f, 0.60f, 0.85f, 1.0f));    // Brighter blue on hover
-    ImGui::PushStyleColor(ImGuiCol_TabActive, ImVec4(0.20f, 0.55f, 0.90f, 1.0f));     // Vivid blue for active
+    ImGui::PushStyleColor(ImGuiCol_TabActive, ImVec4(0.20f, 0.60f, 0.95f, 1.0f));     // Vivid blue for active
 
     if (ImGui::BeginTabBar("MainTabs", ImGuiTabBarFlags_None)) {
         // For each tab: set large font before BeginTabItem (for header), reset after (for content)
@@ -339,9 +396,9 @@ render_ui:
             ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(30, 8));
             ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(12, 8));
             ImGui::PushStyleVar(ImGuiStyleVar_TabRounding, 8.0f);
-            ImGui::PushStyleColor(ImGuiCol_Tab, ImVec4(0.25f, 0.45f, 0.70f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_Tab, ImVec4(0.35f, 0.40f, 0.48f, 1.0f));
             ImGui::PushStyleColor(ImGuiCol_TabHovered, ImVec4(0.35f, 0.60f, 0.85f, 1.0f));
-            ImGui::PushStyleColor(ImGuiCol_TabActive, ImVec4(0.20f, 0.55f, 0.90f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_TabActive, ImVec4(0.20f, 0.60f, 0.95f, 1.0f));
             ImGui::SetWindowFontScale(1.5f);
         }
 
@@ -356,9 +413,9 @@ render_ui:
             ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(30, 8));
             ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(12, 8));
             ImGui::PushStyleVar(ImGuiStyleVar_TabRounding, 8.0f);
-            ImGui::PushStyleColor(ImGuiCol_Tab, ImVec4(0.25f, 0.45f, 0.70f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_Tab, ImVec4(0.35f, 0.40f, 0.48f, 1.0f));
             ImGui::PushStyleColor(ImGuiCol_TabHovered, ImVec4(0.35f, 0.60f, 0.85f, 1.0f));
-            ImGui::PushStyleColor(ImGuiCol_TabActive, ImVec4(0.20f, 0.55f, 0.90f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_TabActive, ImVec4(0.20f, 0.60f, 0.95f, 1.0f));
             ImGui::SetWindowFontScale(1.5f);
         }
 
@@ -373,9 +430,9 @@ render_ui:
             ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(30, 8));
             ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(12, 8));
             ImGui::PushStyleVar(ImGuiStyleVar_TabRounding, 8.0f);
-            ImGui::PushStyleColor(ImGuiCol_Tab, ImVec4(0.25f, 0.45f, 0.70f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_Tab, ImVec4(0.35f, 0.40f, 0.48f, 1.0f));
             ImGui::PushStyleColor(ImGuiCol_TabHovered, ImVec4(0.35f, 0.60f, 0.85f, 1.0f));
-            ImGui::PushStyleColor(ImGuiCol_TabActive, ImVec4(0.20f, 0.55f, 0.90f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_TabActive, ImVec4(0.20f, 0.60f, 0.95f, 1.0f));
             ImGui::SetWindowFontScale(1.5f);
         }
 
@@ -391,9 +448,9 @@ render_ui:
             ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(30, 8));
             ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(12, 8));
             ImGui::PushStyleVar(ImGuiStyleVar_TabRounding, 8.0f);
-            ImGui::PushStyleColor(ImGuiCol_Tab, ImVec4(0.25f, 0.45f, 0.70f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_Tab, ImVec4(0.35f, 0.40f, 0.48f, 1.0f));
             ImGui::PushStyleColor(ImGuiCol_TabHovered, ImVec4(0.35f, 0.60f, 0.85f, 1.0f));
-            ImGui::PushStyleColor(ImGuiCol_TabActive, ImVec4(0.20f, 0.55f, 0.90f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_TabActive, ImVec4(0.20f, 0.60f, 0.95f, 1.0f));
         }
 
         // Final cleanup - pop the styles that are still on the stack
@@ -439,6 +496,16 @@ render_ui:
     // Show test editor if requested
     if (mTestEditor.show) {
         ShowTestEditor();
+    }
+
+    // Show code editor if requested
+    if (mShowCodeEditor) {
+        ShowCodeEditor();
+    }
+
+    // Show translation editor dialog if requested
+    if (mTranslationEditor.show) {
+        ShowTranslationEditorDialog();
     }
 
     // Show new study dialog if requested
@@ -529,8 +596,34 @@ void LauncherUI::RenderMenuBar()
         {
             bool hasStudy = (mCurrentStudy != nullptr);
 
-            if (ImGui::MenuItem("Study Settings...", nullptr, false, hasStudy)) {
-                mShowStudySettingsDialog = true;
+            if (ImGui::MenuItem("New Study...")) {
+                mShowNewStudyDialog = true;
+            }
+
+            if (ImGui::MenuItem("Load Study...")) {
+                std::string studiesPath = mWorkspace->GetStudiesPath();
+
+                #ifdef __linux__
+                std::string command = "zenity --file-selection --directory --title=\"Select Study Directory\" --filename=\"" + studiesPath + "/\" 2>/dev/null";
+                FILE* pipe = popen(command.c_str(), "r");
+                std::string studyPath;
+                if (pipe) {
+                    char buffer[1024];
+                    if (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+                        studyPath = buffer;
+                        if (!studyPath.empty() && studyPath[studyPath.length()-1] == '\n') {
+                            studyPath.erase(studyPath.length()-1);
+                        }
+                    }
+                    pclose(pipe);
+                }
+                #else
+                std::string studyPath = OpenDirectoryDialog("Select Study Directory");
+                #endif
+
+                if (!studyPath.empty()) {
+                    LoadStudy(studyPath);
+                }
             }
 
             if (ImGui::MenuItem("Open Study Directory...", nullptr, false, hasStudy)) {
@@ -540,20 +633,62 @@ void LauncherUI::RenderMenuBar()
                 }
             }
 
+            if (ImGui::MenuItem("Study Settings...", nullptr, false, hasStudy)) {
+                mShowStudySettingsDialog = true;
+            }
+
             ImGui::Separator();
 
             if (ImGui::MenuItem("Create Snapshot...", nullptr, false, hasStudy)) {
-                // TODO: Show snapshot creation dialog
-                if (mCurrentStudy) {
-                    printf("TODO: Create snapshot of current study\n");
+                if (mCurrentStudy && mSnapshots) {
+                    // Create snapshot in workspace/snapshots directory
+                    std::string snapshotsDir = mWorkspace->GetWorkspacePath() + "/snapshots";
+
+                    // Create snapshots directory if it doesn't exist
+                    if (!fs::exists(snapshotsDir)) {
+                        fs::create_directories(snapshotsDir);
+                    }
+
+                    std::string snapshotName = mSnapshots->CreateSnapshot(mCurrentStudy->GetPath(), snapshotsDir);
+
+                    if (!snapshotName.empty()) {
+                        printf("Created snapshot: %s\n", snapshotName.c_str());
+                        // Show success message
+                        ImGui::OpenPopup("Snapshot Created");
+                    } else {
+                        printf("Failed to create snapshot\n");
+                    }
                 }
             }
 
             if (ImGui::MenuItem("Import Snapshot...")) {
                 std::string snapshotPath = OpenDirectoryDialog("Select Snapshot Directory");
-                if (!snapshotPath.empty()) {
-                    // TODO: Show import dialog with new name
-                    printf("TODO: Import snapshot from: %s\n", snapshotPath.c_str());
+                if (!snapshotPath.empty() && mSnapshots) {
+                    // Validate snapshot
+                    auto validation = mSnapshots->ValidateSnapshot(snapshotPath);
+                    if (validation.isValid) {
+                        // Get snapshot info to suggest a name
+                        auto info = mSnapshots->GetSnapshotInfo(snapshotPath);
+
+                        // Import directly with suggested name
+                        std::string studiesDir = mWorkspace->GetStudiesPath();
+                        std::string newStudyName = info.studyName + "_imported";
+
+                        if (mSnapshots->ImportSnapshot(snapshotPath, studiesDir, newStudyName)) {
+                            printf("Imported snapshot as: %s\n", newStudyName.c_str());
+
+                            // Load the newly imported study
+                            std::string newStudyPath = studiesDir + "/" + newStudyName;
+                            LoadStudy(newStudyPath);
+                        } else {
+                            printf("Failed to import snapshot\n");
+                        }
+                    } else {
+                        printf("Invalid snapshot directory:\n");
+                        for (const auto& error : validation.errors) {
+                            printf("  - %s\n", error.c_str());
+                        }
+                    }
                 }
             }
 
@@ -594,25 +729,19 @@ void LauncherUI::RenderMenuBar()
                 }
             }
 
-            ImGui::Separator();
-
-            // Translation Editor - requires selected experiment
-            bool hasSelectedExp = (mSelectedExperiment >= 0 && mSelectedExperiment < (int)mExperiments.size());
-            if (ImGui::MenuItem("Translation Editor...", nullptr, false, hasSelectedExp)) {
-                if (hasSelectedExp) {
-                    LaunchTranslationEditor();
-                }
-            }
-            if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
-                ImGui::SetTooltip("Edit translations for the selected test (requires test selection)");
-            }
-
-            // Data Combiner - works in current directory
-            if (ImGui::MenuItem("Data Combiner...")) {
-                LaunchDataCombiner();
+            if (ImGui::MenuItem("View Launch Log")) {
+                std::string logPath = ExperimentRunner::GetLaunchLogPath();
+                printf("Opening launch log: %s\n", logPath.c_str());
+                #ifdef __linux__
+                system(("xdg-open \"" + logPath + "\" &").c_str());
+                #elif defined(_WIN32)
+                system(("start \"\" \"" + logPath + "\"").c_str());
+                #elif defined(__APPLE__)
+                system(("open \"" + logPath + "\"").c_str());
+                #endif
             }
             if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("Combine data files from multiple participants");
+                ImGui::SetTooltip("View log of launched PEBL processes");
             }
 
             ImGui::EndMenu();
@@ -666,17 +795,13 @@ void LauncherUI::RenderMenuBar()
                 #endif
             }
 
-            ImGui::Separator();
-
-            if (ImGui::MenuItem("View Launch Log")) {
-                std::string logPath = ExperimentRunner::GetLaunchLogPath();
-                printf("Opening launch log: %s\n", logPath.c_str());
+            if (ImGui::MenuItem("PEBL Online Hub")) {
                 #ifdef __linux__
-                system(("xdg-open \"" + logPath + "\" &").c_str());
+                system("xdg-open https://peblhub.online &");
                 #elif defined(_WIN32)
-                system(("start \"\" \"" + logPath + "\"").c_str());
+                system("start https://peblhub.online");
                 #elif defined(__APPLE__)
-                system(("open \"" + logPath + "\"").c_str());
+                system("open https://peblhub.online");
                 #endif
             }
 
@@ -1356,7 +1481,7 @@ void LauncherUI::RenderChainTab()
                 ImGui::TextDisabled(" | Group:");
                 ImGui::SameLine();
 
-                ImGui::PushItemWidth(60);
+                ImGui::PushItemWidth(80);
                 const char* groupOptions[] = {"None", "1", "2", "3"};
                 int currentGroup = item.randomGroup;
                 if (ImGui::Combo("##randomgroup", &currentGroup, groupOptions, 4)) {
@@ -1549,9 +1674,9 @@ void LauncherUI::ShowSettingsDialog()
 
                 // Font size
                 ImGui::Text("Font Size:");
-                float fontSize = mConfig->GetFontSize();
+                int fontSize = mConfig->GetFontSize();
                 ImGui::PushItemWidth(100);
-                if (ImGui::SliderFloat("##FontSize", &fontSize, 10.0f, 24.0f, "%.1f")) {
+                if (ImGui::SliderInt("##FontSize", &fontSize, 10, 24)) {
                     mConfig->SetFontSize(fontSize);
                 }
                 ImGui::PopItemWidth();
@@ -2224,6 +2349,67 @@ void LauncherUI::ScanExperimentDirectory(const std::string& path)
     }
 }
 
+void LauncherUI::ScanTemplates()
+{
+    mTemplateNames.clear();
+    mTemplateFiles.clear();
+
+    // Check media/templates directory (new location)
+    std::string templatesPath = mBatteryPath + "/../media/templates";
+
+    if (!fs::exists(templatesPath) || !fs::is_directory(templatesPath)) {
+        printf("Warning: Templates directory not found: %s\n", templatesPath.c_str());
+        return;
+    }
+
+    try {
+        for (const auto& entry : fs::directory_iterator(templatesPath)) {
+            if (entry.is_regular_file() && entry.path().extension() == ".pbl") {
+                std::string filename = entry.path().filename().string();
+                std::string displayName = filename.substr(0, filename.length() - 4);  // Remove .pbl
+
+                // Convert filename to display name (e.g., "simple-rt" -> "Simple RT")
+                std::string niceName;
+                bool capitalizeNext = true;
+                for (char c : displayName) {
+                    if (c == '-' || c == '_') {
+                        niceName += ' ';
+                        capitalizeNext = true;
+                    } else if (capitalizeNext) {
+                        niceName += toupper(c);
+                        capitalizeNext = false;
+                    } else {
+                        niceName += c;
+                    }
+                }
+
+                mTemplateFiles.push_back(filename);
+                mTemplateNames.push_back(niceName);
+            }
+        }
+
+        // Sort alphabetically
+        std::vector<size_t> indices(mTemplateNames.size());
+        std::iota(indices.begin(), indices.end(), 0);
+        std::sort(indices.begin(), indices.end(),
+                  [this](size_t a, size_t b) { return mTemplateNames[a] < mTemplateNames[b]; });
+
+        std::vector<std::string> sortedNames;
+        std::vector<std::string> sortedFiles;
+        for (size_t i : indices) {
+            sortedNames.push_back(mTemplateNames[i]);
+            sortedFiles.push_back(mTemplateFiles[i]);
+        }
+        mTemplateNames = sortedNames;
+        mTemplateFiles = sortedFiles;
+
+        printf("Scanned templates: found %zu templates\n", mTemplateFiles.size());
+
+    } catch (const fs::filesystem_error& e) {
+        printf("Error scanning templates directory: %s\n", e.what());
+    }
+}
+
 void LauncherUI::LoadScreenshot(const std::string& imagePath)
 {
     // Free previous screenshot if any
@@ -2412,6 +2598,31 @@ void LauncherUI::OpenDirectoryInFileBrowser(const std::string& path)
     int result = system(command.c_str());
     if (result != 0) {
         printf("Failed to open directory in file browser: %s\n", path.c_str());
+    }
+}
+
+void LauncherUI::OpenFileInTextEditor(const std::string& filePath)
+{
+    if (filePath.empty() || !fs::exists(filePath)) {
+        printf("Cannot open file: %s (file not found)\n", filePath.c_str());
+        return;
+    }
+
+#ifdef _WIN32
+    // Windows: Use notepad as fallback, or default text editor via start
+    std::string command = "start \"\" \"" + filePath + "\"";
+#elif __APPLE__
+    // macOS: Use open which will use default text editor
+    std::string command = "open \"" + filePath + "\"";
+#else
+    // Linux: Use xdg-open which respects default application settings
+    std::string command = "xdg-open \"" + filePath + "\" &";
+#endif
+
+    printf("Opening file in text editor: %s\n", filePath.c_str());
+    int result = system(command.c_str());
+    if (result != 0) {
+        printf("Failed to open file in text editor: %s\n", filePath.c_str());
     }
 }
 
@@ -2640,9 +2851,18 @@ void LauncherUI::ExecuteChainItem(int index)
     mRunningExperiment = new ExperimentRunner();
 
     if (item.type == ItemType::Test) {
-        // Execute test item
+        // Execute test item - look up test from study to get correct path
+        const Test* test = mCurrentStudy->GetTest(item.testName);
+        if (!test) {
+            printf("Error: Test '%s' not found in study\n", item.testName.c_str());
+            delete mRunningExperiment;
+            mRunningExperiment = nullptr;
+            mRunningChain = false;
+            return;
+        }
+
         std::string studyPath = mCurrentStudy->GetPath();
-        std::string testPath = studyPath + "/tests/" + item.testName + "/" + item.testName + ".pbl";
+        std::string testPath = studyPath + "/tests/" + test->testPath + "/" + item.testName + ".pbl";
 
         std::vector<std::string> args;
 
@@ -2743,9 +2963,15 @@ void LauncherUI::TestChainItem(int index)
     mRunningExperiment = new ExperimentRunner();
 
     if (item.type == ItemType::Test) {
-        // Execute test item
+        // Execute test item - look up test from study to get correct path
+        const Test* test = mCurrentStudy->GetTest(item.testName);
+        if (!test) {
+            printf("Error: Test '%s' not found in study\n", item.testName.c_str());
+            return;
+        }
+
         std::string studyPath = mCurrentStudy->GetPath();
-        std::string testPath = studyPath + "/tests/" + item.testName + "/" + item.testName + ".pbl";
+        std::string testPath = studyPath + "/tests/" + test->testPath + "/" + item.testName + ".pbl";
 
         std::vector<std::string> args;
 
@@ -3173,13 +3399,14 @@ void LauncherUI::ShowPageEditor()
 
 void LauncherUI::ShowTestEditor()
 {
-    ImGui::OpenPopup("Test Editor");
+    const char* dialogTitle = mTestEditor.editingIndex >= 0 ? "Edit Test" : "Add Test to Chain";
+    ImGui::OpenPopup(dialogTitle);
 
     ImVec2 center = ImGui::GetMainViewport()->GetCenter();
     ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
     ImGui::SetNextWindowSize(ImVec2(600, 400), ImGuiCond_FirstUseEver);
 
-    if (ImGui::BeginPopupModal("Test Editor", &mTestEditor.show, 0))
+    if (ImGui::BeginPopupModal(dialogTitle, &mTestEditor.show, 0))
     {
         if (!mCurrentStudy) {
             ImGui::TextColored(ImVec4(1.0f, 0.3f, 0.3f, 1.0f), "Error: No study loaded");
@@ -3203,21 +3430,35 @@ void LauncherUI::ShowTestEditor()
             return;
         }
 
-        ImGui::Text("Select Test:");
-        ImGui::Spacing();
-
-        // Test selection list
-        ImGui::BeginChild("TestList", ImVec2(0, 150), true);
-        for (size_t i = 0; i < tests.size(); i++) {
-            bool isSelected = (mTestEditor.selectedTestIndex == (int)i);
-            if (ImGui::Selectable(tests[i].testName.c_str(), isSelected)) {
-                mTestEditor.selectedTestIndex = i;
-                mTestEditor.selectedVariantIndex = 0;  // Reset variant selection
+        // In edit mode, just show which test is being edited (read-only)
+        // In add mode, show test selection list
+        if (mTestEditor.editingIndex >= 0) {
+            // Edit mode - show test name as read-only
+            ImGui::Text("Editing Test:");
+            ImGui::SameLine();
+            if (mTestEditor.selectedTestIndex >= 0 && mTestEditor.selectedTestIndex < (int)tests.size()) {
+                ImGui::TextColored(ImVec4(0.4f, 0.7f, 1.0f, 1.0f), "%s", tests[mTestEditor.selectedTestIndex].testName.c_str());
+            } else {
+                ImGui::TextColored(ImVec4(1.0f, 0.3f, 0.3f, 1.0f), "(test not found)");
             }
-        }
-        ImGui::EndChild();
+            ImGui::Spacing();
+        } else {
+            // Add mode - show test selection list
+            ImGui::Text("Select Test:");
+            ImGui::Spacing();
 
-        ImGui::Spacing();
+            ImGui::BeginChild("TestList", ImVec2(0, 150), true);
+            for (size_t i = 0; i < tests.size(); i++) {
+                bool isSelected = (mTestEditor.selectedTestIndex == (int)i);
+                if (ImGui::Selectable(tests[i].testName.c_str(), isSelected)) {
+                    mTestEditor.selectedTestIndex = i;
+                    mTestEditor.selectedVariantIndex = 0;  // Reset variant selection
+                }
+            }
+            ImGui::EndChild();
+
+            ImGui::Spacing();
+        }
 
         // Parameter variant selection (if test is selected)
         if (mTestEditor.selectedTestIndex >= 0 && mTestEditor.selectedTestIndex < (int)tests.size()) {
@@ -3252,14 +3493,82 @@ void LauncherUI::ShowTestEditor()
 
             ImGui::Spacing();
 
-            // Language selection (optional)
+            // Language selection (optional) - scan for available language files
             ImGui::Text("Language (optional):");
             ImGui::SameLine();
-            ImGui::PushItemWidth(100);
-            ImGui::InputText("##Language", mTestEditor.language, sizeof(mTestEditor.language));
+
+            // Scan translations directory for available language files
+            std::vector<std::string> availableLanguages;
+            std::string studyPath = mCurrentStudy->GetPath();
+            std::string testPath = studyPath + "/tests/" + selectedTest.testPath;
+            std::string translationsPath = testPath + "/translations";
+
+            if (fs::exists(translationsPath) && fs::is_directory(translationsPath)) {
+                for (const auto& entry : fs::directory_iterator(translationsPath)) {
+                    if (entry.is_regular_file()) {
+                        std::string filename = entry.path().filename().string();
+                        // Look for files like "testname.pbl-en.json"
+                        size_t dashPos = filename.rfind('-');
+                        size_t dotPos = filename.rfind(".json");
+                        if (dashPos != std::string::npos && dotPos != std::string::npos && dotPos > dashPos) {
+                            std::string lang = filename.substr(dashPos + 1, dotPos - dashPos - 1);
+                            availableLanguages.push_back(lang);
+                        }
+                    }
+                }
+            }
+
+            ImGui::PushItemWidth(150);
+            if (ImGui::BeginCombo("##Language", mTestEditor.language)) {
+                // Show available languages from translation files
+                for (const auto& lang : availableLanguages) {
+                    bool isSelected = (std::string(mTestEditor.language) == lang);
+                    if (ImGui::Selectable(lang.c_str(), isSelected)) {
+                        std::strncpy(mTestEditor.language, lang.c_str(), sizeof(mTestEditor.language) - 1);
+                        mTestEditor.language[sizeof(mTestEditor.language) - 1] = '\0';
+                    }
+                }
+
+                // Allow custom entry
+                ImGui::Separator();
+                ImGui::TextDisabled("Custom:");
+                static char customLang[16] = "";
+                if (ImGui::InputText("##CustomLang", customLang, sizeof(customLang), ImGuiInputTextFlags_EnterReturnsTrue)) {
+                    std::strncpy(mTestEditor.language, customLang, sizeof(mTestEditor.language) - 1);
+                    mTestEditor.language[sizeof(mTestEditor.language) - 1] = '\0';
+                    ImGui::CloseCurrentPopup();
+                }
+
+                ImGui::EndCombo();
+            }
             ImGui::PopItemWidth();
+
+            if (!availableLanguages.empty()) {
+                ImGui::SameLine();
+                ImGui::TextDisabled("(%zu available)", availableLanguages.size());
+            }
+
+            // Translation editor button
             ImGui::SameLine();
-            ImGui::TextDisabled("(e.g., en, es, de)");
+            if (ImGui::SmallButton("Edit Translations...")) {
+                // Open translation editor dialog
+                std::string testPath = studyPath + "/tests/" + selectedTest.testPath;
+                mTranslationEditor.testIndex = mTestEditor.selectedTestIndex;
+                mTranslationEditor.testPath = testPath;
+
+                // Pre-fill language if one is set in test editor
+                if (std::strlen(mTestEditor.language) > 0) {
+                    std::strncpy(mTranslationEditor.language, mTestEditor.language, sizeof(mTranslationEditor.language) - 1);
+                    mTranslationEditor.language[sizeof(mTranslationEditor.language) - 1] = '\0';
+                } else {
+                    mTranslationEditor.language[0] = '\0';
+                }
+
+                mTranslationEditor.show = true;
+            }
+            if (ImGui::IsItemHovered()) {
+                ImGui::SetTooltip("Open translation editor for this test");
+            }
 
             ImGui::Spacing();
 
@@ -3579,114 +3888,66 @@ void LauncherUI::CreateTestFromTemplate(const std::string& testName, int templat
         fs::create_directories(testDir + "/params");
         fs::create_directories(testDir + "/translations");
 
-        // Generate basic .pbl file based on template type
-        std::string pblFile = testDir + "/" + testName + ".pbl";
-        std::ofstream out(pblFile);
-
-        if (!out.is_open()) {
-            printf("Error: Could not create .pbl file\n");
+        // Get template filename from dynamic list
+        std::string templateFilename;
+        if (templateType >= 0 && templateType < (int)mTemplateFiles.size()) {
+            templateFilename = mTemplateFiles[templateType];
+        } else {
+            printf("Error: Invalid template type: %d\n", templateType);
             return;
         }
 
-        // Write template code
-        out << "## " << testName << " - PEBL Test\n";
-        out << "## Generated from template\n\n";
-        out << "define Start(p) {\n";
-        out << "    ## Initialize\n";
-        out << "    gWin <- MakeWindow(\"grey40\")\n";
-        out << "    gSleepEasy <- 1\n\n";
+        // Find template file in media/templates/
+        std::string templatePath = mBatteryPath + "/../media/templates/" + templateFilename;
 
-        switch (templateType) {
-            case 0:  // Simple Reaction Time
-                out << "    ## Simple RT template\n";
-                out << "    inst <- \"Press any key when you see the stimulus.\"\n";
-                out << "    ShowText(inst, gWin)\n";
-                out << "    WaitForAnyKeyPress()\n";
-                out << "    ClearScreen(gWin)\n\n";
-                out << "    ## Trial loop\n";
-                out << "    loop(trial, Sequence(1, 10, 1)) {\n";
-                out << "        Wait(RandomUniform(500, 1500))\n";
-                out << "        stim <- EasyLabel(\"X\", gWin.centerX, gWin.centerY, gWin, 44)\n";
-                out << "        Draw()\n";
-                out << "        t0 <- GetTime()\n";
-                out << "        WaitForAnyKeyPress()\n";
-                out << "        rt <- GetTime() - t0\n";
-                out << "        Hide(stim)\n";
-                out << "        Draw()\n";
-                out << "        FilePrint_(gFileOut, trial + \",\" + rt)\n";
-                out << "    }\n";
-                break;
+        // Try to read template file
+        std::ifstream templateFile(templatePath);
+        if (!templateFile.is_open()) {
+            printf("Warning: Could not find template file: %s\n", templatePath.c_str());
+            printf("Using minimal fallback template.\n");
 
-            case 1:  // Choice Reaction Time
-                out << "    ## Choice RT template\n";
-                out << "    inst <- \"Press LEFT for 'X', RIGHT for 'O'.\"\n";
-                out << "    ShowText(inst, gWin)\n";
-                out << "    WaitForAnyKeyPress()\n";
-                out << "    ClearScreen(gWin)\n\n";
-                out << "    stimuli <- [\"X\", \"O\"]\n";
-                out << "    loop(trial, Sequence(1, 10, 1)) {\n";
-                out << "        stim <- Sample(stimuli)\n";
-                out << "        label <- EasyLabel(stim, gWin.centerX, gWin.centerY, gWin, 44)\n";
-                out << "        Draw()\n";
-                out << "        t0 <- GetTime()\n";
-                out << "        resp <- WaitForListKeyPress([\"<left>\", \"<right>\"])\n";
-                out << "        rt <- GetTime() - t0\n";
-                out << "        Hide(label)\n";
-                out << "        Draw()\n";
-                out << "        FilePrint_(gFileOut, trial + \",\" + stim + \",\" + resp + \",\" + rt)\n";
-                out << "    }\n";
-                break;
+            // Fallback to minimal template
+            std::string pblFile = testDir + "/" + testName + ".pbl";
+            std::ofstream out(pblFile);
+            if (!out.is_open()) {
+                printf("Error: Could not create .pbl file\n");
+                return;
+            }
+            out << "## " << testName << " - PEBL Test\n";
+            out << "## Generated from template\n\n";
+            out << "define Start(p) {\n";
+            out << "    gWin <- MakeWindow(\"grey40\")\n";
+            out << "    gSleepEasy <- 1\n\n";
+            out << "    if(gSubNum+\"\" == \"0\") {\n";
+            out << "        gSubNum <- GetSubNum(gWin)\n";
+            out << "    }\n\n";
+            out << "    ## Your code here\n\n";
+            out << "    MessageBox(\"Experiment complete. Thank you!\", gWin)\n";
+            out << "    return(0)\n";
+            out << "}\n";
+            out.close();
+        } else {
+            // Read entire template file
+            std::stringstream buffer;
+            buffer << templateFile.rdbuf();
+            std::string templateContent = buffer.str();
+            templateFile.close();
 
-            case 2:  // Survey/Questionnaire
-                out << "    ## Survey template\n";
-                out << "    questions <- [\"Question 1?\", \"Question 2?\", \"Question 3?\"]\n";
-                out << "    scale <- [\"1 - Strongly Disagree\", \"2\", \"3\", \"4\", \"5 - Strongly Agree\"]\n\n";
-                out << "    loop(q, Sequence(1, Length(questions), 1)) {\n";
-                out << "        resp <- GetEasyChoice(Nth(questions, q), scale, [1, 2, 3, 4, 5], gWin)\n";
-                out << "        FilePrint_(gFileOut, q + \",\" + resp)\n";
-                out << "    }\n";
-                break;
+            // Write template content to new test file
+            std::string pblFile = testDir + "/" + testName + ".pbl";
+            std::ofstream out(pblFile);
+            if (!out.is_open()) {
+                printf("Error: Could not create .pbl file\n");
+                return;
+            }
 
-            case 3:  // Memory Test
-                out << "    ## Memory test template\n";
-                out << "    stimuli <- [\"CAT\", \"DOG\", \"BIRD\", \"FISH\", \"HORSE\"]\n";
-                out << "    ## Study phase\n";
-                out << "    loop(stim, stimuli) {\n";
-                out << "        ShowText(stim, gWin)\n";
-                out << "        Wait(2000)\n";
-                out << "        ClearScreen(gWin)\n";
-                out << "        Wait(500)\n";
-                out << "    }\n\n";
-                out << "    ## Test phase\n";
-                out << "    testItems <- Shuffle(Merge(stimuli, [\"TREE\", \"BOOK\"]))\n";
-                out << "    loop(item, testItems) {\n";
-                out << "        resp <- GetEasyChoice(item, [\"Old\", \"New\"], [1, 2], gWin)\n";
-                out << "        FilePrint_(gFileOut, item + \",\" + resp)\n";
-                out << "    }\n";
-                break;
-
-            case 4:  // Visual Search
-                out << "    ## Visual search template\n";
-                out << "    numDistractors <- 10\n";
-                out << "    loop(trial, Sequence(1, 10, 1)) {\n";
-                out << "        ## Create display\n";
-                out << "        ## (Add your visual search implementation here)\n";
-                out << "        Wait(500)\n";
-                out << "    }\n";
-                break;
-
-            default:  // Blank Template
-                out << "    ## Your code here\n\n";
-                break;
+            // Replace template name placeholders with actual test name
+            // (For now, just write the template as-is - user can customize the filename in the .pbl)
+            out << templateContent;
+            out.close();
         }
 
-        out << "\n    ## Cleanup\n";
-        out << "    ShowText(\"Experiment complete. Thank you!\", gWin)\n";
-        out << "    WaitForAnyKeyPress()\n";
-        out << "}\n";
-
-        out.close();
-        printf("Created test template: %s\n", pblFile.c_str());
+        printf("Created test from template: %s/%s.pbl\n", testDir.c_str(), testName.c_str());
 
         // Add test to study
         Test test;
@@ -3700,6 +3961,93 @@ void LauncherUI::CreateTestFromTemplate(const std::string& testName, int templat
 
     } catch (const fs::filesystem_error& e) {
         printf("Error creating test from template: %s\n", e.what());
+    }
+}
+
+void LauncherUI::CreateTestFromGenericStudy(const std::string& testName)
+{
+    if (!mCurrentStudy) {
+        printf("Error: No study loaded. Create or load a study first.\n");
+        return;
+    }
+
+    // Create test directory in study/tests/
+    std::string studyPath = mCurrentStudy->GetPath();
+    std::string testDir = studyPath + "/tests/" + testName;
+
+    try {
+        // Source: battery/template/ directory
+        std::string templateDir = mBatteryPath + "/template";
+
+        if (!fs::exists(templateDir)) {
+            printf("Error: Template directory not found: %s\n", templateDir.c_str());
+            return;
+        }
+
+        // Copy entire directory structure recursively
+        fs::create_directories(testDir);
+
+        // Copy params/ directory
+        if (fs::exists(templateDir + "/params")) {
+            fs::copy(templateDir + "/params", testDir + "/params",
+                    fs::copy_options::recursive | fs::copy_options::overwrite_existing);
+
+            // Rename template.pbl.schema.json to testname.pbl.schema.json
+            std::string oldSchema = testDir + "/params/template.pbl.schema.json";
+            std::string newSchema = testDir + "/params/" + testName + ".pbl.schema.json";
+            if (fs::exists(oldSchema)) {
+                fs::rename(oldSchema, newSchema);
+            }
+        }
+
+        // Copy translations/ directory
+        if (fs::exists(templateDir + "/translations")) {
+            fs::copy(templateDir + "/translations", testDir + "/translations",
+                    fs::copy_options::recursive | fs::copy_options::overwrite_existing);
+
+            // Rename template.pbl-en.json to testname.pbl-en.json
+            std::string oldTranslation = testDir + "/translations/template.pbl-en.json";
+            std::string newTranslation = testDir + "/translations/" + testName + ".pbl-en.json";
+            if (fs::exists(oldTranslation)) {
+                fs::rename(oldTranslation, newTranslation);
+            }
+        }
+
+        // Create data/ directory (empty)
+        fs::create_directories(testDir + "/data");
+
+        // Copy template.pbl to testname.pbl
+        std::string templatePbl = templateDir + "/template.pbl";
+        std::string newPbl = testDir + "/" + testName + ".pbl";
+        if (fs::exists(templatePbl)) {
+            fs::copy(templatePbl, newPbl, fs::copy_options::overwrite_existing);
+        }
+
+        // Copy template.pbl.about.txt to testname.pbl.about.txt
+        std::string templateAbout = templateDir + "/template.pbl.about.txt";
+        std::string newAbout = testDir + "/" + testName + ".pbl.about.txt";
+        if (fs::exists(templateAbout)) {
+            fs::copy(templateAbout, newAbout, fs::copy_options::overwrite_existing);
+        }
+
+        printf("Created test from Generic Study Template: %s\n", testDir.c_str());
+        printf("  ✓ Copied params/ directory\n");
+        printf("  ✓ Copied translations/ directory\n");
+        printf("  ✓ Created %s.pbl\n", testName.c_str());
+        printf("  ✓ Created %s.pbl.about.txt\n", testName.c_str());
+
+        // Add test to study
+        Test test;
+        test.testName = testName;
+        test.testPath = testName;  // Relative path within study/tests/
+        test.included = true;
+
+        mCurrentStudy->AddTest(test);
+        mCurrentStudy->Save();  // Save study-info.json
+        printf("Added new test to study: %s\n", testName.c_str());
+
+    } catch (const fs::filesystem_error& e) {
+        printf("Error creating test from Generic Study Template: %s\n", e.what());
     }
 }
 
@@ -4069,36 +4417,6 @@ void LauncherUI::RenderStudyBar()
     }
 
     ImGui::SameLine();
-    if (ImGui::Button("Load Study...")) {
-        // Set initial directory to workspace studies folder
-        std::string studiesPath = mWorkspace->GetStudiesPath();
-
-        // Use zenity with --filename to start in studies directory
-        #ifdef __linux__
-        std::string command = "zenity --file-selection --directory --title=\"Select Study Directory\" --filename=\"" + studiesPath + "/\" 2>/dev/null";
-        FILE* pipe = popen(command.c_str(), "r");
-        std::string studyPath;
-        if (pipe) {
-            char buffer[1024];
-            if (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
-                studyPath = buffer;
-                // Remove trailing newline
-                if (!studyPath.empty() && studyPath[studyPath.length()-1] == '\n') {
-                    studyPath.erase(studyPath.length()-1);
-                }
-            }
-            pclose(pipe);
-        }
-        #else
-        std::string studyPath = OpenDirectoryDialog("Select Study Directory");
-        #endif
-
-        if (!studyPath.empty()) {
-            LoadStudy(studyPath);
-        }
-    }
-
-    ImGui::SameLine();
     if (mCurrentStudy) {
         if (ImGui::Button("Open Directory")) {
             std::string studyPath = mCurrentStudy->GetPath();
@@ -4115,7 +4433,7 @@ void LauncherUI::RenderStudyBar()
     if (mCurrentStudy) {
         ImGui::SameLine();
         ImGui::TextDisabled("| %s | %zu tests | %d chains",
-                           mCurrentStudy->GetDescription().c_str(),
+                           mCurrentStudy->GetName().c_str(),
                            mCurrentStudy->GetTests().size(),
                            mCurrentStudy->GetChainCount());
     }
@@ -4168,46 +4486,128 @@ void LauncherUI::RenderTestsInStudy()
 
         ImGui::Text("%zu.", i + 1);
         ImGui::SameLine();
-        ImGui::TextColored(ImVec4(1.0f, 1.0f, 1.0f, 1.0f), "%s", tests[i].testName.c_str());
 
-        // Show parameter variants
+        // Calculate available width for test name (leaving 50px for menu button on the right)
+        float availableWidth = ImGui::GetContentRegionAvail().x - 50;
+        std::string testName = tests[i].testName;
+
+        // Add variant count if present
         if (!tests[i].parameterVariants.empty()) {
-            ImGui::SameLine();
-            ImGui::TextDisabled("(%zu variants)", tests[i].parameterVariants.size());
+            testName += " (" + std::to_string(tests[i].parameterVariants.size()) + " variants)";
         }
 
-        ImGui::SameLine(ImGui::GetContentRegionAvail().x - 235);
-
-        if (ImGui::SmallButton("Edit")) {
-            EditTestParameters(i);
+        // Truncate if too long
+        std::string displayName = testName;
+        if (ImGui::CalcTextSize(displayName.c_str()).x > availableWidth) {
+            while (displayName.length() > 3 && ImGui::CalcTextSize((displayName + "...").c_str()).x > availableWidth) {
+                displayName.pop_back();
+            }
+            displayName += "...";
         }
 
-        ImGui::SameLine();
-
-        if (ImGui::SmallButton("Data")) {
-            // Launch data combiner in test's data directory
+        // Make test name clickable to open code editor
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.4f, 0.7f, 1.0f, 1.0f));  // Blue color
+        if (ImGui::Selectable(displayName.c_str(), false, ImGuiSelectableFlags_None, ImVec2(availableWidth, 0))) {
+            // Open .pbl file in embedded code editor
             std::string studyPath = mCurrentStudy->GetPath();
             std::string testPath = studyPath + "/tests/" + tests[i].testPath;
-            std::string dataPath = testPath + "/data";
+            std::string pblFile = testPath + "/" + tests[i].testName + ".pbl";
 
-            // Create data directory if it doesn't exist
-            if (!fs::exists(dataPath)) {
-                fs::create_directories(dataPath);
+            std::ifstream file(pblFile);
+            if (file.is_open()) {
+                std::stringstream buffer;
+                buffer << file.rdbuf();
+                file.close();
+
+                mCodeEditorFilePath = pblFile;
+                mCodeEditor.SetText(buffer.str());
+                mShowCodeEditor = true;
+            } else {
+                printf("Error: Could not open file for editing: %s\n", pblFile.c_str());
+            }
+        }
+        ImGui::PopStyleColor();
+        if (ImGui::IsItemHovered()) {
+            if (displayName != testName) {
+                ImGui::SetTooltip("%s\nClick to edit code", testName.c_str());
+            } else {
+                ImGui::SetTooltip("Click to edit code");
+            }
+        }
+
+        ImGui::SameLine(ImGui::GetContentRegionAvail().x - 50);
+
+        // Menu button with all options
+        if (ImGui::SmallButton("...")) {
+            ImGui::OpenPopup("TestMenu");
+        }
+
+        if (ImGui::BeginPopup("TestMenu")) {
+            std::string studyPath = mCurrentStudy->GetPath();
+            std::string testPath = studyPath + "/tests/" + tests[i].testPath;
+            std::string pblFile = testPath + "/" + tests[i].testName + ".pbl";
+
+            // Edit code
+            if (ImGui::MenuItem("Edit Code")) {
+                std::ifstream file(pblFile);
+                if (file.is_open()) {
+                    std::stringstream buffer;
+                    buffer << file.rdbuf();
+                    file.close();
+
+                    mCodeEditorFilePath = pblFile;
+                    mCodeEditor.SetText(buffer.str());
+                    mShowCodeEditor = true;
+                } else {
+                    printf("Error: Could not open file for editing: %s\n", pblFile.c_str());
+                }
             }
 
-            LaunchDataCombiner(dataPath);
-        }
-        if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("Combine data files for this test");
-        }
+            // Edit parameters
+            if (ImGui::MenuItem("Edit Parameters...")) {
+                EditTestParameters(i);
+            }
 
-        ImGui::SameLine();
+            // Edit translations
+            if (ImGui::MenuItem("Edit Translations...")) {
+                // Open translation editor dialog
+                mTranslationEditor.testIndex = i;
+                mTranslationEditor.testPath = testPath;
+                mTranslationEditor.language[0] = '\0';  // Start with no language selected
+                mTranslationEditor.show = true;
+            }
 
-        if (ImGui::SmallButton("Remove")) {
-            const std::string testName = tests[i].testName;
-            RemoveTestFromStudy(testName);
-            ImGui::PopID();
-            break;
+            ImGui::Separator();
+
+            // Open test directory
+            if (ImGui::MenuItem("Open Test Directory")) {
+                OpenDirectoryInFileBrowser(testPath);
+            }
+
+            // Combine data
+            if (ImGui::MenuItem("Combine Data Files...")) {
+                std::string dataPath = testPath + "/data";
+
+                // Create data directory if it doesn't exist
+                if (!fs::exists(dataPath)) {
+                    fs::create_directories(dataPath);
+                }
+
+                LaunchDataCombiner(dataPath);
+            }
+
+            ImGui::Separator();
+
+            // Remove test
+            if (ImGui::MenuItem("Remove from Study")) {
+                const std::string testName = tests[i].testName;
+                RemoveTestFromStudy(testName);
+                ImGui::EndPopup();
+                ImGui::PopID();
+                break;
+            }
+
+            ImGui::EndPopup();
         }
 
         ImGui::Spacing();
@@ -4463,18 +4863,47 @@ void LauncherUI::RenderNewTestTemplate()
     ImGui::Separator();
     ImGui::Spacing();
 
+    // Generic Study Template option (complete directory structure)
+    ImGui::TextColored(ImVec4(0.4f, 0.8f, 0.4f, 1.0f), "Complete Study Template:");
+    ImGui::TextWrapped("Creates a complete test with params/, translations/, and example parameter files.");
+    ImGui::Spacing();
+
+    static char genericTestName[128] = "";
+    ImGui::Text("Test Name:");
+    ImGui::InputText("##GenericTestName", genericTestName, sizeof(genericTestName));
+
+    if (strlen(genericTestName) > 0) {
+        if (ImGui::Button("Create from Generic Study Template", ImVec2(300, 40))) {
+            CreateTestFromGenericStudy(genericTestName);
+            genericTestName[0] = '\0';  // Clear the input after creating
+        }
+    }
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    // Individual test templates (simple .pbl files)
+    ImGui::TextColored(ImVec4(0.4f, 0.7f, 1.0f, 1.0f), "Simple Test Templates:");
+    ImGui::TextWrapped("Creates a single .pbl file from a template.");
+    ImGui::Spacing();
+
+    if (mTemplateNames.empty()) {
+        ImGui::TextColored(ImVec4(0.8f, 0.4f, 0.2f, 1.0f),
+                          "No templates found. Check media/templates/ directory.");
+        return;
+    }
+
     static int selectedTemplate = 0;
-    const char* templates[] = {
-        "Simple Reaction Time",
-        "Choice Reaction Time",
-        "Survey/Questionnaire",
-        "Memory Test",
-        "Visual Search",
-        "Blank Template"
-    };
+
+    // Convert vector<string> to vector<const char*> for ImGui::Combo
+    std::vector<const char*> templateCStrings;
+    for (const auto& name : mTemplateNames) {
+        templateCStrings.push_back(name.c_str());
+    }
 
     ImGui::Text("Template:");
-    ImGui::Combo("##Template", &selectedTemplate, templates, 6);
+    ImGui::Combo("##Template", &selectedTemplate, templateCStrings.data(), (int)templateCStrings.size());
 
     ImGui::Spacing();
 
@@ -4778,28 +5207,49 @@ void LauncherUI::RenderRunTab()
     ImGui::Separator();
     ImGui::Spacing();
 
-    // Toggle button for stdout/stderr and expand button
-    const char* outputLabel = mShowStderr ? "stderr" : "stdout";
-    ImGui::Text("Output (%s):", outputLabel);
-
-    // Expand/collapse button
-    ImGui::SameLine(ImGui::GetContentRegionAvail().x - 150);
-    if (ImGui::Button(mOutputExpanded ? "-" : "+", ImVec2(25, 0))) {
-        mOutputExpanded = !mOutputExpanded;
-    }
+    // Output header with stdout/stderr toggle
+    ImGui::TextColored(ImVec4(0.7f, 0.7f, 1.0f, 1.0f), "Output");
     if (ImGui::IsItemHovered()) {
-        ImGui::SetTooltip(mOutputExpanded ? "Collapse output" : "Expand output");
+        ImGui::SetTooltip("stdout and stderr from the running chain");
     }
 
-    // stdout/stderr toggle button
     ImGui::SameLine();
-    if (ImGui::Button(mShowStderr ? "Show stdout" : "Show stderr", ImVec2(120, 0))) {
-        mShowStderr = !mShowStderr;
+    if (ImGui::RadioButton("stdout", !mShowStderr)) {
+        mShowStderr = false;
+    }
+    ImGui::SameLine();
+    if (ImGui::RadioButton("stderr", mShowStderr)) {
+        mShowStderr = true;
     }
 
-    // Scrollable output window - height depends on expanded state
-    float outputHeight = mOutputExpanded ? ImGui::GetContentRegionAvail().y : 150.0f;
-    ImGui::BeginChild("OutputWindow", ImVec2(0, outputHeight), true, ImGuiWindowFlags_HorizontalScrollbar);
+    // "Open in Text Editor" button
+    ImGui::SameLine(ImGui::GetContentRegionAvail().x - 150);
+    if (ImGui::Button("Open in Text Editor", ImVec2(145, 0))) {
+        // Get current output
+        std::string output;
+        if (mRunningExperiment) {
+            if (mRunningChain) {
+                output = mShowStderr ? mChainAccumulatedStderr : mChainAccumulatedStdout;
+                const std::string& currentOutput = mShowStderr ? mRunningExperiment->GetStderr() :
+                                                                 mRunningExperiment->GetStdout();
+                output += currentOutput;
+            } else {
+                output = mShowStderr ? mRunningExperiment->GetStderr() :
+                                       mRunningExperiment->GetStdout();
+            }
+        } else if (!mChainAccumulatedStdout.empty() || !mChainAccumulatedStderr.empty()) {
+            output = mShowStderr ? mChainAccumulatedStderr : mChainAccumulatedStdout;
+        }
+
+        if (!output.empty()) {
+            mCodeEditor.SetText(output);
+            mCodeEditorFilePath = ""; // Empty path indicates unsaved output
+            mShowCodeEditor = true;
+        }
+    }
+
+    // Scrollable output window - always full size
+    ImGui::BeginChild("OutputWindow", ImVec2(0, 0), true, ImGuiWindowFlags_HorizontalScrollbar);
 
     if (mRunningExperiment) {
         std::string output;
@@ -5060,6 +5510,22 @@ void LauncherUI::RenderQuickLaunchTab()
     ImGui::SameLine();
     if (ImGui::RadioButton("stderr", mShowStderr)) {
         mShowStderr = true;
+    }
+
+    // "Open in Text Editor" button
+    ImGui::SameLine(ImGui::GetContentRegionAvail().x - 150);
+    if (ImGui::Button("Open in Text Editor", ImVec2(145, 0))) {
+        if (mRunningExperiment) {
+            const std::string& output = mShowStderr ?
+                mRunningExperiment->GetStderr() :
+                mRunningExperiment->GetStdout();
+
+            if (!output.empty()) {
+                mCodeEditor.SetText(output);
+                mCodeEditorFilePath = ""; // Empty path indicates unsaved output
+                mShowCodeEditor = true;
+            }
+        }
     }
 
     ImGui::BeginChild("QuickLaunchOutput", ImVec2(0, 0), true);
@@ -5346,10 +5812,10 @@ void LauncherUI::ShowFirstRunDialog()
         ImGui::TextWrapped("This workspace will contain:");
         ImGui::BulletText("my_studies/ - Your study projects");
         ImGui::BulletText("snapshots/ - Study backups and imports");
-        ImGui::BulletText("battery/ - 100+ psychological test tasks");
         ImGui::BulletText("doc/ - Documentation");
         ImGui::BulletText("demo/ - Example experiments");
         ImGui::BulletText("tutorial/ - Tutorial materials");
+        ImGui::BulletText("logs/ - Launch logs");
 
         ImGui::Spacing();
         ImGui::Separator();
@@ -5560,6 +6026,308 @@ void LauncherUI::ShowEditParticipantCodeDialog()
         // Buttons
         if (ImGui::Button("Done", ImVec2(120, 0))) {
             mShowEditParticipantCodeDialog = false;
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::EndPopup();
+    }
+}
+
+void LauncherUI::ShowCodeEditor()
+{
+    ImGui::SetNextWindowSize(ImVec2(1200, 800), ImGuiCond_FirstUseEver);
+
+    bool open = true;
+    if (ImGui::Begin("Code Editor", &open, ImGuiWindowFlags_MenuBar))
+    {
+        // Menu bar with file operations
+        if (ImGui::BeginMenuBar())
+        {
+            if (ImGui::BeginMenu("File"))
+            {
+                if (ImGui::MenuItem("Save", "Ctrl+S")) {
+                    // Save file
+                    std::string text = mCodeEditor.GetText();
+                    std::ofstream outFile(mCodeEditorFilePath);
+                    if (outFile.is_open()) {
+                        outFile << text;
+                        outFile.close();
+                        printf("Saved file: %s\n", mCodeEditorFilePath.c_str());
+                    } else {
+                        printf("Error: Could not save file: %s\n", mCodeEditorFilePath.c_str());
+                    }
+                }
+
+                if (ImGui::MenuItem("Open in External Editor")) {
+                    // Use external editor setting from config
+                    std::string editorCmd = mConfig->GetExternalEditor();
+                    std::string command;
+
+#ifdef _WIN32
+                    if (editorCmd == "start") {
+                        command = "start \"\" \"" + mCodeEditorFilePath + "\"";
+                    } else {
+                        command = editorCmd + " \"" + mCodeEditorFilePath + "\"";
+                    }
+#else
+                    command = editorCmd + " \"" + mCodeEditorFilePath + "\" &";
+#endif
+
+                    printf("Opening in external editor: %s\n", command.c_str());
+                    int result = system(command.c_str());
+                    if (result != 0) {
+                        printf("Warning: External editor command may have failed\n");
+                    }
+                }
+
+                ImGui::Separator();
+
+                if (ImGui::MenuItem("Close")) {
+                    open = false;
+                }
+
+                ImGui::EndMenu();
+            }
+
+            if (ImGui::BeginMenu("Edit"))
+            {
+                bool ro = mCodeEditor.IsReadOnly();
+                if (ImGui::MenuItem("Read-only mode", nullptr, &ro))
+                    mCodeEditor.SetReadOnly(ro);
+                ImGui::Separator();
+
+                if (ImGui::MenuItem("Undo", "Ctrl+Z", nullptr, !ro && mCodeEditor.CanUndo()))
+                    mCodeEditor.Undo();
+                if (ImGui::MenuItem("Redo", "Ctrl+Y", nullptr, !ro && mCodeEditor.CanRedo()))
+                    mCodeEditor.Redo();
+
+                ImGui::Separator();
+
+                if (ImGui::MenuItem("Copy", "Ctrl+C", nullptr, mCodeEditor.HasSelection()))
+                    mCodeEditor.Copy();
+                if (ImGui::MenuItem("Cut", "Ctrl+X", nullptr, !ro && mCodeEditor.HasSelection()))
+                    mCodeEditor.Cut();
+                if (ImGui::MenuItem("Delete", "Del", nullptr, !ro && mCodeEditor.HasSelection()))
+                    mCodeEditor.Delete();
+                if (ImGui::MenuItem("Paste", "Ctrl+V", nullptr, !ro && ImGui::GetClipboardText() != nullptr))
+                    mCodeEditor.Paste();
+
+                ImGui::Separator();
+
+                if (ImGui::MenuItem("Select all", nullptr, nullptr))
+                    mCodeEditor.SetSelection(TextEditor::Coordinates(), TextEditor::Coordinates(mCodeEditor.GetTotalLines(), 0));
+
+                ImGui::EndMenu();
+            }
+
+            if (ImGui::BeginMenu("View"))
+            {
+                if (ImGui::MenuItem("Dark palette"))
+                    mCodeEditor.SetPalette(TextEditor::GetDarkPalette());
+                if (ImGui::MenuItem("Light palette"))
+                    mCodeEditor.SetPalette(TextEditor::GetLightPalette());
+                if (ImGui::MenuItem("Retro blue palette"))
+                    mCodeEditor.SetPalette(TextEditor::GetRetroBluePalette());
+                ImGui::EndMenu();
+            }
+            ImGui::EndMenuBar();
+        }
+
+        // Show filename and stats
+        ImGui::TextColored(ImVec4(0.6f, 0.8f, 1.0f, 1.0f), "File:");
+        ImGui::SameLine();
+        ImGui::Text("%s", mCodeEditorFilePath.c_str());
+
+        ImGui::SameLine(ImGui::GetWindowWidth() - 300);
+        auto cpos = mCodeEditor.GetCursorPosition();
+        ImGui::Text("%d lines | Ln %d, Col %d", mCodeEditor.GetTotalLines(), cpos.mLine + 1, cpos.mColumn + 1);
+
+        // Render the text editor
+        mCodeEditor.Render("##TextEditor");
+
+        ImGui::End();
+    }
+
+    if (!open) {
+        mShowCodeEditor = false;
+    }
+}
+
+void LauncherUI::ShowTranslationEditorDialog()
+{
+    ImGui::OpenPopup("Translation Editor");
+
+    ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+    ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+    ImGui::SetNextWindowSize(ImVec2(600, 400), ImGuiCond_FirstUseEver);
+
+    if (ImGui::BeginPopupModal("Translation Editor", &mTranslationEditor.show, 0))
+    {
+        if (!mCurrentStudy || mTranslationEditor.testIndex < 0) {
+            ImGui::TextColored(ImVec4(1.0f, 0.3f, 0.3f, 1.0f), "Error: No test selected");
+            if (ImGui::Button("Close", ImVec2(120, 0))) {
+                mTranslationEditor.show = false;
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::EndPopup();
+            return;
+        }
+
+        const auto& tests = mCurrentStudy->GetTests();
+        if (mTranslationEditor.testIndex >= (int)tests.size()) {
+            ImGui::TextColored(ImVec4(1.0f, 0.3f, 0.3f, 1.0f), "Error: Invalid test index");
+            if (ImGui::Button("Close", ImVec2(120, 0))) {
+                mTranslationEditor.show = false;
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::EndPopup();
+            return;
+        }
+
+        const Test& test = tests[mTranslationEditor.testIndex];
+
+        ImGui::TextColored(ImVec4(0.4f, 0.7f, 1.0f, 1.0f), "Test:");
+        ImGui::SameLine();
+        ImGui::Text("%s", test.testName.c_str());
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        // Get PEBL executable path once (used for both buttons)
+        std::string peblExec = "pebl2";
+#ifdef __linux__
+        char exePath[1024];
+        ssize_t len = readlink("/proc/self/exe", exePath, sizeof(exePath) - 1);
+        if (len != -1) {
+            exePath[len] = '\0';
+            std::string path(exePath);
+            size_t lastSlash = path.find_last_of('/');
+            if (lastSlash != std::string::npos) {
+                peblExec = path.substr(0, lastSlash + 1) + "pebl2";
+            }
+        }
+#endif
+
+        std::string pblFile = mTranslationEditor.testPath + "/" + test.testName + ".pbl";
+
+        // Base language (English) section
+        ImGui::TextWrapped("Edit the base English translation file (required):");
+        ImGui::Spacing();
+
+        if (ImGui::Button("Edit English Translations", ImVec2(250, 0))) {
+            // Launch translatetest.pbl for English
+            std::string command = peblExec + " translatetest.pbl -v \"" + pblFile + "\" --language en";
+            printf("Launching translation editor: %s\n", command.c_str());
+
+#ifdef __linux__
+            command += " &";
+#endif
+            int result = system(command.c_str());
+            if (result != 0) {
+                printf("Warning: Failed to launch translation editor\n");
+            }
+        }
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        // Target language section
+        ImGui::TextWrapped("Select a language to edit or create:");
+        ImGui::Spacing();
+
+        // Scan for available language files
+        std::vector<std::string> availableLanguages;
+        std::string translationsPath = mTranslationEditor.testPath + "/translations";
+
+        if (fs::exists(translationsPath) && fs::is_directory(translationsPath)) {
+            for (const auto& entry : fs::directory_iterator(translationsPath)) {
+                if (entry.is_regular_file()) {
+                    std::string filename = entry.path().filename().string();
+                    // Look for files like "testname.pbl-XX.json" (but not -en.json)
+                    size_t dashPos = filename.rfind('-');
+                    size_t dotPos = filename.rfind(".json");
+                    if (dashPos != std::string::npos && dotPos != std::string::npos && dotPos > dashPos) {
+                        std::string lang = filename.substr(dashPos + 1, dotPos - dashPos - 1);
+                        if (lang != "en") {  // Skip English, it's handled above
+                            availableLanguages.push_back(lang);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Language combo box
+        ImGui::Text("Language:");
+        ImGui::SameLine();
+        ImGui::PushItemWidth(150);
+        if (ImGui::BeginCombo("##Language", mTranslationEditor.language)) {
+            // Show available languages
+            for (const auto& lang : availableLanguages) {
+                bool isSelected = (std::string(mTranslationEditor.language) == lang);
+                if (ImGui::Selectable(lang.c_str(), isSelected)) {
+                    std::strncpy(mTranslationEditor.language, lang.c_str(), sizeof(mTranslationEditor.language) - 1);
+                    mTranslationEditor.language[sizeof(mTranslationEditor.language) - 1] = '\0';
+                }
+            }
+
+            // Allow custom entry
+            ImGui::Separator();
+            ImGui::TextDisabled("New language code:");
+            static char customLang[16] = "";
+            if (ImGui::InputText("##CustomLang", customLang, sizeof(customLang), ImGuiInputTextFlags_EnterReturnsTrue)) {
+                std::strncpy(mTranslationEditor.language, customLang, sizeof(mTranslationEditor.language) - 1);
+                mTranslationEditor.language[sizeof(mTranslationEditor.language) - 1] = '\0';
+                ImGui::CloseCurrentPopup();
+            }
+
+            ImGui::EndCombo();
+        }
+        ImGui::PopItemWidth();
+
+        if (!availableLanguages.empty()) {
+            ImGui::SameLine();
+            ImGui::TextDisabled("(%zu available)", availableLanguages.size());
+        }
+
+        ImGui::Spacing();
+
+        // Edit/Create target language button
+        bool hasLanguage = std::strlen(mTranslationEditor.language) > 0;
+        if (!hasLanguage) {
+            ImGui::BeginDisabled();
+        }
+
+        if (ImGui::Button("Edit/Create Translation", ImVec2(250, 0))) {
+            // Launch translatetest.pbl for selected language
+            std::string lang = mTranslationEditor.language;
+            std::string command = peblExec + " translatetest.pbl -v \"" + pblFile + "\" --language " + lang;
+            printf("Launching translation editor: %s\n", command.c_str());
+
+#ifdef __linux__
+            command += " &";
+#endif
+            int result = system(command.c_str());
+            if (result != 0) {
+                printf("Warning: Failed to launch translation editor\n");
+            }
+        }
+
+        if (!hasLanguage) {
+            ImGui::EndDisabled();
+        }
+
+        if (ImGui::IsItemHovered() && !hasLanguage) {
+            ImGui::SetTooltip("Select a language first");
+        }
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        // Close button
+        if (ImGui::Button("Close", ImVec2(120, 0))) {
+            mTranslationEditor.show = false;
             ImGui::CloseCurrentPopup();
         }
 

@@ -67,6 +67,9 @@ public:
     const std::string& GetPath() const { return mPath; }
     const std::vector<Test>& GetTests() const { return mTests; }
 
+    // Get 4-character study code from study name (alphanumeric only)
+    std::string GetStudyCode() const;
+
     // Setters
     void SetName(const std::string& name) { mName = name; UpdateModifiedDate(); }
     void SetDescription(const std::string& desc) { mDescription = desc; UpdateModifiedDate(); }

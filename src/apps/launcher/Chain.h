@@ -79,10 +79,15 @@ public:
     const std::string& GetFilePath() const { return mFilePath; }
     const std::vector<ChainItem>& GetItems() const { return mItems; }
     int GetItemCount() const { return static_cast<int>(mItems.size()); }
+    int GetParticipantCounter() const { return mParticipantCounter; }
 
     // Setters
     void SetName(const std::string& name) { mName = name; }
     void SetDescription(const std::string& desc) { mDescription = desc; }
+    void SetParticipantCounter(int counter) { mParticipantCounter = counter; }
+
+    // Increment participant counter and save
+    void IncrementParticipantCounter();
 
     // Item management
     void AddItem(const ChainItem& item);
@@ -107,6 +112,7 @@ private:
     std::string mFilePath;       // Path to chain JSON file
     std::string mName;
     std::string mDescription;
+    int mParticipantCounter;     // Auto-incrementing participant counter
     std::vector<ChainItem> mItems;
 };
 

@@ -107,7 +107,9 @@ std::string ChainItem::GetDisplayName() const {
 // Chain Implementation
 // ============================================================================
 
-Chain::Chain() {
+Chain::Chain()
+    : mParticipantCounter(1001)
+{
 }
 
 Chain::~Chain() {
@@ -297,6 +299,7 @@ bool Chain::LoadFromJSON(const std::string& jsonPath) {
         // Load metadata
         mName = j.value("chain_name", "");
         mDescription = j.value("description", "");
+        mParticipantCounter = j.value("participant_counter", 1001);
 
         // Load items
         mItems.clear();
@@ -338,6 +341,7 @@ bool Chain::SaveToJSON(const std::string& jsonPath) {
         // Save metadata
         j["chain_name"] = mName;
         j["description"] = mDescription;
+        j["participant_counter"] = mParticipantCounter;
 
         // Save items
         json itemsArray = json::array();
@@ -376,4 +380,9 @@ bool Chain::SaveToJSON(const std::string& jsonPath) {
     } catch (const std::exception& e) {
         return false;
     }
+}
+
+void Chain::IncrementParticipantCounter() {
+    mParticipantCounter++;
+    Save();
 }

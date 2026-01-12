@@ -77,7 +77,8 @@ bool WorkspaceManager::Initialize() {
         "/snapshots",
         "/doc",
         "/demo",
-        "/tutorial"
+        "/tutorial",
+        "/logs"
     };
 
     for (const auto& subdir : subdirs) {
@@ -102,6 +103,7 @@ bool WorkspaceManager::CopyResources(const std::string& installationPath) {
     std::string docSource = installationPath + "/doc";
     std::string docDest = mWorkspacePath + "/doc";
     if (DirectoryExists(docSource)) {
+        std::cout << "Copying documentation..." << std::endl;
         CopyDirectory(docSource, docDest, false);
     }
 
@@ -109,6 +111,7 @@ bool WorkspaceManager::CopyResources(const std::string& installationPath) {
     std::string demoSource = installationPath + "/demo";
     std::string demoDest = mWorkspacePath + "/demo";
     if (DirectoryExists(demoSource)) {
+        std::cout << "Copying demos..." << std::endl;
         CopyDirectory(demoSource, demoDest, false);
     }
 
@@ -116,6 +119,7 @@ bool WorkspaceManager::CopyResources(const std::string& installationPath) {
     std::string tutorialSource = installationPath + "/tutorial";
     std::string tutorialDest = mWorkspacePath + "/tutorial";
     if (DirectoryExists(tutorialSource)) {
+        std::cout << "Copying tutorials..." << std::endl;
         CopyDirectory(tutorialSource, tutorialDest, false);
     }
 

@@ -3,6 +3,7 @@
 // Licensed under GPL
 
 #include "Study.h"
+#include "Chain.h"
 #include "../../libs/json.hpp"
 #include <fstream>
 #include <sstream>
@@ -123,6 +124,14 @@ std::shared_ptr<Study> Study::CreateNew(const std::string& path,
         // Note: data/ directory removed - not needed in study structure
     } catch (const fs::filesystem_error& e) {
         printf("Error creating study directories: %s\n", e.what());
+    }
+
+    // Create default chain
+    std::string chainPath = path + "/chains/Main.json";
+    auto defaultChain = Chain::CreateNew(chainPath, "Main", "Default chain for this study");
+    if (defaultChain) {
+        defaultChain->Save();
+        printf("Created default chain: Main.json\n");
     }
 
     return study;
@@ -375,4 +384,26 @@ std::string Study::GetCurrentISO8601Time() const {
     std::ostringstream oss;
     oss << std::put_time(&tm, "%Y-%m-%dT%H:%M:%SZ");
     return oss.str();
+}
+
+std::string Study::GetStudyCode() const {
+    std::string code;
+    code.reserve(4);
+
+    // Extract first 4 alphanumeric characters from study name
+    for (char c : mName) {
+        if (std::isalnum(static_cast<unsigned char>(c))) {
+            code += std::toupper(static_cast<unsigned char>(c));
+            if (code.length() >= 4) {
+                break;
+            }
+        }
+    }
+
+    // Pad with 'X' if less than 4 characters
+    while (code.length() < 4) {
+        code += 'X';
+    }
+
+    return code;
 }

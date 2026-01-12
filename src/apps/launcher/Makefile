@@ -14,6 +14,7 @@ CXXFLAGS += -I../../../libs  # For nlohmann/json header-only library
 CXXFLAGS += -I../../utility
 CXXFLAGS += -DENABLE_BINRELOC
 CXXFLAGS += -DPEBL_VERSION=\"$(PEBL_VERSION)\"
+CXXFLAGS += -DPREFIX=\"/usr/local\"
 
 # SDL2 flags
 SDL2_CFLAGS = $(shell sdl2-config --cflags)
@@ -44,7 +45,8 @@ IMGUI_SOURCES = \
 	../../../libs/imgui/imgui_widgets.cpp \
 	../../../libs/imgui/imgui_tables.cpp \
 	../../../libs/imgui/backends/imgui_impl_sdl2.cpp \
-	../../../libs/imgui/backends/imgui_impl_sdlrenderer2.cpp
+	../../../libs/imgui/backends/imgui_impl_sdlrenderer2.cpp \
+	../../../libs/TextEditor.cpp
 
 SOURCES = $(LAUNCHER_SOURCES) $(IMGUI_SOURCES)
 
@@ -77,6 +79,10 @@ $(OBJ_DIR)/%.o: ../../../libs/imgui/%.cpp | $(OBJ_DIR)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 $(OBJ_DIR)/%.o: ../../../libs/imgui/backends/%.cpp | $(OBJ_DIR)
+	@echo "Compiling $<..."
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: ../../../libs/%.cpp | $(OBJ_DIR)
 	@echo "Compiling $<..."
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 

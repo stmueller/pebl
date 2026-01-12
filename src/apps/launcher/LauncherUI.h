@@ -9,6 +9,7 @@
 #include <vector>
 #include <memory>
 #include <SDL2/SDL.h>
+#include "../../../libs/TextEditor.h"
 
 class LauncherConfig;
 class Study;
@@ -47,6 +48,14 @@ struct TestEditorState {
     int selectedVariantIndex;  // Index in test's parameter variants list
     char language[16];
     int randomGroup;  // Randomization group ID (0 = no randomization)
+};
+
+// Translation editor dialog state
+struct TranslationEditorState {
+    bool show;
+    int testIndex;  // Which test we're editing translations for
+    char language[16];  // Target language to edit/create
+    std::string testPath;  // Full path to test directory
 };
 
 struct Parameter {
@@ -92,6 +101,9 @@ private:
     void ShowStudySettingsDialog();
     void ShowFirstRunDialog();
     void ShowDuplicateSubjectWarning();
+    void ShowEditParticipantCodeDialog();
+    void ShowCodeEditor();
+    void ShowTranslationEditorDialog();
 
     // Helper to load parameter editor after variant name is entered
     void LoadParameterEditorForVariant();
@@ -109,6 +121,7 @@ private:
     void FreeScreenshot();
     void RunTest();  // Renamed from RunExperiment
     void OpenDirectoryInFileBrowser(const std::string& path);
+    void OpenFileInTextEditor(const std::string& filePath);
 
     // Utility launchers
     void LaunchTranslationEditor();
@@ -120,7 +133,9 @@ private:
     void AddTestToStudy();
     void AddTestFromFile(const std::string& filePath);
     void CreateTestFromTemplate(const std::string& testName, int templateType);
+    void CreateTestFromGenericStudy(const std::string& testName);  // Copy complete battery/template structure
     void RemoveTestFromStudy(const std::string& testName);
+    void ScanTemplates();  // Dynamically load available templates
     void EditTestParameters(int testIndex);
     void ScanParameterVariants(int testIndex);
 
@@ -154,7 +169,9 @@ private:
     int mSelectedExperiment;
 
     // UI State
-    char mSubjectCode[256];
+    char mSubjectCode[256];  // Legacy - now called participant code
+    char mParticipantCode[256];  // Auto-generated from study code + counter
+    char mStudyCode[5];  // 4-character study code prefix (editable)
     char mLanguageCode[16];
     bool mFullscreen;
     int mScreenResolution;  // Index into resolution list
@@ -216,8 +233,10 @@ private:
     bool mShowNewChainDialog;
     bool mShowStudySettingsDialog;
     bool mShowFirstRunDialog;
+    bool mShowEditParticipantCodeDialog;
     PageEditorState mPageEditor;
     TestEditorState mTestEditor;
+    TranslationEditorState mTranslationEditor;
 
     // Tests tab state
     int mAddTestSubTab;  // 0=Battery, 1=File, 2=New
@@ -233,6 +252,17 @@ private:
     std::string mQuickLaunchDirectory;
     std::vector<std::string> mQuickLaunchFiles;
     int mQuickLaunchSelectedFile;
+
+    // Template system (data-driven)
+    std::vector<std::string> mTemplateNames;  // Display names
+    std::vector<std::string> mTemplateFiles;  // Filenames
+    std::string mBatteryPath;  // Path to battery directory
+
+    // Code editor
+    bool mShowCodeEditor;
+    std::string mCodeEditorFilePath;
+    TextEditor mCodeEditor;
 };
+
 
 #endif // LAUNCHER_UI_H

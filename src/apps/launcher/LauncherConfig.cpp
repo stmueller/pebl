@@ -30,12 +30,21 @@ LauncherConfig::LauncherConfig()
     , mWorkspacePath("")
     , mBatteryPath("")
     , mDataOutputPath("")
-    , mFontSize(14.0f)
+    , mFontSize(18)
     , mWindowWidth(1280)
     , mWindowHeight(720)
     , mCurrentStudyPath("")
     , mCurrentChainName("")
 {
+    // Set platform-specific default external editor
+#ifdef _WIN32
+    mExternalEditor = "start";
+#elif __APPLE__
+    mExternalEditor = "open";
+#else
+    mExternalEditor = "xdg-open";
+#endif
+
     // Detect battery path using BinReloc (relative to launcher executable)
     mBatteryPath = DetectPEBLInstallation();
 
@@ -283,15 +292,29 @@ bool LauncherConfig::LoadConfig()
             } else if (key == "data_output_path") {
                 mDataOutputPath = value;
             } else if (key == "font_size") {
-                mFontSize = std::stof(value);
+                try {
+                    mFontSize = std::stoi(value);
+                } catch (...) {
+                    printf("Warning: Invalid font_size value, using default\n");
+                }
             } else if (key == "window_width") {
-                mWindowWidth = std::stoi(value);
+                try {
+                    mWindowWidth = std::stoi(value);
+                } catch (...) {
+                    printf("Warning: Invalid window_width value, using default\n");
+                }
             } else if (key == "window_height") {
-                mWindowHeight = std::stoi(value);
+                try {
+                    mWindowHeight = std::stoi(value);
+                } catch (...) {
+                    printf("Warning: Invalid window_height value, using default\n");
+                }
             } else if (key == "current_study_path") {
                 mCurrentStudyPath = value;
             } else if (key == "current_chain_name") {
                 mCurrentChainName = value;
+            } else if (key == "external_editor") {
+                mExternalEditor = value;
             }
         } else if (currentSection == "recent") {
             // Parse recent experiment entry: name|path|timestamp
@@ -299,11 +322,25 @@ bool LauncherConfig::LoadConfig()
             if (pipe1 != std::string::npos) {
                 size_t pipe2 = value.find('|', pipe1 + 1);
                 if (pipe2 != std::string::npos) {
-                    RecentExperiment recent;
-                    recent.name = value.substr(0, pipe1);
-                    recent.path = value.substr(pipe1 + 1, pipe2 - pipe1 - 1);
-                    recent.lastRun = std::stol(value.substr(pipe2 + 1));
-                    mRecentExperiments.push_back(recent);
+                    try {
+                        std::string timestampStr = value.substr(pipe2 + 1);
+                        // Skip if timestamp is empty or invalid
+                        if (timestampStr.empty()) {
+                            continue;
+                        }
+
+                        RecentExperiment recent;
+                        recent.name = value.substr(0, pipe1);
+                        recent.path = value.substr(pipe1 + 1, pipe2 - pipe1 - 1);
+                        recent.lastRun = std::stol(timestampStr);
+                        mRecentExperiments.push_back(recent);
+                    } catch (const std::invalid_argument& e) {
+                        // Skip malformed entry
+                        printf("Warning: Skipping malformed recent experiment entry: %s\n", value.c_str());
+                    } catch (const std::out_of_range& e) {
+                        // Skip out of range timestamp
+                        printf("Warning: Skipping out-of-range timestamp in recent experiment entry: %s\n", value.c_str());
+                    }
                 }
             }
         }
@@ -365,6 +402,7 @@ bool LauncherConfig::SaveConfig()
     configFile << "font_size=" << mFontSize << std::endl;
     configFile << "window_width=" << mWindowWidth << std::endl;
     configFile << "window_height=" << mWindowHeight << std::endl;
+    configFile << "external_editor=" << mExternalEditor << std::endl;
     configFile << std::endl;
 
     configFile << "# Session state" << std::endl;

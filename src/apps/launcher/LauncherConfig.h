@@ -34,11 +34,12 @@ public:
     std::string GetWorkspacePath() const { return mWorkspacePath; }
     std::string GetBatteryPath() const { return mBatteryPath; }
     std::string GetDataOutputPath() const { return mDataOutputPath; }
-    float GetFontSize() const { return mFontSize; }
+    int GetFontSize() const { return mFontSize; }
     std::string GetCurrentStudyPath() const { return mCurrentStudyPath; }
     std::string GetCurrentChainName() const { return mCurrentChainName; }
     int GetWindowWidth() const { return mWindowWidth; }
     int GetWindowHeight() const { return mWindowHeight; }
+    std::string GetExternalEditor() const { return mExternalEditor; }
 
     // Setters
     void SetExperimentDirectory(const std::string& dir) { mExperimentDirectory = dir; }
@@ -51,11 +52,12 @@ public:
     void SetWorkspacePath(const std::string& path) { mWorkspacePath = path; }
     void SetBatteryPath(const std::string& path) { mBatteryPath = path; }
     void SetDataOutputPath(const std::string& path) { mDataOutputPath = path; }
-    void SetFontSize(float size) { mFontSize = size; }
+    void SetFontSize(int size) { mFontSize = size; }
     void SetCurrentStudyPath(const std::string& path) { mCurrentStudyPath = path; }
     void SetCurrentChainName(const std::string& name) { mCurrentChainName = name; }
     void SetWindowWidth(int width) { mWindowWidth = width; }
     void SetWindowHeight(int height) { mWindowHeight = height; }
+    void SetExternalEditor(const std::string& editor) { mExternalEditor = editor; }
 
     void AddRecentExperiment(const std::string& path, const std::string& name);
 
@@ -80,9 +82,10 @@ private:
     std::string mDataOutputPath;     // Where to save data files
 
     // UI settings
-    float mFontSize;                 // Font size (default 14.0)
+    int mFontSize;                   // Font size (default 18)
     int mWindowWidth;                // Window width (default 1280)
     int mWindowHeight;               // Window height (default 720)
+    std::string mExternalEditor;     // External text editor command
 
     // Session state (selected study and chain)
     std::string mCurrentStudyPath;   // Path to currently selected study

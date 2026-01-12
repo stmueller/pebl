@@ -49,12 +49,12 @@ define Start(lPar)
 
   parpairs <- [["numRare",72],
               ["numCommon",248],
-	      ["doheader",1]]
+	      ["doheader",1],
+              ["usefade",1],
+              ["fadesteps",5],
+              ["soa",2000]]
 
   gParams <- CreateParameters(parpairs,"params/toav.pbl.par")
-
-
-
   ## Initialize global objects for use later. Defined at end of file
   Initialize()
   gSleepEasy <- 1
@@ -67,14 +67,16 @@ define Start(lPar)
 
    if(0)
    {
-  if(IsAnyKeyDown())
-   {
-      gInstructions.text <- gStrings.keysup
-      Show(gInstructions)
-      Draw()
-      WaitForAllKeysUp()
-   }
+     if(IsAnyKeyDown())
+     {
+       gInstructions.text <- gStrings.keysup
+       Show(gInstructions)
+       Draw()
+       WaitForAllKeysUp()
+     }
   }
+
+
   ####################################################
   ##  Now, generate stimuli/conditions
   ####################################################
@@ -199,7 +201,10 @@ define Start(lPar)
       resp2     <- 0  ## Was there a response during ISI
       respMult  <- 0  ## were there multiple responses on trial?
 
+      ## Fixed SOA timing: capture start and calculate target end time
       timeStart <- GetTime()
+      targetEndTime <- timeStart + gParams.soa
+
       if( i == 1)
       {
       ########################
@@ -207,36 +212,20 @@ define Start(lPar)
       ### Target
       ###
 
-	  DrawTarg()
-      ##Initial presentation phase.
+      DrawTarg()
+      ## Stimulus presentation window (100ms)
       r1 <- WaitForListKeyPressWithTimeout([" "],100,1)
       time1 <- GetTime()
 
-
       HideAll()
-      if(not (r1 == " "))
-      {
 
-        r2 <- WaitForListKeyPressWithTimeout([" "],1850,1)
-        time2 <- GetTime()
+      ## ISI response collection (1900ms total ISI budget)
+      r2 <- WaitForListKeyPressWithTimeout([" "],1900,1)
+      time2 <- GetTime()
 
+      ## Check for multiple responses in remaining time
+      rMult <- WaitForListKeyPressWithTimeout([" "],Max([0, targetEndTime - GetTime()]),1)
 
-
-        remains <- 1850-(time2-time1)
-        rMult <- WaitForListKeyPressWithTimeout([" "],remains,1)
-
-        time3 <- GetTime()
-        Wait(1850 - (time3 - time1))
-
-      } else {
-
-        rMult <- WaitForListKeyPressWithTimeout([" "],1850,1)
-        time2 <- GetTime()
-
-        r2 <- 0
-        Wait(1850 - (time2- time1))
-        time3 <- GetTime()
-      }
       } else {
 
       ########################
@@ -244,36 +233,27 @@ define Start(lPar)
       ### Foil
       ###
 
-	  DrawFoil()
+      DrawFoil()
+      ## Stimulus presentation window (100ms)
       r1 <- WaitForListKeyPressWithTimeout([" "],100,1)
       time1 <- GetTime()
 
       HideAll()
-      #If r1 is a not ' ', it was the 'timeout' signal, which means no response.
-      if(not (r1 == " "))
-      {
 
-        r2 <- WaitForListKeyPressWithTimeout([" "],1850,1)
-        time2 <- GetTime()
+      ## ISI response collection (1900ms total ISI budget)
+      r2 <- WaitForListKeyPressWithTimeout([" "],1900,1)
+      time2 <- GetTime()
 
-        remains <- 1850-(time2-time1)
+      ## Check for multiple responses in remaining time
+      rMult <- WaitForListKeyPressWithTimeout([" "],Max([0, targetEndTime - GetTime()]),1)
 
-        rMult <- WaitForListKeyPressWithTimeout([" "],remains,1)
-        time3 <- GetTime()
-
-        Wait(1850 - (time3-time1))
-
-      } else {
-        ## A response was made in phase 1.
-        rMult <- WaitForListKeyPressWithTimeout([" "],1850,1)
-        time2 <- GetTime()
-
-        r2 <- 0
-        Wait(1850 - (time2-time1))
-        time3 <- GetTime()
       }
 
-
+      ## Ensure we hit exactly the target SOA regardless of fade/draw delays
+      elapsed <- GetTime() - timeStart
+      if(elapsed < gParams.soa)
+      {
+        Wait(gParams.soa - elapsed)
       }
 
      ##by default, start out rt as -1
@@ -445,27 +425,63 @@ define Initialize()
 
 define DrawTarg()
 {
-   Show(gOuter)
-   Show(gInnerTarg)
-   Hide(gInnerFoil)
-   Draw()
+  if(gParams.usefade)
+  {
+
+    ## Fade in outer square and target inner square
+    Hide(gInnerFoil)
+    Show(gInnerTarg)
+    FadeIn([gOuter])
+
+  } else {
+    ## Instant show (original behavior)
+    Show(gOuter)
+    Show(gInnerTarg)
+    Hide(gInnerFoil)
+  }
+  Draw()
+  return(0)
 }
 
 
 define DrawFoil()
 {
-   Show(gOuter)
-   Hide(gInnerTarg)
-   Show(gInnerFoil)
-   Draw()
+  if(gParams.usefade)
+  {
+    Print("foil fadein:")
+    ## Fade in outer square and foil inner square
+    Hide(gInnerTarg)
+    Show(gInnerFoil)
+    Draw()
+    FadeIn([gOuter])
+    
+  } else {
+    ## Instant show (original behavior)
+    Show(gOuter)
+    Hide(gInnerTarg)
+    Show(gInnerFoil)
+  }
+  Draw()
+  return(0)
 }
 
 define HideAll()
 {
-   Hide(gOuter)
-   Hide(gInnerTarg)
-   Hide(gInnerFoil)
-   Draw()
+  if(gParams.usefade)
+  {
+    ## Fade out the outer square first, then hide inner squares
+    ## (inner squares stay visible while white square fades, then disappear into black background)
+    FadeOut([gOuter])
+    Hide(gInnerTarg)
+    Hide(gInnerFoil)
+  } else {
+    ## Instant hide (original behavior)
+    Hide(gOuter)
+    Hide(gInnerTarg)
+    Hide(gInnerFoil)
+  }
+  Draw()
+  return(0)
 }
 
 
@@ -476,4 +492,46 @@ define GetStrings(language)
 {
 ##Known trasnlations:  EN
   gStrings <- GetTranslations("toav", language)
+}
+
+## Fade in object smoothly using alpha channel
+define FadeIn(objs)
+{
+  steps <- gParams.fadesteps
+
+  ## Start fully transparent
+  loop(obj,objs)
+  {
+   obj.color.alpha <- 0
+   Show(obj)
+  }
+  ## Gradually increase opacity
+  loop(i, Sequence(1, steps, 1))
+  {
+     loop(obj,objs)
+      {
+       obj.color.alpha <- Round(255 * i / steps)
+      }
+    Draw()
+    Wait(10)  ## 10ms per step (50ms minimum for visible fade)
+  }
+
+  ## Ensure fully opaque at end
+  loop(obj,objs)
+  { 
+    obj.color.alpha <- 255
+  }
+  return(0)
+}
+
+## Instant hide (fade-out not needed - not visually jarring on black background)
+define FadeOut(objs)
+{
+ loop(obj,objs)
+  {
+    obj.color.alpha <- 0
+    Hide(obj)
+  }
+  Draw()
+  return(0)
 }

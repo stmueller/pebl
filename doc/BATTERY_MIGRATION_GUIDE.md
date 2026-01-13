@@ -1661,6 +1661,268 @@ rsync -av \
 3. Commit to PEBLOnlinePlatform git: `git add battery/testname/data/example-data*`
 4. Deploy script **ignores** all data/ directories (as it should)
 
+### Mistake 11: Incomplete PEBLOnlinePlatform Deployment Configuration
+
+**What happened (linejudgment migration - January 2026)**:
+- Successfully migrated test to PEBL 2.3 with Layout & Response System
+- Copied entire test directory to `PEBLOnlinePlatform/battery/linejudgment/`
+- Updated `config/library-tests.json` to register the test
+- Created comprehensive `config/test-metadata/linejudgment.json`
+- BUT: Web launcher couldn't find the test - error: "Test directory does not exist: /usr/local/share/pebl2/battery/linejudgment"
+- Missing critical configuration in `config/test_catalog.json`
+
+**Why this was wrong**:
+- PEBLOnlinePlatform uses a **bundle loading system** for web deployment
+- Tests are packaged into `.data` files and loaded on-demand
+- The launcher requires **TWO separate entries** in `test_catalog.json`:
+  1. **data_bundles entry**: Defines where to fetch the bundle file
+  2. **tests entry**: Associates the test ID with its bundle
+- Without both entries, the launcher doesn't know the bundle exists or how to load it
+- Simply copying files to `battery/` directory is insufficient - bundles must be explicitly configured
+
+**CRITICAL: Proper Development and Deployment Workflow**:
+
+**⚠️ IMPORTANT**: Deploy to `PEBLOnlinePlatform/` (NOT `/var/www/pebl/`)
+
+The correct workflow is:
+1. **Work in battery/ FIRST** - All development happens in the main repository
+2. **Complete ALL translations** - Update all language files before deployment
+3. **Test thoroughly** - Run and test the battery version extensively
+4. **THEN deploy to PEBLOnlinePlatform/** - Copy completed, tested code
+5. **Update configuration files** - All FOUR .json files in PEBLOnlinePlatform
+6. **Add example data** - Copy example data with standard naming
+
+**Never deploy incomplete or untranslated tests to PEBLOnlinePlatform.**
+
+**Complete deployment checklist for PEBLOnlinePlatform**:
+
+**Prerequisites** (must be completed in battery/ BEFORE deployment):
+- ✅ Test fully migrated to PEBL 2.3 (if applicable)
+- ✅ All translations completed and updated
+- ✅ Parameter files created (including -auto.par.json and -userselect.par.json)
+- ✅ Test thoroughly tested in battery/
+- ✅ Example data generated
+
+**Required PEBLOnlinePlatform configuration updates** (ALL FOUR required):
+1. `config/library-tests.json` - Register test in library
+2. `config/test-metadata/testname.json` - Complete test documentation
+3. `config/test_catalog.json` (data_bundles section) - Define bundle
+4. `config/test_catalog.json` (tests section) - Link test to bundle
+
+**Step 1: Copy test files from battery/ to PEBLOnlinePlatform/**
+```bash
+# Copy entire test directory from battery/ (NOT upload-battery/)
+cp -r battery/linejudgment/ PEBLOnlinePlatform/battery/linejudgment/
+
+# Verify all required files present
+ls PEBLOnlinePlatform/battery/linejudgment/linejudgment.pbl
+ls PEBLOnlinePlatform/battery/linejudgment/linejudgment.pbl.png
+ls PEBLOnlinePlatform/battery/linejudgment/params/*.par.json
+ls PEBLOnlinePlatform/battery/linejudgment/translations/*.json
+```
+
+**Step 2: Update library-tests.json (CONFIG FILE 1 of 4)**
+
+Add test entry in `PEBLOnlinePlatform/config/library-tests.json`:
+
+```json
+{
+  "id": "linejudgment",
+  "name": "Line Judgment Task",
+  "main_file": "linejudgment.pbl",
+  "path": "battery/linejudgment",
+  "category": "Processing Speed",
+  "available": true,
+  "estimated_minutes": 10
+}
+```
+
+**Step 3: Create comprehensive test metadata (CONFIG FILE 2 of 4)**
+
+Create `PEBLOnlinePlatform/config/test-metadata/linejudgment.json` with:
+- Complete overview section (brief_description, task_description, what_it_measures, cognitive_domains, duration_minutes, suitable_for)
+- Scientific background (references, validation_status)
+- **CRITICAL**: Complete data_output section with:
+  - summary
+  - files_created array (with filename and description for each output file)
+  - **key_variables array** documenting ALL CSV columns
+  - **sample_data_url** pointing to example data location
+- Parameters section referencing schema
+- Assets (screenshots, videos, demo_url)
+- Platform info (category, browser_compatibility, known_issues)
+- Related tests
+- Notes and tags
+- Sources
+
+**Step 4: ⚠️ CRITICAL - Update test_catalog.json with BOTH required entries (CONFIG FILES 3 & 4 of 4)**
+
+This is the step that's most often forgotten but **absolutely required** for web deployment.
+
+Edit `PEBLOnlinePlatform/config/test_catalog.json` and add **TWO separate entries** in different sections:
+
+**4a. Add data bundle entry (CONFIG FILE 3 of 4)** - in "data_bundles" section:
+```json
+"linejudgment": {
+  "file": "linejudgment.data",
+  "url": "/runtime/test-bundles/linejudgment.data",
+  "size_mb": 0.1,
+  "description": "Line Judgment Task - Speed-accuracy tradeoff task comparing line lengths (Henmon, 1910)",
+  "tests": [
+    "linejudgment"
+  ],
+  "base_url": "/runtime/test-bundles"
+}
+```
+
+**4b. Add test entry (CONFIG FILE 4 of 4)** - in "tests" section:
+```json
+"linejudgment": {
+  "id": "linejudgment",
+  "name": "Line Judgment Task",
+  "directory": "linejudgment",
+  "main_file": "linejudgment.pbl",
+  "screenshot": "battery/linejudgment/linejudgment.pbl.png",
+  "version": "1.0",
+  "collection": "basic_cognitive",
+  "data_bundle": "linejudgment",
+  "platform": [
+    "web",
+    "native"
+  ],
+  "visibility": "public",
+  "min_tier": "free",
+  "tags": [
+    "processing_speed",
+    "speed-accuracy-tradeoff",
+    "perception",
+    "visuospatial",
+    "classic",
+    "migrated-2.3"
+  ],
+  "size_mb": 0.1,
+  "duration_minutes": 10,
+  "copyright_status": "open",
+  "description": "Speed-accuracy tradeoff task where participants quickly discriminate which of two vertical lines is longer under varying deadline conditions. Based on Henmon (1910), measures the relationship between response time constraints and decision accuracy across progressively shorter deadlines (10s, 2s, 1s, 700ms, 500ms).",
+  "citation": "Henmon, V. A. C. (1911). The relation of the time of a judgment to its accuracy. Psychological Review, 18(3), 186-201."
+}
+```
+
+**Key fields to note**:
+- `collection`: Test collection (e.g., "basic_cognitive", "spatial_cognition")
+- `data_bundle`: **MUST match** the bundle name from data_bundles section
+- `tags`: List primary cognitive domain FIRST (e.g., "processing_speed")
+
+**Step 5: Create and copy example data files**
+
+Generate example data by running the test, then copy with **standard naming**:
+
+```bash
+# Run test to generate example data
+bin/pebl2 battery/linejudgment/linejudgment.pbl -s example-participant
+
+# Copy with standard names to PEBLOnlinePlatform
+cp battery/linejudgment/data/example-participant/linejudgment-data-example-participant.csv \
+   PEBLOnlinePlatform/battery/linejudgment/data/example-data.csv
+
+cp battery/linejudgment/data/example-participant/linejudgment-report-example-participant.txt \
+   PEBLOnlinePlatform/battery/linejudgment/data/example-data-report.txt
+```
+
+**Standard example data naming conventions**:
+- Primary data: `example-data.csv`
+- Summary report: `example-data-report.txt`
+- Additional files: `example-data-*.ext`
+- **Always** use `example-` prefix
+- Place in `battery/testname/data/` (NOT `public/battery/`)
+
+**Step 6: Document data format in test-metadata.json**
+
+Update the `key_variables` array with **ALL** CSV columns:
+
+```json
+"key_variables": [
+  {
+    "name": "subnum",
+    "description": "Participant identifier code"
+  },
+  {
+    "name": "block",
+    "description": "Block number (1-5 depending on numblocks parameter)"
+  },
+  {
+    "name": "trial",
+    "description": "Cumulative trial number across all blocks"
+  }
+  // ... document EVERY column ...
+],
+"sample_data_url": "battery/linejudgment/data/example-data.csv"
+```
+
+**Common deployment errors and solutions**:
+
+| Error | Symptom | Cause | Solution |
+|-------|---------|-------|----------|
+| Bundle not found | "Test directory does not exist" in console | Missing `test_catalog.json` entries | Add BOTH data_bundles and tests entries |
+| Test not in library | Test doesn't appear in test selection UI | Missing `library-tests.json` entry | Add test to library-tests.json |
+| No example data on test page | Sample data links don't work | Missing example files OR wrong `sample_data_url` | Copy example data with standard naming, update metadata |
+| Screenshot not showing | Broken image icon | Screenshot not copied OR wrong path | Copy .pbl.png to battery directory, verify path |
+| Incomplete metadata | Missing test information | Incomplete test-metadata.json | Fill in all required sections |
+
+**Verification commands**:
+
+```bash
+# 1. Verify test_catalog.json has both entries
+jq '.data_bundles.linejudgment' PEBLOnlinePlatform/config/test_catalog.json
+jq '.tests.linejudgment' PEBLOnlinePlatform/config/test_catalog.json
+
+# 2. Verify library registration
+jq '.tests[] | select(.id == "linejudgment")' PEBLOnlinePlatform/config/library-tests.json
+
+# 3. Verify metadata completeness
+jq '.data_output.key_variables | length' PEBLOnlinePlatform/config/test-metadata/linejudgment.json
+# Should show count matching number of CSV columns
+
+# 4. Verify example data exists
+ls PEBLOnlinePlatform/battery/linejudgment/data/example-data*
+
+# 5. Verify screenshot exists
+ls PEBLOnlinePlatform/battery/linejudgment/linejudgment.pbl.png
+```
+
+**Why this error is particularly problematic**:
+- The test appears to be "deployed" (files are in battery/ directory)
+- library-tests.json makes it visible in the UI
+- BUT: The web launcher **silently fails** to load the bundle
+- Browser console shows cryptic filesystem errors
+- Easy to miss if you don't check console logs
+- Can waste hours debugging before discovering the missing test_catalog.json entries
+
+**Lesson learned**:
+**PEBLOnlinePlatform deployment requires FOUR distinct configuration files**:
+1. `config/library-tests.json` - Makes test visible in library
+2. `config/test-metadata/testname.json` - Provides test documentation
+3. `config/test_catalog.json` (data_bundles section) - Defines bundle location
+4. `config/test_catalog.json` (tests section) - Associates test with bundle
+
+All four must be updated for successful web deployment.
+
+**📋 DEPLOYMENT WORKFLOW SUMMARY**:
+
+```
+✅ CORRECT WORKFLOW:
+1. Work in battery/ first - Complete development, translations, testing
+2. Copy completed test → PEBLOnlinePlatform/battery/
+3. Update ALL FOUR .json configuration files
+4. Add example data with standard naming
+5. Commit to PEBLOnlinePlatform git
+
+❌ WRONG APPROACHES:
+- Deploying to /var/www/ instead of PEBLOnlinePlatform/
+- Copying incomplete or untranslated code
+- Forgetting any of the four configuration files
+- Skipping example data or using wrong naming
+```
+
 ### Migration Pre-Flight Checklist
 
 Before starting any test migration, check off these items:

@@ -185,7 +185,293 @@ grep -i "ask questions" upload-battery/testname/testname.pbl
 grep -i "experimenter" upload-battery/testname/translations/*.json
 ```
 
-#### 2.3 Translation File Updates
+#### 2.3 Layout & Response System Integration (PEBL 2.3+)
+
+**Goal**: Migrate tests to use the unified Layout & Response System for platform-aware responses and consistent UI.
+
+**Benefits**:
+- **Platform-aware responses**: Automatic adaptation between desktop (shift keys), web (Z/slash), and touch (click targets)
+- **Sticky Keys prevention**: Shift key mode disabled by default on web browsers
+- **Consistent UI**: Standardized header/footer/stimulus regions across all battery tasks
+- **Zero code changes for response mode**: Users can switch via parameters, not code
+- **Semantic responses**: Data files record semantic names (`"left"`, `"right"`) instead of raw keys (`<lshift>`)
+
+**Migration Status** (as of Jan 2026):
+- 18 tests fully migrated (35%)
+- Available response modes: auto, keyboardShift, keyboardSafe, arrowLR, mousetarget, touchtarget, mousebutton, userselect, spacebar, leftclick, touchscreen, clicktarget
+
+**Who should migrate:**
+- ✅ **YES**: Tests with 2-alternative forced choice (left/right, odd/even, yes/no)
+- ✅ **YES**: Tests with single-key responses (spacebar, click to respond)
+- ⚠️ **MAYBE**: Tests with custom response patterns (consider layout-only migration)
+- ❌ **NO**: Tests with mouse tracking, drag-and-drop, or complex integrated interfaces
+
+**Migration Steps:**
+
+**Step 2.3.1: Add responsemode parameter and set responsesemantics**
+
+Add to `params/taskname.pbl.schema.json`:
+```json
+{
+  "name": "responsemode",
+  "type": "string",
+  "default": "auto",
+  "options": ["auto", "keyboardShift", "keyboardSafe", "arrowLR", "userselect", "mousetarget", "mousebutton", "touchtarget"],
+  "label": "Response Mode",
+  "description": "Response method: auto (platform-aware default), keyboardShift (L/R shift), keyboardSafe (Z/slash for web), arrowLR (left/right arrows), userselect (user-selected keys), mousetarget (click targets), mousebutton (L/R mouse buttons), touchtarget (large touch targets)"
+}
+```
+
+**CRITICAL: Always include "auto" and "userselect" modes**
+
+- **auto**: Platform-aware default mode. Automatically selects the best response mode for the current platform:
+  - Desktop: Uses shift keys (unless Sticky Keys detected)
+  - Web browsers: Uses Z/slash (avoids Sticky Keys dialog)
+  - Touch devices: Uses touch targets
+
+- **userselect**: Allows users to choose their own response keys at the start of the test. Essential for:
+  - Accessibility (users with motor impairments)
+  - Keyboard layout differences (QWERTY, AZERTY, QWERTZ)
+  - User preference and comfort
+  - Testing with alternative input devices
+
+**Default to "auto"** for maximum compatibility, but **always include "userselect"** as an option for accessibility.
+
+**IMPORTANT**: Do NOT add `responsesemantics` to schema - it's an internal parameter set in code.
+
+Update main `.pbl` file in `Start()` function:
+```pebl
+## BEFORE
+parpairs <- [["reps", 10],
+             ["isi", 500]]
+gParams <- CreateParameters(parpairs, gParamFile)
+
+## AFTER
+parpairs <- [["reps", 10],
+             ["isi", 500],
+             ["responsemode", "auto"]]  ## NEW
+
+gParams <- CreateParameters(parpairs, gParamFile)
+
+## Set semantic requirements (NOT in schema!)
+gParams.responsesemantics <- "2afc"  ## Or: ["left", "right"], "gonogo", etc.
+```
+
+**Available responsesemantics values:**
+- `"2afc"` - Two-alternative forced choice (left/right)
+- `"gonogo"` - Single response (go/no-go tasks)
+- `["left", "right"]` - Custom semantic labels
+- `["odd", "even"]`, `["yes", "no"]`, etc. - Task-specific semantics
+
+**Step 2.3.2: Create layout after parameters**
+
+Add to `Start()` function, AFTER parameters loaded, BEFORE first `Draw()`:
+
+```pebl
+## BEFORE
+gWin <- MakeWindow("black")
+gParams <- CreateParameters(parpairs, gParamFile)
+GetStrings(gLanguage)
+Draw()
+
+## AFTER
+gWin <- MakeWindow("black")
+gParams <- CreateParameters(parpairs, gParamFile)
+GetStrings(gLanguage)
+
+## NEW: Create layout with response system
+gLayout <- CreateLayout("taskname", gWin, gParams)
+
+## Configure layout zones
+gLayout.header.text <- gStrings.header
+gLayout.subheader.visible <- 0  ## Hide if not needed
+## Footer is set automatically
+
+Draw()
+```
+
+**Step 2.3.3: Update MessageBox to fit stimulus region**
+
+Replace instances of `MessageBox()` with constrained versions:
+
+```pebl
+## Option 1: Use AdaptiveTextBox (RECOMMENDED)
+define MessageKeyBox(message)
+{
+  tb <- AdaptiveTextBox(message,
+                        gLayout.stimulusRegion.x + 20,
+                        gLayout.stimulusRegion.y + 20,
+                        gWin, 56,
+                        gLayout.stimulusRegion.width - 40,
+                        gLayout.stimulusRegion.height - 40,
+                        "scalefont")
+  Draw()
+  WaitForAnyKeyPress()
+  RemoveObject(tb, gWin)
+}
+
+## Option 2: Calculate custom gutters for MessageBox
+leftgutter <- gLayout.stimulusRegion.x + 20
+rightgutter <- gVideoWidth - (gLayout.stimulusRegion.x + gLayout.stimulusRegion.width) + 20
+bottomgutter <- gVideoHeight - (gLayout.stimulusRegion.y + gLayout.stimulusRegion.height) + 20
+MessageBox(gStrings.interblock, gWin, 20, leftgutter, rightgutter, bottomgutter)
+```
+
+**Step 2.3.4: Replace manual positioning with layout zones**
+
+**CRITICAL**: Replace ALL instances of `gVideoWidth/2` and `gVideoHeight/2` with layout positioning.
+
+```pebl
+## BEFORE
+stim <- EasyLabel(stimulus, gVideoWidth/2, gVideoHeight/2, gWin, 80)
+fixation <- EasyLabel("+", gVideoWidth/2, gVideoHeight/2, gWin, 40)
+
+## AFTER
+stim <- EasyLabel(stimulus, gLayout.centerX, gLayout.centerY, gWin, 80)
+fixation <- EasyLabel("+", gLayout.centerX, gLayout.centerY, gWin, 40)
+```
+
+**Common locations to check:**
+- Trial() function - stimulus positioning
+- DoInstructions() - demo stimuli positioning
+- Any function creating fixation crosses, feedback, or centered elements
+
+**Step 2.3.5: Replace hardcoded key checks with WaitForLayoutResponse**
+
+```pebl
+## BEFORE
+Draw()
+resp <- WaitForListKeyPress(["<lshift>", "<rshift>"])
+if(resp == "<lshift>") { response <- "left" }
+if(resp == "<rshift>") { response <- "right" }
+
+## AFTER
+Draw()
+resp <- WaitForLayoutResponse(gLayout)
+response <- resp  ## Already semantic: "left" or "right"
+```
+
+**Step 2.3.6: Update translation strings for ALL languages**
+
+Check which translations exist:
+```bash
+ls battery/taskname/translations/
+```
+
+**Update each translation file** (`-en.json`, `-es.json`, `-fr.json`, etc.):
+
+```json
+// BEFORE
+{
+  "HEADER": "Task Name - Trial 1",
+  "FOOTER": "<left shift> LEFT                    RIGHT <right shift>",
+  "INSTRUCTIONS": "Press LEFT SHIFT for left, RIGHT SHIFT for right."
+}
+
+// AFTER
+{
+  "HEADER": "Task Name - Trial 1",
+  "FOOTER": "LEFT                                    RIGHT",
+  "INSTRUCTIONS": "Press the LEFT response key for left, the RIGHT response key for right."
+}
+```
+
+**Key changes for ALL languages:**
+- Remove hardcoded key names from `FOOTER` (e.g., `"<left shift>"`, `"shift izquierdo"`)
+- Update `INSTRUCTIONS` to use generic "response key" language
+- Layout system adds actual response keys automatically below footer
+- Preserve semantic meanings in each language (LEFT/RIGHT → IZQUIERDA/DERECHA → KAIRĖ/DEŠINĖ)
+
+**Step 2.3.7: Verify data output format**
+
+Response values change from raw keys to semantic names:
+
+```
+BEFORE: 001,1,stimulus1,<lshift>,1,523
+AFTER:  001,1,stimulus1,left,1,523
+```
+
+This is EXPECTED and CORRECT. Analysis scripts may need minor updates.
+
+**Step 2.3.8: Test multiple response modes**
+
+**REQUIRED parameter files** (minimum):
+```bash
+battery/testname/params/testname-auto.par.json        # Platform-aware (REQUIRED)
+battery/testname/params/testname-userselect.par.json  # User-selected keys (REQUIRED for accessibility)
+```
+
+**Additional recommended parameter files** (test-dependent):
+```bash
+battery/testname/params/testname-keyboardSafe.par.json  # Z/slash (web-safe)
+battery/testname/params/testname-arrowLR.par.json       # Arrow keys
+battery/testname/params/testname-mousetarget.par.json   # Click targets
+battery/testname/params/testname-mousebutton.par.json   # Mouse buttons
+battery/testname/params/testname-touchtarget.par.json   # Large touch targets
+```
+
+**Example parameter file** (testname-auto.par.json):
+```json
+{
+  "responsemode": "auto"
+}
+```
+
+**Example parameter file** (testname-userselect.par.json):
+```json
+{
+  "responsemode": "userselect"
+}
+```
+
+**Test each mode:**
+```bash
+# Test auto mode (REQUIRED)
+bin/pebl2 battery/testname/testname.pbl --pfile battery/testname/params/testname-auto.par.json
+
+# Test userselect mode (REQUIRED)
+bin/pebl2 battery/testname/testname.pbl --pfile battery/testname/params/testname-userselect.par.json
+
+# Test additional modes
+bin/pebl2 battery/testname/testname.pbl --pfile battery/testname/params/testname-keyboardSafe.par.json
+bin/pebl2 battery/testname/testname.pbl --pfile battery/testname/params/testname-arrowLR.par.json
+```
+
+**Verify userselect mode:**
+- Test prompts user to select response keys
+- User can choose any two distinct keys
+- Selected keys are displayed in footer
+- Test works with selected keys
+- Data file records semantic responses (not raw keys)
+
+**Migration Checklist:**
+- [ ] Added responsemode to schema with "auto" as default
+- [ ] Set responsesemantics in code (NOT schema)
+- [ ] Created layout with CreateLayout()
+- [ ] Configured header/subheader/footer text
+- [ ] Updated MessageBox calls to fit stimulus region
+- [ ] Replaced gVideoWidth/2 and gVideoHeight/2 with gLayout.centerX/centerY
+- [ ] Replaced WaitForListKeyPress with WaitForLayoutResponse
+- [ ] Updated ALL translation files (not just English)
+- [ ] **REQUIRED**: Created testname-auto.par.json parameter file
+- [ ] **REQUIRED**: Created testname-userselect.par.json parameter file
+- [ ] Created additional parameter files for other modes (optional but recommended)
+- [ ] Tested auto mode works correctly (platform-aware selection)
+- [ ] Tested userselect mode prompts for key selection and works correctly
+- [ ] Tested additional response modes if parameter files created
+- [ ] Verified data output uses semantic names (not raw keys)
+
+**Reference implementations:**
+- Simple 2AFC: `battery/evenodd/evenodd.pbl`
+- With semantic labels: `battery/luckvogel/luckvogel.pbl`
+- Single-key (go/no-go): `battery/gonogo/gonogo.pbl`
+- See full guide: `doc/LAYOUT_MIGRATION_GUIDE.md`
+
+**For detailed migration examples, troubleshooting, and advanced patterns, see `doc/LAYOUT_MIGRATION_GUIDE.md`**
+
+---
+
+#### 2.4 Translation File Updates
 
 **For each translation file** (`translations/testname.pbl-*.json`):
 
@@ -544,7 +830,7 @@ positions <- MakeGrid(10, 10, gScreenWidth, gScreenHeight)
 **Compare native vs. online data**:
 ```bash
 # Run test natively
-bin/pebl2 battery/testname/testname.pbl -v subnum=001
+bin/pebl2 battery/testname/testname.pbl -s 001
 
 # Run test online
 # (via browser)
@@ -800,9 +1086,11 @@ Timing Validation:
 1. Add data upload call
 2. Update instructions
 3. Create schema file
-4. Test in browsers
+4. **Integrate Layout & Response System** (if 2AFC or single-key response)
+5. Create auto and userselect parameter files
+6. Test in browsers
 
-**Estimated time**: 1-2 hours
+**Estimated time**: 2-3 hours (includes Layout & Response migration)
 
 ### Pattern 2: Visual Stimuli Test (Images)
 
@@ -813,8 +1101,10 @@ Timing Validation:
 2. Preloading images
 3. Aspect ratio preservation
 4. Screen size adaptation
+5. **Layout & Response System integration** (if applicable)
+6. Create auto and userselect parameter files
 
-**Estimated time**: 2-4 hours
+**Estimated time**: 3-5 hours (includes Layout & Response migration if applicable)
 
 ### Pattern 3: Audio-Based Test
 
@@ -825,8 +1115,10 @@ Timing Validation:
 2. Autoplay restrictions
 3. Volume normalization
 4. Latency between keypress and sound
+5. **Layout & Response System integration** (if applicable)
+6. Create auto and userselect parameter files
 
-**Estimated time**: 3-5 hours
+**Estimated time**: 4-6 hours (includes Layout & Response migration if applicable)
 
 ### Pattern 4: Complex Multi-Modal Test
 
@@ -837,8 +1129,11 @@ Timing Validation:
 2. Performance optimization
 3. Extensive browser testing
 4. Timing validation
+5. **Layout & Response System integration** (if applicable)
+6. Create auto and userselect parameter files
+7. Test accessibility with userselect mode
 
-**Estimated time**: 4-8 hours
+**Estimated time**: 5-10 hours (includes Layout & Response migration if applicable)
 
 ---
 
@@ -1523,15 +1818,27 @@ ls upload-battery/testname/data/example-data* 2>/dev/null || echo "No example da
 ## Summary
 
 Successful migration requires attention to:
-1. **Data upload** - Replace file writes with HTTP uploads
+1. **Data upload** - Add `InitializeUpload()` and `UploadFile()` calls
 2. **Instructions** - Remove offline language, update translations
-3. **Parameters** - Create complete schema files
-4. **Display** - Handle screen sizes and aspect ratios
-5. **Testing** - Verify across browsers and screen sizes
-6. **Documentation** - Update about files and create migration notes
+3. **Parameters** - Create complete schema files with responsemode
+4. **Layout & Response System** (PEBL 2.3+) - Integrate for 2AFC and single-key tasks
+5. **Response modes** - **ALWAYS include "auto" (default) and "userselect" (accessibility)**
+6. **Display** - Handle screen sizes and aspect ratios with layout zones
+7. **Testing** - Verify across browsers, screen sizes, and response modes
+8. **Documentation** - Update about files and create migration notes
 
-**Estimated timeline per test**: 1-8 hours depending on complexity
+**CRITICAL for PEBL 2.3 migrations:**
+- ✅ Set `"responsemode": "auto"` as default in schema
+- ✅ Always include "userselect" option for accessibility
+- ✅ Create `testname-auto.par.json` parameter file (REQUIRED)
+- ✅ Create `testname-userselect.par.json` parameter file (REQUIRED)
+- ✅ Test both modes to ensure they work correctly
 
-**Current status**: ~15 tests migrated, ~130 tests remaining
+**Estimated timeline per test**: 2-10 hours depending on complexity (includes Layout & Response migration)
 
-**Next steps**: Focus on Tier 1 high-priority tests first
+**Current status** (Jan 2026):
+- ~52 tests in upload-battery
+- 18 tests with Layout & Response System (35%)
+- ~34 priority tests ready for migration
+
+**Next steps**: Focus on Tier 1 high-priority tests (Phase 1: 10 tests for PEBL 2.3 release)

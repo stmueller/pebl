@@ -96,6 +96,40 @@ Before building, you need to ensure the compiler can write temporary files:
    ./bin/pebl2.exe test.pbl
    ```
 
+### Building the PEBL Launcher (PEBL 2.3+)
+
+Starting with PEBL 2.3, a graphical launcher application is available for Windows that provides study management, snapshot import/export, and experiment runner functionality.
+
+1. **Install additional dependencies:**
+   ```bash
+   # libzip required for snapshot ZIP import/export
+   pacman -S mingw-w64-x86_64-libzip
+   pacman -S mingw-w64-x86_64-zlib
+   ```
+
+2. **Build the launcher:**
+   ```bash
+   make -j 10 -f Makefile-win.mak pebl-launcher-win
+   ```
+
+   This will create `bin/pebl-launcher.exe`
+
+3. **Verify launcher dependencies:**
+   ```bash
+   ldd bin/pebl-launcher.exe | grep mingw
+   ```
+
+   Expected additional DLLs (beyond PEBL interpreter requirements):
+   - `libzip.dll`
+   - `zlib1.dll`
+
+4. **Test the launcher:**
+   ```bash
+   ./bin/pebl-launcher.exe
+   ```
+
+**Note:** For detailed integration steps and installer configuration, see `doc/WINDOWS_LAUNCHER_BUILD_INTEGRATION.md`
+
 ### Creating a Distributable Package
 
 1. **Collect DLL dependencies:**
@@ -262,7 +296,7 @@ make CC=x86_64-w64-mingw32-gcc \
 ```nsis
 ; PEBL Installer Script
 !define APP_NAME "PEBL"
-!define APP_VERSION "2.2"
+!define APP_VERSION "2.3"
 !define PUBLISHER "Shane Mueller"
 !define WEB_SITE "http://pebl.sourceforge.net"
 
@@ -273,8 +307,9 @@ InstallDir "$PROGRAMFILES\PEBL"
 Section "MainSection" SEC01
   SetOutPath "$INSTDIR"
 
-  ; Copy executable and DLLs
+  ; Copy executables and DLLs (PEBL 2.3: includes launcher)
   File "bin\pebl2.exe"
+  File "bin\pebl-launcher.exe"
   File "bin\*.dll"
 
   ; Copy battery tests
@@ -289,15 +324,19 @@ Section "MainSection" SEC01
   SetOutPath "$INSTDIR\media"
   File /r "media\*.*"
 
-  ; Create shortcuts
+  ; Create shortcuts (PEBL 2.3: launcher is primary interface)
   CreateDirectory "$SMPROGRAMS\PEBL"
-  CreateShortCut "$SMPROGRAMS\PEBL\PEBL.lnk" "$INSTDIR\bin\pebl2.exe"
-  CreateShortCut "$DESKTOP\PEBL.lnk" "$INSTDIR\bin\pebl2.exe"
+  CreateShortCut "$SMPROGRAMS\PEBL\PEBL Launcher.lnk" "$INSTDIR\pebl-launcher.exe"
+  CreateShortCut "$SMPROGRAMS\PEBL\PEBL Interpreter.lnk" "$INSTDIR\pebl2.exe"
+  CreateShortCut "$DESKTOP\PEBL Launcher.lnk" "$INSTDIR\pebl-launcher.exe"
 SectionEnd
 
 Section "Uninstall"
-  Delete "$INSTDIR\*.*"
+  Delete "$INSTDIR\pebl2.exe"
+  Delete "$INSTDIR\pebl-launcher.exe"
+  Delete "$INSTDIR\*.dll"
   Delete "$SMPROGRAMS\PEBL\*.*"
+  Delete "$DESKTOP\PEBL Launcher.lnk"
   Delete "$DESKTOP\PEBL.lnk"
   RMDir /r "$INSTDIR"
   RMDir "$SMPROGRAMS\PEBL"
@@ -324,6 +363,7 @@ For a portable version (no installer):
 2. **Copy files:**
    ```bash
    cp ../bin/pebl2.exe .
+   cp ../bin/pebl-launcher.exe .  # PEBL 2.3+
    cp ../bin/*.dll .
    cp -r ../battery .
    cp -r ../pebl-lib .
@@ -332,15 +372,21 @@ For a portable version (no installer):
    cp ../LICENSE .
    ```
 
-3. **Create launcher script** (`PEBL.bat`):
+3. **Create launcher script** (`PEBL-Launcher.bat`):
    ```batch
    @echo off
-   start pebl2.exe bin\launcher.pbl
+   start pebl-launcher.exe
+   ```
+
+   **Or for interpreter only** (`PEBL.bat`):
+   ```batch
+   @echo off
+   start pebl2.exe
    ```
 
 4. **Package as ZIP:**
    ```bash
-   zip -r PEBL-2.1-Portable-Windows.zip PEBL-Portable/
+   zip -r PEBL-2.3-Portable-Windows.zip PEBL-Portable/
    ```
 
 ---
@@ -400,6 +446,26 @@ For a portable version (no installer):
 - Check firewall settings
 - Ensure SDL2_net.dll is present
 
+**Launcher fails to start (PEBL 2.3+)**
+- Error: "libzip.dll not found"
+  - Install: `pacman -S mingw-w64-x86_64-libzip`
+  - Copy to bin/: `cp /c/msys64/mingw64/bin/libzip.dll bin/`
+- Error: "zlib1.dll not found"
+  - Install: `pacman -S mingw-w64-x86_64-zlib`
+  - Copy to bin/: `cp /c/msys64/mingw64/bin/zlib1.dll bin/`
+- Launcher window doesn't appear
+  - Check that ImGui backends compiled correctly
+  - Verify SDL2.dll and SDL2_image.dll are present
+  - Run from command line to see error messages: `./bin/pebl-launcher.exe`
+
+**Snapshot import fails in launcher**
+- Error: "Failed to extract ZIP"
+  - Ensure libzip.dll is correct version (should be libzip 1.8+)
+  - Check ZIP file is valid: `unzip -t snapshot.zip`
+- Permission errors
+  - Run launcher as administrator (right-click → Run as administrator)
+  - Or change workspace location to user-writable directory
+
 ---
 
 ## GitHub Actions for Automated Builds
@@ -433,18 +499,25 @@ jobs:
           mingw-w64-x86_64-SDL2_net
           mingw-w64-x86_64-SDL2_gfx
           mingw-w64-x86_64-SDL2_mixer
+          mingw-w64-x86_64-libzip
+          mingw-w64-x86_64-zlib
           make
           bison
           flex
 
-    - name: Build PEBL
-      run: make main
+    - name: Build PEBL Interpreter
+      run: make -f Makefile-win.mak main
+
+    - name: Build PEBL Launcher
+      run: make -f Makefile-win.mak pebl-launcher-win
 
     - name: Package Release
       run: |
         mkdir PEBL-Windows
         cp bin/pebl2.exe PEBL-Windows/
+        cp bin/pebl-launcher.exe PEBL-Windows/
         ldd bin/pebl2.exe | grep mingw | awk '{print $3}' | xargs -I {} cp {} PEBL-Windows/
+        ldd bin/pebl-launcher.exe | grep mingw | awk '{print $3}' | xargs -I {} cp {} PEBL-Windows/
         cp -r battery pebl-lib media PEBL-Windows/
 
     - name: Upload Artifact

@@ -22,7 +22,8 @@ struct ParameterVariant {
 
 // Test definition within a study
 struct Test {
-    std::string testName;
+    std::string testName;      // Test ID (e.g., "spatialgrid")
+    std::string displayName;   // Display name (e.g., "Spatial Grid Memory")
     std::string testPath;
     bool included;
     std::map<std::string, ParameterVariant> parameterVariants;
@@ -62,6 +63,7 @@ public:
     int GetVersion() const { return mVersion; }
     const std::string& GetAuthor() const { return mAuthor; }
     const std::string& GetStudyToken() const { return mStudyToken; }
+    const std::string& GetUploadServerURL() const { return mUploadServerURL; }
     const std::string& GetCreatedDate() const { return mCreatedDate; }
     const std::string& GetModifiedDate() const { return mModifiedDate; }
     const std::string& GetPath() const { return mPath; }
@@ -74,7 +76,8 @@ public:
     void SetName(const std::string& name) { mName = name; UpdateModifiedDate(); }
     void SetDescription(const std::string& desc) { mDescription = desc; UpdateModifiedDate(); }
     void SetAuthor(const std::string& author) { mAuthor = author; UpdateModifiedDate(); }
-    void SetStudyToken(const std::string& token) { mStudyToken = token; }
+    void SetStudyToken(const std::string& token) { mStudyToken = token; UpdateModifiedDate(); }
+    void SetUploadServerURL(const std::string& url) { mUploadServerURL = url; UpdateModifiedDate(); }
     void IncrementVersion() { mVersion++; UpdateModifiedDate(); }
 
     // Test management
@@ -86,6 +89,16 @@ public:
     // Chain management
     std::vector<std::string> GetChainFiles() const;
     int GetChainCount() const;
+
+    // Upload configuration management
+    // Create or update upload.json for a specific test
+    bool CreateUploadConfigForTest(const std::string& testName);
+
+    // Get path to upload.json for a test (tests/testname/upload.json)
+    std::string GetUploadConfigPath(const std::string& testName) const;
+
+    // Check if test has upload.json
+    bool TestHasUploadConfig(const std::string& testName) const;
 
     // Validation
     struct ValidationResult {
@@ -106,7 +119,8 @@ private:
     std::string mDescription;
     int mVersion;
     std::string mAuthor;
-    std::string mStudyToken;
+    std::string mStudyToken;     // Study token from PEBLOnlinePlatform
+    std::string mUploadServerURL; // Server URL for uploading (e.g., https://pebl.example.com)
     std::string mCreatedDate;    // ISO 8601
     std::string mModifiedDate;   // ISO 8601
     std::vector<Test> mTests;

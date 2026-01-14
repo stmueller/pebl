@@ -80,11 +80,13 @@ public:
     const std::vector<ChainItem>& GetItems() const { return mItems; }
     int GetItemCount() const { return static_cast<int>(mItems.size()); }
     int GetParticipantCounter() const { return mParticipantCounter; }
+    bool GetUploadEnabled() const { return mUploadEnabled; }
 
     // Setters
     void SetName(const std::string& name) { mName = name; }
     void SetDescription(const std::string& desc) { mDescription = desc; }
     void SetParticipantCounter(int counter) { mParticipantCounter = counter; }
+    void SetUploadEnabled(bool enabled) { mUploadEnabled = enabled; }
 
     // Increment participant counter and save
     void IncrementParticipantCounter();
@@ -114,6 +116,9 @@ private:
     std::string mDescription;
     int mParticipantCounter;     // Auto-incrementing participant counter
     std::vector<ChainItem> mItems;
+
+    // Upload configuration
+    bool mUploadEnabled;         // Whether to upload data for tests in this chain
 };
 
 #endif // CHAIN_H

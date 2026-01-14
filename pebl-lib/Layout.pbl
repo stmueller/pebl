@@ -152,18 +152,32 @@ define WaitForLayoutResponse(layout, timeout: 0)
     }
     elseif(mode.type == "mousebutton")
     {
-        ## WaitForMouseButton returns [x, y, button, state, ...]
-        ## Only accept <pressed> events, not <released>
-        ## Loop until we get a valid pressed event
+        ## Use direct RegisterEvent instead of wrapper functions
+        ## This prevents drawing rules from being cleared prematurely
 
+        ## Register mouse button press event
+        RegisterEvent("<MOUSE_BUTTON_PRESS>", 1, 1, "<EQUAL>", "", [])
+
+        ## Register timeout if specified
+        if(timeout != 0)
+        {
+            endtime <- GetTime() + timeout
+            RegisterEvent("<TIMER>", 1, endtime, "<GEQ>", "", [])
+        }
+
+        ## Start event loop and wait for response
         continue <- 1
         while(continue)
         {
-            if(timeout==0)
+            resp <- StartEventLoop()
+            ClearEventLoop()
+
+            ## Re-register events for next iteration (if we need to keep waiting)
+            RegisterEvent("<MOUSE_BUTTON_PRESS>", 1, 1, "<EQUAL>", "", [])
+            if(timeout != 0)
             {
-              resp <- WaitForMouseButton()
-            }else{
-              resp <- WaitForMouseButtonWithTimeout(timeout)
+                endtime <- GetTime() + timeout
+                RegisterEvent("<TIMER>", 1, endtime, "<GEQ>", "", [])
             }
 
             if(resp != "<timeout>")

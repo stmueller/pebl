@@ -123,13 +123,9 @@ bool SnapshotManager::ImportSnapshot(const std::string& snapshotPath,
         return false;
     }
 
-    // Validate snapshot first
-    auto validation = ValidateSnapshot(snapshotPath);
-    if (!validation.isValid) {
-        return false;
-    }
-
     // Copy snapshot to studies directory
+    // Note: For ZIP imports, format conversion happens before this is called
+    // For directory imports, we need to convert after copying
     if (!CopyDirectory(snapshotPath, studyPath, false)) {
         return false;
     }
@@ -304,4 +300,93 @@ bool SnapshotManager::ShouldExcludeFromSnapshot(const std::string& name, bool is
     }
 
     return false;
+}
+
+bool SnapshotManager::ConvertSnapshotFormat(const std::string& studyPath) {
+    /**
+     * Convert PEBLOnlinePlatform snapshot format to launcher format
+     * Platform format has:
+     *   - version: string (e.g., "Version 3")
+     *   - test_id instead of test_name in tests array
+     *   - test_name as display name
+     * Launcher format needs:
+     *   - version: integer
+     *   - test_name as identifier
+     *   - display_name as readable name
+     */
+    try {
+        std::string jsonPath = studyPath + "/study-info.json";
+
+        // Read existing study-info.json
+        std::ifstream file(jsonPath);
+        if (!file.is_open()) {
+            return false;
+        }
+
+        json platformJson;
+        file >> platformJson;
+        file.close();
+
+        // Create launcher-compatible JSON
+        json launcherJson;
+
+        // Convert metadata
+        launcherJson["study_name"] = platformJson.value("study_name", "Imported Study");
+        launcherJson["description"] = platformJson.value("description", "");
+        launcherJson["author"] = platformJson.value("created_by", "");
+
+        // Convert version from string to integer
+        std::string versionStr = platformJson.value("version", "1");
+        int versionInt = 1;
+        // Try to extract number from strings like "Version 3"
+        size_t lastSpace = versionStr.rfind(' ');
+        if (lastSpace != std::string::npos) {
+            std::string numPart = versionStr.substr(lastSpace + 1);
+            versionInt = std::atoi(numPart.c_str());
+            if (versionInt == 0) versionInt = 1;
+        }
+        launcherJson["version"] = versionInt;
+
+        launcherJson["study_token"] = "";  // Will be configured by user
+        launcherJson["upload_server_url"] = "";  // Will be configured by user
+        launcherJson["created_date"] = platformJson.value("created_at", "");
+        launcherJson["modified_date"] = platformJson.value("created_at", "");
+
+        // Convert tests array
+        json testsArray = json::array();
+        if (platformJson.contains("tests") && platformJson["tests"].is_array()) {
+            for (const auto& platformTest : platformJson["tests"]) {
+                json launcherTest;
+
+                // In platform format: test_id is the identifier, test_name is display name
+                std::string testId = platformTest.value("test_id", "");
+                std::string testDisplayName = platformTest.value("test_name", testId);
+
+                launcherTest["test_name"] = testId;  // Launcher uses test_name as identifier
+                launcherTest["display_name"] = testDisplayName;
+                launcherTest["test_path"] = testId;  // Path is same as identifier
+                launcherTest["included"] = true;
+                launcherTest["parameter_variants"] = json::object();  // Empty variants initially
+
+                testsArray.push_back(launcherTest);
+            }
+        }
+        launcherJson["tests"] = testsArray;
+
+        // Write converted JSON back to file
+        std::ofstream outFile(jsonPath);
+        if (!outFile.is_open()) {
+            return false;
+        }
+
+        outFile << launcherJson.dump(2);  // 2-space indentation
+        outFile.close();
+
+        printf("Converted snapshot format to launcher format\n");
+        return true;
+
+    } catch (const std::exception& e) {
+        printf("Error converting snapshot format: %s\n", e.what());
+        return false;
+    }
 }

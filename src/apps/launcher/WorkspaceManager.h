@@ -55,7 +55,7 @@ public:
 private:
     bool CreateDirectory(const std::string& path);
     bool DirectoryExists(const std::string& path) const;
-    bool CopyDirectory(const std::string& source, const std::string& dest, bool excludeData = false);
+    bool CopyDirectory(const std::string& source, const std::string& dest, bool excludeData = false, const std::vector<std::string>& excludeDirs = {});
     bool CopyFile(const std::string& source, const std::string& dest);
     std::string GetDocumentsPath() const;
 

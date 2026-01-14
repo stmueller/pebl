@@ -41,6 +41,7 @@
                ["responsemode","keyboardShift"]]  ##Response mode for Layout & Response System
 
   gParams <-CreateParameters(parpairs,gParamFile)
+  gParams.responsesemantics <- "2afc"  ## Two-alternative forced choice (Same vs Different matrix comparison)
 
   gSize <- gParams.size
   giveFeedback <- gParams.givefeedback
@@ -452,7 +453,14 @@ define RunTrial(cond, trialNum, isPractice, inst1, giveFeedback)
     isMouseMode <- IsMember(gParams.responsemode, ["mouseTarget", "touchTarget", "mouseButton"])
     if(isMouseMode)
     {
-      HideLayoutResponseWidgets(gLayout)
+      loop(label, gLayout.responseLabels)
+      {
+        Hide(label)
+      }
+      loop(border, gLayout.responseBorders)
+      {
+        Hide(border)
+      }
     }
 
     x <- DisplayMatrix(matrix)
@@ -472,7 +480,14 @@ define RunTrial(cond, trialNum, isPractice, inst1, giveFeedback)
     ## For mouse/touch modes, show response targets again for test matrix
     if(isMouseMode)
     {
-      ShowLayoutResponseWidgets(gLayout)
+      loop(label, gLayout.responseLabels)
+      {
+        Show(label)
+      }
+      loop(border, gLayout.responseBorders)
+      {
+        Show(border)
+      }
     }
 
  ## Present the test matrix
@@ -517,6 +532,12 @@ This is a simple version of the 'matrix rotation' task. A sort of mental rotatio
 }
 {
   "responsemode": "touchTarget"
+}
+{
+  "responsemode": "userselect",
+  "condsize": 5,
+  "numpractice": 4,
+  "givefeedback": 1
 }
 {
   "test": "matrixrotation",

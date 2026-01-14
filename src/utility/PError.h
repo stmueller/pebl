@@ -98,7 +98,7 @@ namespace PError
 
     void AssertType(Variant v, int type, const std::string & outsidemessage );
     std::string GetTypeName(Variant v);
-    void ExitQuietly(const std::string & message);
+    void ExitQuietly(const std::string & message, int exitCode = 0);
 
 }
 

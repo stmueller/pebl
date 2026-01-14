@@ -209,7 +209,7 @@ instructText <- "Indicate if stimuli are " +
 Test script: `test-semantic-labels.pbl`
 
 ```bash
-bin/pebl2 test-semantic-labels.pbl -v subnum=999
+bin/pebl2 test-semantic-labels.pbl -s 999
 ```
 
 Expected output:

@@ -108,7 +108,7 @@ std::string ChainItem::GetDisplayName() const {
 // ============================================================================
 
 Chain::Chain()
-    : mParticipantCounter(1001)
+    : mParticipantCounter(1001), mUploadEnabled(false)
 {
 }
 
@@ -300,6 +300,7 @@ bool Chain::LoadFromJSON(const std::string& jsonPath) {
         mName = j.value("chain_name", "");
         mDescription = j.value("description", "");
         mParticipantCounter = j.value("participant_counter", 1001);
+        mUploadEnabled = j.value("upload_enabled", false);
 
         // Load items
         mItems.clear();
@@ -342,6 +343,7 @@ bool Chain::SaveToJSON(const std::string& jsonPath) {
         j["chain_name"] = mName;
         j["description"] = mDescription;
         j["participant_counter"] = mParticipantCounter;
+        j["upload_enabled"] = mUploadEnabled;
 
         // Save items
         json itemsArray = json::array();

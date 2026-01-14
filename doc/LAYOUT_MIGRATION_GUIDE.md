@@ -39,15 +39,15 @@ The Layout & Response System provides:
 
 ## Overall Migration Status
 
-**Last Updated**: December 16, 2025 (corsi Category 3 migration complete)
+**Last Updated**: January 12, 2026 (linejudgment migration complete)
 
 ### Summary Statistics
 
 - **Total tests in upload-battery**: 52
-- **Fully migrated** (Layout + Response): 18 tests (35%) - **All 7 Category 1 tests complete** ✅
+- **Fully migrated** (Layout + Response): 19 tests (37%) - **All 7 Category 1 tests complete** ✅
 - **Need response mode extensions**: 2 tests (4%) - requires 4-way directional mode
 - **Layout-only migration**: 12 tests (23%) - **5 of 12 complete** (includes Stroop tests, Corsi, and custom response tasks)
-- **Not suitable for migration**: 20 tests (38%) - integrated interfaces, surveys, mouse tracking
+- **Not suitable for migration**: 19 tests (37%) - integrated interfaces, surveys, mouse tracking
 
 **Available response modes:**
 - **2-option modes**: auto, keyboardShift, keyboardSafe, arrowLR, mousetarget, touchtarget, mousebutton, **userselect** (new, Jan 2026)
@@ -55,13 +55,13 @@ The Layout & Response System provides:
 - **Specialized modes**: mouseOnly (for drawing/clicking tasks), none (for layout-only migrations)
 
 **Migration achievements:**
-- **Full migration** (Layout + Response): 18 tests (35%) - **All 7 Category 1 tests complete Dec 15, 2025** ✅
-- **With response extensions**: 20 tests (38%) - add 2 Category 2 tests (maze, antisaccade) after 4-way directional mode
+- **Full migration** (Layout + Response): 19 tests (37%) - **All 7 Category 1 tests complete, plus linejudgment Jan 12, 2026** ✅
+- **With response extensions**: 21 tests (40%) - add 2 Category 2 tests (maze, antisaccade) after 4-way directional mode
 - **Layout-only migration**: 28 tests (54%) - **5 of 12 Category 3 tests complete Dec 16, 2025** 🔄
 
 ## Semantic Label Migration Status
 
-**Last Updated**: December 15, 2025
+**Last Updated**: January 12, 2026
 
 The Layout & Response System was created on **December 4, 2025** (commit 0a55b63).
 The **semantic-first label architecture** (allowing task-specific labels like "SAME"/"DIFFERENT") was added on **December 9, 2025** (commit d5b40e6).
@@ -103,6 +103,7 @@ Tests using true semantic labels with `responselabels` parameter:
 | **pcpt** | ✅ | GO (singlekey) | ✓ Correct | Dec 14, 2025 | 10 translations (de, en, es, fr, he, hr, it, nl, pt, tr). 4 modes (spacebar/leftclick/touchscreen/clicktarget). Non-blocking visual feedback. Parameterized letters. Synced to upload-battery |
 | **TNT** | ✅ | NO / YES | ✓ Correct | Dec 14, 2025 | Dynamic semantic labels (NO/YES), arrowLR mode, 7 translations (de, en, es, fr, it, nl, pt). Synced to upload-battery |
 | **ppvt** | ✅ | GO (singlekey) | ✓ Correct | Dec 15, 2025 | PVT (Psychomotor Vigilance Task), 4 modes (spacebar/leftclick/touchscreen/clicktarget), 11 translations (de, en, es, fr, he, hr, it, nl, pt, se, tr). Synced to upload-battery |
+| **linejudgment** | ✅ | LEFT / RIGHT | ✓ Correct (spatial) | Jan 12, 2026 | Line length comparison, 8 response modes (auto/keyboardShift/keyboardSafe/arrowLR/userselect/mousetarget/mousebutton/touchtarget), 7 translations (en, es, fr, de, it, nl, pt). Synced to upload-battery |
 | **template** | ⚠️ | LEFT / RIGHT | Example labels | Dec 4, 2025 | Needs semantic update |
 
 ### How to Update Tests with Semantic Labels
@@ -150,9 +151,9 @@ Draw()
 
 ### Upload-battery/ Sync Status
 
-All 18 fully-migrated tests (except template) have been synced from battery/ to upload-battery/:
-- Synced: ANT, BST, clocktest, crt, dotjudgment, evenodd, flanker, gonogo, luckvogel, manikin, oddball, pcpt, pcpt-ax, ppvt, simon, srt, TNT, wpt
-- Last updated: Dec 15, 2025
+All 19 fully-migrated tests (except template) have been synced from battery/ to upload-battery/:
+- Synced: ANT, BST, clocktest, crt, dotjudgment, evenodd, flanker, gonogo, linejudgment, luckvogel, manikin, oddball, pcpt, pcpt-ax, ppvt, simon, srt, TNT, wpt
+- Last updated: Jan 12, 2026
 
 **Note**: When semantic labels are added to battery/ tests, they must be re-synced to upload-battery/.
 

@@ -480,7 +480,7 @@ The experiment builder generates standalone scripts but doesn't leverage the PEB
      ]
    }
 
-2. Run: bin/pebl2 generic-experiment.pbl -v expfile=experiment.json -v subnum=123
+2. Run: bin/pebl2 generic-experiment.pbl -s 123 --pfile experiment.json
 
 3. Data automatically saved to data/generic-experiment-123.csv
 ```
@@ -496,7 +496,7 @@ The experiment builder generates standalone scripts but doesn't leverage the PEB
    2,choice,cat.jpg,"y,n",y,2000
    3,choice,dog.jpg,"y,n",n,2000
 
-2. Run: bin/pebl2 csv-experiment.pbl -v expfile=experiment.csv -v subnum=123
+2. Run: bin/pebl2 csv-experiment.pbl -s 123 --pfile experiment.csv
 
 3. Data saved with trial-by-trial responses
 ```
@@ -526,7 +526,7 @@ The experiment builder generates standalone scripts but doesn't leverage the PEB
 3. **Add Command-Line Parameters**
    ```pebl
    ## At start of dmdx.pbl:
-   gSubNum <- GetSubNum(gWin)  ## Prompt or use -v subnum=123
+   gSubNum <- GetSubNum(gWin)  ## Prompt or use -s <number>
    expfile <- "dmdx.json"      ## Default
    if(IsDefined(gExpFile))
    {

@@ -67,18 +67,55 @@ define Start(p) {
         ["InstructionTextSize2", 25], # Text size for instructions
         ["TaskTextSize", 65], # Text size  for task
         ["InstructionDisplayTime", 5], # Display time of instructions with countdown
-        ["wrapat", 75], # Number of characters before wraping
-        [",vSpacing", 2],
-        ["escape", "<esp>"],
-        ["space", " "]] # Interligne
+        ["responsemode", "auto"], # Response mode: auto, keyboardShift, keyboardSafe, mousetarget, mousebutton
+        ["responselabels", ""]] # Will be set from translations
 
     gParams <- CreateParameters(parpairs, gParamFile)
+    gParams.responsesemantics <- "2afc"
+
+    ## Set response labels from translations (semantic meanings: NO, YES)
+    gParams.responselabels <- [gStrings.footerleft, gStrings.footerright]
 
     # #Get subject code if we need to:
         if (gSubNum + "" == "0") {
             gSubNum <- GetSubNum(gWin)
         }
     Draw()
+
+    ## Create layout - response labels come from response-modes.json
+    gLayout <- CreateLayout("TNT", gWin, gParams)
+    gLayout.subheader.visible <- 1  ## For trial counter
+    gLayout.footer.visible <- 1  ## Make footer visible
+
+    ## Set simple footer instruction based on response mode
+    if(gParams.responsemode == "keyboardShift" or gParams.responsemode == "keyboardSafe" or gParams.responsemode == "arrowLR" or gParams.responsemode == "auto")
+    {
+        gLayout.footer.text <- gStrings.footerkeyboard
+    } elseif(gParams.responsemode == "mousetarget")
+    {
+        gLayout.footer.text <- gStrings.footermousetarget
+    } elseif(gParams.responsemode == "touchtarget")
+    {
+        gLayout.footer.text <- gStrings.footertouchtarget
+    } elseif(gParams.responsemode == "mousebutton")
+    {
+        gLayout.footer.text <- gStrings.footermousebutton
+    }
+
+    ## Store response labels for bold animation
+    if(Length(gLayout.responseLabels) >= 2)
+    {
+        gResponseLabelLeft <- First(gLayout.responseLabels)
+        gResponseLabelRight <- Second(gLayout.responseLabels)
+    }
+
+    ## Show cursor only for mouse-based modes (not touch)
+    if(gParams.responsemode == "clicktarget" or gParams.responsemode == "mousetarget" or gParams.responsemode == "mousebutton")
+    {
+        ShowCursor(1)
+    } else {
+        ShowCursor(0)
+    }
 
     TNT()
 
@@ -163,8 +200,6 @@ define TNT() {
         totalRT_incorrect <- 0
         miss <- 0
 
-        footer <- EasyLabel(gstrings.footer, gVideoWidth / 2, gVideoHeight - 100, gWin, 40)
-
         zeroBackStimList <- [
             ["20+30", "10+25", "15+35", "10+15", "95-50", "35-25", "85-35", "95-20", "70-40", "95-25", "55-50", "40+10", 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1],
             ["60-20", "95-65", "25+25", "30+65", "10+40", "90-20", "85-20", "15+10", "95-45", "30+45", "60-50", "70-20", 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 1],
@@ -185,29 +220,26 @@ define TNT() {
         ] #Twoback1
 
 
-	header <- EasyLabel("", gVideoWidth/2,50,gWin,40)
-
-
         if (first_run == 1) {
 
-            inst <- EasyTextBox(gStrings.inst1+CR(1)+gstrings.reminder+CR(1)+gStrings.ready1, gVideoWidth / 2 - 350, 50, gWin, 20, 700, 500)
+            inst <- AdaptiveTextBox(gStrings.inst1+CR(1)+gstrings.reminder+CR(1)+gStrings.ready1+CR(1)+gSTrings.ready2, gLayout.centerX - 350, 50, gWin, 24, 700, 600, "scalefont")
             Show(inst)
             Draw()
-            WaitForAnyKeyPress()
+            WaitForLayoutResponse(gLayout, 300000)
             Hide(inst)
 
             #0-back example
-           header.text <- gstrings.headerzero
-            message <- EasyLabel(gstrings.zerobackprompt, gVideoWidth / 2, gVideoHeight / 2 - 100, gWin, gParams.InstructionTextSize)
+           gLayout.header.text <- gstrings.headerzero
+            message <- EasyLabel(gstrings.zerobackprompt, gLayout.centerX, gLayout.centerY - 100, gWin, gParams.InstructionTextSize)
             restTime <- 5
             while (restTime >= 1) {
-                countdown <- EasyLabel(ToString(restTime), gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                countdown <- EasyLabel(ToString(restTime), gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
                 Draw()
                 Wait(1000)
                 restTime <- restTime - 1
             }
-            countdown <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
-            message <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2 - 100, gWin, gParams.InstructionTextSize)
+            countdown <- EasyLabel("", gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
+            message <- EasyLabel("", gLayout.centerX, gLayout.centerY - 100, gWin, gParams.InstructionTextSize)
 
             listlength <- Length(zeroBackStimList)
             stim <- RandomDiscrete(listlength)
@@ -236,19 +268,45 @@ define TNT() {
             while (i <= gParams.numStimsAct) {
                 reacted <- 0
                 reaction <- 0
-                number <- EasyLabel(Nth(zeroBackStim, i), gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+
+                ## Defensive unbold before each trial
+                if(VariableExists("gResponseLabelLeft"))
+                {
+                    gResponseLabelLeft.font.bold <- 0
+                    gResponseLabelRight.font.bold <- 0
+                }
+
+                ## Update trial counter
+                gLayout.subheader.text <- SubstituteStrings(gStrings.trial_counter, [["<NUM>", i], ["<NUMTRIALS>", gParams.numStimsAct]])
+
+                number <- EasyLabel(Nth(zeroBackStim, i), gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
                 Draw()
                 t0 <- GetTime()
-                resp <- WaitForListKeyPressWithTimeout(["<left>", "<right>"], gParams.StimulusDuration)
+                resp <- WaitForLayoutResponse(gLayout, gParams.StimulusDuration)
                 t1 <- GetTime()
                 target <- Nth(zeroBackStim, i + 12)
-                number <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                number <- EasyLabel("", gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
                 Draw()
 
                 if (resp != "<timeout>") {
                     reacted <- 1
                     rT <- t1 - t0
-                    if (resp == "<right>") {
+
+                    ## Give visual feedback by bolding appropriate response label
+                    if(VariableExists("gResponseLabelLeft"))
+                    {
+                        if(resp == "left")
+                        {
+                            gResponseLabelLeft.font.bold <- 1
+                            RegisterEvent("<TIMER>", 1, GetTime()+150, "<GEQ>", "UnboldLabels", [])
+                        } else {
+                            gResponseLabelRight.font.bold <- 1
+                            RegisterEvent("<TIMER>", 1, GetTime()+150, "<GEQ>", "UnboldLabels", [])
+                        }
+                        Draw()
+                    }
+
+                    if (resp == "right") {
                         reaction <- 1
                     }
                 }
@@ -285,51 +343,51 @@ define TNT() {
                 }
 
                 if (resp != "<timeout>" and corr == 1) {
-                    message <- EasyLabel(gstrings.correct, gVideoWidth / 2, gVideoHeight / 2, gWin, 60)
+                    message <- EasyLabel(gstrings.correct, gLayout.centerX, gLayout.centerY, gWin, 60)
                     Draw()
                     Wait(400)
-                    message <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, 60)
+                    message <- EasyLabel("", gLayout.centerX, gLayout.centerY, gWin, 60)
                     Draw()
                 }
                 if (resp != "<timeout>" and corr == 0) {
-                    message <- EasyLabel(gstrings.incorrect, gVideoWidth / 2, gVideoHeight / 2, gWin, 60)
+                    message <- EasyLabel(gstrings.incorrect, gLayout.centerX, gLayout.centerY, gWin, 60)
                     Draw()
                     Wait(400)
-                    message <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, 60)
+                    message <- EasyLabel("", gLayout.centerX, gLayout.centerY, gWin, 60)
                     Draw()
                 }
                 if (resp == "<timeout>") {
-                    message <- EasyLabel(gstrings.tooslow, gVideoWidth / 2, gVideoHeight / 2, gWin, 60)
+                    message <- EasyLabel(gstrings.tooslow, gLayout.centerX, gLayout.centerY, gWin, 60)
                     Draw()
                     Wait(400)
-                    message <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, 60)
+                    message <- EasyLabel("", gLayout.centerX, gLayout.centerY, gWin, 60)
                     Draw()
                 }
 
 
                 i <- i + 1
 
-                number <- EasyLabel("+", gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                number <- EasyLabel("+", gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
                 Draw()
                 Wait(gParams.isiTimeSecs)
 
-                number <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                number <- EasyLabel("", gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
                 Draw()
 
             }
 
-            header.text <- gstrings.headerone
+            gLayout.header.text <- gstrings.headerone
             #1-back example
-            message <- EasyLabel(gstrings.onebackprompt, gVideoWidth / 2, gVideoHeight / 2 - 100, gWin, gParams.InstructionTextSize)
+            message <- EasyLabel(gstrings.onebackprompt, gLayout.centerX, gLayout.centerY - 100, gWin, gParams.InstructionTextSize)
             restTime <- 5
             while (restTime >= 1) {
-                countdown <- EasyLabel(ToString(restTime), gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                countdown <- EasyLabel(ToString(restTime), gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
                 Draw()
                 Wait(1000)
                 restTime <- restTime - 1
             }
-            countdown <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
-            message <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2 - 100, gWin, gParams.InstructionTextSize)
+            countdown <- EasyLabel("", gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
+            message <- EasyLabel("", gLayout.centerX, gLayout.centerY - 100, gWin, gParams.InstructionTextSize)
 
             listlength <- Length(oneBackStimList)
             stim <- RandomDiscrete(listlength)
@@ -357,19 +415,45 @@ define TNT() {
             while (i <= gParams.numStimsAct) {
                 reacted <- 0
                 reaction <- 0
-                number <- EasyLabel(Nth(oneBackStim, i), gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+
+                ## Defensive unbold before each trial
+                if(VariableExists("gResponseLabelLeft"))
+                {
+                    gResponseLabelLeft.font.bold <- 0
+                    gResponseLabelRight.font.bold <- 0
+                }
+
+                ## Update trial counter
+                gLayout.subheader.text <- SubstituteStrings(gStrings.trial_counter, [["<NUM>", i], ["<NUMTRIALS>", gParams.numStimsAct]])
+
+                number <- EasyLabel(Nth(oneBackStim, i), gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
                 Draw()
                 t0 <- GetTime()
-                resp <- WaitForListKeyPressWithTimeout(["<left>", "<right>"], gParams.StimulusDuration)
+                resp <- WaitForLayoutResponse(gLayout, gParams.StimulusDuration)
                 t1 <- GetTime()
                 target <- Nth(oneBackStim, i + 12)
-                number <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                number <- EasyLabel("", gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
                 Draw()
 
                 if (resp != "<timeout>") {
                     reacted <- 1
                     rT <- t1 - t0
-                    if (resp == "<right>") {
+
+                    ## Give visual feedback by bolding appropriate response label
+                    if(VariableExists("gResponseLabelLeft"))
+                    {
+                        if(resp == "left")
+                        {
+                            gResponseLabelLeft.font.bold <- 1
+                            RegisterEvent("<TIMER>", 1, GetTime()+150, "<GEQ>", "UnboldLabels", [])
+                        } else {
+                            gResponseLabelRight.font.bold <- 1
+                            RegisterEvent("<TIMER>", 1, GetTime()+150, "<GEQ>", "UnboldLabels", [])
+                        }
+                        Draw()
+                    }
+
+                    if (resp == "right") {
                         reaction <- 1
                     }
                 }
@@ -406,49 +490,49 @@ define TNT() {
                 }
 
                 if (resp != "<timeout>" and corr == 1 and i != 1) {
-                    message <- EasyLabel(gstrings.correct, gVideoWidth / 2, gVideoHeight / 2, gWin, 60)
+                    message <- EasyLabel(gstrings.correct, gLayout.centerX, gLayout.centerY, gWin, 60)
                     Draw()
                     Wait(400)
-                    message <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, 60)
+                    message <- EasyLabel("", gLayout.centerX, gLayout.centerY, gWin, 60)
                     Draw()
                 }
                 if (resp != "<timeout>" and corr == 0 and i != 1) {
-                    message <- EasyLabel(gstrings.incorrect, gVideoWidth / 2, gVideoHeight / 2, gWin, 60)
+                    message <- EasyLabel(gstrings.incorrect, gLayout.centerX, gLayout.centerY, gWin, 60)
                     Draw()
                     Wait(400)
-                    message <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, 60)
+                    message <- EasyLabel("", gLayout.centerX, gLayout.centerY, gWin, 60)
                     Draw()
                 }
                 if (resp == "<timeout>" and i != 1) {
-                    message <- EasyLabel(gstrings.tooslow, gVideoWidth / 2, gVideoHeight / 2, gWin, 60)
+                    message <- EasyLabel(gstrings.tooslow, gLayout.centerX, gLayout.centerY, gWin, 60)
                     Draw()
                     Wait(400)
-                    message <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, 60)
+                    message <- EasyLabel("", gLayout.centerX, gLayout.centerY, gWin, 60)
                     Draw()
                 }
                 i <- i + 1
 
-                number <- EasyLabel("+", gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                number <- EasyLabel("+", gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
                 Draw()
                 Wait(gParams.isiTimeSecs)
 
-                number <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                number <- EasyLabel("", gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
                 Draw()
 
             }
 
             # 2-back example
-            header.text <- gstrings.headertwo
-            message <- EasyLabel(gstrings.twobackprompt, gVideoWidth / 2, gVideoHeight / 2 - 100, gWin, gParams.InstructionTextSize)
+            gLayout.header.text <- gstrings.headertwo
+            message <- EasyLabel(gstrings.twobackprompt, gLayout.centerX, gLayout.centerY - 100, gWin, gParams.InstructionTextSize)
             restTime <- 5
             while (restTime >= 1) {
-                countdown <- EasyLabel(ToString(restTime), gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                countdown <- EasyLabel(ToString(restTime), gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
                 Draw()
                 Wait(1000)
                 restTime <- restTime - 1
             }
-            countdown <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
-            message <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2 - 100, gWin, gParams.InstructionTextSize)
+            countdown <- EasyLabel("", gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
+            message <- EasyLabel("", gLayout.centerX, gLayout.centerY - 100, gWin, gParams.InstructionTextSize)
 
             listlength <- Length(twoBackStimList)
             stim <- RandomDiscrete(listlength)
@@ -476,19 +560,45 @@ define TNT() {
             while (i <= gParams.numStimsAct) {
                 reacted <- 0
                 reaction <- 0
-                number <- EasyLabel(Nth(twoBackStim, i), gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+
+                ## Defensive unbold before each trial
+                if(VariableExists("gResponseLabelLeft"))
+                {
+                    gResponseLabelLeft.font.bold <- 0
+                    gResponseLabelRight.font.bold <- 0
+                }
+
+                ## Update trial counter
+                gLayout.subheader.text <- SubstituteStrings(gStrings.trial_counter, [["<NUM>", i], ["<NUMTRIALS>", gParams.numStimsAct]])
+
+                number <- EasyLabel(Nth(twoBackStim, i), gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
                 Draw()
                 t0 <- GetTime()
-                resp <- WaitForListKeyPressWithTimeout(["<left>", "<right>"], gParams.StimulusDuration)
+                resp <- WaitForLayoutResponse(gLayout, gParams.StimulusDuration)
                 t1 <- GetTime()
                 target <- Nth(twoBackStim, i + 12)
-                number <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                number <- EasyLabel("", gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
                 Draw()
 
                 if (resp != "<timeout>") {
                     reacted <- 1
                     rT <- t1 - t0
-                    if (resp == "<right>") {
+
+                    ## Give visual feedback by bolding appropriate response label
+                    if(VariableExists("gResponseLabelLeft"))
+                    {
+                        if(resp == "left")
+                        {
+                            gResponseLabelLeft.font.bold <- 1
+                            RegisterEvent("<TIMER>", 1, GetTime()+150, "<GEQ>", "UnboldLabels", [])
+                        } else {
+                            gResponseLabelRight.font.bold <- 1
+                            RegisterEvent("<TIMER>", 1, GetTime()+150, "<GEQ>", "UnboldLabels", [])
+                        }
+                        Draw()
+                    }
+
+                    if (resp == "right") {
                         reaction <- 1
                     }
                 }
@@ -525,46 +635,46 @@ define TNT() {
                 }
 
                 if (resp != "<timeout>" and corr == 1 and i != 1 and i != 2) {
-                    message <- EasyLabel(gstrings.correct, gVideoWidth / 2, gVideoHeight / 2, gWin, 60)
+                    message <- EasyLabel(gstrings.correct, gLayout.centerX, gLayout.centerY, gWin, 60)
                     Draw()
                     Wait(400)
-                    message <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, 60)
+                    message <- EasyLabel("", gLayout.centerX, gLayout.centerY, gWin, 60)
                     Draw()
                 }
                 if (resp != "<timeout>" and corr == 0 and i != 1 and i != 2) {
-                    message <- EasyLabel(gstrings.incorrect, gVideoWidth / 2, gVideoHeight / 2, gWin, 60)
+                    message <- EasyLabel(gstrings.incorrect, gLayout.centerX, gLayout.centerY, gWin, 60)
                     Draw()
                     Wait(400)
-                    message <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, 60)
+                    message <- EasyLabel("", gLayout.centerX, gLayout.centerY, gWin, 60)
                     Draw()
                 }
                 if (resp == "<timeout>" and i != 1 and i != 2) {
-                    message <- EasyLabel(gstrings.tooslow, gVideoWidth / 2, gVideoHeight / 2, gWin, 60)
+                    message <- EasyLabel(gstrings.tooslow, gLayout.centerX, gLayout.centerY, gWin, 60)
                     Draw()
                     Wait(400)
-                    message <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, 60)
+                    message <- EasyLabel("", gLayout.centerX, gLayout.centerY, gWin, 60)
                     Draw()
                 }
                 i <- i + 1
 
-                number <- EasyLabel("+", gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                number <- EasyLabel("+", gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
                 Draw()
                 Wait(gParams.isiTimeSecs)
 
-                number <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                number <- EasyLabel("", gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
                 Draw()
 
             }
 
-            inst <- EasyTextBox(gstrings.inst2 +CR(1)+gstrings.reminder + CR(2)+gstrings.ready2,
-                          gVideoWidth / 2 - 350, 150, gWin, 20, 700, 500)
+            inst <- AdaptiveTextBox(gstrings.inst2 +CR(1)+gstrings.reminder + CR(2)+gstrings.ready2,
+                          gLayout.centerX - 350, 150, gWin, 20, 700, 500, "scalefont")
             Show(inst)
             Draw()
-            WaitForAnyKeyPress()
+            WaitForLayoutResponse(gLayout, 300000)
             Hide(inst)
         }
 
-        number <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+        number <- EasyLabel("", gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
 
 	
         Draw()
@@ -588,16 +698,16 @@ define TNT() {
 
         if (str == "Zer") {
 
-            message <- EasyLabel("0-Back trial will begin in", gVideoWidth / 2, gVideoHeight / 2 - 100, gWin, gParams.InstructionTextSize)
+            message <- EasyLabel("0-Back trial will begin in", gLayout.centerX, gLayout.centerY - 100, gWin, gParams.InstructionTextSize)
             restTime <- 5
             while (restTime >= 1) {
-                countdown <- EasyLabel(ToString(restTime), gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                countdown <- EasyLabel(ToString(restTime), gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
                 Draw()
                 Wait(1000)
                 restTime <- restTime - 1
             }
-            countdown <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
-            message <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2 - 100, gWin, gParams.InstructionTextSize)
+            countdown <- EasyLabel("", gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
+            message <- EasyLabel("", gLayout.centerX, gLayout.centerY - 100, gWin, gParams.InstructionTextSize)
 
             listlength <- Length(zeroBackStimList)
             stim <- RandomDiscrete(listlength)
@@ -620,26 +730,52 @@ define TNT() {
             respType <- 0
             corr <- 0
           Print("header here")
-            header.text <- gstrings.headerzero
+            gLayout.header.text <- gstrings.headerzero
 	    Draw()
-	    
+
             while (i <= gParams.numStimsAct) {
                 reacted <- 0
                 reaction <- 0
-                number <- EasyLabel(Nth(zeroBackStim, i), gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+
+                ## Defensive unbold before each trial
+                if(VariableExists("gResponseLabelLeft"))
+                {
+                    gResponseLabelLeft.font.bold <- 0
+                    gResponseLabelRight.font.bold <- 0
+                }
+
+                ## Update trial counter
+                gLayout.subheader.text <- SubstituteStrings(gStrings.trial_counter, [["<NUM>", i], ["<NUMTRIALS>", gParams.numStimsAct]])
+
+                number <- EasyLabel(Nth(zeroBackStim, i), gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
                 Draw()
                 t0 <- GetTime()
-                resp <- WaitForListKeyPressWithTimeout(["<left>", "<right>"], gParams.StimulusDuration)
+                resp <- WaitForLayoutResponse(gLayout, gParams.StimulusDuration)
                 t1 <- GetTime()
                 target <- Nth(zeroBackStim, i + 12)
-                number <- EasyLabel("+", gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                number <- EasyLabel("+", gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
                 Draw()
                 Wait(gParams.isiTimeSecs)
 
                 if (resp != "<timeout>") {
                     reacted <- 1
                     rT <- t1 - t0
-                    if (resp == "<right>") {
+
+                    ## Give visual feedback by bolding appropriate response label
+                    if(VariableExists("gResponseLabelLeft"))
+                    {
+                        if(resp == "left")
+                        {
+                            gResponseLabelLeft.font.bold <- 1
+                            RegisterEvent("<TIMER>", 1, GetTime()+150, "<GEQ>", "UnboldLabels", [])
+                        } else {
+                            gResponseLabelRight.font.bold <- 1
+                            RegisterEvent("<TIMER>", 1, GetTime()+150, "<GEQ>", "UnboldLabels", [])
+                        }
+                        Draw()
+                    }
+
+                    if (resp == "right") {
                         reaction <- 1
                     }
                 }
@@ -684,17 +820,17 @@ define TNT() {
         }
         if (str == "One") {
 
-            message <- EasyLabel("1-Back trial will begin in", gVideoWidth / 2, gVideoHeight / 2 - 100, gWin, gParams.InstructionTextSize)
+            message <- EasyLabel("1-Back trial will begin in", gLayout.centerX, gLayout.centerY - 100, gWin, gParams.InstructionTextSize)
             restTime <- 5
             Print(restTime)
             while (restTime >= 1) {
-                countdown <- EasyLabel(ToString(restTime), gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                countdown <- EasyLabel(ToString(restTime), gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
                 Draw()
                 Wait(1000)
                 restTime <- restTime - 1
             }
-            countdown <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
-            message <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2 - 100, gWin, gParams.InstructionTextSize)
+            countdown <- EasyLabel("", gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
+            message <- EasyLabel("", gLayout.centerX, gLayout.centerY - 100, gWin, gParams.InstructionTextSize)
 
             listlength <- Length(oneBackStimList)
             stim <- RandomDiscrete(listlength)
@@ -715,19 +851,30 @@ define TNT() {
             rT <- 0
             respType <- 0
             corr <- 0
-            header.text <- gstrings.headerone
+            gLayout.header.text <- gstrings.headerone
 	    Draw()
-	    
+
             while (i <= gParams.numStimsAct) {
                 reacted <- 0
                 reaction <- 0
-                number <- EasyLabel(Nth(oneBackStim, i), gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+
+                ## Defensive unbold before each trial
+                if(VariableExists("gResponseLabelLeft"))
+                {
+                    gResponseLabelLeft.font.bold <- 0
+                    gResponseLabelRight.font.bold <- 0
+                }
+
+                ## Update trial counter
+                gLayout.subheader.text <- SubstituteStrings(gStrings.trial_counter, [["<NUM>", i], ["<NUMTRIALS>", gParams.numStimsAct]])
+
+                number <- EasyLabel(Nth(oneBackStim, i), gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
                 Draw()
                 t0 <- GetTime()
-                resp <- WaitForListKeyPressWithTimeout(["<left>", "<right>"], gParams.StimulusDuration)
+                resp <- WaitForLayoutResponse(gLayout, gParams.StimulusDuration)
                 t1 <- GetTime()
                 target <- Nth(oneBackStim, i + 12)
-                number <- EasyLabel("+", gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                number <- EasyLabel("+", gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
                 Draw()
                 Wait(gParams.isiTimeSecs)
 
@@ -735,7 +882,22 @@ define TNT() {
                 if (resp != "<timeout>") {
                     reacted <- 1
                     rT <- t1 - t0
-                    if (resp == "<right>") {
+
+                    ## Give visual feedback by bolding appropriate response label
+                    if(VariableExists("gResponseLabelLeft"))
+                    {
+                        if(resp == "left")
+                        {
+                            gResponseLabelLeft.font.bold <- 1
+                            RegisterEvent("<TIMER>", 1, GetTime()+150, "<GEQ>", "UnboldLabels", [])
+                        } else {
+                            gResponseLabelRight.font.bold <- 1
+                            RegisterEvent("<TIMER>", 1, GetTime()+150, "<GEQ>", "UnboldLabels", [])
+                        }
+                        Draw()
+                    }
+
+                    if (resp == "right") {
                         reaction <- 1
                     }
                 }
@@ -780,17 +942,17 @@ define TNT() {
         }
         if (str == "Two") {
 
-            message <- EasyLabel("2-Back trial will begin in", gVideoWidth / 2, gVideoHeight / 2 - 100, gWin, gParams.InstructionTextSize)
+            message <- EasyLabel("2-Back trial will begin in", gLayout.centerX, gLayout.centerY - 100, gWin, gParams.InstructionTextSize)
             restTime <- 5
             Print(restTime)
             while (restTime >= 1) {
-                countdown <- EasyLabel(ToString(restTime), gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                countdown <- EasyLabel(ToString(restTime), gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
                 Draw()
                 Wait(1000)
                 restTime <- restTime - 1
             }
-            countdown <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
-            message <- EasyLabel("", gVideoWidth / 2, gVideoHeight / 2 - 100, gWin, gParams.InstructionTextSize)
+            countdown <- EasyLabel("", gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
+            message <- EasyLabel("", gLayout.centerX, gLayout.centerY - 100, gWin, gParams.InstructionTextSize)
 
             listlength <- Length(twoBackStimList)
             stim <- RandomDiscrete(listlength)
@@ -811,19 +973,30 @@ define TNT() {
             rT <- 0
             respType <- 0
             corr <- 0
-            header.text <- gstrings.headertwo
+            gLayout.header.text <- gstrings.headertwo
 	    Draw()
-	    
+
             while (i <= gParams.numStimsAct) {
                 reacted <- 0
                 reaction <- 0
-                number <- EasyLabel(Nth(twoBackStim, i), gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+
+                ## Defensive unbold before each trial
+                if(VariableExists("gResponseLabelLeft"))
+                {
+                    gResponseLabelLeft.font.bold <- 0
+                    gResponseLabelRight.font.bold <- 0
+                }
+
+                ## Update trial counter
+                gLayout.subheader.text <- SubstituteStrings(gStrings.trial_counter, [["<NUM>", i], ["<NUMTRIALS>", gParams.numStimsAct]])
+
+                number <- EasyLabel(Nth(twoBackStim, i), gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
                 Draw()
                 t0 <- GetTime()
-                resp <- WaitForListKeyPressWithTimeout(["<left>", "<right>"], gParams.StimulusDuration)
+                resp <- WaitForLayoutResponse(gLayout, gParams.StimulusDuration)
                 t1 <- GetTime()
                 target <- Nth(twoBackStim, i + 12)
-                number <- EasyLabel("+", gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                number <- EasyLabel("+", gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
                 Draw()
                 Wait(gParams.isiTimeSecs)
 
@@ -831,7 +1004,22 @@ define TNT() {
                 if (resp != "<timeout>") {
                     reacted <- 1
                     rT <- t1 - t0
-                    if (resp == "<right>") {
+
+                    ## Give visual feedback by bolding appropriate response label
+                    if(VariableExists("gResponseLabelLeft"))
+                    {
+                        if(resp == "left")
+                        {
+                            gResponseLabelLeft.font.bold <- 1
+                            RegisterEvent("<TIMER>", 1, GetTime()+150, "<GEQ>", "UnboldLabels", [])
+                        } else {
+                            gResponseLabelRight.font.bold <- 1
+                            RegisterEvent("<TIMER>", 1, GetTime()+150, "<GEQ>", "UnboldLabels", [])
+                        }
+                        Draw()
+                    }
+
+                    if (resp == "right") {
                         reaction <- 1
                     }
                 }
@@ -877,11 +1065,11 @@ define TNT() {
 
 
         if (str == "Res") {
-            message <- EasyLabel (gstrings.rest, gVideoWidth / 2, gVideoHeight / 2 - 100, gWin, gParams.InstructionTextSize)
+            message <- EasyLabel (gstrings.rest, gLayout.centerX, gLayout.centerY - 100, gWin, gParams.InstructionTextSize)
             restTime <- gParams.numStimsRest * 3
             Print(restTime)
             while (restTime >= 1) {
-                countdown <- EasyLabel(ToString(restTime), gVideoWidth / 2, gVideoHeight / 2, gWin, gParams.InstructionTextSize)
+                countdown <- EasyLabel(ToString(restTime), gLayout.centerX, gLayout.centerY, gWin, gParams.InstructionTextSize)
                 Draw()
                 Wait(1000)
                 restTime <- restTime - 1
@@ -912,9 +1100,9 @@ define TNT() {
         bloc <- bloc + 1
     }
 
-	header.text <- gStrings.debrief
+	gLayout.header.text <- gStrings.debrief
 	Draw()
-	WaitForAnyKeyPress()
+	WaitForLayoutResponse(gLayout, 300000)
 }
 
 
@@ -927,11 +1115,45 @@ define GetStrings(lang)
 {
   gStrings <- GetTranslations("TNT", lang)
 }
+
+define UnboldLabels(evt:0)
+{
+  ## Callback to return both response labels to normal style after visual feedback
+  ## Guard condition prevents repeated execution
+  if(gResponseLabelLeft.font.bold != 0 or gResponseLabelRight.font.bold != 0)
+  {
+      gResponseLabelLeft.font.bold <- 0  ## Set to normal (not bold)
+      gResponseLabelRight.font.bold <- 0
+      Draw()
+  }
+  return "<REMOVE>"
+}
 Toulouse N-back Task (Adapted to PEBL by Hu M., Mouratille D., Imbert J.-P. & Causse M.)
 Data are saved to TNT\data\TNT-Report-X.txt and TNT\data\TNT-Details-X.txt
 
 To cite: Mandrick, K., Peysakhovich, V., Rémy, F., Lepron, E., & Causse, M. (2016). Neural and psychophysiological correlates of human performance under stress and high mental workload. Biological psychology, 121, 62-73. doi:10.1016/j.biopsycho.2016.10.002
 
+{
+  "responsemode": "arrowLR"
+}
+{
+  "responsemode": "keyboardSafe"
+}
+{
+  "responsemode": "keyboardShift"
+}
+{
+  "responsemode": "mousebutton"
+}
+{
+  "responsemode": "mousetarget"
+}
+{
+  "responsemode": "touchtarget"
+}
+{
+  "responsemode": "userselect"
+}
 {
   "test": "TNT",
   "version": "1.0",
@@ -986,16 +1208,19 @@ To cite: Mandrick, K., Peysakhovich, V., Rémy, F., Lepron, E., & Causse, M. (20
       "description": "Display time of instructions with countdown"
     },
     {
-      "name": "wrapa",
-      "type": "integer",
-      "default": 75,
-      "description": "Number of characters before wraping"
-    },
-    {
-      "name": "space",
+      "name": "responsemode",
       "type": "string",
-      "default": "\" \"",
-      "description": "newline character"
+      "default": "auto",
+      "description": "Response input mode",
+      "enum": [
+        "auto",
+        "keyboardShift",
+        "keyboardSafe",
+        "arrowLR",
+        "mousetarget",
+        "touchtarget",
+        "mousebutton"
+      ]
     }
   ]
 }{
@@ -1037,166 +1262,198 @@ To cite: Mandrick, K., Peysakhovich, V., Rémy, F., Lepron, E., & Causse, M. (20
   }
 }
 {
-    "inst1": "In diesem Experiment müssen Sie Ergebnisse arithmetischer Operationen berechnen, sich merken und vergleichen.",
-    "inst2": "Ihre Übung ist nun abgeschlossen. Der eigentliche Test beginnt als nächstes.",
-    "reminder":"Erinnerung:\n\n- 0-back: Vergleichen Sie das Ergebnis mit 50\n- 1-back: Vergleichen Sie das Ergebnis mit dem vorherigen Ergebnis\n- 2-back: Vergleichen Sie das Ergebnis mit dem Ergebnis von vor zwei Operationen\nDrücken Sie die rechte Pfeiltaste, wenn das Ergebnis gleich ist, und die linke Pfeiltaste, wenn es unterschiedlich ist.",
-    "ready1":"Lesen Sie die Anweisungen sorgfältig.",
-    "ready2":"Drücken Sie eine beliebige Taste, um den Test zu beginnen.",
-    "zerobackprompt":"0-Back-Übungsdurchgang beginnt in",
-    "onebackprompt": "1-Back-Übungsdurchgang beginnt in",
-    "twobackprompt":"2-Back-Übungsdurchgang beginnt in",
-    "headerzero": "Ist das Ergebnis gleich 50?",
-    "headerone":  "Ist das Ergebnis gleich dem vorherigen Ergebnis?",
-    "headertwo": "Ist das Ergebnis gleich dem Ergebnis von vor zwei Operationen?",
-    "zeroback": "Zero back",
-    "oneback": "One back",
-    "twoback": "Two back",
-    "footer": "<- Linke Pfeiltaste | NEIN                          JA | Rechte Pfeiltaste ->",
-    "correct":"Richtig",
-    "incorrect": "Falsch",
-    "tooslow":"Zu langsam",
-    "rest": "Machen Sie eine kurze Pause",
-    "debrief": "Diese Aufgabe ist nun abgeschlossen. Drücken Sie eine beliebige Taste, um fortzufahren",
-    "AUTHOR": "Automatic translation via Claude Code"
-}
-{
-    "inst1": "In this experiment, you have to calculate, memorize and compare results from arithmetic operations.",
-    "inst2": "Your practice is now complete. The real test will begin next.",
-    "reminder":"Reminder:\n\n- 0-back : compare the result to 50\n- 1-back : compare the result to the preceding result\n- 2-back : compare the result to the result calculated two operations ago\nPress the right arrow key if the result is the same, and the left arrow key if it is different.",
-    "ready1":"Read the instructions carefully.",
-    "ready2":"Press any key to begin the test.",     
-    "zerobackprompt":"0-Back practice trial will begin in",
-    "onebackprompt": "1-Back practice trial will begin in",
-    "twobackprompt":"2-Back practice trial will begin in",
-    "headerzero": "Is the result equal to 50?",
-    "headerone":  "Is the result equal to the previous result?",
-    "headertwo": "Is the result equal to the result obtained two operations ago?",
-    "zeroback": "Zero back",
-    "oneback": "One back",
-    "twoback": "Two back",
-    "footer": "<- Left Arrow | NO                          Yes | Right Arrow ->",
-    "correct":"Correct",
-    "incorrect": "Incorrect",
-    "tooslow":"Too Slow",
-    "rest": "Take a short break",
-    "debrief": "This task is now complete. Press any key to proceed"
-}
-{
-    "inst1": "En este experimento, debe calcular, memorizar y comparar resultados de operaciones aritméticas.",
-    "inst2": "Su práctica ha terminado. La prueba real comenzará a continuación.",
-    "reminder":"Recordatorio:\n\n- 0-back: compare el resultado con 50\n- 1-back: compare el resultado con el resultado anterior\n- 2-back: compare el resultado con el resultado obtenido dos operaciones antes\nPresione la flecha derecha si el resultado es igual, y la flecha izquierda si es diferente.",
-    "ready1":"Lea las instrucciones cuidadosamente.",
-    "ready2":"Presione cualquier tecla para comenzar la prueba.",
-    "zerobackprompt":"El ensayo de práctica 0-Back comenzará en",
-    "onebackprompt": "El ensayo de práctica 1-Back comenzará en",
-    "twobackprompt":"El ensayo de práctica 2-Back comenzará en",
-    "headerzero": "¿El resultado es igual a 50?",
-    "headerone":  "¿El resultado es igual al resultado anterior?",
-    "headertwo": "¿El resultado es igual al resultado obtenido dos operaciones antes?",
-    "zeroback": "Zero back",
-    "oneback": "One back",
-    "twoback": "Two back",
-    "footer": "<- Flecha Izquierda | NO                          SÍ | Flecha Derecha ->",
-    "correct":"Correcto",
-    "incorrect": "Incorrecto",
-    "tooslow":"Muy lento",
-    "rest": "Tome un breve descanso",
-    "debrief": "Esta tarea ha finalizado. Presione cualquier tecla para continuar",
-    "AUTHOR": "Automatic translation via Claude Code"
-}
-{
-
-    "inst1": "Dans cette expérience, vous devez calculer, mémoriser et comparer les résultats d'opérations arithmétiques.",
-    "inst2": "Votre entraînement est maintenant terminé. Le vrai test va commencer.",
-    "reminder":"Règles:\n- 0-back : Le résultat actuel est-il égal ou différent à 50 -> commencez à répondre à partir de l'essai 1\n- 1-back : Le résultat actuel est-il égal ou différent au résultat précédent -> commencez à répondre à partir de l'essai 2\n- 2-back : Le résultat actuel est-il égal ou différent au résultat obtenu 2 opérations plus tôt -> commencez à répondre à partir de l'essai 3\nVous utiliserez la flèche droite pour indiquer que le résultat est égal et la flèche gauche pour indiquer que le résultat est différent.",
-
-    "ready1":"Lisez attentivement les instructions.",
-    "ready2":"Appuyez sur n'importe quelle touche pour commencer le test.",
-
-    "zerobackprompt":"L'entrainement 0-Back commencera dans",
-    "onebackprompt": "L'entrainement 1-Back commencera dans",
-    "twobackprompt":"L'entrainement 2-Back commencera dans",
-    "headerzero": "Le résultat actuel est-il égal à 50?",
-    "headerone":  "Le résultat actuel est-il égal au résultat précédent?",
-    "headertwo": "Le résultat actuel est-il égal à celui obtenu deux opérations plus tôt",
-    "zeroback": "Zéro back",
-    "oneback": "Un back",
-    "twoback": "Deux back",
-    "footer": "<- Flèche Gauche | DIFFÉRENT                          ÉGAL | Flèche Droite ->",
-    "correct":"Correct",
-    "incorrect": "Incorrect",
-    "tooslow":"Trop lent",
-    "rest": "Prenez une courte pause",
-    "debrief": "Cette tâche est maintenant terminée. Appuyez sur n'importe quelle touche pour continuer",
-    "AUTHOR": "Automatic translation via Claude Code"
-
-}
-{
-    "inst1": "In questo esperimento, devi calcolare, memorizzare e confrontare i risultati di operazioni aritmetiche.",
-    "inst2": "La tua pratica è ora completa. Il test vero e proprio inizierà a breve.",
-    "reminder":"Promemoria:\n\n- 0-back: confronta il risultato con 50\n- 1-back: confronta il risultato con il risultato precedente\n- 2-back: confronta il risultato con il risultato ottenuto due operazioni fa\nPremi la freccia destra se il risultato è uguale, e la freccia sinistra se è diverso.",
-    "ready1":"Leggi attentamente le istruzioni.",
-    "ready2":"Premi un tasto qualsiasi per iniziare il test.",
-    "zerobackprompt":"La prova pratica 0-Back inizierà tra",
-    "onebackprompt": "La prova pratica 1-Back inizierà tra",
-    "twobackprompt":"La prova pratica 2-Back inizierà tra",
-    "headerzero": "Il risultato è uguale a 50?",
-    "headerone":  "Il risultato è uguale al risultato precedente?",
-    "headertwo": "Il risultato è uguale al risultato ottenuto due operazioni fa?",
-    "zeroback": "Zero back",
-    "oneback": "One back",
-    "twoback": "Two back",
-    "footer": "<- Freccia Sinistra | NO                          SÌ | Freccia Destra ->",
-    "correct":"Corretto",
-    "incorrect": "Errato",
-    "tooslow":"Troppo lento",
-    "rest": "Fai una breve pausa",
-    "debrief": "Questo compito è ora completato. Premi un tasto qualsiasi per continuare",
-    "AUTHOR": "Automatic translation via Claude Code"
-}
-{
-    "inst1": "In dit experiment moet u de resultaten van rekenkundige bewerkingen berekenen, onthouden en vergelijken.",
-    "inst2": "Uw oefening is nu voltooid. De eigenlijke test begint hierna.",
-    "reminder":"Herinnering:\n\n- 0-back: vergelijk het resultaat met 50\n- 1-back: vergelijk het resultaat met het vorige resultaat\n- 2-back: vergelijk het resultaat met het resultaat van twee bewerkingen geleden\nDruk op de rechterpijltoets als het resultaat hetzelfde is, en op de linkerpijltoets als het anders is.",
-    "ready1":"Lees de instructies zorgvuldig.",
-    "ready2":"Druk op een willekeurige toets om de test te beginnen.",
-    "zerobackprompt":"0-Back oefenronde begint over",
-    "onebackprompt": "1-Back oefenronde begint over",
-    "twobackprompt":"2-Back oefenronde begint over",
-    "headerzero": "Is het resultaat gelijk aan 50?",
-    "headerone":  "Is het resultaat gelijk aan het vorige resultaat?",
-    "headertwo": "Is het resultaat gelijk aan het resultaat van twee bewerkingen geleden?",
-    "zeroback": "Zero back",
-    "oneback": "One back",
-    "twoback": "Two back",
-    "footer": "<- Linkerpijl | NEE                          JA | Rechterpijl ->",
-    "correct":"Correct",
-    "incorrect": "Incorrect",
-    "tooslow":"Te langzaam",
-    "rest": "Neem een korte pauze",
-    "debrief": "Deze taak is nu voltooid. Druk op een willekeurige toets om door te gaan",
-    "AUTHOR": "Automatic translation via Claude Code"
-}
-{
-    "inst1": "Neste experimento, você deve calcular, memorizar e comparar resultados de operações aritméticas.",
-    "inst2": "Sua prática está completa. O teste real começará em seguida.",
-    "reminder":"Lembrete:\n\n- 0-back: compare o resultado com 50\n- 1-back: compare o resultado com o resultado anterior\n- 2-back: compare o resultado com o resultado obtido duas operações atrás\nPressione a seta direita se o resultado for igual, e a seta esquerda se for diferente.",
-    "ready1":"Leia as instruções cuidadosamente.",
-    "ready2":"Pressione qualquer tecla para começar o teste.",
-    "zerobackprompt":"O ensaio prático 0-Back começará em",
-    "onebackprompt": "O ensaio prático 1-Back começará em",
-    "twobackprompt":"O ensaio prático 2-Back começará em",
-    "headerzero": "O resultado é igual a 50?",
-    "headerone":  "O resultado é igual ao resultado anterior?",
-    "headertwo": "O resultado é igual ao resultado obtido duas operações atrás?",
-    "zeroback": "Zero back",
-    "oneback": "One back",
-    "twoback": "Two back",
-    "footer": "<- Seta Esquerda | NÃO                          SIM | Seta Direita ->",
-    "correct":"Correto",
-    "incorrect": "Incorreto",
-    "tooslow":"Muito lento",
-    "rest": "Faça uma breve pausa",
-    "debrief": "Esta tarefa está completa. Pressione qualquer tecla para continuar",
-    "AUTHOR": "Automatic translation via Claude Code"
+"inst1": "In diesem Test müssen Sie Ergebnisse von Rechenaufgaben berechnen, sich merken und vergleichen. Sie sehen eine kurze Rechenaufgabe, die Sie lösen müssen. Wenn Sie sie gelöst haben, vergleichen Sie die Ergebnisse mit einem anderen Wert und geben eine Antwort wie am unteren Bildschirmrand angezeigt. Der Vergleich hängt von der 'Back'-Bedingung ab (0, 1 oder 2-Back). Diese sind:",
+"inst2": "Ihre Übung ist nun abgeschlossen. Der eigentliche Test beginnt als nächstes.",
+"reminder": "- 0-back: Vergleichen Sie das Ergebnis mit 50\n- 1-back: Vergleichen Sie das Ergebnis mit dem vorherigen Ergebnis\n- 2-back: Vergleichen Sie das Ergebnis mit dem Ergebnis von vor zwei Durchgängen\n\nAntworten Sie JA, wenn das Ergebnis gleich ist, und NEIN, wenn es unterschiedlich ist.",
+"ready1": "Stellen Sie sicher, dass Sie die Anweisungen sorgfältig gelesen haben.",
+"ready2": "Geben Sie eine Antwort, um fortzufahren. ",
+"zerobackprompt": "0-Back-Übungsdurchgang beginnt in",
+"onebackprompt": "1-Back-Übungsdurchgang beginnt in",
+"twobackprompt": "2-Back-Übungsdurchgang beginnt in",
+"headerzero": "Ist das Ergebnis gleich 50?",
+"headerone": "Ist das Ergebnis gleich dem vorherigen Ergebnis?",
+"headertwo": "Ist das Ergebnis gleich dem Ergebnis von vor zwei Operationen?",
+"zeroback": "Zero back",
+"oneback": "One back",
+"twoback": "Two back",
+"footerleft": "NEIN",
+"footerright": "JA",
+"footerkeyboard": "Verwenden Sie die Tastatur zum Antworten",
+"footermousetarget": "Klicken Sie auf die Antwort",
+"footertouchtarget": "Tippen Sie auf die Antwort",
+"footermousebutton": "Verwenden Sie die Maustasten zum Antworten",
+"correct": "Richtig",
+"incorrect": "Falsch",
+"tooslow": "Zu langsam",
+"rest": "Machen Sie eine kurze Pause",
+"debrief": "Diese Aufgabe ist nun abgeschlossen. Drücken Sie eine beliebige Taste, um fortzufahren",
+"AUTHOR": "Automatic translation via Claude Code",
+"TRIAL_COUNTER": "Durchgang <NUM> von <NUMTRIALS>"
+}{
+"inst1": "In this test, you have to calculate, memorize and compare results from arithmetic problems. You will see a short arithmetic problem to solve. When you solve it, you will compare the results to another value and make a response using as shown at the bottom of the screen. The comparison depends on the 'back' condition (0, 1, or 2-back). These are:",
+"inst2": "Your practice is now complete. The real test will begin next.",
+"reminder": "- 0-back : compare the result to 50\n- 1-back : compare the result to the previous result\n- 2-back : compare the result to the two-back result\n\nRespond YES if the result is the same, and NO if it is different.",
+"ready1": "Be sure you have read the instructions carefully.",
+"ready2": "Make a response to continue. ",
+"zerobackprompt": "0-Back practice trial will begin in",
+"onebackprompt": "1-Back practice trial will begin in",
+"twobackprompt": "2-Back practice trial will begin in",
+"headerzero": "Is the result equal to 50?",
+"headerone": "Is the result equal to the previous result?",
+"headertwo": "Is the result equal to the result obtained two operations ago?",
+"zeroback": "Zero back",
+"oneback": "One back",
+"twoback": "Two back",
+"footerleft": "NO",
+"footerright": "YES",
+"footerkeyboard": "Use keyboard to respond",
+"footermousetarget": "Click on response to answer",
+"footertouchtarget": "Tap on response to answer",
+"footermousebutton": "Use mouse buttons to respond",
+"correct": "Correct",
+"incorrect": "Incorrect",
+"tooslow": "Too Slow",
+"rest": "Take a short break",
+"debrief": "This task is now complete. Press any key to proceed",
+"TRIAL_COUNTER": "Trial <NUM> of <NUMTRIALS>"
+}{
+"inst1": "En esta prueba, debe calcular, memorizar y comparar resultados de problemas aritméticos. Verá un breve problema aritmético para resolver. Cuando lo resuelva, comparará los resultados con otro valor y dará una respuesta como se muestra en la parte inferior de la pantalla. La comparación depende de la condición 'back' (0, 1 o 2-back). Estas son:",
+"inst2": "Su práctica ha terminado. La prueba real comenzará a continuación.",
+"reminder": "- 0-back: compare el resultado con 50\n- 1-back: compare el resultado con el resultado anterior\n- 2-back: compare el resultado con el resultado de hace dos operaciones\n\nResponda SÍ si el resultado es igual, y NO si es diferente.",
+"ready1": "Asegúrese de haber leído las instrucciones cuidadosamente.",
+"ready2": "Haga una respuesta para continuar. ",
+"zerobackprompt": "El ensayo de práctica 0-Back comenzará en",
+"onebackprompt": "El ensayo de práctica 1-Back comenzará en",
+"twobackprompt": "El ensayo de práctica 2-Back comenzará en",
+"headerzero": "¿El resultado es igual a 50?",
+"headerone": "¿El resultado es igual al resultado anterior?",
+"headertwo": "¿El resultado es igual al resultado obtenido dos operaciones antes?",
+"zeroback": "Zero back",
+"oneback": "One back",
+"twoback": "Two back",
+"footerleft": "NO",
+"footerright": "SÍ",
+"footerkeyboard": "Use el teclado para responder",
+"footermousetarget": "Haga clic en la respuesta",
+"footertouchtarget": "Toque la respuesta",
+"footermousebutton": "Use los botones del ratón para responder",
+"correct": "Correcto",
+"incorrect": "Incorrecto",
+"tooslow": "Muy lento",
+"rest": "Tome un breve descanso",
+"debrief": "Esta tarea ha finalizado. Presione cualquier tecla para continuar",
+"AUTHOR": "Automatic translation via Claude Code",
+"TRIAL_COUNTER": "Ensayo <NUM> de <NUMTRIALS>"
+}{
+"inst1": "Dans ce test, vous devez calculer, mémoriser et comparer les résultats de problèmes arithmétiques. Vous verrez un court problème arithmétique à résoudre. Lorsque vous le résoudrez, vous comparerez les résultats à une autre valeur et donnerez une réponse comme indiqué en bas de l'écran. La comparaison dépend de la condition 'back' (0, 1 ou 2-back). Voici ces conditions:",
+"inst2": "Votre entraînement est maintenant terminé. Le vrai test va commencer.",
+"reminder": "- 0-back: comparez le résultat à 50\n- 1-back: comparez le résultat au résultat précédent\n- 2-back: comparez le résultat au résultat d'il y a deux opérations\n\nRépondez OUI si le résultat est le même, et NON s'il est différent.",
+"ready1": "Assurez-vous d'avoir lu attentivement les instructions.",
+"ready2": "Faites une réponse pour continuer. ",
+"zerobackprompt": "L'entrainement 0-Back commencera dans",
+"onebackprompt": "L'entrainement 1-Back commencera dans",
+"twobackprompt": "L'entrainement 2-Back commencera dans",
+"headerzero": "Le résultat actuel est-il égal à 50?",
+"headerone": "Le résultat actuel est-il égal au résultat précédent?",
+"headertwo": "Le résultat actuel est-il égal à celui obtenu deux opérations plus tôt",
+"zeroback": "Zéro back",
+"oneback": "Un back",
+"twoback": "Deux back",
+"footerleft": "NON",
+"footerright": "OUI",
+"footerkeyboard": "Utilisez le clavier pour répondre",
+"footermousetarget": "Cliquez sur la réponse",
+"footertouchtarget": "Touchez la réponse",
+"footermousebutton": "Utilisez les boutons de la souris pour répondre",
+"correct": "Correct",
+"incorrect": "Incorrect",
+"tooslow": "Trop lent",
+"rest": "Prenez une courte pause",
+"debrief": "Cette tâche est maintenant terminée. Appuyez sur n'importe quelle touche pour continuer",
+"AUTHOR": "Automatic translation via Claude Code",
+"TRIAL_COUNTER": "Essai <NUM> sur <NUMTRIALS>"
+}{
+"inst1": "In questo test, devi calcolare, memorizzare e confrontare i risultati di problemi aritmetici. Vedrai un breve problema aritmetico da risolvere. Quando lo risolvi, confronterai i risultati con un altro valore e darai una risposta come mostrato nella parte inferiore dello schermo. Il confronto dipende dalla condizione 'back' (0, 1 o 2-back). Queste sono:",
+"inst2": "La tua pratica è ora completa. Il test vero e proprio inizierà a breve.",
+"reminder": "- 0-back: confronta il risultato con 50\n- 1-back: confronta il risultato con il risultato precedente\n- 2-back: confronta il risultato con il risultato di due operazioni fa\n\nRispondi SÌ se il risultato è uguale, e NO se è diverso.",
+"ready1": "Assicurati di aver letto attentamente le istruzioni.",
+"ready2": "Fai una risposta per continuare. ",
+"zerobackprompt": "La prova pratica 0-Back inizierà tra",
+"onebackprompt": "La prova pratica 1-Back inizierà tra",
+"twobackprompt": "La prova pratica 2-Back inizierà tra",
+"headerzero": "Il risultato è uguale a 50?",
+"headerone": "Il risultato è uguale al risultato precedente?",
+"headertwo": "Il risultato è uguale al risultato ottenuto due operazioni fa?",
+"zeroback": "Zero back",
+"oneback": "One back",
+"twoback": "Two back",
+"footerleft": "NO",
+"footerright": "SÌ",
+"footerkeyboard": "Usa la tastiera per rispondere",
+"footermousetarget": "Fai clic sulla risposta",
+"footertouchtarget": "Tocca la risposta",
+"footermousebutton": "Usa i pulsanti del mouse per rispondere",
+"correct": "Corretto",
+"incorrect": "Errato",
+"tooslow": "Troppo lento",
+"rest": "Fai una breve pausa",
+"debrief": "Questo compito è ora completato. Premi un tasto qualsiasi per continuare",
+"AUTHOR": "Automatic translation via Claude Code",
+"TRIAL_COUNTER": "Prova <NUM> di <NUMTRIALS>"
+}{
+"inst1": "In deze test moet u resultaten van rekenkundige problemen berekenen, onthouden en vergelijken. U ziet een kort rekenkundig probleem om op te lossen. Wanneer u het oplost, vergelijkt u de resultaten met een andere waarde en geeft u een antwoord zoals onderaan het scherm wordt weergegeven. De vergelijking hangt af van de 'back'-voorwaarde (0, 1 of 2-back). Deze zijn:",
+"inst2": "Uw oefening is nu voltooid. De eigenlijke test begint hierna.",
+"reminder": "- 0-back: vergelijk het resultaat met 50\n- 1-back: vergelijk het resultaat met het vorige resultaat\n- 2-back: vergelijk het resultaat met het resultaat van twee operaties geleden\n\nAntwoord JA als het resultaat hetzelfde is, en NEE als het anders is.",
+"ready1": "Zorg ervoor dat u de instructies zorgvuldig hebt gelezen.",
+"ready2": "Geef een antwoord om door te gaan. ",
+"zerobackprompt": "0-Back oefenronde begint over",
+"onebackprompt": "1-Back oefenronde begint over",
+"twobackprompt": "2-Back oefenronde begint over",
+"headerzero": "Is het resultaat gelijk aan 50?",
+"headerone": "Is het resultaat gelijk aan het vorige resultaat?",
+"headertwo": "Is het resultaat gelijk aan het resultaat van twee bewerkingen geleden?",
+"zeroback": "Zero back",
+"oneback": "One back",
+"twoback": "Two back",
+"footerleft": "NEE",
+"footerright": "JA",
+"footerkeyboard": "Gebruik het toetsenbord om te antwoorden",
+"footermousetarget": "Klik op het antwoord",
+"footertouchtarget": "Tik op het antwoord",
+"footermousebutton": "Gebruik de muisknoppen om te antwoorden",
+"correct": "Correct",
+"incorrect": "Incorrect",
+"tooslow": "Te langzaam",
+"rest": "Neem een korte pauze",
+"debrief": "Deze taak is nu voltooid. Druk op een willekeurige toets om door te gaan",
+"AUTHOR": "Automatic translation via Claude Code",
+"TRIAL_COUNTER": "Poging <NUM> van <NUMTRIALS>"
+}{
+"inst1": "Neste teste, você deve calcular, memorizar e comparar resultados de problemas aritméticos. Você verá um breve problema aritmético para resolver. Quando você o resolver, comparará os resultados com outro valor e dará uma resposta como mostrado na parte inferior da tela. A comparação depende da condição 'back' (0, 1 ou 2-back). Estas são:",
+"inst2": "Sua prática está completa. O teste real começará em seguida.",
+"reminder": "- 0-back: compare o resultado com 50\n- 1-back: compare o resultado com o resultado anterior\n- 2-back: compare o resultado com o resultado de duas operações atrás\n\nResponda SIM se o resultado for igual, e NÃO se for diferente.",
+"ready1": "Certifique-se de ter lido as instruções cuidadosamente.",
+"ready2": "Faça uma resposta para continuar. ",
+"zerobackprompt": "O ensaio prático 0-Back começará em",
+"onebackprompt": "O ensaio prático 1-Back começará em",
+"twobackprompt": "O ensaio prático 2-Back começará em",
+"headerzero": "O resultado é igual a 50?",
+"headerone": "O resultado é igual ao resultado anterior?",
+"headertwo": "O resultado é igual ao resultado obtido duas operações atrás?",
+"zeroback": "Zero back",
+"oneback": "One back",
+"twoback": "Two back",
+"footerleft": "NÃO",
+"footerright": "SIM",
+"footerkeyboard": "Use o teclado para responder",
+"footermousetarget": "Clique na resposta",
+"footertouchtarget": "Toque na resposta",
+"footermousebutton": "Use os botões do mouse para responder",
+"correct": "Correto",
+"incorrect": "Incorreto",
+"tooslow": "Muito lento",
+"rest": "Faça uma breve pausa",
+"debrief": "Esta tarefa está completa. Pressione qualquer tecla para continuar",
+"AUTHOR": "Automatic translation via Claude Code",
+"TRIAL_COUNTER": "Ensaio <NUM> de <NUMTRIALS>"
 }

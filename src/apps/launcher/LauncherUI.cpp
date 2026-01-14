@@ -9,6 +9,7 @@
 #include "Chain.h"
 #include "WorkspaceManager.h"
 #include "SnapshotManager.h"
+#include "ZipExtractor.h"
 #include "../../utility/BinReloc.h"
 #include "imgui.h"
 #include <SDL2/SDL_image.h>
@@ -180,14 +181,14 @@ LauncherUI::LauncherUI(LauncherConfig* config, SDL_Renderer* renderer)
     mTestEditor.language[0] = '\0';
     mTestEditor.randomGroup = 0;  // No randomization by default
 
-    // Initialize translation editor state
-    mTranslationEditor.show = false;
-    mTranslationEditor.testIndex = -1;
-    mTranslationEditor.language[0] = '\0';
-    mTranslationEditor.testPath = "";
+    // Initialize translation editor state (handled by constructor now)
+    // mTranslationEditor is default-constructed
 
     // Initialize variant naming dialog
     mVariantName[0] = '\0';
+
+    // Initialize top-level tab (default to Study)
+    mTopLevelTab = 0;
 
     // Initialize new study dialog state
     mNewStudyName[0] = '\0';
@@ -363,14 +364,8 @@ render_ui:
     ImGui::Begin("PEBL Launcher", p_open, window_flags);
 
     RenderMenuBar();
-    RenderStudyBar();
 
-    // Add significant vertical spacing after StudyBar to prevent overlap with tabs
-    ImGui::Spacing();
-    ImGui::Spacing();
-    ImGui::Spacing();
-
-    // Main tabbed interface: Tests, Chains, Run
+    // Top-level tabbed interface: Manage Studies vs Quick Launch
     // Make tab headers larger and more prominent (colors, padding, and larger font)
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(30, 8));   // Larger horizontal and vertical padding
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(12, 8));    // More spacing around tabs
@@ -379,20 +374,103 @@ render_ui:
     ImGui::PushStyleColor(ImGuiCol_TabHovered, ImVec4(0.35f, 0.60f, 0.85f, 1.0f));    // Brighter blue on hover
     ImGui::PushStyleColor(ImGuiCol_TabActive, ImVec4(0.20f, 0.60f, 0.95f, 1.0f));     // Vivid blue for active
 
-    if (ImGui::BeginTabBar("MainTabs", ImGuiTabBarFlags_None)) {
-        // For each tab: set large font before BeginTabItem (for header), reset after (for content)
-
+    if (ImGui::BeginTabBar("TopLevelTabs", ImGuiTabBarFlags_None)) {
+        // Manage Studies tab
         ImGui::SetWindowFontScale(1.5f);  // Large font for tab header
-        if (ImGui::BeginTabItem("Tests")) {
-            // Reset font and styles for tab content
+        if (ImGui::BeginTabItem("Manage Studies")) {
+            mTopLevelTab = 0;
             ImGui::SetWindowFontScale(1.0f);
             ImGui::PopStyleColor(3);
             ImGui::PopStyleVar(3);
 
-            RenderTestsTab();
+            // Show study bar (study selector, new study button, etc.)
+            RenderStudyBar();
+
+            // Add spacing after StudyBar before second-level tabs
+            ImGui::Spacing();
+            ImGui::Spacing();
+            ImGui::Spacing();
+
+            // Second-level tabs for Study: Tests, Chains, Run
+            ImGui::Spacing();
+            ImGui::Spacing();
+
+            // Second-level tab styling
+            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(20, 6));
+            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8, 6));
+            ImGui::PushStyleVar(ImGuiStyleVar_TabRounding, 6.0f);
+            ImGui::PushStyleColor(ImGuiCol_Tab, ImVec4(0.35f, 0.40f, 0.48f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_TabHovered, ImVec4(0.35f, 0.60f, 0.85f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_TabActive, ImVec4(0.20f, 0.60f, 0.95f, 1.0f));
+
+            if (ImGui::BeginTabBar("StudyTabs", ImGuiTabBarFlags_None)) {
+                ImGui::SetWindowFontScale(1.3f);  // Medium font for second-level tabs
+                if (ImGui::BeginTabItem("Tests")) {
+                    ImGui::SetWindowFontScale(1.0f);
+                    ImGui::PopStyleColor(3);
+                    ImGui::PopStyleVar(3);
+
+                    RenderTestsTab();
+                    ImGui::EndTabItem();
+
+                    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(20, 6));
+                    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8, 6));
+                    ImGui::PushStyleVar(ImGuiStyleVar_TabRounding, 6.0f);
+                    ImGui::PushStyleColor(ImGuiCol_Tab, ImVec4(0.35f, 0.40f, 0.48f, 1.0f));
+                    ImGui::PushStyleColor(ImGuiCol_TabHovered, ImVec4(0.35f, 0.60f, 0.85f, 1.0f));
+                    ImGui::PushStyleColor(ImGuiCol_TabActive, ImVec4(0.20f, 0.60f, 0.95f, 1.0f));
+                    ImGui::SetWindowFontScale(1.3f);
+                }
+
+                if (ImGui::BeginTabItem("Chains")) {
+                    ImGui::SetWindowFontScale(1.0f);
+                    ImGui::PopStyleColor(3);
+                    ImGui::PopStyleVar(3);
+
+                    RenderChainsTab();
+                    ImGui::EndTabItem();
+
+                    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(20, 6));
+                    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8, 6));
+                    ImGui::PushStyleVar(ImGuiStyleVar_TabRounding, 6.0f);
+                    ImGui::PushStyleColor(ImGuiCol_Tab, ImVec4(0.35f, 0.40f, 0.48f, 1.0f));
+                    ImGui::PushStyleColor(ImGuiCol_TabHovered, ImVec4(0.35f, 0.60f, 0.85f, 1.0f));
+                    ImGui::PushStyleColor(ImGuiCol_TabActive, ImVec4(0.20f, 0.60f, 0.95f, 1.0f));
+                    ImGui::SetWindowFontScale(1.3f);
+                }
+
+                if (ImGui::BeginTabItem("Run")) {
+                    ImGui::SetWindowFontScale(1.0f);
+                    ImGui::PopStyleColor(3);
+                    ImGui::PopStyleVar(3);
+
+                    RenderRunTab();
+                    ImGui::EndTabItem();
+
+                    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(20, 6));
+                    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8, 6));
+                    ImGui::PushStyleVar(ImGuiStyleVar_TabRounding, 6.0f);
+                    ImGui::PushStyleColor(ImGuiCol_Tab, ImVec4(0.35f, 0.40f, 0.48f, 1.0f));
+                    ImGui::PushStyleColor(ImGuiCol_TabHovered, ImVec4(0.35f, 0.60f, 0.85f, 1.0f));
+                    ImGui::PushStyleColor(ImGuiCol_TabActive, ImVec4(0.20f, 0.60f, 0.95f, 1.0f));
+                }
+
+                // Final cleanup for second-level tabs
+                ImGui::SetWindowFontScale(1.0f);
+                ImGui::PopStyleColor(3);
+                ImGui::PopStyleVar(3);
+
+                ImGui::EndTabBar();
+            } else {
+                // If tab bar didn't begin, clean up styles
+                ImGui::SetWindowFontScale(1.0f);
+                ImGui::PopStyleColor(3);
+                ImGui::PopStyleVar(3);
+            }
+
             ImGui::EndTabItem();
 
-            // Restore styles for next tab header
+            // Restore styles for next top-level tab header
             ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(30, 8));
             ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(12, 8));
             ImGui::PushStyleVar(ImGuiStyleVar_TabRounding, 8.0f);
@@ -402,41 +480,9 @@ render_ui:
             ImGui::SetWindowFontScale(1.5f);
         }
 
-        if (ImGui::BeginTabItem("Chains")) {
-            ImGui::SetWindowFontScale(1.0f);
-            ImGui::PopStyleColor(3);
-            ImGui::PopStyleVar(3);
-
-            RenderChainsTab();
-            ImGui::EndTabItem();
-
-            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(30, 8));
-            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(12, 8));
-            ImGui::PushStyleVar(ImGuiStyleVar_TabRounding, 8.0f);
-            ImGui::PushStyleColor(ImGuiCol_Tab, ImVec4(0.35f, 0.40f, 0.48f, 1.0f));
-            ImGui::PushStyleColor(ImGuiCol_TabHovered, ImVec4(0.35f, 0.60f, 0.85f, 1.0f));
-            ImGui::PushStyleColor(ImGuiCol_TabActive, ImVec4(0.20f, 0.60f, 0.95f, 1.0f));
-            ImGui::SetWindowFontScale(1.5f);
-        }
-
-        if (ImGui::BeginTabItem("Run")) {
-            ImGui::SetWindowFontScale(1.0f);
-            ImGui::PopStyleColor(3);
-            ImGui::PopStyleVar(3);
-
-            RenderRunTab();
-            ImGui::EndTabItem();
-
-            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(30, 8));
-            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(12, 8));
-            ImGui::PushStyleVar(ImGuiStyleVar_TabRounding, 8.0f);
-            ImGui::PushStyleColor(ImGuiCol_Tab, ImVec4(0.35f, 0.40f, 0.48f, 1.0f));
-            ImGui::PushStyleColor(ImGuiCol_TabHovered, ImVec4(0.35f, 0.60f, 0.85f, 1.0f));
-            ImGui::PushStyleColor(ImGuiCol_TabActive, ImVec4(0.20f, 0.60f, 0.95f, 1.0f));
-            ImGui::SetWindowFontScale(1.5f);
-        }
-
+        // Quick Launch tab
         if (ImGui::BeginTabItem("Quick Launch")) {
+            mTopLevelTab = 1;
             ImGui::SetWindowFontScale(1.0f);
             ImGui::PopStyleColor(3);
             ImGui::PopStyleVar(3);
@@ -444,7 +490,7 @@ render_ui:
             RenderQuickLaunchTab();
             ImGui::EndTabItem();
 
-            // Restore styles for consistency (will be popped in final cleanup)
+            // Restore styles for consistency
             ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(30, 8));
             ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(12, 8));
             ImGui::PushStyleVar(ImGuiStyleVar_TabRounding, 8.0f);
@@ -692,6 +738,99 @@ void LauncherUI::RenderMenuBar()
                 }
             }
 
+            if (ImGui::MenuItem("Import Snapshot ZIP...")) {
+                std::string zipPath = OpenFileDialog("Select Snapshot ZIP", "*.zip");
+                if (!zipPath.empty() && mSnapshots) {
+                    // Create temporary directory for extraction
+                    std::string tempDir = "/tmp/pebl_snapshot_import_" + std::to_string(std::time(nullptr));
+                    mkdir(tempDir.c_str(), 0755);
+
+                    // Extract ZIP
+                    printf("Extracting snapshot ZIP...\n");
+                    auto extractResult = ZipExtractor::ExtractAll(zipPath, tempDir);
+                    if (extractResult.success) {
+                        // Determine snapshot directory
+                        std::string snapshotPath;
+
+                        // Check if tempDir itself is the snapshot (has study-info.json)
+                        std::string studyInfoPath = tempDir + "/study-info.json";
+                        struct stat studyInfoStat;
+                        if (stat(studyInfoPath.c_str(), &studyInfoStat) == 0) {
+                            // Files extracted directly to tempDir
+                            snapshotPath = tempDir;
+                            printf("Snapshot extracted directly to temp directory\n");
+                        } else {
+                            // Look for subdirectory containing study-info.json
+                            DIR* dir = opendir(tempDir.c_str());
+                            if (dir) {
+                                struct dirent* entry;
+                                while ((entry = readdir(dir)) != nullptr) {
+                                    if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) {
+                                        std::string candidatePath = tempDir + "/" + entry->d_name;
+                                        struct stat candidateStat;
+
+                                        // Check if this is a directory
+                                        if (stat(candidatePath.c_str(), &candidateStat) == 0 && S_ISDIR(candidateStat.st_mode)) {
+                                            // Check if it contains study-info.json
+                                            std::string candidateStudyInfo = candidatePath + "/study-info.json";
+                                            struct stat candidateInfoStat;
+                                            if (stat(candidateStudyInfo.c_str(), &candidateInfoStat) == 0) {
+                                                snapshotPath = candidatePath;
+                                                printf("Snapshot found in subdirectory: %s\n", entry->d_name);
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                                closedir(dir);
+                            }
+                        }
+
+                        if (snapshotPath.empty()) {
+                            printf("Could not locate snapshot directory in extracted ZIP\n");
+                            std::string cleanupCmd = "rm -rf " + tempDir;
+                            system(cleanupCmd.c_str());
+                            return;
+                        }
+
+                        // Convert platform format to launcher format (in place on extracted snapshot)
+                        if (!mSnapshots->ConvertSnapshotFormat(snapshotPath)) {
+                            printf("Warning: Failed to convert snapshot format, attempting to use as-is\n");
+                        }
+
+                        // Validate and import
+                        auto validation = mSnapshots->ValidateSnapshot(snapshotPath);
+                        if (validation.isValid) {
+                            auto info = mSnapshots->GetSnapshotInfo(snapshotPath);
+                            std::string studiesDir = mWorkspace->GetStudiesPath();
+                            std::string newStudyName = info.studyName + "_imported";
+
+                            if (mSnapshots->ImportSnapshot(snapshotPath, studiesDir, newStudyName)) {
+                                printf("Imported snapshot ZIP as: %s\n", newStudyName.c_str());
+
+                                // Load the newly imported study
+                                std::string newStudyPath = studiesDir + "/" + newStudyName;
+                                LoadStudy(newStudyPath);
+                            } else {
+                                printf("Failed to import snapshot\n");
+                            }
+                        } else {
+                            printf("Invalid snapshot ZIP:\n");
+                            for (const auto& error : validation.errors) {
+                                printf("  - %s\n", error.c_str());
+                            }
+                        }
+
+                        // Clean up temp directory
+                        std::string cleanupCmd = "rm -rf " + tempDir;
+                        system(cleanupCmd.c_str());
+                    } else {
+                        printf("Failed to extract ZIP file: %s\n", extractResult.error.c_str());
+                        rmdir(tempDir.c_str());
+                    }
+                }
+            }
+
             ImGui::EndMenu();
         }
 
@@ -717,6 +856,26 @@ void LauncherUI::RenderMenuBar()
                     std::string studyPath = mCurrentStudy->GetPath();
                     OpenDirectoryInFileBrowser(studyPath);
                 }
+            }
+
+            ImGui::Separator();
+
+            if (ImGui::MenuItem("Data Combiner...")) {
+                // Start directory picker in current study's data directory if available
+                std::string startDir;
+                if (mCurrentStudy) {
+                    startDir = mCurrentStudy->GetPath() + "/data";
+                } else {
+                    startDir = mWorkspace->GetWorkspacePath();
+                }
+
+                std::string selectedDir = OpenDirectoryDialog("Select Directory for Data Combiner", startDir);
+                if (!selectedDir.empty()) {
+                    LaunchDataCombiner(selectedDir);
+                }
+            }
+            if (ImGui::IsItemHovered()) {
+                ImGui::SetTooltip("Combine data files from a directory");
             }
 
             ImGui::Separator();
@@ -1379,6 +1538,63 @@ void LauncherUI::RenderChainTab()
         ImGui::TextColored(ImVec4(0.4f, 0.7f, 1.0f, 1.0f), "%s", mCurrentChain->GetName().c_str());
         ImGui::Text("Description: %s", mCurrentChain->GetDescription().c_str());
         ImGui::Text("Items in chain: %zu", mCurrentChain->GetItems().size());
+
+        ImGui::Spacing();
+
+        // Upload configuration checkbox
+        bool uploadEnabled = mCurrentChain->GetUploadEnabled();
+        if (ImGui::Checkbox("Upload data to server", &uploadEnabled)) {
+            mCurrentChain->SetUploadEnabled(uploadEnabled);
+
+            // If enabling upload, ensure study has upload config
+            if (uploadEnabled && mCurrentStudy) {
+                bool hasConfig = !mCurrentStudy->GetStudyToken().empty() &&
+                               !mCurrentStudy->GetUploadServerURL().empty();
+
+                if (!hasConfig) {
+                    ImGui::OpenPopup("Upload Config Required");
+                } else {
+                    // Ensure all tests in chain have upload.json
+                    int created = 0;
+                    for (const auto& item : mCurrentChain->GetItems()) {
+                        if (!item.IsPageItem()) {
+                            if (!mCurrentStudy->TestHasUploadConfig(item.testName)) {
+                                if (mCurrentStudy->CreateUploadConfigForTest(item.testName)) {
+                                    created++;
+                                }
+                            }
+                        }
+                    }
+                    if (created > 0) {
+                        printf("Created %d upload.json file(s) for chain tests\n", created);
+                    }
+                }
+            }
+
+            mCurrentChain->Save();
+        }
+
+        // Warning popup if upload config is missing
+        if (ImGui::BeginPopupModal("Upload Config Required", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+            ImGui::TextWrapped("To enable data upload, you must first configure the study's upload settings.");
+            ImGui::Spacing();
+            ImGui::TextWrapped("Please go to Study Settings and enter:");
+            ImGui::BulletText("Upload Server URL");
+            ImGui::BulletText("Study Token");
+            ImGui::Spacing();
+
+            if (ImGui::Button("OK", ImVec2(120, 0))) {
+                // Revert the checkbox
+                mCurrentChain->SetUploadEnabled(false);
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::EndPopup();
+        }
+
+        if (uploadEnabled) {
+            ImGui::SameLine();
+            ImGui::TextColored(ImVec4(0.2f, 0.8f, 0.2f, 1.0f), "(Enabled)");
+        }
     } else {
         ImGui::TextDisabled("No chain loaded. Create a new chain or select an existing one.");
     }
@@ -2862,7 +3078,11 @@ void LauncherUI::ExecuteChainItem(int index)
         }
 
         std::string studyPath = mCurrentStudy->GetPath();
-        std::string testPath = studyPath + "/tests/" + test->testPath + "/" + item.testName + ".pbl";
+        // Extract basename from test_name for .pbl filename
+        std::string testName = item.testName;
+        size_t lastSlash = testName.find_last_of('/');
+        std::string baseName = (lastSlash != std::string::npos) ? testName.substr(lastSlash + 1) : testName;
+        std::string testPath = studyPath + "/tests/" + test->testPath + "/" + baseName + ".pbl";
 
         std::vector<std::string> args;
 
@@ -2876,6 +3096,22 @@ void LauncherUI::ExecuteChainItem(int index)
         if (!item.paramVariant.empty() && item.paramVariant != "default") {
             args.push_back("-v");
             args.push_back("gParamFile=" + item.paramVariant);
+        }
+
+        // Add upload flag if chain has upload enabled
+        if (mCurrentChain->GetUploadEnabled()) {
+            std::string uploadPath = mCurrentStudy->GetUploadConfigPath(item.testName);
+
+            // Ensure upload.json exists for this test
+            if (!mCurrentStudy->TestHasUploadConfig(item.testName)) {
+                printf("Creating upload.json for test: %s\n", item.testName.c_str());
+                mCurrentStudy->CreateUploadConfigForTest(item.testName);
+            }
+
+            // Add --upload flag
+            args.push_back("--upload");
+            args.push_back(uploadPath);
+            printf("Upload enabled: %s\n", uploadPath.c_str());
         }
 
         // Add additional arguments from Run tab settings
@@ -2971,7 +3207,11 @@ void LauncherUI::TestChainItem(int index)
         }
 
         std::string studyPath = mCurrentStudy->GetPath();
-        std::string testPath = studyPath + "/tests/" + test->testPath + "/" + item.testName + ".pbl";
+        // Extract basename from test_name for .pbl filename
+        std::string testName = item.testName;
+        size_t lastSlash = testName.find_last_of('/');
+        std::string baseName = (lastSlash != std::string::npos) ? testName.substr(lastSlash + 1) : testName;
+        std::string testPath = studyPath + "/tests/" + test->testPath + "/" + baseName + ".pbl";
 
         std::vector<std::string> args;
 
@@ -3040,7 +3280,7 @@ void LauncherUI::TestChainItem(int index)
     }
 }
 
-std::string LauncherUI::OpenDirectoryDialog(const std::string& title)
+std::string LauncherUI::OpenDirectoryDialog(const std::string& title, const std::string& startDir)
 {
 #ifdef _WIN32
     // Windows: Use folder browser dialog
@@ -3049,7 +3289,11 @@ std::string LauncherUI::OpenDirectoryDialog(const std::string& title)
     return "";
 #elif __APPLE__
     // macOS: Use osascript
-    std::string command = "osascript -e 'POSIX path of (choose folder with prompt \"" + title + "\")'";
+    std::string command = "osascript -e 'POSIX path of (choose folder";
+    if (!startDir.empty()) {
+        command += " default location (POSIX file \"" + startDir + "\")";
+    }
+    command += " with prompt \"" + title + "\")'";
     FILE* pipe = popen(command.c_str(), "r");
     if (!pipe) return "";
 
@@ -3066,7 +3310,11 @@ std::string LauncherUI::OpenDirectoryDialog(const std::string& title)
     return result;
 #else
     // Linux: Use zenity
-    std::string command = "zenity --file-selection --directory --title=\"" + title + "\" 2>/dev/null";
+    std::string command = "zenity --file-selection --directory --title=\"" + title + "\"";
+    if (!startDir.empty()) {
+        command += " --filename=\"" + startDir + "/\"";
+    }
+    command += " 2>/dev/null";
     FILE* pipe = popen(command.c_str(), "r");
     if (!pipe) return "";
 
@@ -3554,7 +3802,8 @@ void LauncherUI::ShowTestEditor()
                 // Open translation editor dialog
                 std::string testPath = studyPath + "/tests/" + selectedTest.testPath;
                 mTranslationEditor.testIndex = mTestEditor.selectedTestIndex;
-                mTranslationEditor.testPath = testPath;
+                std::strncpy(mTranslationEditor.testPath, testPath.c_str(), sizeof(mTranslationEditor.testPath) - 1);
+                mTranslationEditor.testPath[sizeof(mTranslationEditor.testPath) - 1] = '\0';
 
                 // Pre-fill language if one is set in test editor
                 if (std::strlen(mTestEditor.language) > 0) {
@@ -4511,7 +4760,11 @@ void LauncherUI::RenderTestsInStudy()
             // Open .pbl file in embedded code editor
             std::string studyPath = mCurrentStudy->GetPath();
             std::string testPath = studyPath + "/tests/" + tests[i].testPath;
-            std::string pblFile = testPath + "/" + tests[i].testName + ".pbl";
+            // Extract basename from test_name for .pbl filename
+            std::string testName = tests[i].testName;
+            size_t lastSlash = testName.find_last_of('/');
+            std::string baseName = (lastSlash != std::string::npos) ? testName.substr(lastSlash + 1) : testName;
+            std::string pblFile = testPath + "/" + baseName + ".pbl";
 
             std::ifstream file(pblFile);
             if (file.is_open()) {
@@ -4545,7 +4798,11 @@ void LauncherUI::RenderTestsInStudy()
         if (ImGui::BeginPopup("TestMenu")) {
             std::string studyPath = mCurrentStudy->GetPath();
             std::string testPath = studyPath + "/tests/" + tests[i].testPath;
-            std::string pblFile = testPath + "/" + tests[i].testName + ".pbl";
+            // Extract basename from test_name for .pbl filename
+            std::string testName = tests[i].testName;
+            size_t lastSlash = testName.find_last_of('/');
+            std::string baseName = (lastSlash != std::string::npos) ? testName.substr(lastSlash + 1) : testName;
+            std::string pblFile = testPath + "/" + baseName + ".pbl";
 
             // Edit code
             if (ImGui::MenuItem("Edit Code")) {
@@ -4572,7 +4829,8 @@ void LauncherUI::RenderTestsInStudy()
             if (ImGui::MenuItem("Edit Translations...")) {
                 // Open translation editor dialog
                 mTranslationEditor.testIndex = i;
-                mTranslationEditor.testPath = testPath;
+                std::strncpy(mTranslationEditor.testPath, testPath.c_str(), sizeof(mTranslationEditor.testPath) - 1);
+                mTranslationEditor.testPath[sizeof(mTranslationEditor.testPath) - 1] = '\0';
                 mTranslationEditor.language[0] = '\0';  // Start with no language selected
                 mTranslationEditor.show = true;
             }
@@ -5025,12 +5283,27 @@ void LauncherUI::RenderRunTab()
         ImGui::PopItemWidth();
     }
 
-    // Check if subject code already exists and show warning
+    // Check if subject code already exists and show warning (cached to avoid scanning every frame)
     if (mCurrentChain && strlen(mSubjectCode) > 0) {
-        std::vector<std::string> existingCodes = CheckExistingSubjectCodes();
+        static std::vector<std::string> cachedExistingCodes;
+        static std::string lastStudyPath;
+        static std::string lastChainName;
+        static bool cacheInitialized = false;
+
+        // Refresh cache only when study/chain changes
+        std::string currentStudyPath = mCurrentStudy ? mCurrentStudy->GetPath() : "";
+        std::string currentChainName = mCurrentChain ? mCurrentChain->GetName() : "";
+
+        if (!cacheInitialized || lastStudyPath != currentStudyPath || lastChainName != currentChainName) {
+            cachedExistingCodes = CheckExistingSubjectCodes();
+            lastStudyPath = currentStudyPath;
+            lastChainName = currentChainName;
+            cacheInitialized = true;
+        }
+
         std::string currentCode(mSubjectCode);
         bool codeExists = false;
-        for (const auto& code : existingCodes) {
+        for (const auto& code : cachedExistingCodes) {
             if (code == currentCode) {
                 codeExists = true;
                 break;
@@ -5046,17 +5319,17 @@ void LauncherUI::RenderRunTab()
         }
 
         // Show existing codes if any
-        if (!existingCodes.empty()) {
+        if (!cachedExistingCodes.empty()) {
             ImGui::Indent(20);
             ImGui::TextDisabled("Existing codes:");
             ImGui::SameLine();
             std::string codesList;
-            for (size_t i = 0; i < existingCodes.size() && i < 10; i++) {
+            for (size_t i = 0; i < cachedExistingCodes.size() && i < 10; i++) {
                 if (i > 0) codesList += ", ";
-                codesList += existingCodes[i];
+                codesList += cachedExistingCodes[i];
             }
-            if (existingCodes.size() > 10) {
-                codesList += "... (" + std::to_string(existingCodes.size()) + " total)";
+            if (cachedExistingCodes.size() > 10) {
+                codesList += "... (" + std::to_string(cachedExistingCodes.size()) + " total)";
             }
             ImGui::TextDisabled("%s", codesList.c_str());
             ImGui::Unindent(20);
@@ -5300,6 +5573,12 @@ void LauncherUI::RenderQuickLaunchTab()
     ImGui::Separator();
     ImGui::Spacing();
 
+    // Two-column layout for top section: Instructions + Directory (left) | Recent tests (right)
+    float topLeftWidth = ImGui::GetContentRegionAvail().x * 0.5f;
+
+    // Left column: Instructions + Directory
+    ImGui::BeginChild("InstructionsColumn", ImVec2(topLeftWidth, 160), false);
+
     ImGui::TextWrapped("Browse and run .pbl scripts for testing, demos, and quick experiments.");
     ImGui::Spacing();
     ImGui::Separator();
@@ -5307,7 +5586,6 @@ void LauncherUI::RenderQuickLaunchTab()
 
     // Current directory display (read-only)
     ImGui::Text("Directory:");
-    ImGui::SameLine();
     ImGui::PushItemWidth(-100);  // Leave room for browse button
     ImGui::InputText("##QuickLaunchDir", &mQuickLaunchDirectory[0], 512, ImGuiInputTextFlags_ReadOnly);
     ImGui::PopItemWidth();
@@ -5321,6 +5599,53 @@ void LauncherUI::RenderQuickLaunchTab()
         }
     }
 
+    ImGui::EndChild();
+
+    ImGui::SameLine();
+
+    // Right column: Recent tests
+    ImGui::BeginChild("RecentTestsColumn", ImVec2(0, 160), false);
+
+    const std::vector<RecentExperiment>& recent = mConfig->GetRecentExperiments();
+    if (!recent.empty()) {
+        ImGui::TextColored(ImVec4(0.4f, 0.7f, 1.0f, 1.0f), "Recent Tests:");
+        ImGui::Spacing();
+
+        ImGui::BeginChild("RecentList", ImVec2(0, 0), true);
+
+        for (const auto& exp : recent) {
+            // Show just the name, with timestamp as tooltip
+            if (ImGui::Selectable(exp.name.c_str())) {
+                // Set the quick launch path to this experiment
+                std::strncpy(mQuickLaunchPath, exp.path.c_str(), sizeof(mQuickLaunchPath) - 1);
+                mQuickLaunchPath[sizeof(mQuickLaunchPath) - 1] = '\0';
+
+                // Update directory to parent of selected file
+                std::string path = exp.path;
+                size_t lastSlash = path.find_last_of('/');
+                if (lastSlash != std::string::npos) {
+                    mQuickLaunchDirectory = path.substr(0, lastSlash);
+                }
+            }
+
+            if (ImGui::IsItemHovered()) {
+                // Format timestamp
+                char timeBuf[64];
+                struct tm* timeinfo = localtime(&exp.lastRun);
+                strftime(timeBuf, sizeof(timeBuf), "%Y-%m-%d %H:%M:%S", timeinfo);
+                ImGui::SetTooltip("Last run: %s\n%s", timeBuf, exp.path.c_str());
+            }
+        }
+
+        ImGui::EndChild();
+    } else {
+        ImGui::TextDisabled("No recent tests");
+    }
+
+    ImGui::EndChild();
+
+    ImGui::Spacing();
+    ImGui::Separator();
     ImGui::Spacing();
 
     // File list (left) and configuration (right)
@@ -5364,11 +5689,14 @@ void LauncherUI::RenderQuickLaunchTab()
     }
 
     // Display directories first with folder icon
+    int dirIndex = 0;
     for (const auto& dir : directories) {
         std::string displayName = (dir == "..") ? "[UP] .." : "[DIR] " + dir;
-        if (ImGui::Selectable(displayName.c_str(), false)) {
+        bool isParentDir = (dir == "..");
+
+        if (ImGui::Selectable(displayName.c_str(), false, 0, ImVec2(ImGui::GetContentRegionAvail().x - 60, 0))) {
             // Navigate into directory
-            if (dir == "..") {
+            if (isParentDir) {
                 // Go up one level
                 size_t lastSlash = mQuickLaunchDirectory.find_last_of('/');
                 if (lastSlash != std::string::npos && lastSlash > 0) {
@@ -5381,19 +5709,63 @@ void LauncherUI::RenderQuickLaunchTab()
             mQuickLaunchSelectedFile = -1;
             mQuickLaunchPath[0] = '\0';
         }
+
+        // Add Open button for actual directories (not "..")
+        if (!isParentDir) {
+            ImGui::SameLine();
+            ImGui::PushID(1000 + dirIndex);  // Use offset to avoid ID collision with files
+            if (ImGui::SmallButton("Open")) {
+                std::string fullPath = mQuickLaunchDirectory + "/" + dir;
+                OpenDirectoryInFileBrowser(fullPath);
+            }
+            ImGui::PopID();
+            if (ImGui::IsItemHovered()) {
+                ImGui::SetTooltip("Open directory in file browser");
+            }
+        }
+
+        dirIndex++;
     }
 
     // Display .pbl files
     int fileIndex = 0;
     for (const auto& file : pblFiles) {
         bool is_selected = (mQuickLaunchSelectedFile == fileIndex);
-        if (ImGui::Selectable(file.c_str(), is_selected)) {
+
+        // Make filename selectable
+        if (ImGui::Selectable(file.c_str(), is_selected, 0, ImVec2(ImGui::GetContentRegionAvail().x - 60, 0))) {
+            // Set as selected and update path
             mQuickLaunchSelectedFile = fileIndex;
-            std::strncpy(mQuickLaunchPath,
-                       (mQuickLaunchDirectory + "/" + file).c_str(),
-                       sizeof(mQuickLaunchPath) - 1);
+            std::string fullPath = mQuickLaunchDirectory + "/" + file;
+            std::strncpy(mQuickLaunchPath, fullPath.c_str(), sizeof(mQuickLaunchPath) - 1);
             mQuickLaunchPath[sizeof(mQuickLaunchPath) - 1] = '\0';
         }
+
+        // Add Edit button on the same line
+        ImGui::SameLine();
+        ImGui::PushID(fileIndex);
+        if (ImGui::SmallButton("Edit")) {
+            std::string fullPath = mQuickLaunchDirectory + "/" + file;
+
+            // Open in code editor
+            std::ifstream fileStream(fullPath);
+            if (fileStream.is_open()) {
+                std::stringstream buffer;
+                buffer << fileStream.rdbuf();
+                fileStream.close();
+
+                mCodeEditorFilePath = fullPath;
+                mCodeEditor.SetText(buffer.str());
+                mShowCodeEditor = true;
+            } else {
+                printf("Error: Could not open file for editing: %s\n", fullPath.c_str());
+            }
+        }
+        ImGui::PopID();
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Open file in code editor");
+        }
+
         fileIndex++;
     }
 
@@ -5482,7 +5854,17 @@ void LauncherUI::RenderQuickLaunchTab()
         bool success = mRunningExperiment->RunExperiment(mQuickLaunchPath, args,
                                                           mSubjectCode, mLanguageCode,
                                                           mFullscreen);
-        if (!success) {
+        if (success) {
+            // Add to recent experiments list
+            std::string scriptPath = mQuickLaunchPath;
+            std::string scriptName = scriptPath;
+            size_t lastSlash = scriptPath.find_last_of('/');
+            if (lastSlash != std::string::npos) {
+                scriptName = scriptPath.substr(lastSlash + 1);
+            }
+            mConfig->AddRecentExperiment(scriptPath, scriptName);
+            mShowStderr = false;  // Start showing stdout
+        } else {
             printf("Failed to run: %s\n", mQuickLaunchPath);
         }
     }
@@ -5729,12 +6111,16 @@ void LauncherUI::ShowStudySettingsDialog()
         static char nameBuffer[256];
         static char descBuffer[1024];
         static char authorBuffer[256];
+        static char uploadServerBuffer[512];
+        static char studyTokenBuffer[256];
         static bool initialized = false;
 
         if (!initialized) {
             std::strncpy(nameBuffer, mCurrentStudy->GetName().c_str(), sizeof(nameBuffer) - 1);
             std::strncpy(descBuffer, mCurrentStudy->GetDescription().c_str(), sizeof(descBuffer) - 1);
             std::strncpy(authorBuffer, mCurrentStudy->GetAuthor().c_str(), sizeof(authorBuffer) - 1);
+            std::strncpy(uploadServerBuffer, mCurrentStudy->GetUploadServerURL().c_str(), sizeof(uploadServerBuffer) - 1);
+            std::strncpy(studyTokenBuffer, mCurrentStudy->GetStudyToken().c_str(), sizeof(studyTokenBuffer) - 1);
             initialized = true;
         }
 
@@ -5766,10 +6152,86 @@ void LauncherUI::ShowStudySettingsDialog()
         ImGui::Separator();
         ImGui::Spacing();
 
+        // Upload configuration
+        ImGui::TextColored(ImVec4(0.4f, 0.7f, 1.0f, 1.0f), "Data Upload Configuration");
+        ImGui::Spacing();
+        ImGui::TextWrapped("Configure automatic data upload to PEBLOnlinePlatform or compatible server:");
+        ImGui::Spacing();
+
+        ImGui::Text("Upload Server URL:");
+        ImGui::SameLine();
+        if (ImGui::SmallButton("?##ServerHelp")) {
+            ImGui::SetTooltip("Server URL (e.g., https://peblhub.online or http://localhost:8080)");
+        }
+        ImGui::PushItemWidth(-1);
+        ImGui::InputText("##UploadServer", uploadServerBuffer, sizeof(uploadServerBuffer));
+        ImGui::PopItemWidth();
+
+        ImGui::Spacing();
+
+        ImGui::Text("Study Token:");
+        ImGui::SameLine();
+        if (ImGui::SmallButton("?##TokenHelp")) {
+            ImGui::SetTooltip("Study token from PEBLOnlinePlatform (e.g., STUDY_ABC123...)");
+        }
+        ImGui::PushItemWidth(-1);
+        ImGui::InputText("##StudyToken", studyTokenBuffer, sizeof(studyTokenBuffer));
+        ImGui::PopItemWidth();
+
+        ImGui::Spacing();
+
+        // Button to load from upload.json file
+        if (ImGui::Button("Load from upload.json...", ImVec2(-1, 0))) {
+            std::string uploadJsonPath = OpenFileDialog("Select upload.json", "*.json");
+            if (!uploadJsonPath.empty()) {
+                std::ifstream file(uploadJsonPath);
+                if (file.is_open()) {
+                    nlohmann::json uploadConfig;
+                    try {
+                        file >> uploadConfig;
+
+                        // Extract server URL from host, port, and page
+                        std::string host = uploadConfig.value("host", "");
+                        int port = uploadConfig.value("port", 443);
+
+                        // Construct server URL
+                        std::string protocol = (port == 443) ? "https://" : "http://";
+                        std::string serverUrl = protocol + host;
+                        if ((port != 443 && port != 80) || (protocol == "http://" && port != 80)) {
+                            serverUrl += ":" + std::to_string(port);
+                        }
+
+                        // Get token
+                        std::string token = uploadConfig.value("token", "");
+
+                        // Populate fields
+                        std::strncpy(uploadServerBuffer, serverUrl.c_str(), sizeof(uploadServerBuffer) - 1);
+                        uploadServerBuffer[sizeof(uploadServerBuffer) - 1] = '\0';
+
+                        std::strncpy(studyTokenBuffer, token.c_str(), sizeof(studyTokenBuffer) - 1);
+                        studyTokenBuffer[sizeof(studyTokenBuffer) - 1] = '\0';
+
+                        printf("Loaded upload configuration from: %s\n", uploadJsonPath.c_str());
+                    } catch (const std::exception& e) {
+                        printf("Error parsing upload.json: %s\n", e.what());
+                    }
+                    file.close();
+                } else {
+                    printf("Failed to open upload.json file\n");
+                }
+            }
+        }
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
         if (ImGui::Button("Save", ImVec2(120, 0))) {
             mCurrentStudy->SetName(nameBuffer);
             mCurrentStudy->SetDescription(descBuffer);
             mCurrentStudy->SetAuthor(authorBuffer);
+            mCurrentStudy->SetUploadServerURL(uploadServerBuffer);
+            mCurrentStudy->SetStudyToken(studyTokenBuffer);
             mCurrentStudy->Save();
 
             initialized = false;
@@ -5814,7 +6276,7 @@ void LauncherUI::ShowFirstRunDialog()
         ImGui::BulletText("snapshots/ - Study backups and imports");
         ImGui::BulletText("doc/ - Documentation");
         ImGui::BulletText("demo/ - Example experiments");
-        ImGui::BulletText("tutorial/ - Tutorial materials");
+        ImGui::BulletText("tutorials/ - Tutorial materials");
         ImGui::BulletText("logs/ - Launch logs");
 
         ImGui::Spacing();
@@ -5846,7 +6308,7 @@ void LauncherUI::ShowFirstRunDialog()
                 if (br_init(&error) != 0) {
                     char* prefix = br_find_prefix(PREFIX);
                     if (prefix) {
-                        installPath = std::string(prefix) + "/pebl2";
+                        installPath = std::string(prefix);
                         free(prefix);
                         printf("BinReloc found installation at: %s\n", installPath.c_str());
                     }
@@ -6208,7 +6670,11 @@ void LauncherUI::ShowTranslationEditorDialog()
         }
 #endif
 
-        std::string pblFile = mTranslationEditor.testPath + "/" + test.testName + ".pbl";
+        // Extract basename from test_name for .pbl filename
+        std::string testName = test.testName;
+        size_t lastSlash = testName.find_last_of('/');
+        std::string baseName = (lastSlash != std::string::npos) ? testName.substr(lastSlash + 1) : testName;
+        std::string pblFile = std::string(mTranslationEditor.testPath) + "/" + baseName + ".pbl";
 
         // Base language (English) section
         ImGui::TextWrapped("Edit the base English translation file (required):");
@@ -6238,7 +6704,7 @@ void LauncherUI::ShowTranslationEditorDialog()
 
         // Scan for available language files
         std::vector<std::string> availableLanguages;
-        std::string translationsPath = mTranslationEditor.testPath + "/translations";
+        std::string translationsPath = std::string(mTranslationEditor.testPath) + "/translations";
 
         if (fs::exists(translationsPath) && fs::is_directory(translationsPath)) {
             for (const auto& entry : fs::directory_iterator(translationsPath)) {
@@ -6340,14 +6806,11 @@ std::vector<std::string> LauncherUI::CheckExistingSubjectCodes()
     std::vector<std::string> existingCodes;
 
     if (!mCurrentStudy || !mCurrentChain) {
-        printf("DEBUG CheckExistingSubjectCodes: No study or chain loaded\n");
         return existingCodes;
     }
 
     std::string studyPath = mCurrentStudy->GetPath();
     const auto& chainItems = mCurrentChain->GetItems();
-    printf("DEBUG CheckExistingSubjectCodes: Study path: %s\n", studyPath.c_str());
-    printf("DEBUG CheckExistingSubjectCodes: Chain has %zu items\n", chainItems.size());
 
     // Collect unique list of tests in the chain
     std::vector<std::string> testsInChain;
@@ -6363,26 +6826,19 @@ std::vector<std::string> LauncherUI::CheckExistingSubjectCodes()
             }
             if (!found) {
                 testsInChain.push_back(item.testName);
-                printf("DEBUG CheckExistingSubjectCodes: Found test in chain: %s\n", item.testName.c_str());
             }
         }
     }
 
-    printf("DEBUG CheckExistingSubjectCodes: Scanning %zu unique tests\n", testsInChain.size());
-
     // For each test, scan its data directory for subdirectories (subject codes)
     for (const auto& testName : testsInChain) {
         std::string dataDir = studyPath + "/tests/" + testName + "/data";
-        printf("DEBUG CheckExistingSubjectCodes: Scanning data directory: %s\n", dataDir.c_str());
-        
+
         DIR* dir = opendir(dataDir.c_str());
         if (!dir) {
-            printf("DEBUG CheckExistingSubjectCodes:   -> Directory does not exist or cannot be opened\n");
             continue; // data directory doesn't exist yet
         }
 
-        printf("DEBUG CheckExistingSubjectCodes:   -> Directory opened successfully\n");
-        int subdirCount = 0;
         struct dirent* entry;
         while ((entry = readdir(dir)) != nullptr) {
             std::string name = entry->d_name;
@@ -6396,8 +6852,6 @@ std::vector<std::string> LauncherUI::CheckExistingSubjectCodes()
             std::string fullPath = dataDir + "/" + name;
             struct stat st;
             if (stat(fullPath.c_str(), &st) == 0 && S_ISDIR(st.st_mode)) {
-                subdirCount++;
-                printf("DEBUG CheckExistingSubjectCodes:   -> Found subject code directory: %s\n", name.c_str());
                 // This is a subject code directory
                 // Check if we've already added this code
                 bool found = false;
@@ -6409,16 +6863,12 @@ std::vector<std::string> LauncherUI::CheckExistingSubjectCodes()
                 }
                 if (!found) {
                     existingCodes.push_back(name);
-                } else {
-                    printf("DEBUG CheckExistingSubjectCodes:      (already in list)\n");
                 }
             }
         }
         closedir(dir);
-        printf("DEBUG CheckExistingSubjectCodes:   -> Found %d subject code directories in this test\n", subdirCount);
     }
 
-    printf("DEBUG CheckExistingSubjectCodes: TOTAL unique subject codes found: %zu\n", existingCodes.size());
     return existingCodes;
 }
 

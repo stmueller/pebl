@@ -344,7 +344,7 @@ namespace PEBLEnvironment
 
 
             {(char*)"SIGNALFATALERROR",                SignalFatalError,   1,1},
-            {(char*)"EXITQUIETLY",                     ExitQuietly, 1,1},
+            {(char*)"EXITQUIETLY",                     ExitQuietly, 1,2},
             {(char*)"TRANSLATEKEYCODE",                TranslateKeyCode,  1, 1},
             {(char*)"TRANSLATESTRING",                 TranslateString,  1, 1},
             {(char*)"TIMESTAMP",                       TimeStamp,         0, 0},

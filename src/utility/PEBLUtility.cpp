@@ -1826,11 +1826,11 @@ std::string PEBLUtility::GetFontForLanguageOrScript(const std::string & code, in
     if (upperCode.length() == 2) {
         // Language code - map to appropriate font
         if (upperCode == "AR") {
-            // Arabic - DejaVu has Arabic + Latin support
+            // Arabic - DejaVu has excellent Arabic + Latin support
             return (fontType == 0) ? defaultSans : (fontType == 1) ? defaultMono : defaultSerif;
         }
         else if (upperCode == "HE" || upperCode == "IW") {
-            // Hebrew - DejaVu has Hebrew + Latin support
+            // Hebrew - DejaVu has excellent Hebrew + Latin support
             return (fontType == 0) ? defaultSans : (fontType == 1) ? defaultMono : defaultSerif;
         }
         else if (upperCode == "TH") {
@@ -1849,7 +1849,7 @@ std::string PEBLUtility::GetFontForLanguageOrScript(const std::string & code, in
                    (fontType == 1) ? cjkMono : cjkSerif;
         }
         else if (upperCode == "KA") {
-            // Georgian - DejaVu has Georgian + Latin support
+            // Georgian - DejaVu has excellent Georgian + Latin support
             return (fontType == 0) ? defaultSans : (fontType == 1) ? defaultMono : defaultSerif;
         }
         else if (upperCode == "ZH" || upperCode == "CN" || upperCode == "TW") {
@@ -1872,11 +1872,11 @@ std::string PEBLUtility::GetFontForLanguageOrScript(const std::string & code, in
     else if (upperCode.length() == 4) {
         // Script code (ISO 15924) - map to appropriate font
         if (upperCode == "ARAB") {
-            // Arabic script
+            // Arabic script - DejaVu supports Arabic
             return (fontType == 0) ? defaultSans : (fontType == 1) ? defaultMono : defaultSerif;
         }
         else if (upperCode == "HEBR") {
-            // Hebrew script
+            // Hebrew script - DejaVu supports Hebrew
             return (fontType == 0) ? defaultSans : (fontType == 1) ? defaultMono : defaultSerif;
         }
         else if (upperCode == "THAI") {
@@ -1895,7 +1895,7 @@ std::string PEBLUtility::GetFontForLanguageOrScript(const std::string & code, in
                    (fontType == 1) ? cjkMono : cjkSerif;
         }
         else if (upperCode == "GEOR") {
-            // Georgian script
+            // Georgian script - DejaVu supports Georgian
             return (fontType == 0) ? defaultSans : (fontType == 1) ? defaultMono : defaultSerif;
         }
         else if (upperCode == "HIRA" || upperCode == "KANA" || upperCode == "HANI") {

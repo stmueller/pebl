@@ -81,6 +81,26 @@ This document tracks major improvements and architectural changes for PEBL.
 
 ### High Priority
 
+- [ ] **Text-to-speech (TTS) for instruction playback** ⏸️ **ON HOLD**
+  - **Purpose**: Enable spoken instructions for participants with reading difficulties or for auditory instruction delivery
+  - **Current status**: Research complete, documented in `doc/TTS_INTEGRATION_RESEARCH.md`
+  - **Decision (Jan 2026)**: Project on hold - eSpeak NG quality insufficient (robotic voice)
+  - **Quality assessment**:
+    - eSpeak NG (formant synthesis): Robotic, not acceptable for research use
+    - Piper TTS (neural): High quality but 15-35MB per voice (too large for core distribution)
+    - Web Speech API: High quality but web-only, inconsistent across browsers
+  - **Future direction**: Consider Piper TTS as optional developer tool
+    - Not included in default PEBL distribution
+    - Separate installation guide for researchers who need high-quality TTS
+    - User downloads voice models separately (like lab equipment)
+    - Build flag: `USE_NEURAL_TTS=1` (disabled by default)
+  - **Alternative approach**: Recommend pre-recorded audio for instructions
+    - Researchers record instructions in their own voice or professional voice actor
+    - Standard PEBL audio playback (LoadSound, PlayForeground)
+    - Better quality than any TTS system
+    - Full control over prosody, emphasis, pacing
+  - Related docs: `doc/TTS_INTEGRATION_RESEARCH.md`
+
 - [ ] **Fix voice key heap corruption and test across platforms**
   - **Current status**: Manual threshold voice key works (`GetVocalResponseTime(buffer, threshold, sustain)`)
   - **Problem**: ROC-based automatic calibration crashes with heap corruption
@@ -161,6 +181,115 @@ This document tracks major improvements and architectural changes for PEBL.
     - Verify button mapping consistency across platforms
 
 ## Online/Web Platform
+
+### Completed
+
+- [x] **Implement Layout & Response System** ✅ **COMPLETE (Jan 8, 2026)**
+  - **Commit 868840d**: Full implementation with responsesemantics support
+  - **Features implemented**:
+    - Standard zone-based layouts with automatic scaling to any screen size
+    - Platform-aware response modes (keyboard/mouse/touch)
+    - Single-function API (`CreateLayout()`) with intelligent defaults
+    - Dynamic styling via nested property modifications (leverages Dec 2025 property system)
+    - Theme support (default, dark, high-contrast) with accessibility features
+    - Animation capabilities for visual feedback (FlashCorrect, FadeOut, PulseLabel, etc.)
+    - Semantic response names ("left"/"right" instead of "<lshift>"/"<rshift>")
+    - Multi-language support via translated response labels
+    - Optional JSON configuration files for test-specific layouts
+  - **Migration status (as of Jan 2026)**:
+    - 18 battery tests fully migrated (35%)
+    - All 7 Category 1 tests complete (100%)
+    - Response modes: keyboard-shift, keyboard-safe, keyboard-arrow, mousebutton, mousetarget, touchtarget, clicktarget, spacebar, none
+    - Tests include: luckvogel, evenodd, dotjudgment, flanker, manikin, simon, BST, gonogo, oddball, crt, wpt, ANT, PCPT, TNT, ppvt, clocktest, stroop tasks, ptrails, corsi, matrixrotation
+  - **Key benefits**:
+    - Solves Sticky Keys problem in browsers (no shift key dialogs)
+    - Enables mobile/tablet deployment with touch targets
+    - Reduces boilerplate code in tests (one CreateLayout call vs. manual UI)
+    - Auto-scales to any screen size (phones, HiDPI displays)
+    - Backwards compatible with existing tests
+  - Related files:
+    - `pebl-lib/Layout.pbl` (68KB implementation)
+    - `media/settings/response-modes.json` (5.8KB configuration)
+    - `doc/LAYOUT_RESPONSE_SYSTEM_PLAN.md` (implementation plan)
+    - `doc/LAYOUT_MIGRATION_GUIDE.md` (93KB migration guide)
+    - `doc/SEMANTIC_LABEL_SYSTEM.md` (semantic architecture)
+  - Related commits: 868840d, 3a5d457, and 100+ migration commits
+
+- [x] **Implement C++ Native Launcher with Study Management System** ✅ **COMPLETE (Jan 10, 2026)**
+  - **Commit daed98b**: Full C++ launcher with ImGui interface
+  - **Features implemented**:
+    - Study-based organizational structure aligned with online platform
+    - Create/edit/manage studies with tests and chains
+    - Study-info.json and chain JSON parsing/editing
+    - Battery browser (read-only view of installed tests)
+    - Chain editor with instruction/consent/test/completion pages
+    - Chain execution engine with ChainPage integration
+    - Snapshot creation (clean exports excluding data/)
+    - Snapshot import (including ZIP support with format conversion)
+    - Snapshot validation with error/warning reporting
+    - Quick Launch feature (run most recent study directly)
+    - Subject code tracking and duplicate detection
+    - Upload configuration (study-level token and server URL)
+    - Chain-level upload enable/disable checkboxes
+    - File picker for upload.json (auto-populates server settings)
+    - First-run workspace initialization
+  - **Architecture**:
+    - C++ with Dear ImGui for cross-platform UI
+    - SDL2 for window management
+    - Study/Chain/Test class hierarchy
+    - SnapshotManager for import/export operations
+    - ZipExtractor for ZIP file handling
+    - JSON parsing with nlohmann::json
+  - **Bidirectional workflow**:
+    - Create studies natively and upload to platform
+    - Download platform snapshots and use directly
+    - Consistent format between native and online
+    - Automatic format conversion for platform snapshots
+  - **Build integration**:
+    - Separate Makefile in `src/apps/launcher/`
+    - Links against SDL2, ImGui, libzip
+    - Builds to `bin/pebl-launcher`
+    - AppImage support (combined with pebl2 and validator)
+  - Related files:
+    - `src/apps/launcher/` (complete launcher implementation)
+    - `doc/NATIVE_LAUNCHER_STUDY_SYSTEM.md` (40KB specification)
+    - `doc/APPIMAGE_LAUNCHER_INTEGRATION.md` (integration docs)
+  - Related commits: daed98b (initial), ecfdfbb (UI improvements), b17aeda (Makefile), a44ea2f (AppImage)
+
+- [x] **Implement PEBL Validator** ✅ **COMPLETE (Dec 27, 2025)**
+  - **Commit e9d1985**: Command-line syntax validation tool
+  - **Features implemented**:
+    - Syntax validation using PEBL's parser (grammar.y, Pebl.l)
+    - File existence checking
+    - JSON and text output modes (--json flag)
+    - Proper exit codes for scripting (0=valid, 1=invalid, 2=usage error)
+    - Start() function requirement validation (commit 6861855, Dec 29, 2025)
+  - **Architecture**:
+    - Full PEBL parser integration (parse-only, no execution)
+    - Separate build: `make validator` → `bin/pebl-validator`
+    - No SDL dependencies for execution (validator platform layer)
+    - Uses `obj-validator/` build directory
+  - **Use cases**:
+    - Pre-upload validation in online platform (PHP integration)
+    - LLM-assisted PEBL code validation
+    - Automated testing in CI/CD pipelines
+    - Batch validation of battery tests
+  - **Example usage**:
+    ```bash
+    bin/pebl-validator battery/corsi/corsi.pbl
+    bin/pebl-validator test.pbl --json
+    ```
+  - **Future enhancements** (Phase 2):
+    - Function validation (detect undefined function calls)
+    - AST-based linting (unsafe patterns, common mistakes)
+    - Variable usage analysis
+  - Related files:
+    - `src/apps/PEBLValidator.cpp` (main validator app)
+    - `src/platforms/validator/` (validator platform layer)
+    - `doc/PEBL_VALIDATOR.md` (documentation)
+  - Related commits: e9d1985 (initial), 6861855 (Start validation)
+
+### Pending
 
 - [ ] Revise `GetSubNum()` and `GetNewDataFile()` for online deployment
 - [ ] Use MD5-string as natural unique subject number

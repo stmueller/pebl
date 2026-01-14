@@ -11,22 +11,13 @@ define Start(p)
   gWin <- MakeWindow("black")
   gSleepEasy <- 1
 
+  ## Initialize upload system for online deployment
+  InitializeUpload()
 
-   GetStrings(gLanguage)
-
-   ## Initialize upload system for online deployment
-   InitializeUpload()
-
-   if(gSubNum+""=="0")
-   {
-     gSubNum <- GetSubNum(gWin)
-   }
-
-
-   gFileOut <-GetNewDataFile(gSubNum,gWin,"linejudgment-data","csv",
-          "subnum,block,trial,blocktrial,deadline,usetimer,l1,l2,x1,y1,x2,y2,toolong,resp,corr,rt,time0")
-
-  gReportOut <- FileOpenAppend("data/"+gSubNum+"/linejudgment-report-"+gSubNum+".txt")
+  if(gSubNum+""=="0")
+  {
+    gSubNum <- GetSubNum(gWin)
+  }
 
 
   parPairs <- [["numtrials",50],
@@ -51,8 +42,22 @@ define Start(p)
   ## Set response semantics for Layout & Response System (PEBL 2.3+)
   gParams.responsesemantics <- "2afc"
 
-  ## Create layout with response system
+  ## Load translations BEFORE CreateLayout so response labels can be set
+  GetStrings(gLanguage)
+
+  ## Set response labels from translations for proper key substitution
+  gParams.responselabels <- [gStrings.footerL, gStrings.footerR]
+
+  ## Create layout with response system (AFTER setting responselabels)
   gLayout <- CreateLayout("linejudgment", gWin, gParams)
+
+  ## Set up layout header with task prompt
+  gLayout.header.text <- gStrings.header  ## "Which is longer?"
+
+  gFileOut <-GetNewDataFile(gSubNum,gWin,"linejudgment-data","csv",
+          "subnum,block,trial,blocktrial,deadline,usetimer,l1,l2,x1,y1,x2,y2,toolong,resp,corr,rt,time0")
+
+  gReportOut <- FileOpenAppend("data/"+gSubNum+"/linejudgment-report-"+gSubNum+".txt")
 
   numtrials <- gParams.numtrials
   usetimer <- gParams.usetimer
@@ -72,16 +77,28 @@ define Start(p)
 FilePrint(gReportOut,msg)
 
 
-  MessageBox(gStrings.inst1,gWin,30,200,200,300,1,gLayout.responseMode.keys)
+  ## Display instructions using AdaptiveTextBox (Layout & Response System pattern)
+  inst1box <- AdaptiveTextBox(gStrings.inst1,
+                               gLayout.stimulusRegion.x + 20,
+                               gLayout.stimulusRegion.y + 20,
+                               gWin, 30,
+                               gLayout.stimulusRegion.width - 40,
+                               gLayout.stimulusRegion.height - 40,
+                               "scalefont")
+  Draw()
+  WaitForLayoutResponse(gLayout)
+  Hide(inst1box)
 
   lab <- EasyLabel(gstrings.lab1,gLayout.centerX,gLayout.centerY-150,gWin,30)
 
 
-  ##Set up timer globals
-  timerBack <-  Rectangle(gLayout.centerX,gVideoHeight-200,300,20,
+  ##Set up timer globals - position above response zone to avoid footer overlap
+  timerY <- gLayout.zones.response.y - 40
+
+  timerBack <-  Rectangle(gLayout.centerX,timerY,300,20,
                     MakeColor("grey"),0)
 
-  timerFront <-  Rectangle(gLayout.centerX,gVideoHeight-200,300,20,
+  timerFront <-  Rectangle(gLayout.centerX,timerY,300,20,
                            MakeColor("red"),1)
   AddObject(timerFront,gWin)
   AddObject(timerBack,gWin)
@@ -117,7 +134,16 @@ FilePrint(gReportOut,msg)
   dattable <- []
 
   ##do some practice trials.
-  MessageBox(gStrings.inst2,gWin,30,200,200,300,1,gLayout.responseMode.keys)
+  inst2box <- AdaptiveTextBox(gStrings.inst2,
+                               gLayout.stimulusRegion.x + 20,
+                               gLayout.stimulusRegion.y + 20,
+                               gWin, 30,
+                               gLayout.stimulusRegion.width - 40,
+                               gLayout.stimulusRegion.height - 40,
+                               "scalefont")
+  Draw()
+  WaitForLayoutResponse(gLayout)
+  Hide(inst2box)
   Hide(lab)
   ShowCursor(0)
   CountDown(gWin)
@@ -126,8 +152,17 @@ FilePrint(gReportOut,msg)
   Trial(48,52,5000,1)
   Trial(51,49,5000,1)
   ShowCursor(1)
-  MessageBox(gStrings.inst3,gWin,30,200,200,300,1,gLayout.responseMode.keys)
- Show(lab)
+  inst3box <- AdaptiveTextBox(gStrings.inst3,
+                               gLayout.stimulusRegion.x + 20,
+                               gLayout.stimulusRegion.y + 20,
+                               gWin, 30,
+                               gLayout.stimulusRegion.width - 40,
+                               gLayout.stimulusRegion.height - 40,
+                               "scalefont")
+  Draw()
+  WaitForLayoutResponse(gLayout)
+  Hide(inst3box)
+  Show(lab)
  loop(deadline,blocks)
   {
    blockID <- blockID + 1
@@ -274,7 +309,18 @@ FilePrint(gReportOut,msg)
     Move(tab,gVideoWidth-tab.width/2-10,gLayout.centerY)
     ShowTimer(gTimer,0)
     SetMouseCursorPosition(gLayout.centerX,gLayout.centerY)
-    MessageBox(gStrings.interim,gWin,30,20,tab.width+40,300,0,gLayout.responseMode.keys)
+
+    ## Display interim message using AdaptiveTextBox
+    interimbox <- AdaptiveTextBox(gStrings.interim,
+                                   20,
+                                   gLayout.stimulusRegion.y + 20,
+                                   gWin, 30,
+                                   tab.width + 40,
+                                   gLayout.stimulusRegion.height - 40,
+                                   "scalefont")
+    Draw()
+    WaitForLayoutResponse(gLayout)
+    Hide(interimbox)
     RemoveObject(tab,gWin)
    }
    FilePrint(gReportOut,"--------------------------------------------------------------------")
@@ -286,15 +332,22 @@ FilePrint(gReportOut,msg)
    reportfile <- "data/" + gSubNum + "/linejudgment-report-" + gSubNum + ".txt"
    UploadFile(gSubNum, reportfile, "/upload.json")
 
-   MessageBox(gStrings.debrief,gWin)
+   ## Display debrief using AdaptiveTextBox
+   debriefbox <- AdaptiveTextBox(gStrings.debrief,
+                                  gLayout.stimulusRegion.x + 20,
+                                  gLayout.stimulusRegion.y + 20,
+                                  gWin, 30,
+                                  gLayout.stimulusRegion.width - 40,
+                                  gLayout.stimulusRegion.height - 40,
+                                  "scalefont")
+   Draw()
+   WaitForLayoutResponse(gLayout)
 }
 
 
 define Trial(left,right,deadline,usetimer)
 {
-      footer <- EasyLabel(gStrings.footer,
-                         gLayout.centerX,gVideoHeight-100,gWin,40)
-
+      ## Removed duplicate footer label - gLayout.footer already displays response instructions
       color <- MakeColor("white")
 
       jitter <- Sample(Sequence(-5,5,1))

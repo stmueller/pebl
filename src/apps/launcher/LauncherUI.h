@@ -55,7 +55,12 @@ struct TranslationEditorState {
     bool show;
     int testIndex;  // Which test we're editing translations for
     char language[16];  // Target language to edit/create
-    std::string testPath;  // Full path to test directory
+    char testPath[512];  // Full path to test directory
+
+    TranslationEditorState() : show(false), testIndex(-1) {
+        language[0] = '\0';
+        testPath[0] = '\0';
+    }
 };
 
 struct Parameter {
@@ -159,7 +164,7 @@ private:
     std::vector<std::string> BuildAdditionalArguments();
 
     // File dialogs
-    std::string OpenDirectoryDialog(const std::string& title = "Select Directory");
+    std::string OpenDirectoryDialog(const std::string& title = "Select Directory", const std::string& startDir = "");
     std::string OpenFileDialog(const std::string& title = "Select File", const std::string& filter = "");
     std::string SaveFileDialog(const std::string& title = "Save File", const std::string& defaultName = "");
 
@@ -237,6 +242,9 @@ private:
     PageEditorState mPageEditor;
     TestEditorState mTestEditor;
     TranslationEditorState mTranslationEditor;
+
+    // Top-level tab state
+    int mTopLevelTab;  // 0=Study, 1=Quick Launch
 
     // Tests tab state
     int mAddTestSubTab;  // 0=Battery, 1=File, 2=New

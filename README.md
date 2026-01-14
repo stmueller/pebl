@@ -48,7 +48,7 @@ make em
 bin/pebl2 battery/srt/SimpleRT.pbl
 
 # Run with specific subject number
-bin/pebl2 battery/flanker/flanker.pbl -v subnum=101
+bin/pebl2 battery/flanker/flanker.pbl -s 101
 
 # Launch the PEBL experiment launcher
 bin/pebl2 bin/launcher.pbl

@@ -77,7 +77,7 @@ bool WorkspaceManager::Initialize() {
         "/snapshots",
         "/doc",
         "/demo",
-        "/tutorial",
+        "/tutorials",
         "/logs"
     };
 
@@ -96,31 +96,70 @@ bool WorkspaceManager::Initialize() {
 
 bool WorkspaceManager::CopyResources(const std::string& installationPath) {
     if (installationPath.empty() || IsPortableMode()) {
+        std::cout << "CopyResources: skipped (empty path or portable mode)" << std::endl;
         return false;
     }
 
-    // Copy documentation
-    std::string docSource = installationPath + "/doc";
+    std::cout << "CopyResources: installation path = " << installationPath << std::endl;
+    std::cout << "CopyResources: workspace path = " << mWorkspacePath << std::endl;
+
+    // Copy specific documentation files
     std::string docDest = mWorkspacePath + "/doc";
-    if (DirectoryExists(docSource)) {
-        std::cout << "Copying documentation..." << std::endl;
-        CopyDirectory(docSource, docDest, false);
+    CreateDirectory(docDest);
+
+    std::vector<std::string> docFiles = {
+        "doc/pman/PEBLManual2.3.pdf",
+        "doc/ReleaseNotes.txt",
+        "Notes_for_LLMs.txt"
+    };
+
+    std::cout << "Copying documentation files..." << std::endl;
+    for (const auto& relPath : docFiles) {
+        std::string srcFile = installationPath + "/" + relPath;
+        // Flatten the structure - put all files directly in doc/
+        std::string filename = relPath;
+        size_t lastSlash = filename.find_last_of('/');
+        if (lastSlash != std::string::npos) {
+            filename = filename.substr(lastSlash + 1);
+        }
+        std::string destFile = docDest + "/" + filename;
+
+        if (CopyFile(srcFile, destFile)) {
+            std::cout << "  ✓ Copied " << filename << std::endl;
+        } else {
+            std::cout << "  ✗ Failed to copy " << relPath << std::endl;
+        }
     }
 
-    // Copy demos
+    // Copy demos (entire directory, excluding tests subdirectory)
     std::string demoSource = installationPath + "/demo";
     std::string demoDest = mWorkspacePath + "/demo";
+    std::cout << "Checking for demo: " << demoSource << std::endl;
     if (DirectoryExists(demoSource)) {
-        std::cout << "Copying demos..." << std::endl;
-        CopyDirectory(demoSource, demoDest, false);
+        std::cout << "Copying demos from " << demoSource << " to " << demoDest << " (excluding tests/)" << std::endl;
+        std::vector<std::string> excludeDirs = {"tests"};
+        if (CopyDirectory(demoSource, demoDest, false, excludeDirs)) {
+            std::cout << "  ✓ Demos copied successfully" << std::endl;
+        } else {
+            std::cout << "  ✗ Failed to copy demos" << std::endl;
+        }
+    } else {
+        std::cout << "  Demo source not found" << std::endl;
     }
 
-    // Copy tutorials
-    std::string tutorialSource = installationPath + "/tutorial";
-    std::string tutorialDest = mWorkspacePath + "/tutorial";
+    // Copy tutorials (entire directory)
+    std::string tutorialSource = installationPath + "/tutorials";
+    std::string tutorialDest = mWorkspacePath + "/tutorials";
+    std::cout << "Checking for tutorials: " << tutorialSource << std::endl;
     if (DirectoryExists(tutorialSource)) {
-        std::cout << "Copying tutorials..." << std::endl;
-        CopyDirectory(tutorialSource, tutorialDest, false);
+        std::cout << "Copying tutorials from " << tutorialSource << " to " << tutorialDest << std::endl;
+        if (CopyDirectory(tutorialSource, tutorialDest, false)) {
+            std::cout << "  ✓ Tutorials copied successfully" << std::endl;
+        } else {
+            std::cout << "  ✗ Failed to copy tutorials" << std::endl;
+        }
+    } else {
+        std::cout << "  Tutorials source not found" << std::endl;
     }
 
     return true;
@@ -266,7 +305,7 @@ bool WorkspaceManager::DirectoryExists(const std::string& path) const {
     return (stat(path.c_str(), &info) == 0 && (info.st_mode & S_IFDIR));
 }
 
-bool WorkspaceManager::CopyDirectory(const std::string& source, const std::string& dest, bool excludeData) {
+bool WorkspaceManager::CopyDirectory(const std::string& source, const std::string& dest, bool excludeData, const std::vector<std::string>& excludeDirs) {
     // Create destination directory
     if (!CreateDirectory(dest)) {
         return false;
@@ -291,6 +330,18 @@ bool WorkspaceManager::CopyDirectory(const std::string& source, const std::strin
             continue;
         }
 
+        // Skip directories in excludeDirs list
+        bool skipDir = false;
+        for (const auto& excludeDir : excludeDirs) {
+            if (strcmp(entry->d_name, excludeDir.c_str()) == 0) {
+                skipDir = true;
+                break;
+            }
+        }
+        if (skipDir) {
+            continue;
+        }
+
         std::string sourcePath = source + "/" + entry->d_name;
         std::string destPath = dest + "/" + entry->d_name;
 
@@ -298,7 +349,7 @@ bool WorkspaceManager::CopyDirectory(const std::string& source, const std::strin
         if (stat(sourcePath.c_str(), &info) == 0) {
             if (info.st_mode & S_IFDIR) {
                 // Recursively copy directory
-                if (!CopyDirectory(sourcePath, destPath, excludeData)) {
+                if (!CopyDirectory(sourcePath, destPath, excludeData, excludeDirs)) {
                     success = false;
                     break;
                 }

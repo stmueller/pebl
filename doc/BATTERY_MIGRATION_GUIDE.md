@@ -290,6 +290,63 @@ gLayout.subheader.visible <- 0  ## Hide if not needed
 Draw()
 ```
 
+**Step 2.3.2.1: Add Trial Progress Counter (Optional but Recommended)**
+
+For multi-trial tests, adding a trial counter to the header provides helpful progress feedback to participants. This pattern is especially useful for longer tests or those with many blocks.
+
+**When to add trial counters:**
+- Tests with multiple trials (>10 trials)
+- Tests with multiple blocks
+- Tests where participants benefit from knowing their progress
+- Both layout-only and full response system migrations
+
+**Implementation:**
+
+```pebl
+## In your main trial loop, dynamically update the header
+while (trial <= numtrials)
+{
+  ## Update header with trial counter
+  gLayout.header.text <- gStrings.header + " - Trial " + trial + " of " + numtrials
+
+  ## Rest of trial logic...
+  trial <- trial + 1
+}
+```
+
+**For tests with blocks:**
+
+```pebl
+loop(block, blocks)
+{
+  loop(trial, trialsPerBlock)
+  {
+    ## Show both block and trial progress
+    cumTrial <- (block - 1) * trialsPerBlock + trial
+    totalTrials <- Length(blocks) * trialsPerBlock
+    gLayout.header.text <- gStrings.header + " - Block " + block + ", Trial " + cumTrial + " of " + totalTrials
+
+    ## Trial logic...
+  }
+}
+```
+
+**Translation file requirements:**
+
+Ensure your base HEADER string doesn't include trial numbers, as they'll be added dynamically:
+
+```json
+{
+  "HEADER": "Task Name"
+  // NOT "Task Name - Trial 1" - trial counter added dynamically in code
+}
+```
+
+**Example implementations:**
+- `battery/timetap/timetap.pbl` - Simple trial counter (layout-only migration)
+- `battery/linejudgment/linejudgment.pbl` - Trial counter with Layout & Response System
+- `battery/globallocal/globallocal.pbl` - Block and trial counters
+
 **Step 2.3.3: Update MessageBox to fit stimulus region**
 
 Replace instances of `MessageBox()` with constrained versions:
@@ -1560,16 +1617,25 @@ jq '.data_output.files' PEBLOnlinePlatform/config/test-metadata/yourtest.json
 - Use `example-data-summary.txt` or similar for summary files
 - Prefix all example files with `example-` for clarity
 
-**Correct locations for example data** (TWO places, not three):
-1. `battery/testname/data/example-data.csv` - Source repository
-2. `PEBLOnlinePlatform/battery/testname/data/example-data.csv` - Web platform (committed to git)
+**Correct locations for example data** (THREE places with different structures):
+1. `battery/testname/data/example/` - Source repository (in subdirectory for clean git)
+2. `upload-battery/testname/data/` - Deployment staging (directly in data/, NOT in example/ subdirectory)
+3. `PEBLOnlinePlatform/battery/testname/data/` - Web platform (directly in data/, NOT in example/ subdirectory, committed to git)
+
+**CRITICAL**: For web deployment (`upload-battery/` and `PEBLOnlinePlatform/`), example data must be placed **directly** in the `data/` directory, NOT in a `data/example/` subdirectory. The native battery keeps examples in `data/example/` to keep git clean, but deployment requires them in `data/` directly.
 
 **Verification**:
 ```bash
-# Check example data in correct location
-ls PEBLOnlinePlatform/battery/testname/data/example-data*
+# Check example data in correct locations
+ls battery/testname/data/example/example-data*  # Native - in subdirectory
+ls upload-battery/testname/data/example-data*   # Deployment - directly in data/
+ls PEBLOnlinePlatform/battery/testname/data/example-data*  # Web - directly in data/
 
-# Should NOT exist
+# Should NOT exist (subdirectory structure)
+ls upload-battery/testname/data/example/ 2>/dev/null  # Should not exist
+ls PEBLOnlinePlatform/battery/testname/data/example/ 2>/dev/null  # Should not exist
+
+# Should NOT exist (public/ directory)
 ls PEBLOnlinePlatform/public/battery/testname/data/ 2>/dev/null
 # Should return "No such file or directory"
 ```

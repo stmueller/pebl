@@ -5,13 +5,13 @@ These .par.json files make it easy to test specific variants without running the
 
 USAGE:
 ------
-Run PEBL with the -v option to load a parameter file:
+Run PEBL with the --pfile option to load a parameter file:
 
-  bin/pebl2 battery/spanvariants/spanvariants.pbl -v parfile=battery/spanvariants/params/test-forward-digit.par.json
+  bin/pebl2 battery/spanvariants/spanvariants.pbl --pfile battery/spanvariants/params/test-forward-digit.par.json
 
 Or from the spanvariants directory:
 
-  ../../bin/pebl2 spanvariants.pbl -v parfile=params/test-forward-digit.par.json
+  ../../bin/pebl2 spanvariants.pbl --pfile params/test-forward-digit.par.json
 
 
 AVAILABLE TEST FILES:
@@ -68,13 +68,13 @@ EXAMPLES:
 ---------
 
 Test just forward digit span with audio+video:
-  -v parfile=params/test-forward-digit.par.json
+  --pfile params/test-forward-digit.par.json
 
-Test ordering tasks with audio only:
-  -v parfile=params/test-ordering.par.json -v UseAudio=2
+Test ordering tasks (modify UseAudio in the .json file for audio-only):
+  --pfile params/test-ordering.par.json
 
 Test all variants quickly:
-  -v parfile=params/test-all-quick.par.json
+  --pfile params/test-all-quick.par.json
 
 Override subject number:
-  -v parfile=params/test-forward-digit.par.json -v subnum=999
+  -s 999 --pfile params/test-forward-digit.par.json

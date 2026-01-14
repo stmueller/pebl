@@ -1,0 +1,125 @@
+## Test script for importing PEBL study snapshots
+## This demonstrates how to load and convert a snapshot for use in the launcher
+
+define Start(p)
+{
+    ## Path to downloaded snapshot
+    snapshotDir <- "/home/smueller/Documents/pebl-exp.2.2/test_offline_Version_1_SNAP_73864e4d8a9c5f194d4ae37a5a8dcf28"
+
+    Print("===========================================")
+    Print("PEBL Snapshot Import Test")
+    Print("===========================================")
+    Print("")
+
+    ## Test 1: Load snapshot
+    Print("Test 1: Loading snapshot...")
+    snapshot <- LoadSnapshot(snapshotDir)
+
+    if(IsNull(snapshot))
+    {
+        Print("FAILED: Could not load snapshot")
+        return()
+    }
+
+    Print("SUCCESS: Loaded snapshot")
+    Print("  Study: " + snapshot.study_info.study_name)
+    Print("  Version: " + snapshot.study_info.version)
+    Print("  Tests: " + Length(snapshot.study_info.tests))
+    Print("  Chains: " + Length(snapshot.chains))
+    Print("")
+
+    ## Test 2: Display chain structure
+    if(Length(snapshot.chains) > 0)
+    {
+        Print("Test 2: Analyzing chain structure...")
+        chain <- First(snapshot.chains)
+        Print("  Chain name: " + chain.chain_name)
+        Print("  Items: " + Length(chain.items))
+        Print("")
+
+        Print("  Chain items:")
+        itemNum <- 1
+        loop(item, chain.items)
+        {
+            Print("    " + itemNum + ". " + item.item_type)
+            if(item.item_type == "test")
+            {
+                Print("       Test: " + item.test_name)
+                if(IsDefined(item.param_variant) and not IsNull(item.param_variant))
+                {
+                    Print("       Variant: " + item.param_variant)
+                }
+            }
+            else
+            {
+                Print("       Title: " + item.title)
+            }
+            itemNum <- itemNum + 1
+        }
+        Print("")
+    }
+
+    ## Test 3: Convert chain to launcher format
+    if(Length(snapshot.chains) > 0)
+    {
+        Print("Test 3: Converting chain to launcher format...")
+        chain <- First(snapshot.chains)
+        launcherChain <- ConvertChainToLauncher(chain, snapshotDir)
+
+        Print("  Converted " + Length(launcherChain) + " items")
+        Print("")
+
+        Print("  Launcher format items:")
+        itemNum <- 1
+        loop(entry, launcherChain)
+        {
+            label <- Second(entry)
+            filename <- Third(entry)
+            paramset <- Fourth(entry)
+
+            Print("    " + itemNum + ". " + label)
+            Print("       File: " + filename)
+            Print("       Params: " + paramset)
+
+            itemNum <- itemNum + 1
+        }
+        Print("")
+    }
+
+    ## Test 4: Import chains as config files
+    Print("Test 4: Importing chains as config files...")
+    Print("  (This will create .config files in configfiles/)")
+    Print("  Press any key to continue or Escape to skip...")
+    Print("")
+
+    key <- WaitForAnyKeyPress()
+
+    if(key != "<KP_ESCAPE>" and key != "<ESCAPE>")
+    {
+        createdConfigs <- ImportSnapshotChains(snapshotDir)
+
+        Print("")
+        Print("SUCCESS: Created " + Length(createdConfigs) + " config file(s):")
+        loop(config, createdConfigs)
+        {
+            Print("  - " + config)
+        }
+        Print("")
+        Print("These config files can now be loaded in the PEBL launcher.")
+    }
+    else
+    {
+        Print("Skipped config file creation")
+    }
+
+    Print("")
+    Print("===========================================")
+    Print("Test complete!")
+    Print("===========================================")
+}
+
+## Helper: Check if value is null
+define IsNull(value)
+{
+    return value == null or not IsDefined(value)
+}

@@ -50,6 +50,9 @@ public:
     };
     SnapshotInfo GetSnapshotInfo(const std::string& snapshotPath);
 
+    // Convert platform snapshot format to launcher format (in place)
+    bool ConvertSnapshotFormat(const std::string& studyPath);
+
 private:
     bool CopyDirectory(const std::string& source, const std::string& dest, bool excludeData);
     bool CopyFile(const std::string& source, const std::string& dest);

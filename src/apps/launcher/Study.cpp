@@ -282,6 +282,7 @@ bool Study::LoadFromJSON(const std::string& jsonPath) {
         mDescription = j.value("description", "");
         mAuthor = j.value("author", "");
         mStudyToken = j.value("study_token", "");
+        mUploadServerURL = j.value("upload_server_url", "");
         mCreatedDate = j.value("created_date", "");
         mModifiedDate = j.value("modified_date", "");
 
@@ -291,6 +292,7 @@ bool Study::LoadFromJSON(const std::string& jsonPath) {
             for (const auto& testJson : j["tests"]) {
                 Test test;
                 test.testName = testJson.value("test_name", "");
+                test.displayName = testJson.value("display_name", testJson.value("test_name", ""));
                 test.testPath = testJson.value("test_path", "");
                 test.included = testJson.value("included", true);
 
@@ -326,6 +328,7 @@ bool Study::SaveToJSON(const std::string& jsonPath) {
         j["version"] = mVersion;
         j["author"] = mAuthor;
         j["study_token"] = mStudyToken;
+        j["upload_server_url"] = mUploadServerURL;
         j["created_date"] = mCreatedDate;
         j["modified_date"] = mModifiedDate;
 
@@ -334,6 +337,7 @@ bool Study::SaveToJSON(const std::string& jsonPath) {
         for (const auto& test : mTests) {
             json testJson;
             testJson["test_name"] = test.testName;
+            testJson["display_name"] = test.displayName.empty() ? test.testName : test.displayName;
             testJson["test_path"] = test.testPath;
             testJson["included"] = test.included;
 
@@ -406,4 +410,113 @@ std::string Study::GetStudyCode() const {
     }
 
     return code;
+}
+
+// ============================================================================
+// Upload Configuration Management
+// ============================================================================
+
+std::string Study::GetUploadConfigPath(const std::string& testName) const {
+    return mPath + "/tests/" + testName + "/upload.json";
+}
+
+bool Study::TestHasUploadConfig(const std::string& testName) const {
+    std::string uploadPath = GetUploadConfigPath(testName);
+    struct stat info;
+    return (stat(uploadPath.c_str(), &info) == 0);
+}
+
+bool Study::CreateUploadConfigForTest(const std::string& testName) {
+    // Validate inputs
+    if (mStudyToken.empty()) {
+        printf("Cannot create upload config: study token not set\n");
+        return false;
+    }
+
+    if (mUploadServerURL.empty()) {
+        printf("Cannot create upload config: upload server URL not set\n");
+        return false;
+    }
+
+    // Get test
+    const Test* test = GetTest(testName);
+    if (!test) {
+        printf("Cannot create upload config: test not found: %s\n", testName.c_str());
+        return false;
+    }
+
+    // Parse server URL to extract host, port, path
+    std::string host, page;
+    int port = 443;  // Default HTTPS port
+
+    std::string url = mUploadServerURL;
+
+    // Remove protocol
+    if (url.find("https://") == 0) {
+        url = url.substr(8);
+        port = 443;
+    } else if (url.find("http://") == 0) {
+        url = url.substr(7);
+        port = 80;
+    }
+
+    // Find first slash to separate host from path
+    size_t slashPos = url.find('/');
+    if (slashPos != std::string::npos) {
+        host = url.substr(0, slashPos);
+        page = url.substr(slashPos);
+    } else {
+        host = url;
+        page = "/scripts/uploadPEBL_token.php";  // Default page
+    }
+
+    // Check for port in host (host:port format)
+    size_t colonPos = host.find(':');
+    if (colonPos != std::string::npos) {
+        std::string portStr = host.substr(colonPos + 1);
+        port = std::atoi(portStr.c_str());
+        host = host.substr(0, colonPos);
+    }
+
+    // Create upload.json content
+    try {
+        json j;
+        j["host"] = host;
+        j["page"] = page;
+        j["subnumpage"] = "/api/getNewParticipantId.php";  // For server-assigned participant IDs
+        j["port"] = port;
+        j["token"] = mStudyToken;
+        // Use display name if available, otherwise fall back to test ID
+        j["taskname"] = test->displayName.empty() ? testName : test->displayName;
+        j["username"] = mStudyToken;
+        j["uploadpassword"] = mStudyToken;
+
+        // Write to file
+        std::string uploadPath = GetUploadConfigPath(testName);
+
+        // Ensure test directory exists
+        std::string testDir = mPath + "/tests/" + testName;
+        try {
+            fs::create_directories(testDir);
+        } catch (const fs::filesystem_error& e) {
+            printf("Error creating test directory: %s\n", e.what());
+            return false;
+        }
+
+        std::ofstream file(uploadPath);
+        if (!file.is_open()) {
+            printf("Failed to create upload config file: %s\n", uploadPath.c_str());
+            return false;
+        }
+
+        file << j.dump(2);  // Pretty print with 2-space indent
+        file.close();
+
+        printf("Created upload config: %s\n", uploadPath.c_str());
+        return true;
+
+    } catch (const std::exception& e) {
+        printf("Error creating upload config: %s\n", e.what());
+        return false;
+    }
 }

@@ -2192,11 +2192,18 @@ Variant PEBLEnvironment::SignalFatalError(Variant v)
 
 Variant PEBLEnvironment::ExitQuietly(Variant v)
 {
-    //Signal a fatal error with the message inside v
+    //Exit quietly with optional exit code
+    //First parameter is message, optional second parameter is exit code (default 0)
     PList * plist = v.GetComplexData()->GetList();
     std::string message  = plist->First().GetString();
 
-    PError::ExitQuietly(message);
+    int exitCode = 0;  // Default exit code
+    if(plist->Length() >= 2)
+    {
+        exitCode = plist->Nth(2).GetInteger();
+    }
+
+    PError::ExitQuietly(message, exitCode);
     return Variant(false);
 }
 

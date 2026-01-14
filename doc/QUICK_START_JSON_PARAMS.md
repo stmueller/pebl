@@ -264,7 +264,7 @@ python3 convert_params_to_json.py upload-battery/ 2>&1 | tee conversion.log
 
 ### Local Testing
 ```bash
-./pebl2 battery/corsi/corsi.pbl -v subnum=123
+./pebl2 battery/corsi/corsi.pbl -s 123
 # Uses: battery/corsi/params/corsi.pbl.par (or .par.json if it exists)
 ```
 

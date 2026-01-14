@@ -184,8 +184,9 @@ FilePrint(gFileOut, gSubNum + "," + trial + "," + rt + "," + accuracy)
 
 **Run a PEBL script:**
 ```bash
-bin/pebl2 path/to/script.pbl                    # Native
-bin/pebl2 path/to/script.pbl -v subnum=123      # With subject number
+bin/pebl2 path/to/script.pbl                           # Native
+bin/pebl2 path/to/script.pbl -s 123                    # With subject number
+bin/pebl2 path/to/script.pbl -s 123 --pfile params.json  # With params file
 ```
 
 **Common test files in root:**

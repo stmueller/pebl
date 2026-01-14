@@ -758,8 +758,18 @@ install:
 	cp -R demo/*  $(DESTDIR)$(PREFIX)/$(PEBLNAME)/demo/
 	cp -R experiments/*  $(DESTDIR)$(PREFIX)/$(PEBLNAME)/demo/
 	rm -rf `find $(DESTDIR)$(PREFIX)/$(PEBLNAME)/media -type d -name .svn`
+	# Remove demo/tests subdirectory (contains test files not for end users)
+	rm -rf $(DESTDIR)$(PREFIX)/$(PEBLNAME)/demo/tests
 	cp  pebl-lib/*.pbl $(DESTDIR)$(PREFIX)/$(PEBLNAME)/pebl-lib/
-	cp doc/pman/PEBLManual$(PEBL_VERSION).pdf $(DESTDIR)$(PREFIX)/$(PEBLNAME)/doc/
+
+	# Install manual (if it exists)
+	@if [ -f "doc/pman/PEBLManual$(PEBL_VERSION).pdf" ]; then \
+		echo "Installing PEBLManual$(PEBL_VERSION).pdf..."; \
+		cp doc/pman/PEBLManual$(PEBL_VERSION).pdf $(DESTDIR)$(PREFIX)/$(PEBLNAME)/doc/; \
+	else \
+		echo "WARNING: PEBLManual$(PEBL_VERSION).pdf not found, skipping..."; \
+	fi
+
 	cp bin/launcher.pbl $(DESTDIR)$(PREFIX)/$(PEBLNAME)/bin/
 	cp pebl-lib/translatetest.pbl $(DESTDIR)$(PREFIX)/$(PEBLNAME)/pebl-lib/
 	chmod -R uga+r $(DESTDIR)$(PREFIX)/$(PEBLNAME)/

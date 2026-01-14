@@ -367,8 +367,9 @@ std::string ExperimentRunner::GetLaunchLogPath()
     }
 #endif
 
-    // Look for pebl-exp.X.X directories
+    // Look for pebl-exp.X.X directories (newest first)
     const char* versions[] = {
+        "pebl-exp.2.3",
         "pebl-exp.2.2",
         "pebl-exp.2.1",
         "pebl-exp.2.0",
@@ -386,7 +387,18 @@ std::string ExperimentRunner::GetLaunchLogPath()
         std::string peblPath = logPath + separator + version;
         struct stat st;
         if (stat(peblPath.c_str(), &st) == 0 && S_ISDIR(st.st_mode)) {
-            return peblPath + separator + "launcher-log.csv";
+            // Check if logs subdirectory exists, create if needed
+            std::string logsPath = peblPath + separator + "logs";
+            struct stat logsSt;
+            if (stat(logsPath.c_str(), &logsSt) != 0 || !S_ISDIR(logsSt.st_mode)) {
+                // Create logs directory
+#ifdef _WIN32
+                CreateDirectoryA(logsPath.c_str(), NULL);
+#else
+                mkdir(logsPath.c_str(), 0755);
+#endif
+            }
+            return logsPath + separator + "launcher-log.csv";
         }
     }
 

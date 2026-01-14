@@ -87,9 +87,10 @@ void PEventLoop::RegisterState(DeviceState * state,
                                const std::string & function,
                                Variant parameters)
 {
-    
+
     //Add the state to the states list.
     mStates.push_back(state);
+    //std::cerr << "[DEBUG] RegisterState: " << mStates.size() << " state(s) registered" << std::endl;
     //Make a PNode representing the function. If the function-name is null, push a
     //null PNode onto the vector; this is a short-cut for an end-of-loop event.
     if(function != "")
@@ -140,9 +141,10 @@ void PEventLoop::RegisterState(DeviceState * state,
 void PEventLoop::RegisterEvent(DeviceState * state, const std::string &  function, Variant parameters)
 {
 
- 
+
     //Add the state to the states list.
     mStates.push_back(state);
+    //std::cerr << "[DEBUG] RegisterEvent: " << mStates.size() << " event(s) registered" << std::endl;
     //Make a PNode representing the function. If the function-name is null, push a
     //null PNode onto the vector; this is a short-cut for an end-of-loop event.
     if(function != "")

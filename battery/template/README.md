@@ -8,7 +8,7 @@ Simply run the template and choose your response mode when prompted:
 
 ```bash
 cd battery/template
-../../bin/pebl2 template.pbl -v subnum=999
+../../bin/pebl2 template.pbl -s 999
 ```
 
 A dialog will appear asking you to choose between:
@@ -43,15 +43,11 @@ The layout is divided into five zones (visualized with colored rectangles):
 You can also bypass the dialog and use JSON parameter files:
 
 ```bash
-../../bin/pebl2 template.pbl -v subnum=999 -v jsonparam=params/keyboard.json
-../../bin/pebl2 template.pbl -v subnum=999 -v jsonparam=params/mouse.json
+../../bin/pebl2 template.pbl -s 999 --pfile params/keyboard.json
+../../bin/pebl2 template.pbl -s 999 --pfile params/mouse.json
 ```
 
-Or override individual parameters via command line:
-```bash
-../../bin/pebl2 template.pbl -v subnum=999 -v responsemode=mousetarget
-../../bin/pebl2 template.pbl -v subnum=999 -v responsemode=keyboardSafe
-```
+The parameter files provided offer pre-configured settings for different response modes.
 
 ## Trial Structure
 

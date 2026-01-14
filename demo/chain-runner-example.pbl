@@ -1,0 +1,193 @@
+## Example: Chain Runner Using ChainPage.pbl
+## This demonstrates how to run a test chain using the ChainPage helper
+
+define Start(p)
+{
+    ## Example chain configuration (would be loaded from JSON)
+    chain <- [
+        ## Instruction page
+        [
+            "type": "instruction",
+            "title": "Welcome to the Study",
+            "content": "<h2>Instructions</h2><p>In this study, you will complete several cognitive tasks.</p><p>Please read each instruction carefully.</p>"
+        ],
+
+        ## Consent page
+        [
+            "type": "consent",
+            "title": "Informed Consent",
+            "content": "<h2>Consent Form</h2><p>By participating in this study, you agree to...</p><ul><li>Complete all tasks</li><li>Allow data collection</li></ul>",
+            "require_acknowledgment": 1
+        ],
+
+        ## Test (BART)
+        [
+            "type": "test",
+            "test": "BART",
+            "variant": "large",
+            "language": "en",
+            "suffix": null
+        ],
+
+        ## Test (iowa)
+        [
+            "type": "test",
+            "test": "iowa",
+            "variant": "default",
+            "language": "en",
+            "suffix": "post"
+        ],
+
+        ## Completion page
+        [
+            "type": "completion",
+            "title": "Thank You!",
+            "content": "<h2>Study Complete</h2><p>Thank you for your participation.</p><p>Your responses have been recorded.</p>"
+        ]
+    ]
+
+    ## Run the chain
+    RunChain(chain)
+}
+
+define RunChain(chain)
+{
+    ## Iterate through chain items
+    loop(i, Sequence(1, Length(chain), 1))
+    {
+        item <- Nth(chain, i)
+
+        if item.type == "test"
+        {
+            RunTest(item)
+        } else
+        {
+            ## instruction, consent, or completion page
+            RunChainPage(item)
+        }
+    }
+
+    Print("Chain complete!")
+}
+
+define RunTest(item)
+{
+    Print("Running test: " + item.test)
+
+    ## Build command to run test
+    ## Format: pebl2 {test}.pbl --variant={variant} --language={language} --suffix={suffix}
+
+    testPath <- item.test + "/" + item.test + ".pbl"
+
+    cmd <- "pebl2 " + testPath
+
+    ## Add variant if specified
+    if IsDefined(item.variant) and item.variant != "default" and item.variant != ""
+    {
+        cmd <- cmd + " --variant=" + item.variant
+    }
+
+    ## Add language if specified
+    if IsDefined(item.language) and item.language != ""
+    {
+        cmd <- cmd + " --language=" + item.language
+    }
+
+    ## Add suffix if specified
+    if IsDefined(item.suffix) and item.suffix != ""
+    {
+        cmd <- cmd + " --suffix=" + item.suffix
+    }
+
+    Print("Command: " + cmd)
+
+    ## Execute the test (would use SystemCall or similar)
+    ## For now, just simulate:
+    ## SystemCall(cmd)
+    Wait(1000)  ## Simulate test execution
+}
+
+define RunChainPage(item)
+{
+    Print("Displaying " + item.type + " page: " + item.title)
+
+    ## Build command to run ChainPage.pbl
+    ## Format: pebl2 ChainPage.pbl --title="..." --content="..." --page_type="..."
+
+    ## Write parameters to temporary JSON file
+    paramFile <- "chain-page-params.json"
+
+    params <- [
+        "title": item.title,
+        "content": item.content,
+        "page_type": item.type,
+        "require_acknowledgment": 0,
+        "button_text": "",
+        "min_duration_seconds": 0,
+        "allow_quit": 1
+    ]
+
+    ## Handle consent-specific settings
+    if item.type == "consent" and IsDefined(item.require_acknowledgment)
+    {
+        params.require_acknowledgment <- item.require_acknowledgment
+    }
+
+    ## Write params to JSON
+    WriteJSON(params, paramFile)
+
+    ## Build command
+    cmd <- "pebl2 ChainPage.pbl --params=" + paramFile
+
+    Print("Command: " + cmd)
+
+    ## Execute the page (would use SystemCall or similar)
+    ## For now, just simulate:
+    ## SystemCall(cmd)
+    Wait(1000)  ## Simulate page display
+
+    ## Clean up temp file
+    ## FileDelete(paramFile)
+}
+
+define WriteJSON(data, filename)
+{
+    ## Helper to write parameters as JSON
+    ## (Simplified - would need proper JSON encoding)
+
+    fileout <- FileOpenWrite(filename)
+
+    FilePrint(fileout, "{")
+
+    keys <- GetPropertyList(data)
+    loop(i, Sequence(1, Length(keys), 1))
+    {
+        key <- Nth(keys, i)
+        value <- data.[key]
+
+        ## Simple JSON encoding (doesn't handle all cases)
+        if IsString(value)
+        {
+            FilePrint_(fileout, "  " + Quote(key) + ": " + Quote(value))
+        } elseif IsNumber(value)
+        {
+            FilePrint_(fileout, "  " + Quote(key) + ": " + value)
+        }
+
+        if i < Length(keys)
+        {
+            FilePrint(fileout, ",")
+        } else
+        {
+            FilePrint(fileout, "")
+        }
+    }
+
+    FilePrint(fileout, "}")
+    FileClose(fileout)
+}
+
+define Quote(str)
+{
+    return(DQ + str + DQ)
+}

@@ -21,7 +21,7 @@ SDL2_CFLAGS = $(shell sdl2-config --cflags)
 SDL2_LIBS = $(shell sdl2-config --libs) -lSDL2_image
 
 CXXFLAGS += $(SDL2_CFLAGS)
-LIBS = $(SDL2_LIBS)
+LIBS = $(SDL2_LIBS) -lzip
 
 # Output
 TARGET = ../../../bin/pebl-launcher
@@ -37,6 +37,7 @@ LAUNCHER_SOURCES = \
 	Chain.cpp \
 	WorkspaceManager.cpp \
 	SnapshotManager.cpp \
+	ZipExtractor.cpp \
 	../../utility/BinReloc.cpp
 
 IMGUI_SOURCES = \

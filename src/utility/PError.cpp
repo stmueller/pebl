@@ -107,10 +107,10 @@ void PError::SignalFatalError(const string & message)
         }
 
     raise(SIGTERM);
-    exit(0);
+    exit(1);  // Exit with error code 1 for fatal errors
 #ifdef PEBL_EMSCRIPTEN
     emscripten_cancel_main_loop();
-    emscripten_force_exit( 0);
+    emscripten_force_exit(1);
 
 #endif
 }
@@ -123,11 +123,11 @@ void PError::SignalWarning(const std::string &  message)
     cerr <<  message << endl;
 }
 
-void PError::ExitQuietly(const std::string & message)
+void PError::ExitQuietly(const std::string & message, int exitCode)
 {
     cerr << message << endl;
     raise(SIGTERM);
-    exit(0);
+    exit(exitCode);
 }
 
 ///This function makes sure that a value has the proper

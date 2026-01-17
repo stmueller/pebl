@@ -1617,23 +1617,51 @@ jq '.data_output.files' PEBLOnlinePlatform/config/test-metadata/yourtest.json
 - Use `example-data-summary.txt` or similar for summary files
 - Prefix all example files with `example-` for clarity
 
-**Correct locations for example data** (THREE places with different structures):
-1. `battery/testname/data/example/` - Source repository (in subdirectory for clean git)
-2. `upload-battery/testname/data/` - Deployment staging (directly in data/, NOT in example/ subdirectory)
-3. `PEBLOnlinePlatform/battery/testname/data/` - Web platform (directly in data/, NOT in example/ subdirectory, committed to git)
+**Correct workflow for example data**:
 
-**CRITICAL**: For web deployment (`upload-battery/` and `PEBLOnlinePlatform/`), example data must be placed **directly** in the `data/` directory, NOT in a `data/example/` subdirectory. The native battery keeps examples in `data/example/` to keep git clean, but deployment requires them in `data/` directly.
+1. **Generate** example data by running test with subject code "example":
+   ```bash
+   bin/pebl2 battery/testname/testname.pbl -s example
+   # This creates: battery/testname/data/example/testname-example.csv
+   ```
+
+2. **Rename and move** to root of data/ directory with standard name:
+   ```bash
+   mv battery/testname/data/example/testname-example.csv \
+      battery/testname/data/example-data.csv
+   ```
+
+3. **Copy** to deployment locations (directly in data/, NOT in subdirectory):
+   ```bash
+   cp battery/testname/data/example-data.csv \
+      upload-battery/testname/data/example-data.csv
+
+   cp battery/testname/data/example-data.csv \
+      PEBLOnlinePlatform/testname/data/example-data.csv
+   ```
+
+**CRITICAL**: Example data must be placed **directly** in the `data/` directory, NOT in participant subdirectories like `data/example/` or `data/example-participant/`.
+
+**Final correct file placement**:
+- ✅ `battery/testname/data/example-data.csv` (directly in data/)
+- ✅ `upload-battery/testname/data/example-data.csv` (directly in data/)
+- ✅ `PEBLOnlinePlatform/testname/data/example-data.csv` (directly in data/)
+
+**Deployment script pattern matching**:
+- Files matching `example-*` are copied during deployment
+- Files matching `*-example-*` are also copied
+- All other files in `data/` directories are excluded
 
 **Verification**:
 ```bash
-# Check example data in correct locations
-ls battery/testname/data/example/example-data*  # Native - in subdirectory
-ls upload-battery/testname/data/example-data*   # Deployment - directly in data/
-ls PEBLOnlinePlatform/battery/testname/data/example-data*  # Web - directly in data/
+# Check example data in correct locations (all directly in data/)
+ls battery/testname/data/example-data*
+ls upload-battery/testname/data/example-data*
+ls PEBLOnlinePlatform/testname/data/example-data*
 
 # Should NOT exist (subdirectory structure)
 ls upload-battery/testname/data/example/ 2>/dev/null  # Should not exist
-ls PEBLOnlinePlatform/battery/testname/data/example/ 2>/dev/null  # Should not exist
+ls PEBLOnlinePlatform/testname/data/example/ 2>/dev/null  # Should not exist
 
 # Should NOT exist (public/ directory)
 ls PEBLOnlinePlatform/public/battery/testname/data/ 2>/dev/null

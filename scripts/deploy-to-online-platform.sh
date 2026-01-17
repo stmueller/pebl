@@ -178,15 +178,16 @@ if [ "$BUILD_TYPE" = "production" ]; then
                 "$BATTERY_SRC/" "$BATTERY_DIR/"
 
             # IMPORTANT: The --exclude='*/data/' above excludes ALL files in data directories,
-            # including example files. Previously, example files were named "example-data.csv"
-            # and this worked. After renaming to "*-example.*" pattern (Dec 2025), this broke.
-            # Solution: Second rsync pass to explicitly include only *-example.* files.
+            # including example files. Example files are named with "example-" prefix or
+            # "*-example-*" pattern (e.g., example-data.csv, mazesolving-log-example-data.csv).
+            # Solution: Second rsync pass to explicitly include only example-* and *-example-* files.
             # The --prune-empty-dirs prevents creating empty directory structures.
             echo "  Copying example data files..."
             rsync -av \
                 --prune-empty-dirs \
                 --include='*/' \
-                --include='*-example.*' \
+                --include='example-*' \
+                --include='*-example-*' \
                 --exclude='*' \
                 "$BATTERY_SRC/" "$BATTERY_DIR/"
         else
@@ -204,7 +205,7 @@ if [ "$BUILD_TYPE" = "production" ]; then
 
             # Copy example data files
             echo "  Copying example data files..."
-            find "$BATTERY_SRC" -type f -path '*/data/*' -name '*-example.*' \
+            find "$BATTERY_SRC" -type f -path '*/data/*' \( -name 'example-*' -o -name '*-example-*' \) \
                 -exec bash -c 'target="$1"; target="${target#$2/}"; mkdir -p "$3/$(dirname "$target")"; cp -v "$1" "$3/$target"' _ {} "$BATTERY_SRC" "$BATTERY_DIR" \;
         fi
     else

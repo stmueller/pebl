@@ -378,7 +378,9 @@ render_ui:
         // Manage Studies tab
         ImGui::SetWindowFontScale(1.5f);  // Large font for tab header
         if (ImGui::BeginTabItem("Manage Studies")) {
-            mTopLevelTab = 0;
+            if (mTopLevelTab != 1) {  // Don't override if we're switching to Quick Launch
+                mTopLevelTab = 0;
+            }
             ImGui::SetWindowFontScale(1.0f);
             ImGui::PopStyleColor(3);
             ImGui::PopStyleVar(3);
@@ -481,8 +483,11 @@ render_ui:
         }
 
         // Quick Launch tab
-        if (ImGui::BeginTabItem("Quick Launch")) {
-            mTopLevelTab = 1;
+        ImGuiTabItemFlags quickLaunchFlags = (mTopLevelTab == 1) ? ImGuiTabItemFlags_SetSelected : 0;
+        if (ImGui::BeginTabItem("Quick Launch", nullptr, quickLaunchFlags)) {
+            if (mTopLevelTab == 1) {
+                mTopLevelTab = -1;  // Reset flag after first frame
+            }
             ImGui::SetWindowFontScale(1.0f);
             ImGui::PopStyleColor(3);
             ImGui::PopStyleVar(3);
@@ -4754,37 +4759,39 @@ void LauncherUI::RenderTestsInStudy()
             displayName += "...";
         }
 
-        // Make test name clickable to open code editor
+        // Make test name clickable to select in Add Test panel (shows test info)
         ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.4f, 0.7f, 1.0f, 1.0f));  // Blue color
         if (ImGui::Selectable(displayName.c_str(), false, ImGuiSelectableFlags_None, ImVec2(availableWidth, 0))) {
-            // Open .pbl file in embedded code editor
-            std::string studyPath = mCurrentStudy->GetPath();
-            std::string testPath = studyPath + "/tests/" + tests[i].testPath;
-            // Extract basename from test_name for .pbl filename
-            std::string testName = tests[i].testName;
-            size_t lastSlash = testName.find_last_of('/');
-            std::string baseName = (lastSlash != std::string::npos) ? testName.substr(lastSlash + 1) : testName;
-            std::string pblFile = testPath + "/" + baseName + ".pbl";
+            // Find this test in the battery browser and select it to show info
+            std::string testNameToFind = tests[i].testName;
 
-            std::ifstream file(pblFile);
-            if (file.is_open()) {
-                std::stringstream buffer;
-                buffer << file.rdbuf();
-                file.close();
+            // Search for this test in the mExperiments list by name
+            // Match by comparing the experiment name with the test name
+            bool found = false;
+            for (int j = 0; j < (int)mExperiments.size(); j++) {
+                // Check if experiment name matches testName
+                // Experiment name could be "testname" or "parentdir/testname"
+                if (mExperiments[j].name == testNameToFind ||
+                    mExperiments[j].name.find("/" + testNameToFind) != std::string::npos ||
+                    mExperiments[j].name.find(testNameToFind + "/") != std::string::npos) {
+                    mSelectedExperiment = j;
+                    LoadExperimentInfo(mExperiments[j].path);
+                    mAddTestSubTab = 0;  // Switch to Battery tab
+                    found = true;
+                    break;
+                }
+            }
 
-                mCodeEditorFilePath = pblFile;
-                mCodeEditor.SetText(buffer.str());
-                mShowCodeEditor = true;
-            } else {
-                printf("Error: Could not open file for editing: %s\n", pblFile.c_str());
+            if (!found) {
+                printf("Note: Test '%s' not found in battery browser\n", testNameToFind.c_str());
             }
         }
         ImGui::PopStyleColor();
         if (ImGui::IsItemHovered()) {
             if (displayName != testName) {
-                ImGui::SetTooltip("%s\nClick to edit code", testName.c_str());
+                ImGui::SetTooltip("%s\nClick to view test details", testName.c_str());
             } else {
-                ImGui::SetTooltip("Click to edit code");
+                ImGui::SetTooltip("Click to view test details");
             }
         }
 
@@ -4803,6 +4810,34 @@ void LauncherUI::RenderTestsInStudy()
             size_t lastSlash = testName.find_last_of('/');
             std::string baseName = (lastSlash != std::string::npos) ? testName.substr(lastSlash + 1) : testName;
             std::string pblFile = testPath + "/" + baseName + ".pbl";
+
+            // Quick Launch
+            if (ImGui::MenuItem("Quick Launch")) {
+                // Open Quick Launch tab with this test selected
+                std::ifstream file(pblFile);
+                if (file.is_open()) {
+                    file.close();
+
+                    // Set Quick Launch path to this test
+                    std::strncpy(mQuickLaunchPath, pblFile.c_str(), sizeof(mQuickLaunchPath) - 1);
+                    mQuickLaunchPath[sizeof(mQuickLaunchPath) - 1] = '\0';
+
+                    // Update Quick Launch directory to parent of selected file
+                    size_t lastSlash = pblFile.find_last_of('/');
+                    if (lastSlash != std::string::npos) {
+                        mQuickLaunchDirectory = pblFile.substr(0, lastSlash);
+                    }
+
+                    // Switch to Quick Launch tab
+                    mTopLevelTab = 1;
+
+                    printf("Switched to Quick Launch with test: %s\n", baseName.c_str());
+                } else {
+                    printf("Error: Could not find test file: %s\n", pblFile.c_str());
+                }
+            }
+
+            ImGui::Separator();
 
             // Edit code
             if (ImGui::MenuItem("Edit Code")) {
@@ -5686,6 +5721,26 @@ void LauncherUI::RenderQuickLaunchTab()
 
         std::sort(directories.begin(), directories.end());
         std::sort(pblFiles.begin(), pblFiles.end());
+    }
+
+    // If mQuickLaunchPath is set, find its index in the file list
+    static std::string lastProcessedPath;
+    if (strlen(mQuickLaunchPath) > 0 && std::string(mQuickLaunchPath) != lastProcessedPath) {
+        std::string targetFile = mQuickLaunchPath;
+        lastProcessedPath = targetFile;  // Remember we processed this path
+
+        // Extract just the filename from the full path
+        size_t lastSlash = targetFile.find_last_of('/');
+        if (lastSlash != std::string::npos) {
+            targetFile = targetFile.substr(lastSlash + 1);
+        }
+        // Find index in pblFiles
+        for (int i = 0; i < (int)pblFiles.size(); i++) {
+            if (pblFiles[i] == targetFile) {
+                mQuickLaunchSelectedFile = i;
+                break;
+            }
+        }
     }
 
     // Display directories first with folder icon

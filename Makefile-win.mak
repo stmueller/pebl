@@ -33,7 +33,7 @@ PREFIX = /usr/local/
 PEBLNAME = pebl2
 PEBLDIRNAME = "pebl2"
 EXECNAME = $(PEBLNAME)
-PEBL_VERSION = 2.2
+PEBL_VERSION = 2.3
 #USE_WAAVE=1       ##Optional; comment out to turn off waave multimedia library
 USE_NETWORK=1      ##Optional; comment out to turn off sdl_net library.
 USE_PORTS=1        ##lpt, serial port, etc.
@@ -42,6 +42,11 @@ USE_MIXER=1        ##Optional; uses sdl mixer for better audio+ogg/mp3/etc.
 USE_AUDIOIN=1      ##Optional; enables audio recording and voice key
 
 PEBL_ARCH   = PEBL_WIN32
+
+## Fix for Windows temp directory permission issues
+## Without this, g++ fails silently when trying to write temp files
+export TMP := /tmp
+export TEMP := /tmp
 
 USE_DEBUG = 0     ##Optional; turn on/off debugging stuff.
 
@@ -162,8 +167,11 @@ OBJECTS_DIR = src/objects
 DEVICES_DIR = src/devices
 PLATFORMS_DIR = src/platforms
 SDL_DIR = src/platforms/sdl
+VALIDATOR_DIR = src/platforms/validator
 UTIL_DIR = src/utility
 TEST_DIR = src/tests
+LAUNCHER_DIR = src/apps/launcher
+IMGUI_DIR = libs/imgui
 
 
 ##replaces /default local path with $prefix using sed in the desktop file
@@ -330,13 +338,112 @@ PEBLMAIN_SRC = 		$(APPS_DIR)/PEBL.cpp \
 
 
 
-PEBLMAIN_OBJ = $(patsubst %.cpp, %.o, $(PEBLMAIN_SRC))
+## Two-step conversion to handle both .cpp and .c files (mman.c)
+PEBLMAIN_OBJ1 = $(patsubst %.cpp, %.o, $(PEBLMAIN_SRC))
+PEBLMAIN_OBJ = $(patsubst %.c, %.o, $(PEBLMAIN_OBJ1))
 PEBLMAIN_INC = $(patsubst %.cpp, %.h, $(PEBLMAIN_SRC))
 
 PEBLMAIN_EXTRA = $(LIBS_DIR)/Functions.h \
-	           	$(OBJECTS_DIR)/RGBColorNames.h 
+	           	$(OBJECTS_DIR)/RGBColorNames.h
 
 
+## Validator platform stubs (headless, no SDL)
+PLATFORM_VALIDATOR_SRC = $(VALIDATOR_DIR)/PlatformEnvironment.cpp \
+			$(VALIDATOR_DIR)/PlatformWidget.cpp \
+			$(VALIDATOR_DIR)/PlatformWindow.cpp \
+			$(VALIDATOR_DIR)/PlatformImageBox.cpp \
+			$(VALIDATOR_DIR)/PlatformKeyboard.cpp \
+			$(VALIDATOR_DIR)/PlatformFont.cpp \
+			$(VALIDATOR_DIR)/PlatformLabel.cpp \
+			$(VALIDATOR_DIR)/PlatformTextBox.cpp \
+			$(VALIDATOR_DIR)/PlatformTimer.cpp \
+			$(VALIDATOR_DIR)/PlatformDrawObject.cpp \
+			$(VALIDATOR_DIR)/PlatformCanvas.cpp \
+			$(VALIDATOR_DIR)/PlatformEventQueue.cpp \
+			$(VALIDATOR_DIR)/PlatformAudioOut.cpp \
+			$(VALIDATOR_DIR)/PlatformNetwork.cpp \
+			$(VALIDATOR_DIR)/PlatformJoystick.cpp
+
+PLATFORM_VALIDATOR_OBJ = $(patsubst %.cpp, %.o, $(PLATFORM_VALIDATOR_SRC))
+
+## Validator full source list
+VALIDATOR_SRC = 	$(APPS_DIR)/PEBLValidator.cpp \
+			$(BASE_DIR)/grammar.tab.cpp \
+			$(BASE_DIR)/PNode.cpp \
+			$(BASE_DIR)/Variant.cpp \
+			$(BASE_DIR)/PEBLObject.cpp \
+			$(BASE_DIR)/PComplexData.cpp \
+			$(BASE_DIR)/PList.cpp \
+			$(BASE_DIR)/Evaluator.cpp \
+			$(BASE_DIR)/VariableMap.cpp \
+			$(BASE_DIR)/FunctionMap.cpp \
+			$(BASE_DIR)/Loader.cpp \
+			$(DEVICES_DIR)/PEventLoop.cpp \
+			$(DEVICES_DIR)/PDevice.cpp \
+			$(DEVICES_DIR)/PEventQueue.cpp \
+			$(DEVICES_DIR)/PEvent.cpp \
+			$(DEVICES_DIR)/PKeyboard.cpp \
+			$(DEVICES_DIR)/PTimer.cpp \
+			$(DEVICES_DIR)/DeviceState.cpp \
+			$(DEVICES_DIR)/PStream.cpp \
+			$(DEVICES_DIR)/PAudioOut.cpp \
+			$(DEVICES_DIR)/PNetwork.cpp \
+			$(DEVICES_DIR)/PJoystick.cpp \
+			$(DEVICES_DIR)/PParallelPort.cpp \
+			$(DEVICES_DIR)/PComPort.cpp \
+			$(DEVICES_DIR)/PEyeTracker.cpp \
+			$(UTIL_DIR)/PEBLUtility.cpp \
+			$(UTIL_DIR)/PEBLPath.cpp \
+			$(UTIL_DIR)/PError.cpp \
+			$(UTIL_DIR)/BinReloc.cpp \
+			$(UTIL_DIR)/md5.cpp \
+			$(UTIL_DIR)/PEBLHTTP.cpp \
+			$(UTIL_DIR)/happyhttp.cpp \
+			$(LIBS_DIR)/PEBLEnvironment.cpp \
+			$(LIBS_DIR)/PEBLMath.cpp \
+			$(LIBS_DIR)/PEBLStream.cpp \
+			$(LIBS_DIR)/PEBLObjects.cpp \
+			$(LIBS_DIR)/PEBLList.cpp \
+			$(LIBS_DIR)/PEBLString.cpp \
+			$(OBJECTS_DIR)/PEnvironment.cpp \
+			$(OBJECTS_DIR)/PCustomObject.cpp \
+			$(OBJECTS_DIR)/PWidget.cpp \
+			$(OBJECTS_DIR)/PColor.cpp \
+			$(OBJECTS_DIR)/PWindow.cpp \
+			$(OBJECTS_DIR)/PImageBox.cpp \
+			$(OBJECTS_DIR)/PCanvas.cpp \
+			$(OBJECTS_DIR)/PDrawObject.cpp \
+			$(OBJECTS_DIR)/PFont.cpp \
+			$(OBJECTS_DIR)/PTextObject.cpp \
+			$(OBJECTS_DIR)/PLabel.cpp \
+			$(OBJECTS_DIR)/PTextBox.cpp \
+			$(OBJECTS_DIR)/PMovie.cpp \
+			$(PLATFORM_VALIDATOR_SRC)
+
+VALIDATOR_OBJ = $(patsubst %.cpp, %.o, $(VALIDATOR_SRC))
+
+## Launcher sources (ImGui-based GUI)
+LAUNCHER_SRC = $(LAUNCHER_DIR)/PEBLLauncher.cpp \
+		$(LAUNCHER_DIR)/LauncherUI.cpp \
+		$(LAUNCHER_DIR)/LauncherConfig.cpp \
+		$(LAUNCHER_DIR)/ExperimentRunner.cpp \
+		$(LAUNCHER_DIR)/Study.cpp \
+		$(LAUNCHER_DIR)/Chain.cpp \
+		$(LAUNCHER_DIR)/WorkspaceManager.cpp \
+		$(LAUNCHER_DIR)/SnapshotManager.cpp \
+		$(LAUNCHER_DIR)/ZipExtractor.cpp \
+		$(LAUNCHER_DIR)/TextEditor.cpp \
+		$(UTIL_DIR)/BinReloc.cpp
+
+IMGUI_SRC = $(IMGUI_DIR)/imgui.cpp \
+		$(IMGUI_DIR)/imgui_draw.cpp \
+		$(IMGUI_DIR)/imgui_widgets.cpp \
+		$(IMGUI_DIR)/imgui_tables.cpp \
+		$(IMGUI_DIR)/backends/imgui_impl_sdl2.cpp \
+		$(IMGUI_DIR)/backends/imgui_impl_sdlrenderer2.cpp
+
+LAUNCHER_ALL_SRC = $(LAUNCHER_SRC) $(IMGUI_SRC)
+LAUNCHER_OBJ = $(patsubst %.cpp, %.o, $(LAUNCHER_ALL_SRC))
 
 
 
@@ -350,8 +457,12 @@ DIRS = \
 	$(OBJ_DIR)/$(DEVICES_DIR) \
 	$(OBJ_DIR)/$(PLATFORMS_DIR) \
 	$(OBJ_DIR)/$(SDL_DIR) \
+	$(OBJ_DIR)/$(VALIDATOR_DIR) \
 	$(OBJ_DIR)/$(UTIL_DIR) \
-	$(OBJ_DIR)/$(TEST_DIR) 
+	$(OBJ_DIR)/$(TEST_DIR) \
+	$(OBJ_DIR)/$(LAUNCHER_DIR) \
+	$(OBJ_DIR)/$(IMGUI_DIR) \
+	$(OBJ_DIR)/$(IMGUI_DIR)/backends 
 
 
 ##############################
@@ -409,6 +520,16 @@ parse-debug:
 $(BASE_DIR)/Loader.o: $(BASE_DIR)/Loader.cpp $(LIBS_DIR)/Functions.h | $(DIRS)
 	$(CXX)   $(CXXFLAGS) -g -c $<  -o $(OBJ_DIR)/$@  $(SDL_FLAGS)
 
+# Launcher-specific compilation rules (must come before generic rule)
+$(LAUNCHER_DIR)/%.o: $(LAUNCHER_DIR)/%.cpp | $(DIRS)
+	$(CXX) $(LAUNCHER_CXXFLAGS) -g -c $< -o $(OBJ_DIR)/$@
+
+$(IMGUI_DIR)/%.o: $(IMGUI_DIR)/%.cpp | $(DIRS)
+	$(CXX) $(LAUNCHER_CXXFLAGS) -g -c $< -o $(OBJ_DIR)/$@
+
+$(IMGUI_DIR)/backends/%.o: $(IMGUI_DIR)/backends/%.cpp | $(DIRS)
+	$(CXX) $(LAUNCHER_CXXFLAGS) -g -c $< -o $(OBJ_DIR)/$@
+
 %.o: %.cpp | $(DIRS)
 	$(CXX)   $(CXXFLAGS) -g -c $^  -o $(OBJ_DIR)/$@  $(SDL_FLAGS)
 
@@ -444,12 +565,71 @@ dep:
 .PHONY: clean
 clean:
 	@echo "Cleaning build artifacts..."
-	rm -rf obj-native obj-em obj
+	rm -rf obj-native obj-em obj obj-validator obj-launcher
 	rm -f resource.o
 	@echo "✓ Build artifacts cleaned"
 
 
 .PHONY: install
+
+
+##############################
+# Validator target (headless syntax checker)
+##############################
+validator:
+	$(MAKE) -f Makefile-win.mak OBJ_DIR=obj-validator CC=$(CL) CXX=$(CLXX) validator-real
+
+validator-real: CC=$(CL)
+validator-real: CXX=$(CLXX)
+validator-real: CXXFLAGS = $(CXXFLAGS0) $(CXXFLAGS_WIN32) -DPEBL_VALIDATOR
+validator-real: $(DIRS) $(VALIDATOR_OBJ) $(BASE_DIR)/lex.yy.o
+	$(CXX) $(CXXFLAGS) -Wall $(DEBUGFLAGS) \
+	-Wno-write-strings \
+	-o $(BIN_DIR)/pebl-validator.exe \
+	$(patsubst %.o, $(OBJ_DIR)/%.o, $(VALIDATOR_OBJ)) \
+	$(OBJ_DIR)/$(BASE_DIR)/lex.yy.o \
+	-lpthread
+
+.PHONY: validator validator-real
+
+
+##############################
+# Launcher target (ImGui-based GUI)
+##############################
+LAUNCHER_CXXFLAGS = -std=c++17 -Wall -O2 \
+	-I$(IMGUI_DIR) \
+	-I$(IMGUI_DIR)/backends \
+	-Ilibs \
+	-I$(UTIL_DIR) \
+	-DENABLE_BINRELOC \
+	-DPEBL_VERSION=\"$(PEBL_VERSION)\" \
+	-DPREFIX=\"/usr/local\" \
+	-DPEBL_WIN32 \
+	$(SDL_FLAGS)
+
+pebl-launcher:
+	$(MAKE) -f Makefile-win.mak OBJ_DIR=obj-launcher CC=$(CL) CXX=$(CLXX) pebl-launcher-real
+
+pebl-launcher-real: CC=$(CL)
+pebl-launcher-real: CXX=$(CLXX)
+pebl-launcher-real: $(DIRS) $(LAUNCHER_OBJ)
+	@echo "Linking pebl-launcher..."
+	$(CXX) $(LAUNCHER_CXXFLAGS) \
+	$(patsubst %.o, $(OBJ_DIR)/%.o, $(LAUNCHER_OBJ)) \
+	-o $(BIN_DIR)/pebl-launcher.exe \
+	-L/c/msys64/mingw64/lib \
+	-lmingw32 -lSDL2main -lSDL2 -lSDL2_image -lzip -mwindows
+	@echo "Build complete: $(BIN_DIR)/pebl-launcher.exe"
+
+.PHONY: pebl-launcher pebl-launcher-real
+
+pebl-launcher-clean:
+	@echo "Cleaning launcher build artifacts..."
+	rm -rf obj-launcher
+	rm -f $(BIN_DIR)/pebl-launcher.exe
+	@echo "✓ Launcher artifacts cleaned"
+
+.PHONY: pebl-launcher-clean
 
 
 ifeq (.depend,$(wildcard .depend))

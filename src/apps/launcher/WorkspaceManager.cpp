@@ -5,12 +5,34 @@
 #include "WorkspaceManager.h"
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <dirent.h>
-#include <unistd.h>
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
 #include <iostream>
+#include <filesystem>
+
+namespace fs = std::filesystem;
+
+#ifdef _WIN32
+#include <windows.h>
+#include <direct.h>
+#include <shlobj.h>
+// Undef Windows CopyFile macro to avoid conflict with our function
+#ifdef CopyFile
+#undef CopyFile
+#endif
+#ifndef stat
+#define stat _stat
+#endif
+#define mkdir(path, mode) _mkdir(path)
+#ifndef S_ISDIR
+#define S_ISDIR(mode) (((mode) & _S_IFMT) == _S_IFDIR)
+#endif
+#else
+#include <dirent.h>
+#include <unistd.h>
+#include <pwd.h>
+#endif
 
 WorkspaceManager::WorkspaceManager()
     : mInitialized(false)
@@ -66,7 +88,7 @@ bool WorkspaceManager::Initialize() {
 
     // Create main workspace directory
     if (!DirectoryExists(mWorkspacePath)) {
-        if (!CreateDirectory(mWorkspacePath)) {
+        if (!CreateDir(mWorkspacePath)) {
             return false;
         }
     }
@@ -84,7 +106,7 @@ bool WorkspaceManager::Initialize() {
     for (const auto& subdir : subdirs) {
         std::string fullPath = mWorkspacePath + subdir;
         if (!DirectoryExists(fullPath)) {
-            if (!CreateDirectory(fullPath)) {
+            if (!CreateDir(fullPath)) {
                 return false;
             }
         }
@@ -105,7 +127,7 @@ bool WorkspaceManager::CopyResources(const std::string& installationPath) {
 
     // Copy specific documentation files
     std::string docDest = mWorkspacePath + "/doc";
-    CreateDirectory(docDest);
+    CreateDir(docDest);
 
     std::vector<std::string> docFiles = {
         "doc/pman/PEBLManual2.3.pdf",
@@ -124,7 +146,7 @@ bool WorkspaceManager::CopyResources(const std::string& installationPath) {
         }
         std::string destFile = docDest + "/" + filename;
 
-        if (CopyFile(srcFile, destFile)) {
+        if (CopyFileContents(srcFile, destFile)) {
             std::cout << "  ✓ Copied " << filename << std::endl;
         } else {
             std::cout << "  ✗ Failed to copy " << relPath << std::endl;
@@ -173,33 +195,26 @@ std::vector<std::string> WorkspaceManager::GetStudyDirectories() const {
     std::vector<std::string> studies;
     std::string studiesPath = GetStudiesPath();
 
-    DIR* dir = opendir(studiesPath.c_str());
-    if (!dir) {
-        return studies;
-    }
+    try {
+        for (const auto& entry : fs::directory_iterator(studiesPath)) {
+            if (!entry.is_directory()) {
+                continue;
+            }
 
-    struct dirent* entry;
-    while ((entry = readdir(dir)) != nullptr) {
-        // Skip . and ..
-        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
-            continue;
-        }
+            std::string dirName = entry.path().filename().string();
+            std::string fullPath = entry.path().string();
 
-        std::string fullPath = studiesPath + "/" + entry->d_name;
-        struct stat info;
-        if (stat(fullPath.c_str(), &info) == 0 && (info.st_mode & S_IFDIR)) {
             // Check if directory contains study-info.json
             std::string studyInfoPath = fullPath + "/study-info.json";
-            if (DirectoryExists(fullPath)) {
-                struct stat fileInfo;
-                if (stat(studyInfoPath.c_str(), &fileInfo) == 0) {
-                    studies.push_back(entry->d_name);
-                }
+            struct stat fileInfo;
+            if (stat(studyInfoPath.c_str(), &fileInfo) == 0) {
+                studies.push_back(dirName);
             }
         }
+    } catch (const fs::filesystem_error&) {
+        // Directory doesn't exist or can't be read
     }
 
-    closedir(dir);
     return studies;
 }
 
@@ -207,31 +222,26 @@ std::vector<std::string> WorkspaceManager::GetSnapshotDirectories() const {
     std::vector<std::string> snapshots;
     std::string snapshotsPath = GetSnapshotsPath();
 
-    DIR* dir = opendir(snapshotsPath.c_str());
-    if (!dir) {
-        return snapshots;
-    }
+    try {
+        for (const auto& entry : fs::directory_iterator(snapshotsPath)) {
+            if (!entry.is_directory()) {
+                continue;
+            }
 
-    struct dirent* entry;
-    while ((entry = readdir(dir)) != nullptr) {
-        // Skip . and ..
-        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
-            continue;
-        }
+            std::string dirName = entry.path().filename().string();
+            std::string fullPath = entry.path().string();
 
-        std::string fullPath = snapshotsPath + "/" + entry->d_name;
-        struct stat info;
-        if (stat(fullPath.c_str(), &info) == 0 && (info.st_mode & S_IFDIR)) {
             // Check if directory contains study-info.json
             std::string studyInfoPath = fullPath + "/study-info.json";
             struct stat fileInfo;
             if (stat(studyInfoPath.c_str(), &fileInfo) == 0) {
-                snapshots.push_back(entry->d_name);
+                snapshots.push_back(dirName);
             }
         }
+    } catch (const fs::filesystem_error&) {
+        // Directory doesn't exist or can't be read
     }
 
-    closedir(dir);
     return snapshots;
 }
 
@@ -243,14 +253,14 @@ bool WorkspaceManager::CreateStudyDirectory(const std::string& studyName) {
     }
 
     // Create study directory
-    if (!CreateDirectory(studyPath)) {
+    if (!CreateDir(studyPath)) {
         return false;
     }
 
     // Create subdirectories
-    CreateDirectory(studyPath + "/chains");
-    CreateDirectory(studyPath + "/tests");
-    CreateDirectory(studyPath + "/data");
+    CreateDir(studyPath + "/chains");
+    CreateDir(studyPath + "/tests");
+    CreateDir(studyPath + "/data");
 
     return true;
 }
@@ -277,7 +287,7 @@ bool WorkspaceManager::ImportSnapshot(const std::string& snapshotPath, const std
     return CopyDirectory(snapshotPath, studyPath, false);
 }
 
-bool WorkspaceManager::CreateDirectory(const std::string& path) {
+bool WorkspaceManager::CreateDir(const std::string& path) {
     struct stat info;
     if (stat(path.c_str(), &info) == 0) {
         return (info.st_mode & S_IFDIR) != 0;  // Already exists
@@ -292,7 +302,7 @@ bool WorkspaceManager::CreateDirectory(const std::string& path) {
     size_t pos = path.rfind('/');
     if (pos != std::string::npos) {
         std::string parentPath = path.substr(0, pos);
-        if (!parentPath.empty() && CreateDirectory(parentPath)) {
+        if (!parentPath.empty() && CreateDir(parentPath)) {
             return mkdir(path.c_str(), 0755) == 0;
         }
     }
@@ -307,47 +317,37 @@ bool WorkspaceManager::DirectoryExists(const std::string& path) const {
 
 bool WorkspaceManager::CopyDirectory(const std::string& source, const std::string& dest, bool excludeData, const std::vector<std::string>& excludeDirs) {
     // Create destination directory
-    if (!CreateDirectory(dest)) {
+    if (!CreateDir(dest)) {
         return false;
     }
 
-    DIR* dir = opendir(source.c_str());
-    if (!dir) {
-        return false;
-    }
-
-    struct dirent* entry;
     bool success = true;
 
-    while ((entry = readdir(dir)) != nullptr) {
-        // Skip . and ..
-        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
-            continue;
-        }
+    try {
+        for (const auto& entry : fs::directory_iterator(source)) {
+            std::string name = entry.path().filename().string();
 
-        // Skip data/ directory if excludeData is true
-        if (excludeData && strcmp(entry->d_name, "data") == 0) {
-            continue;
-        }
-
-        // Skip directories in excludeDirs list
-        bool skipDir = false;
-        for (const auto& excludeDir : excludeDirs) {
-            if (strcmp(entry->d_name, excludeDir.c_str()) == 0) {
-                skipDir = true;
-                break;
+            // Skip data/ directory if excludeData is true
+            if (excludeData && name == "data" && entry.is_directory()) {
+                continue;
             }
-        }
-        if (skipDir) {
-            continue;
-        }
 
-        std::string sourcePath = source + "/" + entry->d_name;
-        std::string destPath = dest + "/" + entry->d_name;
+            // Skip directories in excludeDirs list
+            bool skipDir = false;
+            for (const auto& excludeDir : excludeDirs) {
+                if (name == excludeDir) {
+                    skipDir = true;
+                    break;
+                }
+            }
+            if (skipDir) {
+                continue;
+            }
 
-        struct stat info;
-        if (stat(sourcePath.c_str(), &info) == 0) {
-            if (info.st_mode & S_IFDIR) {
+            std::string sourcePath = entry.path().string();
+            std::string destPath = dest + "/" + name;
+
+            if (entry.is_directory()) {
                 // Recursively copy directory
                 if (!CopyDirectory(sourcePath, destPath, excludeData, excludeDirs)) {
                     success = false;
@@ -355,19 +355,20 @@ bool WorkspaceManager::CopyDirectory(const std::string& source, const std::strin
                 }
             } else {
                 // Copy file
-                if (!CopyFile(sourcePath, destPath)) {
+                if (!CopyFileContents(sourcePath, destPath)) {
                     success = false;
                     break;
                 }
             }
         }
+    } catch (const fs::filesystem_error&) {
+        return false;
     }
 
-    closedir(dir);
     return success;
 }
 
-bool WorkspaceManager::CopyFile(const std::string& source, const std::string& dest) {
+bool WorkspaceManager::CopyFileContents(const std::string& source, const std::string& dest) {
     std::ifstream src(source, std::ios::binary);
     if (!src.is_open()) {
         return false;
@@ -387,6 +388,19 @@ bool WorkspaceManager::CopyFile(const std::string& source, const std::string& de
 }
 
 std::string WorkspaceManager::GetDocumentsPath() const {
+#ifdef _WIN32
+    // On Windows, use SHGetFolderPath to get Documents folder
+    char path[MAX_PATH];
+    if (SUCCEEDED(SHGetFolderPathA(NULL, CSIDL_PERSONAL, NULL, 0, path))) {
+        return std::string(path);
+    }
+    // Fallback to USERPROFILE/Documents
+    const char* userProfile = getenv("USERPROFILE");
+    if (userProfile) {
+        return std::string(userProfile) + "\\Documents";
+    }
+    return "C:\\Users\\Public\\Documents";
+#else
     // Try to get Documents directory from environment or standard locations
     const char* home = getenv("HOME");
     if (home) {
@@ -418,4 +432,5 @@ std::string WorkspaceManager::GetDocumentsPath() const {
 
     // Last resort fallback
     return "/tmp/pebl-workspace";
+#endif
 }

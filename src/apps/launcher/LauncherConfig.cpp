@@ -9,14 +9,23 @@
 #include <cstdlib>
 #include <ctime>
 
+#include <sys/stat.h>
+#include <sys/types.h>
+
 #ifdef _WIN32
 #include <windows.h>
 #include <shlobj.h>
+#include <direct.h>
+// Windows compatibility for stat
+#ifndef stat
+#define stat _stat
+#endif
+#ifndef S_ISDIR
+#define S_ISDIR(mode) (((mode) & _S_IFMT) == _S_IFDIR)
+#endif
 #else
 #include <unistd.h>
 #include <pwd.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 #endif
 
 LauncherConfig::LauncherConfig()
@@ -29,6 +38,7 @@ LauncherConfig::LauncherConfig()
     , mUploadURL("https://peblhub.online/api/upload")
     , mWorkspacePath("")
     , mBatteryPath("")
+    , mPeblExecutablePath("")
     , mDataOutputPath("")
     , mFontSize(18)
     , mWindowWidth(1280)
@@ -50,6 +60,44 @@ LauncherConfig::LauncherConfig()
 
     // For backward compatibility, also set experiment directory to battery path
     mExperimentDirectory = mBatteryPath;
+
+    // Detect PEBL executable path (same directory as launcher)
+#ifdef _WIN32
+    char exePath[MAX_PATH];
+    DWORD len = GetModuleFileNameA(NULL, exePath, MAX_PATH);
+    if (len > 0 && len < MAX_PATH) {
+        std::string exePathStr(exePath);
+        size_t lastSep = exePathStr.find_last_of("/\\");
+        if (lastSep != std::string::npos) {
+            std::string exeDir = exePathStr.substr(0, lastSep);
+            mPeblExecutablePath = exeDir + "\\pebl2.exe";
+            struct stat st;
+            if (stat(mPeblExecutablePath.c_str(), &st) == 0) {
+                printf("Found PEBL executable at: %s\n", mPeblExecutablePath.c_str());
+            } else {
+                printf("Warning: PEBL executable not found at: %s\n", mPeblExecutablePath.c_str());
+                mPeblExecutablePath = "";
+            }
+        }
+    }
+#else
+    // On Linux, use BinReloc to find launcher location
+    BrInitError error;
+    if (br_init(&error) != 0) {
+        char* exeDir = br_find_exe_dir("/usr/local/bin");
+        if (exeDir) {
+            mPeblExecutablePath = std::string(exeDir) + "/pebl2";
+            free(exeDir);
+            struct stat st;
+            if (stat(mPeblExecutablePath.c_str(), &st) == 0) {
+                printf("Found PEBL executable at: %s\n", mPeblExecutablePath.c_str());
+            } else {
+                printf("Warning: PEBL executable not found at: %s\n", mPeblExecutablePath.c_str());
+                mPeblExecutablePath = "";
+            }
+        }
+    }
+#endif
 
     // Set workspace path to Documents/pebl-exp.2.3/
     std::string documentsPath = GetDocumentsPath();
@@ -108,62 +156,41 @@ std::string LauncherConfig::GetDocumentsPath() const
 
 std::string LauncherConfig::DetectPEBLInstallation() const
 {
-#ifdef _WIN32
-    const char* separator = "\\";
-#else
-    const char* separator = "/";
-#endif
-
     struct stat st;
 
-    // Initialize BinReloc
-    BrInitError error;
-    if (br_init(&error) == 0) {
-        printf("Warning: BinReloc initialization failed\n");
-    }
+#ifdef _WIN32
+    // On Windows, use GetModuleFileName to find the launcher's location
+    char exePath[MAX_PATH];
+    DWORD len = GetModuleFileNameA(NULL, exePath, MAX_PATH);
+    if (len > 0 && len < MAX_PATH) {
+        std::string exePathStr(exePath);
 
-    // Use BinReloc to find the prefix (one level up from bin/)
-    // If launcher is at /path/to/pebl/bin/pebl-launcher, prefix is /path/to/pebl
-    char* prefix = br_find_prefix("/usr/local");
-    if (prefix) {
-        std::string batteryPath = std::string(prefix) + separator + "battery";
-        free(prefix);
-
-        if (stat(batteryPath.c_str(), &st) == 0 && S_ISDIR(st.st_mode)) {
-            printf("Found PEBL battery at: %s\n", batteryPath.c_str());
-            return batteryPath;
-        }
-    }
-
-    // Fallback: Try to find executable directory directly
-    char* exeDir = br_find_exe_dir("/usr/local/bin");
-    if (exeDir) {
-        // Check in exe directory first (portable mode - launcher and battery in same dir)
-        std::string batteryPath = std::string(exeDir) + separator + "battery";
-        if (stat(batteryPath.c_str(), &st) == 0 && S_ISDIR(st.st_mode)) {
-            free(exeDir);
-            printf("Found PEBL battery at: %s\n", batteryPath.c_str());
-            return batteryPath;
-        }
-
-        // Check one level up (if launcher is in bin/ subdirectory)
-        std::string exeDirStr(exeDir);
-        free(exeDir);
-
-        size_t lastSep = exeDirStr.find_last_of("/\\");
+        // Find the directory containing the executable
+        size_t lastSep = exePathStr.find_last_of("/\\");
         if (lastSep != std::string::npos) {
-            std::string parentDir = exeDirStr.substr(0, lastSep);
-            batteryPath = parentDir + separator + "battery";
+            std::string exeDir = exePathStr.substr(0, lastSep);
 
+            // Check for battery in same directory (portable mode)
+            std::string batteryPath = exeDir + "\\battery";
             if (stat(batteryPath.c_str(), &st) == 0 && S_ISDIR(st.st_mode)) {
                 printf("Found PEBL battery at: %s\n", batteryPath.c_str());
                 return batteryPath;
             }
+
+            // Check one level up (if launcher is in bin/ subdirectory)
+            size_t parentSep = exeDir.find_last_of("/\\");
+            if (parentSep != std::string::npos) {
+                std::string parentDir = exeDir.substr(0, parentSep);
+                batteryPath = parentDir + "\\battery";
+                if (stat(batteryPath.c_str(), &st) == 0 && S_ISDIR(st.st_mode)) {
+                    printf("Found PEBL battery at: %s\n", batteryPath.c_str());
+                    return batteryPath;
+                }
+            }
         }
     }
 
-#ifdef _WIN32
-    // Check for Windows installed mode (Program Files)
+    // Fallback: Check for Windows installed mode (Program Files)
     const char* programFiles[] = {
         "C:\\Program Files\\pebl2\\battery",
         "C:\\Program Files (x86)\\pebl2\\battery",
@@ -178,7 +205,46 @@ std::string LauncherConfig::DetectPEBLInstallation() const
         }
     }
 #else
-    // On Linux, check standard installation paths
+    // On Linux, use BinReloc to find the executable location
+    BrInitError error;
+    if (br_init(&error) != 0) {
+        // BinReloc initialized successfully
+        char* prefix = br_find_prefix("/usr/local");
+        if (prefix) {
+            std::string batteryPath = std::string(prefix) + "/battery";
+            free(prefix);
+            if (stat(batteryPath.c_str(), &st) == 0 && S_ISDIR(st.st_mode)) {
+                printf("Found PEBL battery at: %s\n", batteryPath.c_str());
+                return batteryPath;
+            }
+        }
+
+        // Try exe directory
+        char* exeDir = br_find_exe_dir("/usr/local/bin");
+        if (exeDir) {
+            std::string batteryPath = std::string(exeDir) + "/battery";
+            if (stat(batteryPath.c_str(), &st) == 0 && S_ISDIR(st.st_mode)) {
+                free(exeDir);
+                printf("Found PEBL battery at: %s\n", batteryPath.c_str());
+                return batteryPath;
+            }
+
+            // Check one level up
+            std::string exeDirStr(exeDir);
+            free(exeDir);
+            size_t lastSep = exeDirStr.find_last_of('/');
+            if (lastSep != std::string::npos) {
+                std::string parentDir = exeDirStr.substr(0, lastSep);
+                batteryPath = parentDir + "/battery";
+                if (stat(batteryPath.c_str(), &st) == 0 && S_ISDIR(st.st_mode)) {
+                    printf("Found PEBL battery at: %s\n", batteryPath.c_str());
+                    return batteryPath;
+                }
+            }
+        }
+    }
+
+    // Fallback: check standard installation paths
     const char* linuxPaths[] = {
         "/usr/local/pebl2/battery",
         "/usr/pebl2/battery",
@@ -289,6 +355,8 @@ bool LauncherConfig::LoadConfig()
                 mWorkspacePath = value;
             } else if (key == "battery_path") {
                 mBatteryPath = value;
+            } else if (key == "pebl_executable_path") {
+                mPeblExecutablePath = value;
             } else if (key == "data_output_path") {
                 mDataOutputPath = value;
             } else if (key == "font_size") {
@@ -389,6 +457,7 @@ bool LauncherConfig::SaveConfig()
     configFile << "# File paths" << std::endl;
     configFile << "workspace_path=" << mWorkspacePath << std::endl;
     configFile << "battery_path=" << mBatteryPath << std::endl;
+    configFile << "pebl_executable_path=" << mPeblExecutablePath << std::endl;
     configFile << "data_output_path=" << mDataOutputPath << std::endl;
     configFile << std::endl;
 

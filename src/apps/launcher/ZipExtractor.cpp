@@ -334,7 +334,7 @@ bool ZipExtractor::CreateDirectories(const std::string& path) {
 
     // Create this directory
 #ifdef _WIN32
-    return mkdir(path.c_str()) == 0;
+    return _mkdir(path.c_str()) == 0;
 #else
     return mkdir(path.c_str(), 0755) == 0;
 #endif

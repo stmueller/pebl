@@ -55,7 +55,7 @@ public:
 
 private:
     bool CopyDirectory(const std::string& source, const std::string& dest, bool excludeData);
-    bool CopyFile(const std::string& source, const std::string& dest);
+    bool CopyFileContents(const std::string& source, const std::string& dest);
     bool DirectoryExists(const std::string& path) const;
     bool FileExists(const std::string& path) const;
     std::string GetCurrentDateString() const;  // Returns YYYY-MM-DD

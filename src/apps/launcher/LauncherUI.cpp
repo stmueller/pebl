@@ -21,10 +21,27 @@
 #include <filesystem>
 #include <fstream>
 #include <numeric>
-#include <dirent.h>
 #include <sys/stat.h>
-#include <unistd.h>
 #include <json.hpp>
+
+#ifdef _WIN32
+#include <windows.h>
+#include <direct.h>
+#include <io.h>
+#define mkdir(path, mode) _mkdir(path)
+#ifndef stat
+#define stat _stat
+#endif
+#ifndef S_ISDIR
+#define S_ISDIR(mode) (((mode) & _S_IFMT) == _S_IFDIR)
+#endif
+#ifndef S_ISREG
+#define S_ISREG(mode) (((mode) & _S_IFMT) == _S_IFREG)
+#endif
+#else
+#include <dirent.h>
+#include <unistd.h>
+#endif
 
 namespace fs = std::filesystem;
 
@@ -113,24 +130,24 @@ LauncherUI::LauncherUI(LauncherConfig* config, SDL_Renderer* renderer)
     const char* home = getenv("HOME");
     if (home) {
         std::string peblExpPath = std::string(home) + "/Documents/pebl-exp." + PEBL_VERSION;
-        struct stat info;
-        if (stat(peblExpPath.c_str(), &info) == 0 && (info.st_mode & S_IFDIR)) {
-            mQuickLaunchDirectory = peblExpPath;
+        try {
+            if (fs::exists(peblExpPath) && fs::is_directory(peblExpPath)) {
+                mQuickLaunchDirectory = peblExpPath;
 
-            // Scan for .pbl files on startup
-            DIR* dirp = opendir(peblExpPath.c_str());
-            if (dirp) {
-                struct dirent* entry;
-                while ((entry = readdir(dirp)) != nullptr) {
-                    std::string name = entry->d_name;
+                // Scan for .pbl files on startup
+                for (const auto& entry : fs::directory_iterator(peblExpPath)) {
+                    if (!entry.is_regular_file()) continue;
+                    std::string name = entry.path().filename().string();
                     if (name.length() > 4 && name.substr(name.length() - 4) == ".pbl") {
                         mQuickLaunchFiles.push_back(name);
                     }
                 }
-                closedir(dirp);
                 std::sort(mQuickLaunchFiles.begin(), mQuickLaunchFiles.end());
+            } else {
+                // Fall back to config directory
+                mQuickLaunchDirectory = config->GetExperimentDirectory();
             }
-        } else {
+        } catch (const fs::filesystem_error&) {
             // Fall back to config directory
             mQuickLaunchDirectory = config->GetExperimentDirectory();
         }
@@ -759,35 +776,25 @@ void LauncherUI::RenderMenuBar()
 
                         // Check if tempDir itself is the snapshot (has study-info.json)
                         std::string studyInfoPath = tempDir + "/study-info.json";
-                        struct stat studyInfoStat;
-                        if (stat(studyInfoPath.c_str(), &studyInfoStat) == 0) {
+                        if (fs::exists(studyInfoPath)) {
                             // Files extracted directly to tempDir
                             snapshotPath = tempDir;
                             printf("Snapshot extracted directly to temp directory\n");
                         } else {
                             // Look for subdirectory containing study-info.json
-                            DIR* dir = opendir(tempDir.c_str());
-                            if (dir) {
-                                struct dirent* entry;
-                                while ((entry = readdir(dir)) != nullptr) {
-                                    if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) {
-                                        std::string candidatePath = tempDir + "/" + entry->d_name;
-                                        struct stat candidateStat;
-
-                                        // Check if this is a directory
-                                        if (stat(candidatePath.c_str(), &candidateStat) == 0 && S_ISDIR(candidateStat.st_mode)) {
-                                            // Check if it contains study-info.json
-                                            std::string candidateStudyInfo = candidatePath + "/study-info.json";
-                                            struct stat candidateInfoStat;
-                                            if (stat(candidateStudyInfo.c_str(), &candidateInfoStat) == 0) {
-                                                snapshotPath = candidatePath;
-                                                printf("Snapshot found in subdirectory: %s\n", entry->d_name);
-                                                break;
-                                            }
-                                        }
+                            try {
+                                for (const auto& entry : fs::directory_iterator(tempDir)) {
+                                    if (!entry.is_directory()) continue;
+                                    std::string candidatePath = entry.path().string();
+                                    std::string candidateStudyInfo = candidatePath + "/study-info.json";
+                                    if (fs::exists(candidateStudyInfo)) {
+                                        snapshotPath = candidatePath;
+                                        printf("Snapshot found in subdirectory: %s\n", entry.path().filename().string().c_str());
+                                        break;
                                     }
                                 }
-                                closedir(dir);
+                            } catch (const fs::filesystem_error&) {
+                                // Directory doesn't exist or can't be read
                             }
                         }
 
@@ -1143,7 +1150,7 @@ void LauncherUI::RenderDetailsTab()
             displayWidth = displayHeight / aspectRatio;
         }
 
-        ImGui::Image((void*)(intptr_t)mScreenshotTexture,
+        ImGui::Image((ImTextureID)(intptr_t)mScreenshotTexture,
                      ImVec2(displayWidth, displayHeight));
     } else {
         ImGui::TextDisabled("No screenshot available");
@@ -1279,7 +1286,7 @@ void LauncherUI::RenderDetailsTab()
                 try {
                     std::ifstream schemaFile(schemaPath);
                     if (!schemaFile.is_open()) {
-                        printf("ERROR: Could not open schema file: %s\n", schemaPath.c_str());
+                        printf("ERROR: Could not open schema file: %s\n", schemaPath.string().c_str());
                     } else {
                         // Parse JSON schema file properly
                         nlohmann::json schemaJson;
@@ -1341,7 +1348,7 @@ void LauncherUI::RenderDetailsTab()
             }
 
             // Set parameter file path
-            mParameterFile = fs::path(exp.directory) / (fs::path(exp.path).stem().string() + ".par.json");
+            mParameterFile = (fs::path(exp.directory) / (fs::path(exp.path).stem().string() + ".par.json")).string();
 
             // Load existing parameter file if it exists
             if (fs::exists(mParameterFile)) {
@@ -5066,7 +5073,7 @@ void LauncherUI::RenderBatteryBrowser()
                 displayWidth = displayHeight / aspectRatio;
             }
 
-            ImGui::Image((void*)(intptr_t)mScreenshotTexture,
+            ImGui::Image((ImTextureID)(intptr_t)mScreenshotTexture,
                         ImVec2(displayWidth, displayHeight));
             ImGui::Spacing();
         }
@@ -5695,32 +5702,24 @@ void LauncherUI::RenderQuickLaunchTab()
     std::vector<std::string> directories;
     std::vector<std::string> pblFiles;
 
-    DIR* dirp = opendir(mQuickLaunchDirectory.c_str());
-    if (dirp) {
-        struct dirent* entry;
-        while ((entry = readdir(dirp)) != nullptr) {
-            std::string name = entry->d_name;
+    try {
+        // Always add ".." for parent directory navigation
+        directories.push_back("..");
 
-            // Skip current directory
-            if (name == ".") {
-                continue;
-            }
+        for (const auto& entry : fs::directory_iterator(mQuickLaunchDirectory)) {
+            std::string name = entry.path().filename().string();
 
-            std::string fullPath = mQuickLaunchDirectory + "/" + name;
-            struct stat info;
-            if (stat(fullPath.c_str(), &info) == 0) {
-                if (S_ISDIR(info.st_mode)) {
-                    // Don't skip ".." - we want it for navigation
-                    directories.push_back(name);
-                } else if (name.length() > 4 && name.substr(name.length() - 4) == ".pbl") {
-                    pblFiles.push_back(name);
-                }
+            if (entry.is_directory()) {
+                directories.push_back(name);
+            } else if (entry.is_regular_file() && name.length() > 4 && name.substr(name.length() - 4) == ".pbl") {
+                pblFiles.push_back(name);
             }
         }
-        closedir(dirp);
 
         std::sort(directories.begin(), directories.end());
         std::sort(pblFiles.begin(), pblFiles.end());
+    } catch (const fs::filesystem_error&) {
+        // Directory doesn't exist or can't be read
     }
 
     // If mQuickLaunchPath is set, find its index in the file list
@@ -6370,7 +6369,8 @@ void LauncherUI::ShowFirstRunDialog()
                 }
                 #endif
 
-                // Fallback 1: Try to find pebl2 executable via /proc/self/exe
+                #ifndef _WIN32
+                // Fallback 1: Try to find pebl2 executable via /proc/self/exe (Linux only)
                 if (installPath.empty()) {
                     char exePath[1024];
                     ssize_t len = readlink("/proc/self/exe", exePath, sizeof(exePath) - 1);
@@ -6391,6 +6391,7 @@ void LauncherUI::ShowFirstRunDialog()
                         }
                     }
                 }
+                #endif
 
                 // Fallback 2: Use battery path from config
                 if (installPath.empty()) {
@@ -6889,25 +6890,16 @@ std::vector<std::string> LauncherUI::CheckExistingSubjectCodes()
     for (const auto& testName : testsInChain) {
         std::string dataDir = studyPath + "/tests/" + testName + "/data";
 
-        DIR* dir = opendir(dataDir.c_str());
-        if (!dir) {
-            continue; // data directory doesn't exist yet
-        }
-
-        struct dirent* entry;
-        while ((entry = readdir(dir)) != nullptr) {
-            std::string name = entry->d_name;
-
-            // Skip . and ..
-            if (name == "." || name == "..") {
-                continue;
+        try {
+            if (!fs::exists(dataDir) || !fs::is_directory(dataDir)) {
+                continue; // data directory doesn't exist yet
             }
 
-            // Check if it's a directory
-            std::string fullPath = dataDir + "/" + name;
-            struct stat st;
-            if (stat(fullPath.c_str(), &st) == 0 && S_ISDIR(st.st_mode)) {
-                // This is a subject code directory
+            for (const auto& entry : fs::directory_iterator(dataDir)) {
+                if (!entry.is_directory()) continue;
+
+                std::string name = entry.path().filename().string();
+
                 // Check if we've already added this code
                 bool found = false;
                 for (const auto& code : existingCodes) {
@@ -6920,8 +6912,9 @@ std::vector<std::string> LauncherUI::CheckExistingSubjectCodes()
                     existingCodes.push_back(name);
                 }
             }
+        } catch (const fs::filesystem_error&) {
+            // Directory doesn't exist or can't be read
         }
-        closedir(dir);
     }
 
     return existingCodes;

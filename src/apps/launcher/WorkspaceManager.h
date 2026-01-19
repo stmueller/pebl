@@ -53,10 +53,10 @@ public:
     bool ImportSnapshot(const std::string& snapshotPath, const std::string& newStudyName);
 
 private:
-    bool CreateDirectory(const std::string& path);
+    bool CreateDir(const std::string& path);
     bool DirectoryExists(const std::string& path) const;
     bool CopyDirectory(const std::string& source, const std::string& dest, bool excludeData = false, const std::vector<std::string>& excludeDirs = {});
-    bool CopyFile(const std::string& source, const std::string& dest);
+    bool CopyFileContents(const std::string& source, const std::string& dest);
     std::string GetDocumentsPath() const;
 
     std::string mWorkspacePath;  // e.g., /home/user/Documents/pebl-exp.2.3

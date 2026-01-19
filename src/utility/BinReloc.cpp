@@ -16,13 +16,19 @@
 #ifdef ENABLE_BINRELOC
 	#include <sys/types.h>
 	#include <sys/stat.h>
-	#include <unistd.h>
+	#ifndef _WIN32
+		#include <unistd.h>
+	#endif
 #endif /* ENABLE_BINRELOC */
 #include <stdio.h>
 #include <stdlib.h>
 #include <limits.h>
 #include <string.h>
 #include "BinReloc.h"
+
+#ifdef _WIN32
+	#include <windows.h>
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -38,8 +44,35 @@ extern "C" {
 static char *
 _br_find_exe (BrInitError *error)
 {
-#if !defined(ENABLE_BINRELOC) || defined(PEBL_WIN32)
-	/* BinReloc is disabled or not supported on Windows */
+#ifdef _WIN32
+	/* Windows implementation using GetModuleFileName */
+	char *path;
+	DWORD len;
+
+	path = (char *) malloc (MAX_PATH);
+	if (path == NULL) {
+		if (error)
+			*error = BR_INIT_ERROR_NOMEM;
+		return NULL;
+	}
+
+	len = GetModuleFileNameA(NULL, path, MAX_PATH);
+	if (len == 0 || len >= MAX_PATH) {
+		free(path);
+		if (error)
+			*error = BR_INIT_ERROR_DISABLED;
+		return NULL;
+	}
+
+	/* Convert backslashes to forward slashes for consistency */
+	for (DWORD i = 0; i < len; i++) {
+		if (path[i] == '\\')
+			path[i] = '/';
+	}
+
+	return path;
+#elif !defined(ENABLE_BINRELOC)
+	/* BinReloc is disabled */
 	if (error)
 		*error = BR_INIT_ERROR_DISABLED;
 	return NULL;

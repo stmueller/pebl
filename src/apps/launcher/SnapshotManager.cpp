@@ -7,12 +7,36 @@
 #include "Chain.h"
 #include "../../libs/json.hpp"
 #include <sys/stat.h>
-#include <dirent.h>
 #include <cstring>
 #include <fstream>
 #include <sstream>
 #include <iomanip>
 #include <ctime>
+#include <filesystem>
+
+namespace fs = std::filesystem;
+
+#ifdef _WIN32
+#include <windows.h>
+#include <direct.h>
+// Undef Windows CopyFile macro to avoid conflict with our function
+#ifdef CopyFile
+#undef CopyFile
+#endif
+#ifndef stat
+#define stat _stat
+#endif
+#define mkdir(path, mode) _mkdir(path)
+#ifndef S_ISDIR
+#define S_ISDIR(mode) (((mode) & _S_IFMT) == _S_IFDIR)
+#endif
+#ifndef S_ISREG
+#define S_ISREG(mode) (((mode) & _S_IFMT) == _S_IFREG)
+#endif
+#else
+#include <dirent.h>
+#include <sys/types.h>
+#endif
 
 using json = nlohmann::json;
 
@@ -189,29 +213,18 @@ bool SnapshotManager::CopyDirectory(const std::string& source, const std::string
         }
     }
 
-    DIR* dir = opendir(source.c_str());
-    if (!dir) {
-        return false;
-    }
-
-    struct dirent* entry;
     bool success = true;
 
-    while ((entry = readdir(dir)) != nullptr) {
-        // Skip . and ..
-        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
-            continue;
-        }
+    try {
+        for (const auto& entry : fs::directory_iterator(source)) {
+            std::string name = entry.path().filename().string();
+            std::string sourcePath = entry.path().string();
+            std::string destPath = dest + "/" + name;
 
-        std::string sourcePath = source + "/" + entry->d_name;
-        std::string destPath = dest + "/" + entry->d_name;
-
-        struct stat fileInfo;
-        if (stat(sourcePath.c_str(), &fileInfo) == 0) {
-            bool isDirectory = (fileInfo.st_mode & S_IFDIR);
+            bool isDirectory = entry.is_directory();
 
             // Check if should exclude
-            if (ShouldExcludeFromSnapshot(entry->d_name, isDirectory) && excludeData) {
+            if (ShouldExcludeFromSnapshot(name, isDirectory) && excludeData) {
                 continue;
             }
 
@@ -223,19 +236,20 @@ bool SnapshotManager::CopyDirectory(const std::string& source, const std::string
                 }
             } else {
                 // Copy file
-                if (!CopyFile(sourcePath, destPath)) {
+                if (!CopyFileContents(sourcePath, destPath)) {
                     success = false;
                     break;
                 }
             }
         }
+    } catch (const fs::filesystem_error&) {
+        return false;
     }
 
-    closedir(dir);
     return success;
 }
 
-bool SnapshotManager::CopyFile(const std::string& source, const std::string& dest) {
+bool SnapshotManager::CopyFileContents(const std::string& source, const std::string& dest) {
     std::ifstream src(source, std::ios::binary);
     if (!src.is_open()) {
         return false;
@@ -251,11 +265,13 @@ bool SnapshotManager::CopyFile(const std::string& source, const std::string& des
     src.close();
     dst.close();
 
-    // Copy file permissions
+#ifndef _WIN32
+    // Copy file permissions (POSIX only)
     struct stat fileInfo;
     if (stat(source.c_str(), &fileInfo) == 0) {
         chmod(dest.c_str(), fileInfo.st_mode);
     }
+#endif
 
     return true;
 }

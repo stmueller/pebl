@@ -11,8 +11,26 @@
 #include <iomanip>
 #include <algorithm>
 #include <sys/stat.h>
-#include <dirent.h>
 #include <filesystem>
+
+#ifdef _WIN32
+#include <windows.h>
+#include <direct.h>
+#ifndef stat
+#define stat _stat
+#endif
+#ifndef S_ISDIR
+#define S_ISDIR(mode) (((mode) & _S_IFMT) == _S_IFDIR)
+#endif
+#ifndef S_ISREG
+#define S_ISREG(mode) (((mode) & _S_IFMT) == _S_IFREG)
+#endif
+#ifndef S_IFDIR
+#define S_IFDIR _S_IFDIR
+#endif
+#else
+#include <dirent.h>
+#endif
 
 using json = nlohmann::json;
 namespace fs = std::filesystem;
@@ -31,28 +49,31 @@ std::vector<std::string> Test::GetAvailableLanguages(const std::string& studyPat
     std::vector<std::string> languages;
     std::string translationsDir = studyPath + "/tests/" + testPath + "/translations";
 
-    DIR* dir = opendir(translationsDir.c_str());
-    if (!dir) {
-        return languages;
-    }
+    try {
+        if (!fs::exists(translationsDir) || !fs::is_directory(translationsDir)) {
+            return languages;
+        }
 
-    struct dirent* entry;
-    while ((entry = readdir(dir)) != nullptr) {
-        std::string filename = entry->d_name;
+        for (const auto& entry : fs::directory_iterator(translationsDir)) {
+            if (!entry.is_regular_file()) continue;
 
-        // Look for pattern: testname.pbl-LANG.json
-        size_t dashPos = filename.rfind('-');
-        size_t jsonPos = filename.rfind(".json");
+            std::string filename = entry.path().filename().string();
 
-        if (dashPos != std::string::npos && jsonPos != std::string::npos) {
-            std::string lang = filename.substr(dashPos + 1, jsonPos - dashPos - 1);
-            if (!lang.empty()) {
-                languages.push_back(lang);
+            // Look for pattern: testname.pbl-LANG.json
+            size_t dashPos = filename.rfind('-');
+            size_t jsonPos = filename.rfind(".json");
+
+            if (dashPos != std::string::npos && jsonPos != std::string::npos) {
+                std::string lang = filename.substr(dashPos + 1, jsonPos - dashPos - 1);
+                if (!lang.empty()) {
+                    languages.push_back(lang);
+                }
             }
         }
+    } catch (const fs::filesystem_error&) {
+        // Directory doesn't exist or can't be read
     }
 
-    closedir(dir);
     return languages;
 }
 
@@ -189,22 +210,25 @@ std::vector<std::string> Study::GetChainFiles() const {
     std::vector<std::string> chains;
     std::string chainsDir = mPath + "/chains";
 
-    DIR* dir = opendir(chainsDir.c_str());
-    if (!dir) {
-        return chains;
-    }
-
-    struct dirent* entry;
-    while ((entry = readdir(dir)) != nullptr) {
-        std::string filename = entry->d_name;
-
-        // Look for .json files
-        if (filename.size() > 5 && filename.substr(filename.size() - 5) == ".json") {
-            chains.push_back(filename);
+    try {
+        if (!fs::exists(chainsDir) || !fs::is_directory(chainsDir)) {
+            return chains;
         }
+
+        for (const auto& entry : fs::directory_iterator(chainsDir)) {
+            if (!entry.is_regular_file()) continue;
+
+            std::string filename = entry.path().filename().string();
+
+            // Look for .json files
+            if (filename.size() > 5 && filename.substr(filename.size() - 5) == ".json") {
+                chains.push_back(filename);
+            }
+        }
+    } catch (const fs::filesystem_error&) {
+        // Directory doesn't exist or can't be read
     }
 
-    closedir(dir);
     return chains;
 }
 

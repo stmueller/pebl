@@ -33,6 +33,7 @@ public:
     std::string GetUploadURL() const { return mUploadURL; }
     std::string GetWorkspacePath() const { return mWorkspacePath; }
     std::string GetBatteryPath() const { return mBatteryPath; }
+    std::string GetPeblExecutablePath() const { return mPeblExecutablePath; }
     std::string GetDataOutputPath() const { return mDataOutputPath; }
     int GetFontSize() const { return mFontSize; }
     std::string GetCurrentStudyPath() const { return mCurrentStudyPath; }
@@ -51,6 +52,7 @@ public:
     void SetUploadURL(const std::string& url) { mUploadURL = url; }
     void SetWorkspacePath(const std::string& path) { mWorkspacePath = path; }
     void SetBatteryPath(const std::string& path) { mBatteryPath = path; }
+    void SetPeblExecutablePath(const std::string& path) { mPeblExecutablePath = path; }
     void SetDataOutputPath(const std::string& path) { mDataOutputPath = path; }
     void SetFontSize(int size) { mFontSize = size; }
     void SetCurrentStudyPath(const std::string& path) { mCurrentStudyPath = path; }
@@ -79,6 +81,7 @@ private:
     // File paths
     std::string mWorkspacePath;      // Documents/pebl-exp.2.3/
     std::string mBatteryPath;        // /usr/local/share/pebl/battery/ or auto-detect
+    std::string mPeblExecutablePath; // Path to pebl2 executable
     std::string mDataOutputPath;     // Where to save data files
 
     // UI settings

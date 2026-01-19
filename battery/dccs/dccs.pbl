@@ -1,0 +1,834 @@
+## PEBL Version of the Dimensional Card Sorting Test (DCCS)
+##
+## Based on Zelazo (2006) protocol
+## Tests cognitive flexibility and executive function in children
+##
+## Image sources:
+## - rabbit: http://openclipart.org/detail/25631/architetto
+## - sailboat: http://openclipart.org/detail/124159/simple-sailboat-by-viscious-speed
+
+define Start(p)
+{
+  ## Initialize upload system (works for both online and native)
+  InitializeUpload()
+
+  ## Define parameters
+  parpairs <- [["useaudio", 1],
+               ["pileoffset", 300],
+               ["alwaysdobordertest", 0],
+               ["neverdobordertest", 0]]
+
+  gParams <- CreateParameters(parpairs, gParamFile)
+
+  ## Setup window and display
+  gWin <- MakeWindow("white")
+  gSleepEasy <- 1
+  gInst <- EasyTextbox("", gVideoWidth/2-220, 100, gWin, 21, 440, 200)
+
+  ## Get subject number
+  if(gSubNum+"" == "0")
+  {
+    gSubNum <- GetSubNum(gWin)
+  }
+
+  ## Load translations
+  GetStrings(gLanguage)
+
+  ## Create data file
+  MakeDirectory("data")
+  gFileOut <- GetNewDataFile(gSubNum, gWin, "dccs", "csv",
+    "subnum,phase,cardnum,time0,time1,time2,rt,response,correct")
+
+  ## Create highlight for demonstrations
+  highlight <- MakeImage("imgs/highlight.png")
+  AddObject(highlight, gWin)
+  Hide(highlight)
+
+  ## Footer for non-audio mode
+  if(not gParams.useaudio)
+  {
+    footer <- EasyLabel("Click mouse to proceed through instructions",
+                        gVideoWidth/2, gVideoHeight-100, gWin, 12)
+  }
+
+  ## Load target cards (these could be shuffled or selected at random)
+  targets <- ["rabbitbluenoborder", "boatrednoborder"]
+  targetL <- MakeImage("imgs/" + First(targets) + ".png")
+  AddObject(targetL, gWin)
+  targetR <- MakeImage("imgs/" + Second(targets) + ".png")
+  AddObject(targetR, gWin)
+  Hide(targetR)
+  Hide(targetL)
+
+  ## Card properties
+  dims <- ["color", "shape", "border"]
+  colors <- ["red", "blue"]
+  shapes <- ["rabbit", "boat"]
+  borders <- ["noborder", "border"]
+
+  ## Create all card images
+  gStim <- []
+  loop(bord, borders)
+  {
+    tmp2 <- []
+    loop(shape, shapes)
+    {
+      tmp <- []
+      loop(color, colors)
+      {
+        img <- MakeImage("imgs/" + shape + color + bord + ".png")
+        Move(img, gVideoWidth/2, gVideoHeight/2)
+        AddObject(img, gWin)
+        Hide(img)
+        PushOnEnd(tmp, img)
+      }
+      PushOnEnd(tmp2, tmp)
+    }
+    PushOnEnd(gStim, tmp2)
+  }
+
+  ## Load audio if enabled
+  if(gParams.useaudio)
+  {
+    audio1 <- LoadSound("audio/inst1.ogg")
+    audio2 <- LoadSound("audio/inst2.ogg")
+    audio3 <- LoadSound("audio/inst3.ogg")
+    audio4 <- LoadSound("audio/inst4.ogg")
+    audio5 <- LoadSound("audio/inst5.ogg")
+    audio6 <- LoadSound("audio/inst6.ogg")
+    audio7 <- LoadSound("audio/inst7.ogg")
+    audio8 <- LoadSound("audio/inst8.ogg")
+    audio9 <- LoadSound("audio/inst9.ogg")
+    audio10 <- LoadSound("audio/inst10.ogg")
+    audio11 <- LoadSound("audio/inst11.ogg")
+    audio12 <- LoadSound("audio/inst12.ogg")
+    audio13 <- LoadSound("audio/inst13.ogg")
+    audio14 <- LoadSound("audio/inst14.ogg")
+    audio15 <- LoadSound("audio/inst15.ogg")
+    audio16 <- LoadSound("audio/inst16.ogg")
+    audio17 <- LoadSound("audio/inst17.ogg")
+    audio18 <- LoadSound("audio/inst18.ogg")
+    audio19 <- LoadSound("audio/inst19.ogg")
+    audio20 <- LoadSound("audio/inst20.ogg")
+    audio21 <- LoadSound("audio/inst21.ogg")
+
+    redPrompt <- LoadSound("audio/redprompt.ogg")
+    bluePrompt <- LoadSound("audio/blueprompt.ogg")
+    boatPrompt <- LoadSound("audio/boatprompt.ogg")
+    rabbitPrompt <- LoadSound("audio/rabbitprompt.ogg")
+
+    correct <- LoadSound("audio/correct.ogg")
+    incorrect <- LoadSound("audio/incorrect.ogg")
+    tryagain <- LoadSound("audio/tryagain.ogg")
+    ready <- LoadSound("audio/ready.ogg")
+  }
+
+  ## Initial prompt
+  gInst.text <- gStrings.begin
+  Draw()
+  WaitForDownClick()
+
+  ## Introduce blue rabbit target
+  gInst.text <- gStrings.intro_blue_rabbit
+  Move(targetL, gParams.pileoffset, gParams.pileoffset)
+  Show(targetL)
+  Move(highlight, gParams.pileoffset, gParams.pileoffset)
+  Flash(highlight, 3)
+  Draw()
+
+  if(gParams.useaudio)
+  {
+    PlayBackground(audio1)
+    Wait(1000)
+  } else {
+    WaitForDownClick()
+  }
+
+  ## Introduce red boat target
+  gInst.text <- gStrings.intro_red_boat
+  Move(targetR, gVideoWidth-gParams.pileoffset, gParams.pileoffset)
+  Show(targetR)
+  Move(highlight, gVideoWidth-gParams.pileoffset, gParams.pileoffset)
+  Flash(highlight, 3)
+
+  if(gParams.useaudio)
+  {
+    PlayBackground(audio2)
+    Draw()
+    Wait(1000)
+  } else {
+    Draw()
+    WaitForDownClick()
+  }
+
+  ## Introduce color game
+  gInst.text <- gStrings.color_game_intro
+  Move(highlight, gParams.pileoffset, gParams.pileoffset)
+  Show(highlight)
+  Draw()
+
+  if(gParams.useaudio)
+  {
+    PlayForeground(audio3)
+    Flash(highlight, 3)
+    Wait(600)
+  } else {
+    WaitForDownClick()
+    Flash(highlight, 3)
+    WaitForDownClick()
+  }
+
+  ## Red cards go to other pile
+  gInst.text <- gStrings.color_game_reds
+  Move(highlight, gVideoWidth-gParams.pileoffset, gParams.pileoffset)
+  Draw()
+
+  if(gParams.useaudio)
+  {
+    PlayForeground(audio4)
+    Flash(highlight, 3)
+    Wait(1000)
+  } else {
+    Flash(highlight, 5)
+    WaitForDownClick()
+  }
+
+  ## Demonstrate blue card
+  gInst.text <- gStrings.demo_blue_here
+  tmp <- GetStim("boat", "blue", "noborder")
+  Show(tmp)
+  Move(highlight, gParams.pileoffset, gParams.pileoffset)
+  Draw()
+
+  if(gParams.useaudio)
+  {
+    PlayForeground(audio5)
+    Flash(highlight, 3)
+    Wait(1000)
+  } else {
+    WaitForDownClick()
+  }
+
+  MoveTo(tmp, [gParams.pileoffset, gParams.pileoffset], 6)
+  Move(tmp, gVideoWidth/2, gVideoHeight/2)
+  Hide(tmp)
+
+  ## Reinforce blue rule
+  gInst.text <- gStrings.rule_blue_here
+  Draw()
+
+  if(gParams.useaudio)
+  {
+    PlayForeground(audio6)
+    Flash(highlight, 3)
+  } else {
+    WaitForDownClick()
+  }
+
+  ## Reinforce red rule
+  gInst.text <- gStrings.rule_red_there
+  Move(highlight, gVideoWidth-gParams.pileoffset, gParams.pileoffset)
+  Draw()
+
+  if(gParams.useaudio)
+  {
+    PlayBackground(audio7)
+    Flash(highlight, 4)
+    Wait(1000)
+  } else {
+    WaitForDownClick()
+  }
+
+  Hide(highlight)
+
+  ## Test with red card (with correction loop)
+  gInst.text <- gStrings.red_where
+  tmp <- GetStim("rabbit", "red", "noborder")
+  Show(tmp)
+  Draw()
+
+  if(gParams.useaudio)
+  {
+    PlayForeground(audio8)
+  }
+
+  resp <- 1
+  while(not resp==2)
+  {
+    Show(tmp)
+    Draw()
+
+    resp <- WaitForClickOnTarget([targetL, targetR], [1, 2])
+    clicked <- Nth([targetL, targetR], resp)
+    MoveTo(tmp, [clicked.x, clicked.y], 6)
+    Hide(tmp)
+    Move(tmp, gVideoWidth/2, gVideoHeight/2)
+
+    if(resp==1)
+    {
+      gInst.text <- gStrings.incorrect
+      Move(highlight, gParams.pileoffset, gParams.pileoffset)
+      Flash(highlight, 2)
+      Draw()
+
+      if(gParams.useaudio)
+      {
+        PlayForeground(incorrect)
+        PlayForeground(audio6)
+      } else {
+        WaitForDownClick()
+      }
+
+      gInst.text <- gStrings.rule_red_there
+      Move(highlight, gVideoWidth-gParams.pileoffset, gParams.pileoffset)
+      Flash(highlight, 4)
+      Draw()
+
+      if(gParams.useaudio)
+      {
+        PlayBackground(audio7)
+        Hide(highlight)
+        Draw()
+        Wait(1000)
+        PlayForeground(tryagain)
+      } else {
+        WaitForDownClick()
+      }
+
+      gInst.text <- gStrings.try_again
+    }
+  }
+
+  ## Correct response feedback
+  gInst.text <- gStrings.correct
+  Draw()
+
+  if(gParams.useaudio)
+  {
+    PlayForeground(correct)
+    Wait(200)
+  } else {
+    Wait(500)
+  }
+
+  ## Test with blue card (with correction loop)
+  resp <- 0
+  gInst.text <- gStrings.blue_where
+  Hide(tmp)
+  tmp <- GetStim("boat", "blue", "noborder")
+  Show(tmp)
+  Draw()
+
+  if(gParams.useaudio)
+  {
+    PlayForeground(audio9)
+  }
+
+  while(not resp==1)
+  {
+    Show(tmp)
+    Draw()
+    resp <- WaitForClickOnTarget([targetL, targetR], [1, 2])
+
+    clicked <- Nth([targetL, targetR], resp)
+    MoveTo(tmp, [clicked.x, clicked.y], 6)
+    Hide(tmp)
+    Move(tmp, gVideoWidth/2, gVideoHeight/2)
+
+    if(resp==2)
+    {
+      gInst.text <- gStrings.incorrect
+      Move(highlight, gParams.pileoffset, gParams.pileoffset)
+      Flash(highlight, 2)
+      Draw()
+
+      if(gParams.useaudio)
+      {
+        PlayForeground(incorrect)
+        PlayForeground(audio6)
+      } else {
+        WaitForDownClick()
+      }
+
+      gInst.text <- gStrings.rule_red_there
+      Draw()
+      Move(highlight, gVideoWidth-gParams.pileoffset, gParams.pileoffset)
+      Flash(highlight, 2)
+
+      if(gParams.useaudio)
+      {
+        PlayBackground(audio7)
+        Hide(highlight)
+        Draw()
+        PlayForeground(tryagain)
+        Wait(1000)
+      } else {
+        WaitForDownClick()
+      }
+
+      gInst.text <- gStrings.try_again
+    }
+  }
+
+  gInst.text <- gStrings.correct
+  Hide(tmp)
+  Draw()
+
+  if(gParams.useaudio)
+  {
+    PlayForeground(correct)
+  } else {
+    Wait(500)
+  }
+
+  ## Transition to real color game
+  gInst.text <- gStrings.very_good_color
+  Draw()
+
+  if(gParams.useaudio)
+  {
+    PlayForeground(audio10)
+  } else {
+    WaitForDownClick()
+  }
+
+  ## COLOR GAME - Real trials (6 cards)
+  stimorder <- ShuffleDeck(2)
+  cards <- [GetStim("rabbit", "red", "noborder"),
+            GetStim("boat", "blue", "noborder")]
+
+  gInst.text <- gStrings.your_turn_color
+  Draw()
+
+  if(gParams.useaudio)
+  {
+    PlayBackground(audio11)
+  }
+
+  WaitForDownClick()
+
+  corrsColor <- 0
+  rtSumColor <- 0
+
+  loop(i, stimorder)
+  {
+    card <- Nth(cards, i)
+    Show(card)
+    time0 <- GetTime()
+
+    if(i==1)
+    {
+      gInst.text <- gStrings.red_prompt
+      Draw()
+      if(gParams.useaudio)
+      {
+        PlayBackground(redPrompt)
+      }
+    } else {
+      gInst.text <- gStrings.blue_prompt
+      Draw()
+      if(gParams.useaudio)
+      {
+        PlayBackground(bluePrompt)
+      }
+    }
+
+    Draw()
+    time1 <- GetTime()
+    resp <- WaitForClickOnTarget([targetL, targetR], [1, 2])
+    time2 <- GetTime()
+
+    corr <- resp==(3-i)
+
+    corrsColor <- corrsColor + corr
+    rtSumColor <- rtSumColor + (time2-time1)
+    FilePrint(gFileOut, gSubNum + ",COLORGAME," + i + "," + time0 + "," +
+              time1 + "," + time2 + "," + (time2-time1) + "," + resp + "," + corr)
+
+    clicked <- Nth([targetL, targetR], resp)
+    MoveTo(card, [clicked.x, clicked.y], 6)
+    Hide(card)
+    Move(card, gVideoWidth/2, gVideoHeight/2)
+    Draw()
+  }
+
+  ## SHAPE GAME introduction
+  gInst.text <- gStrings.shape_game_intro
+  Draw()
+
+  if(gParams.useaudio)
+  {
+    PlayBackground(audio11)
+    Wait(9500)
+    Move(highlight, gParams.pileoffset, gParams.pileoffset)
+    Flash(highlight, 3)
+  } else {
+    WaitForDownClick()
+    Move(highlight, gParams.pileoffset, gParams.pileoffset)
+    Flash(highlight, 3)
+    WaitForDownClick()
+    Move(highlight, gVideoWidth-gParams.pileoffset, gParams.pileoffset)
+    Flash(highlight, 3)
+  }
+
+  gInst.text <- gStrings.shape_game_boats
+  Draw()
+
+  if(gParams.useaudio)
+  {
+    PlayForeground(audio12)
+    Move(highlight, gVideoWidth-gParams.pileoffset, gParams.pileoffset)
+    Flash(highlight, 3)
+  } else {
+    Move(highlight, gVideoWidth-gParams.pileoffset, gParams.pileoffset)
+    Flash(highlight, 3)
+    WaitForDownClick()
+  }
+
+  gInst.text <- gStrings.shape_rule_rabbit
+  Draw()
+
+  if(gParams.useaudio)
+  {
+    PlayForeground(audio13)
+    Move(highlight, gParams.pileoffset, gParams.pileoffset)
+    Flash(highlight, 4)
+  } else {
+    WaitForDownClick()
+    Move(highlight, gParams.pileoffset, gParams.pileoffset)
+    Flash(highlight, 4)
+  }
+
+  gInst.text <- gStrings.shape_rule_boat
+  Draw()
+
+  if(gParams.useaudio)
+  {
+    PlayForeground(audio14)
+    Move(highlight, gVideoWidth-gParams.pileoffset, gParams.pileoffset)
+    Flash(highlight, 4)
+  } else {
+    WaitForDownClick()
+    Move(highlight, gVideoWidth-gParams.pileoffset, gParams.pileoffset)
+    Flash(highlight, 4)
+  }
+
+  gInst.text <- gStrings.ready
+  Draw()
+
+  if(gParams.useaudio)
+  {
+    PlayForeground(ready)
+  }
+
+  WaitForDownClick()
+
+  ## SHAPE GAME - Real trials (6 cards)
+  corrsShape <- 0
+  rtSumShape <- 0
+  stimorder <- ShuffleDeck(2)
+
+  loop(i, stimorder)
+  {
+    card <- Nth(cards, i)
+    Show(card)
+    time0 <- GetTime()
+
+    if(i==1)
+    {
+      gInst.text <- gStrings.rabbit_prompt
+      Draw()
+      if(gParams.useaudio)
+      {
+        PlayForeground(rabbitPrompt)
+      }
+    } else {
+      gInst.text <- gStrings.boat_prompt
+      Draw()
+      if(gParams.useaudio)
+      {
+        PlayForeground(boatPrompt)
+      }
+    }
+
+    Draw()
+    time1 <- GetTime()
+    resp <- WaitForClickOnTarget([targetL, targetR], [1, 2])
+    time2 <- GetTime()
+
+    corr <- resp==i
+
+    corrsShape <- corrsShape + corr
+    rtSumShape <- rtSumShape + (time2-time1)
+    FilePrint(gFileOut, gSubNum + ",SHAPEGAME," + i + "," + time0 + "," +
+              time1 + "," + time2 + "," + (time2-time1) + "," + resp + "," + corr)
+
+    clicked <- Nth([targetL, targetR], resp)
+    MoveTo(card, [clicked.x, clicked.y], 6)
+    Hide(card)
+    Move(card, gVideoWidth/2, gVideoHeight/2)
+    Draw()
+  }
+
+  ## BORDER GAME (advanced version) - only if conditions met
+  passedShape <- (corrsShape >= 5)
+
+  if((not gParams.neverdobordertest) and (gParams.alwaysdobordertest or passedShape))
+  {
+    ## Introduce border test
+    gInst.text <- gStrings.border_intro
+    tmp <- GetStim("rabbit", "red", "border")
+    Show(tmp)
+    Draw()
+
+    if(gParams.useaudio)
+    {
+      PlayForeground(audio15)
+    } else {
+      WaitForDownClick()
+    }
+
+    ## Explain border = color game
+    gInst.text <- gStrings.border_color_rule
+    Draw()
+
+    if(gParams.useaudio)
+    {
+      PlayForeground(audio16)
+    } else {
+      WaitForDownClick()
+    }
+
+    gInst.text <- gStrings.border_blue_rule
+    Draw()
+
+    if(gParams.useaudio)
+    {
+      PlayForeground(audio17)
+    } else {
+      WaitForDownClick()
+    }
+
+    gInst.text <- gStrings.border_color_demo
+    Draw()
+
+    if(gParams.useaudio)
+    {
+      PlayForeground(audio18)
+    } else {
+      WaitForDownClick()
+    }
+
+    ## Explain no border = shape game
+    gInst.text <- gStrings.border_shape_rule
+    Hide(tmp)
+    tmp <- GetStim("rabbit", "red", "noborder")
+    Show(tmp)
+    Draw()
+
+    if(gParams.useaudio)
+    {
+      PlayForeground(audio19)
+    } else {
+      WaitForDownClick()
+    }
+
+    gInst.text <- gStrings.border_boat_rule
+    Draw()
+
+    if(gParams.useaudio)
+    {
+      PlayForeground(audio20)
+    } else {
+      WaitForDownClick()
+    }
+
+    gInst.text <- gStrings.border_shape_demo
+    Draw()
+
+    if(gParams.useaudio)
+    {
+      PlayForeground(audio21)
+    } else {
+      WaitForDownClick()
+    }
+
+    MoveTo(tmp, [gParams.pileoffset, gParams.pileoffset], 6)
+    Hide(tmp)
+    Move(tmp, gVideoWidth/2, gVideoHeight/2)
+
+    ## Prepare border test cards
+    cards <- [GetStim("rabbit", "red", "noborder"),
+              GetStim("boat", "blue", "noborder"),
+              GetStim("rabbit", "red", "border"),
+              GetStim("boat", "blue", "border")]
+
+    correctmap <- [1, 2, 2, 1]
+    WaitForDownClick()
+
+    ## BORDER GAME - Real trials (12 cards)
+    corrsBorder <- 0
+    rtSumBorder <- 0
+    stimorder <- ShuffleDeck(4)
+
+    loop(i, stimorder)
+    {
+      card <- Nth(cards, i)
+      Show(card)
+      time0 <- GetTime()
+      gInst.text <- gStrings.switch_prompt
+      Draw()
+
+      if(gParams.useaudio)
+      {
+        PlayForeground(switchPrompt)
+      }
+
+      Draw()
+      time1 <- GetTime()
+      resp <- WaitForClickOnTarget([targetL, targetR], [1, 2])
+      time2 <- GetTime()
+
+      correctside <- Nth(correctmap, i)
+      corr <- resp==correctside
+
+      corrsBorder <- corrsBorder + corr
+      rtSumBorder <- rtSumBorder + (time2-time1)
+      FilePrint(gFileOut, gSubNum + ",BORDERGAME," + i + "," + time0 + "," +
+                time1 + "," + time2 + "," + (time2-time1) + "," + resp + "," + corr)
+
+      clicked <- Nth([targetL, targetR], resp)
+      MoveTo(card, [clicked.x, clicked.y], 6)
+      Hide(card)
+      Move(card, gVideoWidth/2, gVideoHeight/2)
+      Draw()
+    }
+  }
+
+  ## Generate summary report
+  report <- "PEBL DCCS Test" + CR(1) + TimeStamp() + CR(1) + GetPEBLVersion() + CR(1)
+  report <- report + "Participant: " + gSubNum + CR(1)
+  report <- report + "Color Accuracy: " + corrsColor + "/6" + CR(1)
+  report <- report + "Color RT: " + (rtSumColor/6) + CR(1)
+  report <- report + "Shape Accuracy: " + corrsShape + "/6" + CR(1)
+  report <- report + "Shape RT: " + (rtSumShape/6) + CR(1)
+  report <- report + "Passed Shape: " + Nth(["No", "Yes"], passedShape+1) + CR(1)
+
+  if(passedShape)
+  {
+    report <- report + "Border accuracy: " + corrsBorder + "/12" + CR(1)
+    report <- report + "Border RT: " + (rtSumBorder/12) + CR(1)
+  }
+
+  reportfile <- FileOpenWrite("data/dccs-report-" + gSubNum + ".txt")
+  FilePrint(reportfile, report)
+  FileClose(reportfile)
+
+  ## Close data file before upload
+  FileClose(gFileOut)
+
+  ## Upload data files (works online, no-op on native)
+  uploadResult <- UploadFile(gSubNum, gFileOut.filename)
+  uploadResult2 <- UploadFile(gSubNum, "data/dccs-report-" + gSubNum + ".txt")
+
+  ## Debrief
+  Print(report)
+  MessageBox(report + CR(2) + gStrings.debrief, gWin)
+}
+
+## Flash highlight image
+define Flash(img, times)
+{
+  vis <- img.visible
+  Show(img)
+  Draw()
+
+  loop(i, Sequence(1, times, 1))
+  {
+    Wait(400)
+    Hide(img)
+    Draw()
+    Wait(100)
+    Show(img)
+    Draw()
+  }
+
+  Wait(200)
+  img.visible <- vis
+  return(0)
+}
+
+## Get stimulus by properties
+define GetStim(shape, color, border)
+{
+  shapenum <- (shape=="boat") + 1
+  colornum <- (color=="blue") + 1
+  bordernum <- (border=="border") + 1
+
+  result <- GetStimByNum(shapenum, colornum, bordernum)
+  return(result)
+}
+
+## Get stimulus by numeric indices
+define GetStimByNum(shape, color, border)
+{
+  result <- Nth(Nth(Nth(gStim, border), shape), color)
+  return(result)
+}
+
+## Move object to location smoothly
+define MoveTo(obj, endlocation, steps)
+{
+  xdelta <- -(First(endlocation)-obj.x)/steps
+  ydelta <- -(Second(endlocation)-obj.y)/steps
+
+  loop(i, Sequence(steps, 0, -1))
+  {
+    obj.x <- First(endlocation) + xdelta*i
+    obj.y <- Second(endlocation) + ydelta*i
+    Draw()
+    Wait(10)
+  }
+
+  return(0)
+}
+
+## Shuffle card deck for trials
+define ShuffleDeck(cards)
+{
+  result <- []
+
+  if(cards==2)
+  {
+    deckA <- Shuffle([2, 1])
+    deckB <- Shuffle([2, 1])
+    sequence <- []
+
+    loop(i, Transpose([deckA, deckB]))
+    {
+      PushOnEnd(sequence, Repeat(1, First(i)))
+      PushOnEnd(sequence, Repeat(2, Second(i)))
+    }
+
+    sequence <- Flatten(sequence)
+
+    if(Random() < 0.5)
+    {
+      sequence <- Reverse(sequence)
+    }
+
+    result <- sequence
+  } elseif (cards==4) {
+    seq <- [[1,1,1], [2,2,2], [3,3,3], [4,4,4]]
+    result <- ShuffleWithoutAdjacents(seq)
+  }
+
+  return(result)
+}
+
+## Load translation strings
+define GetStrings(lang)
+{
+  gStrings <- GetTranslations("dccs", lang)
+  return(0)
+}

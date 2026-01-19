@@ -9,7 +9,7 @@
 #include <vector>
 #include <memory>
 #include <SDL2/SDL.h>
-#include "../../../libs/TextEditor.h"
+#include "TextEditor.h"
 
 class LauncherConfig;
 class Study;

@@ -1,0 +1,50 @@
+{
+  "test": "timetap",
+  "version": "2.0",
+  "description": "Time-Tapping Test - Motor timing task measuring temporal entrainment and dual-task performance",
+  "parameters": [
+    {
+      "name": "taprates",
+      "type": "string",
+      "default": [333,666,1000],
+      "description": "Target tap rates in milliseconds. Specify as JSON list (e.g., [333,666,1000]) for specific rates (one trial per rate), or \"random\" to sample numtrials times from mintaptime to maxtaptime range."
+    },
+    {
+      "name": "numtrials",
+      "type": "integer",
+      "default": 3,
+      "description": "Number of trials when taprates is 'random'. Ignored when taprates is a list (number of trials = length of list)."
+    },
+    {
+      "name": "trialtime",
+      "type": "integer",
+      "default": 180,
+      "description": "Duration of each trial in seconds (default: 180 = 3 minutes)."
+    },
+    {
+      "name": "mintaptime",
+      "type": "integer",
+      "default": 333,
+      "description": "Minimum (fastest) inter-tap interval in milliseconds (used when taprates='random'). Should not be less than ~250ms (typical maximum keyboard tapping speed)."
+    },
+    {
+      "name": "maxtaptime",
+      "type": "integer",
+      "default": 1000,
+      "description": "Maximum (slowest) inter-tap interval in milliseconds (used when taprates='random')."
+    },
+    {
+      "name": "trainingflashes",
+      "type": "integer",
+      "default": 10,
+      "description": "Duration of training period in seconds. During this time, a flashing cross appears at the target tap rate to help participants entrain to the rhythm."
+    },
+    {
+      "name": "responsemode",
+      "type": "string",
+      "default": "spacebar",
+      "options": ["spacebar", "leftclick", "touchscreen", "clicktarget", "userselect"],
+      "description": "Response mode: spacebar (keyboard), leftclick (mouse click), touchscreen (touch), clicktarget (click target box), userselect (custom key)"
+    }
+  ]
+}

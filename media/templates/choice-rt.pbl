@@ -1,0 +1,67 @@
+## Choice Reaction Time Template
+## Press LEFT for 'X', RIGHT for 'O'
+
+define Start(p)
+{
+  ## Initialize
+  gWin <- MakeWindow("grey40")
+  gSleepEasy <- 1
+
+  if(gSubNum+"" == "0")
+  {
+    gSubNum <- GetSubNum(gWin)
+  }
+
+  ## Create data file
+  gFileOut <- GetNewDataFile(gSubNum, gWin, "choice-rt", "csv",
+    "subnum,trial,stimulus,response,correct,rt,timestamp")
+
+  ## Instructions
+  MessageBox("Press LEFT ARROW for 'X', RIGHT ARROW for 'O'. Click OK to begin.", gWin)
+
+  ## Run 20 trials
+  stimuli <- Shuffle(Flatten([Repeat("X", 10), Repeat("O", 10)]))
+
+  loop(trial, Sequence(1, 20, 1))
+  {
+    stim <- Nth(stimuli, trial)
+
+    ## Fixation
+    fix <- EasyLabel("+", gVideoWidth/2, gVideoHeight/2, gWin, 44)
+    Draw()
+    Wait(500)
+    Hide(fix)
+
+    ## Stimulus
+    stimLabel <- EasyLabel(stim, gVideoWidth/2, gVideoHeight/2, gWin, 88)
+    Draw()
+    t1 <- GetTime()
+    resp <- WaitForListKeyPress(["<left>", "<right>"])
+    rt <- GetTime() - t1
+    Hide(stimLabel)
+
+    ## Check correctness
+    correct <- 0
+    if(stim == "X" and resp == "<left>")
+    {
+      correct <- 1
+    }
+    if(stim == "O" and resp == "<right>")
+    {
+      correct <- 1
+    }
+
+    ## Save data
+    FilePrint(gFileOut, gSubNum + "," + trial + "," + stim + "," + resp + "," + correct + "," + rt + "," + TimeStamp())
+
+    ## Brief ITI
+    Draw()
+    Wait(500)
+  }
+
+  ## Cleanup
+  MessageBox("Experiment complete. Thank you!", gWin)
+  FileClose(gFileOut)
+
+  return(0)
+}

@@ -1,0 +1,42 @@
+## Survey/Questionnaire Template
+## Likert-scale questionnaire with RT measurement
+
+define Start(p)
+{
+  ## Initialize
+  gWin <- MakeWindow("grey40")
+  gSleepEasy <- 1
+
+  if(gSubNum+"" == "0")
+  {
+    gSubNum <- GetSubNum(gWin)
+  }
+
+  ## Create data file
+  gFileOut <- GetNewDataFile(gSubNum, gWin, "questionnaire", "csv",
+    "subnum,timestamp,question,response,rt")
+
+  ## Instructions
+  MessageBox("Please answer the following questions. Click OK to begin.", gWin)
+
+  ## Survey questions
+  questions <- ["Question 1?", "Question 2?", "Question 3?"]
+  qlabs <- ["q1", "q2", "q3"]
+
+  scale <- ["1 - Strongly Disagree", "2", "3", "4", "5 - Strongly Agree"]
+
+  loop(q, Sequence(1, Length(questions), 1))
+  {
+    timestamp <- TimeStamp()
+    t1 <- GetTime()
+    resp <- GetEasyChoice(Nth(questions, q), scale, [1, 2, 3, 4, 5], gWin)
+    t2 <- GetTime()
+    FilePrint(gFileOut, gSubNum + "," + timestamp + "," + Nth(qlabs, q) + "," + resp + "," + (t2-t1))
+  }
+
+  ## Cleanup
+  MessageBox("Questionnaire complete. Thank you!", gWin)
+  FileClose(gFileOut)
+
+  return(0)
+}

@@ -1,0 +1,38 @@
+## Blank Template
+## Starting point for creating a custom test
+
+define Start(p)
+{
+  ## Initialize
+  gWin <- MakeWindow("grey40")
+  gSleepEasy <- 1
+
+  if(gSubNum+"" == "0")
+  {
+    gSubNum <- GetSubNum(gWin)
+  }
+
+  ## Create data file
+  gFileOut <- GetNewDataFile(gSubNum, gWin, "mytest", "csv",
+    "subnum,trial,response,rt,timestamp")
+
+  ## Instructions
+  MessageBox("Instructions go here. Click OK to begin.", gWin)
+
+  ## Your code here
+
+  ## Example trial loop
+  loop(trial, Sequence(1, 10, 1))
+  {
+    ## Show stimulus
+    ## Get response
+    ## Save data
+    ## FilePrint(gFileOut, ...)
+  }
+
+  ## Cleanup
+  MessageBox("Experiment complete. Thank you!", gWin)
+  FileClose(gFileOut)
+
+  return(0)
+}

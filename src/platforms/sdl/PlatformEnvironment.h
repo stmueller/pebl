@@ -95,6 +95,9 @@ public:
     virtual int GetNumJoysticks();
     virtual Variant GetJoystick(int index);
 
+    // Platform-specific locale queries (uses SDL)
+    virtual std::string GetSystemLocale();
+    virtual bool IsSystemLocaleRTL();
 
 protected:
     virtual std::ostream & SendToStream(std::ostream& out) const;    

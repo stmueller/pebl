@@ -621,3 +621,37 @@ StdDev computes the standard deviation of a list of numbers. It uses the formula
 **See Also:**
 
 :func:`Mean()`, :func:`Median()`, :func:`Min()`, :func:`Max()`, :func:`Sum()`, :func:`SummaryStats()`
+
+
+
+.. index:: GCD
+
+GCD()
+-----
+
+*Computes the greatest common divisor of two integers*
+
+**Description:**
+
+GCD computes the greatest common divisor (GCD) of two integers using the Euclidean algorithm. The GCD is the largest positive integer that divides both numbers without a remainder. The function works with both positive and negative integers by taking their absolute values.
+
+**Usage:**
+
+.. code-block:: pebl
+
+   define GCD(a, b)
+
+**Example:**
+
+.. code-block:: pebl
+
+
+   Print(GCD(48, 18))   # Returns 6
+   Print(GCD(100, 25))  # Returns 25
+   Print(GCD(17, 19))   # Returns 1 (coprime)
+   Print(GCD(-24, 36))  # Returns 12
+
+
+**See Also:**
+
+:func:`Mod()`, :func:`Abs()`

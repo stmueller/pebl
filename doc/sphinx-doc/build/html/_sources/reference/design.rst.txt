@@ -86,7 +86,7 @@ DesignGrecoLatinSquare()
 
 **Description:**
 
-This will return a list of lists formed by rotating   through each element of the ``<treatment_list>``s, making a list   containing all element of the list, according to a greco-latin   square.  All lists must be of the same length.
+This will return a list of lists formed by rotating   through each element of the ``<treatment_list>`` s, making a list   containing all element of the list, according to a greco-latin   square.  All lists must be of the same length.
 
 **Usage:**
 

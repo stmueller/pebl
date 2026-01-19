@@ -74,6 +74,10 @@ public:
     ///Gets 32-bit unsigned int color
     unsigned int GetColor() const;
 
+    ///Change detection for nested property modifications
+    bool HasChanged() const { return mChanged; }
+    void ClearChanged() { mChanged = false; }
+
 protected:
 
     virtual std::string ObjectName() const;
@@ -93,6 +97,9 @@ private:
     unsigned mGreen: 8;
     unsigned mBlue:  8;
     unsigned mAlpha: 8;
+
+    ///Flag indicating color has changed (for nested property modifications)
+    bool mChanged;
 };
 
 

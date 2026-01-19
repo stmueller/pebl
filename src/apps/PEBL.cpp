@@ -294,6 +294,7 @@ int PEBLInterpret( int argc, std::vector<std::string> argv )
     files.push_back("UI.pbl");
     files.push_back("HTML.pbl");
     files.push_back("Transfer.pbl");  // Network/HTTP file transfer functions
+    files.push_back("Layout.pbl");    // Layout & response system with nested properties
 
 #ifdef PEBL_EMSCRIPTEN
    files.push_back("EM.pbl");
@@ -764,72 +765,15 @@ int PEBLInterpret( int argc, std::vector<std::string> argv )
     Evaluator::gGlobalVariableMap.AddVariable("gQuote",Variant("\""));
 
 
-    //Add the default 'base font' names based on language
-    //Uses Noto fonts for comprehensive international coverage, DejaVu for Western scripts
-    //ISO 639-1 two-letter language codes
-    if (tmps == "AR" || tmps == "UR") {
-        // Arabic and Urdu (both use Perso-Arabic script)
-        // Use DejaVu which has Arabic/Urdu support AND Latin/symbols for mixed content
-        Evaluator::gGlobalVariableMap.AddVariable("gPEBLBaseFont",Variant("DejaVuSans.ttf"));
-        Evaluator::gGlobalVariableMap.AddVariable("gPEBLBaseFontMono",Variant("DejaVuSansMono.ttf"));
-        Evaluator::gGlobalVariableMap.AddVariable("gPEBLBaseFontSerif",Variant("DejaVuSerif.ttf"));
-    }
-    else if (tmps == "HE" || tmps == "IW") {
-        // Hebrew (he=modern, iw=deprecated ISO 639-1 code)
-        // Use DejaVu which has Hebrew support AND Latin/symbols for mixed content
-        Evaluator::gGlobalVariableMap.AddVariable("gPEBLBaseFont",Variant("DejaVuSans.ttf"));
-        Evaluator::gGlobalVariableMap.AddVariable("gPEBLBaseFontMono",Variant("DejaVuSansMono.ttf"));
-        Evaluator::gGlobalVariableMap.AddVariable("gPEBLBaseFontSerif",Variant("DejaVuSerif.ttf"));
-    }
-    else if (tmps == "TH") {
-        // Thai
-        Evaluator::gGlobalVariableMap.AddVariable("gPEBLBaseFont",Variant("NotoSansThai-Regular.ttf"));
-        Evaluator::gGlobalVariableMap.AddVariable("gPEBLBaseFontMono",Variant("NotoSansMono-Regular.ttf"));
-        Evaluator::gGlobalVariableMap.AddVariable("gPEBLBaseFontSerif",Variant("NotoSerif-Regular.ttf"));
-    }
-    else if (tmps == "HI" || tmps == "MR" || tmps == "NE") {
-        // Devanagari script (Hindi, Marathi, Nepali)
-        Evaluator::gGlobalVariableMap.AddVariable("gPEBLBaseFont",Variant("NotoSansDevanagari-Regular.ttf"));
-        Evaluator::gGlobalVariableMap.AddVariable("gPEBLBaseFontMono",Variant("NotoSansMono-Regular.ttf"));
-        Evaluator::gGlobalVariableMap.AddVariable("gPEBLBaseFontSerif",Variant("NotoSerif-Regular.ttf"));
-    }
-    else if (tmps == "BN") {
-        // Bengali
-        Evaluator::gGlobalVariableMap.AddVariable("gPEBLBaseFont",Variant("NotoSansBengali-Regular.ttf"));
-        Evaluator::gGlobalVariableMap.AddVariable("gPEBLBaseFontMono",Variant("NotoSansMono-Regular.ttf"));
-        Evaluator::gGlobalVariableMap.AddVariable("gPEBLBaseFontSerif",Variant("NotoSerif-Regular.ttf"));
-    }
-    else if (tmps == "KA") {
-        // Georgian
-        // Use DejaVu which has Georgian support AND Latin/symbols for mixed content
-        Evaluator::gGlobalVariableMap.AddVariable("gPEBLBaseFont",Variant("DejaVuSans.ttf"));
-        Evaluator::gGlobalVariableMap.AddVariable("gPEBLBaseFontMono",Variant("DejaVuSansMono.ttf"));
-        Evaluator::gGlobalVariableMap.AddVariable("gPEBLBaseFontSerif",Variant("DejaVuSerif.ttf"));
-    }
-    else if (tmps == "ZH" || tmps == "CN" || tmps == "TW") {
-        // Chinese (Simplified/Traditional)
-        Evaluator::gGlobalVariableMap.AddVariable("gPEBLBaseFont",Variant("NotoSansCJK-Regular.ttc"));
-        Evaluator::gGlobalVariableMap.AddVariable("gPEBLBaseFontMono",Variant("NotoSansCJK-Regular.ttc"));
-        Evaluator::gGlobalVariableMap.AddVariable("gPEBLBaseFontSerif",Variant("NotoSerif-Regular.ttf"));
-    }
-    else if (tmps == "JA" || tmps == "JP") {
-        // Japanese
-        Evaluator::gGlobalVariableMap.AddVariable("gPEBLBaseFont",Variant("NotoSansCJK-Regular.ttc"));
-        Evaluator::gGlobalVariableMap.AddVariable("gPEBLBaseFontMono",Variant("NotoSansCJK-Regular.ttc"));
-        Evaluator::gGlobalVariableMap.AddVariable("gPEBLBaseFontSerif",Variant("NotoSerif-Regular.ttf"));
-    }
-    else if (tmps == "KO" || tmps == "KR" || tmps == "KP") {
-        // Korean
-        Evaluator::gGlobalVariableMap.AddVariable("gPEBLBaseFont",Variant("NotoSansCJK-Regular.ttc"));
-        Evaluator::gGlobalVariableMap.AddVariable("gPEBLBaseFontMono",Variant("NotoSansCJK-Regular.ttc"));
-        Evaluator::gGlobalVariableMap.AddVariable("gPEBLBaseFontSerif",Variant("NotoSerif-Regular.ttf"));
-    }
-    else {
-        // Default: Western scripts (Latin, Cyrillic, Greek) - DejaVu has excellent coverage
-        Evaluator::gGlobalVariableMap.AddVariable("gPEBLBaseFont",Variant("DejaVuSans.ttf"));
-        Evaluator::gGlobalVariableMap.AddVariable("gPEBLBaseFontMono",Variant("DejaVuSansMono.ttf"));
-        Evaluator::gGlobalVariableMap.AddVariable("gPEBLBaseFontSerif",Variant("DejaVuSerif.ttf"));
-    }
+    // Set default base fonts based on language using centralized font selection logic
+    // This ensures consistency with GetFontForLanguageOrScript() utility function
+    std::string baseFont = PEBLUtility::GetFontForLanguageOrScript(tmps, 0);  // 0 = sans-serif
+    std::string monoFont = PEBLUtility::GetFontForLanguageOrScript(tmps, 1);  // 1 = monospace
+    std::string serifFont = PEBLUtility::GetFontForLanguageOrScript(tmps, 2); // 2 = serif
+
+    Evaluator::gGlobalVariableMap.AddVariable("gPEBLBaseFont", Variant(baseFont));
+    Evaluator::gGlobalVariableMap.AddVariable("gPEBLBaseFontMono", Variant(monoFont));
+    Evaluator::gGlobalVariableMap.AddVariable("gPEBLBaseFontSerif", Variant(serifFont));
 
     // Always set fallback fonts to DejaVu (optimal for Western/Latin scripts)
     // These are used when translations aren't available, avoiding issues like:
@@ -972,7 +916,7 @@ void  CaptureSignal(int signal)
 
     //Something is not being cleaned up still.
     raise(signal);
-    exit(0);
+    exit(1);  // Exit with error code 1 when terminated by signal
 }
 
 

@@ -1,0 +1,873 @@
+###########################################################
+## Span Variants Test, Version 0.1
+## For use with PEBL 2.0 or later
+## http://pebl.sf.net
+## Part of  The PEBL Psychological Testing Battery
+## 2025 Released into Public Domain
+## by Shane T. Mueller, Ph.D. (smueller at obereed dot net)
+##
+## This test combines multiple working memory span variants commonly
+## used for cognitive self-assessment:
+##  - Forward/Backward Digit Span
+##  - Forward/Backward Letter Span (with subset of easily distinguishable letters)
+##  - Forward/Backward Mixed Span (digits and letters presented sequentially)
+##  - Digit Ordering (recall digits in numerical order)
+##  - Letter Ordering (recall letters in alphabetical order)
+##  - Mixed Ordering (recall digits then letters, each in order)
+##
+## Each variant can be enabled/disabled and ordered via parameters.
+## Based on the PEBL Digit Span test.
+###########################################################
+
+define Start(lPar)
+{
+  InitializeUpload()  ## Initialize token-based hosting if upload.json exists
+
+  ## Initialize global objects for use later. Defined at end of file
+  Initialize()
+
+  ##Get subject code if one has not been supplied
+  if(gSubNum+""=="0")
+  {
+   gSubNum <- GetSubNum(gWin)
+  }
+
+  parpairs <- [
+    ## Task ordering parameters (0=skip, else execution order)
+    ["forward_digit_order", 1],    ## Forward digit span
+    ["backward_digit_order", 2],   ## Backward digit span
+    ["forward_letter_order", 3],   ## Forward letter span
+    ["backward_letter_order", 4],  ## Backward letter span
+    ["forward_mixed_order", 5],    ## Forward mixed digit/letter span
+    ["backward_mixed_order", 6],   ## Backward mixed digit/letter span
+    ["digit_ordering_order", 7],   ## Digit ordering task
+    ["letter_ordering_order", 8],  ## Letter ordering task
+    ["mixed_ordering_order", 9],   ## Mixed digit/letter ordering
+
+    ## Display and input parameters
+    ["input","keyboard"],          ## keyboard, keypad, or mouse
+    ["UseAudio",1],                ## 0=video only, 1=audio+video, 2=audio only
+    ["AllowBackspace", 1],         ## Allow users to backspace over responses?
+    ["AllowSkip", 1],              ## Allow users to skip over cells?
+
+    ## Test progression parameters
+    ["version",1],                 ## 1=low-to-high; 2=high-to-low; 3=staircase
+    ["endearly",0],                ## End length when criterion met vs test all trials
+
+    ## Length and criterion parameters
+    ["upperbound", 9],             ## The longest list length
+    ["lowerbound", 3],             ## The shortest list length
+    ["perlength", 2],              ## The number of trials at each length
+    ["criterion", 1],              ## The number that must be correct to proceed
+    ["staircasestart", 4],         ## Starting point for staircase
+    ["staircasetrials", 16],       ## Number of staircase trials
+
+    ## Timing parameters
+    ["ISI", 1000],                 ## Inter-stimulus interval in ms
+    ["iti", 1500],                 ## Inter-trial interval in ms
+
+    ## Letter set for letter span tasks
+    ["letter_set", "CHKNPQRWXY"]   ## Easily distinguishable letters with audio support
+  ]
+
+  gParams <- CreateParameters(parpairs,gParamFile)
+
+  ## Setup input device
+  gInputDevice <- gParams.input
+  ShowCursor(1)
+
+  gUseAudio <- gParams.useaudio
+  gAllowBackspace <- gParams.allowbackspace
+  gAllowSkip      <- gParams.allowskip
+
+  ## Create data files
+  gFileOut <- GetNewDataFile(gSubNum,gWin,"spanvariants","csv",
+              "subnum,tasktype,direction,stimulus_type,trialnum,length,try,input,response,correct,resptime")
+  gReportFile <- GetNewDataFile(gSubNum,gWin,"spanvariants-report","txt","")
+  gPooledFile <- FileOpenAppend("data/pooled-spanvariants-" + gSubNum +".csv")
+
+  ## Build task list based on parameters
+  gTaskList <- []
+
+  if(gParams.forward_digit_order > 0)
+  {
+    gTaskList <- Append(gTaskList, [gParams.forward_digit_order, "forward", "digit"])
+  }
+  if(gParams.backward_digit_order > 0)
+  {
+    gTaskList <- Append(gTaskList, [gParams.backward_digit_order, "backward", "digit"])
+  }
+  if(gParams.forward_letter_order > 0)
+  {
+    gTaskList <- Append(gTaskList, [gParams.forward_letter_order, "forward", "letter"])
+  }
+  if(gParams.backward_letter_order > 0)
+  {
+    gTaskList <- Append(gTaskList, [gParams.backward_letter_order, "backward", "letter"])
+  }
+  if(gParams.forward_mixed_order > 0)
+  {
+    gTaskList <- Append(gTaskList, [gParams.forward_mixed_order, "forward", "mixed"])
+  }
+  if(gParams.backward_mixed_order > 0)
+  {
+    gTaskList <- Append(gTaskList, [gParams.backward_mixed_order, "backward", "mixed"])
+  }
+  if(gParams.digit_ordering_order > 0)
+  {
+    gTaskList <- Append(gTaskList, [gParams.digit_ordering_order, "ordering", "digit"])
+  }
+  if(gParams.letter_ordering_order > 0)
+  {
+    gTaskList <- Append(gTaskList, [gParams.letter_ordering_order, "ordering", "letter"])
+  }
+  if(gParams.mixed_ordering_order > 0)
+  {
+    gTaskList <- Append(gTaskList, [gParams.mixed_ordering_order, "ordering", "mixed"])
+  }
+
+  ## Sort tasks by their order values
+  gTaskList <- SortBy(gTaskList, First(Transpose(gTaskList)))
+
+  ## Load stimuli
+  gDigits <- FileReadList("Digits.txt")
+  gLetters <- SplitString(gParams.letter_set, "")
+
+  ## Load audio if enabled (modes 1 or 2)
+  gDigitSounds <- []
+  gLetterSounds <- []
+
+  if(gUseAudio > 0)
+  {
+    ## Load digit sounds (0-9)
+    loop(i, gDigits)
+    {
+      x <- LoadSound(i + ".ogg")
+      gDigitSounds <- Append(gDigitSounds, x)
+    }
+
+    ## Load letter sounds - all letters in letter_set
+    loop(letter, gLetters)
+    {
+      sound <- LoadSound(letter + ".ogg")
+      gLetterSounds <- Append(gLetterSounds, sound)
+    }
+
+    gReady <- LoadSound("ready.ogg")
+    gBeep  <- LoadSound("beep.ogg")
+    gCorrect <- LoadSound("correct.ogg")
+    gIncorrect <- LoadSound("incorrect.ogg")
+  }
+
+  ## Initialize results storage
+  gAllResults <- []
+
+  ## Run each task in sequence
+  loop(task, gTaskList)
+  {
+    taskOrder <- First(task)
+    taskDirection <- Nth(task, 2)
+    taskStimType <- Nth(task, 3)
+
+    result <- RunSpanTask(taskDirection, taskStimType)
+    gAllResults <- Append(gAllResults, result)
+  }
+
+  ## Close data files
+  FileClose(gFileOut)
+
+  ## Generate final report
+  report <- "PEBL Span Variants Test" + CR(1)
+  report <- report + "Participant: " + gSubNum + CR(1)
+  report <- report + Timestamp() + CR(2)
+
+  loop(result, gAllResults)
+  {
+    taskType <- First(result)
+    span <- Nth(result, 2)
+    correct <- Nth(result, 3)
+    report <- report + taskType + " span: " + span + " (total correct: " + correct + ")" + CR(1)
+  }
+
+  report <- report + CR(1) + "Total time: " + Round(GetTime()/1000/60,2) + " min"
+
+  FilePrint(gReportFile, report)
+
+  ## Show final feedback
+  feedback <- gStrings.debrief + CR(2) + report + CR(2) + gStrings.exit
+
+  SetText(gInstructions, feedback)
+  Show(gInstructions)
+  Draw()
+  WaitForIt()
+
+  ## Upload data files
+  Print("uploading data")
+  out <- UploadFile(gSubnum,gFileOut.filename)
+  Print(out)
+  out <- UploadFile(gSubnum,gReportFile.filename)
+  Print(out)
+  out <- UploadFile(gSubnum,gPooledFile.filename)
+  Print(out)
+
+  ShowCursor(1)
+}
+
+
+## Main function to run a single span task variant
+define RunSpanTask(direction, stimType)
+{
+  ## Get appropriate instructions
+  instKey <- Uppercase(direction + "_" + stimType + "_inst")
+  inst <- GetProperty(gStrings, instKey)
+
+  if(gAllowSkip)
+  {
+    inst <- inst + gStrings.instskip
+  } else {
+    inst <- inst + gStrings.instnoskip
+  }
+
+  if(gAllowBackspace)
+  {
+    inst <- inst + gStrings.instback
+  } else {
+    inst <- inst + gStrings.instnoback
+  }
+
+  ## Add version-specific instructions
+  if(gParams.version == 1) {
+    inst <- inst + gStrings.lth
+  } elseif(gParams.version == 2) {
+    inst <- inst + gStrings.htl
+  } else {
+    inst <- inst + gStrings.scs
+  }
+
+  SetText(gInstructions, inst)
+  Show(gInstructions)
+  Draw()
+  WaitForIt()
+  Hide(gInstructions)
+  Draw()
+
+  ## Set up stimuli for this task
+  if(stimType == "digit")
+  {
+    gStim <- gDigits
+  } elseif(stimType == "letter")
+  {
+    gStim <- gLetters
+  } else {  ## mixed
+    gStim <- Merge(gDigits, gLetters)
+  }
+
+  ## Determine starting length
+  if(gParams.version == 1) {
+    startLength <- gParams.lowerbound
+  } elseif(gParams.version == 2) {
+    startLength <- gParams.upperbound
+  } else {
+    startLength <- gParams.staircasestart
+  }
+
+  ## Run trials
+  trialnum <- 1
+  continue <- 1
+  currcorrect <- 0
+  try <- 0
+  length <- startLength
+  lengths <- []
+  sumCorrect <- 0
+
+  while(continue)
+  {
+    Wait(gParams.iti)
+
+    taskLabel <- direction + "_" + stimType
+    FilePrint_(gFileOut, gSubNum + "," + taskLabel + "," + direction + "," + stimType + "," + trialnum + "," + length + "," + try + ",")
+
+    if(direction == "ordering")
+    {
+      corr <- OrderingTrial(gStim, length, stimType)
+    } else {
+      corr <- SpanTrial(gStim, length, direction, stimType)
+    }
+
+    sumCorrect <- sumcorrect + corr
+
+    ## Update progression based on version
+    if(gParams.version == 1)
+    {
+      try <- try + 1
+      currcorrect <- currcorrect + corr
+
+      if(gParams.endearly)
+      {
+        if(currcorrect >= gParams.criterion)
+        {
+          length <- length + 1
+          currcorrect <- 0
+          try <- 0
+        } elseif(try >= gParams.perlength) {
+          continue <- 0
+        }
+      } else {
+        if(try >= gParams.perlength)
+        {
+          if(currcorrect >= gParams.criterion)
+          {
+            length <- length + 1
+            currcorrect <- 0
+            try <- 0
+          } else {
+            continue <- 0
+          }
+        }
+      }
+
+      if(length > gParams.upperbound)
+      {
+        continue <- 0
+      }
+
+    } elseif(gParams.version == 2) {
+
+      try <- try + 1
+      currcorrect <- currcorrect + corr
+
+      if(gParams.endearly) {
+        if(currcorrect >= gParams.criterion)
+        {
+          continue <- 0
+        } elseif(try >= gParams.perlength) {
+          length <- length - 1
+          currcorrect <- 0
+          try <- 0
+        }
+      } else {
+        if(try >= gParams.perlength) {
+          if(currcorrect == gParams.perlength)
+          {
+            continue <- 0
+          } else {
+            length <- length -1
+            currcorrect <- 0
+            try <- 0
+          }
+        }
+      }
+
+      if(length < gParams.lowerbound)
+      {
+        continue <- 0
+      }
+
+    } else {
+      ## Staircase
+      if(corr)
+      {
+        length <- Min([length + 1, gParams.upperbound])
+      } else {
+        length <- Max([gParams.lowerbound, length-1])
+      }
+      if(trialnum >= gParams.staircasetrials)
+      {
+        continue <- 0
+      }
+    }
+
+    if(trialnum > 4) {
+      lengths <- Append(lengths, length)
+    }
+
+    trialnum <- trialnum + 1
+  }
+
+  Hide(gHeader)
+  Draw()
+
+  ## Calculate final span
+  if(gParams.version == 1) {
+    finalSpan <- length - 1
+  } elseif(gParams.version == 2) {
+    finalSpan <- length + 1
+  } else {
+    finalSpan <- Mean(lengths)
+  }
+
+  ## Record to pooled file
+  FilePrint(gPooledFile, gSubNum + "," + TimeStamp() + "," + taskLabel + "," + finalSpan + "," + sumCorrect)
+
+  return([taskLabel, finalSpan, sumCorrect])
+}
+
+
+## Standard span trial (forward or backward)
+define SpanTrial(stimlist, length, direction, stimType)
+{
+  stimuli <- SampleN(stimlist, length)
+  string <- ListToString(stimuli)
+  dummy  <- Repeat("_", length)
+
+  gStimLabel.text <- gStrings.length + length
+  Show(gStimLabel)
+  Draw()
+
+  if(gUseAudio > 0)
+  {
+    PlayForeground(gReady)
+  }
+  Wait(800)
+  Hide(gStimLabel)
+  Draw()
+  Show(gStimLabel)
+  Wait(1000)
+
+  ## Present stimuli
+  loop(stim, stimuli)
+  {
+    FilePrint_(gFileOut, stim)
+
+    ## Mode 0: Video only
+    ## Mode 1: Audio + Video
+    ## Mode 2: Audio only
+    if(gUseAudio == 2)
+    {
+      ## Audio only - don't show text
+      gStimLabel.text <- ""
+    } else {
+      ## Video only or Audio+Video
+      gStimLabel.text <- stim
+    }
+    Draw()
+
+    ## Play audio if mode 1 or 2
+    if(gUseAudio > 0)
+    {
+      sound <- GetSoundForStim(stim, stimType)
+      if(not (sound == 0))
+      {
+        t1 <- GetTime()
+        PlayForeground(sound)
+        t2 <- GetTime()
+        Wait(gParams.isi - (t2 - t1))
+      } else {
+        ## No audio file available, just wait
+        Wait(gParams.isi)
+      }
+    } else {
+      Wait(gParams.isi)
+    }
+  }
+  FilePrint_(gFileOut, ",")
+
+  ## Get response
+  Hide(gStimLabel)
+  gStimLabel.text <- ListToString(dummy)
+  Draw()
+  if(gUseAudio > 0) {
+    PlayForeground(gBeep)
+  }
+
+  gHeader.text <- gStrings.header
+  Show(gHeader)
+  Show(gStimLabel)
+  Draw()
+
+  responseList <- []
+  position <- 1
+  time1 <- GetTime()
+
+  resptext <- GetTypedResponse(length, direction)
+  time2 <- GetTime()
+
+  ## Check correctness
+  if(ListToString(stimuli) == resptext)
+  {
+    corr <- 1
+  } else {
+    corr <- 0
+  }
+
+  FilePrint(gFileOut, resptext + "," + corr + "," + (time2-time1))
+
+  ## Show feedback
+  Wait(200)
+  gFeedback.text <- ListToString(stimuli)
+  Show(gFeedback)
+  Draw()
+  Wait(1500)
+
+  if(corr)
+  {
+    gFeedback.text <- gStrings.correct
+    if(gUseAudio > 0) {
+      PlayForeground(gCorrect)
+    }
+  } else {
+    gFeedback.text <- gStrings.incorrect
+    if(gUseAudio > 0) {
+      PlayForeground(gIncorrect)
+    }
+  }
+  Draw()
+  Wait(1500)
+
+  Hide(gFeedback)
+  Hide(gStimLabel)
+  Draw()
+
+  return(corr)
+}
+
+
+## Ordering trial - show scrambled items, user types them in order
+define OrderingTrial(stimlist, length, stimType)
+{
+  stimuli <- SampleN(stimlist, length)
+
+  ## Determine correct sorted order
+  if(stimType == "mixed")
+  {
+    ## For mixed: digits first (numerically sorted), then letters (alphabetically sorted)
+    digits <- []
+    letters <- []
+    loop(item, stimuli)
+    {
+      if(IsMember(item, gDigits))
+      {
+        digits <- Append(digits, item)
+      } else {
+        letters <- Append(letters, item)
+      }
+    }
+    correctOrder <- Merge(Sort(digits), Sort(letters))
+  } else {
+    correctOrder <- Sort(stimuli)
+  }
+
+  ## Shuffle until we get an order different from the correct answer
+  scrambled <- Shuffle(stimuli)
+  while(ListToString(scrambled) == ListToString(correctOrder))
+  {
+    scrambled <- Shuffle(stimuli)
+  }
+
+  dummy <- Repeat("_", length)
+
+  gStimLabel.text <- gStrings.ordering_length + length
+  Show(gStimLabel)
+  Draw()
+
+  if(gUseAudio > 0)
+  {
+    PlayForeground(gReady)
+  }
+  Wait(800)
+  Hide(gStimLabel)
+  Draw()
+  Show(gStimLabel)
+  Wait(1000)
+
+  ## Present scrambled stimuli one at a time (like span tasks)
+  loop(stim, scrambled)
+  {
+    FilePrint_(gFileOut, stim)
+
+    ## Mode 0: Video only
+    ## Mode 1: Audio + Video
+    ## Mode 2: Audio only
+    if(gUseAudio == 2)
+    {
+      ## Audio only - don't show text
+      gStimLabel.text <- ""
+    } else {
+      ## Video only or Audio+Video
+      gStimLabel.text <- stim
+    }
+    Draw()
+
+    ## Play audio if mode 1 or 2
+    if(gUseAudio > 0)
+    {
+      sound <- GetSoundForStim(stim, stimType)
+      if(not (sound == 0))
+      {
+        t1 <- GetTime()
+        PlayForeground(sound)
+        t2 <- GetTime()
+        Wait(gParams.isi - (t2 - t1))
+      } else {
+        ## No audio file available, just wait
+        Wait(gParams.isi)
+      }
+    } else {
+      Wait(gParams.isi)
+    }
+  }
+  FilePrint_(gFileOut, ",")
+
+  ## Get response
+  Hide(gStimLabel)
+  gStimLabel.text <- ListToString(dummy)
+  Draw()
+
+  gHeader.text <- gStrings.ordering_header
+  Show(gHeader)
+  Show(gStimLabel)
+  Draw()
+
+  time1 <- GetTime()
+  resptext <- GetTypedResponse(length, "forward")
+  time2 <- GetTime()
+
+  ## Check correctness
+  if(ListToString(correctOrder) == resptext)
+  {
+    corr <- 1
+  } else {
+    corr <- 0
+  }
+
+  FilePrint(gFileOut, resptext + "," + corr + "," + (time2-time1))
+
+  ## Show feedback
+  Wait(200)
+  gFeedback.text <- ListToString(correctOrder)
+  Show(gFeedback)
+  Draw()
+  Wait(1500)
+
+  if(corr)
+  {
+    gFeedback.text <- gStrings.correct
+  } else {
+    gFeedback.text <- gStrings.incorrect
+  }
+  Draw()
+  Wait(1500)
+
+  Hide(gFeedback)
+  Hide(gStimLabel)
+  Draw()
+
+  return(corr)
+}
+
+
+## Get typed response (reusable for both span and ordering tasks)
+define GetTypedResponse(length, direction)
+{
+  responseList <- []
+  position <- 1
+  resp <- ""
+
+  ## Set up valid responses based on input device
+  if(gInputDevice == "keyboard")
+  {
+    responses <- ["1","2","3","4","5","6","7","8","9","0","<return>","<kp_1>","<kp_2>","<kp_3>","<kp_4>","<kp_5>","<kp_6>",
+                  "<kp_7>","<kp_8>","<kp_9>","<kp_0>","<kp_enter>"]
+    ## Add letters for letter span tasks
+    responses <- Merge(responses, ["A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z"])
+
+  } elseif(gInputDevice == "keypad")
+  {
+    responses <- ["<kp_1>","<kp_2>","<kp_3>","<kp_4>","<kp_5>","<kp_6>",
+                  "<kp_7>","<kp_8>","<kp_9>","<kp_0>","<kp_enter>","<return>"]
+    responses <- Merge(responses, ["A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z"])
+  }
+
+  if(gInputDevice == "keyboard")
+  {
+    if(gAllowBackspace)
+    {
+      responses <- Append(responses, "<backspace>")
+    }
+    if(gAllowSkip)
+    {
+      responses <- Append(responses, "-")
+    }
+  }
+
+  while(not (resp == "<return>" or resp == "<kp_enter>"))
+  {
+    if(gInputDevice == "keyboard" or gInputDevice == "keypad")
+    {
+      resp <- WaitForListKeyPress(responses)
+
+    } elseif(gInputDevice == "mouse")
+    {
+      ## Mouse support not yet implemented for letters
+      resp <- "<return>"
+    }
+
+    if(resp == "<backspace>")
+    {
+      if(Length(responseList) == 1)
+      {
+        responseList <- []
+        position <- 1
+      } else {
+        if(direction == "forward")
+        {
+          responseList <- SubList(responseList, 1, Length(responseList)-1)
+          position <- position - 1
+        } else {
+          responseList <- SubList(responseList, 2, Length(responseList))
+          position <- position - 1
+        }
+      }
+
+    } elseif(resp == "<return>" or resp == "<kp_enter>") {
+      ## Done entering
+      33
+    } else {
+      if(position <= length)
+      {
+        position <- position + 1
+        ## Uppercase letters for consistent comparison
+        uppercaseResp <- Uppercase(resp)
+        if(direction == "forward")
+        {
+          responseList <- Append(responseList, uppercaseResp)
+        } else {
+          responseList <- Merge([uppercaseResp], responseList)
+        }
+      }
+    }
+
+    if(direction == "forward")
+    {
+      resptext <- ListToString(Merge(responseList, Repeat("_", (length - position + 1))))
+    } else {
+      resptext <- ListToString(Merge(Repeat("_", (length - position + 1)), responseList))
+    }
+
+    gStimLabel.text <- resptext
+    Draw()
+  }
+
+  return(resptext)
+}
+
+
+##  Standard initializer function
+define Initialize()
+{
+  gWin <- MakeWindow("black")
+
+  if(gSubNum == 0)
+  {
+    gSubNum <- GetSubNum(gWin)
+  }
+
+  GetStrings(gLanguage)
+
+  bg <- MakeColor("black")
+  bg1 <- MakeColor("grey20")
+  fg <- MakeColor("white")
+  bg2 <- MakeColor("grey20")
+
+  colGreen <- MakeColor("green")
+  colRed   <- MakeColor("red")
+
+  gStimFont         <- MakeFont(gPEBLBaseFontMono, 0, 56, fg, bg, 1)
+  gInstructionsFont <- MakeFont(gPEBLBaseFont, 0, 18, fg, bg2, 1)
+  gHeaderFont       <- MakeFont(gPEBLBaseFont, 0, 24, fg, bg, 1)
+
+  gInstructions <- MakeTextBox("", gInstructionsFont, 800, 500)
+  AddObject(gInstructions, gWin)
+  Move(gInstructions, gVideoWidth/2-400, gVideoHeight/2-250)
+  Hide(gInstructions)
+
+  gHeader <- MakeTextBox("", gHeaderFont, 600, 200)
+  AddObject(gHeader, gWin)
+  Move(gHeader, gVideoWidth/2-300, 50)
+  Hide(gHeader)
+
+  gStimLabel <- MakeLabel("", gStimFont)
+  AddObject(gStimLabel, gWin)
+  Move(gStimLabel, gVideoWidth/2, gVideoHeight/2)
+  Hide(gStimLabel)
+
+  gFeedback <- MakeLabel("", gStimFont)
+  AddObject(gFeedback, gWin)
+  Move(gFeedback, gVideoWidth/2, gVideoHeight/2+70)
+  Hide(gFeedback)
+}
+
+
+define WaitForIt()
+{
+  if(gInputDevice == "keyboard" or gInputDevice == "keypad")
+  {
+    WaitForAnyKeyPress()
+  } elseif(gInputDevice == "mouse")
+  {
+    WaitForDownClick()
+  }
+}
+
+
+define GetStrings(lang)
+{
+  gStrings <- GetTranslations("spanvariants", lang)
+  PrintProperties(gStrings)
+}
+
+
+## Get the sound object for a given stimulus
+define GetSoundForStim(stim, stimType)
+{
+  sound <- 0
+
+  if(stimType == "digit")
+  {
+    idx <- Match([stim], gDigits)
+    if(Length(idx) > 0 and Length(gDigitSounds) > 0)
+    {
+      pos <- First(idx)
+      if(pos > 0 and pos <= Length(gDigitSounds))
+      {
+        sound <- Nth(gDigitSounds, pos)
+      }
+    }
+  } elseif(stimType == "letter") {
+    idx <- Match([stim], gLetters)
+    if(Length(idx) > 0 and Length(gLetterSounds) > 0)
+    {
+      pos <- First(idx)
+      if(pos > 0 and pos <= Length(gLetterSounds))
+      {
+        sound <- Nth(gLetterSounds, pos)
+      }
+    }
+  } else {
+    ## Mixed - check if digit or letter
+    if(IsMember(stim, gDigits))
+    {
+      idx <- Match([stim], gDigits)
+      if(Length(idx) > 0 and Length(gDigitSounds) > 0)
+      {
+        pos <- First(idx)
+        if(pos > 0 and pos <= Length(gDigitSounds))
+        {
+          sound <- Nth(gDigitSounds, pos)
+        }
+      }
+    } else {
+      idx <- Match([stim], gLetters)
+      if(Length(idx) > 0 and Length(gLetterSounds) > 0)
+      {
+        pos <- First(idx)
+        if(pos > 0 and pos <= Length(gLetterSounds))
+        {
+          sound <- Nth(gLetterSounds, pos)
+        }
+      }
+    }
+  }
+
+  return(sound)
+}

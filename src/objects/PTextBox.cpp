@@ -56,7 +56,12 @@ PTextBox::PTextBox():
     InitializeProperty("NAME",Variant("<TEXTBOX>"));
     InitializeProperty("LINEWRAP",Variant(1));
     InitializeProperty("LINEHEIGHT",Variant(0));
+    InitializeProperty("NUMTEXTLINES",Variant(0));
+    InitializeProperty("TEXTCOMPLETE",Variant(0));
     InitializeProperty("JUSTIFY",Variant("LEFT"));
+    InitializeProperty("ISADAPTIVE",Variant(false));
+    InitializeProperty("ADAPTIVEMODE",Variant("scalefont"));
+    InitializeProperty("REQUESTEDFONTSIZE",Variant(0));
 }
 
 
@@ -77,22 +82,33 @@ PTextBox::PTextBox(std::string text, int width, int height):
     InitializeProperty("NAME",Variant("<TEXTBOX>"));
     InitializeProperty("LINEWRAP",Variant(1));
     InitializeProperty("LINEHEIGHT",Variant(0));
+    InitializeProperty("NUMTEXTLINES",Variant(0));
+    InitializeProperty("TEXTCOMPLETE",Variant(0));
     InitializeProperty("JUSTIFY",Variant("LEFT"));
+    InitializeProperty("ISADAPTIVE",Variant(false));
+    InitializeProperty("ADAPTIVEMODE",Variant("scalefont"));
+    InitializeProperty("REQUESTEDFONTSIZE",Variant(0));
 }
 
 
-PTextBox::PTextBox( PTextBox & text)
-
+PTextBox::PTextBox( PTextBox & text):
+    PTextObject(text.GetText()),
+    mEditable(false),
+    mCursorPos(0),
+    mCursorChanged(true),
+    mLineWrap(true),
+    mJustify(1)
 {
-    mTextChanged = true;
-    mText = text.GetText();
-    mEditable = false;
-    mCursorPos = 0;
-    mLineWrap = true;
+    mChanged = true;
     InitializeProperty("NAME",Variant("<TEXTBOX>"));
     InitializeProperty("LINEWRAP",Variant(1));
     InitializeProperty("LINEHEIGHT",Variant(0));
+    InitializeProperty("NUMTEXTLINES",Variant(0));
+    InitializeProperty("TEXTCOMPLETE",Variant(0));
     InitializeProperty("JUSTIFY",Variant("LEFT"));
+    InitializeProperty("ISADAPTIVE",Variant(false));
+    InitializeProperty("ADAPTIVEMODE",Variant("scalefont"));
+    InitializeProperty("REQUESTEDFONTSIZE",Variant(0));
 }
 
 PTextBox::~PTextBox()
@@ -114,11 +130,18 @@ bool PTextBox::SetProperty(std::string name, Variant v)
     else if(name == "TEXT"){
         SetText(v.GetString());
         mCursorChanged=true;
-        mTextChanged=true;}
+        mChanged=true;}
     else if(name == "EDITABLE")SetEditable(v);
     else if(name == "CURSORPOS") SetCursorPosition(v);
     else if(name == "LINEWRAP") SetLineWrap(v);
     else if(name == "JUSTIFY") SetJustify(v);
+    else if(name == "ISADAPTIVE" || name == "ADAPTIVEMODE" || name == "REQUESTEDFONTSIZE") {
+        // These properties are stored only in the property system
+        // Adaptive scaling is handled in PEBL code (UI.pbl)
+        // Store the property value and mark as changed
+        PEBLObjectBase::SetProperty(name, v);
+        mChanged = true;
+    }
     else return false;
     return true;
 }
@@ -148,7 +171,7 @@ ObjectValidationError PTextBox::ValidateProperty(std::string name, Variant v)con
 
 ObjectValidationError PTextBox::ValidateProperty(std::string name)const
 {
-    if(name == "CURSORPOS"| name=="LINEWRAP"| name == "JUSTIFY")
+    if(name == "CURSORPOS"| name=="LINEWRAP"| name == "JUSTIFY" | name == "NUMTEXTLINES" | name == "TEXTCOMPLETE" | name == "ISADAPTIVE" | name == "ADAPTIVEMODE" | name == "REQUESTEDFONTSIZE")
         return OVE_VALID;
     else
         return PTextObject::ValidateProperty(name);
@@ -169,7 +192,7 @@ void PTextBox::InsertText(const std::string text)
     mText.insert(mCursorPos, text);
     mCursorPos += text.length();
 
-    mTextChanged= true;
+    mChanged= true;
     mCursorChanged = true;
     SetProperty("TEXT",mText);
 
@@ -210,7 +233,7 @@ void PTextBox::DeleteText(int length)
             if(bytecount+mCursorPos<mText.length())
                 {    
                     mText.erase(mCursorPos, bytecount-1);
-                    mTextChanged= true;
+                    mChanged= true;
                 }
         }
     else if (length < 0)
@@ -248,7 +271,7 @@ void PTextBox::DeleteText(int length)
                 {
 
                     mText.erase(0,mCursorPos);
-                    mTextChanged= true;
+                    mChanged= true;
                     mCursorPos = 0;
 
                 }
@@ -256,7 +279,7 @@ void PTextBox::DeleteText(int length)
                 {
 
                     mText.erase(mCursorPos-bytecount, bytecount);
-                    mTextChanged= true;
+                    mChanged= true;
                     mCursorPos -= bytecount;
 
                 }
@@ -340,13 +363,13 @@ long unsigned int PTextBox::DecrementCursor()
 void PTextBox::SetHeight(int h)
 {
     mHeight = h;
-    mTextChanged = true;
+    mChanged = true;
 }
 
 void PTextBox::SetWidth(int w)
 {
     mWidth = w;
-    mTextChanged = true;
+    mChanged = true;
 }
 
 
@@ -360,7 +383,7 @@ void PTextBox::SetJustify(Variant j)
 {
 
     mJustify =j;
-    mTextChanged = true;
+    mChanged = true;
 }
 
 

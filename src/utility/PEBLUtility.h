@@ -77,6 +77,10 @@ namespace PEBLUtility
     //    std::string TranslateKeyCode(const PEBLKey key, int modkeys);
     std::string TranslateKeycode(const PEBL_Keycode key, int modkeys);
 
+    // Pre-initialize keycode lookup tables to avoid lazy-init delay on first keypress
+    // Call this during environment initialization to prevent timing measurement artifacts
+    void InitializeKeycodeLookups();
+
 
     /// These functions are used frequently enough that it is good to have
     /// our own definition.
@@ -136,15 +140,13 @@ namespace PEBLUtility
     // fontType: 0=sans-serif, 1=monospace, 2=serif
     std::string GetFontForLanguageOrScript(const std::string & code, int fontType);
 
-    // System locale detection
-    // Returns the user's preferred locale from OS settings (e.g., "ar", "en_US", "zh_CN", "he_IL")
-    // Uses SDL_GetPreferredLocales() to query OS locale preferences
-    // Returns empty string if detection fails
-    std::string GetSystemLocale();
+    // Property chain resolution for nested property access (e.g., obj.prop1.prop2)
+    // Recursively traverses the property chain and returns the final value
+    Variant ResolvePropertyChain(Variant obj, const std::string& propertyChain);
 
-    // Returns true if the system locale is RTL (Arabic, Hebrew)
-    // Useful for setting default text box justification before any input
-    bool IsSystemLocaleRTL();
+    // Property chain assignment for nested property access (e.g., obj.prop1.prop2 <- value)
+    // Recursively traverses to the parent object and sets the final property
+    void SetPropertyChain(Variant obj, const std::string& propertyChain, Variant value);
 
 
 }

@@ -1,0 +1,65 @@
+#!/usr/bin/env python
+
+import CedrusSConsDefaultEnvironments
+import CedrusSConsHelperFunctions
+
+import os
+import sys
+import SCons
+
+SCons.Script.AddOption(
+    '--make-pyxid',
+    dest='pyxid_flag',
+    action='store_true',
+    metavar='TRUTH',
+    help='build library with py bindings to make it callable by pyxid')
+
+env_settings = {'MSVC_VERSION': '14.0'}
+env = CedrusSConsDefaultEnvironments.PerformCedrusSConsGlobalGeneralStartup(env_settings)
+
+env.SetDefault(PYXID_FLAG = GetOption('pyxid_flag'))
+
+env['CURRENT_CEDRUS_REPO_ROOT'] = sys.path[0] + os.path.sep + '..' + os.path.sep
+print 'Setting repo root to: ' + env[ 'CURRENT_CEDRUS_REPO_ROOT' ]
+env.Repository( env[ 'CURRENT_CEDRUS_REPO_ROOT' ] )
+
+env['WX_VERSION'] = 'NONE'
+
+projects = [
+    'SConscript.xid_device_library',
+    #'SConscript.TestXidLib', # this is commented out for the general public. the SConscript can be enabled at Cedrus.
+]
+
+env.Replace(
+    CEDRUS_LISTING_OF_BUILD_SCONSCRIPTS = projects,
+    TARGET_ARCH='x86'
+)
+
+if GetOption('build_mode') == 'opt':
+    env.AppendUnique( CPPDEFINES = [ 'CEDRUS_DISABLE_ASSERT' ] )
+
+def BuildEnvironmentSConscripts(masterConfig):
+
+    for c in masterConfig['CEDRUS_LISTING_OF_BUILD_SCONSCRIPTS']:
+        # Clone the environment so components can't interfere with each other
+        ec = masterConfig.Clone()
+
+        # The component is a SConscript file.
+        c_script = ec.File(c)
+        c_dir = c_script.dir # c_dir is important for the scripts in COMMON (not here side-by-side in our scons dir)
+
+        variant_dir_string = '$OBJ_ROOT/' + str(c_dir)
+
+        if sys.platform == 'win32' and str(c_dir) != '.':
+            variant_dir_string = '$OBJ_ROOT' + os.path.sep + str(c_script.name).replace('SConscript.','') + os.path.sep
+
+        ec.SConscript(c_script,
+                      variant_dir=variant_dir_string,
+                      exports={'env': ec},   # this is why each SConscript has a line like: Import('env')
+                      duplicate=0 # Sometimes I find it helpful to COMMENT THIS OUT for diagnosing scons issues
+                      )
+
+env = CedrusSConsDefaultEnvironments.GetDefaultSetupForCurrentSystemAndCommandLine( env )
+
+print 'Name of selected build environment: ' + str(env['BUILD_TYPE_DESCRIPTION'])
+BuildEnvironmentSConscripts(env)

@@ -59,6 +59,18 @@
 #include "../utility/PEBLUtility.h"
 #include "../utility/Defs.h"
 
+#ifdef PEBL_VALIDATOR
+#include "../platforms/validator/PlatformEnvironment.h"
+#include "../platforms/validator/PlatformWindow.h"
+#include "../platforms/validator/PlatformImageBox.h"
+#include "../platforms/validator/PlatformDrawObject.h"
+#include "../platforms/validator/PlatformLabel.h"
+#include "../platforms/validator/PlatformFont.h"
+#include "../platforms/validator/PlatformEventQueue.h"
+#include "../platforms/validator/PlatformTextBox.h"
+#include "../platforms/validator/PlatformCanvas.h"
+#include "../platforms/validator/PlatformAudioOut.h"
+#else
 #include "../platforms/sdl/PlatformEnvironment.h"
 #include "../platforms/sdl/PlatformWindow.h"
 #include "../platforms/sdl/PlatformImageBox.h"
@@ -72,6 +84,7 @@
 
 #ifdef PEBL_MOVIES
 #include "../platforms/sdl/PlatformMovie.h"
+#endif
 #endif
 
 
@@ -480,19 +493,9 @@ Variant PEBLObjects::MakeFont(Variant v)
     PlatformFont * tmpFont = new PlatformFont(name, style, size, fgcolor, bgcolor, aa);
     counted_ptr<PEBLObjectBase> myFont = counted_ptr<PEBLObjectBase>(tmpFont);
 
-    PComplexData *  pcd = new PComplexData(myFont);
-    Variant tmp = Variant(pcd);
-
-    //delete pcd;  //without deleting here, fonts will leak memory
-    pcd=NULL;    //But deleting causes a segfault I haven't figured out.
-    //that appears to be due to an SDL issue.  Loading font file using RWOps
-    //helps increase the number of fonts we can have, but there is
-    // still a memory leak; fonts cannot get destroyed in SDL 1.2
-
-    //delete pcd;  //without deleting here, fonts will leak memory
-    //pcd=NULL;    //But deleting causes a segfault I haven't figured out.
-    //NOTE: the crash happens when the font object is being destroyed,
-    return tmp;
+    // Directly pass new PComplexData to Variant constructor - it takes ownership
+    // This avoids double allocation and memory leak
+    return Variant(new PComplexData(myFont));
 
 }
 
@@ -1378,7 +1381,7 @@ Variant PEBLObjects::RecordToBuffer(Variant v)
     std::cout << "Recording started...\n";
 
     // Wait for the specified/calculated duration
-    SDL_Delay(durationMs);
+    PEBLEnvironment::myTimer.Sleep(durationMs);
 
     // Pause recording (device remains open until myAudio is deleted)
     myAudio->PauseAudioMonitor();

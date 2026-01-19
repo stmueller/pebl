@@ -7,24 +7,30 @@
 ## which uses the rendered characters in a specified font to create the
 ## global/local font image.
 
+## The last two blocks use 'scatter' adjusting the horizontal location randomly,
+## which disrupts processing ala McKone et al.,
+##
+
 
 define Start(p)
 {
 
   parpairs <- [["testtype","mckone"],  ##dense, sparse, or mckone.
-  	       ["fontsize",25],
+  	       ["fontsize",35],
 	       ["globalheight",350],
-	       ["reps",	10],
+	       ["reps",	15],
 	       ["stim1","H"],
 	       ["stim2","S"],
 	       ["stimdummy","█"],#▓█▄
 	       ["giveErrorfeedback",1],
 	       ["doscatterconditions",1],
 	       ["scatterwidth",600],
-	       ["scatterheight",0]
+	       ["scatterheight",0],
+	       ["responsemode","auto"]
                ]
 
   gParams <- CreateParameters(parpairs,gParamFile)
+  gParams.responsesemantics <- "2afc"
 
   ##these were parameters to the global image creating function,
   ##but don't matter anymore because the image is hardcoded.
@@ -40,8 +46,8 @@ define Start(p)
    ## are very sparse.
 
   mcH <- ReadPoints("stim/mckoneH.csv")
-  mcS <- ReadPoints("stim/mkconeS.csv")
-  mcDummy <-ReadPoints("stim/mkconeblock.csv")
+  mcS <- ReadPoints("stim/mckoneS.csv")
+  mcDummy <-ReadPoints("stim/mckoneblock.csv")
 
 
 ##these are dense versions of the stimuli, as used
@@ -128,6 +134,19 @@ if(gParams.testtype== "dense")
 
    GetStrings(gLanguage)
 
+   ## Set response labels BEFORE CreateLayout so Layout system handles them
+   gParams.responselabels <- [gParams.stim1, gParams.stim2]
+
+   ## Create Layout system
+   gLayout <- CreateLayout("globallocal", gWin, gParams)
+   gLayout.header.visible <- 0
+   gLayout.subheader.visible <- 1
+   gLayout.subheader.y <-   gLayout.subheader.y +50
+
+   ## Create dedicated feedback label with readable size (independent of stimulus size)
+   gFeedbackLabel <- EasyLabel("", gLayout.centerX, gLayout.centerY, gWin, 28)
+   Hide(gFeedbackLabel)
+
    MakeDirectory("data")
    gFileOut <- GetNewDataFile(gSubNum,gWin,"globallocal","csv",
    "subnum,block,trial,correctresp,localstim,globalstim,consistency,correctLocal,correctGlobal,positionX,positionY,response,correct,time1,rt")
@@ -152,7 +171,7 @@ if(gParams.testtype== "dense")
 
 
      stimulus <-  MakeNavonFromPoints(points,
-                Second(i), "DejaVuSansMono.ttf",gParams.fontsize,scale)
+                Second(i), gPEBLBaseFontMono,gParams.fontsize,scale)
 
 
 
@@ -185,7 +204,7 @@ loop(i,localpairs)
     points <- Nth(stimPoints,Lookup(First(i),[gParams.stim1,gParams.stim2,gparams.stimdummy],[1,2,3]))
 
     stimulus <-  MakeNavonFromPoints(points,
-                Second(i), "DejaVuSansMono.ttf",gParams.fontsize, scale)
+                Second(i), gPEBLBaseFontMono,gParams.fontsize, scale)
 
 
      PushOnEnd(stimcacheL,stimulus)
@@ -219,19 +238,50 @@ loop(i,localpairs)
 
    lab.text <- ""
 
+   ## Show initial instruction screen with sample stimuli
+
+   message <- AdaptiveTextBox(gInst + " " + gStrings.continue,100,25,gWin,22,gVideoWidth-200,150)
+
+   ## Show example stimuli: single letter, local block, global outline
+
+
+   exStim1 <- EasyLabel(gParams.stim1, gLayout.centerX, gLayout.centerY, gWin, gParams.fontsize)
+   
+   exStim2 <- Nth(stimCacheL, 1)  ## Local block example
+   AddObject(exStim2, gWin)
+   Move(exStim2, gLayout.centerX-300, gLayout.centerY)
+   Show(exStim2)
+   
+   exStim3 <- Nth(stimCacheG, 4)  ## Global outline example
+   AddObject(exStim3, gWin)
+   Move(exStim3, gLayout.centerX+300, gLayout.centerY)
+   Show(exStim3)
+
+   Draw()
+   WaitForLayoutResponse(gLayout, 0)
+
+   ## Clean up example stimuli
+   Hide(exStim1)
+   Hide(exStim2)
+   Hide(exStim3)
+   Hide(message)
+   RemoveObject(exStim2, gWin)
+   RemoveObject(exStim3, gWin)
+   Draw()
+
     block <- 1
     ##Block 1: single letters.
 
 
-    message <- EasyTextBox(gInst1,100,25,gWin,15,gVideoWidth-200,120)
-    footer1 <- EasyLabel(gParams.stim1 + "                               "+gParams.stim2,gVideoWidth/2,gVideoHeight-150,gWin,20)
-    footer2 <- EasyLabel(gStrings.respfooter,gVideoWidth/2,gVideoHeight-130,gWin,20)
-    footer3 <- EasyLabel(gStrings.footer1,gVideoWidth/2,gVideoHeight-110,gWin,25)
+
+    message.text <- gInst1 + " " + gStrings.continue
+    Show(message)
+    gLayout.subheader.text <- gStrings.footer1
     Draw()
-    WaitForKeyPress(" ")
+    WaitForLayoutResponse(gLayout, 0)
 
 
-    stimlabel <- EasyLabel("",gVideoWidth/2,gVideoHeight/2,gWin,gParams.fontsize)
+    stimlabel <- EasyLabel("",gLayout.centerX,gLayout.centerY,gWin,gParams.fontsize)
 
     trials <- Shuffle(RepeatList([gParams.stim1,gParams.stim2],gParams.reps))
 
@@ -250,10 +300,10 @@ loop(i,localpairs)
       Draw()
       time1 <- GetTime()
 
-      resp <- WaitForListKeyPress(["<lshift>","<rshift>"])
+      resp <- WaitForLayoutResponse(gLayout, 0)
       time2 <- GetTime()
 
-      if(Uppercase(resp)=="<LSHIFT>")
+      if(resp=="left")
          {
 
            corr <- i==gParams.stim1
@@ -283,20 +333,20 @@ loop(i,localpairs)
       PushOnEnd(gDataRT,(time2-time1))
       PushOnEnd(gDataAcc,corr)
 
-
+      Hide(stimlabel)
       if(gParams.giveErrorFeedback)
        {
             if(not corr)
             {
-             stimlabel.text <- gStrings.incorrect
+             gFeedbackLabel.text <- gStrings.incorrect
 	     } else {
-             stimlabel.text <- gStrings.correct
+             gFeedbackLabel.text <- gStrings.correct
              }
 
-	     Show(stimlabel)
+	     Show(gFeedbackLabel)
 	     Draw()
 	     Wait(250)
-	     Hide(stimlabel)
+	     Hide(gFeedbackLabel)
 
        }
 
@@ -309,29 +359,28 @@ loop(i,localpairs)
 
     block <- 2
     ##Block 2: Letter blocks
-    inst2 <-gInst2
 
-      footer3.text <- gStrings.footer2
+      gLayout.subheader.text <- gStrings.footer2
       tmp1 <- Nth(stimCacheL,5)
       AddObject(tmp1,gWin)
-      Move(tmp1,gVideoWidth/2-200,gVideoHeight/2)
+      Move(tmp1,gLayout.centerX-200,gLayout.centerY)
       Show(tmp1)
       tmp2 <- Nth(stimCacheL,6)
       AddObject(tmp2,gWin)
-      Move(tmp2,gVideoWidth/2+200,gVideoHeight/2)
+      Move(tmp2,gLayout.centerX+200,gLayout.centerY)
       Show(tmp2)
 
-      message.text <- inst2
+      message.text <- gInst2 + " " + gStrings.continue
       AddObject(message,gWin)#add to bring to top.
       Show(message)
       Draw()
-      WaitForKeyPress(" ")
+      WaitForLayoutResponse(gLayout, 0)
 
       Hide(message)
       Hide(tmp1)
       Hide(tmp2)
-      Move(tmp1,gVideoWidth/2,gVideoHeight/2)
-      Move(tmp2,gVideoWidth/2,gVideoHeight/2)
+      Move(tmp1,gLayout.centerX,gLayout.centerY)
+      Move(tmp2,gLayout.centerX,gLayout.centerY)
       Draw()
 
 
@@ -347,13 +396,13 @@ loop(i,localpairs)
           Draw()
           time1 <- GetTime()
 
-          resp <- WaitForListKeyPress(["<lshift>","<rshift>"])
+          resp <- WaitForLayoutResponse(gLayout, 0)
           time2 <- GetTime()
 
 
 
 
-      if(Uppercase(resp)=="<LSHIFT>")
+      if(resp=="left")
            {
             corr <- i==1
            }else {
@@ -386,15 +435,15 @@ loop(i,localpairs)
        {
             if(not corr)
             {
-             stimlabel.text <- gStrings.incorrect
+             gFeedbackLabel.text <- gStrings.incorrect
 	     } else {
-             stimlabel.text <- gStrings.correct
+             gFeedbackLabel.text <- gStrings.correct
              }
 
-	     Show(stimlabel)
+	     Show(gFeedbackLabel)
 	     Draw()
 	     Wait(250)
-	     Hide(stimlabel)
+	     Hide(gFeedbackLabel)
 
        }
 
@@ -411,30 +460,29 @@ loop(i,localpairs)
 
     block <- 3
     ##Block 3: global pure letters
-    inst3 <- gInst3
 
-     footer3.text <- gStrings.footer3
+     gLayout.subheader.text <- gStrings.footer3
       tmp1 <- Nth(stimCacheG,3)
       AddObject(tmp1,gWin)
-      Move(tmp1,gVideoWidth/2-200,gVideoHeight/2)
+      Move(tmp1,gLayout.centerX-200,gLayout.centerY)
       Show(tmp1)
       tmp2 <- Nth(stimCacheG,6)
       AddObject(tmp2,gWin)
-      Move(tmp2,gVideoWidth/2+200,gVideoHeight/2)
+      Move(tmp2,gLayout.centerX+200,gLayout.centerY)
       Show(tmp2)
 
 
-      message.text <- inst3
+      message.text <- gInst3 + " " + gStrings.continue
       AddObject(message,gWin)##re-add to make it on top.
       Show(message)
       Draw()
-      WaitForKeyPress(" ")
+      WaitForLayoutResponse(gLayout, 0)
 
       Hide(message)
       Hide(tmp1)
       Hide(tmp2)
-      Move(tmp1,gVideoWidth/2,gVideoHeight/2)
-      Move(tmp2,gVideoWidth/2,gVideoHeight/2)
+      Move(tmp1,gLayout.centerX,gLayout.centerY)
+      Move(tmp2,gLayout.centerX,gLayout.centerY)
       Draw()
 
 
@@ -450,9 +498,9 @@ loop(i,localpairs)
           Draw()
           time1 <- GetTime()
 
-          resp <- WaitForListKeyPress(["<lshift>","<rshift>"])
+          resp <- WaitForLayoutResponse(gLayout, 0)
           time2 <- GetTime()
-          if(Uppercase(resp)=="<LSHIFT>")
+          if(resp=="left")
            {
             corr <- i==1
            }else {
@@ -483,15 +531,15 @@ loop(i,localpairs)
        {
             if(not corr)
             {
-             stimlabel.text <- gStrings.INCORRECT
+             gFeedbackLabel.text <- gStrings.incorrect
 	     } else {
-             stimlabel.text <- gStrings.correct
+             gFeedbackLabel.text <- gStrings.correct
              }
 
-	     Show(stimlabel)
+	     Show(gFeedbackLabel)
 	     Draw()
 	     Wait(250)
-	     Hide(stimlabel)
+	     Hide(gFeedbackLabel)
 
        }
 
@@ -509,29 +557,29 @@ loop(i,localpairs)
 
     block <- 4
     ##Block 4: local mixed letters
-    footer3.text <- gStrings.footer4
+    gLayout.subheader.text <- gStrings.footer4
 
 
       tmp1 <- Nth(stimCacheL,1)
       AddObject(tmp1,gWin)
-      Move(tmp1,gVideoWidth/2-300,gVideoHeight/2)
+      Move(tmp1,gLayout.centerX-300,gLayout.centerY)
       Show(tmp1)
 
       tmp2 <- Nth(stimCacheL,4)
       AddObject(tmp2,gWin)
-      Move(tmp2,gVideoWidth/2,gVideoHeight/2)
+      Move(tmp2,gLayout.centerX,gLayout.centerY)
       Show(tmp2)
 
       tmp3 <- Nth(stimCacheL,6)
       AddObject(tmp3,gWin)
-      Move(tmp3,gVideoWidth/2+300,gVideoHeight/2)
+      Move(tmp3,gLayout.centerX+300,gLayout.centerY)
       Show(tmp3)
 
-      message.text <- ginst4
+      message.text <- gInst4 + " " + gStrings.continue
       AddObject(message,gWin)#add to bring to top.
       Show(message)
       Draw()
-      WaitForKeyPress(" ")
+      WaitForLayoutResponse(gLayout, 0)
 
       RemoveObject(tmp1,gWin)
       RemoveObject(tmp2,gWin)
@@ -540,7 +588,7 @@ loop(i,localpairs)
       loop(i,stimCacheL)
       {
         AddObject(i,gWin)
-	Move(i,gVideoWidth/2,gVideoHeight/2)
+	Move(i,gLayout.centerX,gLayout.centerY)
 	Hide(i)
       }
       Hide(message)
@@ -558,7 +606,7 @@ loop(i,localpairs)
           Draw()
           time1 <- GetTime()
 
-          resp <- WaitForListKeyPress(["<lshift>","<rshift>"])
+          resp <- WaitForLayoutResponse(gLayout, 0)
           time2 <- GetTime()
 
 
@@ -566,7 +614,7 @@ loop(i,localpairs)
       localstim <- Nth(stimset,Nth(keyLocalLocal,i))
 
 
-          if(Uppercase(resp)=="<LSHIFT>")
+          if(resp=="left")
            {
 
             correctGlobal <- globalstim == gParams.stim1
@@ -599,15 +647,15 @@ loop(i,localpairs)
        {
             if(not corr)
             {
-             stimlabel.text <- gStrings.incorrect
+             gFeedbackLabel.text <- gStrings.incorrect
 	     } else {
-             stimlabel.text <- gStrings.correct
+             gFeedbackLabel.text <- gStrings.correct
              }
 
-	     Show(stimlabel)
+	     Show(gFeedbackLabel)
 	     Draw()
 	     Wait(250)
-	     Hide(stimlabel)
+	     Hide(gFeedbackLabel)
 
        }
 
@@ -626,30 +674,30 @@ loop(i,localpairs)
 
     block <- 5
     ##Block 5: Global mixed letters
-    footer3.text <- gStrings.footer5
+    gLayout.subheader.text <- gStrings.footer5
 
 
       tmp1 <- Nth(stimCacheG,1)
       AddObject(tmp1,gWin)
-      Move(tmp1,gVideoWidth/2-300,gVideoHeight/2)
+      Move(tmp1,gLayout.centerX-300,gLayout.centerY)
       Show(tmp1)
 
       tmp2 <- Nth(stimCacheG,4)
       AddObject(tmp2,gWin)
-      Move(tmp2,gVideoWidth/2,gVideoHeight/2)
+      Move(tmp2,gLayout.centerX,gLayout.centerY)
       Show(tmp2)
 
       tmp3 <- Nth(stimCacheG,6)
       AddObject(tmp3,gWin)
-      Move(tmp3,gVideoWidth/2+300,gVideoHeight/2)
+      Move(tmp3,gLayout.centerX+300,gLayout.centerY)
       Show(tmp3)
 
 
-      message.text <- ginst5
+      message.text <- gInst5 + " " + gStrings.continue
       AddObject(message,gWin)#add to bring to top.
       Show(message)
       Draw()
-      WaitForKeyPress(" ")
+      WaitForLayoutResponse(gLayout, 0)
 
       Hide(message)
       RemoveObject(tmp1,gWin)
@@ -659,7 +707,7 @@ loop(i,localpairs)
       loop(i,stimCacheG)
       {
         AddObject(i,gWin)
-	Move(i,gVideoWidth/2,gVideoHeight/2)
+	Move(i,gLayout.centerX,gLayout.centerY)
 	Hide(i)
       }
 
@@ -677,7 +725,7 @@ loop(i,localpairs)
           Draw()
           time1 <- GetTime()
 
-          resp <- WaitForListKeyPress(["<lshift>","<rshift>"])
+          resp <- WaitForLayoutResponse(gLayout, 0)
           time2 <- GetTime()
 
 
@@ -686,7 +734,7 @@ loop(i,localpairs)
         localstim <- Nth(stimset,Nth(keyGlobalLocal,i))
 
 
-       if(Uppercase(resp)=="<LSHIFT>")
+       if(resp=="left")
            {
             correctGlobal <- globalstim == gParams.stim1
             correctLocal <-  localstim == gParams.stim1
@@ -717,15 +765,15 @@ loop(i,localpairs)
        {
             if(not corr)
             {
-             stimlabel.text <- gStrings.incorrect
+             gFeedbackLabel.text <- gStrings.incorrect
 	     } else {
-             stimlabel.text <- gStrings.correct
+             gFeedbackLabel.text <- gStrings.correct
              }
 
-	     Show(stimlabel)
+	     Show(gFeedbackLabel)
 	     Draw()
 	     Wait(250)
-	     Hide(stimlabel)
+	     Hide(gFeedbackLabel)
 
        }
 
@@ -747,29 +795,29 @@ if(gParams.doscatterconditions)
 {
     block <- 6
     ##Block 6: local mixed letters, distributed around the screen
-    footer3.text <- gStrings.footer6
+    gLayout.subheader.text <- gStrings.footer6
 
 
       tmp1 <- Nth(stimCacheL,1)
       AddObject(tmp1,gWin)
-      Move(tmp1,gVideoWidth/2-300,gVideoHeight/2)
+      Move(tmp1,gLayout.centerX-300,gLayout.centerY)
       Show(tmp1)
 
       tmp2 <- Nth(stimCacheL,4)
       AddObject(tmp2,gWin)
-      Move(tmp2,gVideoWidth/2,gVideoHeight/2)
+      Move(tmp2,gLayout.centerX,gLayout.centerY)
       Show(tmp2)
 
       tmp3 <- Nth(stimCacheL,6)
       AddObject(tmp3,gWin)
-      Move(tmp3,gVideoWidth/2+300,gVideoHeight/2)
+      Move(tmp3,gLayout.centerX+300,gLayout.centerY)
       Show(tmp3)
 
-      message.text <- gInst6
+      message.text <- gInst6 + " " + gStrings.continue
       AddObject(message,gWin)#add to bring to top.
       Show(message)
       Draw()
-      WaitForKeyPress(" ")
+      WaitForLayoutResponse(gLayout, 0)
 
       RemoveObject(tmp1,gWin)
       RemoveObject(tmp2,gWin)
@@ -778,7 +826,7 @@ if(gParams.doscatterconditions)
       loop(i,stimCacheL)
       {
         AddObject(i,gWin)
-	Move(i,gVideoWidth/2,gVideoHeight/2)
+	Move(i,gLayout.centerX,gLayout.centerY)
 	Hide(i)
       }
       Hide(message)
@@ -791,14 +839,14 @@ if(gParams.doscatterconditions)
         {
 
           stim   <- Nth(stimCacheL,i)
-	  positionX <- gVideoWidth/2 -gParams.scatterwidth/2 + Random()*gParams.scatterwidth
-	  positionY <- gVideoHeight/2 -gParams.scatterheight/2 + Random()*gParams.scatterheight
+	  positionX <- gLayout.centerX -gParams.scatterwidth/2 + Random()*gParams.scatterwidth
+	  positionY <- gLayout.centerY -gParams.scatterheight/2 + Random()*gParams.scatterheight
 	  Move(stim,positionX,positionY)
           Show(stim)
           Draw()
           time1 <- GetTime()
 
-          resp <- WaitForListKeyPress(["<lshift>","<rshift>"])
+          resp <- WaitForLayoutResponse(gLayout, 0)
           time2 <- GetTime()
 
 
@@ -806,7 +854,7 @@ if(gParams.doscatterconditions)
       localstim <- Nth(stimset,Nth(keyLocalLocal,i))
 
 
-          if(Uppercase(resp)=="<LSHIFT>")
+          if(resp=="left")
            {
 
             correctGlobal <- globalstim == gParams.stim1
@@ -839,15 +887,15 @@ if(gParams.doscatterconditions)
        {
             if(not corr)
             {
-             stimlabel.text <- gStrings.incorrect
+             gFeedbackLabel.text <- gStrings.incorrect
 	     } else {
-             stimlabel.text <- gStrings.correct
+             gFeedbackLabel.text <- gStrings.correct
              }
 
-	     Show(stimlabel)
+	     Show(gFeedbackLabel)
 	     Draw()
 	     Wait(250)
-	     Hide(stimlabel)
+	     Hide(gFeedbackLabel)
 
        }
 
@@ -866,30 +914,30 @@ if(gParams.doscatterconditions)
 
     block <- 7
     ##Block 7: Global mixed letters, distributed aronud the screen
-    footer3.text <- gStrings.footer7
+    gLayout.subheader.text <- gStrings.footer7
 
 
       tmp1 <- Nth(stimCacheG,1)
       AddObject(tmp1,gWin)
-      Move(tmp1,gVideoWidth/2-300,gVideoHeight/2)
+      Move(tmp1,gLayout.centerX-300,gLayout.centerY)
       Show(tmp1)
 
       tmp2 <- Nth(stimCacheG,4)
       AddObject(tmp2,gWin)
-      Move(tmp2,gVideoWidth/2,gVideoHeight/2)
+      Move(tmp2,gLayout.centerX,gLayout.centerY)
       Show(tmp2)
 
       tmp3 <- Nth(stimCacheG,6)
       AddObject(tmp3,gWin)
-      Move(tmp3,gVideoWidth/2+300,gVideoHeight/2)
+      Move(tmp3,gLayout.centerX+300,gLayout.centerY)
       Show(tmp3)
 
 
-      message.text <- gInst7
+      message.text <- gInst7 + " " + gStrings.continue
       AddObject(message,gWin)#add to bring to top.
       Show(message)
       Draw()
-      WaitForKeyPress(" ")
+      WaitForLayoutResponse(gLayout, 0)
 
       Hide(message)
       RemoveObject(tmp1,gWin)
@@ -899,7 +947,7 @@ if(gParams.doscatterconditions)
       loop(i,stimCacheG)
       {
         AddObject(i,gWin)
-	Move(i,gVideoWidth/2,gVideoHeight/2)
+	Move(i,gLayout.centerX,gLayout.centerY)
 	Hide(i)
       }
 
@@ -913,15 +961,15 @@ if(gParams.doscatterconditions)
 
           stim   <- Nth(stimCacheG,i)
 
-	  positionX <- gVideoWidth/2 -gParams.scatterwidth/2 + Random()*gParams.scatterwidth
-	  positionY <- gVideoHeight/2 -gParams.scatterheight/2 + Random()*gParams.scatterheight
+	  positionX <- gLayout.centerX -gParams.scatterwidth/2 + Random()*gParams.scatterwidth
+	  positionY <- gLayout.centerY -gParams.scatterheight/2 + Random()*gParams.scatterheight
 	  Move(stim,positionX,positionY)
 
           Show(stim)
           Draw()
           time1 <- GetTime()
 
-          resp <- WaitForListKeyPress(["<lshift>","<rshift>"])
+          resp <- WaitForLayoutResponse(gLayout, 0)
           time2 <- GetTime()
 
 
@@ -930,7 +978,7 @@ if(gParams.doscatterconditions)
         localstim <- Nth(stimset,Nth(keyGlobalLocal,i))
 
 
-       if(Uppercase(resp)=="<LSHIFT>")
+       if(resp=="left")
            {
             correctGlobal <- globalstim == gParams.stim1
             correctLocal <-  localstim == gParams.stim1
@@ -961,15 +1009,15 @@ if(gParams.doscatterconditions)
        {
             if(not corr)
             {
-             stimlabel.text <- gStrings.incorrect
+             gFeedbackLabel.text <- gStrings.incorrect
 	     } else {
-             stimlabel.text <- gStrings.correct
+             gFeedbackLabel.text <- gStrings.correct
              }
 
-	     Show(stimlabel)
+	     Show(gFeedbackLabel)
 	     Draw()
 	     Wait(250)
-	     Hide(stimlabel)
+	     Hide(gFeedbackLabel)
 
        }
 
@@ -1484,37 +1532,24 @@ define GetStrings(lang)
 {
   gStrings <- GetTranslations("globallocal", lang)
 
-  ##substitute special codes for the actual stimuli  to simplify
-  gInst1 <- gStrings.inst1
-  ginst1 <- ReplaceChar(ginst1,"<STIM1>",gParams.stim1)
-  ginst1 <- ReplaceChar(ginst1,"<STIM2>",gParams.stim2)
+  ##substitute special codes for the actual stimuli using SubstituteStrings
+  substitutions <- [["<STIM1>",gParams.stim1],["<STIM2>",gParams.stim2]]
 
-
-  gInst2 <- ReplaceChar(gStrings.inst2,"<STIM1>",gParams.stim1)
-  gInst2 <- ReplaceChar(ginst2,"<STIM2>",gParams.stim2)
-
-  gInst3 <- ReplaceChar(gStrings.inst3,"<STIM1>",gParams.stim1)
-  gInst3 <- ReplaceChar(ginst3,"<STIM2>",gParams.stim2)
-
-  gInst4 <- ReplaceChar(gStrings.inst4,"<STIM1>",gParams.stim1)
-  gInst4 <- ReplaceChar(ginst4,"<STIM2>",gParams.stim2)
-
-
-  gInst5 <- ReplaceChar(gStrings.inst5,"<STIM1>",gParams.stim1)
-  gInst5 <- ReplaceChar(ginst5,"<STIM2>",gParams.stim2)
-
-
-  gInst6 <- ReplaceChar(gStrings.inst6,"<STIM1>",gParams.stim1)
-  gInst6 <- ReplaceChar(ginst6,"<STIM2>",gParams.stim2)
-
-  gInst7 <- ReplaceChar(gStrings.inst7,"<STIM1>",gParams.stim1)
-  gInst7 <- ReplaceChar(ginst7,"<STIM2>",gParams.stim2)
+  gInst <- SubstituteStrings(gStrings.inst, substitutions)
+  gInst1 <- SubstituteStrings(gStrings.inst1, substitutions)
+  gInst2 <- SubstituteStrings(gStrings.inst2, substitutions)
+  gInst3 <- SubstituteStrings(gStrings.inst3, substitutions)
+  gInst4 <- SubstituteStrings(gStrings.inst4, substitutions)
+  gInst5 <- SubstituteStrings(gStrings.inst5, substitutions)
+  gInst6 <- SubstituteStrings(gStrings.inst6, substitutions)
+  gInst7 <- SubstituteStrings(gStrings.inst7, substitutions)
 
 }
 
 
 define ReadPoints (fname)
 {
+
    base <- ReadCSV(fname)
    numbers <- []
    loop(i,base)

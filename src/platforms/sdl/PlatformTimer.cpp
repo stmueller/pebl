@@ -33,6 +33,9 @@
 #include <iostream>
 #include "../../devices/DeviceState.h"
 
+#ifdef PEBL_EMSCRIPTEN
+#include <emscripten.h>
+#endif
 
 #include <sys/time.h>
 #if defined(PEBL_UNIX) || defined(PEBL_EMSCRIPTEN)
@@ -123,6 +126,28 @@ void PlatformTimer::Wait(unsigned long int msecs)
 
 #endif
 
+
+/// Sleep using OS-specific sleep functions (yields CPU, unlike Wait which busy-waits)
+/// This is appropriate for polling loops, avoiding CPU burn
+void PlatformTimer::Sleep(unsigned long int msecs)
+{
+#ifdef PEBL_EMSCRIPTEN
+    // Emscripten: yield to browser to allow browser events to be processed
+    emscripten_sleep(msecs);
+#elif defined(PEBL_UNIX)
+    // Unix/Linux: nanosleep (high precision, yields CPU)
+    struct timespec a, b;
+    a.tv_sec = msecs / 1000;
+    a.tv_nsec = (msecs % 1000) * 1000000;  // Convert remaining ms to nanoseconds
+    nanosleep(&a, &b);
+#elif defined(PEBL_WIN32) || defined(PEBL_WINDOWS)
+    // Windows: SDL_Delay (yields CPU, ~1ms precision)
+    SDL_Delay(msecs);
+#else
+    // Fallback: use SDL_Delay on unknown platforms
+    SDL_Delay(msecs);
+#endif
+}
 
 
 unsigned long int PlatformTimer::GetTime() const

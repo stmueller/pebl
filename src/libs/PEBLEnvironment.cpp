@@ -58,14 +58,19 @@
 
 #include "../objects/PTextBox.h"
 
+#ifdef PEBL_VALIDATOR
+#include "../platforms/validator/PlatformTimer.h"
+#include "../platforms/validator/PlatformKeyboard.h"
+#include "../platforms/validator/PlatformTextBox.h"
+#include "../platforms/validator/PlatformEventQueue.h"
+#else
 #include "../platforms/sdl/PlatformTimer.h"
 #include "../platforms/sdl/PlatformKeyboard.h"
 #include "../platforms/sdl/PlatformTextBox.h"
 #include "../platforms/sdl/PlatformEventQueue.h"
-
-
 #ifdef PEBL_MOVIES
 #include "../platforms/sdl/PlatformMovie.h"
+#endif
 #endif
 
 
@@ -113,8 +118,12 @@ Variant PEBLEnvironment::GetTime(Variant v)
 
 Variant PEBLEnvironment::GetTimeHP(Variant v)
 {
+#ifdef PEBL_VALIDATOR
+    // Validator mode: return dummy value
+    return Variant((pDouble)0.0);
+#else
     return Variant((pDouble)SDLUtility::GetTimeHP());
-
+#endif
 }
 
 //gettimeofday() gives you microsecond resolution...the comment about not
@@ -981,7 +990,7 @@ Variant PEBLEnvironment::GetInput0(Variant v)
                         else
                             {
                                 //This should handle keypresses for limited keystrokes:
-                                textbox->HandleKeyPress(pke.key, pke.modkeys);
+                                textbox->HandleKeyPress(pke.key, pke.modkeys, 0);
                                 ignore = true;
                                 if(myEnv) myEnv->Draw();
                             }
@@ -2183,11 +2192,18 @@ Variant PEBLEnvironment::SignalFatalError(Variant v)
 
 Variant PEBLEnvironment::ExitQuietly(Variant v)
 {
-    //Signal a fatal error with the message inside v
+    //Exit quietly with optional exit code
+    //First parameter is message, optional second parameter is exit code (default 0)
     PList * plist = v.GetComplexData()->GetList();
     std::string message  = plist->First().GetString();
 
-    PError::ExitQuietly(message);
+    int exitCode = 0;  // Default exit code
+    if(plist->Length() >= 2)
+    {
+        exitCode = plist->Nth(2).GetInteger();
+    }
+
+    PError::ExitQuietly(message, exitCode);
     return Variant(false);
 }
 
@@ -2256,15 +2272,35 @@ Variant PEBLEnvironment::TimeStamp(Variant v)
 
 Variant PEBLEnvironment::GetCurrentScreenResolution(Variant v)
 {
-
-
+#ifdef PEBL_VALIDATOR
+    // Validator mode: return dummy resolution
+    PList * list = new PList();
+    list->PushBack(Variant(1920));
+    list->PushBack(Variant(1080));
+    counted_ptr<PEBLObjectBase> tmp = counted_ptr<PEBLObjectBase>(list);
+    PComplexData * pcd = new PComplexData(tmp);
+    Variant ret = Variant(pcd);
+    delete pcd;
+    return ret;
+#else
     return SDLUtility::GetCurrentScreenResolution();
+#endif
 }
 
 
 Variant PEBLEnvironment::GetDrivers(Variant v)
 {
+#ifdef PEBL_VALIDATOR
+    // Validator mode: return empty list
+    PList * list = new PList();
+    counted_ptr<PEBLObjectBase> tmp = counted_ptr<PEBLObjectBase>(list);
+    PComplexData * pcd = new PComplexData(tmp);
+    Variant ret = Variant(pcd);
+    delete pcd;
+    return ret;
+#else
     return SDLUtility::GetDriverList(false);
+#endif
 }
 
 Variant PEBLEnvironment::GetVideoModes(Variant v)
@@ -2595,13 +2631,22 @@ Variant PEBLEnvironment::CopyToClipboard(Variant v)
     Variant x  = plist->First();
     PError::AssertType(x,PEAT_STRING,"Argument error in function [CopyToClipboard]: ");
 
+#ifdef PEBL_VALIDATOR
+    // Validator mode: no-op
+#else
     SDLUtility::CopyToClipboard(x);
+#endif
     return x;  //return whatever we copied here.
 }
 
 Variant PEBLEnvironment::CopyFromClipboard(Variant v)
 {
-   return  SDLUtility::CopyFromClipboard();
+#ifdef PEBL_VALIDATOR
+    // Validator mode: return empty string
+    return Variant("");
+#else
+    return SDLUtility::CopyFromClipboard();
+#endif
 }
 
 
@@ -2881,6 +2926,24 @@ Variant PEBLEnvironment::IsCustomObject(Variant v)
                     return Variant(true);
                 }
         }
+    return Variant(false);
+}
+
+// Check if value is a PEBL object with properties (font, color, widget, custom object, etc.)
+// Returns true for anything that has properties via GetPropertyList()
+// Excludes lists (which are ComplexData but have no properties)
+Variant PEBLEnvironment::IsPEBLObject(Variant v)
+{
+    PList * plist = v.GetComplexData()->GetList();
+    Variant v1 = plist->First();
+
+    // Must be ComplexData (excludes simple types like numbers/strings)
+    // But must NOT be a list (lists have no properties)
+    if (v1.IsComplexData() && !(v1.GetComplexData()->IsList()))
+    {
+        return Variant(true);
+    }
+
     return Variant(false);
 }
 

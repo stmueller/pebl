@@ -1,0 +1,37 @@
+## Test nested color property on a circle
+define Start(p)
+{
+    gWin <- MakeWindow()
+
+    Print("Creating red circle")
+    circle <- Circle(gVideoWidth/2, gVideoHeight/2, 100, MakeColor("red"), 1)
+    AddObject(circle, gWin)
+    Draw()
+
+    Print("Initial color: " + circle.color)
+    Print("  circle.color.red = " + circle.color.red)
+    Print("  circle.color.green = " + circle.color.green)
+    Print("  circle.color.blue = " + circle.color.blue)
+
+    WaitForAnyKeyPress()
+
+    Print("Setting circle.color.green <- 255 (red->yellow)")
+    circle.color.green <- 255
+    Draw()
+    Print("After change: " + circle.color)
+    Print("  circle.color.red = " + circle.color.red)
+    Print("  circle.color.green = " + circle.color.green)
+    Print("  circle.color.blue = " + circle.color.blue)
+    Print("Did circle turn yellow? (Press key)")
+
+    WaitForAnyKeyPress()
+
+    Print("Setting circle.color.blue <- 255 (yellow->white)")
+    circle.color.blue <- 255
+    Draw()
+    Print("Did circle turn white? (Press key)")
+
+    WaitForAnyKeyPress()
+
+    return(0)
+}

@@ -2010,3 +2010,34 @@ define FilterList(list,filter)
   }
  return out
 }
+##
+## AdaptiveTextBox creates a textbox that automatically adapts to fit its content.
+## Now uses native C++ adaptive rendering for efficient font scaling.
+##
+## Parameters:
+##   text: The text to display
+##   x, y: Position coordinates
+##   window: The parent window
+##   fontsize: Initial font size (will be reduced automatically if adaptive enabled)
+##   width, height: Target box dimensions
+##   adaptive: 1 to enable C++ adaptive font scaling, 0 to disable
+##   maxlines: Maximum number of lines allowed (currently unused, reserved for future)
+##
+## Returns: A textbox object with adaptive rendering enabled
+##
+define AdaptiveTextBox(text, x, y, window, fontsize, width, height, adaptive:1, maxlines:30)
+{
+    ## Create standard textbox
+    tb <- EasyTextBox(text, x, y, window, fontsize, width, height)
+
+    ## Enable native C++ adaptive rendering if requested
+    ## Accepts either numeric (1/0) or string ("scalefont"/"scalebox") parameters
+    ## Both scalefont and scalebox now use the same C++ implementation
+    if(adaptive != 0 and adaptive != "")
+    {
+        tb.isAdaptive <- 1
+    }
+
+    return tb
+}
+

@@ -1,0 +1,86 @@
+## Memory Test Template
+## Study phase followed by recognition test
+
+define Start(p)
+{
+  ## Initialize
+  gWin <- MakeWindow("grey40")
+  gSleepEasy <- 1
+
+  if(gSubNum+"" == "0")
+  {
+    gSubNum <- GetSubNum(gWin)
+  }
+
+  ## Create data file
+  gFileOut <- GetNewDataFile(gSubNum, gWin, "memory", "csv",
+    "subnum,phase,trial,stimulus,response,correct,rt,timestamp")
+
+  ## Stimuli
+  targets <- ["CAT", "DOG", "BIRD", "FISH", "HORSE"]
+  foils <- ["TREE", "CHAIR", "LAMP", "BOOK", "PHONE"]
+
+  ## Study phase
+  MessageBox("Study these words carefully. Click OK to begin.", gWin)
+
+  loop(stim, targets)
+  {
+    stimLabel <- EasyLabel(stim, gVideoWidth/2, gVideoHeight/2, gWin, 44)
+    Draw()
+    Wait(2000)
+    Hide(stimLabel)
+    Draw()
+    Wait(500)
+  }
+
+  ## Distractor task
+  MessageBox("Count backwards from 100 by 7s for 30 seconds. Click OK when ready.", gWin)
+  countdown <- EasyLabel("30", gVideoWidth/2, gVideoHeight/2, gWin, 88)
+  Draw()
+  loop(i, Sequence(30, 1, -1))
+  {
+    countdown.text <- i + ""
+    Draw()
+    Wait(1000)
+  }
+  Hide(countdown)
+
+  ## Recognition test
+  MessageBox("Was this word in the study list? Press Y for YES, N for NO. Click OK to begin.", gWin)
+
+  testItems <- Shuffle(Merge(targets, foils))
+
+  loop(trial, Sequence(1, Length(testItems), 1))
+  {
+    stim <- Nth(testItems, trial)
+    isTarget <- IsMember(stim, targets)
+
+    ## Show stimulus
+    stimLabel <- EasyLabel(stim, gVideoWidth/2, gVideoHeight/2, gWin, 44)
+    Draw()
+    t1 <- GetTime()
+    resp <- WaitForListKeyPress(["y", "n"])
+    rt <- GetTime() - t1
+    Hide(stimLabel)
+
+    ## Check correctness
+    correct <- 0
+    if((resp == "y" and isTarget) or (resp == "n" and not isTarget))
+    {
+      correct <- 1
+    }
+
+    ## Save data
+    FilePrint(gFileOut, gSubNum + ",test," + trial + "," + stim + "," + resp + "," + correct + "," + rt + "," + TimeStamp())
+
+    ## Brief ITI
+    Draw()
+    Wait(500)
+  }
+
+  ## Cleanup
+  MessageBox("Memory test complete. Thank you!", gWin)
+  FileClose(gFileOut)
+
+  return(0)
+}

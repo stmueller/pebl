@@ -517,6 +517,23 @@ bool Variant::Equal(const Variant & rhs) const
         {
             return (this->GetSignal() == rhs.GetSignal());
         }
+    else if (this->IsComplexData() && rhs.IsComplexData())
+        {
+            // Compare complex data objects by their underlying pointer addresses
+            // Two Variants are equal if they reference the SAME object instance
+            PComplexData* pcd1 = this->GetComplexData();
+            PComplexData* pcd2 = rhs.GetComplexData();
+
+            if(!pcd1 || !pcd2)
+                return false;  // One or both are null
+
+            // Get the underlying object pointers and compare
+            counted_ptr<PEBLObjectBase> obj1 = pcd1->GetObject();
+            counted_ptr<PEBLObjectBase> obj2 = pcd2->GetObject();
+
+            // Compare raw pointers - same object instance?
+            return (obj1.get() == obj2.get());
+        }
     return false;
 }
 
@@ -592,6 +609,9 @@ bool Variant::operator >= ( const Variant & rhs) const
 /// Assignment Operator (overloaded)
 Variant Variant::operator = (const Variant & value)
 {
+    // Debug: std::cout << "[VARIANT] Assignment operator called. Old type: " << mDataType
+    //           << " (" << GetDataTypeName() << "), New type: " << value.GetDataType()
+    //           << " (" << value.GetDataTypeName() << ")" << std::endl;
 
     //First, clean up 'this' if it contains data on free store
     // (e.g., a Variable or a string)
@@ -1299,10 +1319,12 @@ void Variant::SetComplexData(PComplexData * data)
 /// by multiple variants, although the data they reference is ref-counted and may be shared.
 void Variant::free_mData()
 {
-
+    // Debug: std::cout << "[VARIANT] free_mData() called. Type: " << mDataType
+    //           << ", mComplexData: " << mComplexData << std::endl;
 
     if(mComplexData)
      {
+         // Debug: std::cout << "[VARIANT] Deleting PComplexData at: " << mComplexData << std::endl;
          delete mComplexData;
          mComplexData =NULL;
 

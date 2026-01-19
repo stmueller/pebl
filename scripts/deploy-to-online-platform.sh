@@ -100,7 +100,7 @@ if [ "$BUILD_TYPE" = "production" ]; then
     # Package private_tasks into separate data file
     echo ""
     echo "Building private_uploads.data bundle..."
-    PRIVATE_TASKS_DIR="$SCRIPT_DIR/private_tasks"
+    PRIVATE_TASKS_DIR="$PEBL_DIR/private_tasks"  # Fixed: Use PEBL_DIR not SCRIPT_DIR
     PRIVATE_BATTERY_DIR="$ONLINE_PLATFORM_DIR/private_battery"
     FP="$PEBL_DIR/libs/emsdk/upstream/emscripten/tools/file_packager.py"
 
@@ -160,11 +160,12 @@ if [ "$BUILD_TYPE" = "production" ]; then
     # Note: pebl-launcher.html is maintained directly in PEBLOnlinePlatform/runtime/
     # and is NOT copied from emscripten/ directory
 
-    # Copy battery tests (exclude data directories and backup files)
-    echo "Copying battery tests (excluding data directories and backup files)..."
+    # Copy battery tests (exclude data directories except example files)
+    echo "Copying battery tests (excluding data except example files and backup files)..."
     if [ -d "$BATTERY_SRC" ]; then
         if command -v rsync &> /dev/null; then
             # Use rsync if available (better for excluding patterns)
+            # First copy everything except data directories
             rsync -av \
                 --exclude='*/data/' \
                 --exclude='data/' \
@@ -174,6 +175,20 @@ if [ "$BUILD_TYPE" = "production" ]; then
                 --exclude='*.swp' \
                 --exclude='*.bak' \
                 --exclude='.*.swp' \
+                "$BATTERY_SRC/" "$BATTERY_DIR/"
+
+            # IMPORTANT: The --exclude='*/data/' above excludes ALL files in data directories,
+            # including example files. Example files are named with "example-" prefix or
+            # "*-example-*" pattern (e.g., example-data.csv, mazesolving-log-example-data.csv).
+            # Solution: Second rsync pass to explicitly include only example-* and *-example-* files.
+            # The --prune-empty-dirs prevents creating empty directory structures.
+            echo "  Copying example data files..."
+            rsync -av \
+                --prune-empty-dirs \
+                --include='*/' \
+                --include='example-*' \
+                --include='*-example-*' \
+                --exclude='*' \
                 "$BATTERY_SRC/" "$BATTERY_DIR/"
         else
             # Fallback to cp with find (exclude data directories and backup files)
@@ -187,6 +202,11 @@ if [ "$BUILD_TYPE" = "production" ]; then
                 -not -name '*.bak' \
                 -not -name '.*.swp' \
                 -exec cp --parents -v {} "$BATTERY_DIR/" \; 2>/dev/null || echo "  (No battery files to copy)"
+
+            # Copy example data files
+            echo "  Copying example data files..."
+            find "$BATTERY_SRC" -type f -path '*/data/*' \( -name 'example-*' -o -name '*-example-*' \) \
+                -exec bash -c 'target="$1"; target="${target#$2/}"; mkdir -p "$3/$(dirname "$target")"; cp -v "$1" "$3/$target"' _ {} "$BATTERY_SRC" "$BATTERY_DIR" \;
         fi
     else
         echo -e "${YELLOW}Warning: Battery source directory not found at $BATTERY_SRC${NC}"
@@ -256,6 +276,47 @@ else
     echo "Usage: $0 [production|test]"
     exit 1
 fi
+
+    # Update version information in FAQ
+    echo ""
+    echo "Updating version information in FAQ..."
+    TECH_FAQ="$ONLINE_PLATFORM_DIR/help/faq.md"
+    if [ -f "$TECH_FAQ" ]; then
+        # Get PEBL version from Makefile
+        PEBL_VER=$(grep "^PEBL_VERSION = " "$PEBL_DIR/Makefile" | cut -d' ' -f3)
+
+        # Get git commit info
+        cd "$PEBL_DIR"
+        GIT_COMMIT=$(git log -1 --format="%H")
+        GIT_COMMIT_SHORT=$(git log -1 --format="%h")
+        GIT_COMMIT_DATE=$(git log -1 --format="%ci")
+        GIT_COMMIT_MSG=$(git log -1 --format="%s")
+        GIT_DESCRIBE=$(git describe --tags --always 2>/dev/null || echo "$GIT_COMMIT_SHORT")
+
+        # Current deployment date
+        DEPLOY_DATE=$(date +"%Y-%m-%d")
+        DEPLOY_TIME=$(date +"%Y-%m-%d %H:%M:%S %z")
+
+        # Update technical-faq.md with version info
+        # Use sed to replace content between HTML comments
+        sed -i "s|<!-- PEBL_VERSION -->.*<!-- /PEBL_VERSION -->|<!-- PEBL_VERSION -->$PEBL_VER<!-- /PEBL_VERSION -->|g" "$TECH_FAQ"
+        sed -i "s|<!-- PEBL_GIT_COMMIT -->.*<!-- /PEBL_GIT_COMMIT -->|<!-- PEBL_GIT_COMMIT -->$GIT_COMMIT<!-- /PEBL_GIT_COMMIT -->|g" "$TECH_FAQ"
+        sed -i "s|<!-- PEBL_COMMIT_DATE -->.*<!-- /PEBL_COMMIT_DATE -->|<!-- PEBL_COMMIT_DATE -->$GIT_COMMIT_DATE<!-- /PEBL_COMMIT_DATE -->|g" "$TECH_FAQ"
+        sed -i "s|<!-- DEPLOYMENT_DATE -->.*<!-- /DEPLOYMENT_DATE -->|<!-- DEPLOYMENT_DATE -->$DEPLOY_DATE<!-- /DEPLOYMENT_DATE -->|g" "$TECH_FAQ"
+
+        # Also update last_updated in frontmatter
+        sed -i "s|^last_updated: .*|last_updated: \"$DEPLOY_DATE\"|g" "$TECH_FAQ"
+
+        echo -e "${GREEN}  ✓ Version information updated in faq.md${NC}"
+        echo "    PEBL Version: $PEBL_VER"
+        echo "    Git Describe: $GIT_DESCRIBE"
+        echo "    Git Commit: $GIT_COMMIT_SHORT"
+        echo "    Commit Date: $GIT_COMMIT_DATE"
+        echo "    Commit Msg: $GIT_COMMIT_MSG"
+        echo "    Deployed: $DEPLOY_TIME"
+    else
+        echo -e "${YELLOW}  Note: faq.md not found, skipping version update${NC}"
+    fi
 
 echo ""
 echo "Files deployed to:"

@@ -78,19 +78,19 @@ void VariableMap::Destroy()
 
 
 ///
-/// This method will add a new variable with 
+/// This method will add a new variable with
 /// name varname and value val to the variable map, or (if it already exists)
 /// change its value to val.
-void VariableMap::AddVariable(const string & varname, Variant val)
+void VariableMap::AddVariable(const string & varname, const Variant & val)
 {
     string tmpVarName = PEBLUtility::ToUpper(varname);
 
     map<string, Variant>::iterator p;
-    
+
     p = mVariableMap.find(tmpVarName);
-    
+
     //If the variable is in there already, change its value
-    
+
     if(p!=mVariableMap.end())
         {
 

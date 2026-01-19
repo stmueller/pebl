@@ -1,0 +1,52 @@
+## Simple Reaction Time Template
+## Measures how quickly participant responds to a stimulus
+
+define Start(p)
+{
+  ## Initialize
+  gWin <- MakeWindow("grey40")
+  gSleepEasy <- 1
+
+  if(gSubNum+"" == "0")
+  {
+    gSubNum <- GetSubNum(gWin)
+  }
+
+  ## Create data file
+  gFileOut <- GetNewDataFile(gSubNum, gWin, "simple-rt", "csv",
+    "subnum,trial,rt,timestamp")
+
+  ## Instructions
+  MessageBox("Press any key when you see the stimulus. Click OK to begin.", gWin)
+
+  ## Run 10 trials
+  loop(trial, Sequence(1, 10, 1))
+  {
+    ## Fixation
+    fix <- EasyLabel("+", gVideoWidth/2, gVideoHeight/2, gWin, 44)
+    Draw()
+    Wait(500 + RandomUniform(1000))
+    Hide(fix)
+
+    ## Stimulus
+    stim <- EasyLabel("X", gVideoWidth/2, gVideoHeight/2, gWin, 88)
+    Draw()
+    t1 <- GetTime()
+    WaitForAnyKeyPress()
+    rt <- GetTime() - t1
+    Hide(stim)
+
+    ## Save data
+    FilePrint(gFileOut, gSubNum + "," + trial + "," + rt + "," + TimeStamp())
+
+    ## Brief ITI
+    Draw()
+    Wait(500)
+  }
+
+  ## Cleanup
+  MessageBox("Experiment complete. Thank you!", gWin)
+  FileClose(gFileOut)
+
+  return(0)
+}

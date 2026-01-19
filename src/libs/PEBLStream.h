@@ -117,13 +117,13 @@ namespace PEBLStream
     Variant GetIPAddress(Variant v);
     Variant GetMyIPAddress(Variant v);
 
-#ifdef PEBL_HTTP
+    // HTTP functions - now always available (stub implementations when PEBL_HTTP not defined)
     Variant GetHTTPFile(Variant v);
     Variant GetHTTPText(Variant v);
 
     Variant PostHTTP(Variant v);
     Variant PostHTTPFile(Variant v);
-#endif
+
     Variant MD5Sum(Variant v);
     Variant MD5File(Variant v);
 

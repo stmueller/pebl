@@ -24,6 +24,7 @@ Clears the event loop.  This function is currently experimental, and its usage m
 **Usage:**
 
 .. code-block:: pebl
+
    ## shows a way to generate custom WaitForMouseButton
    RegisterEvent("<MOUSE_BUTTON_PRESS>",1,1,"<EQUAL>","", [])
    out <-   StartEventLoop()
@@ -92,6 +93,47 @@ Calls a PEBL function dynamically using its name as a string and a list of argum
 **See Also:**
 
 :func:`PropertyExists()`, :func:`MakeCustomObject()`
+
+
+
+.. index:: CheckProcessStatus
+
+CheckProcessStatus()
+--------------------
+
+*Checks if a background process is still running*
+
+**Description:**
+
+Checks the status of a background process launched with SystemCall(). Takes a process ID (PID) as an argument and returns 1 if the process is still running, 0 if it has finished, or -1 if there was an error checking the status. This is only available on Unix/Linux systems and requires the process to have been launched from within PEBL.
+
+**Usage:**
+
+.. code-block:: pebl
+
+   CheckProcessStatus(<pid>)
+
+**Example:**
+
+.. code-block:: pebl
+
+   ##Launch a background process (Unix only)
+   pid <- SystemCall("sleep 5 &")
+
+   ##Check if it's still running
+   status <- CheckProcessStatus(pid)
+   if(status == 1)
+   {
+      Print("Process still running")
+   } elseif(status == 0) {
+      Print("Process finished")
+   } else {
+      Print("Error checking process")
+   }
+
+**See Also:**
+
+:func:`SystemCall()`, :func:`GetSystemType()`
 
 
 

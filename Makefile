@@ -33,7 +33,7 @@ PREFIX = /usr/local/
 PEBLNAME = pebl2
 PEBLDIRNAME = "pebl2"
 EXECNAME = $(PEBLNAME)
-PEBL_VERSION = 2.2
+PEBL_VERSION = 2.3
 #USE_WAAVE=1       ##Optional; comment out to turn off waave multimedia library
 USE_NETWORK=1      ##Optional; comment out to turn off sdl_net library.
 ##USE_PORTS is set conditionally below based on target platform (native only, not emscripten)
@@ -194,6 +194,7 @@ OBJECTS_DIR = src/objects
 DEVICES_DIR = src/devices
 PLATFORMS_DIR = src/platforms
 SDL_DIR = src/platforms/sdl
+VALIDATOR_DIR = src/platforms/validator
 UTIL_DIR = src/utility
 TEST_DIR = src/tests
 
@@ -380,6 +381,27 @@ PLATFORM_SDL_OBJ  = 	$(patsubst %.cpp, %.o, $(PLATFORM_SDL_SRC))
 PLATFORM_SDL_INC  = 	$(patsubst %.cpp, %.h, $(PLATFORM_SDL_SRC))
 
 
+# Validator platform sources (no SDL dependencies)
+PLATFORM_VALIDATOR_SRC = $(VALIDATOR_DIR)/PlatformEnvironment.cpp \
+			$(VALIDATOR_DIR)/PlatformWidget.cpp \
+			$(VALIDATOR_DIR)/PlatformWindow.cpp \
+			$(VALIDATOR_DIR)/PlatformImageBox.cpp \
+			$(VALIDATOR_DIR)/PlatformKeyboard.cpp \
+			$(VALIDATOR_DIR)/PlatformFont.cpp \
+			$(VALIDATOR_DIR)/PlatformLabel.cpp \
+			$(VALIDATOR_DIR)/PlatformTextBox.cpp \
+			$(VALIDATOR_DIR)/PlatformTimer.cpp \
+			$(VALIDATOR_DIR)/PlatformDrawObject.cpp \
+			$(VALIDATOR_DIR)/PlatformCanvas.cpp \
+			$(VALIDATOR_DIR)/PlatformEventQueue.cpp \
+			$(VALIDATOR_DIR)/PlatformAudioOut.cpp \
+			$(VALIDATOR_DIR)/PlatformNetwork.cpp \
+			$(VALIDATOR_DIR)/PlatformJoystick.cpp
+
+PLATFORM_VALIDATOR_OBJ = $(patsubst %.cpp, %.o, $(PLATFORM_VALIDATOR_SRC))
+PLATFORM_VALIDATOR_INC = $(patsubst %.cpp, %.h, $(PLATFORM_VALIDATOR_SRC))
+
+
 FUNCTIONLIB_SRC = $(LIBS_DIR)/PEBLMath.cpp \
 	  	  $(LIBS_DIR)/PEBLStream.cpp \
 		  $(LIBS_DIR)/PEBLObjects.cpp \
@@ -442,6 +464,7 @@ DIRS = \
 	$(OBJ_DIR)/$(DEVICES_DIR) \
 	$(OBJ_DIR)/$(PLATFORMS_DIR) \
 	$(OBJ_DIR)/$(SDL_DIR) \
+	$(OBJ_DIR)/$(VALIDATOR_DIR) \
 	$(OBJ_DIR)/$(UTIL_DIR) \
 	$(OBJ_DIR)/$(TEST_DIR) 
 
@@ -574,7 +597,7 @@ deb:    main doc
 	epm -f deb $(PEBLNAME)
 
 .PHONY: appimage
-appimage: main
+appimage: main pebl-launcher validator
 	@echo "========================================="
 	@echo "Building PEBL AppImage (full rebuild)"
 	@echo "========================================="
@@ -583,10 +606,18 @@ appimage: main
 .PHONY: appimage-fast
 appimage-fast:
 	@echo "========================================="
-	@echo "Building PEBL AppImage (using existing binary)"
+	@echo "Building PEBL AppImage (using existing binaries)"
 	@echo "========================================="
 	@if [ ! -f "bin/$(PEBLNAME)" ]; then \
 		echo "ERROR: bin/$(PEBLNAME) not found. Run 'make main' or 'make appimage' first."; \
+		exit 1; \
+	fi
+	@if [ ! -f "bin/pebl-launcher" ]; then \
+		echo "ERROR: bin/pebl-launcher not found. Run 'make pebl-launcher' or 'make appimage' first."; \
+		exit 1; \
+	fi
+	@if [ ! -f "bin/pebl-validator" ]; then \
+		echo "ERROR: bin/pebl-validator not found. Run 'make validator' or 'make appimage' first."; \
 		exit 1; \
 	fi
 	./build-appimage.sh $(PEBL_VERSION) --skip-build
@@ -601,6 +632,32 @@ appimage-clean:
 	rm -rf squashfs-root
 	rm -f bin/pebl2-appimage
 	@echo "✓ AppImage artifacts cleaned"
+
+.PHONY: validator-appimage
+validator-appimage: validator
+	@echo "========================================="
+	@echo "Building PEBL Validator AppImage (full rebuild)"
+	@echo "========================================="
+	./build-validator-appimage.sh $(PEBL_VERSION)
+
+.PHONY: validator-appimage-fast
+validator-appimage-fast:
+	@echo "========================================="
+	@echo "Building PEBL Validator AppImage (using existing binary)"
+	@echo "========================================="
+	@if [ ! -f "bin/pebl-validator" ]; then \
+		echo "ERROR: bin/pebl-validator not found. Run 'make validator' or 'make validator-appimage' first."; \
+		exit 1; \
+	fi
+	./build-validator-appimage.sh $(PEBL_VERSION) --skip-build
+
+.PHONY: validator-appimage-clean
+validator-appimage-clean:
+	@echo "Cleaning validator AppImage build artifacts..."
+	rm -rf ValidatorAppDir
+	rm -f pebl-validator-*.AppImage
+	rm -f bin/pebl-validator-*.AppImage
+	@echo "✓ Validator AppImage artifacts cleaned"
 
 parse:
 	bison -d $(BASE_DIR)/grammar.y -o $(BASE_DIR)/grammar.tab.cpp
@@ -680,8 +737,20 @@ install:
 	install -d $(DESTDIR)$(PREFIX)/$(PEBLNAME)/demo
 	install -d $(DESTDIR)$(PREFIX)/$(PEBLNAME)/tutorials
 
-	# Install executable
+	# Install executables
 	cp bin/$(PEBLNAME) $(DESTDIR)$(PREFIX)/$(PEBLNAME)/bin/$(PEBLNAME)
+
+	# Install launcher (if built)
+	@if [ -f "bin/pebl-launcher" ]; then \
+		echo "Installing pebl-launcher..."; \
+		cp bin/pebl-launcher $(DESTDIR)$(PREFIX)/$(PEBLNAME)/bin/pebl-launcher; \
+	fi
+
+	# Install validator (if built)
+	@if [ -f "bin/pebl-validator" ]; then \
+		echo "Installing pebl-validator..."; \
+		cp bin/pebl-validator $(DESTDIR)$(PREFIX)/$(PEBLNAME)/bin/pebl-validator; \
+	fi
 
 	# Install resources
 	cp -R tutorials/ $(DESTDIR)$(PREFIX)/$(PEBLNAME)/tutorials/
@@ -689,8 +758,18 @@ install:
 	cp -R demo/*  $(DESTDIR)$(PREFIX)/$(PEBLNAME)/demo/
 	cp -R experiments/*  $(DESTDIR)$(PREFIX)/$(PEBLNAME)/demo/
 	rm -rf `find $(DESTDIR)$(PREFIX)/$(PEBLNAME)/media -type d -name .svn`
+	# Remove demo/tests subdirectory (contains test files not for end users)
+	rm -rf $(DESTDIR)$(PREFIX)/$(PEBLNAME)/demo/tests
 	cp  pebl-lib/*.pbl $(DESTDIR)$(PREFIX)/$(PEBLNAME)/pebl-lib/
-	cp doc/pman/PEBLManual$(PEBL_VERSION).pdf $(DESTDIR)$(PREFIX)/$(PEBLNAME)/doc/
+
+	# Install manual (if it exists)
+	@if [ -f "doc/pman/PEBLManual$(PEBL_VERSION).pdf" ]; then \
+		echo "Installing PEBLManual$(PEBL_VERSION).pdf..."; \
+		cp doc/pman/PEBLManual$(PEBL_VERSION).pdf $(DESTDIR)$(PREFIX)/$(PEBLNAME)/doc/; \
+	else \
+		echo "WARNING: PEBLManual$(PEBL_VERSION).pdf not found, skipping..."; \
+	fi
+
 	cp bin/launcher.pbl $(DESTDIR)$(PREFIX)/$(PEBLNAME)/bin/
 	cp pebl-lib/translatetest.pbl $(DESTDIR)$(PREFIX)/$(PEBLNAME)/pebl-lib/
 	chmod -R uga+r $(DESTDIR)$(PREFIX)/$(PEBLNAME)/
@@ -711,16 +790,126 @@ install:
 
 	# Create desktop file
 	mkdir -p $(DESTDIR)$(PREFIX)/share/applications/
-	sed -e 's|Exec=.*|Exec=$(PREFIX)/$(PEBLNAME)/bin/$(PEBLNAME)|' PEBL2.desktop > PEBL2.desktop.tmp
+	sed -e 's|Exec=.*|Exec=$(PREFIX)/$(PEBLNAME)/bin/$(PEBLNAME)|' installer/PEBL2.desktop > PEBL2.desktop.tmp
 	sed -e 's|Icon=.*|Icon=$(PREFIX)/$(PEBLNAME)/media/images/pebl2.png|' PEBL2.desktop.tmp > PEBL2.desktop.install
 	rm PEBL2.desktop.tmp
 	cp PEBL2.desktop.install $(DESTDIR)$(PREFIX)/share/applications/PEBL2.desktop
 	rm PEBL2.desktop.install
 
-	# Optional: Create symlink in bin/ for PATH convenience
+	# Optional: Create symlinks in bin/ for PATH convenience
 	@mkdir -p $(DESTDIR)$(PREFIX)/bin
 	@ln -sf $(PREFIX)/$(PEBLNAME)/bin/$(PEBLNAME) $(DESTDIR)$(PREFIX)/bin/$(PEBLNAME) || true
+	@if [ -f "$(DESTDIR)$(PREFIX)/$(PEBLNAME)/bin/pebl-launcher" ]; then \
+		ln -sf $(PREFIX)/$(PEBLNAME)/bin/pebl-launcher $(DESTDIR)$(PREFIX)/bin/pebl-launcher || true; \
+	fi
+	@if [ -f "$(DESTDIR)$(PREFIX)/$(PEBLNAME)/bin/pebl-validator" ]; then \
+		ln -sf $(PREFIX)/$(PEBLNAME)/bin/pebl-validator $(DESTDIR)$(PREFIX)/bin/pebl-validator || true; \
+	fi
 
 ifeq (.depend,$(wildcard .depend))
 include .depend
 endif
+
+## PEBL Validator target (no SDL dependencies)
+# Minimal utility sources (no HTTP, md5, happyhttp)
+VALIDATOR_UTIL_SRC = $(UTIL_DIR)/PEBLUtility.cpp \
+		$(UTIL_DIR)/PError.cpp \
+		$(UTIL_DIR)/BinReloc.cpp \
+		$(UTIL_DIR)/PEBLPath.cpp
+
+VALIDATOR_UTIL_OBJ = $(patsubst %.cpp, %.o, $(VALIDATOR_UTIL_SRC))
+
+# Validator sources - includes parser + device layer + platform implementations
+# This is essentially a full PEBL build minus the main PEBL.cpp file
+VALIDATOR_SRC = 	$(APPS_DIR)/PEBLValidator.cpp \
+			$(BASE_DIR)/grammar.tab.cpp \
+			$(BASE_DIR)/PNode.cpp \
+			$(BASE_DIR)/Variant.cpp \
+			$(BASE_DIR)/PEBLObject.cpp \
+			$(BASE_DIR)/PComplexData.cpp \
+			$(BASE_DIR)/PList.cpp \
+			$(BASE_DIR)/Evaluator.cpp \
+			$(BASE_DIR)/VariableMap.cpp \
+			$(BASE_DIR)/FunctionMap.cpp \
+			$(BASE_DIR)/Loader.cpp \
+			$(DEVICES_DIR)/PEventLoop.cpp \
+			$(DEVICES_DIR)/PDevice.cpp \
+			$(DEVICES_DIR)/PEventQueue.cpp \
+			$(DEVICES_DIR)/PEvent.cpp \
+			$(DEVICES_DIR)/PKeyboard.cpp \
+			$(DEVICES_DIR)/PTimer.cpp \
+			$(DEVICES_DIR)/DeviceState.cpp \
+			$(DEVICES_DIR)/PStream.cpp \
+			$(DEVICES_DIR)/PAudioOut.cpp \
+			$(DEVICES_DIR)/PNetwork.cpp \
+			$(DEVICES_DIR)/PJoystick.cpp \
+			$(DEVICES_DIR)/PParallelPort.cpp \
+			$(DEVICES_DIR)/PComPort.cpp \
+			$(DEVICES_DIR)/PEyeTracker.cpp \
+			$(UTIL_DIR)/PEBLUtility.cpp \
+			$(UTIL_DIR)/PEBLPath.cpp \
+			$(UTIL_DIR)/PError.cpp \
+			$(UTIL_DIR)/BinReloc.cpp \
+			$(UTIL_DIR)/md5.cpp \
+			$(UTIL_DIR)/PEBLHTTP.cpp \
+			$(UTIL_DIR)/happyhttp.cpp \
+			$(LIBS_DIR)/PEBLEnvironment.cpp \
+			$(LIBS_DIR)/PEBLMath.cpp \
+			$(LIBS_DIR)/PEBLStream.cpp \
+			$(LIBS_DIR)/PEBLObjects.cpp \
+			$(LIBS_DIR)/PEBLList.cpp \
+			$(LIBS_DIR)/PEBLString.cpp \
+			$(OBJECTS_DIR)/PEnvironment.cpp \
+			$(OBJECTS_DIR)/PCustomObject.cpp \
+			$(OBJECTS_DIR)/PWidget.cpp \
+			$(OBJECTS_DIR)/PColor.cpp \
+			$(OBJECTS_DIR)/PWindow.cpp \
+			$(OBJECTS_DIR)/PImageBox.cpp \
+			$(OBJECTS_DIR)/PCanvas.cpp \
+			$(OBJECTS_DIR)/PDrawObject.cpp \
+			$(OBJECTS_DIR)/PFont.cpp \
+			$(OBJECTS_DIR)/PTextObject.cpp \
+			$(OBJECTS_DIR)/PLabel.cpp \
+			$(OBJECTS_DIR)/PTextBox.cpp \
+			$(OBJECTS_DIR)/PMovie.cpp \
+			$(PLATFORM_VALIDATOR_SRC)
+
+VALIDATOR_OBJ = $(patsubst %.cpp, %.o, $(VALIDATOR_SRC))
+
+# Wrapper target
+validator:
+	$(MAKE) OBJ_DIR=obj-validator CC=$(CL) CXX=$(CLXX) validator-real
+
+# Real build target - minimal dependencies for validation
+# HTTP disabled but stub functions allow Transfer.pbl (used by 50+ tests) to load for validation
+validator-real: CC=$(CL)
+validator-real: CXX=$(CLXX)
+validator-real: USE_HTTP = 0
+validator-real: USE_PORTS = 0
+validator-real: USE_MIXER = 0
+validator-real: USE_NETWORK = 0
+validator-real: USE_AUDIOIN = 0
+validator-real: CXXFLAGS = $(CXXFLAGS0) $(CXXFLAGS_LINUX) -UPEBL_MIXER -UPEBL_NETWORK -UPEBL_PORTS -UPEBL_AUDIOIN -UPEBL_HTTP -DPEBL_VALIDATOR
+validator-real: $(DIRS) $(VALIDATOR_OBJ) $(BASE_DIR)/lex.yy.o
+	$(CXX) $(CXXFLAGS) -Wall -Wl,-rpath -Wl,LIBDIR $(DEBUGFLAGS) \
+	-Wno-write-strings \
+	-o $(BIN_DIR)/pebl-validator \
+	$(patsubst %.o, $(OBJ_DIR)/%.o, $(VALIDATOR_OBJ)) \
+	$(OBJ_DIR)/$(BASE_DIR)/lex.yy.o \
+	-lpthread
+
+.PHONY: validator validator-real
+
+## PEBL Launcher target (SDL2 + ImGui GUI)
+pebl-launcher:
+	@echo "========================================="
+	@echo "Building PEBL Launcher"
+	@echo "========================================="
+	$(MAKE) -C src/apps/launcher all
+
+pebl-launcher-clean:
+	@echo "Cleaning launcher build artifacts..."
+	$(MAKE) -C src/apps/launcher clean
+	@echo "✓ Launcher artifacts cleaned"
+
+.PHONY: pebl-launcher pebl-launcher-clean

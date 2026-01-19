@@ -63,10 +63,10 @@ private:
 
 protected:
 
-    
+
     virtual std::ostream & SendToStream(std::ostream& out) const{return out;};
 
-    bool mTextChanged;     //Determines whether the object should be re-rendered.
+    bool mChanged;     //Determines whether the object should be re-rendered.
     std::string mText;
     virtual std::string ObjectName() const{return "PTextObject";};
     int mDirection;   //1 for ltr, -1 for rtl

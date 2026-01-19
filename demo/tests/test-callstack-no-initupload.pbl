@@ -1,0 +1,21 @@
+## Test if the bug happens without InitializeUpload()
+## This isolates whether InitializeUpload() is part of the problem
+
+define Start(p)
+{
+    Print("Start(p) called with parameter")
+
+    ## Skip InitializeUpload() - go straight to calling user function
+    Print("Calling MyFunction() without InitializeUpload()...")
+
+    MyFunction()
+
+    Print("Success - no error!")
+}
+
+define MyFunction()
+{
+    Print("Inside MyFunction()")
+    gWin <- MakeWindow()
+    Print("Created window")
+}

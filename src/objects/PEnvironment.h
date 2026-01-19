@@ -55,6 +55,14 @@ public:
     //This removes a window from the window list.
     virtual bool RemoveWindow(PWindow * window);
 
+    // Platform-specific locale queries
+    // Get the system locale from OS settings (e.g., "ar", "en_US", "zh_CN", "he_IL")
+    // Returns empty string on error or if not supported
+    virtual std::string GetSystemLocale() = 0;
+
+    // Check if the system locale uses right-to-left text (Arabic, Hebrew)
+    virtual bool IsSystemLocaleRTL() = 0;
+
     
 protected:
     virtual std::ostream & SendToStream(std::ostream& out) const {return out;};

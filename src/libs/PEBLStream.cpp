@@ -53,13 +53,20 @@
 
 #ifdef PEBL_HTTP
 #include "../utility/PEBLHTTP.h"
+#ifdef PEBL_VALIDATOR
+#include "../platforms/validator/PlatformNetwork.h"
+#else
 #include "../platforms/sdl/PlatformNetwork.h"
-
+#endif
 #endif
 
 
 #include "../devices/PParallelPort.h"
+#ifdef PEBL_VALIDATOR
+// SDLUtility not needed in validator mode
+#else
 #include "../platforms/sdl/SDLUtility.h"
+#endif
 
 
 
@@ -1174,6 +1181,42 @@ Variant PEBLStream::PostHTTPFile(Variant v)
 
 
     return out;
+}
+
+#else
+// Stub implementations when PEBL_HTTP is not defined
+// These allow scripts to call HTTP functions but they return appropriate "not available" values
+
+Variant PEBLStream::GetHTTPFile(Variant v)
+{
+    // Return 503 Service Unavailable status code
+    return Variant(503);
+}
+
+Variant PEBLStream::GetHTTPText(Variant v)
+{
+    // Return [503, ""] list (status code 503, empty text)
+    PList * returnlist = new PList();
+    returnlist->PushBack(Variant(503));
+    returnlist->PushBack(Variant(""));
+    counted_ptr<PEBLObjectBase>  tmp2 = counted_ptr<PEBLObjectBase>(returnlist);
+    PComplexData * pcd = new PComplexData(tmp2);
+    Variant tmp3 = Variant(pcd);
+    delete pcd;
+    pcd=NULL;
+    return tmp3;
+}
+
+Variant PEBLStream::PostHTTP(Variant v)
+{
+    // Return 503 Service Unavailable
+    return Variant(503);
+}
+
+Variant PEBLStream::PostHTTPFile(Variant v)
+{
+    // Return 503 Service Unavailable
+    return Variant(503);
 }
 
 #endif

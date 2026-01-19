@@ -1217,3 +1217,82 @@ Adds a constant value to every element in a vector (list of numbers), returning 
 **See Also:**
 
 :func:`Sequence()`, :func:`Repeat()`, :func:`Rep()`
+
+
+.. index:: AdaptiveTextBox
+
+AdaptiveTextBox()
+-----------------
+
+*Creates a textbox that automatically adapts to fit content*
+
+**Description:**
+
+Creates a textbox that automatically adjusts to display text that doesn't fit in the specified dimensions. Two adaptation strategies are available: scaling the box (preserves font size) or scaling the font (preserves box size). Uses the new ``textComplete`` property to detect when all text has been rendered.
+
+**Usage:**
+
+.. code-block:: pebl
+
+   AdaptiveTextBox(text, x, y, window, fontsize, width, height, adaptive, maxlines)
+
+**Parameters:**
+
+- ``text``: The text content to display
+- ``x, y``: Position coordinates (upper-left corner)
+- ``window``: Parent window object
+- ``fontsize``: Initial font size in points
+- ``width, height``: Target box dimensions in pixels
+- ``adaptive``: Adaptation strategy - ``0`` (none), ``"scalebox"``, or ``"scalefont"``
+- ``maxlines``: Maximum number of lines allowed (default: 30)
+
+**Adaptation Strategies:**
+
+- ``0`` - No adaptation; creates standard textbox (text may overflow)
+- ``"scalebox"`` - Expands box to fit all text, then scales down using zoom to original size (preserves font size, uses SDL2 anisotropic filtering for quality)
+- ``"scalefont"`` - Iteratively reduces font size until text fits (preserves box dimensions exactly, minimum 8pt)
+
+**Examples:**
+
+.. code-block:: pebl
+
+   ##Create window
+   win <- MakeWindow("black")
+
+   ##Long instruction text that needs adaptation
+   instructions <- "Welcome to the experiment. Please read these instructions carefully. " +
+                   "This is a long text that demonstrates the adaptive textbox functionality. " +
+                   "The textbox will automatically adjust to fit all this content."
+
+   ##Use scalefont strategy - reduces font size to fit
+   box1 <- AdaptiveTextBox(instructions, 50, 50, win, 24, 400, 100, "scalefont")
+   
+   ##Use scalebox strategy - preserves font size, scales box down
+   box2 <- AdaptiveTextBox(instructions, 50, 200, win, 24, 400, 100, "scalebox")
+   
+   ##No adaptation - text may overflow
+   box3 <- AdaptiveTextBox(instructions, 50, 350, win, 24, 400, 100, 0)
+
+   Draw()
+
+**Strategy Comparison:**
+
+**ScaleBox:**
+
+- Maintains original font size (better for accessibility/readability)
+- Creates larger internal box, then scales down using zoom
+- High-quality rendering with SDL2 anisotropic filtering
+- Uses more memory (larger internal texture)
+- Visual size matches specified dimensions exactly
+
+**ScaleFont:**
+
+- Maintains box dimensions exactly as specified
+- Reduces font size iteratively (8pt minimum)
+- Text remains sharp (no scaling artifacts)
+- More memory efficient
+- May reduce readability if text is very long
+
+**See Also:**
+
+:func:`EasyTextBox()`, :func:`MakeTextBox()`, :func:`MakeScrollingTextBox()`

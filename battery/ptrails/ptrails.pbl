@@ -1,6 +1,10 @@
 ##
 ##   This is a basic version of a 'trail making' task.
 ##   The goal is to connect the dots.
+##  Version 0.4; 2025. Modifications supporting on-line running; an .html report, and
+                       added 'swappoints' setting to
+##                     increase difficulty of path search a little. set 'pathswaps' to 0 to
+##                     use original TSP-like paths.
 ##
 ##  Version 0.3; 2013.  Add letter trials, and practice rounds as options.
 ##
@@ -11,6 +15,7 @@
 
 define Start(p)
 {
+
       InitializeUpload()  ## Initialize token-based hosting if upload.json exists
 
       gScriptName <- "PEBL Trailmaking Test"
@@ -19,7 +24,8 @@ define Start(p)
                       ["useShortPath",1], ## Whether to shorten the path so points tend to
                                           ## be adjacent.
 		      ["shorteningtries",1],   ##how many attempts do you make to shorten the path?
-		                               ## Default is 1, which is the original way
+		                               ## Default is 1, which is the original
+		      ["pathswaps",5],         ##adjacent swaps to do to shortened path to add complexity
 
 
 		      ["numtrials",4], ##total number of trials per condition (A and B)
@@ -32,14 +38,14 @@ define Start(p)
 		      ["doPractice",1],  ##Do a short practice round between each round, using 4 items,
                                          ## to let them see how to do it.
 
-		      ["targsize",25],  ##Size in pixels of targets (radius)
-		      ["TargclickSize",25], ##Size of click zone; may be smaller or larger
+		      ["targsize",30],  ##Size in pixels of targets (radius)
+		      ["TargclickSize",30], ##Size of click zone; may be smaller or larger
 		      ["pointtolerance",2],  # #minimum number of pixels of separation between targets
                                              ## (soft constraint that will be violated if proper
                                              ## configuration cannot be found)
 		      ["NumTargs", 26 ],     #Number of targets
 		      ["DrawLines", 1 ],     #Whether to draw lines
-		      ["fieldwidth",700],
+		      ["fieldwidth",750],
 		      ["fieldheight",500],
 		      ["maxanglethresh",2.8] ##maximum angle (in radians) to allow on path.  Make this smaller to make the path jaggier.
                      ]
@@ -58,6 +64,8 @@ define Start(p)
    fieldWidth <- gParams.fieldwidth
    fieldHeight <- gParams.fieldheight
 
+  ## Field positioning using Layout zones instead of absolute screen center
+  ## (gLayout will be created after GetStrings, values updated after CreateLayout)
   gxmin <- gVideoWidth/2 - fieldWidth/2
   gxmax <- gVideoWidth/2 + fieldWidth/2
   gymin <- gVideoHeight/2 - fieldHeight/2
@@ -72,7 +80,23 @@ define Start(p)
      gSubNum <- GetSubNum(gWin)
    }
 
+  gStartTime <- GetTime()  ## Initialize start time for total time calculation in HTML report
   GetStrings(gLanguage)
+
+  ## Set responsemode to "none" for layout-only (no response system)
+  gParams.responsemode <- "none"
+  gLayout <- CreateLayout("ptrails", gWin, gParams)
+
+  ## Configure layout: header only, hide everything else to maximize stimulus region
+  gLayout.header.visible <- 1
+  gLayout.subheader.visible <- 0
+  ## Footer is automatically hidden by "none" mode
+
+  ## Recalculate field bounds using Layout center instead of absolute screen center
+  gxmin <- gLayout.centerX - fieldWidth/2
+  gxmax <- gLayout.centerX + fieldWidth/2
+  gymin <- gLayout.centerY - fieldHeight/2
+  gymax <- gLayout.centerY + fieldHeight/2
 
   gStimColor <- MakeColor("darkblue")
   gAccentColor <- MakeColor("yellow")
@@ -80,20 +104,25 @@ define Start(p)
   gclickedFont <- MakeFont(gPEBLBaseFontMono,1,18,MakeColor("grey35"),gStimColor,1)
 
   gFileOut <- GetNewDataFile(gSubNum,gWin,"ptrails","csv",
-     "subnum,trial,type,clicks,hits,clicktime,posx,posy,corr,id,rt,rt2")
+     "subnum,trial,blocktype,type,clicks,hits,clicktime,posx,posy,corr,id,rt,rt2")
 
 
   gSumFile <- GetNewDataFile(gSubNum,gWin,"ptrails-summary","csv",
-              "sub,type,distance,studytime,totaltime,mediantime,targs,clicks,acc")
+              "sub,blocktype,type,distance,studytime,totaltime,mediantime,targs,clicks,acc")
 
+  ## Use AdaptiveTextBox constrained to stimulus region to avoid overlap with header
+  tb <- AdaptiveTextBox(gStrings.inst+CR(1)+gStrings.begin,
+                        gLayout.stimulusRegion.x + 20,
+                        gLayout.stimulusRegion.y + 20,
+                        gWin, 20,
+                        gLayout.stimulusRegion.width - 40,
+                        gLayout.stimulusRegion.height - 40,
+                        "scalefont")
+  Draw()
 
-   tb  <- EasyTextBox(gStrings.inst,20,20,gWin,20,gVideoWidth-40,500)
-   Draw()
+  ## gFooter removed - using gLayout.footer instead (currently hidden)
 
-   gFooter <- EasyLabel("",gVideoWidth/2,gVideoHeight-25,gWin,16)
-
-
-   ptA <- []
+  ptA <- []
    ptB <- []
    ptC <- []
    tmp <- ""
@@ -102,8 +131,9 @@ define Start(p)
    while(Length(ptA) < gParams.numtrials)
     {
       tmp <- tmp + "*"
-      gFooter.text <- "Initializing ["+Format(tmp,gParams.numtrials)+"]"
-      Draw()
+      ## Initialization progress removed - not essential
+      ## gFooter.text <- "Initializing ["+Format(tmp,gParams.numtrials)+"]"
+      ## Draw()
 
       ##create the points first
       pts <- NonOverlapLayout(gxmin, gxmax, gymin, gymax, gtol, gParams.NumTargs)
@@ -161,8 +191,18 @@ define Start(p)
 	 ##now, we have shortened the path as much as we need. Pick the best one.
 	 tour <- Nth(tours,ArgMin(lengths))
 
+        Print("----------------")
+	Print(tour)
+        ##now, apply the swaps
+	if(gParams.pathswaps>0)
+	{
+          tour <- SwapPoints(tour,gParams.pathswaps)
+	}
+        order <- Order(tour)
 
-         pts <- SortBy(pts,(Order(tour)))  #re-sort the original points
+        pts <- SortBy(pts,order)  #re-sort the original points
+
+
          tourangles <- GetAngles(pts)   #find angles of the tour. These are
 	                                   #compute to range between 0 and pi, with
 					   #pi=3.14 a straight line.  We want to get
@@ -189,8 +229,8 @@ define Start(p)
       trial<- trial + 1
     }
 
-   gFooter.text <- "Initialization complete. " + gStrings.begin
-    tb.text <- tb.text + CR(2) + gStrings.begin
+   ## Footer removed - add begin message to instruction textbox instead
+#   tb.text <- tb.text + CR(2) + gStrings.begin
    Draw()
    WaitForDownClick()
    Hide(tb)
@@ -213,11 +253,12 @@ define Start(p)
      types <- Merge([1,2,1,2],types)
    }
 
-
+  dat <- []
 
    trial <- 1
-   gHeader <- EasyLabel("",gVideoWidth/2,20,gWin,40)
+   ## gHeader removed - using gLayout.header instead
    typeLabels <- ["numbers","alternating numbers and letters","letters"]
+   gcondlabels <- ["number","alternating","letter"]
 
 
 
@@ -229,35 +270,43 @@ define Start(p)
       if(gParams.DoPractice)
       {
 
-        tmppts <- NonOverlapLayout(gVideoWidth/2-100,gVideoWidth/2+100,gVideoHeight/2-100,gVideoHeight/2+100, gtol, 4)
-	gHeader.text <-gStrings.practice+Nth(typeLabels,(Nth(types,i)))
-	Show(gHeader)
+        tmppts <- NonOverlapLayout(gLayout.centerX-100,gLayout.centerX+100,gLayout.centerY-100,gLayout.centerY+100, gtol, 4)
+	gLayout.header.text <- gStrings.practice + Nth(typeLabels,(Nth(types,i)))
+	## Header already visible by default
 	Draw()
 	gTrial <- trial + "P"
-        Trial(tmppts,Nth(types,i))
-        Hide(gHeader)
+        Trial(tmppts,Nth(types,i),"practice")
+        gLayout.header.visible <- 0  ## Hide header after practice
+
       }
 
       gTrial <- trial
 
 
 
-      Trial(Nth(pts,i),Nth(types,i))
+     datline <-  Trial(Nth(pts,i),Nth(types,i),"test")
+     PushOnEnd(dat,datline)
       trial <- trial + 1
     }
 
+
+  ## Generate HTML summary report
+  html <- CreateHTMLReport(dat)
+  reportfile <- GetNewDataFile(gSubNum,gWin,"ptrails-report","html","")
+  FilePrint_(reportfile, html)
 
   Print("uploading data")
   settingsfile <- "/upload.json"
   out <- UploadFile(gSubnum,gFileOut.filename,settingsfile);  Print(out)
   out <- UploadFile(gSubnum,gSumFile.filename,settingsfile);  Print(out)
+  out <- UploadFile(gSubnum,reportfile.filename,settingsfile);  Print(out)
 
 
 
    tb.text<- gStrings.finish
    Show(tb)
    Draw()
-   WaitForAnyKeyPress()
+   WaitForDownClick()
 }
 
 
@@ -284,7 +333,7 @@ define ReitanPoints(type)
   return Center(pts)
 }
 
-define Trial(pts,type)
+define Trial(pts,type,practice)
 {
 
   num <- Length(pts)
@@ -315,10 +364,16 @@ define Trial(pts,type)
      msg <- gStrings.type3
    }
 
-   gFooter.text <- gStrings.begin + msg
+   ## Display the trial type header
+   gLayout.header.text <- msg
+   gLayout.header.visible <- 1
+
+   ## Show "ready to begin" message in subheader
+   gLayout.subheader.text <- gStrings.begin
+   gLayout.subheader.visible <- 1
    Draw()
    WaitForDownClick()
-   gFooter.text <- msg
+   gLayout.subheader.visible <- 0
 
    stimObjects <-  PlotTargets(pts,gParams.TargSize,stim)
    stimLines <- []
@@ -420,7 +475,9 @@ define Trial(pts,type)
            corr <- 0
          }
 
-        FilePrint(gFileOut,gSubNum +  ","+ gtrial + "," +type+","+ clicks + ","  + hits + "," + clicktime + "," + First(pos) + "," +   Nth(pos, 2) + "," +  corr + "," + id + "," + (clicktime - lastclick) + ","+ (clicktime-lastsucc))
+        FilePrintList(gFileOut, [gSubNum, gTrial, practice, Nth(gcondlabels,type),
+                                  clicks, hits, clicktime, First(pos), Nth(pos, 2),
+                                  corr, id, (clicktime - lastclick), (clicktime - lastsucc)], ",")
         lastclick <- clicktime
         if(corr)
           {
@@ -432,12 +489,17 @@ define Trial(pts,type)
 
   }
 
-   FilePrint(gSumFile,gSubNum + "," + type+ "," + dist + "," + studytime + "," + (clicktime - starttime) + ","  + Median(times) +   "," + hits + "," +clicks + "," + hits/clicks )
+   medtime <- Median(times)
+   acc <- hits/clicks
+   FilePrintList(gSumFile, [gSubNum, practice, Nth(gcondlabels,type), dist,
+                             studytime, (clicktime - starttime), medtime,
+                             hits, clicks, acc], ",")
 
 #   WritePNG("solution.png",gWin)
    RemoveObjects(stimObjects,gWin)
    RemoveObjects(stimLines,gWin)
 
+  return [Nth(gcondlabels,type),medtime,acc]
 }
 
 define ClickedOn(pos,targets)
@@ -478,42 +540,7 @@ define PlotTargets(pts,size,labels)
 
 
 
-define GetMinDist(pts)
-{
-   len <- Length(pts)
-   index1 <- 1
-   mindist <- Dist(First(pts),Nth(pts,2))
-   id1 <- 1
-   id2 <- 2
-
-   loop(i,pts)
-   {
-     pt1 <- i
-     index2 <- index1 + 1
-
-
-     if(index2 <= len)
-      {
-      rest <- SubList(pts,index2, Length(pts))
-      loop(j, rest)
-       {
-        d <- Dist(i,j)
-
-        if(d < mindist)
-        {
-          mindist <- d
-          id1 <- index1
-          id2 <- index2
-        }
-
-        index2 <- index2 + 1
-      }
-      }
-     index1  <- index1 + 1
-   }
-
-   return [mindist,id1,id2]
-}
+## GetMinDist is now in pebl-lib/Graphics.pbl
 
 
 define AddTarget(pos,letter,size,type)
@@ -561,82 +588,13 @@ define AddObjects(list,win)
    }
 }
 
-define VecTimes(a,b)
-{
-   tmp <- Transpose([a,b])
-   out <- []
-   loop(i,tmp)
-   {
-     out <- Append(out, First(i) * Nth(i,2))
-   }
-  return out
-}
-
-define VecSum(a,b)
-{
-   tmp <- Transpose([a,b])
-   out <- []
-   loop(i,tmp)
-   {
-     out <- Append(out, First(i) + Nth(i,2))
-   }
-  return out
-}
-
-define Dist(a,b)
-{
-  return Sqrt((First(a)- First(b))^2 + (Nth(a,2) - Nth(b,2))^2)
-}
+## VecTimes, VecSum, and Dist are now in pebl-lib/Math.pbl
 
 
 
 
-##  This function takes a list of anything, and a list of indexes
-##  specifying the items to extract from the list.  The indexes can
-##  be in any order, but the extracted list will be in the order
-##  of the original list.  Items that are not numbers less than or
-##  equal to the length of the list will be ignored.
-define RemoveSubset(list, items)
-{
-   #Check the arguments to insure they are the proper type
-    if(not IsList(list))
-	{
-	    SignalFatalError("First argument of function [RemoveSubset(<list>,<list>)] is not a list")
-	}
-    if(not IsList(items))
-	{
-	    SignalFatalError("First argument of function [RemoveSubset(<list>,<list>)] is not a list")
-	}
-
-
-    returnList <- []      #Make an initial blank list to return
-    index <- 1            #keep track of the index
-    loop(i, list)
-    {
-	#If the index is in the items list, add it to the return list
-	if(not IsMember(index, items))
-	{
-	    returnList <- Append(returnList, i)
-	}
-	index <- index + 1
-    }
-
-    return returnList
-}
-
-define WaitForDownClick()
-{
-   continue <- 1
-   while(continue)
-    {
-	x <- WaitForMouseButton()
-        if(Nth(x,4) == "<pressed>")
-        {
-         continue <- 0
-        }
-    }
-     return x
-}
+## RemoveSubset and WaitForDownClick are now in pebl-lib
+## (Design.pbl and Utility.pbl respectively)
 
 
 
@@ -836,30 +794,7 @@ define DrawPath(path,pts)
 }
 
 
-define Insert(list, item, pos)
-{
-   if(pos == 0)
-    {
-      new <- Merge([item],list)
-    } elseif(pos >= Length(list))
-    {
-      new <- Append(list, item)
-
-    }else {
-
-      new <- FlattenN([SubList(list,1,pos),
-                      [item],
-                      SubList(list,pos+1,Length(list))],1)
-   }
-
-  return new
-}
-
-
-define Rest(list)
-{
-  return SubList(list,2,Length(list))
-}
+## Insert and Rest are now in pebl-lib/Design.pbl
 
 
 
@@ -946,12 +881,14 @@ define FlipVert(pts)
 }
 
 
-define ArgMin(list)
+## ArgMax - returns index of maximum value in list
+define ArgMax(list)
 {
    indexes <- Sequence(1,Length(list),1)
    return Nth(SortBy(indexes, list), Length(list))
 }
 
+## ArgMin - returns index of minimum value in list
 define ArgMin(list)
 {
    indexes <- Sequence(1,Length(list),1)
@@ -983,12 +920,12 @@ define Center(xys, centerX:"",centerY:"")
 
   if(centerX=="")
     {
-     centerX <- gVideoWidth/2
+     centerX <- gLayout.centerX
     }
 
    if(centerY == "")
    {
-    centerY <- gVideoHeight/2
+    centerY <- gLayout.centerY
    }
 
 
@@ -1009,9 +946,129 @@ define Center(xys, centerX:"",centerY:"")
 define GetStrings(lang)
 {
   gStrings <- GetTranslations("ptrails",lang)
-  
+
+}
+
+define CreateHTMLReport(dat)
+{
+  ## dat contains [type, medtime, acc] for each trial
+  ## Extract parallel lists for SummaryStats
+  types <- []
+  medtimes <- []
+  accs <- []
+
+  loop(trial, dat)
+  {
+    PushOnEnd(types, First(trial))
+    PushOnEnd(medtimes, Second(trial))
+    PushOnEnd(accs, Third(trial))
+  }
+
+  ## Calculate summary statistics by trial type using SummaryStats
+  timestats <- SummaryStats(medtimes, types)
+  accstats <- SummaryStats(accs, types)
+
+  ## Calculate total time
+  totalTime <- GetTime() - gStartTime
+
+  ## Read and embed CSS for portability (media/css is in search path)
+  cssContent <- FileReadText("paper.css")
+
+  ## Build HTML with embedded CSS
+  html <- "<html>
+<head>
+  <style>
+" + cssContent + "
+  </style>
+</head>
+<body>"
+
+  ## First page: Header and configuration info
+  html <- html + MakeDivPage(
+    H("Results from PEBL Trailmaking Test",1) +
+    P("<pre>Participant/Patient Code: " + gSubNum + "</pre>") +
+P("<em>This test measures visual attention, processing speed, and executive function through sequential number and letter connecting tasks.</em>") +
+    HL() +
+    P(B("Test began: ") + TimeStamp()) +
+    P(B("Total time taken: ") + Round(totalTime/60000,2) + " min") +
+    HL() +
+    H("Test Configuration",3) +
+    P(B("Screen resolution: ") + gVideoWidth + " × " + gVideoHeight + " pixels") +
+    P(B("Field size: ") + gParams.fieldwidth + " × " + gParams.fieldheight + " pixels") +
+    P(B("Number of targets: ") + gParams.NumTargs) +
+    P(B("Trials per condition: ") + gParams.numtrials) +
+    P(B("Use letters: ") + gParams.useLetters) +
+    P(B("Practice trials: ") + gParams.doPractice) +
+    P(B("Draw lines: ") + gParams.DrawLines) +
+    P(B("Point swaps: ")+gParams.pathswaps)+
+    P(B("Use shortest path: ") + gParams.useShortPath))
+
+  ## Second page: Summary statistics table
+  tablerows <- []
+  combined <- Transpose([timestats, accstats])
+  loop(pair, combined)
+  {
+    timestat <- First(pair)
+    accstat <- Second(pair)
+
+    trialtype <- First(timestat)
+    numtrials <- Second(timestat)
+    mediantime <- Third(timestat)
+    meantime <- Fourth(timestat)
+    sdtime <- Fifth(timestat)
+    meanacc <- Fourth(accstat)
+
+    ## Create row: [Type, N, Median Time, Mean Time, SD Time, Accuracy]
+    row <- [Uppercase(trialtype), numtrials, Round(mediantime),
+            Round(meantime), Round(sdtime), Round(100*meanacc) + "%"]
+    PushOnEnd(tablerows, row)
+  }
+
+  tableheader <- ["Trial Type", "N", "Median Time (ms)", "Mean Time (ms)", "SD Time (ms)", "Accuracy"]
+
+  html <- html + MakeDivPage(
+    H("Summary Statistics by Trial Type",2) +
+    P("Statistics calculated per target for each trial condition:") +
+    Table(tablerows, tableheader))
+
+  html <- html + "</body></html>"
+
+  return html
 }
 
 
 
 
+
+define SwapPoints(path,num)
+{
+
+   ##we will only swap odd/even elements, starting at point 3/4, up to the end.
+   ##and only up to n/2
+
+   maxswaps <- Floor((Length(path)-3)/2)
+   
+   if(num>maxswaps)
+   {
+      num <- maxswaps
+   }
+
+   if(num>0)
+   {
+      swappables <- SampleN(Sequence(1,maxswaps,1),num)
+   }
+
+   ## swap of 1 indicates 3-4, etc.
+   ## a swap of 11 (max for 26) indicates 23/24
+   ## for 25, it is still 11 max swap, so 23/24 retains the last position.
+   loop(i,swappables)
+   {
+      ## Print("swapping:"+ (i*2+1) + "  " + (i*2+2))
+      tmp <- Nth(path,i*2+1)  ##the first element
+      SetElement(path,i*2+1,  Nth(path,i*2+2)) ##set first to value in second
+      SetELement(path,i*2+2,tmp) #set second
+   }
+
+
+   return path
+}

@@ -1,0 +1,30 @@
+## Test if window background color can be changed via nested properties
+define Start(p)
+{
+    Print("Creating window with black background")
+    gWin <- MakeWindow("black")
+    Draw()
+
+    Print("Window bgcolor: " + gWin.bgcolor.red + "," + gWin.bgcolor.green + "," + gWin.bgcolor.blue)
+    Wait(2000)
+
+    Print("Setting window.bgcolor.red <- 255 (black -> red)")
+    gWin.bgcolor.red <- 255
+    Draw()
+
+    Print("Window bgcolor: " + gWin.bgcolor.red + "," + gWin.bgcolor.green + "," + gWin.bgcolor.blue)
+    Print("Does background look RED? (should be 255,0,0)")
+    Wait(2000)
+
+    Print("Setting window.bgcolor.green <- 128 (red -> orange)")
+    gWin.bgcolor.green <- 128
+    Draw()
+
+    Print("Does background look ORANGE? (should be 255,128,0)")
+    Wait(2000)
+
+    Print("Setting window.bgcolor <- gold")
+    gWin.bgcolor<- MakeColor("gold")
+    Draw()
+    Wait(2000)
+}

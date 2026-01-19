@@ -47,7 +47,7 @@ public:
     ///The Standard destructor.  
     ~VariableMap();
 
-    void AddVariable(const std::string & varname, Variant val);
+    void AddVariable(const std::string & varname, const Variant & val);
 
     Variant RetrieveValue(const std::string & varname);
     bool Exists(const std::string & varname);

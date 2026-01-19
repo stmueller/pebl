@@ -1,0 +1,300 @@
+## Comprehensive tests for else/elseif newline grammar
+## Tests various edge cases that might expose parser ambiguities
+
+define Start()
+{
+  Print("===== Testing else/elseif with newlines =====")
+
+  ## Test 1: Basic if-else with newline before else
+  Print("Test 1: Basic if-else with newline before else")
+  result <- TestBasicIfElse(5)
+  Print("  Result: " + result)
+
+  ## Test 2: Nested if-else with mixed newline styles
+  Print("Test 2: Nested if-else")
+  result <- TestNestedIfElse(7, 3)
+  Print("  Result: " + result)
+
+  ## Test 3: Multiple elseif with newlines
+  Print("Test 3: Multiple elseif chains")
+  result <- TestElseIfChain(15)
+  Print("  Result: " + result)
+
+  ## Test 4: Empty blocks
+  Print("Test 4: Empty blocks")
+  result <- TestEmptyBlocks(5)
+  Print("  Result: " + result)
+
+  ## Test 5: Single statement vs block
+  Print("Test 5: Statement on same line as }")
+  result <- TestStatementBeforeElse(8)
+  Print("  Result: " + result)
+
+  ## Test 6: Complex nesting with loops
+  Print("Test 6: If-else inside loops")
+  result <- TestLoopsWithIfElse()
+  Print("  Result: " + result)
+
+  ## Test 7: Return statements in if-else
+  Print("Test 7: Return statements")
+  result <- TestReturnsInIfElse(10)
+  Print("  Result: " + result)
+
+  ## Test 8: Comments between } and else
+  Print("Test 8: Comments between } and else (if supported)")
+  result <- TestCommentsBeforeElse(3)
+  Print("  Result: " + result)
+
+  Print("===== All tests complete =====")
+}
+
+## Test 1: Basic if-else with newline before else
+define TestBasicIfElse(x)
+{
+  result <- ""
+
+  if(x > 3)
+  {
+    result <- "greater"
+  }
+  else
+  {
+    result <- "not greater"
+  }
+
+  return(result)
+}
+
+## Test 2: Nested if-else with mixed styles
+define TestNestedIfElse(x, y)
+{
+  result <- ""
+
+  if(x > 5)
+  {
+    if(y > 2)
+    {
+      result <- "both true"
+    } else {
+      result <- "x true, y false"
+    }
+  }
+  else
+  {
+    if(y > 2) {
+      result <- "x false, y true"
+    }
+    else {
+      result <- "both false"
+    }
+  }
+
+  return(result)
+}
+
+## Test 3: Multiple elseif with newlines
+define TestElseIfChain(x)
+{
+  result <- ""
+
+  if(x < 5)
+  {
+    result <- "less than 5"
+  }
+  elseif(x < 10)
+  {
+    result <- "5 to 9"
+  }
+  elseif(x < 15)
+  {
+    result <- "10 to 14"
+  }
+  else
+  {
+    result <- "15 or more"
+  }
+
+  return(result)
+}
+
+## Test 4: Empty blocks (potential ambiguity issue)
+define TestEmptyBlocks(x)
+{
+  result <- "default"
+
+  if(x > 10)
+  {
+  }
+  else
+  {
+    result <- "else executed"
+  }
+
+  return(result)
+}
+
+## Test 5: This might be ambiguous - does the statement belong to the block?
+define TestStatementBeforeElse(x)
+{
+  result <- 0
+
+  if(x > 5)
+  {
+    result <- result + 1
+  }
+  result <- result + 10
+
+  if(result > 10)
+  {
+    result <- result + 100
+  }
+  else
+  {
+    result <- result + 1000
+  }
+
+  return(result)
+}
+
+## Test 6: If-else inside loops (statement/block ambiguity)
+define TestLoopsWithIfElse()
+{
+  sum <- 0
+
+  loop(i, [1, 2, 3, 4, 5])
+  {
+    if(Mod(i, 2) == 0)
+    {
+      sum <- sum + i
+    }
+    else
+    {
+      sum <- sum - i
+    }
+  }
+
+  return(sum)
+}
+
+## Test 7: Return statements in if-else branches
+define TestReturnsInIfElse(x)
+{
+  if(x > 10)
+  {
+    return("large")
+  }
+  elseif(x > 5)
+  {
+    return("medium")
+  }
+  else
+  {
+    return("small")
+  }
+}
+
+## Test 8: Comments between } and else might cause issues
+define TestCommentsBeforeElse(x)
+{
+  result <- ""
+
+  if(x > 5)
+  {
+    result <- "big"
+  }
+  ## This comment is between } and else
+  else
+  {
+    result <- "small"
+  }
+
+  return(result)
+}
+
+## Test 9: Edge case - multiple newlines before else
+define TestMultipleNewlines(x)
+{
+  result <- ""
+
+  if(x > 0)
+  {
+    result <- "positive"
+  }
+
+
+  else
+  {
+    result <- "non-positive"
+  }
+
+  return(result)
+}
+
+## Test 10: What if there's a statement after } that looks like it could start?
+## This is the dangerous case - parser might think the next statement is part of if
+define TestDangerousAmbiguity(x)
+{
+  result <- 0
+  flag <- 1
+
+  if(x > 5)
+  {
+    result <- 10
+  }
+  flag <- 99  ## This line after } - does parser try to make it part of if?
+
+  if(result == 10)
+  {
+    result <- result + flag
+  }
+  else
+  {
+    result <- 0
+  }
+
+  return(result)
+}
+
+## Test 11: else without braces following } with newline
+## (if PEBL supports statement-only else)
+define TestElseWithoutBraces(x)
+{
+  result <- 0
+
+  if(x > 5)
+  {
+    result <- 10
+  }
+  else
+    result <- 20  ## Single statement else - might this be ambiguous?
+
+  return(result)
+}
+
+## Test 12: Deeply nested with mixed newline styles
+define TestDeeplyNested(x)
+{
+  result <- ""
+
+  if(x > 0)
+  {
+    if(x > 10) {
+      if(x > 20)
+      {
+        result <- "very large"
+      }
+      else
+      {
+        result <- "medium-large"
+      }
+    } else {
+      result <- "small positive"
+    }
+  }
+  else
+  {
+    result <- "non-positive"
+  }
+
+  return(result)
+}

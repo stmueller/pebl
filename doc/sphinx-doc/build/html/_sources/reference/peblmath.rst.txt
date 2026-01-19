@@ -813,5 +813,3 @@ Converts value to a string representation. Most   useful for numerical values.  
 **See Also:**
 
 :func:`ToString()`, ``+``.
-
-================================================================================

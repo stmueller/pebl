@@ -145,7 +145,7 @@
 %type <exp>  variable exp function functions varlist variablepair list explist arglist datum
 %type <exp>  statement ustatement endstatement sequence block
 %type <exp>  newlines  nlornone elseifseq elseifseq_or_nothing
-%type <exp>  functionsequence returnstatement functionblock
+%type <exp>  functionsequence returnstatement endreturnstatement functionblock
 
 			
 
@@ -219,6 +219,8 @@ functionblock:	/*===============================================================
 
 functionsequence:   returnstatement  nlornone          { $$ = $1;}
 	|	    sequence nlornone returnstatement  nlornone { $$ = new OpNode(PEBL_STATEMENTS, $1, $3, sourcefilename, yylineno);}
+	|           endreturnstatement                       { $$ = $1;}
+	|           sequence nlornone endreturnstatement     { $$ = new OpNode(PEBL_STATEMENTS, $1, $3, sourcefilename, yylineno);}
 ;
 
 		/*============================================================================*/
@@ -318,8 +320,12 @@ ustatement: 	/*=================================================================
 
 ;
 
+/*returnstatement requires NEWLINE after the expression*/
 returnstatement: PEBL_RETURN statement    {$$ = new OpNode(PEBL_RETURN, $2, NULL, sourcefilename, yylineno);}
+	;
 
+/*endreturnstatement allows } to terminate (no newline needed), like endstatement*/
+endreturnstatement: PEBL_RETURN ustatement    {$$ = new OpNode(PEBL_RETURN, $2, NULL, sourcefilename, yylineno);}
 	;
 
 elseifseq_or_nothing:
@@ -331,7 +337,7 @@ elseifseq_or_nothing:
 elseifseq:   PEBL_ELSE nlornone block {
 
 		$$ = $3; }
- 
+
 
 |
 
@@ -341,14 +347,14 @@ elseifseq:   PEBL_ELSE nlornone block {
 		  $$ =  new OpNode(PEBL_IF, $3, $6, sourcefilename, yylineno);
 
    }
-|      PEBL_ELSEIF PEBL_LPAREN exp PEBL_RPAREN nlornone block  elseifseq {
+|      PEBL_ELSEIF PEBL_LPAREN exp PEBL_RPAREN nlornone block nlornone elseifseq {
 
 		/*First make the else node*/
-		PNode * tmpNode = new OpNode(PEBL_ELSE, $6, $7, sourcefilename, yylineno);
+		PNode * tmpNode = new OpNode(PEBL_ELSE, $6, $8, sourcefilename, yylineno);
 		/*Put the else node in the IF node*/
 		$$ = new OpNode(PEBL_IFELSE, $3, tmpNode, sourcefilename, yylineno); }
-  
-  
+
+
 ;
 
  

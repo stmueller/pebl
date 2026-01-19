@@ -1,0 +1,2241 @@
+## ----------------------------------------------------------------
+## PEBL Layout & Response System
+## Part of the PEBL Standard Library
+##
+## Provides unified layout and response handling with:
+## - Zone-based layouts with automatic scaling
+## - Platform-aware response modes (keyboard/mouse/touch)
+## - Single-function API with intelligent defaults
+## - Dynamic styling via nested property access
+## - Theme support and accessibility features
+##
+## (c) 2025 Shane T. Mueller
+## ----------------------------------------------------------------
+
+
+## ================================================================
+## Main API Functions
+## ================================================================
+
+define CreateLayout(testName, win, params:0)
+{
+    ## Creates a standard layout with header, stimulus region, footer, and response labels
+    ## Returns layout object (also sets global gLayout for convenience)
+    ##
+    ## Args:
+    ##   testName: Name of the test (for loading custom config)
+    ##   win: Window object to create layout in
+    ##   params: Parameter object (optional) with:
+    ##     .responsemode - Response mode name (e.g., "spacebar", "auto", "userselect")
+    ##     .responsesemantics - Semantic requirements (e.g., ["left", "right"], ["response"])
+    ##     .responselabels - Display labels for responses (e.g., ["RED", "BLUE"])
+    ##     .customkeys - Override keys (e.g., ["a", "b", "c"])
+    ##     .customlabels - Override labels (e.g., ["Press A", "Press B", "Press C"])
+    ##
+    ## Example (basic):
+    ##   layout <- CreateLayout("simon", gWin, gParams)
+    ##   layout.header.text <- "Simon Task"
+    ##
+    ## Example (explicit semantic requirements):
+    ##   gParams.responsemode <- "userselect"
+    ##   gParams.responsesemantics <- ["left", "right"]
+    ##   layout <- CreateLayout("mytest", gWin, gParams)
+    ##
+    ## Example (custom keys):
+    ##   gParams.responsemode <- "singlekey"
+    ##   gParams.customkeys <- ["<return>"]
+    ##   gParams.customlabels <- ["ENTER"]
+    ##   layout <- CreateLayout("mytest", gWin, gParams)
+
+    ## Load configuration
+    config <- LoadLayoutConfig(testName)
+    modes <- LoadResponseModes()
+
+    ## Determine response mode (pass win for userselect dialog)
+    responseMode <- DetermineResponseMode(params, config, modes, win)
+
+    ## Calculate screen scale
+    scale <- CalculateScreenScale(config, win)
+
+    ## Create layout object
+    layout <- MakeCustomObject("Layout")
+    layout.win <- win
+    layout.config <- config
+    layout.scale <- scale
+    layout.responseMode <- responseMode
+    layout.params <- params  ## Store params for access in CreateResponseLabels
+
+    ## Calculate zone positions
+    layout <- CalculateLayoutZones(layout)
+
+    ## Create UI elements
+    layout <- CreateLayoutElements(layout)
+
+    ## Create response labels (only if mode is not "none")
+    if(responseMode.type != "none")
+    {
+        layout <- CreateResponseLabels(layout, Round(config.zones.response.fontSize * scale))
+
+        ## Hide footer if response mode requests it (e.g., touchtarget mode)
+        if(PropertyExists(responseMode, "hideFooter"))
+        {
+            if(responseMode.hideFooter)
+            {
+                layout.footer.visible <- 0
+            }
+        }
+    } else {
+        ## No response UI - set empty lists and hide footer
+        layout.responseLabels <- []
+        layout.responseBorders <- []
+        layout.footer.visible <- 0
+    }
+
+    ## Add top-level center coordinates for convenience
+    ## (These duplicate stimulusRegion.centerX/Y for ease of use)
+    layout.centerX <- layout.stimulusRegion.centerX
+    layout.centerY <- layout.stimulusRegion.centerY
+
+    ## Set global for convenience
+    gLayout <- layout
+
+    return(layout)
+}
+
+
+define WaitForLayoutResponse(layout, timeout: 0)
+{
+    ## Waits for response according to layout's response mode
+    ## Returns semantic response: "left", "right", "up", "down", etc.
+    ## Returns "<timeout>" if timeout exceeded
+    ##
+    ## Args:
+    ##   layout: Layout object from CreateLayout()
+    ##   timeout: Maximum wait time in ms (default 60000 = 60 seconds)
+    ##
+    ## Example:
+    ##   resp <- WaitForLayoutResponse(gLayout, 5000)
+    ##   if(resp == "left") { ## Handle left response }
+    ##default -1 timeout indicates no timeout.
+  
+
+    mode <- layout.responseMode
+    result <- "<timeout>"
+
+    if(mode.type == "keyboard")
+    {
+
+        if(timeout==0)
+	{
+	  resp <- WaitForListKeyPress(mode.keys)
+	} else{
+          resp <- WaitForListKeyPressWithTimeout(mode.keys, timeout)
+ 	}
+
+        if(resp != "<timeout>")
+        {
+
+
+            ## Map key to semantic name
+            loop(i, Length(mode.keys))
+            {
+
+
+                if(resp == Nth(mode.keys, i))
+                {
+
+                    result <- Nth(mode.semantic, i)
+
+                }
+            }
+        }
+    }
+    elseif(mode.type == "mousebutton")
+    {
+        ## Use direct RegisterEvent instead of wrapper functions
+        ## This prevents drawing rules from being cleared prematurely
+
+        ## Register mouse button press event
+        RegisterEvent("<MOUSE_BUTTON_PRESS>", 1, 1, "<EQUAL>", "", [])
+
+        ## Register timeout if specified
+        if(timeout != 0)
+        {
+            endtime <- GetTime() + timeout
+            RegisterEvent("<TIMER>", 1, endtime, "<GEQ>", "", [])
+        }
+
+        ## Start event loop and wait for response
+        continue <- 1
+        while(continue)
+        {
+            resp <- StartEventLoop()
+            ClearEventLoop()
+
+            ## Re-register events for next iteration (if we need to keep waiting)
+            RegisterEvent("<MOUSE_BUTTON_PRESS>", 1, 1, "<EQUAL>", "", [])
+            if(timeout != 0)
+            {
+                endtime <- GetTime() + timeout
+                RegisterEvent("<TIMER>", 1, endtime, "<GEQ>", "", [])
+            }
+
+            if(resp != "<timeout>")
+            {
+                ## Extract button number and state
+                buttonNum <- Third(resp)
+                buttonState <- Fourth(resp)
+
+                Print("DEBUG mousebutton: button=" + buttonNum + " state=" + buttonState)
+
+                ## Only process <pressed> events, skip <released>
+                if(buttonState == "<pressed>")
+                {
+                    ## Map button to semantic name
+                    loop(i, Length(mode.buttons))
+                    {
+                        if(buttonNum == Nth(mode.buttons, i))
+                        {
+                            result <- Nth(mode.semantic, i)
+                            continue <- 0  ## Exit loop
+                        }
+                    }
+
+                    ## If button not recognized, keep waiting
+                    if(result == "<timeout>")
+                    {
+                        Print("DEBUG mousebutton: button " + buttonNum + " not in mode.buttons " + mode.buttons)
+                    }
+                }
+                ## If <released>, continue loop to wait for next event
+            } else {
+                ## Timeout occurred
+                continue <- 0
+            }
+        }
+    } elseif(mode.type == "mousetarget")
+    {
+        ## Mouse target mode - wait for click on response border rectangles
+        ## Create key list matching number of borders (1, 2, 3, ...)
+        numBorders <- Length(layout.responseBorders)
+        keylist <- Sequence(1, numBorders, 1)
+
+        if(timeout==0)
+	{
+          resp <- WaitForClickOnTarget(layout.responseBorders, keylist)
+	}else{
+
+          resp <- WaitForClickOnTargetWithTimeout(layout.responseBorders, keylist,timeout)
+	}
+
+        if(resp != "<timeout>")
+        {
+            ## Return semantic name for clicked target
+            result <- Nth(mode.semantic, resp)
+        }
+    } elseif(mode.type == "singlekey")
+    {
+        ## Single-key response mode - any key or mouse button counts as response
+        ## Used for go-nogo and continuous performance tasks
+
+        if(timeout==0)
+        {
+            resp <- WaitForListKeyPress(mode.keys)
+        } else {
+            resp <- WaitForListKeyPressWithTimeout(mode.keys, timeout)
+        }
+
+        if(resp != "<timeout>")
+        {
+            ## Return the single semantic value (e.g., "response")
+            result <- First(mode.semantic)
+        }
+    } else {
+        SignalFatalError("Unknown response mode: " + mode.type)
+    }
+
+    return(result)
+}
+
+
+define WaitForLayoutResponseOrExit(layout, exitTargets:0)
+{
+    ## Waits for response input OR exit input (for interactive practice modes)
+    ## Returns semantic response ("left", "right", etc.) or "exit"
+    ##
+    ## Args:
+    ##   layout: Layout object from CreateLayout()
+    ##   exitTargets: For mousetarget mode, list of clickable targets that trigger exit
+    ##                (default 0 = no exit targets, only response targets)
+    ##
+    ## Exit inputs:
+    ##   Keyboard modes: spacebar
+    ##   Mousebutton mode: middle button (2)
+    ##   Mousetarget mode: click on exitTargets (if provided)
+    ##
+    ## Example (interactive practice loop):
+    ##   while(practiceActive)
+    ##   {
+    ##      resp <- WaitForLayoutResponseOrExit(gLayout, [gContinueButtonBorder])
+    ##      if(resp == "exit") { practiceActive <- 0 }
+    ##      elseif(resp == "left") { ShowLeftStimulus() }
+    ##      elseif(resp == "right") { ShowRightStimulus() }
+    ##   }
+
+    mode <- layout.responseMode
+    result <- "exit"
+
+    if(mode.type == "keyboard")
+    {
+        ## Wait for response keys OR spacebar
+        resp <- WaitForListKeyPress(Merge([" "], mode.keys))
+
+        if(resp == " ")
+        {
+            result <- "exit"
+        } else {
+            ## Map to semantic (same logic as WaitForLayoutResponse)
+            loop(i, Length(mode.keys))
+            {
+                if(resp == Nth(mode.keys, i))
+                {
+                    result <- Nth(mode.semantic, i)
+                }
+            }
+        }
+    }
+    elseif(mode.type == "mousebutton")
+    {
+        ## Wait for any mouse button (including middle for exit)
+        continue <- 1
+        while(continue)
+        {
+            resp <- WaitForMouseButton()
+            buttonNum <- Third(resp)
+            buttonState <- Fourth(resp)
+
+            if(buttonState == "<pressed>")
+            {
+                ## Middle button (2) exits
+                if(buttonNum == 2)
+                {
+                    result <- "exit"
+                    continue <- 0
+                }
+                ## Check if it's a valid response button
+                elseif(IsMember(buttonNum, mode.buttons))
+                {
+                    loop(i, Length(mode.buttons))
+                    {
+                        if(buttonNum == Nth(mode.buttons, i))
+                        {
+                            result <- Nth(mode.semantic, i)
+                            continue <- 0
+                        }
+                    }
+                }
+                ## Otherwise keep waiting for valid input
+            }
+        }
+    }
+    elseif(mode.type == "mousetarget")
+    {
+        ## Wait for click on response targets OR exit targets
+        continue <- 1
+        while(continue)
+        {
+            pos <- WaitForMouseButton()
+            if(Nth(pos,4) == "<pressed>")
+            {
+                ## Check exit targets first (if provided)
+                if(exitTargets != 0)
+                {
+                    loop(target, exitTargets)
+                    {
+                        if(Inside(pos, target))
+                        {
+                            result <- "exit"
+                            continue <- 0
+                            break
+                        }
+                    }
+                }
+
+                ## If not exit, check response targets
+                if(continue)
+                {
+                    loop(i, Length(layout.responseBorders))
+                    {
+                        if(Inside(pos, Nth(layout.responseBorders, i)))
+                        {
+                            result <- Nth(mode.semantic, i)
+                            continue <- 0
+                            break
+                        }
+                    }
+                }
+            }
+        }
+    }
+    elseif(mode.type == "singlekey")
+    {
+        ## For singlekey modes, spacebar is the response, not an exit
+        ## Just use normal WaitForLayoutResponse
+        result <- WaitForLayoutResponse(layout)
+    }
+    else
+    {
+        SignalFatalError("WaitForLayoutResponseOrExit: Unknown response mode: " + mode.type)
+    }
+
+    return(result)
+}
+
+
+## ================================================================
+## Theme Functions
+## ================================================================
+
+define ApplyDarkTheme(layout)
+{
+    ## Applies dark theme to layout
+    ## Black background with white text
+
+    layout.win.bgcolor.red <- 40
+    layout.win.bgcolor.green <- 40
+    layout.win.bgcolor.blue <- 40
+
+    layout.header.font.fgcolor <- MakeColor("white")
+    layout.subheader.font.fgcolor <- MakeColor("white")
+    layout.footer.font.fgcolor <- MakeColor("white")
+
+    loop(label, layout.responseLabels)
+    {
+        label.font.fgcolor <- MakeColor("white")
+        label.font.bgcolor.red <- 60
+        label.font.bgcolor.green <- 60
+        label.font.bgcolor.blue <- 60
+    }
+
+    Draw()
+}
+
+
+define ApplyHighContrastTheme(layout)
+{
+    ## Applies high contrast theme for accessibility
+    ## Black text on yellow background
+
+    layout.win.bgcolor <- MakeColor("yellow")
+
+    layout.header.font.fgcolor <- MakeColor("black")
+    layout.header.font.size <- Round(layout.header.font.size * 1.5)
+
+    layout.subheader.font.fgcolor <- MakeColor("black")
+    layout.footer.font.fgcolor <- MakeColor("black")
+
+    loop(label, layout.responseLabels)
+    {
+        label.font.fgcolor <- MakeColor("black")
+        label.font.size <- Round(label.font.size * 1.3)
+        label.font.bgcolor <- MakeColor("white")
+    }
+
+    Draw()
+}
+
+
+define ApplyAccessibilitySettings(layout, params)
+{
+    ## Applies accessibility settings based on parameters
+    ##
+    ## Supported parameters:
+    ##   params.highContrast: Enable high contrast mode
+    ##   params.largeText: Increase all font sizes by 50%
+    ##   params.colorBlind: Use black/white instead of colors
+
+    if(PropertyExists(params, "highContrast"))
+    {
+        if(params.highContrast)
+        {
+            ApplyHighContrastTheme(layout)
+        }
+    }
+
+    if(PropertyExists(params, "largeText"))
+    {
+        if(params.largeText)
+        {
+            layout.header.font.size <- Round(layout.header.font.size * 1.5)
+            layout.subheader.font.size <- Round(layout.subheader.font.size * 1.5)
+            layout.footer.font.size <- Round(layout.footer.font.size * 1.5)
+
+            loop(label, layout.responseLabels)
+            {
+                label.font.size <- Round(label.font.size * 1.5)
+            }
+
+            Draw()
+        }
+    }
+
+    if(PropertyExists(params, "colorBlind"))
+    {
+        if(params.colorBlind)
+        {
+            ## Ensure sufficient luminance contrast
+            layout.win.bgcolor <- MakeColor("white")
+            layout.header.font.fgcolor <- MakeColor("black")
+            layout.subheader.font.fgcolor <- MakeColor("black")
+            layout.footer.font.fgcolor <- MakeColor("black")
+
+            loop(label, layout.responseLabels)
+            {
+                label.font.fgcolor <- MakeColor("black")
+            }
+
+            Draw()
+        }
+    }
+}
+
+
+## ================================================================
+## Animation Functions
+## ================================================================
+
+define FlashCorrect(label, durationMs:500)
+{
+    ## Flashes label with green background to indicate correct response
+    ##
+    ## Args:
+    ##   label: Label object to flash
+    ##   durationMs: Duration of flash in milliseconds (default 500)
+
+    ## Save original colors
+    origBg <- label.font.bgcolor
+
+    ## Flash green
+    label.font.bgcolor <- MakeColor("green")
+    Draw()
+    Wait(durationMs)
+
+    ## Restore
+    label.font.bgcolor <- origBg
+    Draw()
+}
+
+
+define FlashIncorrect(label, durationMs:500)
+{
+    ## Flashes label with red background to indicate incorrect response
+
+    origBg <- label.font.bgcolor
+
+    label.font.bgcolor <- MakeColor("red")
+    Draw()
+    Wait(durationMs)
+
+    label.font.bgcolor <- origBg
+    Draw()
+}
+
+
+define FadeOut(label, durationMs:1000)
+{
+    ## Fades out a label by animating alpha from 255 to 0
+    ##
+    ## Args:
+    ##   label: Label object to fade
+    ##   durationMs: Duration of fade in milliseconds (default 1000)
+
+    steps <- 20
+    stepDelay <- durationMs / steps
+
+    loop(alpha, Sequence(255, 0, -13))
+    {
+        label.font.fgcolor.alpha <- alpha
+        label.font.bgcolor.alpha <- alpha
+        Draw()
+        Wait(stepDelay)
+    }
+}
+
+
+define FadeIn(label, durationMs:1000)
+{
+    ## Fades in a label by animating alpha from 0 to 255
+
+    steps <- 20
+    stepDelay <- durationMs / steps
+
+    loop(alpha, Sequence( 0, 255, 13))
+    {
+        label.font.fgcolor.alpha <- alpha
+        label.font.bgcolor.alpha <- alpha
+        Draw()
+        Wait(stepDelay)
+    }
+}
+
+
+define PulseLabel(label, count:3, pulseSize:10)
+{
+    ## Pulses a label by increasing/decreasing font size
+    ##
+    ## Args:
+    ##   label: Label object to pulse
+    ##   count: Number of pulses (default 3)
+    ##   pulseSize: Amount to increase size by (default 10)
+
+    originalSize <- label.font.size
+
+    loop(i,  count)
+    {
+        label.font.size <- originalSize + pulseSize
+        Draw()
+        Wait(150)
+
+        label.font.size <- originalSize
+        Draw()
+        Wait(150)
+    }
+}
+
+
+define HighlightResponse(label, durationMs:1000)
+{
+    ## Highlights a label by changing to yellow background with black text
+    ##
+    ## Args:
+    ##   label: Label object to highlight
+    ##   durationMs: Duration of highlight in milliseconds (default 1000)
+
+    ## Cache original colors
+    origBgColor <- label.font.bgcolor
+    origFgColor <- label.font.fgcolor
+
+    ## Highlight
+    label.font.bgcolor <- MakeColor("yellow")
+    label.font.fgcolor <- MakeColor("black")
+    Draw()
+    Wait(durationMs)
+
+    ## Restore
+    label.font.bgcolor <- origBgColor
+    label.font.fgcolor <- origFgColor
+    Draw()
+}
+
+
+## ================================================================
+## Styling Helper Functions
+## ================================================================
+
+define SetLabelColor(label, colorName)
+{
+    ## Sets label foreground color by name
+    ##
+    ## Args:
+    ##   label: Label object
+    ##   colorName: Color name (e.g., "red", "blue", "green")
+
+    label.font.fgcolor <- MakeColor(colorName)
+    Draw()
+}
+
+
+define SetLabelBackground(label, red, green, blue, alpha:255)
+{
+    ## Sets label background color with RGBA values
+    ##
+    ## Args:
+    ##   label: Label object
+    ##   red, green, blue: Color components (0-255)
+    ##   alpha: Alpha transparency (0-255, default 255)
+
+    label.font.bgcolor.red <- red
+    label.font.bgcolor.green <- green
+    label.font.bgcolor.blue <- blue
+    label.font.bgcolor.alpha <- alpha
+    Draw()
+}
+
+
+define ScaleFont(label, scaleFactor)
+{
+    ## Scales label font size by a factor
+    ##
+    ## Args:
+    ##   label: Label object
+    ##   scaleFactor: Multiplier for font size (e.g., 1.5 = 150%)
+
+    label.font.size <- Round(label.font.size * scaleFactor)
+    Draw()
+}
+
+
+define StyleForDifficulty(layout, difficulty)
+{
+    ## Adjusts layout appearance based on difficulty level
+    ##
+    ## Args:
+    ##   layout: Layout object
+    ##   difficulty: "easy", "medium", or "hard"
+    ##
+    ## Easy: Large text, high contrast
+    ## Medium: Normal text, slight fade
+    ## Hard: Small text, more faded
+
+    if(difficulty == "easy")
+    {
+        layout.header.font.size <- Round(60 * layout.scale)
+        layout.header.font.fgcolor <- MakeColor("black")
+
+        loop(label, layout.responseLabels)
+        {
+            label.font.size <- Round(32 * layout.scale)
+        }
+    }
+    elseif(difficulty == "medium")
+    {
+        layout.header.font.size <- Round(48 * layout.scale)
+        layout.header.font.fgcolor.alpha <- 220
+
+        loop(label, layout.responseLabels)
+        {
+            label.font.size <- Round(24 * layout.scale)
+        }
+    }    else   { ## hard
+        layout.header.font.size <- Round(36 * layout.scale)
+        layout.header.font.fgcolor.alpha <- 180
+
+        loop(label, layout.responseLabels)
+        {
+            label.font.size <- Round(18 * layout.scale)
+        }
+    }
+
+    Draw()
+}
+
+
+## ================================================================
+## Internal Helper Functions
+## ================================================================
+
+define LoadLayoutConfig(testName)
+{
+    ## Loads layout configuration from JSON file
+    ## First checks for test-specific config, then falls back to default
+    ##
+    ## Returns configuration object with zones, margins, etc.
+
+    config <- 0
+
+    ## Try test-specific config first
+    customPath <- "battery/" + testName + "/layout/" + testName + ".pbl.layout.json"
+
+    if(FileExists(customPath))
+    {
+        config <- ParseJSON(FileReadText(customPath))
+    }
+    else
+    {
+        ## Fall back to default config
+        defaultPath <- gPEBLBasePath + "/media/settings/default-layout.json"
+
+        if(FileExists(defaultPath))
+        {
+            config <- ParseJSON(FileReadText(defaultPath))
+        }
+        else
+        {
+            ## If no config files exist, return hardcoded defaults
+            config <- GetDefaultLayoutConfig()
+        }
+    }
+
+    return(config)
+}
+
+
+define MergeResponseModeTranslations(baseModes, overrideModes)
+{
+    ## Merges translation overrides into base response modes
+    ##
+    ## Override files contain only translated strings for each mode:
+    ##   - labels: Array of translated label strings
+    ##   - footerInstruction: Translated footer instruction string
+    ##   - prompts: Object with prompt strings (for userselect mode)
+    ##
+    ## All other properties (type, keys, buttons, semantic, platforms, etc.)
+    ## are preserved from the base modes
+    ##
+    ## Arguments:
+    ##   baseModes: Base modes object with complete structure
+    ##   overrideModes: Override modes object with translated strings only
+    ##
+    ## Returns:
+    ##   Merged modes object with translations applied
+
+    ## Get list of all mode names from base
+    modeNames <- GetPropertyList(baseModes)
+
+    ## For each mode, check if override exists and merge translations
+    loop(modeName, modeNames)
+    {
+        baseMode <- GetProperty(baseModes, modeName)
+
+        ## Check if override exists for this mode
+        if(PropertyExists(overrideModes, modeName))
+        {
+            overrideMode <- GetProperty(overrideModes, modeName)
+
+            ## Override labels if provided
+            if(PropertyExists(overrideMode, "labels"))
+            {
+                baseMode.labels <- overrideMode.labels
+            }
+
+            ## Override footerInstruction if provided
+            if(PropertyExists(overrideMode, "footerInstruction"))
+            {
+                baseMode.footerInstruction <- overrideMode.footerInstruction
+            }
+
+            ## Override prompts if provided (for userselect mode)
+            if(PropertyExists(overrideMode, "prompts"))
+            {
+                baseMode.prompts <- overrideMode.prompts
+            }
+
+            ## Update the mode in baseModes
+            SetProperty(baseModes, modeName, baseMode)
+        }
+    }
+
+    return(baseModes)
+}
+
+
+define LoadResponseModes(lang:gLanguage)
+{
+    ## Loads response mode definitions using base+override pattern
+    ##
+    ## Architecture:
+    ## 1. Always load baseline English file (complete structure)
+    ## 2. Use 3-tier fallback to find language override file
+    ## 3. Merge language-specific translations into base
+    ##
+    ## Override files contain only translated strings:
+    ##   - labels: ["TRANSLATED_LABEL1", "TRANSLATED_LABEL2"]
+    ##   - footerInstruction: "Translated instruction text"
+    ##   - keyNames: {"KEY": "TRANSLATED_KEY"}
+    ##
+    ## Arguments:
+    ##   lang: Two-letter language code (default: gLanguage)
+    ##
+    ## Returns:
+    ##   Response modes object with translated labels and footerInstructions
+    ##
+    ## Side effects:
+    ##   Sets global gKeyNames with translated key names
+
+    ## Step 1: Always load baseline English file
+    Print("DEBUG: gPEBLBasePath = [" + gPEBLBasePath + "]")
+    Print("DEBUG: GetSystemType() = " + GetSystemType())
+    basePath <- gPEBLBasePath + "/media/settings/response-modes.json"
+    Print("DEBUG: Computed basePath = [" + basePath + "]")
+    baseModes <- 0
+
+    if(FileExists(basePath))
+    {
+        Print("DEBUG: FileExists returned TRUE, loading JSON...")
+        baseData <- ParseJSON(FileReadText(basePath))
+        baseModes <- baseData.modes
+        Print("DEBUG: Loaded " + Length(GetPropertyList(baseModes)) + " modes from JSON")
+    } else {
+        Print("DEBUG: FileExists returned FALSE, using hardcoded defaults")
+        ## Fall back to hardcoded defaults if base file not found
+        baseModes <- GetDefaultResponseModes()
+    }
+
+    ## Initialize global key names and semantic names (empty for English)
+    gKeyNames <- 0
+    gSemanticNames <- 0
+
+    ## Step 2: Load language override file using 3-tier fallback
+    lang <- Lowercase(lang)
+    overrideModes <- 0
+    overrideKeyNames <- 0
+    overrideSemanticNames <- 0
+
+    ## Tier 1: Try explicit language if provided
+    if(lang != "" and lang != "en")
+    {
+        overridePath <- gPEBLBasePath + "/media/settings/response-modes/response-modes-" + lang + ".json"
+
+        if(FileExists(overridePath))
+        {
+            overrideData <- ParseJSON(FileReadText(overridePath))
+            overrideModes <- overrideData.modes
+            ## Extract keyNames if present
+            if(PropertyExists(overrideData, "keyNames"))
+            {
+                overrideKeyNames <- overrideData.keyNames
+            }
+            ## Extract semanticNames if present
+            if(PropertyExists(overrideData, "semanticNames"))
+            {
+                overrideSemanticNames <- overrideData.semanticNames
+            }
+        } else {
+            lang <- ""  ## Language file not available, fall back
+        }
+    }
+
+    ## Tier 2: Try system locale if lang was empty or is English
+    if((lang == "" or lang == "en") and overrideModes == 0)
+    {
+        systemLocale <- GetSystemLocale()
+
+        if(systemLocale != "")
+        {
+            ## Extract language code from locale (e.g., "en_US" -> "en")
+            lang <- Lowercase(SubString(systemLocale, 1, 2))
+
+            ## Only load override if not English
+            if(lang != "en")
+            {
+                overridePath <- gPEBLBasePath + "/media/settings/response-modes/response-modes-" + lang + ".json"
+
+                if(FileExists(overridePath))
+                {
+                    overrideData <- ParseJSON(FileReadText(overridePath))
+                    overrideModes <- overrideData.modes
+                    ## Extract keyNames if present
+                    if(PropertyExists(overrideData, "keyNames"))
+                    {
+                        overrideKeyNames <- overrideData.keyNames
+                    }
+                    ## Extract semanticNames if present
+                    if(PropertyExists(overrideData, "semanticNames"))
+                    {
+                        overrideSemanticNames <- overrideData.semanticNames
+                    }
+                }
+            }
+        }
+    }
+
+    ## Step 3: Merge language overrides into base modes
+    if(overrideModes != 0)
+    {
+        baseModes <- MergeResponseModeTranslations(baseModes, overrideModes)
+    }
+
+    ## Step 4: Store key names and semantic names in globals for translation functions
+    if(overrideKeyNames != 0)
+    {
+        gKeyNames <- overrideKeyNames
+    }
+    if(overrideSemanticNames != 0)
+    {
+        gSemanticNames <- overrideSemanticNames
+    }
+
+    return(baseModes)
+}
+
+
+define DetermineResponseMode(params, config, modes, win)
+{
+    ## Determines which response mode to use based on parameters and platform
+    ##
+    ## Priority:
+    ##   1. Parameter override (params.responsemode)
+    ##   2. Config default
+    ##   3. "auto" platform detection
+    ##
+    ## Semantic requirements:
+    ##   Tests specify WHAT responses they need via params.responsesemantics
+    ##   Response modes specify HOW to capture those responses
+    ##   If not specified, semantic values are inferred from default mode
+    ##
+    ## Special handling for "userselect":
+    ##   Shows dialog for user to select custom keys
+    ##   Caches selection in global gUserSelectedMode for session persistence
+    ##
+    ## Custom key override:
+    ##   If params.customkeys is provided, override mode's keys
+    ##   If params.customlabels is provided, override mode's labels
+    ##   If params.responsesemantics is provided, override mode's semantic
+
+    ## Get requested mode name
+    modeName <- "auto"
+
+    if(params != 0)
+    {
+        if(PropertyExists(params, "responsemode"))
+        {
+            modeName <- params.responsemode
+        }
+    }
+
+    if(modeName == "auto")
+    {
+        if(PropertyExists(config, "responseDefaults"))
+        {
+            if(PropertyExists(config.responseDefaults, "type"))
+            {
+                modeName <- config.responseDefaults.type
+            }
+        }
+    }
+
+    ## If still auto, do platform detection
+    if(modeName == "auto")
+    {
+        modeName <- GetPlatformResponseMode(modes)
+    }
+
+    ## Handle userselect mode - let user pick their own keys
+    if(modeName == "userselect")
+    {
+        ## Check if already selected this session (use global cache)
+        ## Initialize to 0 if not yet defined
+        if(not VariableExists("gUserSelectedMode"))
+        {
+            gUserSelectedMode <- 0
+        }
+
+        if(not gUserSelectedMode)
+        {
+            ## Get prompts from mode configuration
+            userselectMode <- GetProperty(modes, "userselect")
+            prompts <- userselectMode.prompts
+
+            ## Determine semantic requirements
+            ## Priority: 1) params.responsesemantics, 2) infer from default mode
+            semanticList <- GetSemanticRequirements(params, config, modes)
+
+            ## Show selection dialog with semantic list
+            gUserSelectedMode <- SelectCustomKeys(win, prompts, semanticList)
+        }
+
+        result <- gUserSelectedMode
+    } else {
+        ## Get mode configuration
+        result <- 0
+        if(PropertyExists(modes, modeName))
+        {
+            result <- GetProperty(modes, modeName)
+        }
+        else
+        {
+            SignalFatalError("Unknown response mode: " + modeName)
+        }
+
+        ## Apply custom overrides if provided
+        if(params != 0)
+        {
+            if(PropertyExists(params, "customkeys"))
+            {
+                result.keys <- params.customkeys
+            }
+
+            if(PropertyExists(params, "customlabels"))
+            {
+                result.labels <- params.customlabels
+            }
+
+            if(PropertyExists(params, "responsesemantics"))
+            {
+                semantic <- params.responsesemantics
+
+                ## If it's a list, use it directly
+                if(IsList(semantic))
+                {
+                    result.semantic <- semantic
+                }
+                ## If it's a string, look up canned definition
+                else
+                {
+                    expandedSemantic <- GetCannedSemantics(semantic)
+                    if(expandedSemantic)
+                    {
+                        result.semantic <- expandedSemantic
+                    }
+                    ## If unrecognized, keep mode's default semantic
+                }
+            }
+        }
+    }
+
+    return(result)
+}
+
+
+define GetSemanticRequirements(params, config, modes)
+{
+    ## Determines semantic requirements for response modes
+    ##
+    ## Priority:
+    ##   1. Explicit specification via params.responsesemantics (can be list or canned label)
+    ##   2. Infer from what the default response mode would be
+    ##   3. Fallback to ["left", "right"]
+    ##
+    ## Canned labels:
+    ##   "2afc" -> ["left", "right"]
+    ##   "gonogo" or "singlekey" -> ["response"]
+    ##   "4way" -> ["up", "down", "left", "right"]
+    ##   "numbers" -> ["1", "2", "3", "4", "5", "6", "7", "8", "9"]
+    ##
+    ## Args:
+    ##   params: Parameter object (may contain responsesemantics)
+    ##   config: Layout configuration
+    ##   modes: Response modes object
+    ##
+    ## Returns:
+    ##   List of semantic values (e.g., ["left", "right"], ["response"], etc.)
+
+    semanticList <- 0
+
+    ## Priority 1: Check if explicitly specified
+    if(params != 0)
+    {
+        if(PropertyExists(params, "responsesemantics"))
+        {
+            semantic <- params.responsesemantics
+
+            ## If it's a list, use it directly
+            if(IsList(semantic))
+            {
+                semanticList <- semantic
+            }
+            ## If it's a string, look up canned definition
+            else
+            {
+                semanticList <- GetCannedSemantics(semantic)
+            }
+        }
+    }
+
+    ## Priority 2: If not specified, infer from default mode
+    if(not semanticList)
+    {
+        ## Determine what mode would be used by default
+        defaultModeName <- "auto"
+
+        ## Check config defaults
+        if(PropertyExists(config, "responseDefaults"))
+        {
+            if(PropertyExists(config.responseDefaults, "type"))
+            {
+                defaultModeName <- config.responseDefaults.type
+            }
+        }
+
+        ## If still auto, do platform detection
+        if(defaultModeName == "auto")
+        {
+            defaultModeName <- GetPlatformResponseMode(modes)
+        }
+
+        ## Get the semantic list from that mode
+        if(PropertyExists(modes, defaultModeName))
+        {
+            defaultMode <- GetProperty(modes, defaultModeName)
+            if(PropertyExists(defaultMode, "semantic"))
+            {
+                semanticList <- defaultMode.semantic
+            }
+        }
+    }
+
+    ## Priority 3: Final fallback
+    if(not semanticList)
+    {
+        semanticList <- ["left", "right"]
+    }
+
+    return(semanticList)
+}
+
+
+define GetCannedSemantics(label)
+{
+    ## Returns semantic list for common response patterns
+    ##
+    ## Supported canned labels:
+    ##   "2afc" - Two-alternative forced choice (left/right)
+    ##   "gonogo" or "singlekey" - Single response (go/no-go tasks)
+    ##   "4way" - Four-way directional (up/down/left/right)
+    ##   "numbers" - Numeric responses (1-9)
+    ##
+    ## Args:
+    ##   label: String label for canned semantic pattern
+    ##
+    ## Returns:
+    ##   List of semantic values, or 0 if label not recognized
+
+    result <- 0
+
+    if(label == "2afc")
+    {
+        result <- ["left", "right"]
+    }
+    elseif(label == "gonogo" or label == "singlekey")
+    {
+        result <- ["response"]
+    }
+    elseif(label == "4way")
+    {
+        result <- ["up", "down", "left", "right"]
+    }
+    elseif(label == "numbers")
+    {
+        result <- ["1", "2", "3", "4", "5", "6", "7", "8", "9"]
+    }
+    else
+    {
+        ## Unknown label - return 0 to trigger fallback
+        result <- 0
+    }
+
+    return(result)
+}
+
+
+define GetPlatformResponseMode(modes)
+{
+    ## Returns appropriate response mode for current platform
+    ## Native: keyboard-shift
+    ## Emscripten: keyboard-safe
+
+    result <- "keyboardShift"
+
+    if(GetSystemType() == "EMSCRIPTEN")
+    {
+        result <- "keyboardSafe"
+    }
+
+    return(result)
+}
+
+
+define ConvertNewlinesToCR(text)
+{
+    ## Converts \n sequences in prompt strings to CR() function calls
+    ## This is needed because JSON translations have literal \n but PEBL needs CR()
+    ##
+    ## Args:
+    ##   text: String containing \n sequences
+    ##
+    ## Returns:
+    ##   String with \n replaced by actual newlines via CR()
+
+    ## Use SubstituteStrings for cleaner multi-replacement
+    ## Order matters: replace \n\n before \n to avoid double-replacing
+    replacements <- [["\n\n", CR(2)], ["\n", CR(1)]]
+    result <- SubstituteStrings(text, replacements)
+
+    return(result)
+}
+
+
+define SelectCustomKeys(win, prompts, semanticList)
+{
+    ## Interactive key selection dialog for userselect mode
+    ## Returns custom mode configuration with user-selected keys
+    ##
+    ## Args:
+    ##   win: Window object to show dialog in
+    ##   prompts: Object with prompt strings from response-modes.json
+    ##   semanticList: List of semantic values (e.g., ["left", "right"] or ["respond"])
+
+    result <- 0
+    selectedKeys <- []
+    selectedLabels <- []
+    valid <- 0
+    numKeys <- Length(semanticList)
+
+    ## Loop until we get valid key selection
+    while(not valid)
+    {
+        selectedKeys <- []
+        selectedLabels <- []
+
+        ## Select each key in sequence
+        loop(i, numKeys)
+        {
+            semantic <- Nth(semanticList, i)
+            semanticUpper <- Uppercase(semantic)
+
+            ## Build prompt using translations when available
+            if(Length(selectedKeys) == 0)
+            {
+                ## First key - use selectResponse for single-key, selectLeft for multi-key
+                if(numKeys == 1 and PropertyExists(prompts, "selectResponse"))
+                {
+                    ## Single-key mode - use dedicated selectResponse prompt
+                    promptText <- ConvertNewlinesToCR(prompts.selectResponse)
+                }
+                elseif(PropertyExists(prompts, "selectLeft"))
+                {
+                    ## Multi-key mode - use selectLeft and substitute semantic
+                    promptText <- ConvertNewlinesToCR(prompts.selectLeft)
+                    ## Replace "LEFT" with actual semantic
+                    promptText <- ReplaceChar(promptText, "LEFT", semanticUpper)
+                } else {
+                    promptText <- "Press the key you want to use for " + semanticUpper + " responses"
+                }
+            } else {
+                ## Show already selected keys with translations
+                summary <- ""
+                loop(j, Length(selectedKeys))
+                {
+                    prevSemantic <- TranslateSemanticName(Nth(semanticList, j))
+                    prevLabel <- TranslateKeyName(Nth(selectedLabels, j))
+                    summary <- summary + prevSemantic + ": " + prevLabel + "    "
+                }
+
+                ## Subsequent keys - use selectRight if available, substitute semantic
+                if(PropertyExists(prompts, "selectRight"))
+                {
+                    nextPrompt <- ConvertNewlinesToCR(prompts.selectRight)
+                    ## Replace "RIGHT" with actual semantic
+                    nextPrompt <- ReplaceChar(nextPrompt, "RIGHT", semanticUpper)
+                    promptText <- summary + CR(2) + nextPrompt
+                } else {
+                    promptText <- summary + CR(2) + "Now press the key for " + semanticUpper + " responses"
+                }
+            }
+
+            textbox <- EasyTextBox(promptText, win.width/2-300, win.height/2-50, win, 20, 600, 150)
+            Draw()
+
+            key <- WaitForAnyKeyPress()
+
+            ## Validate key is allowed (reject modifier keys, allow arrows/space/etc)
+            if(not IsValidResponseKey(key))
+            {
+                SetText(textbox, ConvertNewlinesToCR(prompts.errorSpecialKey))
+                Draw()
+                WaitForAnyKeyPress()
+                RemoveObject(textbox, win)
+                Draw()
+                break  ## Start over
+            }
+
+            ## Validate not a duplicate
+            if(IsMember(key, selectedKeys))
+            {
+                if(PropertyExists(prompts, "errorSameKey"))
+                {
+                    SetText(textbox, ConvertNewlinesToCR(prompts.errorSameKey))
+                } else {
+                    SetText(textbox, "Keys must be different!" + CR(1) + "Press any key to try again")
+                }
+                Draw()
+                WaitForAnyKeyPress()
+                RemoveObject(textbox, win)
+                Draw()
+                break  ## Start over
+            }
+
+            ## Key is valid - add to list
+            PushOnEnd(selectedKeys, key)
+            PushOnEnd(selectedLabels, GetNiceKeyLabel(key))
+
+            RemoveObject(textbox, win)
+            Draw()
+        }
+
+        ## If we successfully selected all keys, do confirmation test
+        if(Length(selectedKeys) == numKeys)
+        {
+            ## Build confirmation prompt using translations when available
+            if(numKeys == 1 and PropertyExists(prompts, "confirmResponse"))
+            {
+                ## Single-key mode - use confirmResponse prompt with substitution
+                confirmText <- ConvertNewlinesToCR(prompts.confirmResponse)
+                ## Replace {KEY} placeholder with actual key label
+                confirmText <- ReplaceChar(confirmText, "{KEY}", First(selectedLabels))
+            }
+            elseif(numKeys == 2 and PropertyExists(prompts, "confirmKeys"))
+            {
+                ## Two-key mode - use translated confirmKeys prompt with substitutions
+                confirmText <- ConvertNewlinesToCR(prompts.confirmKeys)
+                ## Replace placeholders with actual values
+                replacements <- [["{LEFT}", First(selectedLabels)],
+                                  ["{RIGHT}", Second(selectedLabels)],
+                                  [" LEFT ", " " + Uppercase(First(semanticList)) + " "],
+                                  [" RIGHT ", " " + Uppercase(Second(semanticList)) + " "]]
+                confirmText <- SubstituteStrings(confirmText, replacements)
+            } else {
+                ## Fall back to generic confirmation
+                confirmText <- "Selected keys:" + CR(1)
+                loop(i, numKeys)
+                {
+                    confirmText <- confirmText + Uppercase(Nth(semanticList, i)) + ": " + Nth(selectedLabels, i) + CR(1)
+                }
+                confirmText <- confirmText + CR(1) + "Let's test them out!" + CR(1)
+                confirmText <- confirmText + "Press your " + Uppercase(First(semanticList)) + " key now"
+            }
+
+            textbox <- EasyTextBox(confirmText, win.width/2-300, win.height/2-100, win, 20, 600, 250)
+            Draw()
+
+            ## Test each key in sequence
+            allCorrect <- 1
+            loop(i, numKeys)
+            {
+                resp <- WaitForListKeyPress(selectedKeys)
+
+                ## Check if correct key was pressed
+                if(resp == Nth(selectedKeys, i))
+                {
+                    ## Correct!  Show next prompt or finish
+                    if(i < numKeys)
+                    {
+                        ## Use translated testRight prompt if available (2AFC only)
+                        if(numKeys == 2 and i == 1 and PropertyExists(prompts, "testRight"))
+                        {
+                            nextPrompt <- ConvertNewlinesToCR(prompts.testRight)
+                            ## Replace RIGHT with actual semantic
+                            nextPrompt <- ReplaceChar(nextPrompt, "RIGHT", Uppercase(Second(semanticList)))
+                            SetText(textbox, nextPrompt)
+                        } else {
+                            ## Generic next prompt
+                            nextSemantic <- Uppercase(Nth(semanticList, i + 1))
+                            SetText(textbox, "Good! Now press your " + nextSemantic + " key")
+                        }
+                        Draw()
+                    } else {
+                        ## All keys tested successfully!
+                        valid <- 1
+                    }
+                } else {
+                    ## Wrong key pressed - determine which key was expected and which was pressed
+                    if(numKeys == 2)
+                    {
+                        ## For 2AFC, use specific error messages
+                        expectedIndex <- i
+                        expectedSemantic <- Uppercase(Nth(semanticList, expectedIndex))
+
+                        ## Figure out which key was actually pressed
+                        pressedIndex <- 0
+                        loop(j, numKeys)
+                        {
+                            if(resp == Nth(selectedKeys, j))
+                            {
+                                pressedIndex <- j
+                            }
+                        }
+
+                        ## Use translated error messages
+                        if(expectedIndex == 1 and PropertyExists(prompts, "errorWrongLeft"))
+                        {
+                            ## Expected LEFT, got RIGHT
+                            errorText <- ConvertNewlinesToCR(prompts.errorWrongLeft)
+                            ## Replace semantic names
+                            errorText <- ReplaceChar(errorText, "LEFT", expectedSemantic)
+                            if(pressedIndex > 0)
+                            {
+                                pressedSemantic <- Uppercase(Nth(semanticList, pressedIndex))
+                                errorText <- ReplaceChar(errorText, "RIGHT", pressedSemantic)
+                            }
+                            SetText(textbox, errorText)
+                        }
+                        elseif(expectedIndex == 2 and PropertyExists(prompts, "errorWrongRight"))
+                        {
+                            ## Expected RIGHT, got LEFT
+                            errorText <- ConvertNewlinesToCR(prompts.errorWrongRight)
+                            ## Replace semantic names
+                            errorText <- ReplaceChar(errorText, "RIGHT", expectedSemantic)
+                            if(pressedIndex > 0)
+                            {
+                                pressedSemantic <- Uppercase(Nth(semanticList, pressedIndex))
+                                errorText <- ReplaceChar(errorText, "LEFT", pressedSemantic)
+                            }
+                            SetText(textbox, errorText)
+                        } else {
+                            ## Fallback
+                            SetText(textbox, "Wrong key!" + CR(1) + "Expected " + expectedSemantic + " key" + CR(1) + CR(1) + "Press any key to start over")
+                        }
+                    } else {
+                        ## Generic error for non-2AFC
+                        wrongSemantic <- Uppercase(Nth(semanticList, i))
+                        SetText(textbox, "Wrong key!" + CR(1) + "Expected " + wrongSemantic + " key" + CR(1) + CR(1) + "Press any key to start over")
+                    }
+                    Draw()
+                    WaitForAnyKeyPress()
+                    allCorrect <- 0
+                    break
+                }
+            }
+
+            RemoveObject(textbox, win)
+            Draw()
+        }
+    }
+
+    ## Build custom mode object with template labels
+    mode <- MakeCustomObject("Mode")
+    mode.type <- "keyboard"
+    mode.keys <- selectedKeys
+
+    ## Use template labels for userselect mode (same as predefined modes)
+    ## This allows FormatLabelsForMode to substitute <KEY> and <SEMANTIC> placeholders
+    ## Get template from prompts if available (for translations), otherwise use English default
+    templateString <- "<KEY> for <SEMANTIC>"  ## English fallback
+    if(PropertyExists(prompts, "labelTemplate"))
+    {
+        templateString <- prompts.labelTemplate
+    }
+
+    templateLabels <- []
+    loop(i, numKeys)
+    {
+        PushOnEnd(templateLabels, templateString)
+    }
+    mode.labels <- templateLabels
+    mode.semantic <- semanticList
+
+    ## Build footer instruction using templates if available
+    ## Need to translate the selected key labels for footer
+    translatedLabels <- []
+    loop(label, selectedLabels)
+    {
+        PushOnEnd(translatedLabels, TranslateKeyName(label))
+    }
+
+    if(numKeys == 1)
+    {
+        ## Single key footer
+        if(PropertyExists(prompts, "footerTemplateSingle"))
+        {
+            footerText <- prompts.footerTemplateSingle
+            footerText <- ReplaceChar(footerText, "{KEY1}", First(translatedLabels))
+            mode.footerInstruction <- footerText
+        } else {
+            mode.footerInstruction <- "Press " + First(translatedLabels)
+        }
+    } elseif(numKeys == 2) {
+        ## Two keys footer
+        if(PropertyExists(prompts, "footerTemplate"))
+        {
+            footerText <- prompts.footerTemplate
+            replacements <- [["{KEY1}", First(translatedLabels)],
+                              ["{KEY2}", Second(translatedLabels)]]
+            footerText <- SubstituteStrings(footerText, replacements)
+            mode.footerInstruction <- footerText
+        } else {
+            mode.footerInstruction <- "Press " + First(translatedLabels) + " or " + Second(translatedLabels)
+        }
+    } else {
+        ## Multiple keys footer (generic)
+        mode.footerInstruction <- "Press " + JoinStrings(translatedLabels, ", ")
+    }
+
+    result <- mode
+    return(result)
+}
+
+
+define IsValidResponseKey(key)
+{
+    ## Checks if a key is valid for userselect mode
+    ## Allows: regular letter/number keys, arrow keys, space, return, shift keys, alt keys
+    ## Rejects: ctrl keys, function keys, other problematic keys
+    ##
+    ## Args:
+    ##   key: Key string to validate
+    ##
+    ## Returns:
+    ##   1 if valid, 0 if invalid
+
+    result <- 1
+
+    ## Regular keys (not starting with <) are always valid
+    if(SubString(key, 1, 1) != "<")
+    {
+        result <- 1
+    } else {
+        ## Special key - check if it's an allowed type
+        ## Allowed special keys (including shift and alt modifiers)
+        allowedKeys <- ["<left>", "<right>", "<up>", "<down>",
+                        "<space>", "<return>", "<escape>",
+                        "<lshift>", "<rshift>", "<lalt>", "<ralt>",
+                        "<kp_enter>", "<kp_0>", "<kp_1>", "<kp_2>", "<kp_3>",
+                        "<kp_4>", "<kp_5>", "<kp_6>", "<kp_7>", "<kp_8>", "<kp_9>"]
+
+        if(IsMember(key, allowedKeys))
+        {
+            result <- 1
+        } else {
+            ## Not in allowed list - reject it
+            result <- 0
+        }
+    }
+
+    return(result)
+}
+
+
+define GetNiceKeyLabel(key)
+{
+    ## Converts a key string to a nice display label with translation support
+    ## For regular keys: "z" → "Z"
+    ## For special keys: uses same logic as FormatKeyName
+    ##
+    ## Args:
+    ##   key: Key string (e.g., "z", "<left>", "<space>", "a")
+    ##
+    ## Returns:
+    ##   Nicely formatted label string
+
+    result <- ""
+
+    ## Check for special keys first (same as FormatKeyName)
+    if(key == "<lshift>")
+    {
+        result <- TranslateKeyName("LEFT-SHIFT")
+    }
+    elseif(key == "<rshift>")
+    {
+        result <- TranslateKeyName("RIGHT-SHIFT")
+    }
+    elseif(key == "<lalt>")
+    {
+        result <- TranslateKeyName("LEFT-ALT")
+    }
+    elseif(key == "<ralt>")
+    {
+        result <- TranslateKeyName("RIGHT-ALT")
+    }
+    elseif(key == "<space>" or key == " ")
+    {
+        result <- TranslateKeyName("SPACEBAR")
+    }
+    elseif(key == "<return>")
+    {
+        result <- TranslateKeyName("ENTER")
+    }
+    elseif(key == "<left>")
+    {
+        result <- "←"
+    }
+    elseif(key == "<right>")
+    {
+        result <- "→"
+    }
+    elseif(key == "<up>")
+    {
+        result <- "↑"
+    }
+    elseif(key == "<down>")
+    {
+        result <- "↓"
+    }
+    else
+    {
+        ## Regular key - just uppercase it
+        result <- Uppercase(key)
+    }
+
+    return(result)
+}
+
+
+define CalculateScreenScale(config, win)
+{
+    ## Calculates scale factor based on actual screen size vs baseline
+    ## Returns scale factor (1.0 = 800x600, 2.0 = 1600x1200, etc.)
+
+    baselineWidth <- config.baseline.width
+    baselineHeight <- config.baseline.height
+
+    scaleX <- win.width / baselineWidth
+    scaleY <- win.height / baselineHeight
+
+    ## Use smaller scale to ensure everything fits
+    scale <- Min([scaleX, scaleY])
+
+    return(scale)
+}
+
+
+define CalculateLayoutZones(layout)
+{
+    ## Calculates position and dimensions for all layout zones
+    ## Modifies layout object in-place
+    ##
+    ## Returns modified layout
+
+    config <- layout.config
+    scale <- layout.scale
+    margins <- config.margins
+    win <- layout.win
+
+    ## Calculate scaled margins
+    marginX <- Round(margins.x * scale)
+    marginY <- Round(margins.y * scale)
+
+    ## Calculate bottom reserve (no-go zone for windowed mode)
+    bottomReserve <- 0
+    if(PropertyExists(margins, "bottomReserve"))
+    {
+        bottomReserve <- Round(margins.bottomReserve * scale)
+    }
+
+    ## Available space (account for top margin, bottom margin, and bottom reserve)
+    availWidth <- win.width - (2 * marginX)
+    availHeight <- win.height - marginY - marginY - bottomReserve
+
+    ## Calculate zone heights
+    headerHeight <- 0
+    subheaderHeight <- 0
+    responseHeight <- 0
+    footerHeight <- 0
+
+    if(config.zones.header.visible)
+    {
+        headerHeight <- Round(config.zones.header.height * scale)
+    }
+
+    if(config.zones.subheader.visible)
+    {
+        subheaderHeight <- Round(config.zones.subheader.height * scale)
+    }
+
+    if(config.zones.response.visible)
+    {
+        responseHeight <- Round(config.zones.response.height * scale)
+    }
+
+    if(config.zones.footer.visible)
+    {
+        footerHeight <- Round(config.zones.footer.height * scale)
+    }
+
+    ## Stimulus region gets remaining space
+    stimulusHeight <- availHeight - headerHeight - subheaderHeight - responseHeight - footerHeight
+
+    ## Create stimulus region object
+    stimRegion <- MakeCustomObject("StimulusRegion")
+    stimRegion.x <- marginX
+    stimRegion.y <- marginY + headerHeight + subheaderHeight
+    stimRegion.width <- availWidth
+    stimRegion.height <- stimulusHeight
+    stimRegion.centerX <- marginX + (availWidth / 2)
+    stimRegion.centerY <- stimRegion.y + (stimulusHeight / 2)
+
+    layout.stimulusRegion <- stimRegion
+
+    ## Store zone positions for UI creation
+    layout.zones <- MakeCustomObject("Zones")
+    layout.zones.header <- MakeCustomObject("Zone")
+    layout.zones.header.y <- marginY
+    layout.zones.header.height <- headerHeight
+
+    layout.zones.subheader <- MakeCustomObject("Zone")
+    layout.zones.subheader.y <- marginY + headerHeight
+    layout.zones.subheader.height <- subheaderHeight
+
+    layout.zones.response <- MakeCustomObject("Zone")
+    layout.zones.response.y <- stimRegion.y + stimulusHeight
+    layout.zones.response.height <- responseHeight
+
+    layout.zones.footer <- MakeCustomObject("Zone")
+    layout.zones.footer.y <- layout.zones.response.y + responseHeight
+    layout.zones.footer.height <- footerHeight
+
+    return(layout)
+}
+
+
+define CreateLayoutElements(layout)
+{
+    ## Creates UI elements (labels) for layout zones
+    ## Modifies layout object in-place
+    ##
+    ## Returns modified layout
+
+    config <- layout.config
+    scale <- layout.scale
+    win <- layout.win
+    centerX <- win.width / 2
+
+    ## Auto-detect foreground color based on window background
+    ## (Same logic as EasyLabel)
+    bgcol <- win.bgcolor
+    val <- Max([bgcol.RED, bgcol.GREEN, bgcol.BLUE])
+
+    if(val <= 100)
+    {
+        fgcol <- MakeColor("white")  ## Dark background
+    } else {
+        fgcol <- MakeColor("black")  ## Light background
+    }
+
+    ## Create header
+    headerFont <- MakeFont(gPEBLBaseFont, 0,
+                           Round(config.zones.header.fontSize * scale),
+                           fgcol, MakeColor("white"), 0)
+    header <- MakeLabel("", headerFont)
+    AddObject(header, win)
+    Move(header, centerX, layout.zones.header.y + (layout.zones.header.height / 2))
+    header.visible <- config.zones.header.visible
+
+    ## Create subheader
+    subheaderFont <- MakeFont(gPEBLBaseFont, 0,
+                              Round(config.zones.subheader.fontSize * scale),
+                              fgcol, MakeColor("white"), 0)
+    subheader <- MakeLabel("", subheaderFont)
+    AddObject(subheader, win)
+    Move(subheader, centerX, layout.zones.subheader.y + (layout.zones.subheader.height / 2))
+    subheader.visible <- config.zones.subheader.visible
+
+    ## Create footer
+    footerFont <- MakeFont(gPEBLBaseFont, 0,
+                           Round(config.zones.footer.fontSize * scale),
+                           fgcol, MakeColor("white"), 0)
+    footer <- MakeLabel("", footerFont)
+    AddObject(footer, win)
+    Move(footer, centerX, layout.zones.footer.y + (layout.zones.footer.height / 2))
+    footer.visible <- config.zones.footer.visible
+
+    ## Store in layout
+    layout.header <- header
+    layout.subheader <- subheader
+    layout.footer <- footer
+    layout.fgcol <- fgcol  ## Store auto-detected color for use in response labels
+
+    return(layout)
+}
+
+
+define CreateResponseLabels(layout, fontSize)
+{
+    ## Creates response labels based on response mode with semantic-first architecture
+    ## Modifies layout object in-place
+    ##
+    ## Returns modified layout
+
+    mode <- layout.responseMode
+    win <- layout.win
+    fgcol <- layout.fgcol  ## Use auto-detected foreground color
+
+    ## Get semantic labels from params, or default to mode semantic values
+    semanticLabels <- []
+    if(layout.params != 0)
+    {
+        if(PropertyExists(layout.params, "responselabels"))
+        {
+            semanticLabels <- layout.params.responselabels
+        }
+    }
+
+    ## If not provided, default to translated semantic values
+    if(Length(semanticLabels) == 0)
+    {
+        loop(sem, mode.semantic)
+        {
+            PushOnEnd(semanticLabels, TranslateSemanticName(sem))
+        }
+    }
+
+    ## Format labels based on mode type
+    displayLabels <- FormatLabelsForMode(mode, semanticLabels)
+
+    ## Now create the actual label objects
+    numLabels <- Length(displayLabels)
+
+    ## Calculate spacing
+    spacing <- win.width / (numLabels + 1)
+    centerY <- layout.zones.response.y + (layout.zones.response.height / 2)
+
+    ## Determine label styling based on mode type
+    ## For mousetarget/touchtarget: create visible button borders
+    ## For keyboard modes: use transparent background
+    bgcolor <- MakeColor("lightgray")  ## Default: transparent
+    borders <- []  ## Store border rectangles for mousetarget modes
+
+    if(mode.type == "mousetarget")
+    {
+        ## Button-like appearance for clickable targets
+        ## Create border rectangles with padding around text
+        padding <- 20  ## Padding around text in pixels
+        borderColor <- MakeColor("gray")
+        fillColor <- MakeColor("white")
+    }
+
+    ## Create labels (and borders for mousetarget)
+    labels <- []
+
+    loop(i, numLabels)
+    {
+        ## For mousetarget: create border first (so it's behind the label)
+        if(mode.type == "mousetarget")
+        {
+            ## Create temporary label to measure text dimensions
+            tempFont <- MakeFont(gPEBLBaseFont, 0, fontSize,
+                                  MakeColor("black"), bgcolor, 0)
+            tempLabel <- MakeLabel(Nth(displayLabels, i), tempFont)
+            AddObject(tempLabel, win)
+
+            ## Get actual label dimensions
+            labelWidth <- tempLabel.width
+            labelHeight <- tempLabel.height
+
+            ## Remove temp label
+            RemoveObject(tempLabel, win)
+
+            ## Minimum button size
+            minWidth <- 120
+            minHeight <- 50
+
+            ## Use larger of minimum size or label size + margin
+            borderWidth <- Max([minWidth, labelWidth + (padding * 2)])
+            borderHeight <- Max([minHeight, labelHeight + (padding * 2)])
+
+            ## Create filled rectangle with border (add to window FIRST so it's behind)
+            border <- Rectangle(spacing * i, centerY,
+                               borderWidth, borderHeight,
+                               borderColor, 1)
+            AddObject(border, win)
+            PushOnEnd(borders, border)
+        }
+
+        ## Now create the actual label (added after border, so it's on top)
+        ## For mousetarget: use black text on lightgray for high contrast button appearance
+        if(mode.type == "mousetarget")
+        {
+            labelFont <- MakeFont(gPEBLBaseFont, 0, fontSize,
+                                  MakeColor("black"), bgcolor, 0)
+        } else {
+            labelFont <- MakeFont(gPEBLBaseFont, 0, fontSize,
+                                  fgcol, bgcolor, 0)
+        }
+        label <- MakeLabel(Nth(displayLabels, i), labelFont)
+        AddObject(label, win)
+        Move(label, spacing * i, centerY)
+
+        PushOnEnd(labels, label)
+    }
+
+    layout.responseLabels <- labels
+    layout.responseBorders <- borders  ## Store borders for cleanup/styling
+
+    ## Set footer text - use footerInstruction if available, otherwise show labels
+    if(PropertyExists(mode, "footerInstruction"))
+    {
+        layout.footer.text <- mode.footerInstruction
+    } else {
+        layout.footer.text <- JoinStrings(displayLabels, " | ")
+    }
+
+    return(layout)
+}
+
+
+define FormatLabelsForMode(mode, semanticLabels)
+{
+    ## Formats semantic labels using template substitution
+    ## mode.labels contain templates with <KEY> and <SEMANTIC> placeholders
+    ##
+    ## Template system:
+    ##   <KEY> - replaced with key/button name (e.g., "Z", "LEFT-SHIFT", "LEFT-CLICK")
+    ##   <SEMANTIC> - replaced with semantic label (e.g., "H", "S", "SAME", "DIFFERENT")
+    ##
+    ## Example templates:
+    ##   "<KEY> for <SEMANTIC>" → "Z for H"
+    ##   "Click for <SEMANTIC>" → "Click for LEFT"
+    ##
+    ## Args:
+    ##   mode: Response mode object with .labels containing templates
+    ##   semanticLabels: List of semantic label strings (e.g., ["H", "S"] or ["SAME", "DIFFERENT"])
+    ##
+    ## Returns:
+    ##   List of formatted display labels with placeholders substituted
+
+    displayLabels <- []
+
+    ## If mode has labels, use them as templates
+    if(PropertyExists(mode, "labels") and Length(mode.labels) > 0)
+    {
+        loop(i, Length(mode.labels))
+        {
+            template <- Nth(mode.labels, i)
+            semantic <- Nth(semanticLabels, i)
+
+            ## Get key name based on mode type
+            keyName <- ""
+            if(mode.type == "keyboard")
+            {
+                keyName <- FormatKeyName(Nth(mode.keys, i))
+            }
+            elseif(mode.type == "mousebutton")
+            {
+                buttonNum <- Nth(mode.buttons, i)
+                keyName <- TranslateKeyName(GetButtonName(buttonNum))
+            }
+            elseif(mode.type == "singlekey")
+            {
+                keyName <- FormatKeyName(Nth(mode.keys, i))
+            }
+            ## For mousetarget, no key name needed (targets are clickable areas)
+
+            ## Substitute placeholders
+            label <- template
+            label <- ReplaceChar(label, "<KEY>", keyName)
+            label <- ReplaceChar(label, "<SEMANTIC>", semantic)
+
+            PushOnEnd(displayLabels, label)
+        }
+    }
+    else
+    {
+        ## Fallback if mode has no labels (shouldn't happen with new system)
+        displayLabels <- semanticLabels
+    }
+
+    return(displayLabels)
+}
+
+
+## ================================================================
+## Fallback Default Configurations
+## ================================================================
+
+define GetDefaultLayoutConfig()
+{
+    ## Returns hardcoded default layout configuration
+    ## Used when JSON config file is not found
+
+    config <- MakeCustomObject("LayoutConfig")
+
+    ## Baseline
+    config.baseline <- MakeCustomObject("Baseline")
+    config.baseline.width <- 800
+    config.baseline.height <- 600
+
+    ## Margins
+    config.margins <- MakeCustomObject("Margins")
+    config.margins.x <- 25
+    config.margins.y <- 25
+    config.margins.bottomReserve <- 25
+
+    ## Zones
+    config.zones <- MakeCustomObject("Zones")
+
+    config.zones.header <- MakeCustomObject("Zone")
+    config.zones.header.height <- 50
+    config.zones.header.fontSize <- 28
+    config.zones.header.visible <- 1
+
+    config.zones.subheader <- MakeCustomObject("Zone")
+    config.zones.subheader.height <- 25
+    config.zones.subheader.fontSize <- 18
+    config.zones.subheader.visible <- 1
+
+    config.zones.response <- MakeCustomObject("Zone")
+    config.zones.response.height <- 50
+    config.zones.response.fontSize <- 20
+    config.zones.response.visible <- 1
+
+    config.zones.footer <- MakeCustomObject("Zone")
+    config.zones.footer.height <- 50
+    config.zones.footer.fontSize <- 16
+    config.zones.footer.visible <- 1
+
+    return(config)
+}
+
+
+define GetDefaultResponseModes()
+{
+    ## Returns hardcoded default response modes
+    ## Used when JSON config file is not found
+
+    modes <- MakeCustomObject("ResponseModes")
+
+    ## keyboard-shift mode
+    modes.keyboardShift <- MakeCustomObject("Mode")
+    modes.keyboardShift.type <- "keyboard"
+    modes.keyboardShift.keys <- ["<lshift>", "<rshift>"]
+    modes.keyboardShift.labels <- ["LEFT-SHIFT", "RIGHT-SHIFT"]
+    modes.keyboardShift.semantic <- ["left", "right"]
+
+    ## keyboard-safe mode
+    modes.keyboardSafe <- MakeCustomObject("Mode")
+    modes.keyboardSafe.type <- "keyboard"
+    modes.keyboardSafe.keys <- ["z", "/"]
+    modes.keyboardSafe.labels <- ["Z", "/"]
+    modes.keyboardSafe.semantic <- ["left", "right"]
+
+    ## mousebutton mode
+    modes.mousebutton <- MakeCustomObject("Mode")
+    modes.mousebutton.type <- "mousebutton"
+    modes.mousebutton.buttons <- [1, 3]
+    modes.mousebutton.labels <- ["LEFT-CLICK", "RIGHT-CLICK"]
+    modes.mousebutton.semantic <- ["left", "right"]
+
+    ## mousetarget mode - click on labeled targets
+    modes.mousetarget <- MakeCustomObject("Mode")
+    modes.mousetarget.type <- "mousetarget"
+    modes.mousetarget.labels <- ["Click LEFT", "Click RIGHT"]
+    modes.mousetarget.semantic <- ["left", "right"]
+
+    return(modes)
+}
+
+## ================================================================
+## Semantic Label Formatting Functions
+## ================================================================
+
+define TranslateKeyName(englishName)
+{
+    ## Translates key name using gKeyNames lookup table
+    ## Falls back to English if no translation available
+    ##
+    ## Args:
+    ##   englishName: English key name (e.g., "LEFT-SHIFT", "SPACEBAR")
+    ##
+    ## Returns:
+    ##   Translated key name, or original if no translation exists
+
+    result <- englishName
+
+    ## If gKeyNames exists and has a translation, use it
+    if(gKeyNames != 0)
+    {
+        if(PropertyExists(gKeyNames, englishName))
+        {
+            result <- GetProperty(gKeyNames, englishName)
+        }
+    }
+
+    return(result)
+}
+
+
+define TranslateSemanticName(semanticName)
+{
+    ## Translates semantic name using gSemanticNames lookup table
+    ## Falls back to uppercase English if no translation available
+    ##
+    ## Args:
+    ##   semanticName: Lowercase semantic name (e.g., "left", "right", "response")
+    ##
+    ## Returns:
+    ##   Translated uppercase semantic name, or uppercase English if no translation
+
+    result <- Uppercase(semanticName)
+
+    ## If gSemanticNames exists and has a translation, use it
+    if(gSemanticNames != 0)
+    {
+        if(PropertyExists(gSemanticNames, semanticName))
+        {
+            result <- GetProperty(gSemanticNames, semanticName)
+        }
+    }
+
+    return(result)
+}
+
+
+define FormatKeyName(key)
+{
+    ## Convert key codes to display names with translation support
+    result <- ""
+
+    if(key == "<lshift>")
+    {
+        result <- TranslateKeyName("LEFT-SHIFT")
+    }
+    elseif(key == "<rshift>")
+    {
+        result <- TranslateKeyName("RIGHT-SHIFT")
+    }
+    elseif(key == "<lalt>")
+    {
+        result <- TranslateKeyName("LEFT-ALT")
+    }
+    elseif(key == "<ralt>")
+    {
+        result <- TranslateKeyName("RIGHT-ALT")
+    }
+    elseif(key == "<space>")
+    {
+        result <- TranslateKeyName("SPACEBAR")
+    }
+    elseif(key == "<return>")
+    {
+        result <- TranslateKeyName("ENTER")
+    }
+    elseif(key == "<left>")
+    {
+        result <- "←"
+    }
+    elseif(key == "<right>")
+    {
+        result <- "→"
+    }
+    elseif(key == "<up>")
+    {
+        result <- "↑"
+    }
+    elseif(key == "<down>")
+    {
+        result <- "↓"
+    }
+    else
+    {
+        result <- Uppercase(key)
+    }
+
+    return(result)
+}
+
+define GetButtonName(buttonNum)
+{
+    ## Button numbers: 1=LEFT, 2=MIDDLE, 3=RIGHT
+    buttonNames <- ["LEFT-CLICK", "MIDDLE-CLICK", "RIGHT-CLICK"]
+    result <- ""
+
+    if(buttonNum > 0 and buttonNum <= Length(buttonNames))
+    {
+        result <- Nth(buttonNames, buttonNum)
+    } else {
+        result <- "BUTTON-" + buttonNum
+    }
+
+    return(result)
+}
+
+define JoinStrings(list, separator)
+{
+    ## Join list of strings with separator
+    result <- ""
+
+    if(Length(list) == 0)
+    {
+        result <- ""
+    } elseif(Length(list) == 1) {
+        ## Single element - no separator needed
+        result <- First(list)
+    } else {
+        result <- First(list)
+        loop(i, Sequence(2, Length(list), 1))
+        {
+            result <- result + separator + Nth(list, i)
+        }
+    }
+
+    return(result)
+}

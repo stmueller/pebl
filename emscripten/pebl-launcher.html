@@ -162,9 +162,49 @@
         #fullscreen-button:hover {
             background-color: #0b7dda;
         }
+        /* Loading overlay for study preparation */
+        #loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: rgba(0, 0, 0, 0.9);
+            z-index: 10000;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+        #loading-overlay.active {
+            display: flex;
+        }
+        .loading-message {
+            color: white;
+            font-size: 24px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 6px solid #333;
+            border-top: 6px solid #4CAF50;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
+    <div id="loading-overlay">
+        <div class="loading-message">Preparing to run study...</div>
+        <div class="loading-spinner"></div>
+    </div>
+
     <div id="launcher-container">
         <h1>PEBL Research Study</h1>
 
@@ -198,15 +238,59 @@
 
     <script>
         // Configuration
-        const VALIDATION_URL = 'PEBLDataServer/api/validate.php';  // Relative path - same origin
+        const VALIDATION_URL = '/api/validate.php';  // Absolute path from web root
+
+        // Generate browser fingerprint for participant ID
+        function generateFingerprint() {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            ctx.textBaseline = 'top';
+            ctx.font = '14px Arial';
+            ctx.fillText('Browser fingerprint', 2, 2);
+            const canvasData = canvas.toDataURL();
+
+            const fingerprint = {
+                userAgent: navigator.userAgent,
+                language: navigator.language,
+                platform: navigator.platform,
+                screenResolution: `${screen.width}x${screen.height}`,
+                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                canvas: canvasData,
+                plugins: Array.from(navigator.plugins || []).map(p => p.name).join(',')
+            };
+
+            // Create hash from fingerprint
+            const fingerprintString = JSON.stringify(fingerprint);
+            let hash = 0;
+            for (let i = 0; i < fingerprintString.length; i++) {
+                const char = fingerprintString.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash; // Convert to 32-bit integer
+            }
+
+            return 'FP_' + Math.abs(hash).toString(16);
+        }
 
         // Parse URL parameters
         function getURLParams() {
             const params = new URLSearchParams(window.location.search);
+
+            // Get or generate participant ID
+            let participant = params.get('participant');
+            if (!participant) {
+                // Try to get from localStorage first (persistent across sessions)
+                participant = localStorage.getItem('pebl_participant_id');
+                if (!participant) {
+                    // Generate new fingerprint-based ID
+                    participant = generateFingerprint();
+                    localStorage.setItem('pebl_participant_id', participant);
+                }
+            }
+
             return {
                 test: params.get('test'),
                 token: params.get('token'),
-                participant: params.get('participant'),
+                participant: participant,
                 language: params.get('language') || 'en'
             };
         }
@@ -236,10 +320,7 @@
                 setStatus('Error: Missing "token" parameter in URL', 'error');
                 return false;
             }
-            if (!params.participant) {
-                setStatus('Error: Missing "participant" parameter in URL', 'error');
-                return false;
-            }
+            // participant is auto-generated if not provided, so no need to validate
             return true;
         }
 
@@ -372,6 +453,10 @@
                     startButton.style.display = 'none';
                     setStatus('Test is running', 'success');
 
+                    // Show loading overlay during preparation
+                    const loadingOverlay = document.getElementById('loading-overlay');
+                    loadingOverlay.classList.add('active');
+
                     const container = document.getElementById('pebl-container');
                     const canvas = document.getElementById('canvas');
 
@@ -393,8 +478,9 @@
                             document.body.classList.add('fullscreen');
                         }
 
-                        // Wait a moment for fullscreen transition
-                        await new Promise(resolve => setTimeout(resolve, 100));
+                        // Wait for fullscreen transition and browser overlay to clear
+                        // Browser shows "Press ESC to exit fullscreen" message that takes ~3 seconds
+                        await new Promise(resolve => setTimeout(resolve, 3500));
 
                     } catch (err) {
                         console.log('Fullscreen API not supported, using CSS fallback:', err);
@@ -421,6 +507,12 @@
                     launchPEBL(Module, params);
 
                     console.log('PEBL launched');
+
+                    // Hide loading overlay after PEBL has initialized and first frame is ready
+                    // Give PEBL an extra moment to render its first screen
+                    setTimeout(() => {
+                        loadingOverlay.classList.remove('active');
+                    }, 800);
 
                     // Set up fullscreen button functionality AFTER test has launched
                     const fullscreenButton = document.getElementById('fullscreen-button');

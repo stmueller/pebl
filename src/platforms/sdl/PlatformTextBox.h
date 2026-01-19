@@ -63,6 +63,7 @@ public:
     virtual bool RenderText();
 
     virtual bool SetProperty(std::string, Variant v);
+    virtual Variant GetProperty(std::string name)const;
     //These need to be overridden because the text needs to be re-rendered when they are called.
     virtual void SetFont(counted_ptr<PEBLObjectBase> font);
     virtual void SetText(std::string  text);
@@ -70,11 +71,14 @@ public:
     virtual void SetWidth(int w);
 
     //This needs to be overridden so that it returns a PlatformFont.
-    virtual counted_ptr<PEBLObjectBase> GetFont()const{return mFontObject;}
+    // Return adaptive font if it exists, otherwise return original
+    virtual counted_ptr<PEBLObjectBase> GetFont()const{
+        return mAdaptiveFontObject.get() ? mAdaptiveFontObject : mFontObject;
+    }
 
 
     virtual bool Draw();
-    virtual void HandleKeyPress(int keycode, int modkey);
+    virtual void HandleKeyPress(int keycode, int modkeys, Uint16 unicode);
     virtual void HandleTextInput(std::string input);
     virtual std::string ObjectName()const{return "PlatformTextBox";} ;
     virtual int FindCursorPosition(long int x, long int y);
@@ -87,6 +91,14 @@ protected:
     std::vector<int> mBreaks;  ///This stores linebreaks
 
 private:
+    // Helper to get PlatformFont pointer from counted_ptr when needed
+    // Returns adaptive font if it exists, otherwise returns original font
+    PlatformFont* GetPlatformFont() const {
+        if (mAdaptiveFontObject.get()) {
+            return dynamic_cast<PlatformFont*>(mAdaptiveFontObject.get());
+        }
+        return dynamic_cast<PlatformFont*>(mFontObject.get());
+    }
 
     void FindBreaks();
     int FindNextLineBreak(unsigned int curposition);
@@ -94,7 +106,8 @@ private:
     void DrawCursor();
 
     counted_ptr<PEBLObjectBase> mFontObject;
-    PlatformFont * mFont;
+    counted_ptr<PEBLObjectBase> mAdaptiveFontObject;  // Holds adapted font separately to avoid destructor cascade
+    std::vector<counted_ptr<PEBLObjectBase>> mIntermediateFonts;  // Keeps intermediate adaptive fonts alive
     bool mIsUTF8;
 
 };

@@ -1,0 +1,80 @@
+## Visual Search Template
+## Find the target among distractors
+
+define Start(p)
+{
+  ## Initialize
+  gWin <- MakeWindow("grey40")
+  gSleepEasy <- 1
+
+  if(gSubNum+"" == "0")
+  {
+    gSubNum <- GetSubNum(gWin)
+  }
+
+  ## Create data file
+  gFileOut <- GetNewDataFile(gSubNum, gWin, "visual-search", "csv",
+    "subnum,trial,numDistractors,targetPresent,response,correct,rt,timestamp")
+
+  ## Instructions
+  MessageBox("Find the 'T' among the 'L's. Press Y if present, N if absent. Click OK to begin.", gWin)
+
+  ## Run 10 trials
+  loop(trial, Sequence(1, 10, 1))
+  {
+    numDistractors <- 10
+    targetPresent <- Sample([0, 1])
+
+    ## Create display
+    positions <- NonOverlapLayout(100, gVideoWidth-100, 100, gVideoHeight-100, 50, numDistractors + targetPresent)
+
+    ## Add distractors
+    labels <- []
+    loop(i, Sequence(1, numDistractors, 1))
+    {
+      pos <- Nth(positions, i)
+      lab <- EasyLabel("L", First(pos), Second(pos), gWin, 44)
+      PushOnEnd(labels, lab)
+    }
+
+    ## Add target if present
+    if(targetPresent)
+    {
+      pos <- Nth(positions, numDistractors + 1)
+      lab <- EasyLabel("T", First(pos), Second(pos), gWin, 44)
+      PushOnEnd(labels, lab)
+    }
+
+    ## Show display
+    Draw()
+    t1 <- GetTime()
+    resp <- WaitForListKeyPress(["y", "n"])
+    rt <- GetTime() - t1
+
+    ## Check correctness
+    correct <- 0
+    if((resp == "y" and targetPresent) or (resp == "n" and not targetPresent))
+    {
+      correct <- 1
+    }
+
+    ## Clean up
+    loop(lab, labels)
+    {
+      Hide(lab)
+    }
+
+    ## Save data
+    FilePrint(gFileOut, gSubNum + "," + trial + "," + numDistractors + "," + targetPresent + "," + resp + "," + correct + "," + rt + "," + TimeStamp())
+
+    ## Brief ITI
+    Draw()
+    Wait(500)
+  }
+
+  ## Cleanup
+  MessageBox("Visual search complete. Thank you!", gWin)
+  FileClose(gFileOut)
+
+  return(0)
+}

@@ -30,6 +30,7 @@
 
 #include "../../utility/PEBLPath.h"
 #include "../../utility/PError.h"
+#include "../../libs/PEBLEnvironment.h"
 
 
 #ifdef PEBL_EMSCRIPTEN
@@ -882,7 +883,7 @@ bool PlatformAudioOut::PlayForeground()
     
     while(Mix_Playing(mChannel))
         {
-         SDL_Delay(5);
+         PEBLEnvironment::myTimer.Sleep(5);
         }
     Mix_HaltChannel(mChannel);
 
@@ -903,7 +904,7 @@ bool PlatformAudioOut::PlayForeground()
     while(SDL_GetAudioStatus() == SDL_AUDIO_PLAYING)
         {
             //Wait at least 10 ms before checking again.
-            SDL_Delay(10);
+            PEBLEnvironment::myTimer.Sleep(10);
             //cout << "---------- playing    ["<<SDL_GetTicks() << endl;
         }
 

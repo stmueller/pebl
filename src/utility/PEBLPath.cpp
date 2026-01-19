@@ -140,6 +140,12 @@ void PEBLPath::Initialize(std::list<std::string> files)
     //text
     AddToPathList(MergePathAndFile(basedir, "media/text/"));
 
+    //css
+    AddToPathList(MergePathAndFile(basedir, "media/css/"));
+
+    //settings
+    AddToPathList(MergePathAndFile(basedir, "media/settings/"));
+
     //library functions
     AddToPathList(MergePathAndFile(basedir, "pebl-lib/"));
 #elif defined (PEBL_EMSCRIPTEN)
@@ -184,6 +190,12 @@ void PEBLPath::Initialize(std::list<std::string> files)
 
     //text
     AddToPathList(MergePathAndFile(basedir, "media/text/"));
+
+    //css
+    AddToPathList(MergePathAndFile(basedir, "media/css/"));
+
+    //settings
+    AddToPathList(MergePathAndFile(basedir, "media/settings/"));
 
     //library functions
     AddToPathList(MergePathAndFile(basedir, "pebl-lib/"));
@@ -255,6 +267,12 @@ void PEBLPath::Initialize(std::list<std::string> files)
     //text
     AddToPathList(MergePathAndFile(basedir, "media/text/"));
 
+    //css
+    AddToPathList(MergePathAndFile(basedir, "media/css/"));
+
+    //settings
+    AddToPathList(MergePathAndFile(basedir, "media/settings/"));
+
     //library functions
     AddToPathList(MergePathAndFile(basedir, "pebl-lib/"));
 
@@ -317,6 +335,12 @@ void PEBLPath::Initialize(std::list<std::string> files)
 
     //Text files
     AddToPathList(MergePathAndFile(basedir, "media\\text\\"));
+
+    //CSS files
+    AddToPathList(MergePathAndFile(basedir, "media\\css\\"));
+
+    //Settings files
+    AddToPathList(MergePathAndFile(basedir, "media\\settings\\"));
 
     //PEBL Library functions
     AddToPathList(MergePathAndFile(basedir, "pebl-lib\\"));

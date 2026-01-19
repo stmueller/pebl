@@ -267,7 +267,6 @@ bool PlatformCanvas::SetProperty(std::string name, Variant v)
 
 bool PlatformCanvas::Draw()
 {
-
     //Can we only reset if something has changed on a child?
     mReset = true;
     if(mReset)

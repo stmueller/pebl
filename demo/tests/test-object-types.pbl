@@ -1,0 +1,39 @@
+## Test IsPEBLObject vs IsCustomObject for different object types
+define Start(p)
+{
+    Print("=== Testing IsCustomObject vs IsPEBLObject ===")
+
+    font <- MakeFont(gPEBLBaseFont, 0, 24, MakeColor("red"), MakeColor("white"), 1)
+    color <- MakeColor("blue")
+    custom <- MakeCustomObject("test")
+    list <- [1, 2, 3]
+    number <- 42
+    text <- "hello"
+
+    Print("")
+    Print("Font:   IsCustomObject=" + IsCustomObject(font) + "  IsPEBLObject=" + IsPEBLObject(font))
+    Print("Color:  IsCustomObject=" + IsCustomObject(color) + "  IsPEBLObject=" + IsPEBLObject(color))
+    Print("Custom: IsCustomObject=" + IsCustomObject(custom) + "  IsPEBLObject=" + IsPEBLObject(custom))
+    Print("List:   IsCustomObject=" + IsCustomObject(list) + "  IsPEBLObject=" + IsPEBLObject(list))
+    Print("Number: IsCustomObject=" + IsCustomObject(number) + "  IsPEBLObject=" + IsPEBLObject(number))
+    Print("Text:   IsCustomObject=" + IsCustomObject(text) + "  IsPEBLObject=" + IsPEBLObject(text))
+
+    Print("")
+    Print("=== Testing GetPropertyList on each ===")
+
+    Print("Font properties:")
+    props <- GetPropertyList(font)
+    Print("  Count: " + Length(props))
+    Print("  Props: " + props)
+
+    Print("")
+    Print("Color properties:")
+    props <- GetPropertyList(color)
+    Print("  Count: " + Length(props))
+    Print("  Props: " + props)
+
+    Print("")
+    Print("Custom properties:")
+    props <- GetPropertyList(custom)
+    Print("  Count: " + Length(props))
+}

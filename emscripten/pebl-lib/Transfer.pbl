@@ -280,17 +280,11 @@ define SyncDataFile(server,page,port,username,pword,taskname,subcode,datafilenam
   cl <- StringLength(content)+1
 
   ## Build args array with standard fields
-  args <- ["user_name",username,
-           "upload_password",pword,
+  ## For token-based auth, user_name should be the token (not "token_user")
+  args <- ["user_name",token,
+           "upload_password",token,
        "taskname",taskname,
        "subnum",subcode]
-
-  ## If token is provided, add it to args for server-side validation
-  if(token != "")
-  {
-    args <- Append(args, "auth_token")
-    args <- Append(args, token)
-  }
 
   headers <- ["Connection","close",
               "Accept", "text/plain",

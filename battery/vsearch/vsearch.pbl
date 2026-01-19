@@ -3,7 +3,7 @@
 ##  Part of the PEBL Test Battery, and the
 ##  PEBL Cognitive Decathlon
 ##
-## (c) 2010-2014 Shane T Mueller smueller@obereed.net
+## (c) 2010-2026 Shane T Mueller smueller@obereed.net
 ##
 ## This software may be used, adapted, altered, or
 ## redistributed without consent of the author.
@@ -13,25 +13,17 @@ define Start(p)
 {
    gScriptName <- "PEBL Visual Search Task"
 
+  ## Initialize upload system (works for both online and native)
+  InitializeUpload()
+
   parpairs <- [["boxwidth",600],
                ["boxheight",400],
-	       ["targ1","O"],
-	       ["targ2","X"],
-	       ["foil1","U"],
-	       ["foil2","D"],
-	       ["foil3","G"],
-	       ["foil4","C"],
-	       ["foil5","Q"],
-	       ["search1size",10],
-	       ["search2size",20],
-	       ["search3size",30],
-	       ["numtargs1",0],
-	       ["numtargs2",1],
-	       ["numtargs3",5],
-	       ["usetargs3",0],
-               ["targcol1","white"],#
-	       ["targcol2","green"],#
-	       ["foilcolor","white"],#
+	       ["targs","OX"],
+	       ["foils","UDGCQ"],
+	       ["searchsizes",[10,20,30]],
+	       ["numtargs",[0,1,5]],
+               ["targcols",["white","green"]],
+	       ["foilcolor","white"],
 	       ["reps", 5]
               ]
 
@@ -49,38 +41,45 @@ define Start(p)
 
   GetStrings(gLanguage)
 
+  ## Create layout for header/footer zones (layout-only, no response system)
+  gParams.responsesemantics <- "none"  ## Disable response labels
+  gLayout <- CreateLayout("vsearch", gWin, gParams)
 
-  gHomeX <- Round(gVideoWidth/2)
-  gHomeY <- Round(gVideoHeight/2)
+  ## Hide response labels - layout.responseLabels is a list of label widgets
+  loop(label, gLayout.responseLabels)
+  {
+    label.visible <- 0
+  }
+
+  gLayout.header.text <- ""  ## Will be used for instructions during trials
+  gLayout.footer.text <- ""  ## No footer needed for mouse task
+  gLayout.subheader.text <- ""  ## Will be updated with trial counter
+
+  ## Use layout center instead of gVideoWidth/2
+  gHomeX <- gLayout.centerX
+  gHomeY <- gLayout.centerY
 
   gDisplayBoxSizeX <- gParams.boxwidth   ##pixels/side,centered
   gDisplayBoxSizeY <- gParams.boxheight  ##pixels/side,centered
 
 
    ##The following specify the conditions of the experiment.
-   targs  <- [gParams.targ1,gParams.targ2]
-   foils <- [gParams.foil1,gParams.foil2,
-             gParams.foil3,gParams.foil4,gParams.foil5]
-
+   targs  <- SplitString(gParams.targs,"")
+   foils <- SplitString(gParams.foils,"")
 
    foilcolor <- MakeColor(gParams.foilcolor)
-   searchsize <- [gParams.search1size,gParams.search2size,gParams.search3size]
+   searchsize <- gParams.searchsizes
+   numtargs <- gParams.numtargs
 
-   numtargs <- [gParams.numtargs1,gParams.numtargs2]
-   if(gParams.usetargs3)
-   {
-     PushOnEnd(numtargs,gParams.numtargs3)
-   }
-
-   targcols <- [gParams.targcol1,gParams.targcol2]
+   targcols <- gParams.targcols
    reps  <- gParams.reps
 
 
    gFileOut <- GetNewDataFile(gSubNum,gWin,"vsearch","csv",
     "sub,trial,time,numtargs,size,targchar,targcol,stim,resp,corr,rt1,rt2")
 
-
-    MessageBox(ReplaceChar(gStrings.inst1,"<NONE>",gStrings.none),gWin)
+    ##increase text size:
+    MessageBox(ReplaceChar(gStrings.inst1,"<NONE>",gStrings.none),gWin,40)
 
 
    ##These aggregate the conditions into a single design list.
@@ -90,25 +89,32 @@ define Start(p)
    design <- Shuffle(RepeatList(sizebycolor,reps))
 
    numtrials <- Length(design)
-   triallab <- EasyLabel(SubstituteStrings(gStrings.trial,
-                                           [["<I>","1"],
-                                            ["<N>",numtrials]]),
-					 gVideoWidth-100,50,gWin,12)
 
    ##canned practice trials.
 
-   MessageBox(gSTrings.inst2,gWin)
-   SearchTrial("X",["C","G","Q","U","D"], MakeColor("white"),MakeColor("white"),1,10)
-   SearchTrial("O",["C","G","Q","U","D"], MakeColor("white"),MakeColor("white"),0,10)
-   SearchTrial("X",["C","G","Q","U","D"], MakeColor("green"),MakeColor("white"),1,10)
-   SearchTrial("O",["C","G","Q","U","D"], MakeColor("green"),MakeColor("white"),0,10)
+   MessageBox(gStrings.inst2,gWin,40)
+   SearchTrial(Sample(targs),foils, MakeColor(Sample(targcols)),foilcolor,0,10)
+   SearchTrial(Sample(targs),foils, MakeColor(Sample(targcols)),foilcolor,1,10)
 
-   SearchTrial("X",["C","G","Q","U","D"], MakeColor("white"),MakeColor("white"),0,10)
-   SearchTrial("O",["C","G","Q","U","D"], MakeColor("white"),MakeColor("white"),1,10)
-   SearchTrial("X",["C","G","Q","U","D"], MakeColor("green"),MakeColor("white"),0,10)
-   SearchTrial("O",["C","G","Q","U","D"], MakeColor("green"),MakeColor("white"),1,10)
+   SearchTrial(Sample(targs),foils, MakeColor(Sample(targcols)),foilcolor,0,10)
+   SearchTrial(Sample(targs),foils, MakeColor(Sample(targcols)),foilcolor,1,10)
 
-   MessageBox(gStrings.inst3,gWin)
+   SearchTrial(Sample(targs),foils, MakeColor(Sample(targcols)),foilcolor,0,10)
+   SearchTrial(Sample(targs),foils, MakeColor(Sample(targcols)),foilcolor,1,10)
+
+   SearchTrial(Sample(targs),foils, MakeColor(Sample(targcols)),foilcolor,0,10)
+   SearchTrial(Sample(targs),foils, MakeColor(Sample(targcols)),foilcolor,1,10)
+
+   SearchTrial(Sample(targs),foils, MakeColor(Sample(targcols)),foilcolor,0,10)
+   SearchTrial(Sample(targs),foils, MakeColor(Sample(targcols)),foilcolor,1,10)
+
+   MessageBox(gStrings.inst3,gWin,40)
+
+   ## Now show trial counter for real trials
+   gLayout.subheader.text <- SubstituteStrings(gStrings.trial,
+                                               [["<I>","1"],
+                                                ["<N>",numtrials]])
+   gLayout.subheader.visible <- 1
 
    rts <- []
    accs <- []
@@ -126,6 +132,7 @@ define Start(p)
      targcol  <-  Second(Second(i))
 
      out <- SearchTrial(targ,foils, MakeColor(targcol),foilcolor,numTargs,num)
+
      FilePrint_(gFileOut,gSubNum + "," + trial + "," + time + "," + numTargs + "," + num + "," +targ + "," + targcol)
      loop(j,SubList(out,3,Length(out)))
       {
@@ -138,16 +145,16 @@ define Start(p)
 
     if(Mod(trial,40)==0)
      {
-        Messagebox(gstrings.break,gWin)
+        MessageBox(gstrings.break,gWin,40)
 	Draw()
 	Wait(1000)
 	Draw()
      }
 
     trial <- trial + 1
-    triallab.text<- SubstituteStrings(gStrings.trial,
-                                           [["<I>",trial],
-                                            ["<N>",numtrials]])
+    gLayout.subheader.text <- SubstituteStrings(gStrings.trial,
+                                                [["<I>",trial],
+                                                 ["<N>",numtrials]])
 
    }
 
@@ -224,7 +231,18 @@ loop(target,targlevs) ##target
    }
 
   out <- out + FilePrint(gSumFile,"----------------------------------------------")
-  MessageBox(gStrings.debrief+""+out,gWin)
+
+  ## Close data files before upload
+  FileClose(gFileOut)
+  FileClose(gSumFile)
+
+  ## Upload data files (works online, no-op on native)
+  datafile <- "data/" + gSubNum + "/vsearch-" + gSubNum + ".csv"
+  summaryfile <- "data/" + gSubNum + "/summary-" + gSubNum + ".txt"
+  UploadFile(gSubNum, datafile, "/upload.json")
+  UploadFile(gSubNum, summaryfile, "/upload.json")
+
+  MessageBox(gStrings.debrief,gWin,40)
 }
 
 
@@ -295,9 +313,11 @@ define SearchTrial(targChar, foilChars,targcol,foilcol,numtargs,num)
   complex <- Transpose(Append( Merge( Transpose( Merge(targs,foils)),
                                  Transpose(pts)),bgs))
 
-   ##Add a 'none' button to the top, but hide it.
-    none <- EasyLabel(gStrings.none,gHomeX,50,gWin,fontsize)
-    noneback <-  Rectangle(gHomeX,50,140,60,MakeColor("grey"),0)
+   ##Add a 'none' button below stimulus region, but hide it.
+    ## Position in the response label zone (below footer)
+    noneY <- gLayout.footer.y + 60  ## Below footer
+    none <- EasyLabel(gStrings.none, gLayout.centerX, noneY, gWin, fontsize)
+    noneback <- Rectangle(gLayout.centerX, noneY, 140, 60, MakeColor("grey"), 0)
     AddObject(none,gWin)
     AddObject(noneback,gWin)
     Hide(none)
@@ -306,7 +326,7 @@ define SearchTrial(targChar, foilChars,targcol,foilcol,numtargs,num)
    ##Show the target (in this case, the last target)
    AddObject(targ,gWin)
    Move(targ,gHomeX,gHomeY)
-   label <- EasyLabel(gStrings.target,gHomeX,gHomeY-80,gWin,fontsize)
+   label <- EasyLabel(gStrings.target, gLayout.centerX, gLayout.centerY-80, gWin, fontsize)
    Draw()
    Wait(800)
    Draw()
@@ -333,8 +353,9 @@ define SearchTrial(targChar, foilChars,targcol,foilcol,numtargs,num)
     backs <- Append(backs,back)
   }
 
-  label.y <- gVideoHeight-50
-  label.text <- gStrings.complete
+  ## Use header for instructions during trial
+  gLayout.header.text <- gStrings.complete
+  label.visible <- 0  ## Hide the local label, use header instead
   Draw()
   time1 <- GetTime()
   WaitForDownClick()
@@ -343,8 +364,8 @@ define SearchTrial(targChar, foilChars,targcol,foilcol,numtargs,num)
   SetMouseCursorPosition(gHomeX,gHomeY)
   Draw()
 
-  label.text <-gStrings.select
-  Show(label)
+  ## Update header for selection phase
+  gLayout.header.text <- gStrings.select
   Show(none)
   Show(noneback)
   RemoveObjects(tmp,gWin)
@@ -361,6 +382,9 @@ define SearchTrial(targChar, foilChars,targcol,foilcol,numtargs,num)
   RemoveObjects(bgs,gWin)
   RemoveObject(label,gWin)
   RemoveObject(none,gWin)
+
+  ## Clear header after trial
+  gLayout.header.text <- ""
 
 
   if(numtargs==0)
@@ -505,3 +529,4 @@ define GetStrings(lang)
 {
   gStrings <- GetTranslations("vsearch", lang)
 }
+

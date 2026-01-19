@@ -48,6 +48,7 @@ public:
     virtual ~PTimer();
 
     virtual void Wait(unsigned long int msecs) = 0;
+    virtual void Sleep(unsigned long int msecs) = 0;  // OS sleep (yields CPU)
     virtual unsigned long int GetTime() const =0;
     virtual void GetTimeOfDay(unsigned long & secs, unsigned long & msecs)=0;
     virtual int GetState(int iface) const=0;

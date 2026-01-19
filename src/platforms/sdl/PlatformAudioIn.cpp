@@ -32,6 +32,7 @@
 
 #include "../../utility/PEBLPath.h"
 #include "../../utility/PError.h"
+#include "../../libs/PEBLEnvironment.h"
 
 
 #ifdef PEBL_EMSCRIPTEN
@@ -370,7 +371,7 @@ bool PlatformAudioIn::CloseAudio()
     // Wait for callbacks to fully drain
     // Increased from 50ms to 200ms to ensure all queued callbacks complete
     std::cout << "CloseAudio: Waiting for callbacks to drain...\n";
-    SDL_Delay(200);
+    PEBLEnvironment::myTimer.Sleep(200);
 
     // Now safe to close device - all callbacks have exited
     std::cout << "CloseAudio: Closing SDL device\n";
@@ -592,7 +593,7 @@ Variant PlatformAudioIn::VoiceKey(double threshold, unsigned int sustain)
                     //                    cout << sampleID << " > "<< gAudioBuffer->audiolen << " -----";
                     //                    cout <<tickID << " " << stop;
                 }
-            SDL_Delay(1);
+            PEBLEnvironment::myTimer.Sleep(1);
         }
 
 

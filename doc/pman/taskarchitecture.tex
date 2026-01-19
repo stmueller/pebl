@@ -1,0 +1,1291 @@
+\chapter{Structured Task Creation Architecture}
+\label{sec:taskarchitecture}
+
+\sect{Overview}
+
+PEBL provides a comprehensive architecture for creating structured, reusable, and maintainable psychological tests. This optional layer sits atop the core PEBL language and provides standardized systems for:
+
+\begin{itemize}
+\item \textbf{Layout \& Response System} - Unified screen layouts with platform-aware responses (Chapter~\ref{sec:layout})
+\item \textbf{Parameter Management} - JSON/CSV configuration with schemas and presets
+\item \textbf{Translation System} - Multi-language support with structured translation files
+\item \textbf{Data Upload} - Centralized data collection via web servers
+\end{itemize}
+
+These systems work together to create battery tasks that are:
+\begin{itemize}
+\item \textbf{Configurable} - Parameters control all aspects without code changes
+\item \textbf{International} - Full translation support for any language
+\item \textbf{Platform-aware} - Automatic adaptation to native/web environments
+\item \textbf{Data-ready} - Built-in upload to servers or PEBLHub
+\end{itemize}
+
+\textbf{Important:} All of these systems are optional. Core PEBL functionality works independently, but these systems significantly reduce development time and improve maintainability for battery tasks.
+
+\sect{Parameter Management System}
+
+The parameter system allows experiments to be configured without modifying code. Parameters are defined with defaults, loaded from files or URLs, and accessed as properties throughout the experiment.
+
+\subsection{Basic Parameter Usage}
+
+Define parameters with defaults in your PEBL script:
+
+\begin{verbatim}
+define Start(p)
+{
+  ## Define parameters with defaults
+  parpairs <- [
+    ["numTrials", 20],
+    ["responsemode", "keyboardShift"],
+    ["showFeedback", 1],
+    ["stimulusDuration", 1000]
+  ]
+
+  ## Load parameters (from file or use defaults)
+  gParams <- CreateParameters(parpairs, gParamFile)
+
+  ## Access parameters as properties
+  loop(trial, Sequence(1, gParams.numTrials, 1))
+  {
+    ShowStimulus(gParams.stimulusDuration)
+
+    if(gParams.showFeedback)
+    {
+      ShowFeedback()
+    }
+  }
+}
+\end{verbatim}
+
+The \texttt{CreateParameters()} function:
+\begin{itemize}
+\item Returns a property list with all parameters
+\item Merges file values over defaults
+\item Supports both JSON and CSV formats
+\item Uses defaults if file doesn't exist or is empty
+\end{itemize}
+
+\subsection{Parameter Files}
+
+PEBL supports two parameter file formats:
+
+\subsubsection{JSON Format (Recommended)}
+
+Modern format, ideal for web integration:
+
+\textbf{File:} \texttt{params/taskname.pbl.par.json}
+\begin{verbatim}
+{
+  "numTrials": 30,
+  "responsemode": "mousetarget",
+  "showFeedback": 1,
+  "stimulusDuration": 1500
+}
+\end{verbatim}
+
+\textbf{Advantages:}
+\begin{itemize}
+\item Web-friendly (easy JavaScript parsing/generation)
+\item Supports complex types (arrays, nested objects)
+\item Human-readable and editable
+\item Can be fetched from URLs
+\end{itemize}
+
+\subsubsection{CSV Format (Legacy)}
+
+Traditional format, still fully supported:
+
+\textbf{File:} \texttt{params/taskname.pbl.par}
+\begin{verbatim}
+numTrials,30
+responsemode,mousetarget
+showFeedback,1
+stimulusDuration,1500
+\end{verbatim}
+
+\textbf{Note:} No code changes needed to support both formats. \texttt{CreateParameters()} auto-detects the format.
+
+\subsection{Parameter Schemas}
+
+Schema files provide rich metadata about parameters for documentation and web UIs. They are entirely optional but highly recommended for battery tasks.
+
+\textbf{File:} \texttt{params/taskname.pbl.schema.json}
+\begin{verbatim}
+{
+  "test": "taskname",
+  "version": "1.0",
+  "description": "A psychological test measuring...",
+  "citation": "Smith et al. (2020)",
+  "parameters": [
+    {
+      "name": "numTrials",
+      "type": "integer",
+      "default": 20,
+      "min": 1,
+      "max": 100,
+      "step": 1,
+      "label": "Number of Trials",
+      "description": "Total number of test trials to present"
+    },
+    {
+      "name": "responsemode",
+      "type": "string",
+      "default": "keyboardShift",
+      "options": ["keyboardShift", "keyboardSafe",
+                  "mousetarget", "mousebutton"],
+      "label": "Response Mode",
+      "description": "How participants respond (keyboard/mouse)"
+    },
+    {
+      "name": "showFeedback",
+      "type": "boolean",
+      "default": 1,
+      "label": "Show Feedback",
+      "description": "Display feedback after each trial"
+    },
+    {
+      "name": "stimulusDuration",
+      "type": "integer",
+      "default": 1000,
+      "min": 100,
+      "max": 5000,
+      "step": 100,
+      "unit": "ms",
+      "label": "Stimulus Duration",
+      "description": "How long each stimulus is displayed"
+    }
+  ]
+}
+\end{verbatim}
+
+\textbf{Schema fields:}
+\begin{itemize}
+\item \texttt{name} - Parameter identifier (used in code)
+\item \texttt{type} - Data type (integer, string, boolean, number, array)
+\item \texttt{default} - Default value
+\item \texttt{label} - Human-readable name
+\item \texttt{description} - Detailed explanation
+\item \texttt{min/max/step} - Numeric constraints (optional)
+\item \texttt{unit} - Display unit (ms, sec, px, etc.) (optional)
+\item \texttt{options} - Valid choices for dropdowns (optional)
+\end{itemize}
+
+\subsection{Parameter Presets}
+
+Create named presets for common configurations:
+
+\textbf{File:} \texttt{params/short-version.json}
+\begin{verbatim}
+{
+  "name": "Short Version",
+  "description": "Quick testing with reduced trials",
+  "parameters": {
+    "numTrials": 10,
+    "responsemode": "keyboardShift",
+    "showFeedback": 1,
+    "stimulusDuration": 800
+  }
+}
+\end{verbatim}
+
+\textbf{File:} \texttt{params/tablet-version.json}
+\begin{verbatim}
+{
+  "name": "Tablet Version",
+  "description": "Touch-screen optimized configuration",
+  "parameters": {
+    "numTrials": 20,
+    "responsemode": "mousetarget",
+    "showFeedback": 1,
+    "stimulusDuration": 1500
+  }
+}
+\end{verbatim}
+
+\textbf{Usage:}
+\begin{verbatim}
+## Command line:
+pebl2 taskname.pbl -v jsonparam=params/tablet-version.json
+
+## Or via launcher preset dropdown
+\end{verbatim}
+
+\subsection{Loading Parameters from URLs}
+
+For web-based studies, parameters can be fetched from remote servers:
+
+\begin{verbatim}
+pebl2 taskname.pbl --pfile https://study.example.com/api/params?token=ABC123
+\end{verbatim}
+
+The server can:
+\begin{enumerate}
+\item Read the task's \texttt{.pbl.schema.json} to understand parameters
+\item Generate custom parameter JSON based on study configuration
+\item Serve it to PEBL with appropriate authentication
+\item Track which parameters were used for each participant
+\end{enumerate}
+
+\textbf{Example workflow:}
+\begin{enumerate}
+\item Researcher configures study on web platform
+\item Platform generates URL with authentication token
+\item PEBL fetches JSON parameters at runtime
+\item Experiment runs with server-specified configuration
+\end{enumerate}
+
+\subsection{Best Practices}
+
+\textbf{Parameter Naming:}
+\begin{itemize}
+\item Use descriptive names (\texttt{stimulusDuration}, not \texttt{sd})
+\item Use camelCase for multi-word names
+\item Group related parameters with common prefixes
+\end{itemize}
+
+\textbf{Defaults:}
+\begin{itemize}
+\item Always provide sensible defaults
+\item Default to the most common use case
+\item Document defaults in schema descriptions
+\end{itemize}
+
+\textbf{Validation:}
+\begin{itemize}
+\item Validate parameters at script start
+\item Check ranges, types, and valid options
+\item Provide clear error messages for invalid values
+\end{itemize}
+
+\begin{verbatim}
+## Validate parameters
+if(gParams.numTrials < 1 or gParams.numTrials > 100)
+{
+  MessageBox("Error: numTrials must be between 1 and 100", gWin)
+  QuitPEBL()
+}
+
+if(not IsMember(gParams.responsemode,
+   ["keyboardShift", "keyboardSafe", "mousetarget", "mousebutton"]))
+{
+  MessageBox("Error: Invalid responsemode", gWin)
+  QuitPEBL()
+}
+\end{verbatim}
+
+\sect{Translation System}
+
+The translation system enables complete internationalization of battery tasks. All participant-visible text is stored in JSON files, allowing tasks to run in any language without code changes.
+
+\subsection{Basic Translation Usage}
+
+Store translations in JSON files and load them at runtime:
+
+\textbf{File:} \texttt{translations/taskname.pbl-en.json}
+\begin{verbatim}
+{
+  "INSTRUCTIONS": "Press the key corresponding to the stimulus color.",
+  "PRACTICE_BEGIN": "Practice trials will begin. Press any key.",
+  "PRACTICE_COMPLETE": "Practice complete! Press any key for test.",
+  "TEST_BEGIN": "Test trials will begin. Press any key.",
+  "TRIAL_HEADER": "Trial",
+  "CORRECT_FEEDBACK": "Correct!",
+  "INCORRECT_FEEDBACK": "Incorrect.",
+  "TOO_SLOW": "Too slow!",
+  "DEBRIEF": "Thank you for participating!"
+}
+\end{verbatim}
+
+\textbf{Load and use in PEBL:}
+\begin{verbatim}
+define Start(p)
+{
+  ## Load translations for current language
+  gStrings <- GetTranslations("taskname", gLanguage)
+
+  ## Use throughout experiment
+  MessageBox(gStrings.INSTRUCTIONS, gWin)
+
+  gLayout.header.text <- gStrings.TRIAL_HEADER + " " + trialNum
+  gLayout.footer.text <- gStrings.INSTRUCTIONS
+
+  ## Dynamic text with substitution
+  feedback <- gStrings.CORRECT_FEEDBACK
+  ShowMessage(feedback)
+}
+\end{verbatim}
+
+\subsection{Translation File Structure}
+
+\textbf{Naming convention:} \texttt{translations/taskname.pbl-LANG.json}
+
+Where \texttt{LANG} is the two-letter ISO 639-1 language code:
+\begin{itemize}
+\item \texttt{en} - English
+\item \texttt{es} - Spanish
+\item \texttt{fr} - French
+\item \texttt{de} - German
+\item \texttt{pt} - Portuguese
+\item \texttt{cn} - Chinese
+\item \texttt{he} - Hebrew
+\item \texttt{ru} - Russian
+\item \texttt{it} - Italian
+\item etc.
+\end{itemize}
+
+\textbf{Key conventions:}
+\begin{itemize}
+\item Use UPPERCASE for all keys (recommended)
+\item Use underscores to separate words (\texttt{TRIAL\_HEADER})
+\item Group related strings with common prefixes
+\item Keys are case-insensitive in PEBL (can access as \texttt{.trial\_header})
+\end{itemize}
+
+\subsection{Creating Translations}
+
+\textbf{Step 1:} Create English baseline
+\begin{verbatim}
+translations/taskname.pbl-en.json
+\end{verbatim}
+
+\textbf{Step 2:} Copy to new language
+\begin{verbatim}
+cp translations/taskname.pbl-en.json \
+   translations/taskname.pbl-es.json
+\end{verbatim}
+
+\textbf{Step 3:} Translate all values (keep keys unchanged)
+
+\textbf{Before (English):}
+\begin{verbatim}
+{
+  "INSTRUCTIONS": "Press the key corresponding to the color.",
+  "PRACTICE_BEGIN": "Practice will begin. Press any key."
+}
+\end{verbatim}
+
+\textbf{After (Spanish):}
+\begin{verbatim}
+{
+  "INSTRUCTIONS": "Presione la tecla correspondiente al color.",
+  "PRACTICE_BEGIN": "La práctica comenzará. Presione cualquier tecla."
+}
+\end{verbatim}
+
+\textbf{Step 4:} Test with new language
+\begin{verbatim}
+pebl2 taskname.pbl -v language=es
+\end{verbatim}
+
+\subsection{Special Characters and Formatting}
+
+\textbf{Line breaks:} Use \texttt{CR(1)} function in PEBL, not \texttt{\textbackslash n}
+\begin{verbatim}
+## In translation file - single line
+"MULTI_LINE": "First line. Second line. Third line."
+
+## In PEBL code - split with CR(1)
+lines <- SplitString(gStrings.MULTI_LINE, ".")
+text <- lines[1] + CR(1) + lines[2] + CR(1) + lines[3]
+\end{verbatim}
+
+\textbf{Unicode characters:} JSON supports full Unicode for international languages.
+
+Translation files can contain any UTF-8 text including:
+\begin{itemize}
+\item Hebrew, Arabic (right-to-left scripts)
+\item Chinese, Japanese, Korean characters
+\item Accented Latin characters (Spanish, French, etc.)
+\item Special symbols and emoji
+\end{itemize}
+
+\textbf{Dynamic substitution:} Use placeholders and string replacement
+\begin{verbatim}
+## Translation file
+"TRIAL_PROGRESS": "Trial <NUM> of <TOTAL>"
+
+## PEBL code
+text <- SubstituteStrings(gStrings.TRIAL_PROGRESS,
+                          [["<NUM>", trial + ""],
+                           ["<TOTAL>", gParams.numTrials + ""]])
+## Result: "Trial 5 of 20"
+\end{verbatim}
+
+\subsection{Fallback Strategy}
+
+The translation system uses a sophisticated three-tier fallback mechanism to ensure translations are always available:
+
+\subsubsection{Three-Tier Fallback}
+
+\textbf{Tier 1: Explicit Language} (if gLanguage is non-empty)
+\begin{verbatim}
+## Try language specified via --language or -v language=XX
+pebl2 taskname.pbl --language es
+## Looks for: translations/taskname.pbl-es.json
+\end{verbatim}
+
+\textbf{Tier 2: System Locale} (if gLanguage is empty or Tier 1 failed)
+
+The system automatically detects the operating system locale using \texttt{GetSystemLocale()}:
+\begin{verbatim}
+## On a Spanish-language system (locale: es_ES)
+pebl2 taskname.pbl
+## Automatically looks for: translations/taskname.pbl-es.json
+
+## On a Chinese system (locale: zh_CN)
+pebl2 taskname.pbl
+## Automatically looks for: translations/taskname.pbl-zh.json
+\end{verbatim}
+
+The system extracts the two-letter language code from the full locale string (e.g., ``es\_ES'' becomes ``es'', ``zh\_CN'' becomes ``zh'').
+
+\textbf{Tier 3: English Fallback} (if both tiers fail)
+\begin{verbatim}
+## If neither explicit language nor system locale translation exists
+## Falls back to: translations/taskname.pbl-en.json
+\end{verbatim}
+
+\subsubsection{Fallback Examples}
+
+\textbf{Example 1: Explicit language overrides system}
+\begin{verbatim}
+## System locale: de_DE (German)
+## Command: pebl2 taskname.pbl --language fr
+## Result: Uses French translation (tier 1 explicit override)
+\end{verbatim}
+
+\textbf{Example 2: System locale detection}
+\begin{verbatim}
+## System locale: ja_JP (Japanese)
+## Command: pebl2 taskname.pbl
+## gLanguage is empty, so system locale is detected
+## Result: Uses Japanese translation (tier 2 system locale)
+\end{verbatim}
+
+\textbf{Example 3: English fallback}
+\begin{verbatim}
+## System locale: ko_KR (Korean)
+## Command: pebl2 taskname.pbl
+## But translations/taskname.pbl-ko.json doesn't exist
+## Result: Falls back to English (tier 3)
+\end{verbatim}
+
+\textbf{Example 4: Custom language identifiers}
+
+The \texttt{--language} parameter accepts any string, not just ISO 639-1 codes. This enables custom language variants:
+\begin{verbatim}
+pebl2 taskname.pbl --language es-mx
+## Looks for: translations/taskname.pbl-es-mx.json
+## (Mexican Spanish variant)
+
+pebl2 taskname.pbl --language en-uk
+## Looks for: translations/taskname.pbl-en-uk.json
+## (British English variant)
+\end{verbatim}
+
+\subsubsection{Checking Translation Availability}
+
+Always check if strings are available for error handling:
+\begin{verbatim}
+gStrings <- GetTranslations("taskname", gLanguage)
+
+if(Length(GetPropertyList(gStrings)) == 0)
+{
+  MessageBox("Warning: No translation file found. Using defaults.", gWin)
+  ## Provide hardcoded fallback strings
+}
+\end{verbatim}
+
+However, with the three-tier fallback system, this should only occur if no translation files exist at all (including English).
+
+\subsection{Translation Best Practices}
+
+\textbf{What to translate:}
+\begin{itemize}
+\item All instructions and debriefing text
+\item Header and footer text
+\item Feedback messages
+\item Response labels ("LEFT", "RIGHT", etc.)
+\item Error messages
+\item Any participant-visible text
+\end{itemize}
+
+\textbf{What NOT to translate:}
+\begin{itemize}
+\item Stimulus content (if language-specific by design)
+\item Data file headers and output
+\item Internal debug messages
+\item Parameter names
+\end{itemize}
+
+\textbf{Testing translations:}
+\begin{itemize}
+\item Test with at least two languages
+\item Verify text fits in layout zones
+\item Check right-to-left languages (Hebrew, Arabic)
+\item Ensure special characters display correctly
+\item Have native speakers review translations
+\end{itemize}
+
+\textbf{Organizing large translation sets:}
+For tasks with many strings, group by function:
+\begin{verbatim}
+{
+  "INST_1": "First instruction...",
+  "INST_2": "Second instruction...",
+  "PRACTICE_HEADER": "Practice",
+  "PRACTICE_BEGIN": "Practice will begin...",
+  "PRACTICE_COMPLETE": "Practice complete...",
+  "TEST_HEADER": "Test",
+  "TEST_BEGIN": "Test will begin...",
+  "FEEDBACK_CORRECT": "Correct!",
+  "FEEDBACK_INCORRECT": "Incorrect.",
+  "DEBRIEF_THANKS": "Thank you..."
+}
+\end{verbatim}
+
+\sect{Data Upload System}
+
+The data upload system enables centralized collection of experimental data to web servers. PEBL supports uploading to two server types:
+
+\begin{itemize}
+\item \textbf{PEBL Simple Data Server} - Included with PEBL (\texttt{dataserver/})
+\item \textbf{PEBLHub Online} - Cloud platform at \href{https://peblhub.online}{peblhub.online}
+\end{itemize}
+
+\subsection{Upload Configuration}
+
+Create an \texttt{upload.json} file specifying server details:
+
+\textbf{File:} \texttt{upload.json}
+\begin{verbatim}
+{
+  "server": "your-domain.com",
+  "page": "/pebl-data/upload.php",
+  "port": "80",
+  "username": "admin",
+  "upload_password": "yourpassword",
+  "taskname": "stroop"
+}
+\end{verbatim}
+
+\textbf{For HTTPS (recommended):}
+\begin{verbatim}
+{
+  "server": "your-domain.com",
+  "page": "/pebl-data/upload.php",
+  "port": "443",
+  "username": "admin",
+  "upload_password": "yourpassword",
+  "taskname": "stroop"
+}
+\end{verbatim}
+
+\textbf{File location:} Place \texttt{upload.json} in the same directory as your \texttt{.pbl} script.
+
+\subsection{Using Upload in PEBL Scripts}
+
+\subsubsection{Basic Upload}
+
+Upload data files after experiment completes:
+
+\begin{verbatim}
+define Start(p)
+{
+  ## ... run experiment ...
+
+  ## Close data file
+  FileClose(gFileOut)
+
+  ## Upload to server
+  if(FileExists("upload.json"))
+  {
+    success <- UploadFile(gSubNum, gFileOut)
+
+    if(success)
+    {
+      MessageBox("Data uploaded successfully!", gWin)
+    } else {
+      MessageBox("Upload failed. Data saved locally.", gWin)
+    }
+  }
+}
+\end{verbatim}
+
+\subsubsection{Parameter-Controlled Upload}
+
+Allow upload to be enabled/disabled via parameters:
+
+\begin{verbatim}
+define Start(p)
+{
+  ## Define parameters
+  parpairs <- [
+    ["uploadData", 0],
+    ["uploadURL", ""],
+    ["numTrials", 20]
+  ]
+
+  gParams <- CreateParameters(parpairs, gParamFile)
+
+  ## ... run experiment ...
+
+  FileClose(gFileOut)
+
+  ## Upload if enabled
+  if(gParams.uploadData)
+  {
+    ## Show upload screen
+    MessageBox("Uploading data, please wait...", gWin)
+
+    ## Upload
+    success <- UploadFile(gSubNum, gFileOut)
+
+    ## Report result
+    if(success)
+    {
+      MessageBox("Upload complete!", gWin)
+    } else {
+      MessageBox("Upload failed. Data saved locally at: " +
+                 gFileOut, gWin)
+    }
+  }
+}
+\end{verbatim}
+
+\textbf{Schema entry for upload parameters:}
+\begin{verbatim}
+{
+  "name": "uploadData",
+  "type": "boolean",
+  "default": 0,
+  "label": "Upload Data",
+  "description": "Upload results to server after completion"
+},
+{
+  "name": "uploadURL",
+  "type": "string",
+  "default": "",
+  "label": "Upload Server URL",
+  "description": "Server URL for data upload (if enabled)"
+}
+\end{verbatim}
+
+\subsection{PEBL Simple Data Server}
+
+The Simple Data Server is a lightweight PHP server included in \texttt{pebl/dataserver/}. It requires no database and runs on any PHP 5.5+ web server.
+
+\subsubsection{Server Features}
+
+\begin{itemize}
+\item Single admin account (username/password)
+\item Automatic subject number generation
+\item Organized file structure: \texttt{uploads/taskname/subnum/}
+\item File validation and security
+\item Works on shared hosting (cPanel, etc.)
+\item No database required
+\end{itemize}
+
+\subsubsection{Quick Server Setup}
+
+\textbf{Step 1:} Upload files to web server
+\begin{verbatim}
+your-domain.com/pebl-data/
+  config.php
+  upload.php
+  getnewsubnum.php
+  generate_password.php
+  .htaccess
+  counter.txt (auto-created)
+  uploads/ (auto-created)
+\end{verbatim}
+
+\textbf{Step 2:} Set permissions
+\begin{verbatim}
+chmod 755 uploads/
+chmod 644 config.php upload.php getnewsubnum.php
+\end{verbatim}
+
+\textbf{Step 3:} Change default password
+
+Generate password hash:
+\begin{verbatim}
+php generate_password.php yourNewPassword
+\end{verbatim}
+
+Edit \texttt{config.php}:
+\begin{verbatim}
+define('ADMIN_PASSWORD_HASH', 'your-hash-here');
+\end{verbatim}
+
+\textbf{Step 4:} Test upload
+\begin{verbatim}
+curl -X POST \
+  -F "user_name=admin" \
+  -F "upload_password=yourpassword" \
+  -F "taskname=test" \
+  -F "subnum=001" \
+  -F "fileToUpload=@test.csv" \
+  http://your-domain.com/pebl-data/upload.php
+\end{verbatim}
+
+\subsubsection{Getting Subject Numbers}
+
+The server can generate sequential subject numbers:
+
+\textbf{PEBL function:}
+\begin{verbatim}
+gSubNum <- GetNewSubNum("your-domain.com",
+                        "/pebl-data/getnewsubnum.php",
+                        "80",
+                        "admin",
+                        "yourpassword")
+
+Print("Assigned subject number: " + gSubNum)
+\end{verbatim}
+
+This ensures unique subject numbers across multiple testing stations.
+
+\subsubsection{Server File Structure}
+
+Data is organized hierarchically:
+\begin{verbatim}
+uploads/
+  stroop/               # Task name
+    001/                # Subject number
+      stroop.csv
+      stroop_1.csv      # Auto-numbered if duplicate
+    002/
+    003/
+  ant/                  # Another task
+    001/
+    002/
+\end{verbatim}
+
+\subsubsection{Server Configuration}
+
+Edit \texttt{config.php} to customize:
+
+\begin{verbatim}
+// Admin credentials
+define('ADMIN_USERNAME', 'admin');
+define('ADMIN_PASSWORD_HASH', 'your-hash');
+
+// Upload limits
+define('MAX_FILE_SIZE', 10485760);  // 10MB
+define('ALLOWED_EXTENSIONS', ['txt', 'csv', 'tsv', 'dat', 'log']);
+
+// Timezone
+date_default_timezone_set('America/New_York');
+
+// Debug mode (for troubleshooting)
+define('DEBUG_MODE', false);
+\end{verbatim}
+
+\subsubsection{Security Best Practices}
+
+\begin{itemize}
+\item \textbf{Use HTTPS} - Always use SSL/TLS encryption (port 443)
+\item \textbf{Strong passwords} - Use 12+ character passwords
+\item \textbf{Regular backups} - Download \texttt{uploads/} directory regularly
+\item \textbf{Monitor uploads} - Check for unusual files periodically
+\item \textbf{IP restrictions} - Limit access to known networks (optional)
+\item \textbf{Update PHP} - Use PHP 7.4+ for security patches
+\end{itemize}
+
+\subsection{PEBLHub Online}
+
+PEBLHub (\href{https://peblhub.online}{peblhub.online}) is a cloud-based platform for PEBL data collection. It provides:
+
+\begin{itemize}
+\item Web-based experiment launching
+\item Centralized data management
+\item Study creation and configuration
+\item Participant tracking
+\item Data visualization and export
+\item No server setup required
+\end{itemize}
+
+\subsubsection{Using PEBLHub}
+
+\textbf{Step 1:} Create account at \href{https://peblhub.online}{peblhub.online}
+
+\textbf{Step 2:} Create a study and configure tests
+
+\textbf{Step 3:} Download test package from PEBLHub
+
+PEBLHub allows you to download a complete test package that includes the test script, parameters, translations, and a pre-configured \texttt{upload.json} file. Simply download the package from your study dashboard and run it locally---upload settings work out-of-the-box without any additional configuration.
+
+\textbf{Step 4:} (Alternative) Manually create \texttt{upload.json} with PEBLHub credentials
+
+If you prefer to configure upload manually, get credentials from study settings and create:
+\begin{verbatim}
+{
+  "server": "peblhub.online",
+  "page": "/api/upload",
+  "port": "443",
+  "username": "your-study-id",
+  "upload_password": "your-study-token",
+  "taskname": "stroop"
+}
+\end{verbatim}
+
+\textbf{Step 5:} Upload is automatic when experiment completes
+
+\subsubsection{PEBLHub Features}
+
+\begin{itemize}
+\item \textbf{Study Management} - Create and configure multi-test batteries
+\item \textbf{Participant Portal} - Secure links for participant access
+\item \textbf{Data Dashboard} - Real-time collection monitoring
+\item \textbf{Bulk Export} - Download all data as CSV/JSON
+\item \textbf{Test Library} - Browse and deploy battery tests
+\item \textbf{Version Control} - Track parameter changes over time
+\end{itemize}
+
+\subsection{Upload Best Practices}
+
+\textbf{Error Handling:}
+\begin{verbatim}
+## Always handle upload failures gracefully
+success <- UploadFile(gSubNum, gFileOut)
+
+if(not success)
+{
+  ## Inform participant
+  MessageBox("Data saved locally. Please contact experimenter.", gWin)
+
+  ## Log failure
+  Print("WARNING: Upload failed for subject " + gSubNum)
+
+  ## Data is still saved locally - never lost!
+}
+\end{verbatim}
+
+\textbf{Network Testing:}
+\begin{itemize}
+\item Test uploads on actual network before study
+\item Check firewall and proxy settings
+\item Verify HTTPS certificates are valid
+\item Test with slow/unreliable connections
+\end{itemize}
+
+\textbf{Participant Privacy:}
+\begin{itemize}
+\item Use subject numbers, not names
+\item Avoid collecting identifying information in data files
+\item Ensure server has appropriate security
+\item Follow institutional IRB requirements
+\end{itemize}
+
+\textbf{Backup Strategy:}
+\begin{itemize}
+\item Local data files are always saved (even if upload fails)
+\item Download server data regularly
+\item Keep local backups during data collection
+\item Verify data integrity after upload
+\end{itemize}
+
+\sect{Complete Example Task}
+
+This example demonstrates all systems working together:
+
+\subsection{Directory Structure}
+
+\begin{verbatim}
+battery/mytask/
+  mytask.pbl                      # Main script
+  mytask.pbl.about.txt            # Task description
+  params/
+    mytask.pbl.schema.json        # Parameter schema
+    mytask.pbl.par.json           # Default parameters
+    short-version.json            # Preset: short version
+    tablet-version.json           # Preset: tablet mode
+  translations/
+    mytask.pbl-en.json            # English strings
+    mytask.pbl-es.json            # Spanish strings
+    mytask.pbl-fr.json            # French strings
+  upload.json                     # Upload configuration
+  data/                           # Output (auto-created)
+\end{verbatim}
+
+\subsection{Parameter Schema}
+
+\textbf{File:} \texttt{params/mytask.pbl.schema.json}
+\begin{verbatim}
+{
+  "test": "mytask",
+  "version": "1.0",
+  "description": "Example task demonstrating full architecture",
+  "parameters": [
+    {
+      "name": "numPracticeTrials",
+      "type": "integer",
+      "default": 5,
+      "min": 0,
+      "max": 20,
+      "label": "Practice Trials",
+      "description": "Number of practice trials"
+    },
+    {
+      "name": "numTestTrials",
+      "type": "integer",
+      "default": 20,
+      "min": 1,
+      "max": 100,
+      "label": "Test Trials",
+      "description": "Number of test trials"
+    },
+    {
+      "name": "responsemode",
+      "type": "string",
+      "default": "auto",
+      "options": ["auto", "keyboardShift", "keyboardSafe",
+                  "mousetarget", "mousebutton"],
+      "label": "Response Mode",
+      "description": "Response method (auto = platform-aware)"
+    },
+    {
+      "name": "showFeedback",
+      "type": "boolean",
+      "default": 1,
+      "label": "Show Feedback",
+      "description": "Display feedback after each trial"
+    },
+    {
+      "name": "uploadData",
+      "type": "boolean",
+      "default": 0,
+      "label": "Upload Data",
+      "description": "Upload data to server after completion"
+    }
+  ]
+}
+\end{verbatim}
+
+\subsection{Translation Files}
+
+\textbf{File:} \texttt{translations/mytask.pbl-en.json}
+\begin{verbatim}
+{
+  "TITLE": "My Task",
+  "INSTRUCTIONS": "Press the key corresponding to the stimulus.",
+  "PRACTICE_BEGIN": "Practice will begin. Press any key.",
+  "PRACTICE_COMPLETE": "Practice complete! Press any key for test.",
+  "TEST_BEGIN": "Test will begin. Press any key.",
+  "TRIAL_HEADER": "Trial",
+  "FEEDBACK_CORRECT": "Correct!",
+  "FEEDBACK_INCORRECT": "Incorrect.",
+  "FOOTER_PROMPT": "Respond as quickly and accurately as possible.",
+  "UPLOADING": "Uploading data...",
+  "UPLOAD_SUCCESS": "Upload complete!",
+  "UPLOAD_FAILED": "Upload failed. Data saved locally.",
+  "DEBRIEF": "Thank you for participating!"
+}
+\end{verbatim}
+
+\textbf{File:} \texttt{translations/mytask.pbl-es.json}
+\begin{verbatim}
+{
+  "TITLE": "Mi Tarea",
+  "INSTRUCTIONS": "Presione la tecla correspondiente al estímulo.",
+  "PRACTICE_BEGIN": "La práctica comenzará. Presione cualquier tecla.",
+  "PRACTICE_COMPLETE": "¡Práctica completa! Presione para la prueba.",
+  "TEST_BEGIN": "La prueba comenzará. Presione cualquier tecla.",
+  "TRIAL_HEADER": "Ensayo",
+  "FEEDBACK_CORRECT": "¡Correcto!",
+  "FEEDBACK_INCORRECT": "Incorrecto.",
+  "FOOTER_PROMPT": "Responda lo más rápido y preciso posible.",
+  "UPLOADING": "Subiendo datos...",
+  "UPLOAD_SUCCESS": "¡Carga completa!",
+  "UPLOAD_FAILED": "Fallo de carga. Datos guardados localmente.",
+  "DEBRIEF": "¡Gracias por participar!"
+}
+\end{verbatim}
+
+\subsection{Main Script}
+
+\textbf{File:} \texttt{mytask.pbl}
+\begin{verbatim}
+define Start(p)
+{
+  ##=================================================================
+  ## SETUP
+  ##=================================================================
+  gScriptname <- "My Task"
+
+  ## Define parameters with defaults
+  parpairs <- [
+    ["numPracticeTrials", 5],
+    ["numTestTrials", 20],
+    ["responsemode", "auto"],
+    ["showFeedback", 1],
+    ["uploadData", 0]
+  ]
+
+  ## Load parameters (from file, URL, or defaults)
+  gParams <- CreateParameters(parpairs, gParamFile)
+
+  ## Create window
+  gWin <- MakeWindow("black")
+
+  ## Get subject number
+  if(gSubNum+"" == "0")
+  {
+    gSubNum <- GetSubNum(gWin)
+  }
+
+  ## Load translations
+  gStrings <- GetTranslations("mytask", gLanguage)
+
+  ##=================================================================
+  ## CREATE LAYOUT & RESPONSE SYSTEM
+  ##=================================================================
+  gLayout <- CreateLayout("mytask", gWin, gParams)
+
+  ## Configure zones
+  gLayout.header.text <- gStrings.TITLE
+  gLayout.footer.text <- gStrings.INSTRUCTIONS
+
+  ##=================================================================
+  ## DATA FILE
+  ##=================================================================
+  gFileOut <- GetNewDataFile(gSubNum, gWin, "mytask", "csv",
+    "subnum,trial,phase,stimulus,response,correct,rt,timestamp")
+
+  ##=================================================================
+  ## INSTRUCTIONS
+  ##=================================================================
+  MessageBox(gStrings.INSTRUCTIONS, gWin)
+
+  ##=================================================================
+  ## PRACTICE TRIALS
+  ##=================================================================
+  if(gParams.numPracticeTrials > 0)
+  {
+    gLayout.subheader.text <- "PRACTICE"
+    gLayout.footer.text <- gStrings.PRACTICE_BEGIN
+    Draw()
+    WaitForAnyKeyPress()
+
+    loop(trial, Sequence(1, gParams.numPracticeTrials, 1))
+    {
+      result <- RunTrial("practice", trial)
+      FilePrint(gFileOut, result)
+    }
+
+    ## Practice complete
+    gLayout.footer.text <- gStrings.PRACTICE_COMPLETE
+    Draw()
+    WaitForAnyKeyPress()
+  }
+
+  ##=================================================================
+  ## TEST TRIALS
+  ##=================================================================
+  gLayout.subheader.text <- "TEST"
+  gLayout.footer.text <- gStrings.TEST_BEGIN
+  Draw()
+  WaitForAnyKeyPress()
+
+  loop(trial, Sequence(1, gParams.numTestTrials, 1))
+  {
+    result <- RunTrial("test", trial)
+    FilePrint(gFileOut, result)
+  }
+
+  ##=================================================================
+  ## DATA UPLOAD
+  ##=================================================================
+  FileClose(gFileOut)
+
+  if(gParams.uploadData)
+  {
+    ## Show upload screen
+    gLayout.header.text <- gStrings.UPLOADING
+    gLayout.footer.text <- ""
+    Draw()
+
+    ## Upload
+    success <- UploadFile(gSubNum, gFileOut)
+
+    ## Report result
+    if(success)
+    {
+      gLayout.footer.text <- gStrings.UPLOAD_SUCCESS
+    } else {
+      gLayout.footer.text <- gStrings.UPLOAD_FAILED
+    }
+
+    Draw()
+    Wait(2000)
+  }
+
+  ##=================================================================
+  ## DEBRIEF
+  ##=================================================================
+  gLayout.header.text <- gStrings.TITLE
+  gLayout.subheader.visible <- 0
+  gLayout.footer.text <- gStrings.DEBRIEF
+  Draw()
+  WaitForAnyKeyPress()
+}
+
+define RunTrial(phase, trialNum)
+{
+  ## Update header
+  gLayout.header.text <- gStrings.TITLE + " - " +
+                         gStrings.TRIAL_HEADER + " " + trialNum
+
+  ## Generate stimulus (example: random color)
+  colors <- ["red", "blue", "green", "yellow"]
+  stimulus <- SampleN(colors, 1)[1]
+  correctResp <- First(["left", "right"])
+
+  ## Show stimulus
+  stim <- Circle(gLayout.stimulusRegion.centerX,
+                 gLayout.stimulusRegion.centerY,
+                 50, MakeColor(stimulus), 1)
+  AddObject(stim, gWin)
+  Draw()
+
+  ## Collect response
+  startTime <- GetTime()
+  response <- WaitForLayoutResponse(gLayout, 5000)
+  rt <- GetTime() - startTime
+
+  ## Determine correctness
+  correct <- (response == correctResp)
+
+  ## Show feedback (if enabled)
+  if(gParams.showFeedback)
+  {
+    if(response == "<timeout>")
+    {
+      feedback <- "TOO SLOW"
+    } else {
+      if(correct)
+      {
+        feedback <- gStrings.FEEDBACK_CORRECT
+      } else {
+        feedback <- gStrings.FEEDBACK_INCORRECT
+      }
+    }
+
+    ShowFeedback(feedback, 500)
+  }
+
+  ## Clean up
+  RemoveObject(stim, gWin)
+
+  ## Return data row
+  return(gSubNum + "," + trialNum + "," + phase + "," +
+         stimulus + "," + response + "," + correct + "," +
+         rt + "," + TimeStamp())
+}
+
+define ShowFeedback(message, duration)
+{
+  ## Show feedback in subheader
+  gLayout.subheader.text <- message
+  gLayout.subheader.visible <- 1
+  Draw()
+  Wait(duration)
+  gLayout.subheader.visible <- 0
+  Draw()
+}
+\end{verbatim}
+
+\subsection{Running the Task}
+
+\textbf{Default configuration:}
+\begin{verbatim}
+pebl2 battery/mytask/mytask.pbl
+\end{verbatim}
+
+\textbf{With Spanish translation:}
+\begin{verbatim}
+pebl2 battery/mytask/mytask.pbl --language es
+\end{verbatim}
+
+\textbf{With preset configuration:}
+\begin{verbatim}
+pebl2 battery/mytask/mytask.pbl --pfile params/tablet-version.json
+\end{verbatim}
+
+\textbf{With specific subject number:}
+\begin{verbatim}
+pebl2 battery/mytask/mytask.pbl -s 042
+\end{verbatim}
+
+\textbf{With remote parameters:}
+\begin{verbatim}
+pebl2 battery/mytask/mytask.pbl \
+  --pfile https://study.com/api/params?token=ABC123
+\end{verbatim}
+
+\sect{Migration Checklist}
+
+To add structured architecture to existing battery tasks:
+
+\subsection{Parameters}
+
+\begin{itemize}
+\item[\textbullet] Create \texttt{params/taskname.pbl.schema.json} with all parameters
+\item[\textbullet] Create \texttt{params/taskname.pbl.par.json} with defaults
+\item[\textbullet] Replace hardcoded values with \texttt{gParams.paramname}
+\item[\textbullet] Add parameter validation at script start
+\item[\textbullet] Create preset files for common configurations
+\item[\textbullet] Test with various parameter combinations
+\end{itemize}
+
+\subsection{Translations}
+
+\begin{itemize}
+\item[\textbullet] Create \texttt{translations/} directory
+\item[\textbullet] Extract all participant-visible text to \texttt{-en.json}
+\item[\textbullet] Replace hardcoded strings with \texttt{gStrings.KEY}
+\item[\textbullet] Load translations with \texttt{GetTranslations()}
+\item[\textbullet] Test with English to verify extraction
+\item[\textbullet] Create additional language translations
+\item[\textbullet] Test with multiple languages
+\end{itemize}
+
+\subsection{Layout \& Response System}
+
+\begin{itemize}
+\item[\textbullet] Add \texttt{responsemode} parameter
+\item[\textbullet] Replace hardcoded layouts with \texttt{CreateLayout()}
+\item[\textbullet] Use \texttt{WaitForLayoutResponse()} for input
+\item[\textbullet] Update instructions based on response mode
+\item[\textbullet] Test with each response mode
+\item[\textbullet] Test on native and Emscripten platforms
+\end{itemize}
+
+\subsection{Data Upload}
+
+\begin{itemize}
+\item[\textbullet] Add \texttt{uploadData} parameter
+\item[\textbullet] Add upload logic after file close
+\item[\textbullet] Handle upload failures gracefully
+\item[\textbullet] Create \texttt{upload.json} example file
+\item[\textbullet] Test upload with local server
+\item[\textbullet] Document upload setup in \texttt{.about.txt}
+\end{itemize}
+
+\sect{Summary}
+
+The structured task creation architecture provides:
+
+\begin{itemize}
+\item \textbf{Configurability} - Parameters control all aspects without code changes
+\item \textbf{Internationalization} - Full translation support for any language
+\item \textbf{Platform awareness} - Automatic adaptation to native/web environments
+\item \textbf{Data collection} - Built-in upload to self-hosted or cloud servers
+\item \textbf{Maintainability} - Standardized structure across all battery tasks
+\item \textbf{Documentation} - Self-describing schemas and translation files
+\end{itemize}
+
+All systems are optional and can be adopted incrementally. Core PEBL functionality remains independent, ensuring backward compatibility with existing experiments.
+
+For detailed information on the Layout \& Response System, see Chapter~\ref{sec:layout}.

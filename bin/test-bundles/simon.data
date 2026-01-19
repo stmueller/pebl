@@ -1,0 +1,681 @@
+{"responsemode": "arrowLR"}
+{
+  "responsemode": "keyboardSafe"
+}
+{
+  "responsemode": "keyboardShift"
+}
+{
+  "responsemode": "mousebutton"
+}
+{
+  "responsemode": "mousetarget"
+}
+{
+  "responsemode": "touchtarget"
+}
+{
+  "responsemode": "userselect",
+  "reps": 10,
+  "practicetrials": 10
+}
+{
+  "test": "simon",
+  "version": "2.0",
+  "description": "SIMON Test",
+  "parameters": [
+    {
+      "name": "reps",
+      "type": "integer",
+      "default": 10,
+      "description": "Number of repetitions of the (10-stimulus) design"
+    },
+    {
+      "name": "targsize",
+      "type": "integer",
+      "default": 50,
+      "description": "radius, in pixels, of target circles"
+    },
+    {
+      "name": "leftcolor",
+      "type": "string",
+      "default": "red",
+      "description": "Color name of left color.  Accepts hundreds of color names. See appendix of PEBL manual"
+    },
+    {
+      "name": "rightcolor",
+      "type": "string",
+      "default": "blue",
+      "description": "Color name of right color.  Accepts hundreds of color names. See appendix of PEBL manual"
+    },
+    {
+      "name": "responsemode",
+      "type": "string",
+      "default": "auto",
+      "options": ["arrowLR", "auto", "keyboardShift", "keyboardSafe", "mousebutton", "mousetarget", "touchtarget", "userselect"],
+      "description": "Response mode: auto (platform-aware), arrowLR (left/right arrows), keyboardShift, keyboardSafe, mousebutton, mousetarget, touchtarget, userselect (custom key)"
+    },
+    {
+      "name": "practicetrials",
+      "type": "integer",
+      "default": 10,
+      "description": "Number of practice trials before main test"
+    }
+  ]
+}## PEBL Simon Task Version 2.0
+## Migrated to Layout & Response System (2025)
+##
+## For help installing, running, or interpreting data from this test,
+## please email the pebl-list: pebl-list@lists.sourceforge.net
+
+define Start(p)
+{
+  ## Initialize upload system (works for both online and native)
+  InitializeUpload()
+
+  gScriptName <- "PEBL Simon Task"
+
+  gWin <- MakeWindow("BLACK")
+
+  if(gSubNum+""=="0")
+   {
+     gSubNum <- GetSubNum(gWin)
+   }
+
+  GetStrings(gLanguage)
+
+  ##set default parameter values, in case .par file does not exist
+  parpairs <- [["reps",10],  ##number of repetitions of the (10-stimulus) design
+               ["targsize",50],  ##radius, in pixels, of target circles
+               ["leftcolor","red"],
+	       ["rightcolor","blue"],
+	       ["responsemode","auto"],
+	       ["practicetrials",10],  ##number of practice trials before main test
+               ["responselabels",["RED","BLUE"]]  ##Semantic labels for response modes
+                ]
+
+  gParams <- CreateParameters(parpairs,gParamFile)
+  gParams.responsesemantics <- "2afc"
+
+  ## Set semantic labels from translated color names
+  gParams.responselabels <- [gStrings.leftcolorname, gStrings.rightcolorname]
+  Print("Parmateer values:" )
+  PrintProperties(gParams)
+  
+  ## Create Layout & Response System (initial creation to get response mode)
+  gLayout <- CreateLayout("simon", gWin, gParams)
+  gLayout.header.visible <- 0  ## Hide header initially, show during trials
+  gLayout.footer.visible <- 1  ## Footer with response labels
+
+  Draw()
+
+  ## Create instruction textbox with mode-specific continuation message
+  gInstructions <-EasyTextBox("",50,20,gWin,18,gVideoWidth-100,200)
+
+  ## Determine continuation message based on response mode
+  continueMsg <- ""
+  if(gLayout.responseMode.type == "mousetarget")
+  {
+     continueMsg <- gStrings.continue_mousetarget
+  } elseif(gLayout.responseMode.type == "mousebutton") {
+     continueMsg <- gStrings.continue_mousebutton
+  } else {
+     ## Keyboard modes
+     continueMsg <- gStrings.continue_keyboard
+  }
+
+  gInstructions.text <- gStrings.inst1 + " " + continueMsg
+
+  ## Show cursor for mousetarget mode, hide for others
+  if(gLayout.responseMode.type == "mousetarget")
+  {
+     ShowCursor(1)
+  } else {
+     ShowCursor(0)
+  }
+  gSleepEasy <- 1
+
+  MakeDirectory("data")
+
+  gFileOut <- GetNewDataFile(gSubNum,gWin,"simon","csv",
+          "subnum,trial,type,pos,compatible,resp,corr,abstime,time,rt")
+
+  ##This controls how many times through the 10-stimulus trial set we go
+  reps <- gParams.reps
+
+  ##Create the stimulus sequence:
+
+  ##xpos is the irrelevant dimension, stim is red/blue
+  xpos <- [-200,-100,-50,0,50,100,200]
+  stim <- [1,2]
+  trialbase <- DesignFullCounterbalance(xpos,stim)
+
+  ##repeat the location/stimulus pairs and shuffle:
+  stim <- Shuffle(RepeatList(trialbase,reps))
+  length <- Length(stim)
+
+  ##Colors and shapes of the left/right stimuli:
+  leftcol <- MakeColor(gParams.leftcolor)
+  rightcol <- MakeColor(gParams.rightcolor)
+  stimA <- Circle(0,0,gParams.targsize,leftcol,1)
+  stimB <- Circle(0,0,gParams.targsize,rightcol,1)
+
+  AddObject(stimA,gWin)
+  AddObject(stimB,gWin)
+  ## Position reference stimuli at layout center vertically
+  ## Horizontally offset left and right
+  Move(stimA,gLayout.centerX-200,gLayout.centerY)
+  Move(stimB,gLayout.centerX+200,gLayout.centerY)
+
+  Draw()
+
+  ## Create a "Continue" button for mouse/touch modes
+  ## Position it below the response zone, in the footer area
+  continueY <- gLayout.zones.footer.y + (gLayout.zones.footer.height / 2)
+
+  ## Create backing rectangle for Continue button (same grey as response boxes)
+  gContinueButtonBorder <- Rectangle(gLayout.centerX, continueY, 200, 50, MakeColor("gray"), 1)
+  AddObject(gContinueButtonBorder, gWin)
+  Hide(gContinueButtonBorder)
+
+  gContinueButton <- EasyLabel(gStrings.continue_button, gLayout.centerX, continueY, gWin, 28)
+  gContinueButton.font.bgcolor <- MakeColor("lightgray")
+  gContinueButton.font.fgcolor <- MakeColor("black")
+  Hide(gContinueButton)
+
+##Do a little initial practice.
+  ## Loop: pressing left/right (or clicking) shows corresponding stimulus
+  ## Spacebar (keyboard), middle button (mousebutton), or Continue button (mousetarget) exits practice
+
+  ## For mousetarget mode, show Continue button
+  if(gLayout.responseMode.type == "mousetarget")
+  {
+     Show(gContinueButtonBorder)
+     Show(gContinueButton)
+     Draw()
+  }
+
+  ## Unified practice loop using Layout & Response System
+  practiceActive <- 1
+  while(practiceActive)
+  {
+     ## Use WaitForLayoutResponseOrExit to handle all response modes uniformly
+     resp <- WaitForLayoutResponseOrExit(gLayout, [gContinueButtonBorder])
+
+     if(resp == "exit")
+     {
+        practiceActive <- 0
+     }
+     elseif(resp == "left")
+     {
+        Hide(stimB)
+        Show(stimA)
+        Draw()
+     }
+     elseif(resp == "right")
+     {
+        Hide(stimA)
+        Show(stimB)
+        Draw()
+     }
+  }
+
+  ## Hide Continue button if it was shown
+  if(gLayout.responseMode.type == "mousetarget")
+  {
+     Hide(gContinueButtonBorder)
+     Hide(gContinueButton)
+  }
+
+  ## After interactive practice, hide and reposition stimuli to center for trials
+  Hide(gInstructions)
+  Hide(stimA)
+  Hide(stimB)
+  Move(stimA,gLayout.centerX,gLayout.centerY)
+  Move(stimB,gLayout.centerX,gLayout.centerY)
+
+  status <- EasyLabel("",gVideoWidth/2,20,gWin,15)
+  fixation <- EasyLabel("+",gLayout.centerX,gLayout.centerY,gWin,80)
+  Hide(fixation)
+
+  ## Practice trials message
+  if(gParams.practicetrials > 0)
+  {
+     gInstructions.text <- gStrings.practice + " " + continueMsg
+     Show(gInstructions)
+
+     ## Show Continue button for mousetarget mode
+     if(gLayout.responseMode.type == "mousetarget")
+     {
+        Show(gContinueButtonBorder)
+        Show(gContinueButton)
+     }
+
+     Draw()
+     ## Wait for exit input only (ignore response button clicks)
+     continue <- 1
+     while(continue)
+     {
+        resp <- WaitForLayoutResponseOrExit(gLayout, [gContinueButtonBorder])
+        if(resp == "exit")
+        {
+           continue <- 0
+        }
+     }
+
+     ## Hide Continue button if it was shown
+     if(gLayout.responseMode.type == "mousetarget")
+     {
+        Hide(gContinueButtonBorder)
+        Hide(gContinueButton)
+     }
+     Hide(gInstructions)
+
+     ## Create practice stimulus sequence (subset of conditions)
+     ## Use a random sample from the full trial base
+     practiceStim <- Shuffle(SampleN(trialbase, gParams.practicetrials))
+
+     ## Run practice trials
+     fixation.text <- "+"
+     Draw()
+
+     loop(i, Sequence(1, gParams.practicetrials, 1))
+     {
+        status.text <- gStrings.practice_label + " ["+i +"] " + gStrings.of + " [" + gParams.practicetrials +"]"
+        trialData <- Nth(practiceStim, i)
+        type <- Second(trialData)
+        pos <- First(trialData)
+
+        if(type==1)
+        {
+          stimX <- stimA
+        }else{
+          stimX <- stimB
+        }
+
+        Move(stimX,gLayout.centerX+pos,gLayout.centerY)
+
+        Show(fixation)
+        Draw()
+        Wait(400)
+        Hide(fixation)
+        Draw()
+        Wait(200+Random()*200)
+        Show(stimX)
+        Draw()
+        time0 <- GetTime()
+        resp <- WaitForLayoutResponse(gLayout)
+        time2 <- GetTime()
+
+        corr <- (resp=="left" and type==1 ) or (resp=="right" and type==2)
+        Hide(stimX)
+
+        side <-(Abs(Floor(pos/25)) >1) * Sign(pos)
+        compat <- ((type -1)*2-1) * side
+
+        ## Record practice trial with PRACTICE prefix
+        FilePrint(gFileOut,gSubNum+",PRACTICE"+i + "," + type + "," + pos + "," +
+                compat+ "," + resp + "," +corr + "," + GetTime() + "," + time0 +  ","  + (time2-time0))
+
+        Draw()
+     }
+
+     ## Show "Practice is complete" message
+     Hide(status)
+     gInstructions.text <- gStrings.practice_complete + " " + continueMsg
+     Show(gInstructions)
+
+     ## Show Continue button for mousetarget mode
+     if(gLayout.responseMode.type == "mousetarget")
+     {
+        Show(gContinueButtonBorder)
+        Show(gContinueButton)
+     }
+
+     Draw()
+     ## Wait for exit input only (ignore response button clicks)
+     continue <- 1
+     while(continue)
+     {
+        resp <- WaitForLayoutResponseOrExit(gLayout, [gContinueButtonBorder])
+        if(resp == "exit")
+        {
+           continue <- 0
+        }
+     }
+
+     ## Hide Continue button if it was shown
+     if(gLayout.responseMode.type == "mousetarget")
+     {
+        Hide(gContinueButtonBorder)
+        Hide(gContinueButton)
+     }
+     Hide(gInstructions)
+     Show(status)
+  }
+
+ ##Loop through the main test stimuli.
+  fixation.text <- "+"
+  rts <- []
+  corrs <- []
+  conds <- []
+  compats <- []
+
+  Draw()
+  trial <- 1
+  loop(i,stim)
+  {
+   status.text <- "["+trial +"] of [" + length +"]"
+   type <- Second(i)
+   pos <- First(i)
+   PushonEnd(conds, type+"|"+pos)
+   if(type==1)
+    {
+     stim <- stimA
+    }else{
+     stim <- stimB
+    }
+
+    Move(stim,gLayout.centerX+pos,gLayout.centerY)
+
+    Show(fixation)
+    Draw()
+    Wait(400)
+    Hide(fixation)
+    Draw()
+    Wait(200+Random()*200)
+    Show(stim)
+    Draw()
+    time0 <- GetTime()
+    resp <- WaitForLayoutResponse(gLayout)
+    time2 <- GetTime()
+
+    corr <- (resp=="left" and type==1 ) or (resp=="right" and type==2)
+    Hide(stim)
+
+   ##1 if compatible, -1 if incompatible, 0 if neutral.
+
+   side <-(Abs(Floor(pos/25)) >1) * Sign(pos)
+
+   compat <- ((type -1)*2-1) * side  ##make 0 and +/- 50 neutral
+
+   PushOnEnd(compats,compat)
+
+    if(Mod(trial,50)==0)
+     {
+       ## Show mode-specific break message
+       if(gLayout.responseMode.type == "mousetarget")
+       {
+          status.text <- gStrings.break + " " + gStrings.break_mousetarget
+          Show(gContinueButtonBorder)
+          Show(gContinueButton)
+          Draw()
+          WaitForClickOnTarget([gContinueButtonBorder], [1])
+          Hide(gContinueButtonBorder)
+          Hide(gContinueButton)
+       } elseif(gLayout.responseMode.type == "mousebutton") {
+          status.text <- gStrings.break + " " + gStrings.break_mousebutton
+          Draw()
+          WaitForLayoutResponse(gLayout, 0)
+       } else {
+          status.text <- gStrings.break + " " + gStrings.break_keyboard
+          Draw()
+          WaitForLayoutResponse(gLayout, 0)
+       }
+     }
+    Draw()
+
+    FilePrint(gFileOut,gSubNum+","+trial + "," + type + "," + pos + "," +
+            compat+ "," + resp + "," +corr + "," + GetTime() + "," + time0 +  ","  + (time2-time0))
+
+    rts <- Append(rts,(time2-time0))
+    corrs <- Append(corrs,corr)
+    trial <- trial +1
+  }
+
+   gInstructions.text <- gStrings.debrief
+   Show(gInstructions)
+
+   Draw()
+
+
+  ##Compute some summary stats.
+  rtsum  <-SummaryStats(rts,conds)
+  corrsum <-SummaryStats(corrs,conds)
+  ##reorder these so they are in the proper order.
+  rtsum<- SortBy(rtSum,[2,1,3,4,6,7,5,9,8,10,11,13,14,12])
+  corrsum<- SortBy(corrSum,[2,1,3,4,6,7,5,9,8,10,11,13,14,12])
+
+  rtsumComp  <-SummaryStats(rts,compats)
+  corrsumComp <-SummaryStats(corrs,compats)
+
+
+
+  sumFile <- GetNewDataFile(gSubNum,gWin,"simon-summary","txt","")
+  FilePrint(sumfile,"PEBL Simon Test: Summary data")
+  FilePrint(sumfile,GetPEBLVersion())
+  FilePrint(sumfile,TimeStamp()+CR(2))
+
+
+
+  FilePrint(sumfile,"Response times (by compatibility):")
+  FilePrint(sumfile,"condition  N   median  mean    sd")
+  FilePrint(sumfile,"---------------------------------")
+
+   loop(i,rtsumComp)
+    {
+      FilePrint(sumfile,PrintList(i))
+    }
+
+
+  FilePrint(sumfile,CR(2)+"Response times (by position/Condition):")
+  FilePrint(sumfile,"condition  N   median  mean    sd")
+  FilePrint(sumfile,"---------------------------------")
+
+   loop(i,rtsum)
+    {
+      FilePrint(sumfile,PrintList(i))
+    }
+
+
+
+  FilePrint(sumfile,CR(2)+"Accuracy (By compatibility):")
+  FilePrint(sumfile,"condition  N   median  mean    sd")
+  FilePrint(sumfile,"---------------------------------")
+
+   loop(i,corrsumComp)
+    {
+      FilePrint(sumfile,PrintList(i))
+    }
+
+
+  FilePrint(sumfile,CR(2)+"Accuracy (By position/condition):")
+  FilePrint(sumfile,"condition  N   median  mean    sd")
+  FilePrint(sumfile,"---------------------------------")
+
+   loop(i,corrsum)
+    {
+      FilePrint(sumfile,PrintList(i))
+    }
+
+  ## Upload data files (works online, no-op on native)
+  UploadFile(gSubNum, "data/" + gSubNum + "/simon-" + gSubNum + ".csv")
+  UploadFile(gSubNum, "data/" + gSubNum + "/simon-summary-" + gSubNum + ".txt")
+
+  WaitForAnyKeyPress()
+
+}
+
+
+
+
+define GetStrings(lang)
+{
+  gStrings <- GetTranslations("simon", lang)
+}
+PEBL's Simon Interference Task Version 2.0. Judge the color of a stimulus while ignoring its horizontal position.
+
+VERSION 2.0 UPDATES (2025):
+- Migrated to Layout & Response System for unified response handling
+- Added support for multiple response modes (keyboard, mouse, touch)
+- Added JSON parameter file support with schema validation
+- Updated translations for 8 languages to be response-mode-agnostic
+- Added Continue button for mouse/touch modes during practice and breaks
+- Improved visual layout with better positioning
+- Modernized code for PEBL 2.2 compatibility
+
+Data are saved to simon-X.csv and simon-summary.txt files in data/X/ directory.
+
+To cite: Mueller, S. T. (2011). The PEBL Simon Interference Task. Computer software retrieved from http://pebl.sf.net/battery.html
+{
+"INST1": "你即将参与一项游戏。在游戏中，你会看到两种图形：如下所示的红色圆形，或蓝色圆形。圆形会出现在不同的水平位置，但是它出现的位置无关紧要。当你看见图形时，请尽可能快地地作出反应：如果你看见的是红色的圆形，请向左反应；如果你看见的是蓝色的圆形，请向右反应。现在，请练习向左和向右反应，看看它们分别与哪种图形对应。",
+"PRACTICE": "首先，我们将进行一些练习试验。准备好开始了吗？",
+"PRACTICE_COMPLETE": "练习完成。",
+"PRACTICE_LABEL": "练习",
+"OF": "之",
+"CONTINUE_BUTTON": "继续",
+"CONTINUE_MOUSETARGET": "点击"继续"按钮开始。",
+"CONTINUE_MOUSEBUTTON": "点击鼠标中键继续。",
+"CONTINUE_KEYBOARD": "按空格键继续。",
+"BREAK_MOUSETARGET": "点击"继续"按钮恢复。",
+"BREAK_MOUSEBUTTON": "点击鼠标中键继续。",
+"BREAK_KEYBOARD": "按任意响应键继续。",
+"BREAK": "请休息一下。",
+"DEBRIEF": "谢谢参与。按任意按键退出游戏。",
+"CONTINUE": "做出反应以继续",
+"LEFTCOLORNAME": "红色",
+"RIGHTCOLORNAME": "蓝色"
+}
+{
+"INST1": "Sie werden an einer Studie teilnehmen, bei der Sie einen von zwei Reizen sehen werden: einen roten oder blauen Kreis, wie unten zu sehen. Der Kreis erscheint an verschiedenen Positionen links-rechts, aber die Position ist irrelevant. Reagieren Sie so schnell wie möglich, wenn Sie den Reiz sehen: Wenn Sie einen roten Kreis sehen, reagieren Sie links; wenn Sie einen blauen Kreis sehen, reagieren Sie rechts. Üben Sie jetzt, indem Sie links und rechts reagieren, um zu sehen, welchem Reiz sie zugeordnet sind.",
+"PRACTICE": "Zunächst werden wir einige Übungsdurchgänge durchführen. Bereit anzufangen?",
+"PRACTICE_COMPLETE": "Die Übung ist abgeschlossen.",
+"PRACTICE_LABEL": "ÜBUNG",
+"OF": "von",
+"CONTINUE_BUTTON": "WEITER",
+"CONTINUE_MOUSETARGET": "Klicken Sie auf die Schaltfläche Weiter, um zu beginnen.",
+"CONTINUE_MOUSEBUTTON": "Klicken Sie auf die mittlere Maustaste, um fortzufahren.",
+"CONTINUE_KEYBOARD": "Drücken Sie die Leertaste, um fortzufahren.",
+"BREAK_MOUSETARGET": "Klicken Sie auf die Schaltfläche Weiter, um fortzusetzen.",
+"BREAK_MOUSEBUTTON": "Klicken Sie auf die mittlere Maustaste, um fortzufahren.",
+"BREAK_KEYBOARD": "Drücken Sie eine beliebige Antworttaste, um fortzufahren.",
+"BREAK": "Machen Sie eine kurze Pause.",
+"DEBRIEF": "Vielen Dank für Ihre Teilnahme. Drücken Sie eine beliebige Taste, um fortzufahren.",
+"CONTINUE": "Machen Sie eine Antwort, um fortzufahren",
+"LEFTCOLORNAME": "ROT",
+"RIGHTCOLORNAME": "BLAU"
+}
+{
+"INST1": "You are about to take part in a study in which you will see one of two stimuli: a red or blue circle seen below.  The circle will appear at a different left-right location, but the location it appears in is irrelevant.  When you see the stimulus, respond as quickly as possible: when you see a red circle, respond left; when you see a blue circle, respond right.  Practice now by responding left and right to see which stimulus maps to which response.",
+"PRACTICE": "First, we will do some practice trials. Ready to begin?",
+"PRACTICE_COMPLETE": "Practice is complete.",
+"PRACTICE_LABEL": "PRACTICE",
+"OF": "of",
+"CONTINUE_BUTTON": "CONTINUE",
+"CONTINUE_MOUSETARGET": "Click the Continue button to begin.",
+"CONTINUE_MOUSEBUTTON": "Click the middle mouse button to continue.",
+"CONTINUE_KEYBOARD": "Press the spacebar to continue.",
+"BREAK_MOUSETARGET": "Click the Continue button to resume.",
+"BREAK_MOUSEBUTTON": "Click the middle mouse button to continue.",
+"BREAK_KEYBOARD": "Press any response key to continue.",
+"BREAK": "Take a short break.",
+"DEBRIEF": "Thank you for participating.  Press any key to continue.",
+"CONTINUE": "Make a response to continue",
+"LEFTCOLORNAME": "RED",
+"RIGHTCOLORNAME": "BLUE"
+}
+{
+"INST1": "Está a punto de participar en un estudio en el que verá uno de dos estímulos: un círculo rojo o azul como se muestra a continuación. El círculo aparecerá en diferentes posiciones izquierda-derecha, pero la ubicación es irrelevante. Cuando vea el estímulo, responda lo más rápido posible: cuando vea un círculo rojo, responda izquierda; cuando vea un círculo azul, responda derecha. Practique ahora respondiendo izquierda y derecha para ver a qué estímulo corresponden.",
+"PRACTICE": "Primero, haremos algunos ensayos de práctica. ¿Listo para comenzar?",
+"PRACTICE_COMPLETE": "La práctica está completa.",
+"PRACTICE_LABEL": "PRÁCTICA",
+"OF": "de",
+"CONTINUE_BUTTON": "CONTINUAR",
+"CONTINUE_MOUSETARGET": "Haga clic en el botón Continuar para comenzar.",
+"CONTINUE_MOUSEBUTTON": "Haga clic en el botón central del mouse para continuar.",
+"CONTINUE_KEYBOARD": "Presione la barra espaciadora para continuar.",
+"BREAK_MOUSETARGET": "Haga clic en el botón Continuar para reanudar.",
+"BREAK_MOUSEBUTTON": "Haga clic en el botón central del mouse para continuar.",
+"BREAK_KEYBOARD": "Presione cualquier tecla de respuesta para continuar.",
+"BREAK": "Tome un breve descanso.",
+"DEBRIEF": "Gracias por participar. Presione cualquier tecla para continuar.",
+"CONTINUE": "Haga una respuesta para continuar",
+"LEFTCOLORNAME": "ROJO",
+"RIGHTCOLORNAME": "AZUL"
+}
+{
+"INST1": "Vous allez participer à une étude dans laquelle vous verrez l'un des deux stimuli : un cercle rouge ou bleu comme indiqué ci-dessous. Le cercle apparaîtra à différentes positions gauche-droite, mais l'emplacement n'est pas pertinent. Lorsque vous voyez le stimulus, répondez aussi rapidement que possible : lorsque vous voyez un cercle rouge, répondez à gauche ; lorsque vous voyez un cercle bleu, répondez à droite. Entraînez-vous maintenant en répondant à gauche et à droite pour voir à quel stimulus elles correspondent.",
+"PRACTICE": "D'abord, nous allons faire quelques essais de pratique. Prêt à commencer ?",
+"PRACTICE_COMPLETE": "La pratique est terminée.",
+"PRACTICE_LABEL": "PRATIQUE",
+"OF": "de",
+"CONTINUE_BUTTON": "CONTINUER",
+"CONTINUE_MOUSETARGET": "Cliquez sur le bouton Continuer pour commencer.",
+"CONTINUE_MOUSEBUTTON": "Cliquez sur le bouton central de la souris pour continuer.",
+"CONTINUE_KEYBOARD": "Appuyez sur la barre d'espace pour continuer.",
+"BREAK_MOUSETARGET": "Cliquez sur le bouton Continuer pour reprendre.",
+"BREAK_MOUSEBUTTON": "Cliquez sur le bouton central de la souris pour continuer.",
+"BREAK_KEYBOARD": "Appuyez sur n'importe quelle touche de réponse pour continuer.",
+"BREAK": "Faites une courte pause.",
+"DEBRIEF": "Merci d'avoir participé. Appuyez sur n'importe quelle touche pour continuer.",
+"CONTINUE": "Faites une réponse pour continuer",
+"LEFTCOLORNAME": "ROUGE",
+"RIGHTCOLORNAME": "BLEU"
+}
+{
+"INST1": "Stai per partecipare a uno studio in cui vedrai uno dei due stimoli: un cerchio rosso o blu come mostrato di seguito. Il cerchio apparirà in diverse posizioni sinistra-destra, ma la posizione è irrilevante. Quando vedi lo stimolo, rispondi il più rapidamente possibile: quando vedi un cerchio rosso, rispondi a sinistra; quando vedi un cerchio blu, rispondi a destra. Esercitati ora rispondendo a sinistra e a destra per vedere a quale stimolo corrispondono.",
+"PRACTICE": "Prima, faremo alcuni test di prova. Pronto per iniziare?",
+"PRACTICE_COMPLETE": "La pratica è completa.",
+"PRACTICE_LABEL": "PRATICA",
+"OF": "di",
+"CONTINUE_BUTTON": "CONTINUA",
+"CONTINUE_MOUSETARGET": "Fai clic sul pulsante Continua per iniziare.",
+"CONTINUE_MOUSEBUTTON": "Fai clic sul pulsante centrale del mouse per continuare.",
+"CONTINUE_KEYBOARD": "Premi la barra spaziatrice per continuare.",
+"BREAK_MOUSETARGET": "Fai clic sul pulsante Continua per riprendere.",
+"BREAK_MOUSEBUTTON": "Fai clic sul pulsante centrale del mouse per continuare.",
+"BREAK_KEYBOARD": "Premi qualsiasi tasto di risposta per continuare.",
+"BREAK": "Fai una breve pausa.",
+"DEBRIEF": "Grazie per aver partecipato. Premi un tasto qualsiasi per continuare.",
+"CONTINUE": "Fai una risposta per continuare",
+"LEFTCOLORNAME": "ROSSO",
+"RIGHTCOLORNAME": "BLU"
+}
+{
+"INST1": "U gaat deelnemen aan een onderzoek waarbij u een van twee stimuli ziet: een rode of blauwe cirkel zoals hieronder weergegeven. De cirkel verschijnt op verschillende links-rechts posities, maar de locatie is niet relevant. Reageer zo snel mogelijk wanneer u de stimulus ziet: wanneer u een rode cirkel ziet, reageer links; wanneer u een blauwe cirkel ziet, reageer rechts. Oefen nu door links en rechts te reageren om te zien bij welke stimulus ze horen.",
+"PRACTICE": "Eerst zullen we enkele oefenproeven doen. Klaar om te beginnen?",
+"PRACTICE_COMPLETE": "De oefening is voltooid.",
+"PRACTICE_LABEL": "OEFENING",
+"OF": "van",
+"CONTINUE_BUTTON": "DOORGAAN",
+"CONTINUE_MOUSETARGET": "Klik op de knop Doorgaan om te beginnen.",
+"CONTINUE_MOUSEBUTTON": "Klik op de middelste muisknop om door te gaan.",
+"CONTINUE_KEYBOARD": "Druk op de spatiebalk om door te gaan.",
+"BREAK_MOUSETARGET": "Klik op de knop Doorgaan om te hervatten.",
+"BREAK_MOUSEBUTTON": "Klik op de middelste muisknop om door te gaan.",
+"BREAK_KEYBOARD": "Druk op een willekeurige antwoordtoets om door te gaan.",
+"BREAK": "Neem een korte pauze.",
+"DEBRIEF": "Bedankt voor uw deelname. Druk op een willekeurige toets om door te gaan.",
+"CONTINUE": "Maak een reactie om door te gaan",
+"LEFTCOLORNAME": "ROOD",
+"RIGHTCOLORNAME": "BLAUW"
+}
+{
+"INST1": "Você está prestes a participar de um estudo no qual verá um de dois estímulos: um círculo vermelho ou azul, conforme mostrado abaixo. O círculo aparecerá em diferentes posições esquerda-direita, mas a localização é irrelevante. Quando vir o estímulo, responda o mais rápido possível: quando vir um círculo vermelho, responda à esquerda; quando vir um círculo azul, responda à direita. Pratique agora respondendo à esquerda e à direita para ver a qual estímulo elas correspondem.",
+"PRACTICE": "Primeiro, faremos alguns ensaios de prática. Pronto para começar?",
+"PRACTICE_COMPLETE": "A prática está completa.",
+"PRACTICE_LABEL": "PRÁTICA",
+"OF": "de",
+"CONTINUE_BUTTON": "CONTINUAR",
+"CONTINUE_MOUSETARGET": "Clique no botão Continuar para começar.",
+"CONTINUE_MOUSEBUTTON": "Clique no botão do meio do mouse para continuar.",
+"CONTINUE_KEYBOARD": "Pressione a barra de espaço para continuar.",
+"BREAK_MOUSETARGET": "Clique no botão Continuar para retomar.",
+"BREAK_MOUSEBUTTON": "Clique no botão do meio do mouse para continuar.",
+"BREAK_KEYBOARD": "Pressione qualquer tecla de resposta para continuar.",
+"BREAK": "Faça uma pausa curta.",
+"DEBRIEF": "Obrigado por participar. Pressione qualquer tecla para continuar.",
+"CONTINUE": "Faça uma resposta para continuar",
+"LEFTCOLORNAME": "VERMELHO",
+"RIGHTCOLORNAME": "AZUL"
+}

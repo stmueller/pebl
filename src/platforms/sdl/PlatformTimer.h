@@ -50,6 +50,7 @@ public:
     virtual ~PlatformTimer();
 
     virtual void Wait(unsigned long int msecs);
+    virtual void Sleep(unsigned long int msecs);  // OS sleep (yields CPU)
     virtual unsigned long int GetTime() const;
     virtual void GetTimeOfDay(unsigned long & secs, unsigned long & msecs);
 

@@ -29,11 +29,18 @@
 
 class Variant;
 
-
+// Include platform-specific timer (conditionally based on build target)
+#ifdef PEBL_VALIDATOR
+#include "../platforms/validator/PlatformTimer.h"
+#else
+#include "../platforms/sdl/PlatformTimer.h"
+#endif
 
 namespace PEBLEnvironment
 {
 
+    // Global timer instance for platform-independent timing
+    extern PlatformTimer myTimer;
 
     //Simple time access
     Variant GetTime(Variant v);
@@ -162,6 +169,7 @@ namespace PEBLEnvironment
     Variant IsSquare(Variant v);
     Variant IsRectangle(Variant v);
     Variant IsCustomObject(Variant v);
+    Variant IsPEBLObject(Variant v);
     Variant PlayMovie(Variant v) ;
 
 }

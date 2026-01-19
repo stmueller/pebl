@@ -159,12 +159,11 @@ namespace PEBLStream
             {(char*)"GETDATA", GetData,                       2,2},
             {(char*)"GETMYIPADDRESS", GetMyIPAddress,         1,1},
 
-#ifdef PEBL_HTTP
+            // HTTP functions - now always available (stub implementations when PEBL_HTTP not defined)
             {(char*)"GETHTTPFILE", GetHTTPFile,               4,4},
             {(char*)"GETHTTPTEXT", GetHTTPText,               3,3},
             {(char*)"POSTHTTP", PostHTTP,                     5,5},
             {(char*)"POSTHTTPFILE", PostHTTPFile,             6,6},
-#endif
 
             {(char*)"MD5SUM", MD5Sum,                         1,1},
             {(char*)"MD5FILE", MD5File,                        1,1},
@@ -345,7 +344,7 @@ namespace PEBLEnvironment
 
 
             {(char*)"SIGNALFATALERROR",                SignalFatalError,   1,1},
-            {(char*)"EXITQUIETLY",                     ExitQuietly, 1,1},
+            {(char*)"EXITQUIETLY",                     ExitQuietly, 1,2},
             {(char*)"TRANSLATEKEYCODE",                TranslateKeyCode,  1, 1},
             {(char*)"TRANSLATESTRING",                 TranslateString,  1, 1},
             {(char*)"TIMESTAMP",                       TimeStamp,         0, 0},
@@ -397,6 +396,7 @@ namespace PEBLEnvironment
             {(char*)"ISWINDOW",                        IsWindow,           1,1},
             {(char*)"ISSHAPE",                         IsShape,            1,1},
             {(char*)"ISCUSTOMOBJECT",                  IsCustomObject,     1,1},
+            {(char*)"ISPEBLOBJECT",                    IsPEBLObject,       1,1},
             {(char*)"PLAYMOVIE",   PlayMovie,  1,1},
 
 

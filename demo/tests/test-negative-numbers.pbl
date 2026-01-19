@@ -1,0 +1,62 @@
+## Test whether PEBL can handle negative numbers in expressions
+## This tests the current behavior before any lexer modifications
+
+define Start(p)
+{
+    ## Test basic negative literal
+    a <- -1
+    Print("Test 1: a <- -1")
+    Print("Result: " + a)
+    Print("")
+
+    ## Test addition with negative
+    b <- 3 + -3
+    Print("Test 2: b <- 3 + -3")
+    Print("Result: " + b)
+    Print("")
+
+    ## Test subtraction with negative
+    c <- 3 - -5
+    Print("Test 3: c <- 3 - -5")
+    Print("Result: " + c)
+    Print("")
+
+    ## Test multiplication with negative
+    d <- 2 * -4
+    Print("Test 4: d <- 2 * -4")
+    Print("Result: " + d)
+    Print("")
+
+    ## Test division with negative
+    e <- 10 / -2
+    Print("Test 5: e <- 10 / -2")
+    Print("Result: " + e)
+    Print("")
+
+    ## Test negative in parentheses
+    f <- 3 + (-3)
+    Print("Test 6: f <- 3 + (-3)")
+    Print("Result: " + f)
+    Print("")
+
+    ## Test function call with negative default
+    g <- TestFunction(-1)
+    Print("Test 7: g <- TestFunction(-1)")
+    Print("Result: " + g)
+    Print("")
+
+    ## Test function with negative default parameter (should fail)
+    Print("Test 8: Defining function with negative default")
+    Print("This should cause the error we've been investigating")
+}
+
+define TestFunction(val)
+{
+    return(val * 2)
+}
+
+## This would cause error: default parameter value must be a data value
+## define TestNegativeDefault(val: -1)
+## {
+##     return(val)
+## }

@@ -1,0 +1,257 @@
+define Start(p)
+{
+  #############################################################
+  ## This is a simple keyboard tapping task. It has been
+  ## used to test low-level motor timing ability, and may be impacted
+  ## by things like fatigue and sleep deprivation.
+  ##
+  ##  The participant is supposed to tap at a self-paced even
+  ##  rate for three minutes.
+  ##
+  ##  See UTC-PAB test 19
+  ##
+  ## (c) 2008 Shane T. Mueller (smueller obereed net)
+  #############################################################
+
+  ## Initialize upload system (works for both online and native)
+  InitializeUpload()
+
+  gScriptName <- "Time-tap Task"
+
+  parpairs <- [["taprates",[333,666,1000]],
+               ["numtrials",3],
+               ["trialtime",180],
+               ["mintaptime",333],
+               ["maxtaptime",1000],
+               ["trainingflashes",10],
+               ["responsemode","spacebar"]]
+
+  gParams <- CreateParameters(parpairs,gParamFile)
+
+  ## Set response semantics for go/no-go task
+  gParams.responsesemantics <- "gonogo"
+
+  trialtime <- gparams.trialtime*1000   #number of seconds * 1000 = ms
+
+  gWin <- MakeWindow()
+  gSleepEasy <- 1
+
+   if(gSubNum+""=="0")
+   {
+     gSubNum <- GetSubNum(gWin)
+   }
+
+  GetStrings(gLanguage)
+
+  ## Create layout with response system
+  gLayout <- CreateLayout("timetap", gWin, gParams)
+
+  ## Show/hide cursor based on response mode
+  if(gParams.responsemode == "clicktarget" or gParams.responsemode == "leftclick" or gParams.responsemode == "touchscreen")
+  {
+    ShowCursor(1)  ## Show cursor for mouse/touch modes
+  } else {
+    ShowCursor(0)  ## Hide cursor for keyboard modes
+  }
+
+  ## Configure layout
+  gLayout.header.text <- gStrings.header
+  gLayout.subheader.visible <- 0
+  Draw()
+
+  ## Parse taprates parameter - either a JSON list or "random"
+  if(gParams.taprates == "random")
+  {
+    ## Random mode: sample numtrials times from mintaptime to maxtaptime
+    numtrials <- gParams.numtrials
+    template <- Sequence(0, numtrials-1, 1)
+    offset <- Mean(template)
+    middletime <- (gParams.maxtaptime + gParams.mintaptime)/2
+    timerange <- (gParams.maxtaptime - gParams.mintaptime)
+    times <- []
+    loop(i, template)
+    {
+      PushOnEnd(times, middletime + (i-offset)*timerange/(numtrials-1))
+    }
+    if(Length(times)==1)
+    {
+      times <- [middletime]
+    }
+    times <- Shuffle(times)
+  } else {
+
+    times <-gParams.taprates
+    numtrials <- Length(times)
+  }
+
+  gFileOut <- GetNewDataFile(gSubNum,gWin,"timetap","csv",
+              "subNum,trial,trialtype,targtime,hits,time,rt")
+
+  inst<- SubstituteStrings(gStrings.inst1,
+                            [["<NUMTRIALS>", numtrials],
+                             ["<TIME>", trialtime/1000]])
+
+  ## Display instructions in stimulus region
+  tb <- EasyTextBox(inst,
+                    gLayout.stimulusRegion.x + 20,
+                    gLayout.stimulusRegion.y + 20,
+                    gWin, 16,
+                    gLayout.stimulusRegion.width - 40,
+                    gLayout.stimulusRegion.height - 40)
+
+  Draw()
+
+  lab <- EasyLabel("", gLayout.centerX, gLayout.centerY, gWin, 24)
+  Hide(lab)
+
+  ## Set up visual timer bar (positioned above response zone to avoid footer overlap)
+  timerY <- gLayout.zones.response.y - 40
+  timerBack <- Rectangle(gLayout.centerX, timerY, 400, 20, MakeColor("grey"), 0)
+  timerFront <- Rectangle(gLayout.centerX, timerY, 400, 20, MakeColor("red"), 1)
+  AddObject(timerFront, gWin)
+  AddObject(timerBack, gWin)
+
+  gTimer <- MakeCustomObject("timer")
+  gTimer.front <- timerFront
+  gTimer.back <- timerBack
+  Hide(timerFront)
+  Hide(timerBack)
+
+  data <- []
+  trial <- 1
+
+  Print(times)
+
+  ## Wait for initial response to begin
+  WaitForLayoutResponse(gLayout)
+
+  while (trial <= numtrials)
+  {
+     ## Update header with trial counter
+     trialText <- SubstituteStrings(gStrings.trialcounter, [["<TRIAL>", trial], ["<TOTAL>", numtrials]])
+     gLayout.header.text <- gStrings.header + " - " + trialText
+     Draw()
+
+     ##On the trial, gate the beginning with the response key
+     lab.text <- gStrings.tobegin
+     Show(lab)
+     Hide(tb)
+     Draw()
+     WaitForLayoutResponse(gLayout)
+     Hide(lab)
+     Draw()
+     Wait(2000)    #Give 2 seconds before trial begins
+     targtime <-   Nth(times,trial)
+
+     Train(targtime,gParams.trainingflashes,gStrings.training)
+
+     ##Compute the end-time of the trial
+    starttime <- GetTime()
+    finaltime <- starttime + trialtime
+    hits <- 0
+    prevtime <- starttime
+
+    ## Show "go" text and timer bar
+    lab.text <- gStrings.go
+    Show(lab)
+    Show(gTimer.front)
+    Show(gTimer.back)
+    Draw()
+
+    ## Register timer update event (triggers continuously during event loop)
+    RegisterEvent("<TIMER>", 1, GetTime(), "<GEQ>", "UpdateTimer", [finaltime, trialtime, gTimer])
+
+    while(GetTime() < finaltime)
+     {
+       ## Calculate remaining time and wait with timeout
+       remainingTime <- finaltime - GetTime()
+       resp <- WaitForLayoutResponse(gLayout, remainingTime)
+
+       ## Only record if we got a real response (not timeout)
+       if(resp != "<timeout>")
+       {
+         time <- GetTime()
+         FilePrint(gFileOut,gSubNum + "," + trial + ",1," + targtime + ","  + hits + "," +  time + "," + (time-prevtime))
+         hits <- hits + 1
+         prevtime <-time
+       }
+     }
+
+    ## Hide timer and label after trial
+    Hide(gTimer.front)
+    Hide(gTimer.back)
+    Hide(lab)
+
+   data <- Append(data,hits-1)
+
+   ## Give feedback for each trial.
+   Show(tb)
+   tb.text <- ReplaceChar(gStrings.status,"<HITS>",(hits-1))
+   Draw()
+   trial <- trial + 1
+   WaitForKeyPress("X")
+  }
+
+  x <- PrintList(data)
+  tb.text <- gStrings.report  + CR(3)+ x+ CR(2)+ gstrings.toexit
+
+  Show(tb)
+  Draw()
+
+  ## Upload data files (works online, no-op on native)
+  datafile <- "data/" + gSubNum + "/timetap-" + gSubNum + ".csv"
+  UploadFile(gSubNum, datafile, "/upload.json")
+
+  WaitForKeyPress("X")
+
+}
+
+
+define Train(cycle, durationSec, instructionText)
+{
+   targ <- EasyLabel("+",gLayout.centerX,gLayout.centerY+50,gWin,100)
+
+   ## Display training instruction as white-on-black label above the flashing cross
+   ## Position it high enough to not interfere with stimulus
+   instLabel <- EasyLabel(instructionText, gLayout.centerX, gLayout.centerY - 100, gWin, 18, "white")
+   instLabel.bgcolor <- MakeColor("black")
+
+   start <- GetTime()
+   lasttime <- start
+   endTime <- start + durationSec * 1000  ## Convert seconds to milliseconds
+   i <- 1
+   while(GetTime() < endTime)
+   {
+       time <- GetTime()
+       endcycle <- start + i * cycle
+       Show(targ)
+       Draw()
+       Wait(100)
+       Hide(targ)
+       FilePrint(gFIleOut,gSubNum + ",X,-1," + cycle + "," + i + "," +
+   time + "," + (time-lasttime))
+       Draw()
+       i <- i + 1
+	   lasttime <- time
+       Wait(endcycle - GetTime())
+   }
+
+  RemoveObject(targ,gWin)
+  RemoveObject(instLabel,gWin)
+}
+
+
+
+define UpdateTimer(endtime, maxtime, timer, evt:0)
+{
+    ## Update timer bar proportion
+    prop <- Max([0, endtime - GetTime()]) / maxtime
+    timer.front.width <- timer.back.width * prop
+    Draw()
+}
+
+
+define GetStrings(lang)
+{
+  gStrings <- GetTranslations("timetap", lang)
+}

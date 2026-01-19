@@ -1156,14 +1156,29 @@ define ReadCSV(filename)
 
 
     ##Add the line onto the table
-    if(not EndOfFile(file))
-     {
-	     table <- Append(table,line)
-     }
+    ## Skip blank lines (single empty or newline-only token)
+    ## but keep lines with multiple fields even if all empty (e.g., "," produces ["",""])
+    isBlankLine <- 0
+    if(Length(line) == 1)
+    {
+      token <- First(line)
+      if(token == "" or token == CR(1))
+      {
+        isBlankLine <- 1
+      }
+    }
 
-    #eat and discard the newline character
-    FileReadCharacter(file)
-    char <- FileReadCharacter(file)
+    if(not isBlankLine)
+    {
+      table <- Append(table,line)
+    }
+
+    #eat and discard the newline character (only if not at EOF)
+    if(not EndOfFile(file))
+    {
+      FileReadCharacter(file)
+      char <- FileReadCharacter(file)
+    }
 
 	}
 
@@ -1293,8 +1308,9 @@ define WaitForClickOnTarget(targetlist,keylist)
 
       loop(i,testlist)
           {
+             target <- First(i)
 
-             if(Inside(pos,First(i)))
+             if(Inside(pos,target))
              {
 	              wait1 <- 0
                 ret <- Nth(i,2)
@@ -1474,6 +1490,22 @@ define CountDown(win,usebg:1)
   }
 
 
+
+    ##put the counter at centerX/Y if they exist.
+     x <- gVideoWidth/2
+     y <- gVideoHeight/2
+    if(VariableExists("gLayout"))
+    {
+        if(PropertyExists(gLayout,"centerx"))
+	{
+	  x <- gLayout.centerX
+	}
+	if(PropertyExists(gLayout,"centery"))
+	{
+	 y <- gLayout.centerY
+	}
+    }
+
     bgcol <- win.BGCOLOR
     if(useBG)
      {
@@ -1481,7 +1513,7 @@ define CountDown(win,usebg:1)
       AddObject(rect,win)
     }
 
-    label <- EasyLabel("",gVideoWidth/2,gVideoHeight/2,win,100)
+    label <- EasyLabel("",x,y,win,100)
     labs <- [3,2,1]
     loop(i,labs)
      {
@@ -1603,9 +1635,31 @@ define MakeParameterObject(pairs)
 
 	if(not val=="")
         {
+         ## Only try numeric conversion if value looks numeric
+         ## This prevents warnings when loading non-numeric parameters like "auto" or lists
+         fval <- 0
+         shouldConvert <- 0
 
-         fval <- ToNumber(val)
-         if(IsFloat(fval) and fval <> 0.0)
+         if(IsNumber(val))
+         {
+             fval <- val
+             shouldConvert <- 1
+         } elseif(IsString(val))
+         {
+             ## Only check length/convert if it's actually a string
+             if(StringLength(val) > 0)
+             {
+                 firstChar <- SubString(val, 1, 1)
+                 ## Check if starts with digit, minus, or period (potential number)
+                 if(IsMember(firstChar, ["0","1","2","3","4","5","6","7","8","9","-","."]))
+                 {
+                     fval <- ToNumber(val)
+                     shouldConvert <- 1
+                 }
+             }
+         }
+
+         if(shouldConvert and IsFloat(fval) and fval <> 0.0)
 	 {
           ##if the value is really 0.0, then we handle it elsewhere; it should
 	  ##probably be fine if handled via the string route below.
@@ -1816,12 +1870,12 @@ define ReadTranslation(filename,lang)
   }
 
   stringlist <- ReadCSV(filename)
- # Print(stringlist)
+  Print(stringlist)
   cr <- CR(1)
- # Print(stringlist)
+  Print(stringlist)
   loop(i,stringlist)
   {
-   #  Print(i)
+     Print(i)
     ##Add CR to the
      text <- Second(i)
      text2 <- FormatText(text)
@@ -2088,8 +2142,15 @@ define InitializeUpload()
             ## for multi-test chains where each test gets a different participant ID
             gSubNum <- gParticipant
 
+            ## DEBUG: Check if SetWorkingDirectory is actually needed
+            ## PEBL may already set working directory to the script's directory
+            ## when called with full path to script
+            Print("InitializeUpload: Current working directory: " + GetWorkingDirectory())
+            Print("InitializeUpload: gTestName = " + gTestName)
+
+            ## COMMENTED OUT for testing - may not be needed
             ## Set working directory to the test directory so relative paths work
-            SetWorkingDirectory("/usr/local/share/pebl2/battery/" + gTestName)
+            # SetWorkingDirectory("/usr/local/share/pebl2/battery/" + gTestName)
 
             ## Create centralized data directory for MEMFS persistent storage
             ## Create directories one level at a time since MakeDirectory doesn't create parents
@@ -2395,5 +2456,75 @@ define CalibrateScreen(win)
   SetProperty(calibData, "timestamp", TimeStamp())
 
   return(calibData)
+}
+
+
+## Wrapper function for VariableExists
+## Provides a more intuitive name for checking if a variable is defined
+define IsDefined(varname)
+{
+  return VariableExists(varname)
+}
+
+
+## Recursively print object properties with indentation and circular reference detection
+## Overrides the compiled PrintProperties() function with an interpreted version
+## Parameters:
+##   obj - The object to inspect
+##   recursive:1 - Enable recursive traversal (1=yes, 0=no for top-level only)
+##   depth:5 - Maximum recursion depth (prevents infinite loops)
+##   indent:0 - Current indentation level (internal use)
+##   visited:[] - Track visited objects for circular reference detection (internal use)
+define PrintProperties(obj, recursive:1, depth:5, indent:0, visited:[])
+{
+    ## Handle non-objects
+    if(not IsPEBLObject(obj))
+    {
+        Print(Indent(indent) + (obj + ""))
+    } elseif(IsMember(obj, visited)) {
+        ## Check if already visited (circular reference)
+        Print(Indent(indent) + "[Circular reference to " + ("TYPE" + obj) + "]")
+    } elseif(indent >= depth) {
+        ## Check depth limit
+        Print(Indent(indent) + "[Max depth " + depth + " reached]")
+    } else {
+        ## Print object type header at top level
+        if(indent == 0)
+        {
+            Print("Object type: " + ("TYPE" + obj))
+            Print("Properties:")
+        }
+
+        ## Add object to visited list
+        visited <- Append(visited, obj)
+
+        ## Get and print properties
+        propNames <- GetPropertyList(obj)
+        loop(propName, propNames)
+        {
+            value <- GetProperty(obj, propName)
+            if(recursive and IsPEBLObject(value))
+            {
+                Print(Indent(indent) + propName + ": <" + ("TYPE" + value) + ">")
+                PrintProperties(value, recursive, depth, indent + 1, visited)
+            } else {
+                Print(Indent(indent) + propName + ": " + (value + ""))
+            }
+        }
+    }
+}
+
+## Helper function to create indentation strings
+define Indent(level)
+{
+    result <- ""
+    if(level > 0)
+    {
+        loop(i, Sequence(1, level, 1))
+        {
+            result <- result + "  "
+        }
+    }
+    return(result)
 }
 

@@ -33,6 +33,14 @@
 
 #include "../objects/PColor.h"
 
+#ifdef PEBL_VALIDATOR
+#include "../platforms/validator/PlatformEnvironment.h"
+#include "../platforms/validator/PlatformWindow.h"
+#include "../platforms/validator/PlatformImageBox.h"
+#include "../platforms/validator/PlatformAudioOut.h"
+#include "../platforms/validator/PlatformNetwork.h"
+#include "../platforms/validator/PlatformJoystick.h"
+#else
 #include "../platforms/sdl/PlatformEnvironment.h"
 #include "../platforms/sdl/PlatformWindow.h"
 #include "../platforms/sdl/PlatformImageBox.h"
@@ -43,11 +51,12 @@
 //#include "../platforms/sdl/PlatformDrawObject.h"
 //#include "../platforms/sdl/PlatformCanvas.h"
 //#include "../platforms/sdl/PlatformMovie.h"
-#include "../devices/PStream.h"
 #include "../platforms/sdl/PlatformAudioOut.h"
 #include "../platforms/sdl/PlatformNetwork.h"
-#include "../utility/rc_ptrs.h"
 #include "../platforms/sdl/PlatformJoystick.h"
+#endif
+#include "../devices/PStream.h"
+#include "../utility/rc_ptrs.h"
 #include "../devices/PParallelPort.h"
 #include "../devices/PComPort.h"
 
@@ -82,7 +91,7 @@ public:
 
     //Constructors
     PComplexData();
-    PComplexData(counted_ptr<PEBLObjectBase>);
+    PComplexData(const counted_ptr<PEBLObjectBase> & object);
 
     //     PComplexData(counted_ptr<PlatformEnvironment>);
 //     PComplexData(counted_ptr<PlatformWindow>);

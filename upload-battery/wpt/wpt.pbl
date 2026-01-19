@@ -10,11 +10,13 @@ define Start(p)
   parpairs <- [["numtrials",350],
                ["startpoints",600],
 	       ["maxpoints",1000],
-	       ["blocksize",50]
+	       ["blocksize",50],
+               ["responsemode","auto"]  ##Response mode for Layout & Response System
               ]
 
 
   gParams <- CreateParameters(parpairs,gParamFile)
+  gParams.responsesemantics <- "2afc"  ## Two-alternative forced choice (Rain vs Sun prediction)
 
   numtrials <- gParams.numtrials
 
@@ -27,9 +29,21 @@ define Start(p)
    gSubNum <- GetSubNum(gWin)
   }
 
-
   GetStrings(gLanguage)
 
+  ## Set response labels BEFORE CreateLayout so borders are sized correctly
+  ## For touchtarget mode, add "Tap for" prefix (translated)
+  if(gParams.responsemode == "touchtarget")
+  {
+    gParams.responselabels <- [gStrings.tap_for + " " + gStrings.footerL, gStrings.tap_for + " " + gStrings.footerR]
+  } else {
+    gParams.responselabels <- [gStrings.footerL, gStrings.footerR]
+  }
+
+  ## Create layout with response system AFTER GetSubNum
+  gLayout <- CreateLayout("wpt", gWin, gParams)
+  gLayout.header.visible <- 0
+  gLayout.subheader.visible <- 1
 
   gFileOut <- GetNewDataFile(gSubNum,gWin,"wpt","csv","subnum,trial,config,c1,c2,c3,c4,sampleprob,rainprob,prob2,time,rt,resp,outcome,correct")
 
@@ -68,7 +82,8 @@ stimtable <- [["A", 0,0,0,1,0.14, 0.15],
 ##               ["diamondprob",0.756]##prob of sun given diamond
 
 ##probs <- [gParams.triangleprob,gParams.circleprob,gParams.diamondprob,gParams.squareprob]
-   rect <- Rectangle(gVideoWidth/2,gVideoheight/2,800,300,MakeColor("grey"),0)
+   ## Position grey rectangle in stimulus region center
+   rect <- Rectangle(gLayout.centerX,gLayout.centerY,800,300,MakeColor("grey"),0)
    AddObject(rect,gWin)
 
 
@@ -76,11 +91,12 @@ stimtable <- [["A", 0,0,0,1,0.14, 0.15],
              MakeImage("imgs/card2.png"),
 	     MakeImage("imgs/card3.png"),
 	     MakeImage("imgs/card4.png")]
-  x <- gVideoWidth/2-300
+  ## Position cards centered in stimulus region
+  x <- gLayout.centerX-300
   loop(i,gCards)
    {
       AddObject(i,gWin)
-      Move(i,x,gVideoHeight/2)
+      Move(i,x,gLayout.centerY)
       x <- x + 200
    }
 
@@ -92,29 +108,44 @@ stimtable <- [["A", 0,0,0,1,0.14, 0.15],
   AddObject(gSmiley,gWin)
   AddObject(gFrowney,gWin)
 
-  Move(gSmiley,gVideoWidth/2,gVideoHeight/2)
-  Move(gFrowney,gVideoWidth/2,gVideoHeight/2)
+  Move(gSmiley,gLayout.centerX,gLayout.centerY)
+  Move(gFrowney,gLayout.centerX,gLayout.centerY)
   Hide(gSmiley)
   Hide(gFrowney)
 
 
   value <- gParams.startpoints
-  graph <- MakeGraph(value,gParams.maxpoints,gVideoWidth/2+450,gVideoheight/2,gStrings.earnings,10)
+  ## Position graph to the right of stimulus region
+  graphX <- gLayout.stimulusRegion.x + gLayout.stimulusRegion.width - 80
+  graph <- MakeGraph(value,gParams.maxpoints,graphX,gLayout.centerY,gStrings.earnings,10)
 
 
-   ##Instructions here.
-  inst <- gStrings.inst
-  inst <- EasyTextbox(inst,50,20,gWin,20,gVideoWidth-100,200)
-   footer <- Easylabel(gStrings.footer,gVideoWidth/2,gVideoHeight-150,gWin,40)
-   footer2 <- Easylabel(gStrings.footer2,gVideoWidth/2,gVideoHeight-100,gWin,40)
+   ##Instructions here - use AdaptiveTextBox
+  inst <- AdaptiveTextBox(gStrings.inst,
+                         20,
+                         20,
+                         gWin, 20,
+                         gVideoWidth - 40,
+                         200,
+                         "scalefont")
 
+  gLayout.footer.visible <- 1
   ShowAll(gCards,1)
   Draw()
-  WaitForAnyKeyPress()
+  WaitForLayoutResponse(gLayout)
 
   ShowAll(gCards,0)
   Hide(inst)
   Draw()
+
+  ## Show cursor only for mousetarget mode (need to click on targets)
+  ## Hide cursor for keyboard, mousebutton, and touchtarget modes
+  if(gParams.responsemode == "mousetarget")
+  {
+    ShowCursor(1)
+  } else {
+    ShowCursor(0)
+  }
 
 
 
@@ -141,7 +172,12 @@ stimtable <- [["A", 0,0,0,1,0.14, 0.15],
 
    if(Mod(trial,gParams.blocksize)==0)
    {
-     MessageBox(gStrings.break,gWin)
+     inst.text <- gStrings.break
+     Show(inst)
+     Draw()
+     WaitForLayoutResponse(gLayout)
+     Hide(inst)
+     Draw()
    }
 
    trial <- trial + 1
@@ -154,7 +190,10 @@ stimtable <- [["A", 0,0,0,1,0.14, 0.15],
    Print("Uploading data files...")
    out <- UploadFile(gSubNum, gFileOut.filename); Print(out)
 
-   MessageBox(gStrings.debrief,gWin)
+   inst.text <- gStrings.debrief
+   Show(inst)
+   Draw()
+   WaitForLayoutResponse(gLayout)
 }
 
 define Trial(cards,prob)
@@ -172,17 +211,17 @@ define Trial(cards,prob)
 
   Draw()
   time1 <- GetTime()
-  resp <-   WaitForListKeyPress(["<lshift>","<rshift>"])
+  resp <-   WaitForLayoutResponse(gLayout, 10000)
   time2 <- GetTime()
 
   actual <- ( RandomUniform(1) < prob )
 
-  ##actual==1 == RAIN
+  ##actual==1 == RAIN, resp=="left" means RAIN prediction
   if(actual == 1)
    {
-    correct <- (resp == "<lshift>")
+    correct <- (resp == "left")
    }  else   {
-    correct <- (resp == "<rshift>")
+    correct <- (resp == "right")
    }
 
   HideAll(gcards)

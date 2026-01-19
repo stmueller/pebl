@@ -51,6 +51,7 @@
 #include <stdio.h>
 #include <string>
 #include <algorithm>
+#include <cmath>
 
 //Unicode/utf-8 handling.
 #include "../../../libs/utfcpp/source/utf8.h"
@@ -110,6 +111,7 @@ static bool is_line_right_justified(const std::string & line_text, const Variant
 
 
 PlatformTextBox::PlatformTextBox(string text, counted_ptr<PEBLObjectBase> font, int width, int height):
+    PTextObject(text),  // Must initialize virtual base class directly
     PlatformWidget(),
     PTextBox(text, width, height)
 
@@ -130,14 +132,18 @@ PlatformTextBox::PlatformTextBox(string text, counted_ptr<PEBLObjectBase> font, 
     mSurface = NULL;
     mTexture = NULL;
     SetFont(font);
-    SetText(text);
-    mTextChanged = true;
-    Draw();
-    //    if(!RenderText()) cerr << "Unable to render text.\n";
+    // Don't call SetText() - text already set by PTextBox(text, width, height) constructor
+    // Calling it again during construction causes crashes
+    mChanged = true;
+
+    // Note: We need to call FindBreaks() here even without a renderer
+    // so that numTextLines and other properties are calculated
+    FindBreaks();
 }
 
 
 PlatformTextBox::PlatformTextBox(const PlatformTextBox & text):
+    PTextObject(text.GetText()),  // Must initialize virtual base class directly
     PlatformWidget(),
     PTextBox(text.GetText(), (int)(text.GetWidth()), (int)(text.GetHeight()))
 
@@ -154,9 +160,9 @@ PlatformTextBox::PlatformTextBox(const PlatformTextBox & text):
     mTextureHeight=mHeight;
 
     SetFont(text.GetFont());
-    mTextChanged = true;
-    Draw();
-    //    if(!RenderText()) cerr << "Unable to render text.\n";
+    mChanged = true;
+    // Don't call Draw() here - no renderer yet since object hasn't been added to window
+    // Draw() will be called when object is added to window or explicitly drawn
 }
 
 
@@ -170,7 +176,7 @@ PlatformTextBox::~PlatformTextBox()
 // Inheritable function that is called by friend method << operator of PComplexData
 ostream & PlatformTextBox::SendToStream(ostream& out) const
 {
-    out << "<SDL PlatformTextBox: [" << mText << "] in " << *mFont << ">" <<flush;
+    out << "<SDL PlatformTextBox: [" << mText << "] in " << *GetPlatformFont() << ">" <<flush;
     return out;
 }
 
@@ -227,16 +233,17 @@ bool  PlatformTextBox::RenderText()
     if(!mSurface)  PError::SignalFatalError("Surface not created in TextBox::RenderText.");
 
     //cout << "fillingbackground rec platformtextbox::rendertext\n";
-    //Fill the box with the background color of the font.
+    //Fill the box with the background color of the font (from property system in case it was modified)
+    PColor bgcolor = GetPlatformFont()->GetBackgroundColor();  // Gets current color from font property system
     SDL_FillRect(mSurface, NULL, SDL_MapRGBA(mSurface->format,
-                                             mBackgroundColor.GetRed(),
-                                             mBackgroundColor.GetGreen(),
-                                             mBackgroundColor.GetBlue(),
-                                             mBackgroundColor.GetAlpha()));
+                                             bgcolor.GetRed(),
+                                             bgcolor.GetGreen(),
+                                             bgcolor.GetBlue(),
+                                             bgcolor.GetAlpha()));
 
 
     //First, find the height of the text when rendered with the font.
-    int height = mFont->GetTextHeight(mText);
+    int height = GetPlatformFont()->GetTextHeight(mText);
 
     //Now, go through the text letter by letter and word by word until it won't fit on a line any longer.
     unsigned int linestart = 0;
@@ -275,7 +282,7 @@ bool  PlatformTextBox::RenderText()
                     if(effectiveJustify == "RIGHT")
                         {
                             //right flush
-                            tmpSurface = mFont->RenderText(line_text.c_str());
+                            tmpSurface = GetPlatformFont()->RenderText(line_text.c_str());
                             SDL_Rect tmprect = {mSurface->w - tmpSurface->w,
                                                 static_cast<int>(totalheight),
                                                 tmpSurface->w,tmpSurface->h};
@@ -283,7 +290,7 @@ bool  PlatformTextBox::RenderText()
                         }
                     else if (effectiveJustify == "CENTER"){
                         //centered
-                            tmpSurface = mFont->RenderText(line_text.c_str());
+                            tmpSurface = GetPlatformFont()->RenderText(line_text.c_str());
                             int xval = (mSurface->w - tmpSurface->w)/2;
                             SDL_Rect tmprect = {xval,static_cast<int>(totalheight),
                                                 tmpSurface->w,tmpSurface->h};
@@ -291,7 +298,7 @@ bool  PlatformTextBox::RenderText()
                         }
                     else{
                         // LEFT justification (default)
-                            tmpSurface = mFont->RenderText(line_text.c_str());
+                            tmpSurface = GetPlatformFont()->RenderText(line_text.c_str());
                             SDL_Rect tmprect = {0,static_cast<int>(totalheight),tmpSurface->w,tmpSurface->h};
                             to = tmprect;
                         }
@@ -309,7 +316,7 @@ bool  PlatformTextBox::RenderText()
 
 
                             //Re-render the text using the associated font.
-                            tmpSurface = mFont->RenderText(rtext.c_str());
+                            tmpSurface = GetPlatformFont()->RenderText(rtext.c_str());
 
 
                             SDL_Rect tmprect = {(mSurface->w - tmpSurface->w),static_cast<int>(totalheight),
@@ -337,12 +344,18 @@ bool  PlatformTextBox::RenderText()
             mTexture = SDL_CreateTexture(mRenderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET,
                                          (int)mTextureWidth,
                                          (int)mTextureHeight);
+            // Enable best quality filtering (anisotropic) for zoomed textures
+            SDL_SetTextureScaleMode(mTexture, SDL_ScaleModeBest);
+            SDL_SetTextureBlendMode(mTexture, SDL_BLENDMODE_BLEND);
         }
     else
         {
 
             mTexture = SDL_CreateTexture(mRenderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET,
                                          (int)mTextureWidth,(int)mTextureHeight);
+            // Enable best quality filtering (anisotropic) for zoomed textures
+            SDL_SetTextureScaleMode(mTexture, SDL_ScaleModeBest);
+            SDL_SetTextureBlendMode(mTexture, SDL_BLENDMODE_BLEND);
 
         }
 
@@ -371,13 +384,13 @@ bool  PlatformTextBox::RenderText()
     if(mTexture)
         {
 
-            mTextChanged = false;
+            mChanged = false;
             return true;
         }
     else
         {
 
-            mTextChanged = true;
+            mChanged = true;
             return false;
         }
 }
@@ -411,6 +424,18 @@ bool PlatformTextBox::SetProperty(std::string name, Variant v)
     return true;
 }
 
+Variant PlatformTextBox::GetProperty(std::string name)const
+{
+    if(name == "NUMTEXTLINES")
+    {
+        return Variant((int)mBreaks.size());
+    }
+    else
+    {
+        return PTextBox::GetProperty(name);
+    }
+}
+
 //These shadow higher accessors in widget, because
 //they need to set the textchanged flag
 void PlatformTextBox::SetHeight(int h)
@@ -431,13 +456,27 @@ void PlatformTextBox::SetFont(counted_ptr<PEBLObjectBase> font)
 {
 
     mFontObject = font;
-    mFont = dynamic_cast<PlatformFont*>(mFontObject.get());
-    PWidget::SetBackgroundColor(mFont->GetBackgroundColor());
-    mTextChanged = true;
+
+    // Update the FONT property so nested access works correctly
+    PComplexData * pcd = new PComplexData(mFontObject);
+    PEBLObjectBase::SetProperty("FONT", Variant(pcd));
+    delete pcd;
+
+    // Set requestedFontSize when font is set (needed for adaptive textbox scaling)
+    // Only set it if it hasn't been set before (is 0)
+    Variant currentRequestedSize = PEBLObjectBase::GetProperty("REQUESTEDFONTSIZE");
+    if (currentRequestedSize.GetInteger() == 0) {
+        int fontSize = GetPlatformFont()->GetFontSize();
+        PEBLObjectBase::SetProperty("REQUESTEDFONTSIZE", Variant(fontSize));
+    }
+
+    PWidget::SetBackgroundColor(GetPlatformFont()->GetBackgroundColor());
+    mChanged = true;
     //Re-render the text onto mSurface
     //if(!RenderText()) cerr << "Unable to render text.\n";
 
 }
+
 
 
 void PlatformTextBox::SetText(string text)
@@ -450,10 +489,11 @@ void PlatformTextBox::SetText(string text)
 
     //mCursorPos = 0;
     mCursorChanged = true;
-    mTextChanged = true;
+    mChanged = true;
 
-    Draw();
-
+    // Don't call Draw() here - it will be called when the object is actually drawn
+    // Calling Draw() during SetText() can cause crashes if the renderer isn't ready
+    // or if this is called during object construction/destruction
 
     //Re-render the text onto mSurface
     //    if(!RenderText()) cerr << "Unable to render text.\n";
@@ -479,10 +519,11 @@ void PlatformTextBox::FindBreaks()
 {
 
     //First, find the height and width of the text when rendered with the font.
-    int height = mFont->GetTextHeight(mText);
+    int height = GetPlatformFont()->GetTextHeight(mText);
 
     //Set this directly as a property; no need to check with PTextBox, which doesn't do anything with it.
     PEBLObjectBase::SetProperty("LINEHEIGHT",Variant(height));
+
     //Now, go through the text letter by letter and word by word until
     //it won't fit on a line any longer.
 
@@ -497,12 +538,19 @@ void PlatformTextBox::FindBreaks()
     //Now, let's reserve space in mBreaks, roughly twice the amount we
     //think we need. This will make adding elements take less time.
 
-    int width = mFont->GetTextWidth(mText);
-    mBreaks.reserve(width / mWidth * 2);
+    int width = GetPlatformFont()->GetTextWidth(mText);
+    if (mWidth > 0) {
+        mBreaks.reserve(width / mWidth * 2);
+    }
 
 
-    while( (totalheight < (unsigned int) mHeight  &&
-            newlinestart < mText.size()))
+    // Calculate line breaks until we either finish the text or exceed the height
+    // For adaptive mode, we need ALL breaks to know exact line count
+    // For normal mode, we can stop once we know text doesn't fit
+    Variant isAdaptiveVar = PEBLObjectBase::GetProperty("ISADAPTIVE");
+    bool isAdaptive = isAdaptiveVar.GetInteger() != 0;
+
+    while(newlinestart < mText.size())
         {
 
 
@@ -517,7 +565,21 @@ void PlatformTextBox::FindBreaks()
             mBreaks.push_back(newlinestart);
             linestart=newlinestart;
 
+            // If not adaptive and we've exceeded height with more text remaining,
+            // we know text doesn't fit - no need to calculate more breaks
+            if (!isAdaptive && totalheight > (unsigned int)mHeight && newlinestart < mText.size()) {
+                break;
+            }
+
         }
+
+    //Update NUMTEXTLINES property to reflect the number of lines
+    PEBLObjectBase::SetProperty("NUMTEXTLINES",Variant((int)mBreaks.size()));
+
+    //Set TEXTCOMPLETE property: 1 if all text rendered, 0 if truncated
+    //Text is complete only if we processed all text AND it fits in the height
+    bool textComplete = (newlinestart >= mText.size()) && (totalheight <= (unsigned int)mHeight);
+    PEBLObjectBase::SetProperty("TEXTCOMPLETE",Variant(textComplete ? 1 : 0));
 }
 
 
@@ -541,7 +603,7 @@ void PlatformTextBox::FindBreaks()
             
 //             //Get the width of the line right now.
 //             tmpstring = mText.substr(curposition,sublength);
-//             int tmpWidth = mFont->GetTextWidth(tmpstring);
+//             int tmpWidth = GetPlatformFont()->GetTextWidth(tmpstring);
 
 //             //  int time1 = SDL_GetTicks();
 //             cout << "................findnextlinebreak: " <<mLineWrap<< " "  << (curposition ) << ":" << (sublength ) << ":  "<< tmpWidth << "***" << ( time1) << endl;
@@ -585,7 +647,7 @@ void PlatformTextBox::FindBreaks()
 //                                             cout << tmpstring << endl;
 //                                             //We have no natural break 'sep' on this line,
 //                                             //and the current line is too long.
-//                                             while(mFont->GetTextWidth(tmpstring) >(unsigned int)mWidth)
+//                                             while(GetPlatformFont()->GetTextWidth(tmpstring) >(unsigned int)mWidth)
 //                                                 {
 
 //                                                     //we need to back off, but
@@ -640,7 +702,7 @@ void PlatformTextBox::FindBreaks()
 
 //                             tmpstring = mText.substr(curposition, sublength);
 //                             //Check the size of the line.
-//                             if(mFont->GetTextWidth(tmpstring) > (unsigned int)mWidth)
+//                             if(GetPlatformFont()->GetTextWidth(tmpstring) > (unsigned int)mWidth)
 //                                 {
 
 //                                     //the text is too big for a single line, so return the last word break, but only
@@ -704,7 +766,7 @@ int PlatformTextBox::FindNextLineBreak(unsigned int curposition)
             
             //Get the width of the line right now.
             tmpstring = mText.substr(curposition,sublength);
-            int tmpWidth = mFont->GetTextWidth(tmpstring);
+            int tmpWidth = GetPlatformFont()->GetTextWidth(tmpstring);
 
             //  int time1 = SDL_GetTicks();
 
@@ -748,7 +810,7 @@ int PlatformTextBox::FindNextLineBreak(unsigned int curposition)
 
                                             //We have no natural break 'sep' on this line,
                                             //and the current line is too long.
-                                            while(mFont->GetTextWidth(tmpstring) >(unsigned int)mWidth)
+                                            while(GetPlatformFont()->GetTextWidth(tmpstring) >(unsigned int)mWidth)
                                                 {
 
  
@@ -853,7 +915,7 @@ int PlatformTextBox::FindNextLineBreak(unsigned int curposition)
 
                             tmpstring = mText.substr(curposition, sublength);
                             //Check the size of the line.
-                            if(mFont->GetTextWidth(tmpstring) > (unsigned int)mWidth)
+                            if(GetPlatformFont()->GetTextWidth(tmpstring) > (unsigned int)mWidth)
                                 {
 
                                     //the text is too big for a single line, so return the last word break, but only
@@ -929,7 +991,7 @@ int PlatformTextBox::FindCursorPosition(long int x, long int y)
         }
 
     //Find the height of a line.
-    int height = mFont->GetTextHeight(mText);
+    int height = GetPlatformFont()->GetTextHeight(mText);
 
     if(y > mHeight) y = mHeight;
     if(y < 0) y = 0;
@@ -971,7 +1033,7 @@ int PlatformTextBox::FindCursorPosition(long int x, long int y)
     unsigned int x_adjusted = x;
     if (is_line_right_justified(line_text, mJustify)) {
         // Get line width to calculate where text starts
-        int line_width = mFont->GetTextWidth(line_text);
+        int line_width = GetPlatformFont()->GetTextWidth(line_text);
         int text_start_x = mWidth - line_width;  // Right justification offset
 
         if ((int)x >= text_start_x) {
@@ -994,7 +1056,7 @@ int PlatformTextBox::FindCursorPosition(long int x, long int y)
         }
     }
 
-    int charnum = mFont->GetPosition(line_text, x_adjusted);
+    int charnum = GetPlatformFont()->GetPosition(line_text, x_adjusted);
 
     //finally, if the current cursor position is a non-printing character (i.e. a carriage return)
     //back up one
@@ -1018,7 +1080,7 @@ void PlatformTextBox::DrawCursor()
     unsigned int x = 0;
     unsigned int y = 0;
 
-    unsigned int height = mFont->GetTextHeight(mText);
+    unsigned int height = GetPlatformFont()->GetTextHeight(mText);
     unsigned int width =  (unsigned int)GetWidth();
     unsigned int i = 0;
     int linestart = 0;
@@ -1057,8 +1119,8 @@ void PlatformTextBox::DrawCursor()
                                 // Right-justified: text starts at (width - line_width)
                                 // For RTL, cursor is at (line_width - text_before_cursor) from right edge of text
                                 // For LTR right-justified, cursor is at text_before_cursor from left edge of text
-                                int line_width = mFont->GetTextWidth(full_line);
-                                int text_before_cursor_width = mFont->GetTextWidth(subst);
+                                int line_width = GetPlatformFont()->GetTextWidth(full_line);
+                                int text_before_cursor_width = GetPlatformFont()->GetTextWidth(subst);
                                 int text_start_x = width - line_width;  // RIGHT justification offset
 
                                 if (has_rtl_text(full_line)) {
@@ -1071,7 +1133,7 @@ void PlatformTextBox::DrawCursor()
                                 x = ( x >= width ) ? width-1: x;
                             } else {
                                 // Left-justified: cursor is positioned from the left edge (original behavior)
-                                x =  mFont->GetTextWidth(subst);
+                                x =  GetPlatformFont()->GetTextWidth(subst);
                                 x = ( x >= width ) ? width-1: x;
                             }
                             break;
@@ -1107,27 +1169,156 @@ void PlatformTextBox::DrawCursor()
 
 
     SDLUtility::DrawLine(mRenderer, this,x, y, x, y+height,
-                         (mFont->GetFontColor()));
+                         (GetPlatformFont()->GetFontColor()));
 
 
 }
+
 
 
 //This overrides the parent Draw() method so that
 //things can be re-rendered if necessary.
 bool PlatformTextBox::Draw()
 {
-    if(mTextChanged)
+    // Check if font properties changed and update widget bgcolor if needed
+    if(GetPlatformFont()->HasChanged())
+    {
+        PWidget::SetBackgroundColor(GetPlatformFont()->GetBackgroundColor());
+        mChanged = true;
+        GetPlatformFont()->ClearChanged();
+    }
+
+    // CRITICAL: Always call FindBreaks() when text has changed
+    // This was in the backup version and is needed for proper rendering
+    if(mChanged)
     {
         FindBreaks();
     }
 
-    if(mTextChanged || mCursorChanged)
+    if(mChanged)
     {
-        
-        RenderText();
+        // Check if adaptive mode is enabled
+        Variant isAdaptiveVar = PEBLObjectBase::GetProperty("ISADAPTIVE");
+        if (isAdaptiveVar.GetInteger()) {
+            // Track whether this is the first time we're creating an adaptive font
+            bool hadAdaptiveFont = (mAdaptiveFontObject.get() != NULL);
 
+            // Get the requested font size (original size before adaptation)
+            Variant requestedSizeVar = PEBLObjectBase::GetProperty("REQUESTEDFONTSIZE");
+            int requestedSize = requestedSizeVar.GetInteger();
+
+            // If requestedFontSize is 0, it hasn't been set yet - use current font size
+            if (requestedSize == 0) {
+                requestedSize = GetPlatformFont()->GetFontSize();
+                PEBLObjectBase::SetProperty("REQUESTEDFONTSIZE", Variant(requestedSize));
+            }
+
+            // Iterate to find the right font size
+            // Keep previous adaptive font in mIntermediateFonts during iteration
+            int maxIterations = 5;
+            int iteration = 0;
+            bool needsAdaptation = true;
+
+            while (iteration < maxIterations && needsAdaptation) {
+                // Calculate line breaks with current font
+                FindBreaks();
+
+                // Check if text currently fits
+                Variant textCompleteVar = PEBLObjectBase::GetProperty("TEXTCOMPLETE");
+                bool textComplete = textCompleteVar.GetInteger() != 0;
+
+                if (textComplete) {
+                    // Text fits - stop iteration
+                    needsAdaptation = false;
+                    break;
+                }
+
+                // Text doesn't fit - calculate target font size
+                int minFontSize = 8;
+                int currentFontSize = GetPlatformFont()->GetFontSize();
+                int targetSize = currentFontSize;
+
+                Variant numLinesVar = PEBLObjectBase::GetProperty("NUMTEXTLINES");
+                int numLines = numLinesVar.GetInteger();
+
+                if (numLines > 0 && mHeight > 0 && mWidth > 0) {
+                    int lineHeight = GetPlatformFont()->GetTextHeight(mText);
+
+                    // Calculate area of box and area of current text
+                    int boxArea = mWidth * mHeight;
+                    int textArea = mWidth * (numLines * lineHeight);
+
+                    if (textArea > boxArea) {
+                        // On first iteration, use area-based calculation
+                        // On subsequent iterations, just decrement by 1
+                        if (iteration == 0) {
+                            // Text doesn't fit - use area ratio for initial estimate
+                            // Font area scales as size², so take square root of area ratio
+                            double areaRatio = (double)boxArea / (double)textArea;
+                            int estimatedSize = (int)(currentFontSize * std::sqrt(areaRatio));
+                            targetSize = std::max(estimatedSize, minFontSize);
+                        } else {
+                            // Subsequent iterations: decrement by 1 point
+                            targetSize = std::max(currentFontSize - 1, minFontSize);
+                        }
+
+                        // Safety: ensure we're actually shrinking, never growing
+                        if (targetSize >= currentFontSize) {
+                            targetSize = std::max(currentFontSize - 1, minFontSize);
+                        }
+                    }
+                }
+
+                // Create new font if we calculated a different size
+                if (targetSize != currentFontSize && targetSize >= minFontSize) {
+                    std::string fontFileName = GetPlatformFont()->GetFontFileName();
+                    int fontStyle = GetPlatformFont()->GetFontStyle();
+                    PColor fontColor = GetPlatformFont()->GetFontColor();
+                    PColor bgColor = GetPlatformFont()->GetBackgroundColor();
+                    bool antiAliased = GetPlatformFont()->GetAntiAliased();
+
+                    // Keep previous adaptive font alive during iteration
+                    if (mAdaptiveFontObject.get()) {
+                        mIntermediateFonts.push_back(mAdaptiveFontObject);
+                    }
+
+                    // Create new font and immediately wrap in counted_ptr
+                    PlatformFont* newFont = new PlatformFont(fontFileName, fontStyle, targetSize,
+                                                             fontColor, bgColor, antiAliased);
+                    counted_ptr<PEBLObjectBase> newFontPtr(newFont);
+
+                    // Set as new adaptive font
+                    mAdaptiveFontObject = newFontPtr;
+
+                    // Update widget background color
+                    PWidget::SetBackgroundColor(GetPlatformFont()->GetBackgroundColor());
+                } else {
+                    needsAdaptation = false;
+                }
+
+                iteration++;
+            }
+
+            // If we created an adaptive font, make sure it's set
+            if (mAdaptiveFontObject.get()) {
+                mChanged = true;
+            }
+
+            // Clear intermediate fonts AFTER rendering is complete
+            // This happens later in the function after RenderText() is called
+        }
+
+        mChanged = true;
     }
+
+    if(mChanged || mCursorChanged)
+    {
+        RenderText();
+    }
+
+    // Don't clear intermediate fonts - let them persist for the textbox's lifetime
+    // They will be cleaned up automatically when the textbox destructor runs
+    // This avoids triggering destructor cascades during drawing
 
     mCursorChanged = false;
 
@@ -1146,7 +1337,7 @@ bool PlatformTextBox::Draw()
 
 //Some key presses can only be handled by the platform-specific code.
 //Do this here.
-void PlatformTextBox::HandleKeyPress(int keycode, int modkeys)
+void PlatformTextBox::HandleKeyPress(int keycode, int modkeys, Uint16 unicode)
 {
 #if 0
     cout << "handling keypress in PlatformTextBox: " << keycode << endl;
@@ -1168,7 +1359,7 @@ void PlatformTextBox::HandleKeyPress(int keycode, int modkeys)
                 int x = 0;
                 int y = 0;
 
-                int height=mFont->GetTextHeight(mText);
+                int height=GetPlatformFont()->GetTextHeight(mText);
                 unsigned int i = 0;
                 int linestart = 0;
 
@@ -1192,11 +1383,11 @@ void PlatformTextBox::HandleKeyPress(int keycode, int modkeys)
                                     // Visual x = text_start + (line_width - text_before_cursor_width)
                                     //          = (width - line_width) + (line_width - text_before_cursor_width)
                                     //          = width - text_before_cursor_width
-                                    int text_before_cursor_width = mFont->GetTextWidth(text_before_cursor);
+                                    int text_before_cursor_width = GetPlatformFont()->GetTextWidth(text_before_cursor);
                                     x = mWidth - text_before_cursor_width;
                                 } else {
                                     // Left-justified: x is simply width of text before cursor
-                                    x = mFont->GetTextWidth(text_before_cursor);
+                                    x = GetPlatformFont()->GetTextWidth(text_before_cursor);
                                 }
                                 break;
                             }

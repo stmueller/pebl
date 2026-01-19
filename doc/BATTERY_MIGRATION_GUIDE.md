@@ -185,7 +185,350 @@ grep -i "ask questions" upload-battery/testname/testname.pbl
 grep -i "experimenter" upload-battery/testname/translations/*.json
 ```
 
-#### 2.3 Translation File Updates
+#### 2.3 Layout & Response System Integration (PEBL 2.3+)
+
+**Goal**: Migrate tests to use the unified Layout & Response System for platform-aware responses and consistent UI.
+
+**Benefits**:
+- **Platform-aware responses**: Automatic adaptation between desktop (shift keys), web (Z/slash), and touch (click targets)
+- **Sticky Keys prevention**: Shift key mode disabled by default on web browsers
+- **Consistent UI**: Standardized header/footer/stimulus regions across all battery tasks
+- **Zero code changes for response mode**: Users can switch via parameters, not code
+- **Semantic responses**: Data files record semantic names (`"left"`, `"right"`) instead of raw keys (`<lshift>`)
+
+**Migration Status** (as of Jan 2026):
+- 18 tests fully migrated (35%)
+- Available response modes: auto, keyboardShift, keyboardSafe, arrowLR, mousetarget, touchtarget, mousebutton, userselect, spacebar, leftclick, touchscreen, clicktarget
+
+**Who should migrate:**
+- ✅ **YES**: Tests with 2-alternative forced choice (left/right, odd/even, yes/no)
+- ✅ **YES**: Tests with single-key responses (spacebar, click to respond)
+- ⚠️ **MAYBE**: Tests with custom response patterns (consider layout-only migration)
+- ❌ **NO**: Tests with mouse tracking, drag-and-drop, or complex integrated interfaces
+
+**Migration Steps:**
+
+**Step 2.3.1: Add responsemode parameter and set responsesemantics**
+
+Add to `params/taskname.pbl.schema.json`:
+```json
+{
+  "name": "responsemode",
+  "type": "string",
+  "default": "auto",
+  "options": ["auto", "keyboardShift", "keyboardSafe", "arrowLR", "userselect", "mousetarget", "mousebutton", "touchtarget"],
+  "label": "Response Mode",
+  "description": "Response method: auto (platform-aware default), keyboardShift (L/R shift), keyboardSafe (Z/slash for web), arrowLR (left/right arrows), userselect (user-selected keys), mousetarget (click targets), mousebutton (L/R mouse buttons), touchtarget (large touch targets)"
+}
+```
+
+**CRITICAL: Always include "auto" and "userselect" modes**
+
+- **auto**: Platform-aware default mode. Automatically selects the best response mode for the current platform:
+  - Desktop: Uses shift keys (unless Sticky Keys detected)
+  - Web browsers: Uses Z/slash (avoids Sticky Keys dialog)
+  - Touch devices: Uses touch targets
+
+- **userselect**: Allows users to choose their own response keys at the start of the test. Essential for:
+  - Accessibility (users with motor impairments)
+  - Keyboard layout differences (QWERTY, AZERTY, QWERTZ)
+  - User preference and comfort
+  - Testing with alternative input devices
+
+**Default to "auto"** for maximum compatibility, but **always include "userselect"** as an option for accessibility.
+
+**IMPORTANT**: Do NOT add `responsesemantics` to schema - it's an internal parameter set in code.
+
+Update main `.pbl` file in `Start()` function:
+```pebl
+## BEFORE
+parpairs <- [["reps", 10],
+             ["isi", 500]]
+gParams <- CreateParameters(parpairs, gParamFile)
+
+## AFTER
+parpairs <- [["reps", 10],
+             ["isi", 500],
+             ["responsemode", "auto"]]  ## NEW
+
+gParams <- CreateParameters(parpairs, gParamFile)
+
+## Set semantic requirements (NOT in schema!)
+gParams.responsesemantics <- "2afc"  ## Or: ["left", "right"], "gonogo", etc.
+```
+
+**Available responsesemantics values:**
+- `"2afc"` - Two-alternative forced choice (left/right)
+- `"gonogo"` - Single response (go/no-go tasks)
+- `["left", "right"]` - Custom semantic labels
+- `["odd", "even"]`, `["yes", "no"]`, etc. - Task-specific semantics
+
+**Step 2.3.2: Create layout after parameters**
+
+Add to `Start()` function, AFTER parameters loaded, BEFORE first `Draw()`:
+
+```pebl
+## BEFORE
+gWin <- MakeWindow("black")
+gParams <- CreateParameters(parpairs, gParamFile)
+GetStrings(gLanguage)
+Draw()
+
+## AFTER
+gWin <- MakeWindow("black")
+gParams <- CreateParameters(parpairs, gParamFile)
+GetStrings(gLanguage)
+
+## NEW: Create layout with response system
+gLayout <- CreateLayout("taskname", gWin, gParams)
+
+## Configure layout zones
+gLayout.header.text <- gStrings.header
+gLayout.subheader.visible <- 0  ## Hide if not needed
+## Footer is set automatically
+
+Draw()
+```
+
+**Step 2.3.2.1: Add Trial Progress Counter (Optional but Recommended)**
+
+For multi-trial tests, adding a trial counter to the header provides helpful progress feedback to participants. This pattern is especially useful for longer tests or those with many blocks.
+
+**When to add trial counters:**
+- Tests with multiple trials (>10 trials)
+- Tests with multiple blocks
+- Tests where participants benefit from knowing their progress
+- Both layout-only and full response system migrations
+
+**Implementation:**
+
+```pebl
+## In your main trial loop, dynamically update the header
+while (trial <= numtrials)
+{
+  ## Update header with trial counter
+  gLayout.header.text <- gStrings.header + " - Trial " + trial + " of " + numtrials
+
+  ## Rest of trial logic...
+  trial <- trial + 1
+}
+```
+
+**For tests with blocks:**
+
+```pebl
+loop(block, blocks)
+{
+  loop(trial, trialsPerBlock)
+  {
+    ## Show both block and trial progress
+    cumTrial <- (block - 1) * trialsPerBlock + trial
+    totalTrials <- Length(blocks) * trialsPerBlock
+    gLayout.header.text <- gStrings.header + " - Block " + block + ", Trial " + cumTrial + " of " + totalTrials
+
+    ## Trial logic...
+  }
+}
+```
+
+**Translation file requirements:**
+
+Ensure your base HEADER string doesn't include trial numbers, as they'll be added dynamically:
+
+```json
+{
+  "HEADER": "Task Name"
+  // NOT "Task Name - Trial 1" - trial counter added dynamically in code
+}
+```
+
+**Example implementations:**
+- `battery/timetap/timetap.pbl` - Simple trial counter (layout-only migration)
+- `battery/linejudgment/linejudgment.pbl` - Trial counter with Layout & Response System
+- `battery/globallocal/globallocal.pbl` - Block and trial counters
+
+**Step 2.3.3: Update MessageBox to fit stimulus region**
+
+Replace instances of `MessageBox()` with constrained versions:
+
+```pebl
+## Option 1: Use AdaptiveTextBox (RECOMMENDED)
+define MessageKeyBox(message)
+{
+  tb <- AdaptiveTextBox(message,
+                        gLayout.stimulusRegion.x + 20,
+                        gLayout.stimulusRegion.y + 20,
+                        gWin, 56,
+                        gLayout.stimulusRegion.width - 40,
+                        gLayout.stimulusRegion.height - 40,
+                        "scalefont")
+  Draw()
+  WaitForAnyKeyPress()
+  RemoveObject(tb, gWin)
+}
+
+## Option 2: Calculate custom gutters for MessageBox
+leftgutter <- gLayout.stimulusRegion.x + 20
+rightgutter <- gVideoWidth - (gLayout.stimulusRegion.x + gLayout.stimulusRegion.width) + 20
+bottomgutter <- gVideoHeight - (gLayout.stimulusRegion.y + gLayout.stimulusRegion.height) + 20
+MessageBox(gStrings.interblock, gWin, 20, leftgutter, rightgutter, bottomgutter)
+```
+
+**Step 2.3.4: Replace manual positioning with layout zones**
+
+**CRITICAL**: Replace ALL instances of `gVideoWidth/2` and `gVideoHeight/2` with layout positioning.
+
+```pebl
+## BEFORE
+stim <- EasyLabel(stimulus, gVideoWidth/2, gVideoHeight/2, gWin, 80)
+fixation <- EasyLabel("+", gVideoWidth/2, gVideoHeight/2, gWin, 40)
+
+## AFTER
+stim <- EasyLabel(stimulus, gLayout.centerX, gLayout.centerY, gWin, 80)
+fixation <- EasyLabel("+", gLayout.centerX, gLayout.centerY, gWin, 40)
+```
+
+**Common locations to check:**
+- Trial() function - stimulus positioning
+- DoInstructions() - demo stimuli positioning
+- Any function creating fixation crosses, feedback, or centered elements
+
+**Step 2.3.5: Replace hardcoded key checks with WaitForLayoutResponse**
+
+```pebl
+## BEFORE
+Draw()
+resp <- WaitForListKeyPress(["<lshift>", "<rshift>"])
+if(resp == "<lshift>") { response <- "left" }
+if(resp == "<rshift>") { response <- "right" }
+
+## AFTER
+Draw()
+resp <- WaitForLayoutResponse(gLayout)
+response <- resp  ## Already semantic: "left" or "right"
+```
+
+**Step 2.3.6: Update translation strings for ALL languages**
+
+Check which translations exist:
+```bash
+ls battery/taskname/translations/
+```
+
+**Update each translation file** (`-en.json`, `-es.json`, `-fr.json`, etc.):
+
+```json
+// BEFORE
+{
+  "HEADER": "Task Name - Trial 1",
+  "FOOTER": "<left shift> LEFT                    RIGHT <right shift>",
+  "INSTRUCTIONS": "Press LEFT SHIFT for left, RIGHT SHIFT for right."
+}
+
+// AFTER
+{
+  "HEADER": "Task Name - Trial 1",
+  "FOOTER": "LEFT                                    RIGHT",
+  "INSTRUCTIONS": "Press the LEFT response key for left, the RIGHT response key for right."
+}
+```
+
+**Key changes for ALL languages:**
+- Remove hardcoded key names from `FOOTER` (e.g., `"<left shift>"`, `"shift izquierdo"`)
+- Update `INSTRUCTIONS` to use generic "response key" language
+- Layout system adds actual response keys automatically below footer
+- Preserve semantic meanings in each language (LEFT/RIGHT → IZQUIERDA/DERECHA → KAIRĖ/DEŠINĖ)
+
+**Step 2.3.7: Verify data output format**
+
+Response values change from raw keys to semantic names:
+
+```
+BEFORE: 001,1,stimulus1,<lshift>,1,523
+AFTER:  001,1,stimulus1,left,1,523
+```
+
+This is EXPECTED and CORRECT. Analysis scripts may need minor updates.
+
+**Step 2.3.8: Test multiple response modes**
+
+**REQUIRED parameter files** (minimum):
+```bash
+battery/testname/params/testname-auto.par.json        # Platform-aware (REQUIRED)
+battery/testname/params/testname-userselect.par.json  # User-selected keys (REQUIRED for accessibility)
+```
+
+**Additional recommended parameter files** (test-dependent):
+```bash
+battery/testname/params/testname-keyboardSafe.par.json  # Z/slash (web-safe)
+battery/testname/params/testname-arrowLR.par.json       # Arrow keys
+battery/testname/params/testname-mousetarget.par.json   # Click targets
+battery/testname/params/testname-mousebutton.par.json   # Mouse buttons
+battery/testname/params/testname-touchtarget.par.json   # Large touch targets
+```
+
+**Example parameter file** (testname-auto.par.json):
+```json
+{
+  "responsemode": "auto"
+}
+```
+
+**Example parameter file** (testname-userselect.par.json):
+```json
+{
+  "responsemode": "userselect"
+}
+```
+
+**Test each mode:**
+```bash
+# Test auto mode (REQUIRED)
+bin/pebl2 battery/testname/testname.pbl --pfile battery/testname/params/testname-auto.par.json
+
+# Test userselect mode (REQUIRED)
+bin/pebl2 battery/testname/testname.pbl --pfile battery/testname/params/testname-userselect.par.json
+
+# Test additional modes
+bin/pebl2 battery/testname/testname.pbl --pfile battery/testname/params/testname-keyboardSafe.par.json
+bin/pebl2 battery/testname/testname.pbl --pfile battery/testname/params/testname-arrowLR.par.json
+```
+
+**Verify userselect mode:**
+- Test prompts user to select response keys
+- User can choose any two distinct keys
+- Selected keys are displayed in footer
+- Test works with selected keys
+- Data file records semantic responses (not raw keys)
+
+**Migration Checklist:**
+- [ ] Added responsemode to schema with "auto" as default
+- [ ] Set responsesemantics in code (NOT schema)
+- [ ] Created layout with CreateLayout()
+- [ ] Configured header/subheader/footer text
+- [ ] Updated MessageBox calls to fit stimulus region
+- [ ] Replaced gVideoWidth/2 and gVideoHeight/2 with gLayout.centerX/centerY
+- [ ] Replaced WaitForListKeyPress with WaitForLayoutResponse
+- [ ] Updated ALL translation files (not just English)
+- [ ] **REQUIRED**: Created testname-auto.par.json parameter file
+- [ ] **REQUIRED**: Created testname-userselect.par.json parameter file
+- [ ] Created additional parameter files for other modes (optional but recommended)
+- [ ] Tested auto mode works correctly (platform-aware selection)
+- [ ] Tested userselect mode prompts for key selection and works correctly
+- [ ] Tested additional response modes if parameter files created
+- [ ] Verified data output uses semantic names (not raw keys)
+
+**Reference implementations:**
+- Simple 2AFC: `battery/evenodd/evenodd.pbl`
+- With semantic labels: `battery/luckvogel/luckvogel.pbl`
+- Single-key (go/no-go): `battery/gonogo/gonogo.pbl`
+- See full guide: `doc/LAYOUT_MIGRATION_GUIDE.md`
+
+**For detailed migration examples, troubleshooting, and advanced patterns, see `doc/LAYOUT_MIGRATION_GUIDE.md`**
+
+---
+
+#### 2.4 Translation File Updates
 
 **For each translation file** (`translations/testname.pbl-*.json`):
 
@@ -544,7 +887,7 @@ positions <- MakeGrid(10, 10, gScreenWidth, gScreenHeight)
 **Compare native vs. online data**:
 ```bash
 # Run test natively
-bin/pebl2 battery/testname/testname.pbl -v subnum=001
+bin/pebl2 battery/testname/testname.pbl -s 001
 
 # Run test online
 # (via browser)
@@ -800,9 +1143,11 @@ Timing Validation:
 1. Add data upload call
 2. Update instructions
 3. Create schema file
-4. Test in browsers
+4. **Integrate Layout & Response System** (if 2AFC or single-key response)
+5. Create auto and userselect parameter files
+6. Test in browsers
 
-**Estimated time**: 1-2 hours
+**Estimated time**: 2-3 hours (includes Layout & Response migration)
 
 ### Pattern 2: Visual Stimuli Test (Images)
 
@@ -813,8 +1158,10 @@ Timing Validation:
 2. Preloading images
 3. Aspect ratio preservation
 4. Screen size adaptation
+5. **Layout & Response System integration** (if applicable)
+6. Create auto and userselect parameter files
 
-**Estimated time**: 2-4 hours
+**Estimated time**: 3-5 hours (includes Layout & Response migration if applicable)
 
 ### Pattern 3: Audio-Based Test
 
@@ -825,8 +1172,10 @@ Timing Validation:
 2. Autoplay restrictions
 3. Volume normalization
 4. Latency between keypress and sound
+5. **Layout & Response System integration** (if applicable)
+6. Create auto and userselect parameter files
 
-**Estimated time**: 3-5 hours
+**Estimated time**: 4-6 hours (includes Layout & Response migration if applicable)
 
 ### Pattern 4: Complex Multi-Modal Test
 
@@ -837,8 +1186,11 @@ Timing Validation:
 2. Performance optimization
 3. Extensive browser testing
 4. Timing validation
+5. **Layout & Response System integration** (if applicable)
+6. Create auto and userselect parameter files
+7. Test accessibility with userselect mode
 
-**Estimated time**: 4-8 hours
+**Estimated time**: 5-10 hours (includes Layout & Response migration if applicable)
 
 ---
 
@@ -1265,16 +1617,53 @@ jq '.data_output.files' PEBLOnlinePlatform/config/test-metadata/yourtest.json
 - Use `example-data-summary.txt` or similar for summary files
 - Prefix all example files with `example-` for clarity
 
-**Correct locations for example data** (TWO places, not three):
-1. `battery/testname/data/example-data.csv` - Source repository
-2. `PEBLOnlinePlatform/battery/testname/data/example-data.csv` - Web platform (committed to git)
+**Correct workflow for example data**:
+
+1. **Generate** example data by running test with subject code "example":
+   ```bash
+   bin/pebl2 battery/testname/testname.pbl -s example
+   # This creates: battery/testname/data/example/testname-example.csv
+   ```
+
+2. **Rename and move** to root of data/ directory with standard name:
+   ```bash
+   mv battery/testname/data/example/testname-example.csv \
+      battery/testname/data/example-data.csv
+   ```
+
+3. **Copy** to deployment locations (directly in data/, NOT in subdirectory):
+   ```bash
+   cp battery/testname/data/example-data.csv \
+      upload-battery/testname/data/example-data.csv
+
+   cp battery/testname/data/example-data.csv \
+      PEBLOnlinePlatform/testname/data/example-data.csv
+   ```
+
+**CRITICAL**: Example data must be placed **directly** in the `data/` directory, NOT in participant subdirectories like `data/example/` or `data/example-participant/`.
+
+**Final correct file placement**:
+- ✅ `battery/testname/data/example-data.csv` (directly in data/)
+- ✅ `upload-battery/testname/data/example-data.csv` (directly in data/)
+- ✅ `PEBLOnlinePlatform/testname/data/example-data.csv` (directly in data/)
+
+**Deployment script pattern matching**:
+- Files matching `example-*` are copied during deployment
+- Files matching `*-example-*` are also copied
+- All other files in `data/` directories are excluded
 
 **Verification**:
 ```bash
-# Check example data in correct location
-ls PEBLOnlinePlatform/battery/testname/data/example-data*
+# Check example data in correct locations (all directly in data/)
+ls battery/testname/data/example-data*
+ls upload-battery/testname/data/example-data*
+ls PEBLOnlinePlatform/testname/data/example-data*
 
-# Should NOT exist
+# Should NOT exist (subdirectory structure)
+ls upload-battery/testname/data/example/ 2>/dev/null  # Should not exist
+ls PEBLOnlinePlatform/testname/data/example/ 2>/dev/null  # Should not exist
+
+# Should NOT exist (public/ directory)
 ls PEBLOnlinePlatform/public/battery/testname/data/ 2>/dev/null
 # Should return "No such file or directory"
 ```
@@ -1365,6 +1754,268 @@ rsync -av \
 2. Manually copy to `PEBLOnlinePlatform/battery/testname/data/`
 3. Commit to PEBLOnlinePlatform git: `git add battery/testname/data/example-data*`
 4. Deploy script **ignores** all data/ directories (as it should)
+
+### Mistake 11: Incomplete PEBLOnlinePlatform Deployment Configuration
+
+**What happened (linejudgment migration - January 2026)**:
+- Successfully migrated test to PEBL 2.3 with Layout & Response System
+- Copied entire test directory to `PEBLOnlinePlatform/battery/linejudgment/`
+- Updated `config/library-tests.json` to register the test
+- Created comprehensive `config/test-metadata/linejudgment.json`
+- BUT: Web launcher couldn't find the test - error: "Test directory does not exist: /usr/local/share/pebl2/battery/linejudgment"
+- Missing critical configuration in `config/test_catalog.json`
+
+**Why this was wrong**:
+- PEBLOnlinePlatform uses a **bundle loading system** for web deployment
+- Tests are packaged into `.data` files and loaded on-demand
+- The launcher requires **TWO separate entries** in `test_catalog.json`:
+  1. **data_bundles entry**: Defines where to fetch the bundle file
+  2. **tests entry**: Associates the test ID with its bundle
+- Without both entries, the launcher doesn't know the bundle exists or how to load it
+- Simply copying files to `battery/` directory is insufficient - bundles must be explicitly configured
+
+**CRITICAL: Proper Development and Deployment Workflow**:
+
+**⚠️ IMPORTANT**: Deploy to `PEBLOnlinePlatform/` (NOT `/var/www/pebl/`)
+
+The correct workflow is:
+1. **Work in battery/ FIRST** - All development happens in the main repository
+2. **Complete ALL translations** - Update all language files before deployment
+3. **Test thoroughly** - Run and test the battery version extensively
+4. **THEN deploy to PEBLOnlinePlatform/** - Copy completed, tested code
+5. **Update configuration files** - All FOUR .json files in PEBLOnlinePlatform
+6. **Add example data** - Copy example data with standard naming
+
+**Never deploy incomplete or untranslated tests to PEBLOnlinePlatform.**
+
+**Complete deployment checklist for PEBLOnlinePlatform**:
+
+**Prerequisites** (must be completed in battery/ BEFORE deployment):
+- ✅ Test fully migrated to PEBL 2.3 (if applicable)
+- ✅ All translations completed and updated
+- ✅ Parameter files created (including -auto.par.json and -userselect.par.json)
+- ✅ Test thoroughly tested in battery/
+- ✅ Example data generated
+
+**Required PEBLOnlinePlatform configuration updates** (ALL FOUR required):
+1. `config/library-tests.json` - Register test in library
+2. `config/test-metadata/testname.json` - Complete test documentation
+3. `config/test_catalog.json` (data_bundles section) - Define bundle
+4. `config/test_catalog.json` (tests section) - Link test to bundle
+
+**Step 1: Copy test files from battery/ to PEBLOnlinePlatform/**
+```bash
+# Copy entire test directory from battery/ (NOT upload-battery/)
+cp -r battery/linejudgment/ PEBLOnlinePlatform/battery/linejudgment/
+
+# Verify all required files present
+ls PEBLOnlinePlatform/battery/linejudgment/linejudgment.pbl
+ls PEBLOnlinePlatform/battery/linejudgment/linejudgment.pbl.png
+ls PEBLOnlinePlatform/battery/linejudgment/params/*.par.json
+ls PEBLOnlinePlatform/battery/linejudgment/translations/*.json
+```
+
+**Step 2: Update library-tests.json (CONFIG FILE 1 of 4)**
+
+Add test entry in `PEBLOnlinePlatform/config/library-tests.json`:
+
+```json
+{
+  "id": "linejudgment",
+  "name": "Line Judgment Task",
+  "main_file": "linejudgment.pbl",
+  "path": "battery/linejudgment",
+  "category": "Processing Speed",
+  "available": true,
+  "estimated_minutes": 10
+}
+```
+
+**Step 3: Create comprehensive test metadata (CONFIG FILE 2 of 4)**
+
+Create `PEBLOnlinePlatform/config/test-metadata/linejudgment.json` with:
+- Complete overview section (brief_description, task_description, what_it_measures, cognitive_domains, duration_minutes, suitable_for)
+- Scientific background (references, validation_status)
+- **CRITICAL**: Complete data_output section with:
+  - summary
+  - files_created array (with filename and description for each output file)
+  - **key_variables array** documenting ALL CSV columns
+  - **sample_data_url** pointing to example data location
+- Parameters section referencing schema
+- Assets (screenshots, videos, demo_url)
+- Platform info (category, browser_compatibility, known_issues)
+- Related tests
+- Notes and tags
+- Sources
+
+**Step 4: ⚠️ CRITICAL - Update test_catalog.json with BOTH required entries (CONFIG FILES 3 & 4 of 4)**
+
+This is the step that's most often forgotten but **absolutely required** for web deployment.
+
+Edit `PEBLOnlinePlatform/config/test_catalog.json` and add **TWO separate entries** in different sections:
+
+**4a. Add data bundle entry (CONFIG FILE 3 of 4)** - in "data_bundles" section:
+```json
+"linejudgment": {
+  "file": "linejudgment.data",
+  "url": "/runtime/test-bundles/linejudgment.data",
+  "size_mb": 0.1,
+  "description": "Line Judgment Task - Speed-accuracy tradeoff task comparing line lengths (Henmon, 1910)",
+  "tests": [
+    "linejudgment"
+  ],
+  "base_url": "/runtime/test-bundles"
+}
+```
+
+**4b. Add test entry (CONFIG FILE 4 of 4)** - in "tests" section:
+```json
+"linejudgment": {
+  "id": "linejudgment",
+  "name": "Line Judgment Task",
+  "directory": "linejudgment",
+  "main_file": "linejudgment.pbl",
+  "screenshot": "battery/linejudgment/linejudgment.pbl.png",
+  "version": "1.0",
+  "collection": "basic_cognitive",
+  "data_bundle": "linejudgment",
+  "platform": [
+    "web",
+    "native"
+  ],
+  "visibility": "public",
+  "min_tier": "free",
+  "tags": [
+    "processing_speed",
+    "speed-accuracy-tradeoff",
+    "perception",
+    "visuospatial",
+    "classic",
+    "migrated-2.3"
+  ],
+  "size_mb": 0.1,
+  "duration_minutes": 10,
+  "copyright_status": "open",
+  "description": "Speed-accuracy tradeoff task where participants quickly discriminate which of two vertical lines is longer under varying deadline conditions. Based on Henmon (1910), measures the relationship between response time constraints and decision accuracy across progressively shorter deadlines (10s, 2s, 1s, 700ms, 500ms).",
+  "citation": "Henmon, V. A. C. (1911). The relation of the time of a judgment to its accuracy. Psychological Review, 18(3), 186-201."
+}
+```
+
+**Key fields to note**:
+- `collection`: Test collection (e.g., "basic_cognitive", "spatial_cognition")
+- `data_bundle`: **MUST match** the bundle name from data_bundles section
+- `tags`: List primary cognitive domain FIRST (e.g., "processing_speed")
+
+**Step 5: Create and copy example data files**
+
+Generate example data by running the test, then copy with **standard naming**:
+
+```bash
+# Run test to generate example data
+bin/pebl2 battery/linejudgment/linejudgment.pbl -s example-participant
+
+# Copy with standard names to PEBLOnlinePlatform
+cp battery/linejudgment/data/example-participant/linejudgment-data-example-participant.csv \
+   PEBLOnlinePlatform/battery/linejudgment/data/example-data.csv
+
+cp battery/linejudgment/data/example-participant/linejudgment-report-example-participant.txt \
+   PEBLOnlinePlatform/battery/linejudgment/data/example-data-report.txt
+```
+
+**Standard example data naming conventions**:
+- Primary data: `example-data.csv`
+- Summary report: `example-data-report.txt`
+- Additional files: `example-data-*.ext`
+- **Always** use `example-` prefix
+- Place in `battery/testname/data/` (NOT `public/battery/`)
+
+**Step 6: Document data format in test-metadata.json**
+
+Update the `key_variables` array with **ALL** CSV columns:
+
+```json
+"key_variables": [
+  {
+    "name": "subnum",
+    "description": "Participant identifier code"
+  },
+  {
+    "name": "block",
+    "description": "Block number (1-5 depending on numblocks parameter)"
+  },
+  {
+    "name": "trial",
+    "description": "Cumulative trial number across all blocks"
+  }
+  // ... document EVERY column ...
+],
+"sample_data_url": "battery/linejudgment/data/example-data.csv"
+```
+
+**Common deployment errors and solutions**:
+
+| Error | Symptom | Cause | Solution |
+|-------|---------|-------|----------|
+| Bundle not found | "Test directory does not exist" in console | Missing `test_catalog.json` entries | Add BOTH data_bundles and tests entries |
+| Test not in library | Test doesn't appear in test selection UI | Missing `library-tests.json` entry | Add test to library-tests.json |
+| No example data on test page | Sample data links don't work | Missing example files OR wrong `sample_data_url` | Copy example data with standard naming, update metadata |
+| Screenshot not showing | Broken image icon | Screenshot not copied OR wrong path | Copy .pbl.png to battery directory, verify path |
+| Incomplete metadata | Missing test information | Incomplete test-metadata.json | Fill in all required sections |
+
+**Verification commands**:
+
+```bash
+# 1. Verify test_catalog.json has both entries
+jq '.data_bundles.linejudgment' PEBLOnlinePlatform/config/test_catalog.json
+jq '.tests.linejudgment' PEBLOnlinePlatform/config/test_catalog.json
+
+# 2. Verify library registration
+jq '.tests[] | select(.id == "linejudgment")' PEBLOnlinePlatform/config/library-tests.json
+
+# 3. Verify metadata completeness
+jq '.data_output.key_variables | length' PEBLOnlinePlatform/config/test-metadata/linejudgment.json
+# Should show count matching number of CSV columns
+
+# 4. Verify example data exists
+ls PEBLOnlinePlatform/battery/linejudgment/data/example-data*
+
+# 5. Verify screenshot exists
+ls PEBLOnlinePlatform/battery/linejudgment/linejudgment.pbl.png
+```
+
+**Why this error is particularly problematic**:
+- The test appears to be "deployed" (files are in battery/ directory)
+- library-tests.json makes it visible in the UI
+- BUT: The web launcher **silently fails** to load the bundle
+- Browser console shows cryptic filesystem errors
+- Easy to miss if you don't check console logs
+- Can waste hours debugging before discovering the missing test_catalog.json entries
+
+**Lesson learned**:
+**PEBLOnlinePlatform deployment requires FOUR distinct configuration files**:
+1. `config/library-tests.json` - Makes test visible in library
+2. `config/test-metadata/testname.json` - Provides test documentation
+3. `config/test_catalog.json` (data_bundles section) - Defines bundle location
+4. `config/test_catalog.json` (tests section) - Associates test with bundle
+
+All four must be updated for successful web deployment.
+
+**📋 DEPLOYMENT WORKFLOW SUMMARY**:
+
+```
+✅ CORRECT WORKFLOW:
+1. Work in battery/ first - Complete development, translations, testing
+2. Copy completed test → PEBLOnlinePlatform/battery/
+3. Update ALL FOUR .json configuration files
+4. Add example data with standard naming
+5. Commit to PEBLOnlinePlatform git
+
+❌ WRONG APPROACHES:
+- Deploying to /var/www/ instead of PEBLOnlinePlatform/
+- Copying incomplete or untranslated code
+- Forgetting any of the four configuration files
+- Skipping example data or using wrong naming
+```
 
 ### Migration Pre-Flight Checklist
 
@@ -1523,15 +2174,27 @@ ls upload-battery/testname/data/example-data* 2>/dev/null || echo "No example da
 ## Summary
 
 Successful migration requires attention to:
-1. **Data upload** - Replace file writes with HTTP uploads
+1. **Data upload** - Add `InitializeUpload()` and `UploadFile()` calls
 2. **Instructions** - Remove offline language, update translations
-3. **Parameters** - Create complete schema files
-4. **Display** - Handle screen sizes and aspect ratios
-5. **Testing** - Verify across browsers and screen sizes
-6. **Documentation** - Update about files and create migration notes
+3. **Parameters** - Create complete schema files with responsemode
+4. **Layout & Response System** (PEBL 2.3+) - Integrate for 2AFC and single-key tasks
+5. **Response modes** - **ALWAYS include "auto" (default) and "userselect" (accessibility)**
+6. **Display** - Handle screen sizes and aspect ratios with layout zones
+7. **Testing** - Verify across browsers, screen sizes, and response modes
+8. **Documentation** - Update about files and create migration notes
 
-**Estimated timeline per test**: 1-8 hours depending on complexity
+**CRITICAL for PEBL 2.3 migrations:**
+- ✅ Set `"responsemode": "auto"` as default in schema
+- ✅ Always include "userselect" option for accessibility
+- ✅ Create `testname-auto.par.json` parameter file (REQUIRED)
+- ✅ Create `testname-userselect.par.json` parameter file (REQUIRED)
+- ✅ Test both modes to ensure they work correctly
 
-**Current status**: ~15 tests migrated, ~130 tests remaining
+**Estimated timeline per test**: 2-10 hours depending on complexity (includes Layout & Response migration)
 
-**Next steps**: Focus on Tier 1 high-priority tests first
+**Current status** (Jan 2026):
+- ~52 tests in upload-battery
+- 18 tests with Layout & Response System (35%)
+- ~34 priority tests ready for migration
+
+**Next steps**: Focus on Tier 1 high-priority tests (Phase 1: 10 tests for PEBL 2.3 release)

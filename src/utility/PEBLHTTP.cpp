@@ -959,6 +959,23 @@ PEBLHTTP::~PEBLHTTP()
 int PEBLHTTP::GetHTTPFile(Variant  filename,
 			  Variant savename)
 {
+  /////////////////////////////////////////////////////////////////////////
+  // WARNING: This function still uses emscripten_fetch() which may not work
+  //
+  // This function has not been updated to use JavaScript fetch() and may
+  // fail with HTTP status 0 errors in recent Emscripten versions (see
+  // GitHub issue #25811, Nov 2025).
+  //
+  // If this function is needed, it should be rewritten following the same
+  // pattern as:
+  //   - GetHTTPText() for text content with response.text()
+  //   - PostMulti() for binary content with response.arrayBuffer()
+  //
+  // This function is currently not used by any battery tests. It exists for
+  // downloading binary stimulus files (images, sounds, videos) from third-party
+  // sources without PEBL hosting them. Only used in Transfer.pbl GetFiles().
+  /////////////////////////////////////////////////////////////////////////
+
   // Set the basename url with protocol
   std::string protocol = "http://";
   if (mPort == 443) {
@@ -1002,49 +1019,118 @@ int PEBLHTTP::GetHTTPFile(Variant  filename,
  //This gets an http url and returns it as text
 std::string PEBLHTTP::GetHTTPText(Variant  filename)
 {
+  /////////////////////////////////////////////////////////////////////////
+  // IMPORTANT: Why we use JavaScript Fetch API instead of emscripten_fetch
+  //
+  // This implementation uses browser's native Fetch API via EM_ASM instead
+  // of Emscripten's emscripten_fetch API. This is necessary because:
+  //
+  // 1. Synchronous fetch broken: emscripten_fetch with EMSCRIPTEN_FETCH_SYNCHRONOUS
+  //    returns HTTP status 0 for same-origin requests (confirmed bug in
+  //    Emscripten 4.0.5-4.0.19, see GitHub issue #25811, Nov 2025).
+  //
+  // 2. Browser compatibility: Synchronous emscripten_fetch works in Chrome
+  //    (with warnings) but fails completely in Firefox and Safari.
+  //
+  // 3. Recommended pattern: Emscripten documentation recommends using JavaScript
+  //    fetch() with Asyncify for async operations in synchronous C++ code.
+  //
+  // 4. Asyncify: We use emscripten_sleep() in a busy-wait loop to handle the
+  //    async nature of fetch() while maintaining synchronous semantics expected
+  //    by PEBL code. This requires Asyncify to be enabled at compile time.
+  //
+  // See also: PostMulti() uses the same pattern for binary data handling.
+  /////////////////////////////////////////////////////////////////////////
+
   // Set the basename url with protocol
   std::string protocol = "http://";
   if (mPort == 443) {
     protocol = "https://";
   }
   Variant fname = Variant(protocol) + mHost + Variant(":") + Variant(mPort) + Variant(filename);
-
-  // Store URL as string to keep it alive during fetch
   std::string url_str = fname.GetString();
 
-   emscripten_fetch_attr_t attr;
-   emscripten_fetch_attr_init(&attr);
-   strcpy(attr.requestMethod, "GET");
-   attr.attributes = EMSCRIPTEN_FETCH_LOAD_TO_MEMORY | EMSCRIPTEN_FETCH_SYNCHRONOUS;
+  printf("GetHTTPText: Fetching URL via JavaScript fetch(): [%s]\n", url_str.c_str());
 
-  attr.onsuccess = uploadSucceeded;
-  attr.onerror = uploadFailed;
+  // Initialize JavaScript completion flags
+  EM_ASM({
+    Module._js_get_complete = 0;
+    Module._js_get_status = 0;
+    Module._js_get_response = '';
+  });
 
+  // Use JavaScript's Fetch API directly
+  EM_ASM_INT({
+    var url = UTF8ToString($0);
 
-   emscripten_fetch_t *fetch;
-   fetch = emscripten_fetch(&attr, url_str.c_str());
-   mStatus = fetch->status;
+    // Perform GET request with JavaScript fetch
+    fetch(url, {
+      method: 'GET'
+    })
+    .then(response => {
+      Module._js_get_status = response.status;
+      return response.text();
+    })
+    .then(text => {
+      Module._js_get_response = text;
+      Module._js_get_complete = 1;
+    })
+    .catch(error => {
+      console.error('GET error:', error);
+      Module._js_get_status = 0;
+      Module._js_get_complete = -1;
+    });
 
-   //The data is now available at fetch->data[0] through fetch->data[fetch->numBytes-1];
+    return 0;
+  }, url_str.c_str());
 
-   printf("%lu bytes retrieved\n", (long)(fetch->numBytes));
+  // Busy-wait for JavaScript fetch to complete (requires Asyncify)
+  int wait_count = 0;
+  int js_complete = 0;
+  while (js_complete == 0) {
+    js_complete = EM_ASM_INT({
+      return Module._js_get_complete || 0;
+    });
 
-   char *p = (char*)malloc((fetch->numBytes+ 1 ) );
+    if (js_complete == 0) {
+      emscripten_sleep(50);  // Sleep 50ms between checks
+      wait_count++;
+      if (wait_count > 600) {  // 30 second timeout
+        printf("GetHTTPText: Request timeout after 30 seconds\n");
+        mStatus = 0;
+        return "";
+      }
+    }
+  }
 
-    for(int i = 0; i < fetch->numBytes; ++i)
-      p[i] = fetch->data[i];
-    p[fetch->numBytes+1] = '\0';
+  // Get HTTP status from JavaScript
+  mStatus = EM_ASM_INT({
+    return Module._js_get_status || 0;
+  });
 
+  if (js_complete < 0) {
+    printf("GetHTTPText: Request failed\n");
+    return "";
+  }
 
-    mText = std::string(p);
+  // Get response text from JavaScript
+  char* response_text = (char*)EM_ASM_INT({
+    var text = Module._js_get_response || '';
+    var len = lengthBytesUTF8(text) + 1;
+    var buffer = _malloc(len);
+    stringToUTF8(text, buffer, len);
+    return buffer;
+  });
 
-    free(p);
-    p=NULL;
+  if (response_text) {
+    mText = std::string(response_text);
+    printf("%lu bytes retrieved\n", (unsigned long)mText.length());
+    free(response_text);
+  } else {
+    mText = "";
+  }
 
-   emscripten_fetch_close(fetch);
-
-   return mText;
-
+  return mText;
 }
 
 
@@ -1054,6 +1140,20 @@ Variant PEBLHTTP::PostHTTP(Variant pagename,
 			   Variant uploadname)
 
 {
+  /////////////////////////////////////////////////////////////////////////
+  // WARNING: This function still uses emscripten_fetch() which may not work
+  //
+  // This function has not been updated to use JavaScript fetch() and may
+  // fail with HTTP status 0 errors in recent Emscripten versions (see
+  // GitHub issue #25811, Nov 2025).
+  //
+  // If this function is needed, it should be rewritten following the same
+  // pattern as GetHTTPText() and PostMulti() which use JavaScript fetch()
+  // with Asyncify.
+  //
+  // This function is currently not used anywhere in PEBL code. File uploads
+  // use PostHTTPFile() which internally calls PostMulti() (already fixed).
+  /////////////////////////////////////////////////////////////////////////
 
 
   //set the basename url:

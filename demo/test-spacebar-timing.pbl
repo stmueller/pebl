@@ -1,0 +1,93 @@
+## Simple test for space bar press/release timing
+## Tests WaitForKeyDown and WaitForKeyUp reliability
+
+define Start(p)
+{
+    gWin <- MakeWindow("grey40")
+    gSleepEasy <- 1
+
+    gFont <- MakeFont(gPEBLBaseFont, 0, 20, MakeColor("white"), MakeColor("grey40"), 1)
+
+    instructions <- "Space Bar Timing Test" + CR(2) +
+                   "When you see a word:" + CR(1) +
+                   "  1. Press and HOLD space bar when you START speaking" + CR(1) +
+                   "  2. Release space bar when you FINISH speaking" + CR(2) +
+                   "We will measure the timing of press and release events." + CR(2) +
+                   "Press any key to begin"
+
+    instrBox <- EasyTextBox(instructions, gVideoWidth/2-300, gVideoHeight/2-150, gWin, 18, 600, 300)
+    Draw()
+    WaitForAnyKeyPress()
+    RemoveObject(instrBox, gWin)
+    Draw()
+
+    ## Test words with different phonetic onsets
+    words <- ["WISCONSIN", "SUSPECT", "CHRISTMAS", "HARMONY", "APARTMENT"]
+
+    loop(word, words)
+    {
+        TestWord(word, gWin)
+    }
+
+    ## Summary
+    summary <- "Test Complete!" + CR(2) +
+              "The timing events worked correctly if you saw:" + CR(1) +
+              "  - Press time recorded when you pressed space" + CR(1) +
+              "  - Release time recorded when you released space" + CR(1) +
+              "  - Duration calculated correctly" + CR(2) +
+              "Press any key to exit"
+
+    summaryBox <- EasyTextBox(summary, gVideoWidth/2-300, gVideoHeight/2-100, gWin, 18, 600, 200)
+    Draw()
+    WaitForAnyKeyPress()
+}
+
+define TestWord(word, win)
+{
+    ## Show the word
+    wordLabel <- MakeLabel(word, gFont)
+    Move(wordLabel, gVideoWidth/2, gVideoHeight/2)
+    AddObject(wordLabel, win)
+
+    promptLabel <- MakeLabel("Press and hold SPACE when you start saying this word", gFont)
+    Move(promptLabel, gVideoWidth/2, gVideoHeight/2 + 100)
+    AddObject(promptLabel, win)
+
+    Draw()
+
+    ## Wait for space bar press
+    Print("Waiting for space")
+    WaitForKeyDown(" ")
+    Print("space pressed")
+    pressTime <- GetTime()
+
+    ## Update prompt
+    SetText(promptLabel, "Release SPACE when you finish speaking")
+    Draw()
+
+    ## Wait for space bar release
+    WaitForKeyUp(" ")
+    releaseTime <- GetTime()
+
+    ## Calculate duration
+    duration <- releaseTime - pressTime
+
+    ## Show results
+    RemoveObject(wordLabel, win)
+    RemoveObject(promptLabel, win)
+
+    resultText <- "Word: " + word + CR(1) +
+                 "Press time: " + pressTime + " ms" + CR(1) +
+                 "Release time: " + releaseTime + " ms" + CR(1) +
+                 "Duration: " + duration + " ms" + CR(2) +
+                 "Press any key for next word"
+
+    resultBox <- EasyTextBox(resultText, gVideoWidth/2-250, gVideoHeight/2-100, win, 18, 500, 200)
+    Draw()
+    WaitForAnyKeyPress()
+    RemoveObject(resultBox, win)
+    Draw()
+
+    ## Print to console for debugging
+    Print("Word: " + word + " | Press: " + pressTime + " | Release: " + releaseTime + " | Duration: " + duration)
+}

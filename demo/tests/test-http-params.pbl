@@ -1,0 +1,43 @@
+## Test HTTP parameter loading from localhost API
+## This tests if FetchText() and GetHTTPText() work correctly in native build
+
+define Start(p)
+{
+    Print("Testing HTTP parameter fetch from localhost...")
+    Print("-----------------------------------------------")
+
+    ## Test 1: Direct FetchText() call with full URL
+    Print("")
+    Print("Test 1: FetchText with clocktest variant=aaa")
+    url <- "http://localhost:8080/api/params.php?token=STUDY_EF3945A472CB2932CBC49C070E4DE2E1&test=clocktest&variant=aaa"
+    Print("URL: " + url)
+
+    result <- FetchText(url)
+    Print("Result length: " + StringLength(result))
+    Print("Result: " + result)
+
+    ## Test 2: pcpt-ax variant=butter
+    Print("")
+    Print("Test 2: FetchText with pcpt-ax variant=butter")
+    url2 <- "http://localhost:8080/api/params.php?token=STUDY_EF3945A472CB2932CBC49C070E4DE2E1&test=pcpt-ax&variant=butter"
+    Print("URL: " + url2)
+
+    result2 <- FetchText(url2)
+    Print("Result length: " + StringLength(result2))
+    Print("Result: " + result2)
+
+    ## Test 3: custom_simon variant=mousekey
+    Print("")
+    Print("Test 3: FetchText with custom_simon variant=mousekey")
+    url3 <- "http://localhost:8080/api/params.php?token=STUDY_EF3945A472CB2932CBC49C070E4DE2E1&test=custom_simon&variant=mousekey"
+    Print("URL: " + url3)
+
+    result3 <- FetchText(url3)
+    Print("Result length: " + StringLength(result3))
+    Print("Result: " + result3)
+
+    Print("")
+    Print("-----------------------------------------------")
+    Print("All tests complete. Press any key to exit.")
+    WaitForAnyKeyPress()
+}

@@ -1,0 +1,48 @@
+## Test PrintProperties() recursive function
+## Tests: basic printing, nested objects, depth limiting, circular reference detection
+
+define Start(p)
+{
+
+  gWin <- MakeWindow()
+    Print("=== TEST 1: Simple object (non-recursive) ===")
+    font1 <- MakeFont(gPEBLBaseFont, 0, 24, MakeColor("red"), MakeColor("white"), 1)
+    PrintProperties(font1, 0)  ## Non-recursive - same as compiled version
+    Print("")
+
+    Print("=== TEST 2: Simple object (recursive, but no nested objects) ===")
+    PrintProperties(font1, 1)  ## Recursive, but font has no nested custom objects
+    Print("")
+
+    Print("=== TEST 3: Nested objects (default recursive depth 5) ===")
+    label1 <- EasyLabel("Test Label", 100, 100, gWin, 18)
+    PrintProperties(label1)  ## Should show font property as nested object
+    Print("")
+
+    Print("=== TEST 4: Nested objects with custom depth limit (depth 2) ===")
+    label2 <- EasyLabel("Another Label", 200, 200, gWin, 24)
+    PrintProperties(label2, 1, 2)  ## Max depth of 2
+    Print("")
+
+    Print("=== TEST 5: Circular reference detection ===")
+    ## Create two custom objects that reference each other
+    obj1 <- MakeCustomObject("obj1")
+    obj2 <- MakeCustomObject("obj2")
+    SetProperty(obj1, "name", "Object 1")
+    SetProperty(obj1, "partner", obj2)
+    SetProperty(obj2, "name", "Object 2")
+    SetProperty(obj2, "partner", obj1)  ## Circular reference!
+
+    PrintProperties(obj1)  ## Should detect circular reference
+    Print("")
+
+    Print("=== TEST 6: Comparing to compiled version ===")
+    Print("Compiled version (prefix with :):")
+    :PrintProperties(font1)
+    Print("")
+    Print("Interpreted version (defaults to recursive:1):")
+    PrintProperties(font1)
+    Print("")
+
+    Print("=== All tests complete! ===")
+}

@@ -30,15 +30,18 @@
 
  define Start(p)
 {
-
+  ## Initialize upload system (works for both online and native)
+  InitializeUpload()
 
   parpairs <- [["size",6], #Number of rows/columns in the matrix
                ["givefeedback",1], ##whether to give feedback
 	       ["condsize",10], ##number of trials of each same/different
-	       ["squaresize",300]] ##size of display square, in pixels.
-
+	       ["squaresize",300], ##size of display square, in pixels.
+               ["numpractice",6], ##number of practice trials (3 same, 3 diff)
+               ["responsemode","keyboardShift"]]  ##Response mode for Layout & Response System
 
   gParams <-CreateParameters(parpairs,gParamFile)
+  gParams.responsesemantics <- "2afc"  ## Two-alternative forced choice (Same vs Different matrix comparison)
 
   gSize <- gParams.size
   giveFeedback <- gParams.givefeedback
@@ -56,6 +59,12 @@
 
   GetStrings(gLanguage)
 
+  ## Create layout with response system AFTER GetSubNum
+  gParams.responselabels <- [gStrings.same, gStrings.different]
+  gLayout <- CreateLayout("matrixrotation", gWin, gParams)
+  gLayout.header.visible <- 0
+  gLayout.subheader.visible <- 0
+  gLayout.footer.visible <- 0
 
   gLinecolor <- MakeColor("Black")
   gCellempty <- MakeColor("grey20")
@@ -63,88 +72,93 @@
 
 
   gFileOut <- GetNewDataFile(gSubNum,gWin,"matrot","csv",
-        "subnum,trial,samediff,dir,mat1,mat2,studytime,rt,resp,corr")
+        "subnum,trial,practice,samediff,dir,mat1,mat2,studytime,rt,resp,corr")
 
   instruc <- gStrings.instruc
 
   inst1 <-  gStrings.inst1
-  inst2 <-  gStrings.inst2
-
-  gFooter <- EasyLabel(inst2,gVideoWidth/2,gVideoHeight-120,gWin,24)
 
   ##Provide initial instructions
-  inst <- EasyTextBox(instruc,50,50,gWin,16,gVideoWidth-100,gVideoHeight-200)
+  ## Position in header/subheader region, max 1000px wide or window width - 50
+  instWidth <- Min([1000, gVideoWidth-50])
+  instHeight <- gLayout.stimulusRegion.y - 20  ## Height of header+subheader region
+  inst <- AdaptiveTextBox(instruc, gVideoWidth/2 - instWidth/2, 10, gWin, 20, instWidth, instHeight, "scalefont")
+
+  ## Show example stimuli in stimulus region
+  ## Create a sample matrix for demonstration
+  exampleMatrix <- MakeMatrix(gSize)
+
+  ## Display two examples side-by-side: same (rotated) and different (foil)
+  leftX <- gLayout.centerX - 200
+  rightX <- gLayout.centerX + 200
+  centerY <- gLayout.centerY
+
+  ## Example 1: SAME (left side) - show original and rotated version
+  exampleRotated <- RotateMatrix(exampleMatrix, "<right>")
+  exampleLeft <- DisplayMatrixAt(exampleMatrix, leftX - 80, centerY - 50, 150)
+  exampleLeftRotated <- DisplayMatrixAt(exampleRotated, leftX + 80, centerY - 50, 150)
+
+  ## Example 2: DIFFERENT (right side) - show original and foil
+  exampleFoil <- MakeFoil(exampleMatrix)
+  exampleRight <- DisplayMatrixAt(exampleMatrix, rightX - 80, centerY - 50, 150)
+  exampleRightFoil <- DisplayMatrixAt(exampleFoil, rightX + 80, centerY - 50, 150)
+
+  ## Labels
+  sameLabel <- EasyLabel("SAME (rotated)", leftX, centerY + 100, gWin, 18)
+  diffLabel <- EasyLabel("DIFFERENT (changed)", rightX, centerY + 100, gWin, 18)
+
   Draw()
 
-  conds <- Shuffle(Merge(Repeat("same",condsize),
-                          Repeat("diff",condsize)))
-  WaitForAnyKeyPress()
+  WaitForLayoutResponse(gLayout, 0)
+
+  ## Remove example stimuli
+  RemoveComplex(exampleLeft, gWin)
+  RemoveComplex(exampleLeftRotated, gWin)
+  RemoveComplex(exampleRight, gWin)
+  RemoveComplex(exampleRightFoil, gWin)
+  RemoveObject(sameLabel, gWin)
+  RemoveObject(diffLabel, gWin)
   Hide(inst)
   Draw()
 
-  ## Print file header
+  ## Practice trials
+  if(gParams.numpractice > 0)
+  {
+    practiceConds <- Shuffle(Merge(Repeat("same",gParams.numpractice/2),
+                                    Repeat("diff",gParams.numpractice/2)))
+    trial <- 1
+    loop(cond, practiceConds)
+    {
+      RunTrial(cond, trial, 1, inst1, giveFeedback)
+      trial <- trial + 1
+    }
 
+    ## Pause before main block
+    inst.text <- gStrings.practiceComplete
+    Show(inst)
+    Draw()
+    WaitForLayoutResponse(gLayout, 0)
+    Hide(inst)
+  }
+
+  ## Main trials
+  conds <- Shuffle(Merge(Repeat("same",condsize),
+                          Repeat("diff",condsize)))
 
   trial <- 1
   loop(cond,conds)
    {
-
-   ##Create test matrix
-   matrix <- MakeMatrix(gSize)
-
-   ##Choose the rotation direction for test matrix.
-   dir <- Sample(["<right>","<left>"])
-
-   starttime <- GetTime()
-   FilePrint_(gFileOut,gsubnum + "," + trial + "," + cond + "," + dir + "," )
-
-   if(cond =="same")
-    {
-      alt <- matrix
-    } else {
-      alt <- MakeFoil(matrix)
-    }
-    #Create the test matrix
-    test <- RotateMatrix(alt,dir)
-
-    FilePrint_(gFileOut,ConcatenateList(Flatten(matrix),",") + ",")
-    FilePrint_(gFileOut,ConcatenateList(Flatten(test),",")   + ",")
-
- ##Present the study matrix
-    gFooter.text <- inst1
-    x <- DisplayMatrix(matrix)
-    Draw()
-    WaitForAnyKeyPress()
-    t1 <- GetTime()
-    RemoveComplex(x,gWin)
-
- ## Present the test matrix
-    gFooter.text <- inst2
-    x <- DisplayMatrix(test)
-    Draw()
-    resp <- WaitForListKeyPress(["<lshift>","<rshift>"])
-    RemoveComplex(x,gWin)
-    t2 <- GetTime()
-
-    corr <- (resp == Lookup(cond,["same","diff"],["<lshift>","<rshift>"]))
-    FilePrint(gFileOut,(t1-starttime) + "," + (t2-t1) + "," + resp + "," + corr)
-
-    if(giveFeedback)
-    {
-        if(corr)
-        {
-         gFooter.text <- gStrings.correct
-        } else {
-         gFooter.text <- gStrings.incorrect
-        }
-     Draw()
-     Wait(800)
-
-
-    }
-    trial <- trial +1
+     RunTrial(cond, trial, 0, inst1, giveFeedback)
+     trial <- trial +1
    }
-   MessageBox(gStrings.debrief,gWin)
+
+   inst.text <- gStrings.debrief
+   Show(inst)
+   Draw()
+   WaitForLayoutResponse(gLayout, 0)
+
+  ## Upload data files (works online, no-op on native)
+  UploadFile(gSubNum, gFileOut)
 
 }
 
@@ -210,6 +224,65 @@ define DisplayMatrix(mat)
   loop(i,Sequence(0,ycells,1))
    {
 
+    l <- Line(left+xjump*i,upper,0,ysize,gLinecolor)
+    AddObject(l,gWin)
+    complex <- Append(complex,l)
+   }
+ return complex
+}
+
+## DisplayMatrixAt - display matrix at specific location and size
+define DisplayMatrixAt(mat, xcenter, ycenter, size)
+{
+   xcells <- Length(mat)
+   ycells <- Length(First(mat))
+
+   xsize <- size
+   ysize <- size
+
+   upper <- ycenter-ysize/2
+   lower <- ycenter+ysize/2
+   left <- xcenter-xsize/2
+   right <- xcenter+xsize/2
+
+   xjump <- xsize/xcells
+   yjump <- ysize/ycells
+
+  complex <- []
+
+  ##draw the background square
+  back <- Rectangle(xcenter,ycenter,xsize,ysize,gcellempty,1)
+  AddObject(back,gWin)
+  complex <- Append(complex,back)
+
+  ##Draw the 'present' cells
+   row <- 1
+   loop(line, mat)
+     {
+        col <- 1
+        loop(cell,line)
+         {
+           if(cell==1)
+           {
+             x <- Rectangle(left+(col-.5)*xjump,upper+(row-.5)*yjump,xjump,yjump,gCellFull,1)
+             AddObject(x,gWin)
+             complex <- Append(complex,x)
+           }
+           col <- col +1
+         }
+      row <- row + 1
+     }
+
+  ##Finally, draw lines on top
+  loop(i,Sequence(0,xcells,1))
+  {
+    l <- Line(left,upper+yjump*i,xsize,0,gLinecolor)
+    AddObject(l,gWin)
+    complex <- Append(complex,l)
+  }
+
+  loop(i,Sequence(0,ycells,1))
+   {
     l <- Line(left+xjump*i,upper,0,ysize,gLinecolor)
     AddObject(l,gWin)
     complex <- Append(complex,l)
@@ -348,8 +421,103 @@ define CheckMatrix(list)
 
 
 
+## RunTrial - Execute a single trial of the matrix rotation task
+define RunTrial(cond, trialNum, isPractice, inst1, giveFeedback)
+{
+   ##Create test matrix
+   matrix <- MakeMatrix(gSize)
+
+   ##Choose the rotation direction for test matrix.
+   dir <- Sample(["<right>","<left>"])
+
+   starttime <- GetTime()
+   FilePrint_(gFileOut,gSubNum + "," + trialNum + "," + isPractice + "," + cond + "," + dir + "," )
+
+   if(cond =="same")
+    {
+      alt <- matrix
+    } else {
+      alt <- MakeFoil(matrix)
+    }
+    #Create the test matrix
+    test <- RotateMatrix(alt,dir)
+
+    FilePrint_(gFileOut,ConcatenateList(Flatten(matrix),",") + ",")
+    FilePrint_(gFileOut,ConcatenateList(Flatten(test),",")   + ",")
+
+ ##Present the study matrix
+    gLayout.footer.visible <- 1
+    gLayout.footer.text <- inst1
+
+    ## For mouse/touch modes, hide response targets during study matrix
+    isMouseMode <- IsMember(gParams.responsemode, ["mouseTarget", "touchTarget", "mouseButton"])
+    if(isMouseMode)
+    {
+      loop(label, gLayout.responseLabels)
+      {
+        Hide(label)
+      }
+      loop(border, gLayout.responseBorders)
+      {
+        Hide(border)
+      }
+    }
+
+    x <- DisplayMatrix(matrix)
+    Draw()
+
+    ## For mouse/touch modes, wait for any click; otherwise wait for proper response
+    if(isMouseMode)
+    {
+      WaitForMouseButton()
+    } else {
+      WaitForLayoutResponse(gLayout, 0)
+    }
+
+    t1 <- GetTime()
+    RemoveComplex(x,gWin)
+
+    ## For mouse/touch modes, show response targets again for test matrix
+    if(isMouseMode)
+    {
+      loop(label, gLayout.responseLabels)
+      {
+        Show(label)
+      }
+      loop(border, gLayout.responseBorders)
+      {
+        Show(border)
+      }
+    }
+
+ ## Present the test matrix
+    gLayout.footer.text <- ""
+    x <- DisplayMatrix(test)
+    Draw()
+    resp <- WaitForLayoutResponse(gLayout, 0)
+    RemoveComplex(x,gWin)
+    t2 <- GetTime()
+
+    corr <- (resp == Lookup(cond,["same","diff"],["left","right"]))
+    FilePrint(gFileOut,(t1-starttime) + "," + (t2-t1) + "," + resp + "," + corr)
+
+    if(giveFeedback)
+    {
+        feedbackText <- gStrings.incorrect
+        if(corr)
+        {
+         feedbackText <- gStrings.correct
+        }
+        feedbackLabel <- EasyLabel(feedbackText, gVideoWidth/2, gVideoHeight/2, gWin, 64)
+        Draw()
+        Wait(800)
+        RemoveObject(feedbackLabel, gWin)
+    }
+}
+
+
 define GetStrings(lang)
 {
   gStrings <- GetTranslations("matrixrotation",lang)
-  
+
 }

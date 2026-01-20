@@ -158,6 +158,36 @@ std::string LauncherConfig::DetectPEBLInstallation() const
 {
     struct stat st;
 
+    // Check for portable mode first (PEBL subdirectory in current working directory)
+    // This matches the old launcher.pbl behavior
+#ifdef _WIN32
+    const char* peblDir = "PEBL";
+    const char* peblBattery = "PEBL\\battery";
+    const char* parentPeblDir = "..\\PEBL";
+    const char* parentPeblBattery = "..\\PEBL\\battery";
+#else
+    const char* peblDir = "PEBL";
+    const char* peblBattery = "PEBL/battery";
+    const char* parentPeblDir = "../PEBL";
+    const char* parentPeblBattery = "../PEBL/battery";
+#endif
+
+    if (stat(peblDir, &st) == 0 && S_ISDIR(st.st_mode)) {
+        // Check for PEBL/battery subdirectory
+        if (stat(peblBattery, &st) == 0 && S_ISDIR(st.st_mode)) {
+            printf("Found PEBL battery in portable mode: %s\n", peblBattery);
+            return peblBattery;
+        }
+    }
+
+    // Check parent directory for PEBL (if launcher is in a subdirectory)
+    if (stat(parentPeblDir, &st) == 0 && S_ISDIR(st.st_mode)) {
+        if (stat(parentPeblBattery, &st) == 0 && S_ISDIR(st.st_mode)) {
+            printf("Found PEBL battery in portable mode: %s\n", parentPeblBattery);
+            return parentPeblBattery;
+        }
+    }
+
 #ifdef _WIN32
     // On Windows, use GetModuleFileName to find the launcher's location
     char exePath[MAX_PATH];
@@ -170,7 +200,7 @@ std::string LauncherConfig::DetectPEBLInstallation() const
         if (lastSep != std::string::npos) {
             std::string exeDir = exePathStr.substr(0, lastSep);
 
-            // Check for battery in same directory (portable mode)
+            // Check for battery in same directory (non-portable installed mode)
             std::string batteryPath = exeDir + "\\battery";
             if (stat(batteryPath.c_str(), &st) == 0 && S_ISDIR(st.st_mode)) {
                 printf("Found PEBL battery at: %s\n", batteryPath.c_str());

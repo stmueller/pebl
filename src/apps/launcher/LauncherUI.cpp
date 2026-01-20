@@ -1971,24 +1971,24 @@ void LauncherUI::ShowSettingsDialog()
 
                 ImGui::Spacing();
 
-                // Data output path
-                ImGui::Text("Data Output Path:");
+                // PEBL executable path
+                ImGui::Text("PEBL Executable Path:");
                 if (ImGui::IsItemHovered()) {
-                    ImGui::SetTooltip("Default location for test data files");
+                    ImGui::SetTooltip("Location of the pebl2 executable (auto-detected on startup)");
                 }
-                char dataPath[512];
-                std::strncpy(dataPath, mConfig->GetDataOutputPath().c_str(), sizeof(dataPath) - 1);
-                dataPath[sizeof(dataPath) - 1] = '\0';
+                char peblExePath[512];
+                std::strncpy(peblExePath, mConfig->GetPeblExecutablePath().c_str(), sizeof(peblExePath) - 1);
+                peblExePath[sizeof(peblExePath) - 1] = '\0';
                 ImGui::PushItemWidth(-100);
-                if (ImGui::InputText("##DataPath", dataPath, sizeof(dataPath))) {
-                    mConfig->SetDataOutputPath(dataPath);
+                if (ImGui::InputText("##PeblExePath", peblExePath, sizeof(peblExePath))) {
+                    mConfig->SetPeblExecutablePath(peblExePath);
                 }
                 ImGui::PopItemWidth();
                 ImGui::SameLine();
-                if (ImGui::Button("Browse##Data")) {
-                    std::string path = OpenDirectoryDialog("Select Data Output Directory");
+                if (ImGui::Button("Browse##PeblExe")) {
+                    std::string path = OpenFileDialog("Select PEBL Executable");
                     if (!path.empty()) {
-                        mConfig->SetDataOutputPath(path);
+                        mConfig->SetPeblExecutablePath(path);
                     }
                 }
 
@@ -2786,7 +2786,7 @@ void LauncherUI::RunTest()
     }
 
     // Create new experiment runner
-    mRunningExperiment = new ExperimentRunner();
+    mRunningExperiment = new ExperimentRunner(mConfig);
     bool success = mRunningExperiment->RunExperiment(exp.path, args,
                                                       mSubjectCode,
                                                       mLanguageCode,
@@ -3076,7 +3076,7 @@ void LauncherUI::ExecuteChainItem(int index)
            item.GetDisplayName().c_str(), itemIndex + 1);
 
     // Create new experiment runner
-    mRunningExperiment = new ExperimentRunner();
+    mRunningExperiment = new ExperimentRunner(mConfig);
 
     if (item.type == ItemType::Test) {
         // Execute test item - look up test from study to get correct path
@@ -3208,7 +3208,7 @@ void LauncherUI::TestChainItem(int index)
     printf("Test running chain item: %s\n", item.GetDisplayName().c_str());
 
     // Create new experiment runner
-    mRunningExperiment = new ExperimentRunner();
+    mRunningExperiment = new ExperimentRunner(mConfig);
 
     if (item.type == ItemType::Test) {
         // Execute test item - look up test from study to get correct path
@@ -5904,7 +5904,7 @@ void LauncherUI::RenderQuickLaunchTab()
         }
 
         // Run the experiment
-        mRunningExperiment = new ExperimentRunner();
+        mRunningExperiment = new ExperimentRunner(mConfig);
         bool success = mRunningExperiment->RunExperiment(mQuickLaunchPath, args,
                                                           mSubjectCode, mLanguageCode,
                                                           mFullscreen);

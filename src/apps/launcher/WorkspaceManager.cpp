@@ -49,7 +49,13 @@ WorkspaceManager::~WorkspaceManager() {
 }
 
 bool WorkspaceManager::IsPortableMode() const {
-    // Check for PORTABLE marker file in executable directory
+    // Check for PEBL subdirectory (matching old launcher.pbl behavior)
+    // This indicates a portable/no-install PEBL distribution
+    if (DirectoryExists("./PEBL") || DirectoryExists("../PEBL")) {
+        return true;
+    }
+
+    // Also check for PORTABLE marker file for backwards compatibility
     if (DirectoryExists("./PORTABLE") || DirectoryExists("../PORTABLE")) {
         return true;
     }

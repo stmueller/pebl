@@ -9,9 +9,12 @@
 #include <vector>
 #include <ctime>
 
+class LauncherConfig;
+
 class ExperimentRunner {
 public:
     ExperimentRunner();
+    ExperimentRunner(LauncherConfig* config);
     ~ExperimentRunner();
 
     // Run an experiment with given arguments
@@ -52,6 +55,7 @@ private:
                    const std::string& language, bool fullscreen);
     void LogCompletion(int exitStatus);
 
+    LauncherConfig* mConfig;  // Optional config for executable path
     bool mIsRunning;
     std::time_t mLaunchTime;
     std::string mCurrentScript;

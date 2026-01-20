@@ -3,6 +3,7 @@
 // Licensed under GPL
 
 #include "ExperimentRunner.h"
+#include "LauncherConfig.h"
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
@@ -21,7 +22,28 @@
 #endif
 
 ExperimentRunner::ExperimentRunner()
-    : mIsRunning(false)
+    : mConfig(nullptr)
+    , mIsRunning(false)
+    , mProcessId(0)
+    , mLaunchTime(0)
+    , mCurrentFullscreen(false)
+    , mExitCode(-1)
+{
+#ifdef _WIN32
+    mProcessHandle = nullptr;
+    mStdoutPipe = nullptr;
+    mStderrPipe = nullptr;
+#else
+    mStdoutPipe[0] = -1;
+    mStdoutPipe[1] = -1;
+    mStderrPipe[0] = -1;
+    mStderrPipe[1] = -1;
+#endif
+}
+
+ExperimentRunner::ExperimentRunner(LauncherConfig* config)
+    : mConfig(config)
+    , mIsRunning(false)
     , mProcessId(0)
     , mLaunchTime(0)
     , mCurrentFullscreen(false)
@@ -48,6 +70,15 @@ ExperimentRunner::~ExperimentRunner()
 
 std::string ExperimentRunner::GetPEBLExecutablePath() const
 {
+    // Check config first if available
+    if (mConfig) {
+        std::string configPath = mConfig->GetPeblExecutablePath();
+        if (!configPath.empty()) {
+            return configPath;
+        }
+    }
+
+    // Fall back to auto-detection
 #ifdef _WIN32
     // Windows: Look for pebl2.exe in same directory as launcher or in PATH
     char exePath[MAX_PATH];

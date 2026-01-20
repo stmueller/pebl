@@ -26,7 +26,7 @@
 ##target trials. The proportion of target trials answered correctly served as the dependent measure.
 
 
- ## sample with paper calibration--56 px stimulus size
+## sample with paper calibration--56 px stimulus size
 ##scale (pixels/cm):         35.2941
 ##offset:                    303.529
 ##Pixels to eye              1613.65
@@ -43,8 +43,8 @@ define Start(p)
 		        ["stimduration",150],##Time the arrow appear
 		        ["numPractice",22],
 		        ["numtrials",90],
-     	            ["usedown",1],
-                    ["calibratescreen","internal"]]  ##although miyake did not use this, up can be more easily discriminated from lr without a D
+     	            ["usedown",1], ##although miyake did not use this, up can be more easily discriminated from lr without a D
+                    ["calibratescreen","none"]] 
 
    gparams <- CreateParameters(parpairs,gParamFile)
    gSleepEasy <- 1
@@ -444,8 +444,10 @@ define DoScreenCalibration(eyedistance:18)
      eyepixeldistance <- 45.72 * caldata      ##how many pixels away the eye is.
      ##We need to calculate the distance of 3.4inches = 86mm on either side of fixation, based on screen resolution.
      pixelsOffset <- 8.6 * caldata ##this is how many pixels on either side of fixation
+     degreesize <-  (Tan(DegToRad(1.0)) * eyepixeldistance)
      stimsize <- gParams.stimsize
      alertsize <- stimsize/5
+     notdone <- 0  ##Skip the verification screen
 
     }else {
  
@@ -497,42 +499,43 @@ define DoScreenCalibration(eyedistance:18)
       degreesize <-  (Tan(DegToRad(1.0)) * eyepixeldistance)
       stimsize <- degreesize*2.0
       alertsize <- degreesize * .4
-   }
 
-   ##Show a standard that is 9 inches--1/2 the distance.
-   ## 
-    standard <- 9  ##draw nine inches
-    standardpix <- eyepixeldistance /2
+     ##Show a standard that is 9 inches--1/2 the distance.
+     ##
+      standard <- 9  ##draw nine inches
+      standardpix <- eyepixeldistance /2
 
 #     if(standardpix > gVideoWidth-100)
 #     {
 #       standardpix <- gVideoWidth-100
 #       standard <- 18*(standardpix/eyepixeldastance)
-#       
+#
 #     }
-    ratio <- Round(eyepixeldistance/standardpix,2)
+      ratio <- Round(eyepixeldistance/standardpix,2)
 
-    r <- Rectangle(gVideoWidth/2, gVideoHeight/2,standardpix,40,MakeColor("grey20"),1)
-    r2 <- Rectangle(gVideoWidth/2,gVideoHeight/2,standardpix,40,MakeColor("white"),0)
+      r <- Rectangle(gVideoWidth/2, gVideoHeight/2,standardpix,40,MakeColor("grey20"),1)
+      r2 <- Rectangle(gVideoWidth/2,gVideoHeight/2,standardpix,40,MakeColor("white"),0)
 
-   ##~7 inch line in middle:
-    line <- Line(gVideoWidth/2-pixelsoffset, gVideoHeight/2, 2*pixelsoffset,0,MakeColor("red"))
-    AddObject(r,gWin)
-    AddObject(r2,gWin)
-    AddObject(line,gWin)
-    Print("Eye distance in cm/in  "+eyeDistanceCM +"/"+eyeDistance)
-     
-     eyetext <- SubstituteStrings(gStrings.eyedistance,[["<DIST>",Round(standardpix,-1)],
+     ##~7 inch line in middle:
+      line <- Line(gVideoWidth/2-pixelsoffset, gVideoHeight/2, 2*pixelsoffset,0,MakeColor("red"))
+      AddObject(r,gWin)
+      AddObject(r2,gWin)
+      AddObject(line,gWin)
+      eyedistancecm <- eyedistance*2.54
+      Print("Eye distance in cm/in  "+eyeDistanceCM +"/"+eyeDistance)
+
+      eyetext <- SubstituteStrings(gStrings.eyedistance,[["<DIST>",Round(standardpix,-1)],
                                                         ["<DISTCM>",standard*2.54],
 							["<DISTIN>",standard],
                                                         ["<EYEDIST>",Round(eyepixeldistance,-1)],
 							["<RATIO>",ratio]])
-    tb <- EasyTextBox(eyetext, gVideoWidth/2-400, r.y+50, gwin,22,800,300, "white","black")
-    
-    Draw()
-    resp <- WaitForListKeyPress(["Y","R"])
-    Print(resp)
-    notdone <- (Uppercase(resp) == "R")
+      tb <- EasyTextBox(eyetext, gVideoWidth/2-400, r.y+50, gwin,22,800,300, "white","black")
+
+      Draw()
+      resp <- WaitForListKeyPress(["Y","R"])
+      Print(resp)
+      notdone <- (Uppercase(resp) == "R")
+   }
 
   }
 

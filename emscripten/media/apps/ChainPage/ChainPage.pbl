@@ -1,0 +1,149 @@
+## ChainPage.pbl
+## Simple page display for test chains (instruction, consent, completion pages)
+##
+## Usage: pebl2 ChainPage.pbl -v page-config.json
+##
+## Expected JSON format:
+## {
+##   "title": "Page Title",
+##   "content": "Page content text here",
+##   "page_type": "instruction"
+## }
+
+define Start(p)
+{
+    ## Get configuration file from command line argument
+    configFile <- First(p)
+
+    if(not FileExists(configFile))
+    {
+        SignalFatalError("ChainPage.pbl requires config file: pebl2 ChainPage.pbl -v <config.json>")
+    }
+
+    ## Parse JSON
+    config <- ParseJSON(FileReadText(configFile))
+
+    ## Extract values
+    title <- ""
+    content <- ""
+    pageType <- "instruction"
+    language <- ""
+
+    if(PropertyExists(config, "title"))
+    {
+        title <- config.title
+    }
+
+    if(PropertyExists(config, "content"))
+    {
+        content <- config.content
+        ## Convert \n to actual line breaks
+        content <- ConvertNewlinesToCR(content)
+    }
+
+    if(PropertyExists(config, "page_type"))
+    {
+        pageType <- config.page_type
+    }
+
+    ## Get language from config if provided, otherwise use gLanguage global
+    if(PropertyExists(config, "language"))
+    {
+        language <- config.language
+    } elseif(IsDefined("gLanguage")) {
+        language <- gLanguage
+    }
+
+    ## Load translations (falls back to English if language not found)
+    gStrings <- GetTranslations("ChainPage", language)
+
+    ## Set gTestName before window creation so window title gets set
+    gTestName <- title
+
+    ## Create window
+    gWin <- MakeWindow("grey40")
+
+    ## Display title
+    titleLabel <- EasyLabel(title, gVideoWidth/2, 50, gWin, 28)
+
+    ## Display content in adaptive text box (sized for consent forms)
+    contentBox <- AdaptiveTextBox(content, gVideoWidth/2 - 450, 120, gWin, 18, 900, gVideoHeight - 270)
+
+    ## Determine if this is a consent form
+    isConsent <- (Uppercase(pageType) == "CONSENT")
+
+    ## Variable to store result (exit code: 0=success/accepted, 1=declined)
+    result <- 0
+
+    if(isConsent)
+    {
+        ## Create Yes/No buttons for consent
+        buttonY <- gVideoHeight - 100
+        buttonWidth <- 200
+        buttonHeight <- 50
+        buttonSpacing <- 250
+
+        ## Yes button (on left)
+        yesX <- gVideoWidth/2 - buttonSpacing/2
+        yesBg <- Rectangle(yesX, buttonY, buttonWidth, buttonHeight, MakeColor("lightgreen"), 1)
+        AddObject(yesBg, gWin)
+        yesBorder <- Rectangle(yesX, buttonY, buttonWidth, buttonHeight, MakeColor("grey30"), 0)
+        AddObject(yesBorder, gWin)
+        buttonFont <- MakeFont(gPEBLBaseFont, 0, 24, MakeColor("grey20"), MakeColor("lightgreen"), 0)
+        yesLabel <- MakeLabel(gStrings.yes_consent, buttonFont)
+        AddObject(yesLabel, gWin)
+        Move(yesLabel, yesX, buttonY)
+
+        ## No button (on right)
+        noX <- gVideoWidth/2 + buttonSpacing/2
+        noBg <- Rectangle(noX, buttonY, buttonWidth, buttonHeight, MakeColor("lightcoral"), 1)
+        AddObject(noBg, gWin)
+        noBorder <- Rectangle(noX, buttonY, buttonWidth, buttonHeight, MakeColor("grey30"), 0)
+        AddObject(noBorder, gWin)
+        buttonFont2 <- MakeFont(gPEBLBaseFont, 0, 24, MakeColor("grey20"), MakeColor("lightcoral"), 0)
+        noLabel <- MakeLabel(gStrings.no_decline, buttonFont2)
+        AddObject(noLabel, gWin)
+        Move(noLabel, noX, buttonY)
+
+        Draw()
+
+        ## Wait for click - returns 1 for Yes, 2 for No
+        response <- WaitForClickOnTarget([yesBg, yesBorder, yesLabel, noBg, noBorder, noLabel],
+                                         [1, 1, 1, 2, 2, 2])
+
+        ## If user declined consent, exit with code 1
+        if(response == 2)
+        {
+            ExitQuietly("User declined consent", 1)
+        }
+
+    } else {
+        ## Regular OK button for instruction/completion pages
+        buttonX <- gVideoWidth/2
+        buttonY <- gVideoHeight - 100
+        buttonWidth <- 300
+        buttonHeight <- 50
+
+        ## Create button background
+        buttonBg <- Rectangle(buttonX, buttonY, buttonWidth, buttonHeight, MakeColor("white"), 1)
+        AddObject(buttonBg, gWin)
+
+        ## Create button border
+        buttonBorder <- Rectangle(buttonX, buttonY, buttonWidth, buttonHeight, MakeColor("grey30"), 0)
+        AddObject(buttonBorder, gWin)
+
+        ## Create button label with larger font (24pt)
+        buttonFont <- MakeFont(gPEBLBaseFont, 0, 24, MakeColor("grey20"), MakeColor("white"), 0)
+        okButton <- MakeLabel(gStrings.ok, buttonFont)
+        AddObject(okButton, gWin)
+        Move(okButton, buttonX, buttonY)
+
+        Draw()
+
+        ## Wait for click on any part of the button (background, border, or text)
+        WaitForClickOnTarget([buttonBg, buttonBorder, okButton], [1, 1, 1])
+    }
+
+    ## Normal completion - exit with code 0 (success)
+    return(0)
+}

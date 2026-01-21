@@ -1,6 +1,73 @@
 // PEBLLauncher.cpp - Main entry point for PEBL Launcher
 // Copyright (c) 2026 Shane T. Mueller
 // Licensed under GPL
+//
+// =============================================================================
+// PORTABLE/STANDALONE MODE DETECTION
+// =============================================================================
+//
+// The launcher supports two operating modes:
+//
+// 1. INSTALLED MODE (default)
+//    - Workspace is created in Documents/pebl-exp.2.3/
+//    - First run triggers resource copying dialog (demos, tutorials, docs)
+//    - Standard installation via installer or package manager
+//
+// 2. PORTABLE/STANDALONE MODE
+//    - Workspace is the current working directory
+//    - No first-run dialog (resources already in place)
+//    - Designed for USB drives or self-contained distributions
+//
+// PORTABLE MODE DETECTION (in priority order):
+//
+//   1. STANDALONE.txt marker file
+//      - Check for ./STANDALONE.txt, ../STANDALONE.txt, or ../../STANDALONE.txt
+//      - Most explicit and reliable trigger
+//      - Batch file can create this before launching
+//
+//   2. PORTABLE.txt marker file
+//      - Check for ./PORTABLE.txt, ../PORTABLE.txt, or ../../PORTABLE.txt
+//      - Legacy support
+//
+//   3. PEBL_PORTABLE environment variable
+//      - Set PEBL_PORTABLE=1 before launching
+//      - Useful for batch files
+//
+// NOTE: No automatic detection based on directory structure. Only explicit
+// marker files or environment variable will trigger portable mode.
+//
+// RECOMMENDED STANDALONE DIRECTORY STRUCTURE:
+//
+//   /MyPEBLDistribution/
+//     runme.bat              <- Batch file to launch (sets CWD, runs launcher)
+//     STANDALONE.txt         <- Marker file (REQUIRED for portable mode)
+//     PEBL/
+//       bin/
+//         pebl-launcher.exe
+//         pebl2.exe
+//         *.dll
+//       battery/
+//       pebl-lib/
+//       media/
+//     my_studies/            <- User's studies (in CWD, not inside PEBL/)
+//     snapshots/
+//
+// EXAMPLE runme.bat:
+//
+//   @echo off
+//   cd /d "%~dp0"
+//   REM Optional: create marker file for explicit detection
+//   echo. > STANDALONE.txt
+//   PEBL\bin\pebl-launcher.exe
+//   REM Optional: clean up marker file
+//   del STANDALONE.txt
+//
+// This ensures:
+//   - Running via batch file -> portable mode (marker file created)
+//   - Double-clicking exe directly -> installed mode (no marker file present)
+//
+// See WorkspaceManager::IsPortableMode() for implementation details.
+// =============================================================================
 
 #include "imgui.h"
 #include "backends/imgui_impl_sdl2.h"
@@ -8,6 +75,9 @@
 #include <SDL2/SDL.h>
 #include <stdio.h>
 #include <string>
+#include <filesystem>
+
+namespace fs = std::filesystem;
 
 #include "LauncherUI.h"
 #include "LauncherConfig.h"
@@ -55,6 +125,17 @@ int main(int, char**)
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO(); (void)io;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+
+    // Set imgui.ini path to settings directory (must be static to persist)
+    static std::string imguiIniPath;
+    {
+        fs::path settingsDir = fs::path(config.GetWorkspacePath()) / "settings";
+        try {
+            fs::create_directories(settingsDir);
+        } catch (...) {}
+        imguiIniPath = (settingsDir / "imgui.ini").string();
+        io.IniFilename = imguiIniPath.c_str();
+    }
 
     // Set font size from configuration
     ImFontConfig fontConfig;

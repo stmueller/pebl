@@ -39,7 +39,7 @@ WorkspaceManager::WorkspaceManager()
 {
     // In portable mode, use current directory; otherwise use Documents
     if (IsPortableMode()) {
-        mWorkspacePath = ".";  // Current directory
+        mWorkspacePath = GetPortableWorkspacePath();
     } else {
         mWorkspacePath = GetDocumentsPath() + "/pebl-exp.2.3";
     }
@@ -49,24 +49,67 @@ WorkspaceManager::~WorkspaceManager() {
 }
 
 bool WorkspaceManager::IsPortableMode() const {
-    // Check for PEBL subdirectory (matching old launcher.pbl behavior)
-    // This indicates a portable/no-install PEBL distribution
-    if (DirectoryExists("./PEBL") || DirectoryExists("../PEBL")) {
+    // Priority 1: Check for explicit STANDALONE.txt marker file
+    // This is the most reliable trigger - a batch file/script creates this
+    // in the working directory before launching
+    if (FileExists("./STANDALONE.txt") || FileExists("../STANDALONE.txt") || FileExists("../../STANDALONE.txt")) {
         return true;
     }
 
-    // Also check for PORTABLE marker file for backwards compatibility
-    if (DirectoryExists("./PORTABLE") || DirectoryExists("../PORTABLE")) {
+    // Priority 2: Check for PORTABLE marker file (legacy support)
+    if (FileExists("./PORTABLE.txt") || FileExists("../PORTABLE.txt") || FileExists("../../PORTABLE.txt")) {
         return true;
     }
 
-    // Check for PEBL_PORTABLE environment variable
+    // Priority 3: Check for PEBL_PORTABLE environment variable
+    // Can be set by a batch file before launching
     const char* portableEnv = getenv("PEBL_PORTABLE");
     if (portableEnv && strcmp(portableEnv, "1") == 0) {
         return true;
     }
 
+    // No automatic detection - only explicit marker files or environment variable
     return false;
+}
+
+std::string WorkspaceManager::GetPortableWorkspacePath() const {
+    // Determine the correct workspace root for portable mode.
+    // The workspace should be at the portable distribution root, not inside PEBL/bin/
+    //
+    // Expected structure:
+    //   PEBL2.3_Portable/             <- workspace root (where STANDALONE.txt is)
+    //   ├── STANDALONE.txt            <- REQUIRED marker file
+    //   ├── PEBL/
+    //   │   ├── bin/
+    //   │   │   └── pebl-launcher.exe
+    //   │   ├── battery/
+    //   │   └── pebl-lib/
+    //   ├── my_studies/
+    //   ├── chains/
+    //   ├── snapshots/
+    //   └── runPEBL.bat
+
+    // Determine workspace root based on marker file location
+    // Only marker files determine the workspace location - no automatic detection
+
+    // Check if marker file is in current directory (running from root)
+    if (FileExists("./STANDALONE.txt") || FileExists("./PORTABLE.txt")) {
+        return ".";
+    }
+
+    // Check if marker file is one level up
+    if (FileExists("../STANDALONE.txt") || FileExists("../PORTABLE.txt")) {
+        return "..";
+    }
+
+    // Check if marker file is two levels up (we're in PEBL/bin/)
+    if (FileExists("../../STANDALONE.txt") || FileExists("../../PORTABLE.txt")) {
+        return "../..";
+    }
+
+    // If PEBL_PORTABLE env var is set, use current directory
+    // Fallback: current directory
+    return ".";
 }
 
 bool WorkspaceManager::IsFirstRun() const {
@@ -319,6 +362,11 @@ bool WorkspaceManager::CreateDir(const std::string& path) {
 bool WorkspaceManager::DirectoryExists(const std::string& path) const {
     struct stat info;
     return (stat(path.c_str(), &info) == 0 && (info.st_mode & S_IFDIR));
+}
+
+bool WorkspaceManager::FileExists(const std::string& path) const {
+    struct stat info;
+    return (stat(path.c_str(), &info) == 0 && !(info.st_mode & S_IFDIR));
 }
 
 bool WorkspaceManager::CopyDirectory(const std::string& source, const std::string& dest, bool excludeData, const std::vector<std::string>& excludeDirs) {

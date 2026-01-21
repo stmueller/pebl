@@ -45,7 +45,7 @@
 #include <stdlib.h>
 
 using std::string;
-using std::cout;
+using std::cerr;
 using std::endl;
 
 
@@ -72,7 +72,7 @@ PlatformNetwork::~PlatformNetwork()
 
 void PlatformNetwork::Init()
 {
-    std::cout << "Initializing network\n";
+    std::cerr << "Initializing network\n";
     int val = SDLNet_Init();
 
     if(val==0)
@@ -106,8 +106,8 @@ void PlatformNetwork::SetPort(unsigned int port)
     PNetwork::SetPort((port));
     mAddress->port = SDL_SwapBE16(mPort);
 
-    //std::cout << "Port: " << port <<"|"<<mPort << "|"<<mAddress->port<< std::endl;
-    //std::cout << "tmp: " <<tmp << std::endl;
+    //std::cerr << "Port: " << port <<"|"<<mPort << "|"<<mAddress->port<< std::endl;
+    //std::cerr << "tmp: " <<tmp << std::endl;
 
 }
 
@@ -193,7 +193,7 @@ bool PlatformNetwork::CheckForConnection()
     //  tmpAddress->port = SDL_SwapBE16(mPort);
 
 
-  //std::cout << "unable"  << tmpAddress->port << endl;
+  //std::cerr << "unable"  << tmpAddress->port << endl;
   //TCPsocket listener = SDLNet_TCP_Open(tmpAddress);
 
   //an mListener socket already needs to have been opened.
@@ -230,7 +230,7 @@ bool PlatformNetwork::CreateListener()
   tmpAddress->port = SDL_SwapBE16(mPort);
 
 
-  //  std::cout << "unable"  << tmpAddress->port << endl;
+  //  std::cerr << "unable"  << tmpAddress->port << endl;
   mListener = SDLNet_TCP_Open(tmpAddress);
   if(!mListener)
       PError::SignalFatalError("Unable to create listener Socket." );
@@ -291,7 +291,7 @@ bool PlatformNetwork::Accept()
   tmpAddress->port = SDL_SwapBE16(mPort);
 
 
-  //  std::cout << "unable"  << tmpAddress->port << endl;
+  //  std::cerr << "unable"  << tmpAddress->port << endl;
   TCPsocket listener = SDLNet_TCP_Open(tmpAddress);
   if(!listener)
       PError::SignalFatalError("Unable to listen for connection 2." );

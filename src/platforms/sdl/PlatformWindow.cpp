@@ -44,7 +44,7 @@
 #include "SDL.h"
 #include <stdio.h>
 
-using std::cout;
+// cout removed - use cerr for debug output
 using std::cerr;
 using std::endl;
 using std::flush;
@@ -107,7 +107,7 @@ bool PlatformWindow::Initialize(PEBLVideoMode mode,
                                 unsigned int height)
 {
 
-    cout << "Initializing " << width << "--" << height << endl;
+    cerr << "Initializing " << width << "--" << height << endl;
     SDLUtility::GetDriverList(); //print out driver information.
     Variant v = 0;
 

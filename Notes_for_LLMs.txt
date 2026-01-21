@@ -75,83 +75,156 @@ ALWAYS VALIDATE PEBL SYNTAX USING pebl-validator:
   - ALWAYS run pebl-validator on PEBL code you write to verify syntax before the user tests it
   - The validator checks syntax and function calls without executing the code
   - This catches errors early and saves the user from runtime failures
-  - Location: bin/pebl-validator (built with 'make validator')
+  - The validator automatically loads all standard libraries (pebl-lib/*.pbl)
+
+VALIDATOR LOCATION BY PLATFORM:
+
+  Windows:
+    bin\pebl-validator.exe
+
+    Examples:
+      bin\pebl-validator.exe battery\BNT\BNT.pbl
+      bin\pebl-validator.exe battery\BNT\BNT.pbl --json
+      bin\pebl-validator.exe --help
+
+  Linux/macOS:
+    bin/pebl-validator
+
+    Examples:
+      bin/pebl-validator battery/BNT/BNT.pbl
+      bin/pebl-validator battery/BNT/BNT.pbl --json
+      bin/pebl-validator --help
 
 HOW TO USE THE VALIDATOR:
 
-  Basic usage:
-    bin/pebl-validator <file.pbl>
+  Basic usage (human-readable output):
+    pebl-validator <file.pbl>
 
   JSON output (for programmatic parsing):
-    bin/pebl-validator <file.pbl> --json
+    pebl-validator <file.pbl> --json
 
   Get help:
-    bin/pebl-validator --help
+    pebl-validator --help
 
 WHAT THE VALIDATOR CHECKS:
-  ✓ Syntax errors (parse tree generation)
+  ✓ Syntax errors (missing braces, invalid statements, parse failures)
   ✓ Undefined function calls (validates against all standard libraries)
-  ✓ Missing library functions (GetHTTPFile, etc.)
-  ✓ User-defined function calls
+  ✓ User-defined function calls (checks functions defined in the same file)
+  ✓ Library function availability (pebl-lib/*.pbl functions)
   ✗ Does NOT check runtime logic, parameter types, or execution flow
+  ✗ Does NOT execute any code - purely static analysis
 
 EXIT CODES:
   0 = Valid syntax and all functions defined
   1 = Invalid syntax or undefined functions
-  2 = Usage error
+  2 = Usage error (bad arguments, file not found)
 
 OUTPUT FORMATS:
 
-  Text output (human-readable):
+  Text output (default, human-readable):
     PEBL Validator Results
     ======================
-    File: test.pbl
+    File: battery/BNT/BNT.pbl
 
     ✓ Syntax: VALID
 
-  JSON output (for automation):
+  JSON output (with --json flag):
     {
-      "file": "test.pbl",
+      "file": "battery/BNT/BNT.pbl",
       "syntax_valid": true,
       "errors": [],
       "warnings": []
     }
 
+  Error output example (syntax error):
+    line 10 of myfile.pbl: syntax error
+    Exit code: 1
+
+  Error output example (undefined function):
+    Function [UNDEFINEDFUNCTION] not found in libraries or user-defined functions.
+    Exit code: 1
+
+INSTRUCTIONS FOR LLMs WITHOUT FULL CODEBASE ACCESS:
+==================================================
+
+If you are an LLM working with PEBL code but only have access to battery/
+and pebl-lib/ directories (not the full source code), follow these steps:
+
+1. ASK THE USER to run the validator for you:
+
+   "I've written the PEBL code. Before testing, please validate it:
+
+   Windows:   bin\pebl-validator.exe path\to\yourfile.pbl
+   Linux:     bin/pebl-validator path/to/yourfile.pbl
+
+   This will check for syntax errors and undefined functions."
+
+2. INTERPRET THE RESULTS:
+
+   - Exit code 0: Code is syntactically valid, ready to test
+   - Exit code 1: Errors found - ask user to share the error message
+   - "syntax error on line X": Fix the syntax at that line
+   - "Function [NAME] not found": You used a function that doesn't exist
+     - Check spelling (PEBL is case-insensitive but double-check)
+     - Search pebl-lib/*.pbl for the correct function name
+     - Check if function requires different arguments
+
+3. COMMON VALIDATION ERRORS AND FIXES:
+
+   Error: "syntax error" on a line with return()
+   Cause: return() is not at the end of the function
+   Fix: Move all return() statements to be the LAST line of function
+
+   Error: "syntax error" with if/else
+   Cause: Missing braces or incorrect nesting
+   Fix: Ensure all { } are properly matched and paired
+
+   Error: "Function [X] not found"
+   Cause: Misspelled function name or function doesn't exist
+   Fix: Search battery/ examples for correct usage:
+        grep -r "FunctionName(" battery/
+
+   Error: Multiple "Function already exists" warnings
+   Cause: Normal - some library functions are defined multiple times
+   Fix: These are warnings, not errors - can be ignored
+
+4. WORKFLOW FOR WRITING NEW PEBL CODE:
+
+   a. Write the code following PEBL syntax rules (see this document)
+   b. Save to a .pbl file
+   c. Ask user to validate: "Please run: bin/pebl-validator yourfile.pbl"
+   d. If errors, fix and repeat
+   e. Once valid, user can test with: bin/pebl2 yourfile.pbl
+
+5. EXAMPLE VALIDATION REQUEST TO USER:
+
+   "I've created the new test at battery/mytask/mytask.pbl.
+
+   Please validate it before testing:
+
+   Windows:
+     bin\pebl-validator.exe battery\mytask\mytask.pbl
+
+   Linux/Mac:
+     bin/pebl-validator battery/mytask/mytask.pbl
+
+   If it shows '✓ Syntax: VALID', you can test with:
+     bin/pebl2 battery/mytask/mytask.pbl -s 1
+
+   If there are errors, please share the output so I can fix them."
+
 WHEN TO USE THE VALIDATOR:
   1. AFTER writing new PEBL code - validate before suggesting user test it
   2. AFTER modifying existing PEBL files - ensure changes are syntactically valid
-  3. BEFORE asking user to compile - catch syntax errors early
+  3. BEFORE asking user to run experiments - catch syntax errors early
   4. WHEN debugging - distinguish between syntax errors and logic errors
 
-EXAMPLES:
-
-  Valid file:
-    $ bin/pebl-validator demo/tests/test-simple.pbl --json
-    {"file": "demo/tests/test-simple.pbl", "syntax_valid": true, "errors": [], "warnings": []}
-
-  Invalid file (undefined function):
-    $ bin/pebl-validator test.pbl --json
-    {"file": "test.pbl", "syntax_valid": false,
-     "errors": ["Function [NOTAFUNCTION] not found in libraries..."]}
-
-  Syntax error:
-    $ bin/pebl-validator broken.pbl --json
-    {"file": "broken.pbl", "syntax_valid": false,
-     "errors": ["Parse failed - syntax error in file"]}
-
-INTEGRATION IN YOUR WORKFLOW:
-  1. Write PEBL code
-  2. Run validator: bin/pebl-validator yourfile.pbl --json 2>/dev/null
-  3. Check exit code ($? in bash) or parse JSON output
-  4. If valid: tell user the code is ready to test
-  5. If invalid: fix errors and repeat
-
 WHAT THE VALIDATOR DOES NOT REPLACE:
-  - Runtime testing (the validator does not execute code)
+  - Runtime testing (validator does not execute code)
   - Type checking (PEBL is dynamically typed)
   - Logic validation (e.g., incorrect parameter values)
-  - Performance testing
-  - Cross-platform testing (native vs. Emscripten)
+  - Testing with actual stimuli and responses
+  - Cross-platform testing (native vs. Emscripten/browser)
 
 EMSCRIPTEN BUILD CONFIGURATION
 --------------------------------

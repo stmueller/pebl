@@ -46,7 +46,7 @@
 #include <list>
 //using std::list;
 using std::vector;
-using std::cout;
+// cout removed - use cerr for debug output
 using std::endl;
 // PlatformDrawObject::PlatformDrawObject(PlatformWidget * widget)
 // {

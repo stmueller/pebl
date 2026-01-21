@@ -59,7 +59,7 @@
 #include <iostream>
 
 using std::string;
-using std::cout;
+using std::cerr;
 using std::endl;
 
 // Helper function to convert std::string script to const char* for TTF functions
@@ -96,7 +96,7 @@ unsigned long int readFileToMemory(const char path[], char ** buffr){
     FILE *file = fopen(path, "rb");
     if(file != NULL){
         fileSize = getFileSize(&file);
-        //cout << "FIlesize: " << fileSize << endl;
+        //cerr << "FIlesize: " << fileSize << endl;
         char* buff = getFileBuffer(&file,(unsigned int)fileSize);
        
 
@@ -320,17 +320,17 @@ SDL_Surface * PlatformFont::RenderText(const std::string & text)
 
     int maxchars = 1000;
 #if 0
-    cout << "About to render text [" << text  << "] with font " << *this << endl;
+    cerr << "About to render text [" << text  << "] with font " << *this << endl;
 
     int i  = 0;
     while(i < text.length())
     {
 
-        cout << "[" << text[i] << "|" << (unsigned int)(text[i]) << "]";
+        cerr << "[" << text[i] << "|" << (unsigned int)(text[i]) << "]";
         i++;
     }
 
-    cout << endl;
+    cerr << endl;
 #endif
 
     //If there is no text, return a null surface.

@@ -81,7 +81,7 @@ struct AudioInfo{
     // TODO: Implement proper reference counting or notification when SDL_mixer
     // is done with the buffer.
     ~AudioInfo() {
-        std::cout << "~AudioInfo: Destructor called, audio=" << (void*)audio
+        std::cerr << "~AudioInfo: Destructor called, audio=" << (void*)audio
                   << " (" << audiolen << " bytes) - NOT freeing (SDL_mixer may be using it)\n";
         // INTENTIONALLY NOT FREEING: free(audio);
     }

@@ -63,7 +63,7 @@ extern AudioInfo *gWaveStream=NULL;
 using namespace std;
 using std::string;
 using std::cerr;
-using std::cout;
+// cout removed - use cerr for debug output
 using std::endl;
 
 bool PlatformAudioOut::mLoaded = false;
@@ -289,17 +289,17 @@ bool PlatformAudioOut::ConvertAudio(AudioInfo & info)
 
 
 #if 0
-    cout << "Conversion information: " ;
-    std::cout <<"Needed:    "<< cvt.needed << std::endl;
-    std::cout <<"srcformat: "<< cvt.src_format << std::endl;
-    //   std::cout <<"destformat: "<< cvt.dest_format << std::endl;
-    std::cout <<"rate_incr:  "<< cvt.rate_incr << std::endl;
-    std::cout <<"len:        "<< cvt.len << std::endl;
-    std::cout <<"len_cvt:        "<< cvt.len_cvt << std::endl;
-    std::cout <<"len_mult:   "<< cvt.len_mult<< std::endl;
-    std::cout <<"ratio:      "<< cvt.len_ratio<< std::endl;
+    cerr << "Conversion information: " ;
+    std::cerr <<"Needed:    "<< cvt.needed << std::endl;
+    std::cerr <<"srcformat: "<< cvt.src_format << std::endl;
+    //   std::cerr <<"destformat: "<< cvt.dest_format << std::endl;
+    std::cerr <<"rate_incr:  "<< cvt.rate_incr << std::endl;
+    std::cerr <<"len:        "<< cvt.len << std::endl;
+    std::cerr <<"len_cvt:        "<< cvt.len_cvt << std::endl;
+    std::cerr <<"len_mult:   "<< cvt.len_mult<< std::endl;
+    std::cerr <<"ratio:      "<< cvt.len_ratio<< std::endl;
 
-    cout << "CONVERTING\n";
+    cerr << "CONVERTING\n";
 #endif
 
     if (SDL_ConvertAudio(&cvt) < 0)
@@ -373,7 +373,7 @@ bool PlatformAudioOut::CreateSineWave(float freq, long unsigned int mslength, lo
     if(gWaveStream)
         {
             //Use the already-available spec.
-            //cout <<"using preloaded sound spec\n";
+            //cerr <<"using preloaded sound spec\n";
 
             memcpy(spec,&(gWaveStream->spec),sizeof(SDL_AudioSpec));
 
@@ -429,7 +429,7 @@ bool PlatformAudioOut::CreateSineWave(float freq, long unsigned int mslength, lo
             if(base>1)base=1;
             //base is bounded between 0 and 1
             dat = int(base*256);
-            //cout << base << "," << amplitude  << ","<< dat << endl;
+            //cerr << base << "," << amplitude  << ","<< dat << endl;
 
             //Copy dat to each channel
             for(int j = 0; j < spec->channels;j+=bits)
@@ -569,9 +569,9 @@ bool PlatformAudioOut::LoadSoundFromData( Uint8 *buffer,
 void PlatformAudioOut::SaveBufferToWave(Variant filename)
 {
 #ifdef PEBL_MIXER
-    std::cout << "=== ENTERING SaveBufferToWave ===\n";
-    std::cout << "mRecordPos at function entry: " << mRecordPos << "\n";
-    std::cout << "mMixerSample pointer: " << (void*)mMixerSample << "\n";
+    std::cerr << "=== ENTERING SaveBufferToWave ===\n";
+    std::cerr << "mRecordPos at function entry: " << mRecordPos << "\n";
+    std::cerr << "mMixerSample pointer: " << (void*)mMixerSample << "\n";
 
     // SDL_mixer mode: extract audio data from Mix_Chunk and write to WAV file
     if(!mMixerSample) {
@@ -579,8 +579,8 @@ void PlatformAudioOut::SaveBufferToWave(Variant filename)
         return;
     }
 
-    std::cout << "mMixerSample->alen: " << mMixerSample->alen << "\n";
-    std::cout << "mMixerSample->abuf: " << (void*)mMixerSample->abuf << "\n";
+    std::cerr << "mMixerSample->alen: " << mMixerSample->alen << "\n";
+    std::cerr << "mMixerSample->abuf: " << (void*)mMixerSample->abuf << "\n";
 
     // Use the original audio spec from recording (not Mix_QuerySpec which returns playback format)
     // For audio input buffers, mOriginalSpec contains the correct recording format (e.g., mono)
@@ -589,7 +589,7 @@ void PlatformAudioOut::SaveBufferToWave(Variant filename)
     Uint16 format = mOriginalSpec.format;
     int channels = mOriginalSpec.channels;
 
-    std::cout << "Using original recording spec: " << freq << "Hz, " << channels << " channels, format=" << format << "\n";
+    std::cerr << "Using original recording spec: " << freq << "Hz, " << channels << " channels, format=" << format << "\n";
 
     // Calculate bits per sample
     int bitsPerSample = 16;  // Default to 16-bit
@@ -616,14 +616,14 @@ void PlatformAudioOut::SaveBufferToWave(Variant filename)
     int byteRate = freq * numChannels * bitsPerSample / 8;
     int blockAlign = numChannels * bitsPerSample / 8;
 
-    cout << "--------------------------------------------\n";
-    cout << "saving file        [" << filename << "]\n";
-    cout << "bitspersample:      " << bitsPerSample << endl;
-    cout << "Channels:           " << numChannels << endl;
-    cout << "frequency:          " << sampleRate << endl;
-    cout << "byterate:           " << byteRate << endl;
-    cout << "buffer size:        " << mMixerSample->alen << " bytes" << endl;
-    cout << "recorded size:      " << mRecordPos << " bytes" << endl;
+    cerr << "--------------------------------------------\n";
+    cerr << "saving file        [" << filename << "]\n";
+    cerr << "bitspersample:      " << bitsPerSample << endl;
+    cerr << "Channels:           " << numChannels << endl;
+    cerr << "frequency:          " << sampleRate << endl;
+    cerr << "byterate:           " << byteRate << endl;
+    cerr << "buffer size:        " << mMixerSample->alen << " bytes" << endl;
+    cerr << "recorded size:      " << mRecordPos << " bytes" << endl;
 
     std::fstream myFile(filename.GetString().c_str(), ios::out | ios::binary);
     if(!myFile.is_open()) {
@@ -646,35 +646,35 @@ void PlatformAudioOut::SaveBufferToWave(Variant filename)
     myFile.write((char*)&bitsPerSample, 2);         // bits per sample
     myFile.write("data", 4);                        // subchunk2ID
 
-    std::cout << "About to write data chunk header. subchunk2size = " << subchunk2size << "\n";
-    std::cout << "About to write audio data. mRecordPos = " << mRecordPos << "\n";
+    std::cerr << "About to write data chunk header. subchunk2size = " << subchunk2size << "\n";
+    std::cerr << "About to write audio data. mRecordPos = " << mRecordPos << "\n";
 
     myFile.write((char*)&subchunk2size, 4);         // subchunk2size
 
-    std::cout << "File position before audio data write: " << myFile.tellp() << "\n";
-    std::cout << "About to write " << mRecordPos << " bytes from buffer at " << (void*)(mMixerSample->abuf) << "\n";
+    std::cerr << "File position before audio data write: " << myFile.tellp() << "\n";
+    std::cerr << "About to write " << mRecordPos << " bytes from buffer at " << (void*)(mMixerSample->abuf) << "\n";
 
     // Check buffer validity before writing
     if(mMixerSample->abuf == NULL) {
-        std::cout << "ERROR: Buffer is NULL!\n";
+        std::cerr << "ERROR: Buffer is NULL!\n";
     } else {
-        std::cout << "Buffer appears valid, first byte value: " << (int)(mMixerSample->abuf[0]) << "\n";
+        std::cerr << "Buffer appears valid, first byte value: " << (int)(mMixerSample->abuf[0]) << "\n";
     }
 
     myFile.write((char*)(mMixerSample->abuf), mRecordPos);  // Write only recorded data
 
-    std::cout << "File position after audio data write: " << myFile.tellp() << "\n";
+    std::cerr << "File position after audio data write: " << myFile.tellp() << "\n";
     if(myFile.fail()) {
-        std::cout << "FILE WRITE FAILED! Error state detected.\n";
-        std::cout << "errno: " << errno << " (" << strerror(errno) << ")\n";
+        std::cerr << "FILE WRITE FAILED! Error state detected.\n";
+        std::cerr << "errno: " << errno << " (" << strerror(errno) << ")\n";
     }
-    std::cout << "File good state: " << myFile.good() << "\n";
-    std::cout << "File fail state: " << myFile.fail() << "\n";
-    std::cout << "File bad state: " << myFile.bad() << "\n";
+    std::cerr << "File good state: " << myFile.good() << "\n";
+    std::cerr << "File fail state: " << myFile.fail() << "\n";
+    std::cerr << "File bad state: " << myFile.bad() << "\n";
 
     myFile.close();
-    cout << "File saved successfully.\n";
-    cout << "--------------------------------------------\n";
+    cerr << "File saved successfully.\n";
+    cerr << "--------------------------------------------\n";
 
 #else
     //Code here adapted from
@@ -698,12 +698,12 @@ void PlatformAudioOut::SaveBufferToWave(Variant filename)
 	int blockAlign = numChannels*bitsPerSample/8;
 
 
-    cout <<"--------------------------------------------\n";
-    cout << "saving file        ["<< filename<<"]\n";
-    cout << "bitspersample:      " << bitsPerSample <<endl;
-    cout << "Channels:           " << numChannels <<endl;
-    cout << "frequency:          " << sampleRate << endl;
-    cout << "byterate:           " << byteRate << endl;
+    cerr <<"--------------------------------------------\n";
+    cerr << "saving file        ["<< filename<<"]\n";
+    cerr << "bitspersample:      " << bitsPerSample <<endl;
+    cerr << "Channels:           " << numChannels <<endl;
+    cerr << "frequency:          " << sampleRate << endl;
+    cerr << "byterate:           " << byteRate << endl;
 
 
     std::fstream myFile (filename.GetString().c_str(), ios::out | ios::binary);
@@ -753,8 +753,8 @@ bool PlatformAudioOut::Initialize()
     int flags=MIX_INIT_OGG|MIX_INIT_MP3|MIX_INIT_FLAC|MIX_INIT_MOD;
     int initted = Mix_Init(flags);
 
- cout << "Attempted: " << flags << endl;
-    cout << "support code: " << initted << endl;
+ cerr << "Attempted: " << flags << endl;
+    cerr << "support code: " << initted << endl;
  	//initted stores the formats currently supported.
     std::string supportOGG = (initted & MIX_INIT_OGG)?"yes":"no";
     std::string supportMP3 = (initted & MIX_INIT_MP3)?"yes":"no";
@@ -905,7 +905,7 @@ bool PlatformAudioOut::PlayForeground()
         {
             //Wait at least 10 ms before checking again.
             PEBLEnvironment::myTimer.Sleep(10);
-            //cout << "---------- playing    ["<<SDL_GetTicks() << endl;
+            //cerr << "---------- playing    ["<<SDL_GetTicks() << endl;
         }
 
     SDL_PauseAudio(1);
@@ -957,7 +957,7 @@ bool PlatformAudioOut::Stop()
 {
 
 #ifdef PEBL_MIXER
-    //cout << "Stopping: " << mChannel << endl;
+    //cerr << "Stopping: " << mChannel << endl;
     if(mChannel>=0)
         Mix_HaltChannel(mChannel);
 
@@ -1039,11 +1039,11 @@ counted_ptr<AudioInfo> PlatformAudioOut::GetAudioInfo()
     AudioInfo * tmp = new AudioInfo(mWave);
 #if 0
 
-    cout << "---------------------------\n";
-    cout << "getting info in pao:getaudioinfo\n";
-    cout << "freq     "<<mWave.spec.freq << " -- " << tmp->spec.freq  <<endl;
-    cout << "length:  " <<mWave.audiolen<< "--" << tmp->audiolen <<     endl;
-    cout << "---------------------------\n";
+    cerr << "---------------------------\n";
+    cerr << "getting info in pao:getaudioinfo\n";
+    cerr << "freq     "<<mWave.spec.freq << " -- " << tmp->spec.freq  <<endl;
+    cerr << "length:  " <<mWave.audiolen<< "--" << tmp->audiolen <<     endl;
+    cerr << "---------------------------\n";
 #endif
 
     // Wrap in counted_ptr before returning

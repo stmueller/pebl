@@ -2210,6 +2210,9 @@ define GetDirectory(filepath)
      if(GetSystemType()=="WINDOWS")
         {
 	   sep <- "\"
+	   ## Normalize forward slashes to backslashes on Windows
+	   ## This handles paths like "data/1/file.csv" which use forward slashes
+	   filepath <- ReplaceChar(filepath, "/", "\")
 	} else {
 	   sep <- "/"
 
@@ -2221,7 +2224,7 @@ define GetDirectory(filepath)
     if(Length(parts) <= 1)
     {
       directory <- sep
-      
+
     } else{
 
     ## Remove the last part (the filename) and rejoin

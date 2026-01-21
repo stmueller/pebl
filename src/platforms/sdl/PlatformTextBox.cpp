@@ -56,7 +56,7 @@
 //Unicode/utf-8 handling.
 #include "../../../libs/utfcpp/source/utf8.h"
 
-using std::cout;
+// cout removed - use cerr for debug output
 using std::cerr;
 using std::endl;
 using std::flush;
@@ -218,12 +218,12 @@ bool  PlatformTextBox::RenderText()
 
     if(!mRenderer)
         {
-            //cout << "No renderer " << SDL_GetTicks() << endl;
+            //cerr << "No renderer " << SDL_GetTicks() << endl;
            
             return  false;
         }
 
-    //cout << "creating new surface in platformtextbox::rendertext\n";
+    //cerr << "creating new surface in platformtextbox::rendertext\n";
 
     //Make a surface of the prescribed size.
     mSurface = SDL_CreateRGBSurface(SDL_SWSURFACE,
@@ -232,7 +232,7 @@ bool  PlatformTextBox::RenderText()
                                     rmask, gmask, bmask, amask);
     if(!mSurface)  PError::SignalFatalError("Surface not created in TextBox::RenderText.");
 
-    //cout << "fillingbackground rec platformtextbox::rendertext\n";
+    //cerr << "fillingbackground rec platformtextbox::rendertext\n";
     //Fill the box with the background color of the font (from property system in case it was modified)
     PColor bgcolor = GetPlatformFont()->GetBackgroundColor();  // Gets current color from font property system
     SDL_FillRect(mSurface, NULL, SDL_MapRGBA(mSurface->format,
@@ -254,7 +254,7 @@ bool  PlatformTextBox::RenderText()
     std::vector<int>::iterator i = mBreaks.begin();
     linestart  = 0;
 
-    //cout << "Textbox: "<< mHeight << " " <<totalheight << endl;
+    //cerr << "Textbox: "<< mHeight << " " <<totalheight << endl;
 
     while(i != mBreaks.end() && totalheight < (unsigned int) mHeight)
         {
@@ -606,7 +606,7 @@ void PlatformTextBox::FindBreaks()
 //             int tmpWidth = GetPlatformFont()->GetTextWidth(tmpstring);
 
 //             //  int time1 = SDL_GetTicks();
-//             cout << "................findnextlinebreak: " <<mLineWrap<< " "  << (curposition ) << ":" << (sublength ) << ":  "<< tmpWidth << "***" << ( time1) << endl;
+//             cerr << "................findnextlinebreak: " <<mLineWrap<< " "  << (curposition ) << ":" << (sublength ) << ":  "<< tmpWidth << "***" << ( time1) << endl;
 
 //             //Test to see if curposition is a '10' or a '0' (a hard/explicit line break).  If so, this is a line break.
 //             if(mText[curposition + sublength] == 10
@@ -642,9 +642,9 @@ void PlatformTextBox::FindBreaks()
 
 //                                     if(mLineWrap)
 //                                         {
-//                                             cout << "linewrap 4\n";
-//                                             cout << "Need to wrap but nowhere to wrap\n" << endl;
-//                                             cout << tmpstring << endl;
+//                                             cerr << "linewrap 4\n";
+//                                             cerr << "Need to wrap but nowhere to wrap\n" << endl;
+//                                             cerr << tmpstring << endl;
 //                                             //We have no natural break 'sep' on this line,
 //                                             //and the current line is too long.
 //                                             while(GetPlatformFont()->GetTextWidth(tmpstring) >(unsigned int)mWidth)
@@ -689,7 +689,7 @@ void PlatformTextBox::FindBreaks()
 
 //             if(mLineWrap)
 //                 {
-//                     cout << "linerwrap\n";
+//                     cerr << "linerwrap\n";
 
 //                     if(mText[curposition + sublength] == ' '
 //                        || mText[curposition + sublength] == '-'
@@ -726,7 +726,7 @@ void PlatformTextBox::FindBreaks()
 
 //                 }
 //             else{
-//                                     cout << "NO        linerwrap\n";
+//                                     cerr << "NO        linerwrap\n";
 //             }
 //             sublength++;
 //         }
@@ -761,8 +761,8 @@ int PlatformTextBox::FindNextLineBreak(unsigned int curposition)
     //loop through the entire text from curposition on.
     while (curposition + sublength < mText.size()+1)
         {
-            //cout << mText << endl;
-            //cout << curposition << "->" << (curposition+sublength) << "==<" << mText.size() <<endl;
+            //cerr << mText << endl;
+            //cerr << curposition << "->" << (curposition+sublength) << "==<" << mText.size() <<endl;
             
             //Get the width of the line right now.
             tmpstring = mText.substr(curposition,sublength);
@@ -954,7 +954,7 @@ int PlatformTextBox::FindNextLineBreak(unsigned int curposition)
 
             while(cont)
                 {
-                    //   cout << "Checking:["<< mText.substr(curposition,sublength) << "]" << curposition  << "|" << sublength << ">>" <<  mText.length()<< "\n";
+                    //   cerr << "Checking:["<< mText.substr(curposition,sublength) << "]" << curposition  << "|" << sublength << ">>" <<  mText.length()<< "\n";
                     sublength++;
                     end = start+sublength;
                     if(mIsUTF8)
@@ -1340,10 +1340,10 @@ bool PlatformTextBox::Draw()
 void PlatformTextBox::HandleKeyPress(int keycode, int modkeys, Uint16 unicode)
 {
 #if 0
-    cout << "handling keypress in PlatformTextBox: " << keycode << endl;
-    cout << "(" <<  PEBL_KEYCODE_RETURN << "|" << PEBL_KEYCODE_RETURN2 << "|" <<          PEBL_KEYCODE_KP_ENTER << ")"<< std::endl;
-    cout << "PEBL_KEYCODE_RIGHT:" << PEBL_KEYCODE_RIGHT << std::endl;
-    cout << "PEBL_KEYCODE_LEFT:" << PEBL_KEYCODE_LEFT << std::endl;
+    cerr << "handling keypress in PlatformTextBox: " << keycode << endl;
+    cerr << "(" <<  PEBL_KEYCODE_RETURN << "|" << PEBL_KEYCODE_RETURN2 << "|" <<          PEBL_KEYCODE_KP_ENTER << ")"<< std::endl;
+    cerr << "PEBL_KEYCODE_RIGHT:" << PEBL_KEYCODE_RIGHT << std::endl;
+    cerr << "PEBL_KEYCODE_LEFT:" << PEBL_KEYCODE_LEFT << std::endl;
 #endif
     
     switch(keycode)
@@ -1470,14 +1470,14 @@ void PlatformTextBox::HandleKeyPress(int keycode, int modkeys, Uint16 unicode)
 
             //case PEBL_KEYCODE_BACKSLASH:
             //InsertText("\\");
-            //cout << "backslash\n";
+            //cerr << "backslash\n";
             // InsertText(PEBLUtility::TranslateKeycode((PEBL_Keycode)keycode, modkeys));
             //break;
 
         default:
-            //cout << "----------------------\n" << keycode << endl;
-            //cout << "["<< (PEBLUtility::TranslateKeyCode(PEBLKey(keycode), modkeys))<<"]"<<endl;
-            //cout << "----------------------\n";
+            //cerr << "----------------------\n" << keycode << endl;
+            //cerr << "["<< (PEBLUtility::TranslateKeyCode(PEBLKey(keycode), modkeys))<<"]"<<endl;
+            //cerr << "----------------------\n";
 
 
             //    InsertText(SDL_GetKeyName(keycode));

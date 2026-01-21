@@ -41,7 +41,7 @@
 #include <iostream>
 
 
-using std::cout;
+// cout removed - use cerr for debug output
 using std::flush;
 using std::endl;
 
@@ -72,20 +72,20 @@ PColor SDLUtility::SDLColorToPColor(SDL_Color scolor)
 void SDLUtility::DrawPixel(SDL_Renderer *renderer, PlatformWidget * widget, int x, int y, PColor pcolor)
 {
     
-    cout << "drawing " << x << ","<< y << endl;
+    cerr << "drawing " << x << ","<< y << endl;
 #if 0
     if(renderer)
-        cout << "Line renderer: " << renderer << endl;
+        cerr << "Line renderer: " << renderer << endl;
     else
-        cout << "renderer is null\n";
+        cerr << "renderer is null\n";
 
 #endif
 
-    cout <<" texture " << widget->GetSDL_Texture() << endl;
+    cerr <<" texture " << widget->GetSDL_Texture() << endl;
 
     SDL_SetRenderTarget(renderer, widget->GetSDL_Texture());
     //    SDL_Color sdlcolor = PColorToSDLColor(pcolor);
-    cout << pcolor.GetRed() <<
+    cerr << pcolor.GetRed() <<
         "," << pcolor.GetGreen() << "," <<
         pcolor.GetBlue() << "," <<  pcolor.GetAlpha() << endl;
     
@@ -180,7 +180,7 @@ PColor SDLUtility::GetPixelColor(SDL_Surface *surface, int x, int y)
 
     SDL_GetRGB(pxl, surface->format, &r,&g,&b);
 
-    //    cout <<"Uint pxl:" << pxl << endl;
+    //    cerr <<"Uint pxl:" << pxl << endl;
     PColor col = PColor(r,g,b,0);
     return col;
 }
@@ -266,7 +266,7 @@ PColor SDLUtility::GetPixelColor(SDL_Renderer *renderer, SDL_Texture * texture, 
         int success = SDL_LockTexture(texture,NULL,&pixels,&pitch);
         if(success<0)
             {
-                cout << SDL_GetError() << endl;
+                cerr << SDL_GetError() << endl;
             }
         Uint32 * upixels = (Uint32*) pixels;
         SDL_PixelFormat* fmt= SDL_AllocFormat(format);
@@ -290,7 +290,7 @@ PColor SDLUtility::GetPixelColor(SDL_Renderer *renderer, SDL_Texture * texture, 
 
     SDL_GetRGBA(pixel,fmt, &r,&g,&b,&a);
 
-    //    cout <<"Uint pxl:" << pxl << endl;
+    //    cerr <<"Uint pxl:" << pxl << endl;
     //#endif
 
     PColor col = PColor(r,g,b,a);
@@ -349,18 +349,18 @@ Variant SDLUtility::GetCurrentScreenResolution()
     SDL_DisplayMode  info;// = SDL_GetVideoInfo();
     int success = SDL_GetCurrentDisplayMode(0,&info);
     //might also use SDL_GetDesktopDisplayMode()
-    cout << "SUCCESS at getting display mode?:" <<success << endl;
+    cerr << "SUCCESS at getting display mode?:" <<success << endl;
 
     int w,h,rate;
     if(success==0)
         {
-            cout << info.w << "," << info.h <<"," << info.refresh_rate << endl;
+            cerr << info.w << "," << info.h <<"," << info.refresh_rate << endl;
             w = info.w;
             h = info.h;
             rate =info.refresh_rate;
 
         } else {
-        cout << "SDL_Init failed: " << SDL_GetError() << endl;
+        cerr << "SDL_Init failed: " << SDL_GetError() << endl;
         PError::SignalFatalError(SDL_GetError());
     }
 
@@ -413,8 +413,8 @@ int SDLUtility::PopupErrorBox(PlatformWindow * pwindow,
 
 long double  SDLUtility::GetTimeHP()
 {
-    //    std::cout << SDL_GetPerformanceFrequency() <<std::endl;
-    std::cout << SDL_GetPerformanceCounter() <<"/"<< SDL_GetPerformanceFrequency() <<std::endl;
+    //    std::cerr << SDL_GetPerformanceFrequency() <<std::endl;
+    std::cerr << SDL_GetPerformanceCounter() <<"/"<< SDL_GetPerformanceFrequency() <<std::endl;
     return  ((long double)SDL_GetPerformanceCounter())/(long double)SDL_GetPerformanceFrequency()*1000.0;
 }
 
@@ -440,7 +440,7 @@ Variant SDLUtility::GetDriverList(bool printout)
             SDL_GetRenderDriverInfo (i, &drinfo);
             if(printout)
                 {
-                    cout << "Driver name ("<<i<<"): " << drinfo.name << endl;
+                    cerr << "Driver name ("<<i<<"): " << drinfo.name << endl;
                     if (drinfo.flags & SDL_RENDERER_SOFTWARE) std::cerr << " the renderer is a software fallback" << endl;
                     if (drinfo.flags & SDL_RENDERER_ACCELERATED) std::cerr << " the renderer uses hardware acceleration" << endl;
                     if (drinfo.flags & SDL_RENDERER_PRESENTVSYNC) std::cerr << " present is synchronized with the refresh rate" << endl;

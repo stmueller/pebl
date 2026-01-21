@@ -42,7 +42,7 @@
 #include <stdio.h>
 #include <algorithm>
 
-using std::cout;
+// cout removed - use cerr for debug output
 using std::cerr;
 using std::endl;
 using std::flush;
@@ -107,7 +107,7 @@ PlatformLabel::PlatformLabel(PlatformLabel & label):
     InitializeProperty("FONT",Variant(pcd));
     InitializeProperty("WIDTH",Variant(label.GetHeight()));
     InitializeProperty("HEIGHT",Variant(label.GetWidth()));
-    cout << "Drawing new label in platformlabel\n";
+    cerr << "Drawing new label in platformlabel\n";
     Draw();
 }
 
@@ -115,7 +115,7 @@ PlatformLabel::PlatformLabel(PlatformLabel & label):
 ///Standard Destructor
 PlatformLabel::~PlatformLabel()
 {
-    //cout << "Label destructor\n";
+    //cerr << "Label destructor\n";
  
 }
 

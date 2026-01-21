@@ -49,7 +49,11 @@ std::string ChainItem::CreateChainPageConfig(const std::string& tempDir) const {
     std::srand(std::time(nullptr));
     int random = std::rand() % 10000;
     std::string uuid = std::to_string(std::time(nullptr)) + "-" + std::to_string(random);
+#ifdef _WIN32
+    std::string configFile = tempDir + "\\chainpage-" + uuid + ".json";
+#else
     std::string configFile = tempDir + "/chainpage-" + uuid + ".json";
+#endif
 
     try {
         json j;

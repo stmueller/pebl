@@ -111,10 +111,10 @@ define Start(p)
         response <- WaitForClickOnTarget([yesBg, yesBorder, yesLabel, noBg, noBorder, noLabel],
                                          [1, 1, 1, 2, 2, 2])
 
-        ## If user declined consent, exit with code 1
+        ## If user declined consent, return 1
         if(response == 2)
         {
-            ExitQuietly("User declined consent", 1)
+            result <- 1
         }
 
     } else {
@@ -144,6 +144,6 @@ define Start(p)
         WaitForClickOnTarget([buttonBg, buttonBorder, okButton], [1, 1, 1])
     }
 
-    ## Normal completion - exit with code 0 (success)
-    return(0)
+    ## Return result: 0=success/accepted, 1=declined
+    return(result)
 }

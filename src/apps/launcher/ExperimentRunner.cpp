@@ -21,18 +21,31 @@
 #include <fcntl.h>
 #endif
 
+#ifdef _WIN32
+// Convert forward slashes to backslashes for Windows API compatibility
+static std::string NormalizeWindowsPath(const std::string& path) {
+    std::string result = path;
+    for (char& c : result) {
+        if (c == '/') c = '\\';
+    }
+    return result;
+}
+#endif
+
 ExperimentRunner::ExperimentRunner()
     : mConfig(nullptr)
     , mIsRunning(false)
-    , mProcessId(0)
     , mLaunchTime(0)
     , mCurrentFullscreen(false)
     , mExitCode(-1)
+    , mProcessId(0)
 {
 #ifdef _WIN32
     mProcessHandle = nullptr;
-    mStdoutPipe = nullptr;
-    mStderrPipe = nullptr;
+    mStdoutReadPipe = nullptr;
+    mStdoutWritePipe = nullptr;
+    mStderrReadPipe = nullptr;
+    mStderrWritePipe = nullptr;
 #else
     mStdoutPipe[0] = -1;
     mStdoutPipe[1] = -1;
@@ -44,15 +57,17 @@ ExperimentRunner::ExperimentRunner()
 ExperimentRunner::ExperimentRunner(LauncherConfig* config)
     : mConfig(config)
     , mIsRunning(false)
-    , mProcessId(0)
     , mLaunchTime(0)
     , mCurrentFullscreen(false)
     , mExitCode(-1)
+    , mProcessId(0)
 {
 #ifdef _WIN32
     mProcessHandle = nullptr;
-    mStdoutPipe = nullptr;
-    mStderrPipe = nullptr;
+    mStdoutReadPipe = nullptr;
+    mStdoutWritePipe = nullptr;
+    mStderrReadPipe = nullptr;
+    mStderrWritePipe = nullptr;
 #else
     mStdoutPipe[0] = -1;
     mStdoutPipe[1] = -1;
@@ -169,8 +184,12 @@ bool ExperimentRunner::RunExperiment(const std::string& scriptPath,
     }
 
 #ifdef _WIN32
-    // Windows: Use CreateProcess
-    std::string cmdLine = "\"" + peblPath + "\" \"" + scriptFilename + "\"";
+    // Windows: Use CreateProcess with pipes for stdout/stderr capture
+    // Normalize paths - convert forward slashes to backslashes for Windows API
+    std::string winPeblPath = NormalizeWindowsPath(peblPath);
+    std::string winWorkingDir = NormalizeWindowsPath(workingDir);
+
+    std::string cmdLine = "\"" + winPeblPath + "\" \"" + scriptFilename + "\"";
 
     // Add all arguments
     for (const auto& arg : fullArgs) {
@@ -182,10 +201,52 @@ bool ExperimentRunner::RunExperiment(const std::string& scriptPath,
         }
     }
 
+    printf("Windows CreateProcess: cmd=%s, workdir=%s\n", cmdLine.c_str(), winWorkingDir.c_str());
+
+    // Clear output buffers
+    mStdoutBuffer.clear();
+    mStderrBuffer.clear();
+
+    // Set up security attributes for pipe inheritance
+    SECURITY_ATTRIBUTES sa;
+    sa.nLength = sizeof(SECURITY_ATTRIBUTES);
+    sa.bInheritHandle = TRUE;  // Child process inherits handles
+    sa.lpSecurityDescriptor = NULL;
+
+    // Create stdout pipe
+    HANDLE hStdoutRead, hStdoutWrite;
+    if (!CreatePipe(&hStdoutRead, &hStdoutWrite, &sa, 0)) {
+        printf("Failed to create stdout pipe: %lu\n", GetLastError());
+        return false;
+    }
+    // Ensure read end is not inherited by child
+    SetHandleInformation(hStdoutRead, HANDLE_FLAG_INHERIT, 0);
+
+    // Create stderr pipe
+    HANDLE hStderrRead, hStderrWrite;
+    if (!CreatePipe(&hStderrRead, &hStderrWrite, &sa, 0)) {
+        printf("Failed to create stderr pipe: %lu\n", GetLastError());
+        CloseHandle(hStdoutRead);
+        CloseHandle(hStdoutWrite);
+        return false;
+    }
+    // Ensure read end is not inherited by child
+    SetHandleInformation(hStderrRead, HANDLE_FLAG_INHERIT, 0);
+
+    // Store pipe handles
+    mStdoutReadPipe = hStdoutRead;
+    mStdoutWritePipe = hStdoutWrite;
+    mStderrReadPipe = hStderrRead;
+    mStderrWritePipe = hStderrWrite;
+
     STARTUPINFOA si;
     PROCESS_INFORMATION pi;
     ZeroMemory(&si, sizeof(si));
     si.cb = sizeof(si);
+    si.hStdOutput = hStdoutWrite;
+    si.hStdError = hStderrWrite;
+    si.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
+    si.dwFlags |= STARTF_USESTDHANDLES;
     ZeroMemory(&pi, sizeof(pi));
 
     // Create the child process with working directory set
@@ -194,20 +255,38 @@ bool ExperimentRunner::RunExperiment(const std::string& scriptPath,
             const_cast<char*>(cmdLine.c_str()),  // Command line
             NULL,                       // Process security attributes
             NULL,                       // Thread security attributes
-            FALSE,                      // Inherit handles
+            TRUE,                       // Inherit handles (must be TRUE for pipes)
             0,                          // Creation flags
             NULL,                       // Environment
-            workingDir.c_str(),        // Current directory (IMPORTANT!)
+            winWorkingDir.c_str(),     // Current directory (IMPORTANT!) - must use backslashes
             &si,                        // Startup info
             &pi))                       // Process info
     {
         printf("Failed to create process: %s\n", cmdLine.c_str());
+        printf("Working directory was: %s\n", winWorkingDir.c_str());
+        printf("GetLastError: %lu\n", GetLastError());
+        // Clean up pipe handles
+        CloseHandle(hStdoutRead);
+        CloseHandle(hStdoutWrite);
+        CloseHandle(hStderrRead);
+        CloseHandle(hStderrWrite);
+        mStdoutReadPipe = nullptr;
+        mStdoutWritePipe = nullptr;
+        mStderrReadPipe = nullptr;
+        mStderrWritePipe = nullptr;
         return false;
     }
 
     mProcessHandle = pi.hProcess;
     mProcessId = pi.dwProcessId;
     CloseHandle(pi.hThread);
+
+    // Close write ends in parent - child has copies
+    CloseHandle(hStdoutWrite);
+    CloseHandle(hStderrWrite);
+    mStdoutWritePipe = nullptr;
+    mStderrWritePipe = nullptr;
+
     mIsRunning = true;
 
 #else
@@ -280,8 +359,8 @@ bool ExperimentRunner::RunExperiment(const std::string& scriptPath,
     mIsRunning = true;
 #endif
 
-    printf("Launched experiment: %s (PID: %d) in directory: %s\n",
-           scriptFilename.c_str(), mProcessId, workingDir.c_str());
+    printf("Launched experiment: %s (PID: %lu) in directory: %s\n",
+           scriptFilename.c_str(), (unsigned long)mProcessId, workingDir.c_str());
 
     // Log the launch
     mCurrentScript = scriptPath;
@@ -302,6 +381,19 @@ int ExperimentRunner::WaitForCompletion()
 
 #ifdef _WIN32
     WaitForSingleObject(mProcessHandle, INFINITE);
+
+    // Do final read of any remaining output
+    UpdateOutput();
+
+    // Close pipe read handles
+    if (mStdoutReadPipe) {
+        CloseHandle(static_cast<HANDLE>(mStdoutReadPipe));
+        mStdoutReadPipe = nullptr;
+    }
+    if (mStderrReadPipe) {
+        CloseHandle(static_cast<HANDLE>(mStderrReadPipe));
+        mStderrReadPipe = nullptr;
+    }
 
     DWORD exitCode;
     GetExitCodeProcess(mProcessHandle, &exitCode);
@@ -352,6 +444,15 @@ void ExperimentRunner::Terminate()
     TerminateProcess(mProcessHandle, 1);
     CloseHandle(mProcessHandle);
     mProcessHandle = nullptr;
+    // Close pipe handles
+    if (mStdoutReadPipe) {
+        CloseHandle(static_cast<HANDLE>(mStdoutReadPipe));
+        mStdoutReadPipe = nullptr;
+    }
+    if (mStderrReadPipe) {
+        CloseHandle(static_cast<HANDLE>(mStderrReadPipe));
+        mStderrReadPipe = nullptr;
+    }
 #else
     kill(mProcessId, SIGTERM);
 
@@ -368,7 +469,7 @@ void ExperimentRunner::Terminate()
 
     mIsRunning = false;
     LogCompletion(-999);  // Log termination with special exit code
-    printf("Terminated experiment (PID: %d)\n", mProcessId);
+    printf("Terminated experiment (PID: %lu)\n", mProcessId);
 }
 
 std::string ExperimentRunner::GetLaunchLogPath()
@@ -530,7 +631,39 @@ void ExperimentRunner::LogCompletion(int exitStatus)
 void ExperimentRunner::UpdateOutput()
 {
 #ifdef _WIN32
-    // TODO: Windows pipe reading
+    // Read from stdout pipe (non-blocking using PeekNamedPipe)
+    if (mStdoutReadPipe) {
+        HANDLE hPipe = static_cast<HANDLE>(mStdoutReadPipe);
+        DWORD bytesAvailable = 0;
+        while (PeekNamedPipe(hPipe, NULL, 0, NULL, &bytesAvailable, NULL) && bytesAvailable > 0) {
+            char buffer[4096];
+            DWORD bytesToRead = (bytesAvailable < sizeof(buffer) - 1) ? bytesAvailable : sizeof(buffer) - 1;
+            DWORD bytesRead = 0;
+            if (ReadFile(hPipe, buffer, bytesToRead, &bytesRead, NULL) && bytesRead > 0) {
+                buffer[bytesRead] = '\0';
+                mStdoutBuffer.append(buffer);
+            } else {
+                break;
+            }
+        }
+    }
+
+    // Read from stderr pipe (non-blocking using PeekNamedPipe)
+    if (mStderrReadPipe) {
+        HANDLE hPipe = static_cast<HANDLE>(mStderrReadPipe);
+        DWORD bytesAvailable = 0;
+        while (PeekNamedPipe(hPipe, NULL, 0, NULL, &bytesAvailable, NULL) && bytesAvailable > 0) {
+            char buffer[4096];
+            DWORD bytesToRead = (bytesAvailable < sizeof(buffer) - 1) ? bytesAvailable : sizeof(buffer) - 1;
+            DWORD bytesRead = 0;
+            if (ReadFile(hPipe, buffer, bytesToRead, &bytesRead, NULL) && bytesRead > 0) {
+                buffer[bytesRead] = '\0';
+                mStderrBuffer.append(buffer);
+            } else {
+                break;
+            }
+        }
+    }
 #else
     // Read from stdout pipe (non-blocking)
     if (mStdoutPipe[0] >= 0) {
@@ -567,6 +700,9 @@ bool ExperimentRunner::IsRunning()
         return false;
     }
 
+    // Read any available output while process is running
+    UpdateOutput();
+
     DWORD exitCode;
     if (GetExitCodeProcess(mProcessHandle, &exitCode)) {
         if (exitCode == STILL_ACTIVE) {
@@ -575,6 +711,27 @@ bool ExperimentRunner::IsRunning()
             // Process has finished
             mExitCode = static_cast<int>(exitCode);
             printf("Process %lu finished with exit code %d\n", mProcessId, mExitCode);
+            fflush(stdout);
+            // Also log to file for debugging
+            FILE* f = fopen("chain_debug.log", "a");
+            if (f) {
+                fprintf(f, "ExperimentRunner: Process finished, exit code = %d\n", mExitCode);
+                fclose(f);
+            }
+
+            // Do final read of any remaining output
+            UpdateOutput();
+
+            // Close pipe handles
+            if (mStdoutReadPipe) {
+                CloseHandle(static_cast<HANDLE>(mStdoutReadPipe));
+                mStdoutReadPipe = nullptr;
+            }
+            if (mStderrReadPipe) {
+                CloseHandle(static_cast<HANDLE>(mStderrReadPipe));
+                mStderrReadPipe = nullptr;
+            }
+
             CloseHandle(mProcessHandle);
             mProcessHandle = nullptr;
             mIsRunning = false;
@@ -583,6 +740,15 @@ bool ExperimentRunner::IsRunning()
         }
     } else {
         // Error querying process - assume it's dead
+        // Close pipe handles
+        if (mStdoutReadPipe) {
+            CloseHandle(static_cast<HANDLE>(mStdoutReadPipe));
+            mStdoutReadPipe = nullptr;
+        }
+        if (mStderrReadPipe) {
+            CloseHandle(static_cast<HANDLE>(mStderrReadPipe));
+            mStderrReadPipe = nullptr;
+        }
         CloseHandle(mProcessHandle);
         mProcessHandle = nullptr;
         mIsRunning = false;

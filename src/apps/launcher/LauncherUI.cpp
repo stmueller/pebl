@@ -18,6 +18,7 @@
 #include <ctime>
 #include <algorithm>
 #include <random>
+#include <map>
 #include <filesystem>
 #include <fstream>
 #include <numeric>
@@ -26,6 +27,8 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#include <shlobj.h>
+#include <commdlg.h>
 #include <direct.h>
 #include <io.h>
 #define mkdir(path, mode) _mkdir(path)
@@ -44,6 +47,81 @@
 #endif
 
 namespace fs = std::filesystem;
+
+// Helper function to get (and create if needed) temp directory in workspace
+static std::string GetWorkspaceTempDirectory(const std::string& workspacePath)
+{
+    std::string tempDir;
+
+    if (!workspacePath.empty()) {
+#ifdef _WIN32
+        tempDir = workspacePath + "\\temp";
+#else
+        tempDir = workspacePath + "/temp";
+#endif
+        // Create the temp directory if it doesn't exist
+        struct stat st;
+        if (stat(tempDir.c_str(), &st) != 0) {
+#ifdef _WIN32
+            _mkdir(tempDir.c_str());
+#else
+            mkdir(tempDir.c_str(), 0755);
+#endif
+            printf("Created temp directory: %s\n", tempDir.c_str());
+        }
+    } else {
+        // Fallback to system temp if no workspace
+#ifdef _WIN32
+        char tempPath[MAX_PATH];
+        DWORD len = GetTempPathA(MAX_PATH, tempPath);
+        if (len > 0 && len < MAX_PATH) {
+            tempDir = tempPath;
+            // Remove trailing backslash if present
+            if (!tempDir.empty() && (tempDir.back() == '\\' || tempDir.back() == '/')) {
+                tempDir.pop_back();
+            }
+        } else {
+            tempDir = "C:\\Windows\\Temp";
+        }
+#else
+        const char* tmpdir = getenv("TMPDIR");
+        tempDir = tmpdir ? tmpdir : "/tmp";
+#endif
+    }
+
+    return tempDir;
+}
+
+// Helper function to get the PEBL media directory from executable path
+static std::string GetPEBLMediaPath(const std::string& peblExePath)
+{
+    if (peblExePath.empty()) {
+        return "";
+    }
+
+    // Find the directory containing the executable
+    size_t lastSep = peblExePath.find_last_of("/\\");
+    if (lastSep == std::string::npos) {
+        return "";
+    }
+
+    std::string exeDir = peblExePath.substr(0, lastSep);
+
+    // Go up one level (from bin/ to PEBL root)
+    size_t parentSep = exeDir.find_last_of("/\\");
+    std::string peblRoot;
+    if (parentSep != std::string::npos) {
+        peblRoot = exeDir.substr(0, parentSep);
+    } else {
+        peblRoot = ".";
+    }
+
+#ifdef _WIN32
+    return peblRoot + "\\media";
+#else
+    return peblRoot + "/media";
+#endif
+}
 
 LauncherUI::LauncherUI(LauncherConfig* config, SDL_Renderer* renderer)
     : mConfig(config)
@@ -126,10 +204,11 @@ LauncherUI::LauncherUI(LauncherConfig* config, SDL_Renderer* renderer)
     mQuickLaunchPath[0] = '\0';
     mQuickLaunchParamFile[0] = '\0';
 
-    // Set Quick Launch to start in pebl-exp.<version>
-    const char* home = getenv("HOME");
-    if (home) {
-        std::string peblExpPath = std::string(home) + "/Documents/pebl-exp." + PEBL_VERSION;
+    // Set Quick Launch to start in workspace directory
+    // Portable mode: portable root directory (for access to PEBL/battery, demo, tutorial)
+    // Installed mode: Documents/pebl-exp.2.3
+    std::string peblExpPath = config->GetWorkspacePath();
+    if (!peblExpPath.empty()) {
         try {
             if (fs::exists(peblExpPath) && fs::is_directory(peblExpPath)) {
                 mQuickLaunchDirectory = peblExpPath;
@@ -151,9 +230,6 @@ LauncherUI::LauncherUI(LauncherConfig* config, SDL_Renderer* renderer)
             // Fall back to config directory
             mQuickLaunchDirectory = config->GetExperimentDirectory();
         }
-    } else {
-        // Fall back to config directory
-        mQuickLaunchDirectory = config->GetExperimentDirectory();
     }
 
     std::strncpy(mLanguageCode, config->GetLanguage().c_str(), sizeof(mLanguageCode) - 1);
@@ -279,35 +355,64 @@ void LauncherUI::Render(bool* p_open)
         if (!isRunning) {
             printf("DEBUG: Chain item finished (IsRunning=false), advancing...\n");
 
-            // Check exit code - only abort chain if it's a consent form with non-zero exit
+            // Check exit code - only abort chain if it's a consent form with exit code 1
+            // Exit code 1 = user explicitly declined consent
+            // Other non-zero codes = crash or error, not consent decline
             int exitCode = mRunningExperiment->GetExitCode();
-            printf("Chain item exit code: %d\n", exitCode);
+
+            // Debug logging to file and stdout
+            FILE* debugLog = fopen("chain_debug.log", "a");
+            if (debugLog) {
+                fprintf(debugLog, "=== Chain item finished ===\n");
+                fprintf(debugLog, "  Exit code: %d\n", exitCode);
+                fprintf(debugLog, "  mCurrentChainItemIndex: %d\n", mCurrentChainItemIndex);
+                fflush(debugLog);
+            }
+            printf("=== Chain item finished ===\n");
+            printf("  Exit code from GetExitCode(): %d\n", exitCode);
+            printf("  mCurrentChainItemIndex: %d\n", mCurrentChainItemIndex);
 
             // Get the current chain item to check its type
             bool shouldAbortChain = false;
+            bool isConsentDecline = false;
+            if (debugLog) {
+                fprintf(debugLog, "  Checking: exitCode=%d, chainItemIndex=%d\n", exitCode, mCurrentChainItemIndex);
+            }
             if (exitCode != 0 && mCurrentChain && mCurrentChainItemIndex >= 0 &&
                 mCurrentChainItemIndex < (int)mCurrentChain->GetItems().size()) {
                 const ChainItem& currentItem = mCurrentChain->GetItems()[mCurrentChainItemIndex];
-
-                // Only abort chain for consent forms with non-zero exit
-                // For regular tests, Ctrl-Shift-Alt-\ should just skip to next item
-                if (currentItem.type == ItemType::Consent) {
-                    shouldAbortChain = true;
-                    printf("Consent form declined (exit code %d) - aborting chain\n", exitCode);
-                } else {
-                    printf("Non-consent item exited with code %d - continuing chain\n", exitCode);
+                if (debugLog) {
+                    fprintf(debugLog, "  Item type=%d (Consent=%d)\n", (int)currentItem.type, (int)ItemType::Consent);
+                    fflush(debugLog);
                 }
+
+                // Only treat exit code 1 on consent forms as "declined"
+                // Other exit codes (crashes, errors) should not abort the chain as "declined"
+                if (currentItem.type == ItemType::Consent && exitCode == 1) {
+                    shouldAbortChain = true;
+                    isConsentDecline = true;
+                    if (debugLog) fprintf(debugLog, "  -> CONSENT DECLINED, aborting chain\n");
+                } else if (currentItem.type == ItemType::Consent && exitCode != 0) {
+                    if (debugLog) fprintf(debugLog, "  -> Consent error (code %d), continuing\n", exitCode);
+                } else {
+                    if (debugLog) fprintf(debugLog, "  -> Non-consent item (code %d), continuing\n", exitCode);
+                }
+            } else {
+                if (debugLog) fprintf(debugLog, "  exitCode==0 or invalid index, continuing chain\n");
+            }
+            if (debugLog) {
+                fflush(debugLog);
+                fclose(debugLog);
             }
 
-            if (shouldAbortChain) {
-                // Non-zero exit code on consent form - user declined consent
-                printf("Chain terminated: User declined consent (exit code %d)\n", exitCode);
+            if (shouldAbortChain && isConsentDecline) {
+                // Exit code 1 on consent form - user explicitly declined consent
+                printf("Chain terminated: User declined consent\n");
 
                 // Accumulate output from this final item
                 mChainAccumulatedStdout += mRunningExperiment->GetStdout();
                 mChainAccumulatedStderr += mRunningExperiment->GetStderr();
-                mChainAccumulatedStdout += "\n=== Chain terminated: User declined consent (exit code " +
-                                          std::to_string(exitCode) + ") ===\n";
+                mChainAccumulatedStdout += "\n=== Chain terminated: User declined consent ===\n";
 
                 // Stop chain execution
                 mRunningChain = false;
@@ -405,14 +510,8 @@ render_ui:
             // Show study bar (study selector, new study button, etc.)
             RenderStudyBar();
 
-            // Add spacing after StudyBar before second-level tabs
-            ImGui::Spacing();
-            ImGui::Spacing();
-            ImGui::Spacing();
-
-            // Second-level tabs for Study: Tests, Chains, Run
-            ImGui::Spacing();
-            ImGui::Spacing();
+            // Small spacing before second-level tabs
+            ImGui::Dummy(ImVec2(0, 5));
 
             // Second-level tab styling
             ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(20, 6));
@@ -936,7 +1035,29 @@ void LauncherUI::RenderMenuBar()
 
             if (ImGui::MenuItem("PEBL Manual (PDF)")) {
                 // Open local PDF manual
-                std::string manualPath = mConfig->GetBatteryPath() + "/../doc/pman/PEBLManual2.2.pdf";
+                std::string manualName = std::string("PEBLManual") + PEBL_VERSION + ".pdf";
+                std::string workspacePath = mConfig->GetWorkspacePath();
+                std::string manualPath;
+
+                // Portable mode: manual is at portable root (e.g., PEBL2.3_Portable/PEBLManual2.3.pdf)
+                // Installed mode: manual is in Documents/pebl-exp.2.3/doc/PEBLManual2.3.pdf
+                std::vector<std::string> possiblePaths = {
+                    (fs::path(workspacePath) / manualName).string(),  // Portable: root
+                    (fs::path(workspacePath) / "doc" / manualName).string(),  // Installed: doc subfolder
+                };
+
+                for (const auto& path : possiblePaths) {
+                    if (fs::exists(path)) {
+                        manualPath = path;
+                        break;
+                    }
+                }
+
+                if (manualPath.empty()) {
+                    manualPath = possiblePaths[0];
+                    printf("Warning: Manual not found at expected locations\n");
+                }
+
                 #ifdef __linux__
                 system(("xdg-open \"" + manualPath + "\" &").c_str());
                 #elif defined(_WIN32)
@@ -1480,9 +1601,6 @@ void LauncherUI::RenderDetailsTab()
 
 void LauncherUI::RenderChainTab()
 {
-    ImGui::Text("Chain Editor");
-    ImGui::Separator();
-    ImGui::Spacing();
 
     // Top section: Chain selector and info
     ImGui::BeginChild("ChainSelector", ImVec2(0, 150), true);
@@ -1541,6 +1659,114 @@ void LauncherUI::RenderChainTab()
         if (ImGui::Button("Save Chain")) {
             SaveCurrentChain();
         }
+
+        ImGui::SameLine();
+
+        // Copy chain button
+        if (ImGui::Button("Copy Chain...")) {
+            ImGui::OpenPopup("Copy Chain");
+        }
+
+        ImGui::SameLine();
+
+        // Delete chain button
+        if (ImGui::Button("Delete Chain")) {
+            ImGui::OpenPopup("Confirm Delete Chain");
+        }
+    }
+
+    // Copy Chain popup
+    if (ImGui::BeginPopupModal("Copy Chain", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::Text("Create a copy of '%s'", mCurrentChain ? mCurrentChain->GetName().c_str() : "");
+        ImGui::Spacing();
+
+        static char copyName[256] = "";
+        if (ImGui::IsWindowAppearing()) {
+            // Pre-fill with original name + "_copy"
+            if (mCurrentChain) {
+                std::string defaultName = mCurrentChain->GetName() + "_copy";
+                std::strncpy(copyName, defaultName.c_str(), sizeof(copyName) - 1);
+                copyName[sizeof(copyName) - 1] = '\0';
+            }
+            ImGui::SetKeyboardFocusHere();
+        }
+
+        ImGui::Text("New chain name:");
+        ImGui::InputText("##CopyChainName", copyName, sizeof(copyName));
+
+        ImGui::Spacing();
+
+        if (ImGui::Button("Copy", ImVec2(120, 0))) {
+            if (strlen(copyName) > 0 && mCurrentChain && mCurrentStudy) {
+                // Create a copy of the chain with the new name
+                std::string studyPath = mCurrentStudy->GetPath();
+                std::string newChainPath = (fs::path(studyPath) / "chains" / (std::string(copyName) + ".json")).string();
+
+                // Copy the current chain file
+                std::string oldChainPath = mCurrentChain->GetFilePath();
+                try {
+                    fs::copy_file(oldChainPath, newChainPath, fs::copy_options::overwrite_existing);
+
+                    // Load the new chain and update its name
+                    auto newChain = Chain::LoadFromFile(newChainPath);
+                    if (newChain) {
+                        newChain->SetName(copyName);
+                        newChain->Save();
+
+                        // Select the new chain
+                        mCurrentChain = newChain;
+                        mConfig->SetCurrentChainName(copyName);
+                        printf("Created copy of chain: %s\n", copyName);
+                    }
+                } catch (const std::exception& e) {
+                    printf("Error copying chain: %s\n", e.what());
+                }
+
+                copyName[0] = '\0';
+                ImGui::CloseCurrentPopup();
+            }
+        }
+
+        ImGui::SameLine();
+
+        if (ImGui::Button("Cancel", ImVec2(120, 0))) {
+            copyName[0] = '\0';
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::EndPopup();
+    }
+
+    // Delete Chain confirmation popup
+    if (ImGui::BeginPopupModal("Confirm Delete Chain", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::Text("Are you sure you want to delete the chain '%s'?", mCurrentChain ? mCurrentChain->GetName().c_str() : "");
+        ImGui::Spacing();
+        ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), "This action cannot be undone.");
+        ImGui::Spacing();
+
+        if (ImGui::Button("Delete", ImVec2(120, 0))) {
+            if (mCurrentChain && mCurrentStudy) {
+                std::string chainPath = mCurrentChain->GetFilePath();
+                std::string chainName = mCurrentChain->GetName();
+                try {
+                    fs::remove(chainPath);
+                    mCurrentChain.reset();
+                    mConfig->SetCurrentChainName("");
+                    printf("Deleted chain: %s\n", chainName.c_str());
+                } catch (const std::exception& e) {
+                    printf("Error deleting chain: %s\n", e.what());
+                }
+            }
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::SameLine();
+
+        if (ImGui::Button("Cancel", ImVec2(120, 0))) {
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::EndPopup();
     }
 
     ImGui::Spacing();
@@ -2119,6 +2345,7 @@ void LauncherUI::ShowParameterEditor()
                 ImGui::TableHeadersRow();
 
                 // Parameter rows
+                bool shouldFocusFirst = ImGui::IsWindowAppearing();
                 for (size_t i = 0; i < mParameters.size(); i++) {
                     Parameter& param = mParameters[i];
 
@@ -2136,6 +2363,9 @@ void LauncherUI::ShowParameterEditor()
                     buffer[sizeof(buffer) - 1] = '\0';
 
                     ImGui::PushItemWidth(-1);
+                    if (shouldFocusFirst && i == 0) {
+                        ImGui::SetKeyboardFocusHere();
+                    }
                     if (ImGui::InputText("##value", buffer, sizeof(buffer))) {
                         param.value = buffer;
                     }
@@ -2322,6 +2552,9 @@ void LauncherUI::ShowVariantNameDialog()
         }
 
         ImGui::PushItemWidth(-1);
+        if (ImGui::IsWindowAppearing()) {
+            ImGui::SetKeyboardFocusHere();
+        }
         ImGui::InputText("##variantname", mVariantName, sizeof(mVariantName));
         ImGui::PopItemWidth();
 
@@ -2812,8 +3045,13 @@ void LauncherUI::OpenDirectoryInFileBrowser(const std::string& path)
     }
 
 #ifdef _WIN32
-    // Windows: Use explorer
-    std::string command = "explorer \"" + path + "\"";
+    // Windows: Use explorer - normalize path to use backslashes
+    std::string winPath = path;
+    for (char& c : winPath) {
+        if (c == '/') c = '\\';
+    }
+    std::string command = "explorer \"" + winPath + "\"";
+    printf("Opening directory: %s\n", winPath.c_str());
 #elif __APPLE__
     // macOS: Use open
     std::string command = "open \"" + path + "\"";
@@ -2863,30 +3101,44 @@ void LauncherUI::LaunchTranslationEditor()
 
     const ExperimentInfo& exp = mExperiments[mSelectedExperiment];
 
-    // Get PEBL executable path (same logic as ExperimentRunner)
-    std::string peblExec = "pebl2";  // Default fallback
-#ifdef __linux__
-    char exePath[1024];
-    ssize_t len = readlink("/proc/self/exe", exePath, sizeof(exePath) - 1);
-    if (len != -1) {
-        exePath[len] = '\0';
-        std::string path(exePath);
-        size_t lastSlash = path.find_last_of('/');
-        if (lastSlash != std::string::npos) {
-            peblExec = path.substr(0, lastSlash + 1) + "pebl2";
+    // Get PEBL executable path from config
+    std::string peblExec = mConfig->GetPeblExecutablePath();
+    if (peblExec.empty()) {
+        peblExec = "pebl2";  // Fallback
+    }
+
+    // Find translatetest.pbl - look in various possible locations
+    std::string translateScript;
+    std::string batteryPath = mConfig->GetBatteryPath();
+    fs::path peblDir = fs::path(peblExec).parent_path().parent_path();  // Go up from bin/
+    fs::path binDir = fs::path(peblExec).parent_path();  // bin/ directory
+    std::vector<std::string> possiblePaths = {
+        (binDir / "translatetest.pbl").string(),                    // In bin/ alongside executable
+        (peblDir / "pebl-lib" / "translatetest.pbl").string(),      // In pebl-lib/
+        (fs::path(batteryPath) / "translatetest" / "translatetest.pbl").string(),
+        (fs::path(batteryPath).parent_path() / "media" / "apps" / "translatetest" / "translatetest.pbl").string(),
+        (peblDir / "media" / "apps" / "translatetest" / "translatetest.pbl").string(),
+        (peblDir / "battery" / "translatetest" / "translatetest.pbl").string(),
+    };
+    for (const auto& path : possiblePaths) {
+        if (fs::exists(path)) {
+            translateScript = path;
+            break;
         }
     }
-#endif
+    if (translateScript.empty()) {
+        printf("ERROR: Could not find translatetest.pbl in any expected location\n");
+        return;
+    }
 
     // Build command to launch translatetest.pbl
-    // Format: pebl2 translatetest.pbl -v <scriptname> --language <lang>
     std::string scriptPath = exp.path;
     std::string lang = std::string(mLanguageCode);
     if (lang.empty()) {
         lang = "en";
     }
 
-    std::string command = peblExec + " translatetest.pbl -v \"" + scriptPath + "\" --language " + lang;
+    std::string command = "\"" + peblExec + "\" \"" + translateScript + "\" -v \"" + scriptPath + "\" --language " + lang;
 
     printf("Launching translation editor: %s\n", command.c_str());
 
@@ -3016,40 +3268,44 @@ void LauncherUI::RunChainConfirmed()
     mChainAccumulatedStderr.clear();
 
     // Build execution order with randomization groups
+    // Items with the same randomGroup > 0 are shuffled among themselves,
+    // regardless of their position in the chain
     const auto& items = mCurrentChain->GetItems();
     mChainExecutionOrder.clear();
     mChainExecutionOrder.reserve(items.size());
 
-    size_t i = 0;
-    while (i < items.size()) {
-        // Check if this starts a randomization group (test with randomGroup > 0)
+    // First pass: collect all items by randomization group
+    std::map<int, std::vector<int>> groupItems;  // groupId -> list of item indices
+    for (size_t i = 0; i < items.size(); i++) {
+        if (items[i].type == ItemType::Test && items[i].randomGroup > 0) {
+            groupItems[items[i].randomGroup].push_back(i);
+        }
+    }
+
+    // Shuffle each group
+    std::random_device rd;
+    std::mt19937 g(rd());
+    std::map<int, size_t> groupNextIndex;  // Track which item to use next from each group
+    for (auto& [groupId, indices] : groupItems) {
+        std::shuffle(indices.begin(), indices.end(), g);
+        groupNextIndex[groupId] = 0;
+        printf("Randomized group %d (%zu tests)\n", groupId, indices.size());
+    }
+
+    // Second pass: build execution order
+    // Non-grouped items stay in place, grouped items are replaced with shuffled order
+    for (size_t i = 0; i < items.size(); i++) {
         if (items[i].type == ItemType::Test && items[i].randomGroup > 0) {
             int groupId = items[i].randomGroup;
-            std::vector<int> groupIndices;
-
-            // Collect all consecutive items with the same randomGroup
-            while (i < items.size() &&
-                   items[i].type == ItemType::Test &&
-                   items[i].randomGroup == groupId) {
-                groupIndices.push_back(i);
-                i++;
+            // Use next item from shuffled group
+            size_t& nextIdx = groupNextIndex[groupId];
+            if (nextIdx < groupItems[groupId].size()) {
+                mChainExecutionOrder.push_back(groupItems[groupId][nextIdx]);
+                nextIdx++;
             }
-
-            // Shuffle this group
-            std::random_device rd;
-            std::mt19937 g(rd());
-            std::shuffle(groupIndices.begin(), groupIndices.end(), g);
-
-            // Add shuffled indices to execution order
-            for (int idx : groupIndices) {
-                mChainExecutionOrder.push_back(idx);
-            }
-
-            printf("Randomized group %d (%zu tests)\n", groupId, groupIndices.size());
         } else {
-            // Not a randomization group - add as-is
+            // Not in a randomization group - add as-is
             mChainExecutionOrder.push_back(i);
-            i++;
         }
     }
 
@@ -3091,10 +3347,8 @@ void LauncherUI::ExecuteChainItem(int index)
 
         std::string studyPath = mCurrentStudy->GetPath();
         // Extract basename from test_name for .pbl filename
-        std::string testName = item.testName;
-        size_t lastSlash = testName.find_last_of('/');
-        std::string baseName = (lastSlash != std::string::npos) ? testName.substr(lastSlash + 1) : testName;
-        std::string testPath = studyPath + "/tests/" + test->testPath + "/" + baseName + ".pbl";
+        std::string baseName = fs::path(item.testName).filename().string();
+        std::string testPath = (fs::path(studyPath) / "tests" / test->testPath / (baseName + ".pbl")).string();
 
         std::vector<std::string> args;
 
@@ -3145,19 +3399,31 @@ void LauncherUI::ExecuteChainItem(int index)
     } else {
         // Execute page item (instruction/consent/completion)
         // Use ChainPage.pbl to display the page
-        std::string tmpDir = "/tmp"; // TODO: Use proper temp directory
+        std::string tmpDir = GetWorkspaceTempDirectory(mConfig->GetWorkspacePath());
         std::string configFile = item.CreateChainPageConfig(tmpDir);
 
         if (configFile.empty()) {
-            printf("Failed to create page config\n");
+            printf("Failed to create page config in: %s\n", tmpDir.c_str());
             delete mRunningExperiment;
             mRunningExperiment = nullptr;
             mRunningChain = false;
             return;
         }
 
-        // Run ChainPage.pbl with the config
-        std::string chainPagePath = "media/apps/ChainPage/ChainPage.pbl"; // Relative to PEBL install
+        // Run ChainPage.pbl with the config - use absolute path from PEBL install
+        std::string mediaPath = GetPEBLMediaPath(mConfig->GetPeblExecutablePath());
+        std::string chainPagePath;
+        if (!mediaPath.empty()) {
+#ifdef _WIN32
+            chainPagePath = mediaPath + "\\apps\\ChainPage\\ChainPage.pbl";
+#else
+            chainPagePath = mediaPath + "/apps/ChainPage/ChainPage.pbl";
+#endif
+        } else {
+            // Fallback to relative path (may work if CWD is PEBL root)
+            chainPagePath = "media/apps/ChainPage/ChainPage.pbl";
+            printf("Warning: Could not determine PEBL media path, using relative path\n");
+        }
 
         std::vector<std::string> args;
         // -v flag passes positional argument to Start(p)
@@ -3220,10 +3486,8 @@ void LauncherUI::TestChainItem(int index)
 
         std::string studyPath = mCurrentStudy->GetPath();
         // Extract basename from test_name for .pbl filename
-        std::string testName = item.testName;
-        size_t lastSlash = testName.find_last_of('/');
-        std::string baseName = (lastSlash != std::string::npos) ? testName.substr(lastSlash + 1) : testName;
-        std::string testPath = studyPath + "/tests/" + test->testPath + "/" + baseName + ".pbl";
+        std::string baseName = fs::path(item.testName).filename().string();
+        std::string testPath = (fs::path(studyPath) / "tests" / test->testPath / (baseName + ".pbl")).string();
 
         std::vector<std::string> args;
 
@@ -3257,18 +3521,30 @@ void LauncherUI::TestChainItem(int index)
     } else {
         // Execute page item (instruction/consent/completion)
         // Use ChainPage.pbl to display the page
-        std::string tmpDir = "/tmp";
+        std::string tmpDir = GetWorkspaceTempDirectory(mConfig->GetWorkspacePath());
         std::string configFile = item.CreateChainPageConfig(tmpDir);
 
         if (configFile.empty()) {
-            printf("Failed to create page config\n");
+            printf("Failed to create page config in: %s\n", tmpDir.c_str());
             delete mRunningExperiment;
             mRunningExperiment = nullptr;
             return;
         }
 
-        // Run ChainPage.pbl with the config
-        std::string chainPagePath = "media/apps/ChainPage/ChainPage.pbl";
+        // Run ChainPage.pbl with the config - use absolute path from PEBL install
+        std::string mediaPath = GetPEBLMediaPath(mConfig->GetPeblExecutablePath());
+        std::string chainPagePath;
+        if (!mediaPath.empty()) {
+#ifdef _WIN32
+            chainPagePath = mediaPath + "\\apps\\ChainPage\\ChainPage.pbl";
+#else
+            chainPagePath = mediaPath + "/apps/ChainPage/ChainPage.pbl";
+#endif
+        } else {
+            // Fallback to relative path (may work if CWD is PEBL root)
+            chainPagePath = "media/apps/ChainPage/ChainPage.pbl";
+            printf("Warning: Could not determine PEBL media path, using relative path\n");
+        }
 
         std::vector<std::string> args;
         // -v flag passes positional argument to Start(p)
@@ -3295,10 +3571,67 @@ void LauncherUI::TestChainItem(int index)
 std::string LauncherUI::OpenDirectoryDialog(const std::string& title, const std::string& startDir)
 {
 #ifdef _WIN32
-    // Windows: Use folder browser dialog
-    // This requires additional Windows API code
-    printf("Directory dialog not yet implemented for Windows\n");
-    return "";
+    // Windows: Use IFileDialog (Vista+) for modern folder picker
+    std::string result;
+
+    // Initialize COM
+    HRESULT hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+    if (SUCCEEDED(hr)) {
+        IFileDialog* pfd = nullptr;
+        hr = CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_ALL,
+                              IID_IFileDialog, reinterpret_cast<void**>(&pfd));
+
+        if (SUCCEEDED(hr)) {
+            // Set options to pick folders
+            DWORD dwOptions;
+            hr = pfd->GetOptions(&dwOptions);
+            if (SUCCEEDED(hr)) {
+                hr = pfd->SetOptions(dwOptions | FOS_PICKFOLDERS | FOS_FORCEFILESYSTEM);
+            }
+
+            // Set title
+            if (SUCCEEDED(hr) && !title.empty()) {
+                std::wstring wtitle(title.begin(), title.end());
+                pfd->SetTitle(wtitle.c_str());
+            }
+
+            // Set starting directory if provided
+            if (SUCCEEDED(hr) && !startDir.empty()) {
+                IShellItem* psiFolder = nullptr;
+                std::wstring wstartDir(startDir.begin(), startDir.end());
+                hr = SHCreateItemFromParsingName(wstartDir.c_str(), NULL, IID_PPV_ARGS(&psiFolder));
+                if (SUCCEEDED(hr)) {
+                    pfd->SetFolder(psiFolder);
+                    psiFolder->Release();
+                }
+            }
+
+            // Show the dialog
+            hr = pfd->Show(NULL);
+            if (SUCCEEDED(hr)) {
+                IShellItem* psi = nullptr;
+                hr = pfd->GetResult(&psi);
+                if (SUCCEEDED(hr)) {
+                    PWSTR pszPath = nullptr;
+                    hr = psi->GetDisplayName(SIGDN_FILESYSPATH, &pszPath);
+                    if (SUCCEEDED(hr)) {
+                        // Convert wide string to UTF-8
+                        int size_needed = WideCharToMultiByte(CP_UTF8, 0, pszPath, -1, NULL, 0, NULL, NULL);
+                        if (size_needed > 0) {
+                            result.resize(size_needed - 1);
+                            WideCharToMultiByte(CP_UTF8, 0, pszPath, -1, &result[0], size_needed, NULL, NULL);
+                        }
+                        CoTaskMemFree(pszPath);
+                    }
+                    psi->Release();
+                }
+            }
+            pfd->Release();
+        }
+        CoUninitialize();
+    }
+
+    return result;
 #elif __APPLE__
     // macOS: Use osascript
     std::string command = "osascript -e 'POSIX path of (choose folder";
@@ -3347,7 +3680,41 @@ std::string LauncherUI::OpenDirectoryDialog(const std::string& title, const std:
 std::string LauncherUI::OpenFileDialog(const std::string& title, const std::string& filter)
 {
 #ifdef _WIN32
-    printf("File dialog not yet implemented for Windows\n");
+    // Windows: Use GetOpenFileName
+    char filename[MAX_PATH] = "";
+
+    OPENFILENAMEA ofn;
+    ZeroMemory(&ofn, sizeof(ofn));
+    ofn.lStructSize = sizeof(ofn);
+    ofn.hwndOwner = NULL;
+    ofn.lpstrFile = filename;
+    ofn.nMaxFile = MAX_PATH;
+
+    // Convert filter from "*.json" format to Windows format "JSON Files\0*.json\0All Files\0*.*\0\0"
+    std::string winFilter;
+    if (!filter.empty()) {
+        // Create a description from the filter
+        std::string desc = filter;
+        if (desc.substr(0, 2) == "*.") {
+            desc = desc.substr(2) + " files";
+            // Capitalize first letter
+            if (!desc.empty()) desc[0] = toupper(desc[0]);
+        }
+        winFilter = desc + '\0' + filter + '\0' + "All Files" + '\0' + "*.*" + '\0';
+    } else {
+        winFilter = "All Files\0*.*\0";
+    }
+    winFilter += '\0';  // Double null terminator
+    ofn.lpstrFilter = winFilter.c_str();
+
+    // Convert title
+    ofn.lpstrTitle = title.c_str();
+
+    ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
+
+    if (GetOpenFileNameA(&ofn)) {
+        return std::string(filename);
+    }
     return "";
 #elif __APPLE__
     std::string command = "osascript -e 'POSIX path of (choose file with prompt \"" + title + "\")'";
@@ -3391,7 +3758,24 @@ std::string LauncherUI::OpenFileDialog(const std::string& title, const std::stri
 std::string LauncherUI::SaveFileDialog(const std::string& title, const std::string& defaultName)
 {
 #ifdef _WIN32
-    printf("Save dialog not yet implemented for Windows\n");
+    // Windows: Use GetSaveFileName
+    char filename[MAX_PATH];
+    strncpy(filename, defaultName.c_str(), MAX_PATH - 1);
+    filename[MAX_PATH - 1] = '\0';
+
+    OPENFILENAMEA ofn;
+    ZeroMemory(&ofn, sizeof(ofn));
+    ofn.lStructSize = sizeof(ofn);
+    ofn.hwndOwner = NULL;
+    ofn.lpstrFile = filename;
+    ofn.nMaxFile = MAX_PATH;
+    ofn.lpstrFilter = "All Files\0*.*\0";
+    ofn.lpstrTitle = title.c_str();
+    ofn.Flags = OFN_OVERWRITEPROMPT | OFN_NOCHANGEDIR;
+
+    if (GetSaveFileNameA(&ofn)) {
+        return std::string(filename);
+    }
     return "";
 #elif __APPLE__
     std::string command = "osascript -e 'POSIX path of (choose file name with prompt \"" + title + "\"";
@@ -3593,6 +3977,9 @@ void LauncherUI::ShowPageEditor()
         // Title field
         ImGui::Text("Title:");
         ImGui::PushItemWidth(-1);
+        if (ImGui::IsWindowAppearing()) {
+            ImGui::SetKeyboardFocusHere();
+        }
         ImGui::InputText("##Title", mPageEditor.title, sizeof(mPageEditor.title));
         ImGui::PopItemWidth();
 
@@ -3987,40 +4374,45 @@ void LauncherUI::AddTestToStudy()
 
     // Copy test from battery to study/tests/
     std::string studyPath = mCurrentStudy->GetPath();
-    std::string testDestDir = studyPath + "/tests/" + exp.name;
+
+    // Use the parent directory name as the test folder name
+    // This avoids nested directories when exp.name contains "/"
+    fs::path sourceDir(exp.directory);
+    std::string testFolderName = sourceDir.filename().string();
+    std::string testDestDir = studyPath + "/tests/" + testFolderName;
 
     try {
         // Create test directory
         fs::create_directories(testDestDir);
 
-        // Copy the main .pbl file
-        fs::path sourcePath(exp.path);
-        fs::path destFile = fs::path(testDestDir) / sourcePath.filename();
-        fs::copy_file(exp.path, destFile, fs::copy_options::overwrite_existing);
-        printf("Copied %s to %s\n", exp.path.c_str(), destFile.string().c_str());
-
-        // Copy params directory if it exists
-        std::string paramsSource = exp.directory + "/params";
-        if (fs::exists(paramsSource) && fs::is_directory(paramsSource)) {
-            std::string paramsDest = testDestDir + "/params";
-            fs::create_directories(paramsDest);
-            fs::copy(paramsSource, paramsDest, fs::copy_options::recursive | fs::copy_options::overwrite_existing);
-            printf("Copied params directory\n");
+        // Copy all files from source directory (not subdirectories)
+        for (const auto& entry : fs::directory_iterator(sourceDir)) {
+            if (entry.is_regular_file()) {
+                fs::path destFile = fs::path(testDestDir) / entry.path().filename();
+                fs::copy_file(entry.path(), destFile, fs::copy_options::overwrite_existing);
+                printf("Copied %s\n", entry.path().filename().string().c_str());
+            }
         }
 
-        // Copy translations directory if it exists
-        std::string translationsSource = exp.directory + "/translations";
-        if (fs::exists(translationsSource) && fs::is_directory(translationsSource)) {
-            std::string translationsDest = testDestDir + "/translations";
-            fs::create_directories(translationsDest);
-            fs::copy(translationsSource, translationsDest, fs::copy_options::recursive | fs::copy_options::overwrite_existing);
-            printf("Copied translations directory\n");
+        // Copy ALL subdirectories (params, translations, sounds, images, etc.)
+        for (const auto& entry : fs::directory_iterator(sourceDir)) {
+            if (entry.is_directory()) {
+                std::string subDirName = entry.path().filename().string();
+                // Skip data directory - that's for output, not resources
+                if (subDirName == "data") continue;
+
+                std::string subDirDest = testDestDir + "/" + subDirName;
+                fs::create_directories(subDirDest);
+                fs::copy(entry.path(), subDirDest, fs::copy_options::recursive | fs::copy_options::overwrite_existing);
+                printf("Copied %s directory\n", subDirName.c_str());
+            }
         }
 
         // Add test entry to study
+        // Use display name that includes parent/filename for disambiguation
         Test test;
         test.testName = exp.name;
-        test.testPath = exp.name;  // Relative path within study/tests/
+        test.testPath = testFolderName;  // Relative path within study/tests/
         test.included = true;
 
         mCurrentStudy->AddTest(test);
@@ -4035,16 +4427,25 @@ void LauncherUI::AddTestToStudy()
         // Also add to default "Main" chain if it exists
         std::string mainChainPath = studyPath + "/chains/Main.json";
         if (fs::exists(mainChainPath)) {
-            auto mainChain = Chain::LoadFromFile(mainChainPath);
-            if (mainChain) {
-                ChainItem item(ItemType::Test);
-                item.testName = test.testName;
-                item.paramVariant = "default";
-                item.language = "en";
-                item.randomGroup = 0;
-                mainChain->AddItem(item);
-                mainChain->Save();
-                printf("Added test to Main chain\n");
+            ChainItem item(ItemType::Test);
+            item.testName = test.testName;
+            item.paramVariant = "default";
+            item.language = "en";
+            item.randomGroup = 0;
+
+            // If mCurrentChain is the Main chain, add directly to it
+            if (mCurrentChain && mCurrentChain->GetFilePath() == mainChainPath) {
+                mCurrentChain->AddItem(item);
+                mCurrentChain->Save();
+                printf("Added test to Main chain (current chain)\n");
+            } else {
+                // Otherwise load Main chain separately
+                auto mainChain = Chain::LoadFromFile(mainChainPath);
+                if (mainChain) {
+                    mainChain->AddItem(item);
+                    mainChain->Save();
+                    printf("Added test to Main chain\n");
+                }
             }
         }
 
@@ -4078,27 +4479,27 @@ void LauncherUI::AddTestFromFile(const std::string& filePath)
         // Create test directory
         fs::create_directories(testDestDir);
 
-        // Copy the main .pbl file
-        fs::path destFile = fs::path(testDestDir) / path.filename();
-        fs::copy_file(filePath, destFile, fs::copy_options::overwrite_existing);
-        printf("Copied %s to %s\n", filePath.c_str(), destFile.string().c_str());
-
-        // Copy params directory if it exists
-        std::string paramsSource = sourceDir + "/params";
-        if (fs::exists(paramsSource) && fs::is_directory(paramsSource)) {
-            std::string paramsDest = testDestDir + "/params";
-            fs::create_directories(paramsDest);
-            fs::copy(paramsSource, paramsDest, fs::copy_options::recursive | fs::copy_options::overwrite_existing);
-            printf("Copied params directory\n");
+        // Copy all files from source directory (not subdirectories)
+        for (const auto& entry : fs::directory_iterator(sourceDir)) {
+            if (entry.is_regular_file()) {
+                fs::path destFile = fs::path(testDestDir) / entry.path().filename();
+                fs::copy_file(entry.path(), destFile, fs::copy_options::overwrite_existing);
+                printf("Copied %s\n", entry.path().filename().string().c_str());
+            }
         }
 
-        // Copy translations directory if it exists
-        std::string translationsSource = sourceDir + "/translations";
-        if (fs::exists(translationsSource) && fs::is_directory(translationsSource)) {
-            std::string translationsDest = testDestDir + "/translations";
-            fs::create_directories(translationsDest);
-            fs::copy(translationsSource, translationsDest, fs::copy_options::recursive | fs::copy_options::overwrite_existing);
-            printf("Copied translations directory\n");
+        // Copy ALL subdirectories (params, translations, sounds, images, etc.)
+        for (const auto& entry : fs::directory_iterator(sourceDir)) {
+            if (entry.is_directory()) {
+                std::string subDirName = entry.path().filename().string();
+                // Skip data directory - that's for output, not resources
+                if (subDirName == "data") continue;
+
+                std::string subDirDest = testDestDir + "/" + subDirName;
+                fs::create_directories(subDirDest);
+                fs::copy(entry.path(), subDirDest, fs::copy_options::recursive | fs::copy_options::overwrite_existing);
+                printf("Copied %s directory\n", subDirName.c_str());
+            }
         }
 
         // Add test to study
@@ -4114,16 +4515,25 @@ void LauncherUI::AddTestFromFile(const std::string& filePath)
         // Also add to default "Main" chain if it exists
         std::string mainChainPath = studyPath + "/chains/Main.json";
         if (fs::exists(mainChainPath)) {
-            auto mainChain = Chain::LoadFromFile(mainChainPath);
-            if (mainChain) {
-                ChainItem item(ItemType::Test);
-                item.testName = testName;
-                item.paramVariant = "default";
-                item.language = "en";
-                item.randomGroup = 0;
-                mainChain->AddItem(item);
-                mainChain->Save();
-                printf("Added test to Main chain\n");
+            ChainItem item(ItemType::Test);
+            item.testName = testName;
+            item.paramVariant = "default";
+            item.language = "en";
+            item.randomGroup = 0;
+
+            // If mCurrentChain is the Main chain, add directly to it
+            if (mCurrentChain && mCurrentChain->GetFilePath() == mainChainPath) {
+                mCurrentChain->AddItem(item);
+                mCurrentChain->Save();
+                printf("Added test to Main chain (current chain)\n");
+            } else {
+                // Otherwise load Main chain separately
+                auto mainChain = Chain::LoadFromFile(mainChainPath);
+                if (mainChain) {
+                    mainChain->AddItem(item);
+                    mainChain->Save();
+                    printf("Added test to Main chain\n");
+                }
             }
         }
 
@@ -4811,12 +5221,10 @@ void LauncherUI::RenderTestsInStudy()
 
         if (ImGui::BeginPopup("TestMenu")) {
             std::string studyPath = mCurrentStudy->GetPath();
-            std::string testPath = studyPath + "/tests/" + tests[i].testPath;
+            fs::path testPath = fs::path(studyPath) / "tests" / tests[i].testPath;
             // Extract basename from test_name for .pbl filename
-            std::string testName = tests[i].testName;
-            size_t lastSlash = testName.find_last_of('/');
-            std::string baseName = (lastSlash != std::string::npos) ? testName.substr(lastSlash + 1) : testName;
-            std::string pblFile = testPath + "/" + baseName + ".pbl";
+            std::string baseName = fs::path(tests[i].testName).filename().string();
+            std::string pblFile = (testPath / (baseName + ".pbl")).string();
 
             // Quick Launch
             if (ImGui::MenuItem("Quick Launch")) {
@@ -4830,10 +5238,7 @@ void LauncherUI::RenderTestsInStudy()
                     mQuickLaunchPath[sizeof(mQuickLaunchPath) - 1] = '\0';
 
                     // Update Quick Launch directory to parent of selected file
-                    size_t lastSlash = pblFile.find_last_of('/');
-                    if (lastSlash != std::string::npos) {
-                        mQuickLaunchDirectory = pblFile.substr(0, lastSlash);
-                    }
+                    mQuickLaunchDirectory = fs::path(pblFile).parent_path().string();
 
                     // Switch to Quick Launch tab
                     mTopLevelTab = 1;
@@ -4871,7 +5276,8 @@ void LauncherUI::RenderTestsInStudy()
             if (ImGui::MenuItem("Edit Translations...")) {
                 // Open translation editor dialog
                 mTranslationEditor.testIndex = i;
-                std::strncpy(mTranslationEditor.testPath, testPath.c_str(), sizeof(mTranslationEditor.testPath) - 1);
+                std::string testPathStr = testPath.string();
+                std::strncpy(mTranslationEditor.testPath, testPathStr.c_str(), sizeof(mTranslationEditor.testPath) - 1);
                 mTranslationEditor.testPath[sizeof(mTranslationEditor.testPath) - 1] = '\0';
                 mTranslationEditor.language[0] = '\0';  // Start with no language selected
                 mTranslationEditor.show = true;
@@ -4881,12 +5287,12 @@ void LauncherUI::RenderTestsInStudy()
 
             // Open test directory
             if (ImGui::MenuItem("Open Test Directory")) {
-                OpenDirectoryInFileBrowser(testPath);
+                OpenDirectoryInFileBrowser(testPath.string());
             }
 
             // Combine data
             if (ImGui::MenuItem("Combine Data Files...")) {
-                std::string dataPath = testPath + "/data";
+                std::string dataPath = (testPath / "data").string();
 
                 // Create data directory if it doesn't exist
                 if (!fs::exists(dataPath)) {
@@ -5240,13 +5646,6 @@ void LauncherUI::RenderRunTab()
         ImGui::TextWrapped("No study loaded. Load or create a study to run tests.");
         return;
     }
-
-    ImGui::TextColored(ImVec4(0.4f, 0.7f, 1.0f, 1.0f), "Run Study");
-    ImGui::Separator();
-    ImGui::Spacing();
-
-    ImGui::TextWrapped("Configure and run your study or individual chains.");
-    ImGui::Spacing();
     ImGui::Separator();
     ImGui::Spacing();
 
@@ -5380,26 +5779,41 @@ void LauncherUI::RenderRunTab()
 
     ImGui::Spacing();
 
-    // Language - allow custom language codes for inline translations
+    // Two-column layout for settings
+    float columnWidth = ImGui::GetContentRegionAvail().x * 0.5f;
+
+    // Left column
+    ImGui::BeginChild("SettingsLeft", ImVec2(columnWidth - 5, 85), false);
+
+    // Language
     ImGui::Text("Language:");
     ImGui::SameLine();
-    ImGui::PushItemWidth(100);
+    ImGui::PushItemWidth(60);
     ImGui::InputText("##Language", mLanguageCode, sizeof(mLanguageCode));
     ImGui::PopItemWidth();
     ImGui::SameLine();
-    ImGui::TextDisabled("(e.g., en, es, de, fr - or custom for inline translations)");
-
-    ImGui::Spacing();
+    ImGui::TextDisabled("(en, es, de, fr...)");
 
     // Fullscreen
     ImGui::Checkbox("Fullscreen Mode", &mFullscreen);
 
-    ImGui::Spacing();
+    // VSync
+    ImGui::Checkbox("Enable VSync", &mVSync);
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("Synchronize with monitor refresh rate");
+    }
+
+    ImGui::EndChild();
+
+    ImGui::SameLine();
+
+    // Right column
+    ImGui::BeginChild("SettingsRight", ImVec2(0, 85), false);
 
     // Screen Resolution
-    ImGui::Text("Screen Resolution:");
+    ImGui::Text("Resolution:");
     ImGui::SameLine();
-    ImGui::PushItemWidth(200);
+    ImGui::PushItemWidth(150);
     const char* resolutions[] = {
         "Auto (Current)",
         "1920x1080 (Full HD)",
@@ -5423,41 +5837,25 @@ void LauncherUI::RenderRunTab()
     }
     ImGui::PopItemWidth();
 
-    ImGui::Spacing();
-
-    // VSync
-    ImGui::Checkbox("Enable VSync", &mVSync);
-    if (ImGui::IsItemHovered()) {
-        ImGui::SetTooltip("Synchronize with monitor refresh rate");
-    }
-
-    ImGui::Spacing();
-
-    // Graphics Driver (advanced, collapsible)
-    if (ImGui::TreeNode("Advanced Options")) {
-        ImGui::Text("Graphics Driver:");
+    // Advanced Options (compact)
+    if (ImGui::TreeNode("Advanced")) {
+        ImGui::Text("Driver:");
         ImGui::SameLine();
-        ImGui::PushItemWidth(200);
+        ImGui::PushItemWidth(100);
         ImGui::InputText("##Driver", mGraphicsDriver, sizeof(mGraphicsDriver));
         ImGui::PopItemWidth();
-        if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("Leave blank for auto-detect (e.g., opengl, directfb)");
-        }
 
-        ImGui::Spacing();
-
-        ImGui::Text("Custom Arguments:");
-        ImGui::PushItemWidth(-1);
+        ImGui::Text("Args:");
+        ImGui::SameLine();
+        ImGui::PushItemWidth(100);
         ImGui::InputText("##CustomArgs", mCustomArguments, sizeof(mCustomArguments));
         ImGui::PopItemWidth();
-        if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("Additional command-line arguments");
-        }
 
         ImGui::TreePop();
     }
 
-    ImGui::Spacing();
+    ImGui::EndChild();
+
     ImGui::Separator();
     ImGui::Spacing();
 
@@ -5537,9 +5935,9 @@ void LauncherUI::RenderRunTab()
         mShowStderr = true;
     }
 
-    // "Open in Text Editor" button
-    ImGui::SameLine(ImGui::GetContentRegionAvail().x - 150);
-    if (ImGui::Button("Open in Text Editor", ImVec2(145, 0))) {
+    // "Open in Editor" button
+    ImGui::SameLine(ImGui::GetContentRegionAvail().x - 135);
+    if (ImGui::Button("Open in Editor", ImVec2(130, 0))) {
         // Get current output
         std::string output;
         if (mRunningExperiment) {
@@ -5618,10 +6016,10 @@ void LauncherUI::RenderQuickLaunchTab()
     // Two-column layout for top section: Instructions + Directory (left) | Recent tests (right)
     float topLeftWidth = ImGui::GetContentRegionAvail().x * 0.5f;
 
-    // Left column: Instructions + Directory
-    ImGui::BeginChild("InstructionsColumn", ImVec2(topLeftWidth, 160), false);
+    // Left column: Instructions + Directory (compact - 4 lines)
+    ImGui::BeginChild("InstructionsColumn", ImVec2(topLeftWidth, 100), false);
 
-    ImGui::TextWrapped("Browse and run .pbl scripts for testing, demos, and quick experiments.");
+    ImGui::Text("Browse and run .pbl scripts.");
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::Spacing();
@@ -5645,8 +6043,8 @@ void LauncherUI::RenderQuickLaunchTab()
 
     ImGui::SameLine();
 
-    // Right column: Recent tests
-    ImGui::BeginChild("RecentTestsColumn", ImVec2(0, 160), false);
+    // Right column: Recent tests (compact - 4 lines)
+    ImGui::BeginChild("RecentTestsColumn", ImVec2(0, 100), false);
 
     const std::vector<RecentExperiment>& recent = mConfig->GetRecentExperiments();
     if (!recent.empty()) {
@@ -5655,7 +6053,11 @@ void LauncherUI::RenderQuickLaunchTab()
 
         ImGui::BeginChild("RecentList", ImVec2(0, 0), true);
 
-        for (const auto& exp : recent) {
+        for (size_t i = 0; i < recent.size(); i++) {
+            const auto& exp = recent[i];
+            // Use index as unique ID to handle duplicate names
+            ImGui::PushID(static_cast<int>(i));
+
             // Show just the name, with timestamp as tooltip
             if (ImGui::Selectable(exp.name.c_str())) {
                 // Set the quick launch path to this experiment
@@ -5663,11 +6065,8 @@ void LauncherUI::RenderQuickLaunchTab()
                 mQuickLaunchPath[sizeof(mQuickLaunchPath) - 1] = '\0';
 
                 // Update directory to parent of selected file
-                std::string path = exp.path;
-                size_t lastSlash = path.find_last_of('/');
-                if (lastSlash != std::string::npos) {
-                    mQuickLaunchDirectory = path.substr(0, lastSlash);
-                }
+                fs::path filePath(exp.path);
+                mQuickLaunchDirectory = filePath.parent_path().string();
             }
 
             if (ImGui::IsItemHovered()) {
@@ -5677,6 +6076,8 @@ void LauncherUI::RenderQuickLaunchTab()
                 strftime(timeBuf, sizeof(timeBuf), "%Y-%m-%d %H:%M:%S", timeinfo);
                 ImGui::SetTooltip("Last run: %s\n%s", timeBuf, exp.path.c_str());
             }
+
+            ImGui::PopID();
         }
 
         ImGui::EndChild();
@@ -5693,8 +6094,8 @@ void LauncherUI::RenderQuickLaunchTab()
     // File list (left) and configuration (right)
     float leftWidth = ImGui::GetContentRegionAvail().x * 0.5f;
 
-    // Left: File browser
-    ImGui::BeginChild("QuickLaunchFiles", ImVec2(leftWidth, 300), true);
+    // Left: File browser (compact)
+    ImGui::BeginChild("QuickLaunchFiles", ImVec2(leftWidth, 170), true);
     ImGui::TextColored(ImVec4(0.7f, 0.7f, 1.0f, 1.0f), "PEBL Scripts");
     ImGui::Separator();
 
@@ -5729,10 +6130,7 @@ void LauncherUI::RenderQuickLaunchTab()
         lastProcessedPath = targetFile;  // Remember we processed this path
 
         // Extract just the filename from the full path
-        size_t lastSlash = targetFile.find_last_of('/');
-        if (lastSlash != std::string::npos) {
-            targetFile = targetFile.substr(lastSlash + 1);
-        }
+        targetFile = fs::path(targetFile).filename().string();
         // Find index in pblFiles
         for (int i = 0; i < (int)pblFiles.size(); i++) {
             if (pblFiles[i] == targetFile) {
@@ -5751,14 +6149,15 @@ void LauncherUI::RenderQuickLaunchTab()
         if (ImGui::Selectable(displayName.c_str(), false, 0, ImVec2(ImGui::GetContentRegionAvail().x - 60, 0))) {
             // Navigate into directory
             if (isParentDir) {
-                // Go up one level
-                size_t lastSlash = mQuickLaunchDirectory.find_last_of('/');
-                if (lastSlash != std::string::npos && lastSlash > 0) {
-                    mQuickLaunchDirectory = mQuickLaunchDirectory.substr(0, lastSlash);
+                // Go up one level using fs::path for cross-platform support
+                fs::path currentPath(mQuickLaunchDirectory);
+                fs::path parentPath = currentPath.parent_path();
+                if (!parentPath.empty() && parentPath != currentPath) {
+                    mQuickLaunchDirectory = parentPath.string();
                 }
             } else {
-                // Navigate into subdirectory
-                mQuickLaunchDirectory = mQuickLaunchDirectory + "/" + dir;
+                // Navigate into subdirectory using fs::path
+                mQuickLaunchDirectory = (fs::path(mQuickLaunchDirectory) / dir).string();
             }
             mQuickLaunchSelectedFile = -1;
             mQuickLaunchPath[0] = '\0';
@@ -5769,7 +6168,7 @@ void LauncherUI::RenderQuickLaunchTab()
             ImGui::SameLine();
             ImGui::PushID(1000 + dirIndex);  // Use offset to avoid ID collision with files
             if (ImGui::SmallButton("Open")) {
-                std::string fullPath = mQuickLaunchDirectory + "/" + dir;
+                std::string fullPath = (fs::path(mQuickLaunchDirectory) / dir).string();
                 OpenDirectoryInFileBrowser(fullPath);
             }
             ImGui::PopID();
@@ -5790,7 +6189,7 @@ void LauncherUI::RenderQuickLaunchTab()
         if (ImGui::Selectable(file.c_str(), is_selected, 0, ImVec2(ImGui::GetContentRegionAvail().x - 60, 0))) {
             // Set as selected and update path
             mQuickLaunchSelectedFile = fileIndex;
-            std::string fullPath = mQuickLaunchDirectory + "/" + file;
+            std::string fullPath = (fs::path(mQuickLaunchDirectory) / file).string();
             std::strncpy(mQuickLaunchPath, fullPath.c_str(), sizeof(mQuickLaunchPath) - 1);
             mQuickLaunchPath[sizeof(mQuickLaunchPath) - 1] = '\0';
         }
@@ -5799,7 +6198,7 @@ void LauncherUI::RenderQuickLaunchTab()
         ImGui::SameLine();
         ImGui::PushID(fileIndex);
         if (ImGui::SmallButton("Edit")) {
-            std::string fullPath = mQuickLaunchDirectory + "/" + file;
+            std::string fullPath = (fs::path(mQuickLaunchDirectory) / file).string();
 
             // Open in code editor
             std::ifstream fileStream(fullPath);
@@ -5831,8 +6230,8 @@ void LauncherUI::RenderQuickLaunchTab()
 
     ImGui::SameLine();
 
-    // Right: Configuration
-    ImGui::BeginChild("QuickLaunchConfig", ImVec2(0, 300), true);
+    // Right: Configuration (compact)
+    ImGui::BeginChild("QuickLaunchConfig", ImVec2(0, 170), true);
     ImGui::TextColored(ImVec4(0.7f, 0.7f, 1.0f, 1.0f), "Configuration");
     ImGui::Separator();
     ImGui::Spacing();
@@ -5911,11 +6310,7 @@ void LauncherUI::RenderQuickLaunchTab()
         if (success) {
             // Add to recent experiments list
             std::string scriptPath = mQuickLaunchPath;
-            std::string scriptName = scriptPath;
-            size_t lastSlash = scriptPath.find_last_of('/');
-            if (lastSlash != std::string::npos) {
-                scriptName = scriptPath.substr(lastSlash + 1);
-            }
+            std::string scriptName = fs::path(scriptPath).filename().string();
             mConfig->AddRecentExperiment(scriptPath, scriptName);
             mShowStderr = false;  // Start showing stdout
         } else {
@@ -5948,9 +6343,9 @@ void LauncherUI::RenderQuickLaunchTab()
         mShowStderr = true;
     }
 
-    // "Open in Text Editor" button
-    ImGui::SameLine(ImGui::GetContentRegionAvail().x - 150);
-    if (ImGui::Button("Open in Text Editor", ImVec2(145, 0))) {
+    // "Open in Editor" button
+    ImGui::SameLine(ImGui::GetContentRegionAvail().x - 135);
+    if (ImGui::Button("Open in Editor", ImVec2(130, 0))) {
         if (mRunningExperiment) {
             const std::string& output = mShowStderr ?
                 mRunningExperiment->GetStderr() :
@@ -6009,6 +6404,9 @@ void LauncherUI::ShowNewStudyDialog()
 
         ImGui::Text("Study Name:");
         ImGui::PushItemWidth(-1);
+        if (ImGui::IsWindowAppearing()) {
+            ImGui::SetKeyboardFocusHere();
+        }
         ImGui::InputText("##StudyName", mNewStudyName, sizeof(mNewStudyName));
         ImGui::PopItemWidth();
 
@@ -6045,6 +6443,13 @@ void LauncherUI::ShowNewStudyDialog()
                     // Save selected study to config
                     mConfig->SetCurrentStudyPath(studyPath);
                     mConfig->SaveConfig();
+
+                    // Auto-load Main chain (created by Study::CreateNew)
+                    std::string mainChainPath = studyPath + "/chains/Main.json";
+                    if (fs::exists(mainChainPath)) {
+                        LoadChain(mainChainPath);
+                        printf("Auto-loaded Main chain for new study\n");
+                    }
                 }
 
                 // Clear form
@@ -6087,6 +6492,9 @@ void LauncherUI::ShowNewChainDialog()
 
         ImGui::Text("Chain Name:");
         ImGui::PushItemWidth(-1);
+        if (ImGui::IsWindowAppearing()) {
+            ImGui::SetKeyboardFocusHere();
+        }
         ImGui::InputText("##ChainName", mNewChainName, sizeof(mNewChainName));
         ImGui::PopItemWidth();
 
@@ -6180,6 +6588,9 @@ void LauncherUI::ShowStudySettingsDialog()
 
         ImGui::Text("Name:");
         ImGui::PushItemWidth(-1);
+        if (ImGui::IsWindowAppearing()) {
+            ImGui::SetKeyboardFocusHere();
+        }
         ImGui::InputText("##Name", nameBuffer, sizeof(nameBuffer));
         ImGui::PopItemWidth();
 
@@ -6510,6 +6921,9 @@ void LauncherUI::ShowEditParticipantCodeDialog()
         ImGui::Text("Study Code (4 chars):");
         ImGui::SameLine();
         ImGui::PushItemWidth(100);
+        if (ImGui::IsWindowAppearing()) {
+            ImGui::SetKeyboardFocusHere();
+        }
         ImGui::InputText("##StudyCode", mStudyCode, sizeof(mStudyCode));
         ImGui::PopItemWidth();
 
@@ -6677,14 +7091,15 @@ void LauncherUI::ShowTranslationEditorDialog()
 
     ImVec2 center = ImGui::GetMainViewport()->GetCenter();
     ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
-    ImGui::SetNextWindowSize(ImVec2(600, 400), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(1000, 600), ImGuiCond_Appearing);
 
-    if (ImGui::BeginPopupModal("Translation Editor", &mTranslationEditor.show, 0))
+    if (ImGui::BeginPopupModal("Translation Editor", &mTranslationEditor.show, ImGuiWindowFlags_NoScrollbar))
     {
         if (!mCurrentStudy || mTranslationEditor.testIndex < 0) {
             ImGui::TextColored(ImVec4(1.0f, 0.3f, 0.3f, 1.0f), "Error: No test selected");
             if (ImGui::Button("Close", ImVec2(120, 0))) {
                 mTranslationEditor.show = false;
+                mTranslationEditor.Clear();
                 ImGui::CloseCurrentPopup();
             }
             ImGui::EndPopup();
@@ -6696,6 +7111,7 @@ void LauncherUI::ShowTranslationEditorDialog()
             ImGui::TextColored(ImVec4(1.0f, 0.3f, 0.3f, 1.0f), "Error: Invalid test index");
             if (ImGui::Button("Close", ImVec2(120, 0))) {
                 mTranslationEditor.show = false;
+                mTranslationEditor.Clear();
                 ImGui::CloseCurrentPopup();
             }
             ImGui::EndPopup();
@@ -6704,74 +7120,29 @@ void LauncherUI::ShowTranslationEditorDialog()
 
         const Test& test = tests[mTranslationEditor.testIndex];
 
+        // Build file paths
+        std::string baseName = fs::path(test.testName).filename().string();
+        std::string translationsDir = (fs::path(mTranslationEditor.testPath) / "translations").string();
+        std::string englishFile = (fs::path(translationsDir) / (baseName + ".pbl-en.json")).string();
+
+        // Header
         ImGui::TextColored(ImVec4(0.4f, 0.7f, 1.0f, 1.0f), "Test:");
         ImGui::SameLine();
         ImGui::Text("%s", test.testName.c_str());
-        ImGui::Spacing();
-        ImGui::Separator();
-        ImGui::Spacing();
-
-        // Get PEBL executable path once (used for both buttons)
-        std::string peblExec = "pebl2";
-#ifdef __linux__
-        char exePath[1024];
-        ssize_t len = readlink("/proc/self/exe", exePath, sizeof(exePath) - 1);
-        if (len != -1) {
-            exePath[len] = '\0';
-            std::string path(exePath);
-            size_t lastSlash = path.find_last_of('/');
-            if (lastSlash != std::string::npos) {
-                peblExec = path.substr(0, lastSlash + 1) + "pebl2";
-            }
-        }
-#endif
-
-        // Extract basename from test_name for .pbl filename
-        std::string testName = test.testName;
-        size_t lastSlash = testName.find_last_of('/');
-        std::string baseName = (lastSlash != std::string::npos) ? testName.substr(lastSlash + 1) : testName;
-        std::string pblFile = std::string(mTranslationEditor.testPath) + "/" + baseName + ".pbl";
-
-        // Base language (English) section
-        ImGui::TextWrapped("Edit the base English translation file (required):");
-        ImGui::Spacing();
-
-        if (ImGui::Button("Edit English Translations", ImVec2(250, 0))) {
-            // Launch translatetest.pbl for English
-            std::string command = peblExec + " translatetest.pbl -v \"" + pblFile + "\" --language en";
-            printf("Launching translation editor: %s\n", command.c_str());
-
-#ifdef __linux__
-            command += " &";
-#endif
-            int result = system(command.c_str());
-            if (result != 0) {
-                printf("Warning: Failed to launch translation editor\n");
-            }
-        }
-
-        ImGui::Spacing();
-        ImGui::Separator();
-        ImGui::Spacing();
-
-        // Target language section
-        ImGui::TextWrapped("Select a language to edit or create:");
-        ImGui::Spacing();
 
         // Scan for available language files
         std::vector<std::string> availableLanguages;
-        std::string translationsPath = std::string(mTranslationEditor.testPath) + "/translations";
+        availableLanguages.push_back("en");  // English is always available as base
 
-        if (fs::exists(translationsPath) && fs::is_directory(translationsPath)) {
-            for (const auto& entry : fs::directory_iterator(translationsPath)) {
+        if (fs::exists(translationsDir) && fs::is_directory(translationsDir)) {
+            for (const auto& entry : fs::directory_iterator(translationsDir)) {
                 if (entry.is_regular_file()) {
                     std::string filename = entry.path().filename().string();
-                    // Look for files like "testname.pbl-XX.json" (but not -en.json)
                     size_t dashPos = filename.rfind('-');
                     size_t dotPos = filename.rfind(".json");
                     if (dashPos != std::string::npos && dotPos != std::string::npos && dotPos > dashPos) {
                         std::string lang = filename.substr(dashPos + 1, dotPos - dashPos - 1);
-                        if (lang != "en") {  // Skip English, it's handled above
+                        if (lang != "en") {
                             availableLanguages.push_back(lang);
                         }
                     }
@@ -6779,12 +7150,14 @@ void LauncherUI::ShowTranslationEditorDialog()
             }
         }
 
-        // Language combo box
+        // Language selector
+        ImGui::SameLine(0, 20);
         ImGui::Text("Language:");
         ImGui::SameLine();
-        ImGui::PushItemWidth(150);
-        if (ImGui::BeginCombo("##Language", mTranslationEditor.language)) {
-            // Show available languages
+        ImGui::PushItemWidth(100);
+
+        static char prevLanguage[16] = "";
+        if (ImGui::BeginCombo("##Language", mTranslationEditor.language[0] ? mTranslationEditor.language : "Select...")) {
             for (const auto& lang : availableLanguages) {
                 bool isSelected = (std::string(mTranslationEditor.language) == lang);
                 if (ImGui::Selectable(lang.c_str(), isSelected)) {
@@ -6792,65 +7165,255 @@ void LauncherUI::ShowTranslationEditorDialog()
                     mTranslationEditor.language[sizeof(mTranslationEditor.language) - 1] = '\0';
                 }
             }
-
-            // Allow custom entry
+            // New language option
             ImGui::Separator();
-            ImGui::TextDisabled("New language code:");
-            static char customLang[16] = "";
-            if (ImGui::InputText("##CustomLang", customLang, sizeof(customLang), ImGuiInputTextFlags_EnterReturnsTrue)) {
-                std::strncpy(mTranslationEditor.language, customLang, sizeof(mTranslationEditor.language) - 1);
-                mTranslationEditor.language[sizeof(mTranslationEditor.language) - 1] = '\0';
-                ImGui::CloseCurrentPopup();
+            ImGui::TextDisabled("New code (2 chars):");
+            static char newLang[16] = "";
+            ImGui::PushItemWidth(60);
+            if (ImGui::InputText("##NewLang", newLang, 4, ImGuiInputTextFlags_EnterReturnsTrue)) {
+                if (strlen(newLang) > 0) {
+                    std::strncpy(mTranslationEditor.language, newLang, sizeof(mTranslationEditor.language) - 1);
+                    mTranslationEditor.language[sizeof(mTranslationEditor.language) - 1] = '\0';
+                    newLang[0] = '\0';
+                    ImGui::CloseCurrentPopup();
+                }
             }
-
+            ImGui::PopItemWidth();
             ImGui::EndCombo();
         }
         ImGui::PopItemWidth();
 
-        if (!availableLanguages.empty()) {
-            ImGui::SameLine();
-            ImGui::TextDisabled("(%zu available)", availableLanguages.size());
+        // Detect language change and reload
+        if (strcmp(prevLanguage, mTranslationEditor.language) != 0) {
+            mTranslationEditor.dataLoaded = false;
+            mTranslationEditor.selectedKeyIndex = -1;
+            std::strncpy(prevLanguage, mTranslationEditor.language, sizeof(prevLanguage) - 1);
+            prevLanguage[sizeof(prevLanguage) - 1] = '\0';
         }
 
-        ImGui::Spacing();
+        // Load translation data if not loaded
+        if (!mTranslationEditor.dataLoaded && mTranslationEditor.language[0] != '\0') {
+            mTranslationEditor.Clear();
 
-        // Edit/Create target language button
-        bool hasLanguage = std::strlen(mTranslationEditor.language) > 0;
-        if (!hasLanguage) {
-            ImGui::BeginDisabled();
-        }
+            // First load English as the base
+            if (fs::exists(englishFile)) {
+                try {
+                    std::ifstream f(englishFile);
+                    nlohmann::json j = nlohmann::json::parse(f);
+                    for (auto& [key, value] : j.items()) {
+                        mTranslationEditor.keys.push_back(key);
+                        mTranslationEditor.englishValues[key] = value.get<std::string>();
+                        mTranslationEditor.targetValues[key] = "";  // Initialize empty
+                    }
+                } catch (const std::exception& e) {
+                    printf("Error loading English translation file: %s\n", e.what());
+                }
+            }
 
-        if (ImGui::Button("Edit/Create Translation", ImVec2(250, 0))) {
-            // Launch translatetest.pbl for selected language
-            std::string lang = mTranslationEditor.language;
-            std::string command = peblExec + " translatetest.pbl -v \"" + pblFile + "\" --language " + lang;
-            printf("Launching translation editor: %s\n", command.c_str());
+            // Then load target language if it exists and is not English
+            if (std::string(mTranslationEditor.language) != "en") {
+                std::string targetFile = (fs::path(translationsDir) / (baseName + ".pbl-" + mTranslationEditor.language + ".json")).string();
+                if (fs::exists(targetFile)) {
+                    try {
+                        std::ifstream f(targetFile);
+                        nlohmann::json j = nlohmann::json::parse(f);
+                        for (auto& [key, value] : j.items()) {
+                            mTranslationEditor.targetValues[key] = value.get<std::string>();
+                            // Add any keys that weren't in English file
+                            if (mTranslationEditor.englishValues.find(key) == mTranslationEditor.englishValues.end()) {
+                                mTranslationEditor.keys.push_back(key);
+                                mTranslationEditor.englishValues[key] = "";
+                            }
+                        }
+                    } catch (const std::exception& e) {
+                        printf("Error loading target translation file: %s\n", e.what());
+                    }
+                }
+            } else {
+                // For English, target == english
+                mTranslationEditor.targetValues = mTranslationEditor.englishValues;
+            }
 
-#ifdef __linux__
-            command += " &";
-#endif
-            int result = system(command.c_str());
-            if (result != 0) {
-                printf("Warning: Failed to launch translation editor\n");
+            mTranslationEditor.dataLoaded = true;
+            mTranslationEditor.dirty = false;
+            if (!mTranslationEditor.keys.empty()) {
+                mTranslationEditor.selectedKeyIndex = 0;
             }
         }
 
-        if (!hasLanguage) {
-            ImGui::EndDisabled();
-        }
-
-        if (ImGui::IsItemHovered() && !hasLanguage) {
-            ImGui::SetTooltip("Select a language first");
+        // Show dirty indicator
+        if (mTranslationEditor.dirty) {
+            ImGui::SameLine(0, 20);
+            ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.0f, 1.0f), "(unsaved changes)");
         }
 
         ImGui::Spacing();
         ImGui::Separator();
+
+        // Main content area
+        if (!mTranslationEditor.language[0]) {
+            ImGui::Spacing();
+            ImGui::TextWrapped("Select a language to edit translations.");
+        } else if (mTranslationEditor.keys.empty()) {
+            ImGui::Spacing();
+            ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), "No English translation file found.");
+            ImGui::TextWrapped("Create translations/");
+            ImGui::SameLine(0, 0);
+            ImGui::Text("%s.pbl-en.json", baseName.c_str());
+            ImGui::SameLine(0, 0);
+            ImGui::TextWrapped(" first.");
+        } else {
+            // Two-panel layout: key list on left, edit boxes on right
+            float contentHeight = ImGui::GetContentRegionAvail().y - 40;  // Leave room for buttons
+
+            // Left panel - key list
+            ImGui::BeginChild("KeyList", ImVec2(168, contentHeight), true);
+            ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "Keys");
+            ImGui::Separator();
+            for (size_t i = 0; i < mTranslationEditor.keys.size(); i++) {
+                const std::string& key = mTranslationEditor.keys[i];
+                bool isSelected = (mTranslationEditor.selectedKeyIndex == (int)i);
+
+                if (ImGui::Selectable(key.c_str(), isSelected)) {
+                    mTranslationEditor.selectedKeyIndex = (int)i;
+                }
+            }
+            ImGui::EndChild();
+
+            ImGui::SameLine();
+
+            // Right panel - edit boxes
+            ImGui::BeginChild("EditPanel", ImVec2(0, contentHeight), true);
+
+            if (mTranslationEditor.selectedKeyIndex >= 0 && mTranslationEditor.selectedKeyIndex < (int)mTranslationEditor.keys.size()) {
+                const std::string& selectedKey = mTranslationEditor.keys[mTranslationEditor.selectedKeyIndex];
+                std::string& englishVal = mTranslationEditor.englishValues[selectedKey];
+                std::string& targetVal = mTranslationEditor.targetValues[selectedKey];
+
+                // Show key name
+                ImGui::TextColored(ImVec4(0.4f, 0.7f, 1.0f, 1.0f), "Key: %s", selectedKey.c_str());
+                ImGui::Spacing();
+
+                // Calculate available height for text boxes
+                float availHeight = ImGui::GetContentRegionAvail().y;
+                float boxHeight = (availHeight - 60) / 2;
+
+                // Original value on top (read-only reference with word wrap)
+                ImGui::Text("Original (reference):");
+
+                ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.15f, 0.15f, 0.15f, 1.0f));
+                char displayBuf[8192];
+                std::strncpy(displayBuf, englishVal.c_str(), sizeof(displayBuf) - 1);
+                displayBuf[sizeof(displayBuf) - 1] = '\0';
+                ImGui::InputTextMultiline("##original_ro", displayBuf, sizeof(displayBuf), ImVec2(-1, boxHeight),
+                    ImGuiInputTextFlags_ReadOnly | ImGuiInputTextFlags_WordWrap);
+                ImGui::PopStyleColor();
+
+                ImGui::Spacing();
+
+                // Editable value on bottom
+                ImGui::Text("%s (editing):", mTranslationEditor.language);
+
+                static char editBuf[8192];
+                std::strncpy(editBuf, targetVal.c_str(), sizeof(editBuf) - 1);
+                editBuf[sizeof(editBuf) - 1] = '\0';
+
+                if (ImGui::InputTextMultiline("##target", editBuf, sizeof(editBuf), ImVec2(-1, boxHeight), ImGuiInputTextFlags_WordWrap)) {
+                    targetVal = editBuf;
+                    mTranslationEditor.dirty = true;
+                }
+            } else {
+                ImGui::TextDisabled("Select a key from the list to edit");
+            }
+
+            ImGui::EndChild();
+        }
+
         ImGui::Spacing();
 
-        // Close button
-        if (ImGui::Button("Close", ImVec2(120, 0))) {
+        // Buttons
+        bool canSave = mTranslationEditor.dirty && !mTranslationEditor.keys.empty();
+        if (!canSave) {
+            ImGui::BeginDisabled();
+        }
+
+        if (ImGui::Button("Save", ImVec2(100, 0))) {
+            // Create translations directory if needed
+            try {
+                fs::create_directories(translationsDir);
+            } catch (...) {}
+
+            // Build JSON and save
+            nlohmann::json j;
+            for (const auto& key : mTranslationEditor.keys) {
+                j[key] = mTranslationEditor.targetValues[key];
+            }
+
+            std::string targetFile;
+            if (std::string(mTranslationEditor.language) == "en") {
+                targetFile = englishFile;
+            } else {
+                targetFile = (fs::path(translationsDir) / (baseName + ".pbl-" + mTranslationEditor.language + ".json")).string();
+            }
+
+            try {
+                std::ofstream f(targetFile);
+                f << j.dump(4);  // Pretty print with 4-space indent
+                f.close();
+                mTranslationEditor.dirty = false;
+                printf("Saved translations to: %s\n", targetFile.c_str());
+            } catch (const std::exception& e) {
+                printf("Error saving translation file: %s\n", e.what());
+            }
+        }
+
+        if (!canSave) {
+            ImGui::EndDisabled();
+        }
+
+        ImGui::SameLine();
+
+        if (ImGui::Button("Close", ImVec2(100, 0))) {
+            if (mTranslationEditor.dirty) {
+                // TODO: Could add a confirmation dialog here
+            }
             mTranslationEditor.show = false;
+            mTranslationEditor.Clear();
+            prevLanguage[0] = '\0';  // Reset for next time
             ImGui::CloseCurrentPopup();
+        }
+
+        // Add key button
+        ImGui::SameLine(0, 20);
+        if (ImGui::Button("+ Add Key", ImVec2(100, 0))) {
+            ImGui::OpenPopup("Add Key");
+        }
+
+        if (ImGui::BeginPopup("Add Key")) {
+            static char newKey[64] = "";
+            ImGui::Text("Key name:");
+            if (ImGui::IsWindowAppearing()) {
+                ImGui::SetKeyboardFocusHere();
+            }
+            if (ImGui::InputText("##newkey", newKey, sizeof(newKey), ImGuiInputTextFlags_EnterReturnsTrue)) {
+                if (strlen(newKey) > 0) {
+                    std::string key(newKey);
+                    // Convert to uppercase
+                    for (char& c : key) c = toupper(c);
+                    // Check if key already exists
+                    if (mTranslationEditor.englishValues.find(key) == mTranslationEditor.englishValues.end()) {
+                        mTranslationEditor.keys.push_back(key);
+                        mTranslationEditor.englishValues[key] = "";
+                        mTranslationEditor.targetValues[key] = "";
+                        mTranslationEditor.dirty = true;
+                        // Select the new key
+                        mTranslationEditor.selectedKeyIndex = (int)mTranslationEditor.keys.size() - 1;
+                    }
+                    newKey[0] = '\0';
+                    ImGui::CloseCurrentPopup();
+                }
+            }
+            ImGui::EndPopup();
         }
 
         ImGui::EndPopup();

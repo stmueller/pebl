@@ -46,7 +46,7 @@
 #include <string>
 #include <stdio.h>
 
-using std::cout;
+// cout removed - use cerr for debug output
 using std::cerr;
 using std::endl;
 using std::flush;
@@ -348,7 +348,7 @@ void PlatformMovie::PausePlayback()
 void PlatformMovie::RefreshVideo(SDL_Event &event)
 {
 
-  cout << "refreshingvideo\n";
+  cerr << "refreshingvideo\n";
 #if PEBL_MOVIES
     WV_refreshVideoFrame(&event);
 #endif

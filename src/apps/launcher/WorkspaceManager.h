@@ -33,6 +33,7 @@ public:
     std::string GetWorkspacePath() const { return mWorkspacePath; }
     std::string GetStudiesPath() const { return mWorkspacePath + "/my_studies"; }
     std::string GetSnapshotsPath() const { return mWorkspacePath + "/snapshots"; }
+    std::string GetChainsPath() const { return mWorkspacePath + "/chains"; }
     std::string GetDocsPath() const { return mWorkspacePath + "/doc"; }
     std::string GetDemoPath() const { return mWorkspacePath + "/demo"; }
     std::string GetTutorialPath() const { return mWorkspacePath + "/tutorial"; }
@@ -55,9 +56,11 @@ public:
 private:
     bool CreateDir(const std::string& path);
     bool DirectoryExists(const std::string& path) const;
+    bool FileExists(const std::string& path) const;
     bool CopyDirectory(const std::string& source, const std::string& dest, bool excludeData = false, const std::vector<std::string>& excludeDirs = {});
     bool CopyFileContents(const std::string& source, const std::string& dest);
     std::string GetDocumentsPath() const;
+    std::string GetPortableWorkspacePath() const;
 
     std::string mWorkspacePath;  // e.g., /home/user/Documents/pebl-exp.2.3
     bool mInitialized;

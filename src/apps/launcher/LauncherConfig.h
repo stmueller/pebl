@@ -8,6 +8,15 @@
 #include <string>
 #include <vector>
 
+// Version and prefix constants - defined here to avoid Makefile quoting issues
+#ifndef PEBL_VERSION
+#define PEBL_VERSION "2.3"
+#endif
+
+#ifndef PREFIX
+#define PREFIX "/usr/local"
+#endif
+
 struct RecentExperiment {
     std::string path;
     std::string name;
@@ -67,6 +76,8 @@ private:
     std::string GetConfigFilePath() const;
     std::string GetDocumentsPath() const;
     std::string DetectPEBLInstallation() const;
+    bool IsPortableMode() const;
+    std::string GetPortableWorkspacePath() const;
 
     std::string mExperimentDirectory;
     std::string mSubjectCode;
@@ -85,7 +96,7 @@ private:
     std::string mDataOutputPath;     // Where to save data files
 
     // UI settings
-    int mFontSize;                   // Font size (default 18)
+    int mFontSize;                   // Font size (default 16)
     int mWindowWidth;                // Window width (default 1280)
     int mWindowHeight;               // Window height (default 720)
     std::string mExternalEditor;     // External text editor command

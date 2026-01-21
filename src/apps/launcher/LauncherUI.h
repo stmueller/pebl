@@ -7,6 +7,7 @@
 
 #include <string>
 #include <vector>
+#include <map>
 #include <memory>
 #include <SDL2/SDL.h>
 #include "TextEditor.h"
@@ -57,9 +58,26 @@ struct TranslationEditorState {
     char language[16];  // Target language to edit/create
     char testPath[512];  // Full path to test directory
 
-    TranslationEditorState() : show(false), testIndex(-1) {
+    // In-app translation editor data
+    bool dataLoaded;
+    bool dirty;  // True if there are unsaved changes
+    int selectedKeyIndex;  // Currently selected key in the list
+    std::vector<std::string> keys;  // Keys in order
+    std::map<std::string, std::string> englishValues;  // Key -> English text
+    std::map<std::string, std::string> targetValues;   // Key -> Target language text (editable)
+
+    TranslationEditorState() : show(false), testIndex(-1), dataLoaded(false), dirty(false), selectedKeyIndex(-1) {
         language[0] = '\0';
         testPath[0] = '\0';
+    }
+
+    void Clear() {
+        dataLoaded = false;
+        dirty = false;
+        selectedKeyIndex = -1;
+        keys.clear();
+        englishValues.clear();
+        targetValues.clear();
     }
 };
 

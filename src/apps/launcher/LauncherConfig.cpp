@@ -8,6 +8,9 @@
 #include <sstream>
 #include <cstdlib>
 #include <ctime>
+#include <filesystem>
+
+namespace fs = std::filesystem;
 
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -40,7 +43,7 @@ LauncherConfig::LauncherConfig()
     , mBatteryPath("")
     , mPeblExecutablePath("")
     , mDataOutputPath("")
-    , mFontSize(18)
+    , mFontSize(16)
     , mWindowWidth(1280)
     , mWindowHeight(720)
     , mCurrentStudyPath("")
@@ -99,23 +102,58 @@ LauncherConfig::LauncherConfig()
     }
 #endif
 
-    // Set workspace path to Documents/pebl-exp.2.3/
-    std::string documentsPath = GetDocumentsPath();
-    if (!documentsPath.empty()) {
-#ifdef _WIN32
-        mWorkspacePath = documentsPath + "\\pebl-exp.2.3";
-#else
-        mWorkspacePath = documentsPath + "/pebl-exp.2.3";
-#endif
-    }
+    // Set workspace path based on mode
+    if (IsPortableMode()) {
+        // In portable mode, workspace is the portable root directory
+        // This allows access to PEBL/battery, PEBL/demo, PEBL/tutorial, etc.
+        std::string portableRoot = GetPortableWorkspacePath();
 
-    // Set default data output path (workspace/my_studies)
-    if (!mWorkspacePath.empty()) {
+        // Convert relative path to absolute
 #ifdef _WIN32
-        mDataOutputPath = mWorkspacePath + "\\my_studies";
+        char absPath[MAX_PATH];
+        if (GetFullPathNameA(portableRoot.c_str(), MAX_PATH, absPath, NULL) > 0) {
+            mWorkspacePath = absPath;
+        } else {
+            mWorkspacePath = portableRoot;
+        }
 #else
-        mDataOutputPath = mWorkspacePath + "/my_studies";
+        char* absPath = realpath(portableRoot.c_str(), nullptr);
+        if (absPath) {
+            mWorkspacePath = absPath;
+            free(absPath);
+        } else {
+            mWorkspacePath = portableRoot;
+        }
 #endif
+        printf("Portable mode: workspace set to %s\n", mWorkspacePath.c_str());
+
+        // In portable mode, data output goes to workspace/my_studies
+        if (!mWorkspacePath.empty()) {
+#ifdef _WIN32
+            mDataOutputPath = mWorkspacePath + "\\my_studies";
+#else
+            mDataOutputPath = mWorkspacePath + "/my_studies";
+#endif
+        }
+    } else {
+        // Installed mode: use Documents/pebl-exp.2.3/
+        std::string documentsPath = GetDocumentsPath();
+        if (!documentsPath.empty()) {
+#ifdef _WIN32
+            mWorkspacePath = documentsPath + "\\pebl-exp.2.3";
+#else
+            mWorkspacePath = documentsPath + "/pebl-exp.2.3";
+#endif
+        }
+
+        // Set default data output path (workspace/my_studies)
+        if (!mWorkspacePath.empty()) {
+#ifdef _WIN32
+            mDataOutputPath = mWorkspacePath + "\\my_studies";
+#else
+            mDataOutputPath = mWorkspacePath + "/my_studies";
+#endif
+        }
     }
 }
 
@@ -158,30 +196,21 @@ std::string LauncherConfig::DetectPEBLInstallation() const
 {
     struct stat st;
 
-    // Check for portable mode first (PEBL subdirectory in current working directory)
-    // This matches the old launcher.pbl behavior
+    // Only check for portable-style PEBL directory if explicitly in portable mode
+    if (IsPortableMode()) {
 #ifdef _WIN32
-    const char* peblDir = "PEBL";
-    const char* peblBattery = "PEBL\\battery";
-    const char* parentPeblDir = "..\\PEBL";
-    const char* parentPeblBattery = "..\\PEBL\\battery";
+        const char* peblBattery = "PEBL\\battery";
+        const char* parentPeblBattery = "..\\PEBL\\battery";
 #else
-    const char* peblDir = "PEBL";
-    const char* peblBattery = "PEBL/battery";
-    const char* parentPeblDir = "../PEBL";
-    const char* parentPeblBattery = "../PEBL/battery";
+        const char* peblBattery = "PEBL/battery";
+        const char* parentPeblBattery = "../PEBL/battery";
 #endif
 
-    if (stat(peblDir, &st) == 0 && S_ISDIR(st.st_mode)) {
-        // Check for PEBL/battery subdirectory
         if (stat(peblBattery, &st) == 0 && S_ISDIR(st.st_mode)) {
             printf("Found PEBL battery in portable mode: %s\n", peblBattery);
             return peblBattery;
         }
-    }
 
-    // Check parent directory for PEBL (if launcher is in a subdirectory)
-    if (stat(parentPeblDir, &st) == 0 && S_ISDIR(st.st_mode)) {
         if (stat(parentPeblBattery, &st) == 0 && S_ISDIR(st.st_mode)) {
             printf("Found PEBL battery in portable mode: %s\n", parentPeblBattery);
             return parentPeblBattery;
@@ -296,33 +325,96 @@ std::string LauncherConfig::DetectPEBLInstallation() const
 
 std::string LauncherConfig::GetConfigFilePath() const
 {
-    // Store config file in Documents/pebl-exp.2.3/launcher.cfg
-    std::string documentsPath = GetDocumentsPath();
-    if (!documentsPath.empty()) {
+    // In portable mode, store config in workspace/settings/
+    if (IsPortableMode()) {
+        std::string portableWorkspace = GetPortableWorkspacePath();
 #ifdef _WIN32
-        return documentsPath + "\\pebl-exp.2.3\\launcher.cfg";
+        return portableWorkspace + "\\settings\\launcher.cfg";
 #else
-        return documentsPath + "/pebl-exp.2.3/launcher.cfg";
+        return portableWorkspace + "/settings/launcher.cfg";
 #endif
     }
 
-    // Fallback to ~/.pebl/launcher.cfg
+    // Store config file in Documents/pebl-exp.2.3/settings/launcher.cfg
+    std::string documentsPath = GetDocumentsPath();
+    if (!documentsPath.empty()) {
 #ifdef _WIN32
-    // Windows: %APPDATA%\PEBL\launcher.cfg
+        return documentsPath + "\\pebl-exp.2.3\\settings\\launcher.cfg";
+#else
+        return documentsPath + "/pebl-exp.2.3/settings/launcher.cfg";
+#endif
+    }
+
+    // Fallback to ~/.pebl/settings/launcher.cfg
+#ifdef _WIN32
+    // Windows: %APPDATA%\PEBL\settings\launcher.cfg
     char appDataPath[MAX_PATH];
     if (SUCCEEDED(SHGetFolderPathA(NULL, CSIDL_APPDATA, NULL, 0, appDataPath))) {
-        return std::string(appDataPath) + "\\PEBL\\launcher.cfg";
+        return std::string(appDataPath) + "\\PEBL\\settings\\launcher.cfg";
     }
     return "";
 #else
-    // Linux/macOS: ~/.pebl/launcher.cfg
+    // Linux/macOS: ~/.pebl/settings/launcher.cfg
     const char* homeDir = getenv("HOME");
     if (!homeDir) {
         struct passwd* pw = getpwuid(getuid());
         homeDir = pw->pw_dir;
     }
-    return std::string(homeDir) + "/.pebl/launcher.cfg";
+    return std::string(homeDir) + "/.pebl/settings/launcher.cfg";
 #endif
+}
+
+bool LauncherConfig::IsPortableMode() const
+{
+    struct stat st;
+
+    // Check for STANDALONE.txt marker file
+    if (stat("./STANDALONE.txt", &st) == 0 || stat("../STANDALONE.txt", &st) == 0 ||
+        stat("../../STANDALONE.txt", &st) == 0) {
+        return true;
+    }
+
+    // Check for PORTABLE marker file
+    if (stat("./PORTABLE.txt", &st) == 0 || stat("../PORTABLE.txt", &st) == 0 ||
+        stat("../../PORTABLE.txt", &st) == 0) {
+        return true;
+    }
+
+    // Check for PEBL_PORTABLE environment variable
+    const char* portableEnv = getenv("PEBL_PORTABLE");
+    if (portableEnv && strcmp(portableEnv, "1") == 0) {
+        return true;
+    }
+
+    // No automatic detection - only explicit marker files or environment variable
+    return false;
+}
+
+std::string LauncherConfig::GetPortableWorkspacePath() const
+{
+    struct stat st;
+
+    // Check where the marker file is located to determine workspace root
+    // Marker file location determines workspace location
+
+    // Check if marker file is in current directory (running from root)
+    if (stat("./STANDALONE.txt", &st) == 0 || stat("./PORTABLE.txt", &st) == 0) {
+        return ".";
+    }
+
+    // Check if marker file is one level up
+    if (stat("../STANDALONE.txt", &st) == 0 || stat("../PORTABLE.txt", &st) == 0) {
+        return "..";
+    }
+
+    // Check if marker file is two levels up (we're in PEBL/bin/)
+    if (stat("../../STANDALONE.txt", &st) == 0 || stat("../../PORTABLE.txt", &st) == 0) {
+        return "../..";
+    }
+
+    // If PEBL_PORTABLE env var is set, use current directory
+    // Fallback: current directory
+    return ".";
 }
 
 bool LauncherConfig::LoadConfig()
@@ -334,6 +426,10 @@ bool LauncherConfig::LoadConfig()
         // Config file doesn't exist yet, use defaults
         return false;
     }
+
+    // In portable mode, skip loading path-related settings
+    // They should be re-detected each time based on current location
+    bool portable = IsPortableMode();
 
     std::string line;
     std::string currentSection = "";
@@ -367,6 +463,16 @@ bool LauncherConfig::LoadConfig()
 
         // Apply configuration values based on section
         if (currentSection == "") {
+            // In portable mode, skip path-related settings (except relative study paths)
+            if (portable) {
+                if (key == "experiment_directory" || key == "workspace_path" ||
+                    key == "battery_path" || key == "pebl_executable_path" ||
+                    key == "data_output_path") {
+                    continue;  // Skip - will be re-detected
+                }
+                // Note: current_study_path is handled specially in its own case below
+            }
+
             if (key == "experiment_directory") {
                 mExperimentDirectory = value;
             } else if (key == "subject_code") {
@@ -408,7 +514,25 @@ bool LauncherConfig::LoadConfig()
                     printf("Warning: Invalid window_height value, using default\n");
                 }
             } else if (key == "current_study_path") {
-                mCurrentStudyPath = value;
+                if (portable && !value.empty()) {
+                    // In portable mode, convert relative path to absolute
+                    // Check if it's already absolute
+                    if (value[0] != '/' && !(value.length() > 1 && value[1] == ':')) {
+                        // It's a relative path - make it absolute relative to workspace
+                        try {
+                            fs::path relativePath(value);
+                            fs::path absolutePath = fs::absolute(fs::path(mWorkspacePath) / relativePath);
+                            mCurrentStudyPath = absolutePath.string();
+                        } catch (...) {
+                            mCurrentStudyPath = value;  // Fallback to as-is
+                        }
+                    } else {
+                        // Absolute path in portable mode - skip it
+                        mCurrentStudyPath = "";
+                    }
+                } else {
+                    mCurrentStudyPath = value;
+                }
             } else if (key == "current_chain_name") {
                 mCurrentChainName = value;
             } else if (key == "external_editor") {
@@ -451,21 +575,16 @@ bool LauncherConfig::LoadConfig()
 bool LauncherConfig::SaveConfig()
 {
     std::string configPath = GetConfigFilePath();
+    bool portable = IsPortableMode();
 
-    // Create directory if it doesn't exist
-#ifdef _WIN32
-    size_t lastSlash = configPath.find_last_of('\\');
-#else
-    size_t lastSlash = configPath.find_last_of('/');
-#endif
-
-    if (lastSlash != std::string::npos) {
-        std::string configDir = configPath.substr(0, lastSlash);
-#ifdef _WIN32
-        CreateDirectoryA(configDir.c_str(), NULL);
-#else
-        mkdir(configDir.c_str(), 0755);
-#endif
+    // Create directory (and any parent directories) if it doesn't exist
+    fs::path configDir = fs::path(configPath).parent_path();
+    if (!configDir.empty()) {
+        try {
+            fs::create_directories(configDir);
+        } catch (const fs::filesystem_error& e) {
+            printf("Warning: Could not create config directory: %s\n", e.what());
+        }
     }
 
     std::ofstream configFile(configPath);
@@ -476,20 +595,30 @@ bool LauncherConfig::SaveConfig()
     // Write configuration
     configFile << "# PEBL Launcher Configuration" << std::endl;
     configFile << "# Auto-generated - edit at your own risk" << std::endl;
+    if (portable) {
+        configFile << "# Portable mode - path settings are auto-detected on launch" << std::endl;
+    }
     configFile << std::endl;
 
-    configFile << "experiment_directory=" << mExperimentDirectory << std::endl;
+    // In portable mode, don't save absolute path settings
+    // They will be re-detected based on the launcher's location
+    if (!portable) {
+        configFile << "experiment_directory=" << mExperimentDirectory << std::endl;
+    }
     configFile << "subject_code=" << mSubjectCode << std::endl;
     configFile << "language=" << mLanguage << std::endl;
     configFile << "fullscreen=" << (mFullscreen ? "true" : "false") << std::endl;
     configFile << std::endl;
 
-    configFile << "# File paths" << std::endl;
-    configFile << "workspace_path=" << mWorkspacePath << std::endl;
-    configFile << "battery_path=" << mBatteryPath << std::endl;
-    configFile << "pebl_executable_path=" << mPeblExecutablePath << std::endl;
-    configFile << "data_output_path=" << mDataOutputPath << std::endl;
-    configFile << std::endl;
+    // In portable mode, skip path settings entirely
+    if (!portable) {
+        configFile << "# File paths" << std::endl;
+        configFile << "workspace_path=" << mWorkspacePath << std::endl;
+        configFile << "battery_path=" << mBatteryPath << std::endl;
+        configFile << "pebl_executable_path=" << mPeblExecutablePath << std::endl;
+        configFile << "data_output_path=" << mDataOutputPath << std::endl;
+        configFile << std::endl;
+    }
 
     configFile << "# Upload settings" << std::endl;
     configFile << "auto_upload=" << (mAutoUpload ? "true" : "false") << std::endl;
@@ -505,7 +634,23 @@ bool LauncherConfig::SaveConfig()
     configFile << std::endl;
 
     configFile << "# Session state" << std::endl;
-    configFile << "current_study_path=" << mCurrentStudyPath << std::endl;
+    // Save study path - in portable mode, convert to relative path
+    if (!mCurrentStudyPath.empty()) {
+        if (portable) {
+            // Convert absolute path to relative path for portable mode
+            try {
+                fs::path studyPath(mCurrentStudyPath);
+                fs::path workspacePath(mWorkspacePath);
+                fs::path relativePath = fs::relative(studyPath, workspacePath);
+                configFile << "current_study_path=" << relativePath.string() << std::endl;
+            } catch (...) {
+                // If relative path conversion fails, skip saving
+                printf("Warning: Could not convert study path to relative path\n");
+            }
+        } else {
+            configFile << "current_study_path=" << mCurrentStudyPath << std::endl;
+        }
+    }
     configFile << "current_chain_name=" << mCurrentChainName << std::endl;
 
     // Save recent experiments

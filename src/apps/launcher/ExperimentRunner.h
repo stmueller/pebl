@@ -71,8 +71,10 @@ private:
 #ifdef _WIN32
     void* mProcessHandle;  // HANDLE on Windows
     unsigned long mProcessId;  // DWORD on Windows
-    void* mStdoutPipe;  // Pipe for stdout
-    void* mStderrPipe;  // Pipe for stderr
+    void* mStdoutReadPipe;   // Read end of stdout pipe (parent reads from this)
+    void* mStdoutWritePipe;  // Write end of stdout pipe (child writes to this)
+    void* mStderrReadPipe;   // Read end of stderr pipe (parent reads from this)
+    void* mStderrWritePipe;  // Write end of stderr pipe (child writes to this)
 #else
     int mProcessId;  // pid_t on Unix
     int mStdoutPipe[2];  // Pipe for stdout [read, write]

@@ -585,10 +585,12 @@ validator-real: CXXFLAGS = $(CXXFLAGS0) $(CXXFLAGS_WIN32) -DPEBL_VALIDATOR
 validator-real: $(DIRS) $(VALIDATOR_OBJ) $(BASE_DIR)/lex.yy.o
 	$(CXX) $(CXXFLAGS) -Wall $(DEBUGFLAGS) \
 	-Wno-write-strings \
+	-mconsole \
 	-o $(BIN_DIR)/pebl-validator.exe \
 	$(patsubst %.o, $(OBJ_DIR)/%.o, $(VALIDATOR_OBJ)) \
 	$(OBJ_DIR)/$(BASE_DIR)/lex.yy.o \
-	-lpthread
+	-L/c/msys64/mingw64/lib \
+	-lmingw32 -lSDL2main -lSDL2 -lpthread
 
 .PHONY: validator validator-real
 
@@ -600,10 +602,9 @@ LAUNCHER_CXXFLAGS = -std=c++17 -Wall -O2 \
 	-I$(IMGUI_DIR) \
 	-I$(IMGUI_DIR)/backends \
 	-Ilibs \
+	-Isrc/apps/launcher \
 	-I$(UTIL_DIR) \
 	-DENABLE_BINRELOC \
-	-DPEBL_VERSION=\"$(PEBL_VERSION)\" \
-	-DPREFIX=\"/usr/local\" \
 	-DPEBL_WIN32 \
 	$(SDL_FLAGS)
 
@@ -612,13 +613,14 @@ pebl-launcher:
 
 pebl-launcher-real: CC=$(CL)
 pebl-launcher-real: CXX=$(CLXX)
-pebl-launcher-real: $(DIRS) $(LAUNCHER_OBJ)
+pebl-launcher-real: $(DIRS) $(LAUNCHER_OBJ) resource.o
 	@echo "Linking pebl-launcher..."
 	$(CXX) $(LAUNCHER_CXXFLAGS) \
 	$(patsubst %.o, $(OBJ_DIR)/%.o, $(LAUNCHER_OBJ)) \
+	resource.o \
 	-o $(BIN_DIR)/pebl-launcher.exe \
 	-L/c/msys64/mingw64/lib \
-	-lmingw32 -lSDL2main -lSDL2 -lSDL2_image -lzip -mwindows
+	-lmingw32 -lSDL2main -lSDL2 -lSDL2_image -lzip -lole32 -loleaut32 -luuid -lcomdlg32 -mwindows
 	@echo "Build complete: $(BIN_DIR)/pebl-launcher.exe"
 
 .PHONY: pebl-launcher pebl-launcher-real

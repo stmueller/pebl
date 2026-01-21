@@ -38,7 +38,7 @@
 
 #include <cstring>
 #include "../../apps/Globals.h"
-using std::cout;
+// cout removed - use cerr for debug output
 using std::endl;
 
 extern Evaluator * myEval;
@@ -68,13 +68,13 @@ void PlatformEventQueue::Prime()
 
     if(SDL_HasEvents(SDL_MOUSEBUTTONDOWN,SDL_MOUSEBUTTONUP))
         {
-            // cout <<"\n#*#*#*#*#*#*#*#*#*#*#*#*#*#Mouse click/unclick\n";
+            // cerr <<"\n#*#*#*#*#*#*#*#*#*#*#*#*#*#Mouse click/unclick\n";
             
         }
     std::string error  = SDL_GetError();
     if(error!="")
         {
-            //  cout <<"SDL Error: "<< error << endl;
+            //  cerr <<"SDL Error: "<< error << endl;
             SDL_ClearError();
 
         }
@@ -88,17 +88,17 @@ void PlatformEventQueue::Prime()
 
             if(((int)(test_event.type))==1024)
                 {
-                    //cout << "." << std::flush;
+                    //cerr << "." << std::flush;
                 }else{
                 
-                //cout << "-------------------------\n";
-                //cout << "EVented\n";
-                //cout << "Event [" << (int)(test_event.type) << "]\n";
+                //cerr << "-------------------------\n";
+                //cerr << "EVented\n";
+                //cerr << "Event [" << (int)(test_event.type) << "]\n";
                 }
 
             #if 0
             
-            cout << "event types: " << endl
+            cerr << "event types: " << endl
                  << "SDL_KEYDOWN:         " << SDL_KEYDOWN << endl
                  << "SDL_KEYUP:           " << SDL_KEYUP <<endl
                  << "SDL_TEXTEDITING:     " << SDL_TEXTEDITING << endl
@@ -142,8 +142,8 @@ void PlatformEventQueue::Prime()
 
                         PEvent evt(PDT_KEYBOARD, time,test_event.key.windowID);
                         PEBL_KeyboardEvent pke;
-                        //cout <<  "Keydown event...PRESSED->[" << SDL_GetKeyName(test_event.key.keysym.sym)<<"] \n";
-                        //cout << "Keycode:" <<SDL_SCANCODE_TO_KEYCODE(test_event.key.keysym.scancode) << endl;
+                        //cerr <<  "Keydown event...PRESSED->[" << SDL_GetKeyName(test_event.key.keysym.sym)<<"] \n";
+                        //cerr << "Keycode:" <<SDL_SCANCODE_TO_KEYCODE(test_event.key.keysym.scancode) << endl;
 
                         pke.key =      (PEBL_Keycode)test_event.key.keysym.sym;
                         pke.scancode = (PEBL_Keycode)(test_event.key.keysym.scancode);
@@ -151,7 +151,7 @@ void PlatformEventQueue::Prime()
                         pke.state = PEBL_PRESSED;
 
 
-                        //cout << "keystate in platformeventqueue is: " << pke.state << "|" << pke.key << endl;
+                        //cerr << "keystate in platformeventqueue is: " << pke.state << "|" << pke.key << endl;
 
                         evt.SetKeyboardEvent(pke);
                         mEventQueue.push(evt);
@@ -161,7 +161,7 @@ void PlatformEventQueue::Prime()
 
                 case SDL_KEYUP:
                     {
-                        //  cout << "KEYUP\n";
+                        //  cerr << "KEYUP\n";
                         //create a new event to add to the queue.
                         PEvent evt(PDT_KEYBOARD, time,test_event.key.windowID);
 
@@ -187,7 +187,7 @@ void PlatformEventQueue::Prime()
                 case SDL_TEXTEDITING:
 
                     {
-                        //cout << "SDL_TEXTEDITING EVENT\n";
+                        //cerr << "SDL_TEXTEDITING EVENT\n";
                         /*
 
                         PEvent evt(PDT_TEXT_EDITING, time);
@@ -211,10 +211,10 @@ void PlatformEventQueue::Prime()
                 case SDL_TEXTINPUT:
                     {
 
-                        //cout << "SDL_TEXTINPUT EVENT\n";
+                        //cerr << "SDL_TEXTINPUT EVENT\n";
                         PEvent evt(PDT_TEXT_INPUT, time,test_event.edit.windowID);
                         PEBL_TextInputEvent pti;
-                        //cout << "Transferring: " << test_event.edit.text << endl;
+                        //cerr << "Transferring: " << test_event.edit.text << endl;
 
                         pti.text = strdup(test_event.edit.text);
 
@@ -233,7 +233,7 @@ void PlatformEventQueue::Prime()
 
                 case SDL_MOUSEBUTTONDOWN:
                     {
-                        //cout << "Mouse button down in platformeventqueue\n";
+                        //cerr << "Mouse button down in platformeventqueue\n";
                         PEvent evt(PDT_MOUSE_BUTTON, time,test_event.button.windowID);
                         PEBL_MouseButtonEvent pme;
 
@@ -247,14 +247,14 @@ void PlatformEventQueue::Prime()
 
                         evt.SetMouseButtonEvent(pme);
                         mEventQueue.push(evt);
-                        //cout << "mouse down ["<< pme.x << " " << pme.y <<  "--" << pme.button<<"]\n";
+                        //cerr << "mouse down ["<< pme.x << " " << pme.y <<  "--" << pme.button<<"]\n";
 
                     }
                     break;
 
                 case SDL_MOUSEBUTTONUP:
                     {
-                        //cout << "Mouse button up in platformeventqueue\n";
+                        //cerr << "Mouse button up in platformeventqueue\n";
                         PEvent evt(PDT_MOUSE_BUTTON, time,test_event.button.windowID);
                         PEBL_MouseButtonEvent pme;
 
@@ -274,7 +274,7 @@ void PlatformEventQueue::Prime()
                     {
                         PEvent evt(PDT_MOUSE_MOVEMENT, time,test_event.motion.windowID);
                         PEBL_MouseMovementEvent pme;
-                        //cout << "mousemove\n";
+                        //cerr << "mousemove\n";
                         pme.x= test_event.motion.x;
                         pme.y= test_event.motion.y;
                         pme.relx =test_event.motion.xrel;
@@ -339,7 +339,7 @@ void PlatformEventQueue::Prime()
                                 if(myEnv)
                                     {
                                         myEnv->Draw();
-                                        //cout << "My window drawing stuff\n";
+                                        //cerr << "My window drawing stuff\n";
                                     }
                                 break;
                             }
@@ -376,8 +376,8 @@ void PlatformEventQueue::Prime()
                     //WV_REFRESH_EVENT is not const, so we need to do some acrobatics here.
                     if(test_event.type == WV_REFRESH_EVENT)
                     {
-                        //cout <<" XXXXX Refresh movie event\n";
-                        //cout << test_event << endl;
+                        //cerr <<" XXXXX Refresh movie event\n";
+                        //cerr << test_event << endl;
                         //PEvent evt(PDT_MOVIE_REFRESH,time);
                         WV_refreshVideoFrame(&test_event);
 
@@ -387,7 +387,7 @@ void PlatformEventQueue::Prime()
                     }else if(test_event.type==WV_EOF_EVENT)
                     {
 
-                        //cout << "End of movie:\n";
+                        //cerr << "End of movie:\n";
                         PEvent evt(PDT_MOVIE_END, time, test_event.key.windowID);
                         mEventQueue.push(evt);
 
@@ -397,11 +397,11 @@ void PlatformEventQueue::Prime()
 #endif
 
 
-                    //cout << "Unknown event\n";
+                    //cerr << "Unknown event\n";
                     ;
                 }
-            //cout << "Loop active\n";
+            //cerr << "Loop active\n";
             time =  SDL_GetTicks();
-            //cout << "time: " << time << endl;
+            //cerr << "time: " << time << endl;
         }
 }

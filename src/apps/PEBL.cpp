@@ -229,8 +229,8 @@ int PEBLInterpret( int argc, std::vector<std::string> argv )
    EM_ASM(console.log("=== PEBLInterpret() called ==="));
 #endif
 
-   std::cout << "**************Starting PEBLInterpret\n";
-   std::cout << "**************argc:" << argc << endl;
+   std::cerr << "**************Starting PEBLInterpret\n";
+   std::cerr << "**************argc:" << argc << endl;
 
 #if defined(PEBL_UNIX) and not defined(PEBL_OSX)
     if(argc==2 && strcmp(argv[1].c_str(), "--install")==0)
@@ -267,13 +267,13 @@ int PEBLInterpret( int argc, std::vector<std::string> argv )
 
 #if 1
     //THis is just for debugging purposes.
-    cout << "************Arguments: "<< argv.size()<<"\n";
+    cerr << "************Arguments: "<< argv.size()<<"\n";
     std::vector<std::string>::iterator ii = argv.begin();
      while(ii != argv.end())
      {
-         cout << *ii << endl;
+         cerr << *ii << endl;
          ii++;
-         cout << "********\n";
+         cerr << "********\n";
      }
 #endif
 
@@ -516,7 +516,7 @@ int PEBLInterpret( int argc, std::vector<std::string> argv )
 
                     upload = true;
                     uploadConfigFile = Variant(argv[++j]);  //Pass the upload config file in
-                    cout << "setting upload file: [" << uploadConfigFile << "]\n";
+                    cerr << "setting upload file: [" << uploadConfigFile << "]\n";
                 }
 
             else if(strcmp(argv[j].c_str(),"--resizeable")==0 ||
@@ -800,7 +800,7 @@ int PEBLInterpret( int argc, std::vector<std::string> argv )
 
 #ifdef PEBL_ITERATIVE_EVAL
             // Iterative evaluator - start at head node and run until stack is empty
-            cout << "Starting evaluation with iterative evaluator\n";
+            cerr << "Starting evaluation with iterative evaluator\n";
 
             // Wrap Start() call in proper PEBL_FUNCTION node to ensure call stack is managed correctly
             // This matches how all other lambda function calls work (PEBL_FUNCTION -> PEBL_FUNCTION_TAIL1 -> PEBL_FUNCTION_TAIL2 -> PEBL_LAMBDAFUNCTION)
@@ -818,22 +818,40 @@ int PEBLInterpret( int argc, std::vector<std::string> argv )
 
             myEval->Evaluate1(startCall);
 
-            cout << "Running evaluator loop\n";
+            cerr << "Running evaluator loop\n";
             while(myEval->GetNodeStackDepth() > 0)
             {
                 myEval->Evaluate1();
             }
 #else
             // Recursive evaluator - traditional single-call evaluation
-            cout << "Starting evaluation with recursive evaluator\n";
+            cerr << "Starting evaluation with recursive evaluator\n";
             ::myEval->Evaluate(head);
 #endif
 
+            // Capture return value from Start() before cleanup
+            // The return value should be on the evaluator's stack
+            int scriptReturnCode = 0;
+            if (myEval->GetStackDepth() > 0) {
+                Variant returnVal = myEval->Pop();
+                // If the return value is a number, use it as the exit code
+                if (returnVal.IsNumber()) {
+                    scriptReturnCode = (int)returnVal;
+                    cerr << "Script returned: " << scriptReturnCode << endl;
+                }
+            }
+
+            // Use _exit() to terminate immediately with the script's return code
+            // This avoids running destructors which can crash due to widget cleanup order issues
+            // SDL resources will be cleaned up by the OS
+            cerr << "Exiting with code: " << scriptReturnCode << endl;
+            _exit(scriptReturnCode);
+
 #ifdef PEBL_EMSCRIPTEN
             // Emscripten: Early return without cleanup (browser manages lifecycle)
-            cout << "========================================" << endl;
-            cout << "PEBL program completed successfully." << endl;
-            cout << "========================================" << endl;
+            cerr << "========================================" << endl;
+            cerr << "PEBL program completed successfully." << endl;
+            cerr << "========================================" << endl;
 
             // Signal completion to JavaScript launcher (for test chains)
             SignalTestComplete("completed");
@@ -841,14 +859,17 @@ int PEBLInterpret( int argc, std::vector<std::string> argv )
             return 0;
 #else
             // Native platforms: Perform full cleanup
+            // IMPORTANT: Delete myEval FIRST to clean up local variables (child widgets)
+            // before destroying global variables (parent window gWin).
+            // This prevents child widgets from trying to access already-deleted parents.
+            delete ::myEval;
+            ::myEval = NULL;
+
             Evaluator::gGlobalVariableMap.Destroy();
 
             if(myLoader) delete myLoader;
             if(myEnv) delete myEnv;
             Evaluator::mFunctionMap.Destroy();
-
-            delete ::myEval;
-            ::myEval = NULL;
             //Evaluator::gGlobalVariableMap.DumpValues();
 
 #ifdef PEBL_MOVIES
@@ -867,7 +888,7 @@ int PEBLInterpret( int argc, std::vector<std::string> argv )
 
             v = 0;
 
-            return 0;
+            return scriptReturnCode;
         }
     else
         {

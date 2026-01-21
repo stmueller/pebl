@@ -46,7 +46,7 @@
 //#include <emscripten.h>
 
 
-using std::cout;
+// cout removed - use cerr for debug output
 using std::cerr;
 using std::endl;
 using std::flush;

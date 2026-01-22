@@ -36,12 +36,12 @@ define Start(lPar)
     ## Task ordering parameters (0=skip, else execution order)
     ["forward_digit_order", 1],    ## Forward digit span
     ["backward_digit_order", 2],   ## Backward digit span
-    ["forward_letter_order", 3],   ## Forward letter span
-    ["backward_letter_order", 4],  ## Backward letter span
-    ["forward_mixed_order", 5],    ## Forward mixed digit/letter span
-    ["backward_mixed_order", 6],   ## Backward mixed digit/letter span
-    ["digit_ordering_order", 7],   ## Digit ordering task
-    ["letter_ordering_order", 8],  ## Letter ordering task
+    ["forward_letter_order", 0],   ## Forward letter span
+    ["backward_letter_order", 0],  ## Backward letter span
+    ["forward_mixed_order", 0],    ## Forward mixed digit/letter span
+    ["backward_mixed_order", 0],   ## Backward mixed digit/letter span
+    ["digit_ordering_order", 0],   ## Digit ordering task
+    ["letter_ordering_order", 0],  ## Letter ordering task
     ["mixed_ordering_order", 9],   ## Mixed digit/letter ordering
 
     ## Display and input parameters
@@ -49,6 +49,7 @@ define Start(lPar)
     ["UseAudio",1],                ## 0=video only, 1=audio+video, 2=audio only
     ["AllowBackspace", 1],         ## Allow users to backspace over responses?
     ["AllowSkip", 1],              ## Allow users to skip over cells?
+    ["responsemode", "none"],      ## Layout response mode (none for this task)
 
     ## Test progression parameters
     ["version",1],                 ## 1=low-to-high; 2=high-to-low; 3=staircase
@@ -72,6 +73,16 @@ define Start(lPar)
 
   gParams <- CreateParameters(parpairs,gParamFile)
 
+  ## Create layout after params are available
+  gLayout <- CreateLayout("spanvariants", gWin, gParams)
+  gLayout.header.visible <- 0      ## Initially hidden
+  gLayout.subheader.visible <- 0   ## Initially hidden
+  gLayout.footer.visible <- 0      ## Not used
+
+  ## Update stimulus and feedback positions to use layout
+  Move(gStimLabel, gLayout.centerX, gLayout.centerY)
+  Move(gFeedback, gLayout.centerX, gLayout.centerY + 70)
+
   ## Setup input device
   gInputDevice <- gParams.input
   ShowCursor(1)
@@ -84,7 +95,13 @@ define Start(lPar)
   gFileOut <- GetNewDataFile(gSubNum,gWin,"spanvariants","csv",
               "subnum,tasktype,direction,stimulus_type,trialnum,length,try,input,response,correct,resptime")
   gReportFile <- GetNewDataFile(gSubNum,gWin,"spanvariants-report","txt","")
-  gPooledFile <- FileOpenAppend("data/pooled-spanvariants-" + gSubNum +".csv")
+  gPooledFile <- FileOpenAppend("data/pooled-spanvariants.csv")
+
+  ## Write report header immediately (so we have something even if test is abandoned)
+  FilePrint(gReportFile, "PEBL Span Variants Test")
+  FilePrint(gReportFile, "Participant: " + gSubNum)
+  FilePrint(gReportFile, "Started: " + Timestamp())
+  FilePrint(gReportFile, "")
 
   ## Build task list based on parameters
   gTaskList <- []
@@ -171,12 +188,25 @@ define Start(lPar)
 
     result <- RunSpanTask(taskDirection, taskStimType)
     gAllResults <- Append(gAllResults, result)
+
+    ## Write result to report immediately after each task completes
+    taskType <- First(result)
+    span <- Nth(result, 2)
+    correct <- Nth(result, 3)
+    FilePrint(gReportFile, taskType + " span: " + span + " (total correct: " + correct + ")")
   }
 
   ## Close data files
   FileClose(gFileOut)
+  FileClose(gPooledFile)
 
-  ## Generate final report
+  ## Write final summary to report
+  FilePrint(gReportFile, "")
+  FilePrint(gReportFile, "Completed: " + Timestamp())
+  FilePrint(gReportFile, "Total time: " + Round(GetTime()/1000/60,2) + " min")
+  FileClose(gReportFile)
+
+  ## Build final report text for display
   report <- "PEBL Span Variants Test" + CR(1)
   report <- report + "Participant: " + gSubNum + CR(1)
   report <- report + Timestamp() + CR(2)
@@ -190,8 +220,6 @@ define Start(lPar)
   }
 
   report <- report + CR(1) + "Total time: " + Round(GetTime()/1000/60,2) + " min"
-
-  FilePrint(gReportFile, report)
 
   ## Show final feedback
   feedback <- gStrings.debrief + CR(2) + report + CR(2) + gStrings.exit
@@ -384,7 +412,8 @@ define RunSpanTask(direction, stimType)
     trialnum <- trialnum + 1
   }
 
-  Hide(gHeader)
+  Hide(gLayout.header)
+  Hide(gLayout.subheader)
   Draw()
 
   ## Calculate final span
@@ -406,7 +435,28 @@ define RunSpanTask(direction, stimType)
 ## Standard span trial (forward or backward)
 define SpanTrial(stimlist, length, direction, stimType)
 {
-  stimuli <- SampleN(stimlist, length)
+  ## For mixed type, ensure balanced digit/letter ratio
+  if(stimType == "mixed")
+  {
+    ## Exclude 0 from digits to avoid confusion with letter O
+    digitsNoZero <- []
+    loop(d, gDigits)
+    {
+      if(not (d == "0"))
+      {
+        digitsNoZero <- Append(digitsNoZero, d)
+      }
+    }
+    shuffledDigits <- Shuffle(digitsNoZero)
+    shuffledLetters <- Shuffle(gLetters)
+    combined <- Shuffle([shuffledDigits, shuffledLetters])  ## Randomize which type dominates on odd lengths
+    interleaved <- Transpose(combined)
+    flattened <- Flatten(interleaved)
+    stimuli <- Shuffle(SubList(flattened, 1, length))  ## Take first n, then shuffle for presentation order
+  } else {
+    stimuli <- SampleN(stimlist, length)
+  }
+
   string <- ListToString(stimuli)
   dummy  <- Repeat("_", length)
 
@@ -470,8 +520,10 @@ define SpanTrial(stimlist, length, direction, stimType)
     PlayForeground(gBeep)
   }
 
-  gHeader.text <- gStrings.header
-  Show(gHeader)
+  ## Set task-specific subheader prompt
+  headerKey <- Uppercase(direction + "_" + stimType + "_header")
+  gLayout.subheader.text <- GetProperty(gStrings, headerKey)
+  gLayout.subheader.visible <- 1
   Show(gStimLabel)
   Draw()
 
@@ -492,9 +544,16 @@ define SpanTrial(stimlist, length, direction, stimType)
 
   FilePrint(gFileOut, resptext + "," + corr + "," + (time2-time1))
 
-  ## Show feedback
+  ## Show feedback - for backward span, show the correct reversed answer
   Wait(200)
-  gFeedback.text <- ListToString(stimuli)
+  if(direction == "backward")
+  {
+    gFeedback.text <- ListToString(Reverse(stimuli))
+  } else {
+    gFeedback.text <- ListToString(stimuli)
+  }
+  ## Position feedback adaptively based on stimulus height
+  gFeedback.y <- gStimLabel.y + gStimLabel.height + 10
   Show(gFeedback)
   Draw()
   Wait(1500)
@@ -525,7 +584,27 @@ define SpanTrial(stimlist, length, direction, stimType)
 ## Ordering trial - show scrambled items, user types them in order
 define OrderingTrial(stimlist, length, stimType)
 {
-  stimuli <- SampleN(stimlist, length)
+  ## For mixed type, ensure balanced digit/letter ratio
+  if(stimType == "mixed")
+  {
+    ## Exclude 0 from digits to avoid confusion with letter O
+    digitsNoZero <- []
+    loop(d, gDigits)
+    {
+      if(not (d == "0"))
+      {
+        digitsNoZero <- Append(digitsNoZero, d)
+      }
+    }
+    shuffledDigits <- Shuffle(digitsNoZero)
+    shuffledLetters <- Shuffle(gLetters)
+    combined <- Shuffle([shuffledDigits, shuffledLetters])  ## Randomize which type dominates on odd lengths
+    interleaved <- Transpose(combined)
+    flattened <- Flatten(interleaved)
+    stimuli <- SubList(flattened, 1, length)  ## Don't shuffle - will be scrambled below
+  } else {
+    stimuli <- SampleN(stimlist, length)
+  }
 
   ## Determine correct sorted order
   if(stimType == "mixed")
@@ -613,8 +692,10 @@ define OrderingTrial(stimlist, length, stimType)
   gStimLabel.text <- ListToString(dummy)
   Draw()
 
-  gHeader.text <- gStrings.ordering_header
-  Show(gHeader)
+  ## Set task-specific subheader prompt for ordering
+  headerKey <- Uppercase("ordering_" + stimType + "_header")
+  gLayout.subheader.text <- GetProperty(gStrings, headerKey)
+  gLayout.subheader.visible <- 1
   Show(gStimLabel)
   Draw()
 
@@ -635,6 +716,8 @@ define OrderingTrial(stimlist, length, stimType)
   ## Show feedback
   Wait(200)
   gFeedback.text <- ListToString(correctOrder)
+  ## Position feedback adaptively based on stimulus height
+  gFeedback.y <- gStimLabel.y + gStimLabel.height + 10
   Show(gFeedback)
   Draw()
   Wait(1500)
@@ -737,18 +820,27 @@ define GetTypedResponse(length, direction)
       }
     }
 
+    ## Build display text
     if(direction == "forward")
     {
+      ## Forward: show response list as-is with underscores after
       resptext <- ListToString(Merge(responseList, Repeat("_", (length - position + 1))))
     } else {
-      resptext <- ListToString(Merge(Repeat("_", (length - position + 1)), responseList))
+      ## Backward: show what user typed in the order they typed it (not reversed)
+      ## responseList is built in correct backward order via prepending
+      ## but we want to show the typing sequence (reversed visual order)
+      displayList <- Reverse(responseList)
+      resptext <- ListToString(Merge(displayList, Repeat("_", (length - position + 1))))
     }
 
     gStimLabel.text <- resptext
     Draw()
   }
 
-  return(resptext)
+  ## Return the actual response (not the display text)
+  ## For backward, responseList contains the correct reversed sequence
+  ## For forward, responseList is already in correct order
+  return(ListToString(responseList))
 }
 
 
@@ -765,35 +857,24 @@ define Initialize()
   GetStrings(gLanguage)
 
   bg <- MakeColor("black")
-  bg1 <- MakeColor("grey20")
   fg <- MakeColor("white")
   bg2 <- MakeColor("grey20")
 
-  colGreen <- MakeColor("green")
-  colRed   <- MakeColor("red")
-
-  gStimFont         <- MakeFont(gPEBLBaseFontMono, 0, 56, fg, bg, 1)
+  gStimFont         <- MakeFont(gPEBLBaseFontMono, 0, 84, fg, bg, 1)  ## 50% larger than 56
   gInstructionsFont <- MakeFont(gPEBLBaseFont, 0, 18, fg, bg2, 1)
-  gHeaderFont       <- MakeFont(gPEBLBaseFont, 0, 24, fg, bg, 1)
 
   gInstructions <- MakeTextBox("", gInstructionsFont, 800, 500)
   AddObject(gInstructions, gWin)
   Move(gInstructions, gVideoWidth/2-400, gVideoHeight/2-250)
   Hide(gInstructions)
 
-  gHeader <- MakeTextBox("", gHeaderFont, 600, 200)
-  AddObject(gHeader, gWin)
-  Move(gHeader, gVideoWidth/2-300, 50)
-  Hide(gHeader)
-
+  ## Create stimuli labels (positioned after layout is created)
   gStimLabel <- MakeLabel("", gStimFont)
   AddObject(gStimLabel, gWin)
-  Move(gStimLabel, gVideoWidth/2, gVideoHeight/2)
   Hide(gStimLabel)
 
   gFeedback <- MakeLabel("", gStimFont)
   AddObject(gFeedback, gWin)
-  Move(gFeedback, gVideoWidth/2, gVideoHeight/2+70)
   Hide(gFeedback)
 }
 

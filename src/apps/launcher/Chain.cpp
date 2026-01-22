@@ -84,16 +84,20 @@ std::string ChainItem::BuildTestCommand(const std::string& studyPath,
     cmd << "pebl2 " << studyPath << "/tests/" << testName << "/" << testName << ".pbl";
 
     // Add subject ID
-    cmd << " -v subnum=" << subjectID;
+    cmd << " -s " << subjectID;
 
     // Add language if specified
     if (!language.empty()) {
-        cmd << " -v language=" << language;
+        cmd << " --language " << language;
     }
 
-    // Add parameter variant file if not default
+    // Note: Parameter variant handling requires Study context to look up the actual filename
+    // from the ParameterVariant.file field. This method doesn't have that access.
+    // Use LauncherUI::ExecuteChainItem() for proper parameter file handling.
     if (!paramVariant.empty() && paramVariant != "default") {
-        cmd << " -v gParamFile=" << paramVariant;
+        // This is incomplete - would need: --pfile params/filename.par.json
+        // where filename comes from ParameterVariant.file, not the variant name
+        cmd << " --pfile params/" << paramVariant;  // Caller should pass actual filename
     }
 
     return cmd.str();
@@ -316,16 +320,28 @@ bool Chain::LoadFromJSON(const std::string& jsonPath) {
                 ChainItem item(itemType);
 
                 if (item.IsPageItem()) {
-                    // Load page item fields
-                    item.title = itemJson.value("title", "");
-                    item.content = itemJson.value("content", "");
+                    // Load page item fields (handle null values)
+                    item.title = (itemJson.contains("title") && !itemJson["title"].is_null())
+                                 ? itemJson["title"].get<std::string>() : "";
+                    item.content = (itemJson.contains("content") && !itemJson["content"].is_null())
+                                   ? itemJson["content"].get<std::string>() : "";
 
                 } else {
-                    // Load test item fields
-                    item.testName = itemJson.value("test_name", "");
-                    item.paramVariant = itemJson.value("param_variant", "default");
-                    item.language = itemJson.value("language", "");
-                    item.randomGroup = itemJson.value("random_group", 0);
+                    // Load test item fields (handle null values)
+                    item.testName = (itemJson.contains("test_name") && !itemJson["test_name"].is_null())
+                                    ? itemJson["test_name"].get<std::string>() : "";
+                    item.paramVariant = (itemJson.contains("param_variant") && !itemJson["param_variant"].is_null())
+                                        ? itemJson["param_variant"].get<std::string>() : "default";
+                    item.language = (itemJson.contains("language") && !itemJson["language"].is_null())
+                                    ? itemJson["language"].get<std::string>() : "";
+                    // Support both "random_group" (launcher) and "randomization_group" (platform)
+                    if (itemJson.contains("random_group") && !itemJson["random_group"].is_null()) {
+                        item.randomGroup = itemJson["random_group"].get<int>();
+                    } else if (itemJson.contains("randomization_group") && !itemJson["randomization_group"].is_null()) {
+                        item.randomGroup = itemJson["randomization_group"].get<int>();
+                    } else {
+                        item.randomGroup = 0;
+                    }
                 }
 
                 mItems.push_back(item);

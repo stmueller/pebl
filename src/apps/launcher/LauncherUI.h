@@ -152,6 +152,7 @@ private:
 
     // Study management
     void CreateNewStudy();
+    void ImportSnapshotFromPath(const std::string& snapshotPath);
     void LoadStudy(const std::string& studyPath);
     void AddTestToStudy();
     void AddTestFromFile(const std::string& filePath);
@@ -183,7 +184,7 @@ private:
 
     // File dialogs
     std::string OpenDirectoryDialog(const std::string& title = "Select Directory", const std::string& startDir = "");
-    std::string OpenFileDialog(const std::string& title = "Select File", const std::string& filter = "");
+    std::string OpenFileDialog(const std::string& title = "Select File", const std::string& filter = "", const std::string& initialDir = "");
     std::string SaveFileDialog(const std::string& title = "Save File", const std::string& defaultName = "");
 
     LauncherConfig* mConfig;

@@ -363,12 +363,11 @@ bool SnapshotManager::ConvertSnapshotFormat(const std::string& studyPath) {
         }
         launcherJson["version"] = versionInt;
 
-        launcherJson["study_token"] = "";  // Will be configured by user
-        launcherJson["upload_server_url"] = "";  // Will be configured by user
-        launcherJson["created_date"] = platformJson.value("created_at", "");
-        launcherJson["modified_date"] = platformJson.value("created_at", "");
+        // Try to extract token and upload URL from first test's upload.json
+        std::string studyToken = "";
+        std::string uploadServerUrl = "";
 
-        // Convert tests array
+        // Convert tests array and look for upload.json
         json testsArray = json::array();
         if (platformJson.contains("tests") && platformJson["tests"].is_array()) {
             for (const auto& platformTest : platformJson["tests"]) {
@@ -382,12 +381,80 @@ bool SnapshotManager::ConvertSnapshotFormat(const std::string& studyPath) {
                 launcherTest["display_name"] = testDisplayName;
                 launcherTest["test_path"] = testId;  // Path is same as identifier
                 launcherTest["included"] = true;
-                launcherTest["parameter_variants"] = json::object();  // Empty variants initially
+
+                // Build parameter_variants by scanning params/ directory for .par.json files
+                json paramVariants = json::object();
+                std::string paramsDir = studyPath + "/tests/" + testId + "/params";
+                if (DirectoryExists(paramsDir)) {
+                    // Always add a "default" variant
+                    json defaultVariant;
+                    defaultVariant["description"] = "Default parameters";
+                    defaultVariant["file"] = nullptr;
+                    paramVariants["default"] = defaultVariant;
+
+                    // Scan for .par.json files
+                    for (const auto& entry : fs::directory_iterator(paramsDir)) {
+                        if (entry.is_regular_file()) {
+                            std::string filename = entry.path().filename().string();
+                            // Look for .par.json files
+                            if (filename.size() > 9 && filename.substr(filename.size() - 9) == ".par.json") {
+                                // Extract variant name (remove .par.json extension)
+                                std::string variantName = filename.substr(0, filename.size() - 9);
+                                json variant;
+                                variant["description"] = variantName;
+                                variant["file"] = filename;
+                                paramVariants[variantName] = variant;
+                                printf("Found parameter variant: %s -> %s\n", variantName.c_str(), filename.c_str());
+                            }
+                        }
+                    }
+                }
+                launcherTest["parameter_variants"] = paramVariants;
 
                 testsArray.push_back(launcherTest);
+
+                // Try to read upload.json from this test if we haven't found token yet
+                if (studyToken.empty() && !testId.empty()) {
+                    std::string uploadJsonPath = studyPath + "/tests/" + testId + "/upload.json";
+                    std::ifstream uploadFile(uploadJsonPath);
+                    if (uploadFile.is_open()) {
+                        try {
+                            json uploadJson;
+                            uploadFile >> uploadJson;
+                            uploadFile.close();
+
+                            // Extract token
+                            if (uploadJson.contains("token") && !uploadJson["token"].is_null()) {
+                                studyToken = uploadJson["token"].get<std::string>();
+                            }
+
+                            // Construct upload URL from host/port/page
+                            if (uploadJson.contains("host") && !uploadJson["host"].is_null()) {
+                                std::string host = uploadJson["host"].get<std::string>();
+                                int port = uploadJson.value("port", 443);
+                                std::string page = uploadJson.value("page", "/scripts/uploadPEBL_token.php");
+
+                                // Build URL: https://host:port or https://host if port is 443
+                                if (port == 443) {
+                                    uploadServerUrl = "https://" + host;
+                                } else {
+                                    uploadServerUrl = "https://" + host + ":" + std::to_string(port);
+                                }
+                                printf("Found upload config: token=%s, url=%s\n", studyToken.c_str(), uploadServerUrl.c_str());
+                            }
+                        } catch (const std::exception& e) {
+                            printf("Warning: Could not parse upload.json: %s\n", e.what());
+                        }
+                    }
+                }
             }
         }
         launcherJson["tests"] = testsArray;
+
+        launcherJson["study_token"] = studyToken;
+        launcherJson["upload_server_url"] = uploadServerUrl;
+        launcherJson["created_date"] = platformJson.value("created_at", "");
+        launcherJson["modified_date"] = platformJson.value("created_at", "");
 
         // Write converted JSON back to file
         std::ofstream outFile(jsonPath);

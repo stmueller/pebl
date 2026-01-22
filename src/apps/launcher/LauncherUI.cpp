@@ -831,36 +831,12 @@ void LauncherUI::RenderMenuBar()
             if (ImGui::MenuItem("Import Snapshot...")) {
                 std::string snapshotPath = OpenDirectoryDialog("Select Snapshot Directory");
                 if (!snapshotPath.empty() && mSnapshots) {
-                    // Validate snapshot
-                    auto validation = mSnapshots->ValidateSnapshot(snapshotPath);
-                    if (validation.isValid) {
-                        // Get snapshot info to suggest a name
-                        auto info = mSnapshots->GetSnapshotInfo(snapshotPath);
-
-                        // Import directly with suggested name
-                        std::string studiesDir = mWorkspace->GetStudiesPath();
-                        std::string newStudyName = info.studyName + "_imported";
-
-                        if (mSnapshots->ImportSnapshot(snapshotPath, studiesDir, newStudyName)) {
-                            printf("Imported snapshot as: %s\n", newStudyName.c_str());
-
-                            // Load the newly imported study
-                            std::string newStudyPath = studiesDir + "/" + newStudyName;
-                            LoadStudy(newStudyPath);
-                        } else {
-                            printf("Failed to import snapshot\n");
-                        }
-                    } else {
-                        printf("Invalid snapshot directory:\n");
-                        for (const auto& error : validation.errors) {
-                            printf("  - %s\n", error.c_str());
-                        }
-                    }
+                    ImportSnapshotFromPath(snapshotPath);
                 }
             }
 
             if (ImGui::MenuItem("Import Snapshot ZIP...")) {
-                std::string zipPath = OpenFileDialog("Select Snapshot ZIP", "*.zip");
+                std::string zipPath = OpenFileDialog("Select Snapshot ZIP", "*.zip", mWorkspace->GetSnapshotsPath());
                 if (!zipPath.empty() && mSnapshots) {
                     // Create temporary directory for extraction
                     std::string tempDir = "/tmp/pebl_snapshot_import_" + std::to_string(std::time(nullptr));
@@ -897,39 +873,10 @@ void LauncherUI::RenderMenuBar()
                             }
                         }
 
-                        if (snapshotPath.empty()) {
-                            printf("Could not locate snapshot directory in extracted ZIP\n");
-                            std::string cleanupCmd = "rm -rf " + tempDir;
-                            system(cleanupCmd.c_str());
-                            return;
-                        }
-
-                        // Convert platform format to launcher format (in place on extracted snapshot)
-                        if (!mSnapshots->ConvertSnapshotFormat(snapshotPath)) {
-                            printf("Warning: Failed to convert snapshot format, attempting to use as-is\n");
-                        }
-
-                        // Validate and import
-                        auto validation = mSnapshots->ValidateSnapshot(snapshotPath);
-                        if (validation.isValid) {
-                            auto info = mSnapshots->GetSnapshotInfo(snapshotPath);
-                            std::string studiesDir = mWorkspace->GetStudiesPath();
-                            std::string newStudyName = info.studyName + "_imported";
-
-                            if (mSnapshots->ImportSnapshot(snapshotPath, studiesDir, newStudyName)) {
-                                printf("Imported snapshot ZIP as: %s\n", newStudyName.c_str());
-
-                                // Load the newly imported study
-                                std::string newStudyPath = studiesDir + "/" + newStudyName;
-                                LoadStudy(newStudyPath);
-                            } else {
-                                printf("Failed to import snapshot\n");
-                            }
+                        if (!snapshotPath.empty()) {
+                            ImportSnapshotFromPath(snapshotPath);
                         } else {
-                            printf("Invalid snapshot ZIP:\n");
-                            for (const auto& error : validation.errors) {
-                                printf("  - %s\n", error.c_str());
-                            }
+                            printf("Could not locate snapshot directory in extracted ZIP\n");
                         }
 
                         // Clean up temp directory
@@ -3352,16 +3299,18 @@ void LauncherUI::ExecuteChainItem(int index)
 
         std::vector<std::string> args;
 
-        // Add language if specified
-        if (!item.language.empty()) {
-            args.push_back("-v");
-            args.push_back("language=" + item.language);
-        }
+        // Note: Language is handled by ExperimentRunner::RunExperiment via the language parameter
 
         // Add parameter variant if not default
         if (!item.paramVariant.empty() && item.paramVariant != "default") {
-            args.push_back("-v");
-            args.push_back("gParamFile=" + item.paramVariant);
+            // Look up the actual filename from the parameter variant
+            const ParameterVariant* variant = test->GetVariant(item.paramVariant);
+            if (variant && !variant->file.empty()) {
+                // Just pass params/filename - working dir is set to test directory
+                std::string paramFile = "params/" + variant->file;
+                args.push_back("--pfile");
+                args.push_back(paramFile);
+            }
         }
 
         // Add upload flag if chain has upload enabled
@@ -3491,16 +3440,18 @@ void LauncherUI::TestChainItem(int index)
 
         std::vector<std::string> args;
 
-        // Add language if specified
-        if (!item.language.empty()) {
-            args.push_back("-v");
-            args.push_back("language=" + item.language);
-        }
+        // Note: Language is handled by ExperimentRunner::RunExperiment via the language parameter
 
         // Add parameter variant if not default
         if (!item.paramVariant.empty() && item.paramVariant != "default") {
-            args.push_back("-v");
-            args.push_back("gParamFile=" + item.paramVariant);
+            // Look up the actual filename from the parameter variant
+            const ParameterVariant* variant = test->GetVariant(item.paramVariant);
+            if (variant && !variant->file.empty()) {
+                // Just pass params/filename - working dir is set to test directory
+                std::string paramFile = "params/" + variant->file;
+                args.push_back("--pfile");
+                args.push_back(paramFile);
+            }
         }
 
         // Add additional arguments from Run tab settings
@@ -3677,7 +3628,7 @@ std::string LauncherUI::OpenDirectoryDialog(const std::string& title, const std:
 #endif
 }
 
-std::string LauncherUI::OpenFileDialog(const std::string& title, const std::string& filter)
+std::string LauncherUI::OpenFileDialog(const std::string& title, const std::string& filter, const std::string& initialDir)
 {
 #ifdef _WIN32
     // Windows: Use GetOpenFileName
@@ -3709,6 +3660,11 @@ std::string LauncherUI::OpenFileDialog(const std::string& title, const std::stri
 
     // Convert title
     ofn.lpstrTitle = title.c_str();
+
+    // Set initial directory if provided
+    if (!initialDir.empty()) {
+        ofn.lpstrInitialDir = initialDir.c_str();
+    }
 
     ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
 
@@ -4320,6 +4276,44 @@ void LauncherUI::CreateNewStudy()
     printf("CreateNewStudy() - not yet implemented\n");
 }
 
+void LauncherUI::ImportSnapshotFromPath(const std::string& snapshotPath)
+{
+    if (!mSnapshots) return;
+
+    // Read study_name directly since full validation may fail on platform format
+    std::string studyName = "imported_study";
+    std::string studyInfoPath = snapshotPath + "/study-info.json";
+    std::ifstream infoFile(studyInfoPath);
+    if (infoFile.is_open()) {
+        try {
+            nlohmann::json j;
+            infoFile >> j;
+            studyName = j.value("study_name", "imported_study");
+        } catch (...) {}
+        infoFile.close();
+    }
+
+    // Import first (copies files), then convert
+    std::string studiesDir = mWorkspace->GetStudiesPath();
+    std::string newStudyName = studyName + "_imported";
+
+    if (mSnapshots->ImportSnapshot(snapshotPath, studiesDir, newStudyName)) {
+        std::string newStudyPath = studiesDir + "/" + newStudyName;
+
+        // Convert platform format to launcher format (in place on copied study)
+        if (!mSnapshots->ConvertSnapshotFormat(newStudyPath)) {
+            printf("Warning: Failed to convert snapshot format, attempting to use as-is\n");
+        }
+
+        printf("Imported snapshot as: %s\n", newStudyName.c_str());
+
+        // Load the newly imported study
+        LoadStudy(newStudyPath);
+    } else {
+        printf("Failed to import snapshot\n");
+    }
+}
+
 void LauncherUI::LoadStudy(const std::string& studyPath)
 {
     printf("LoadStudy(%s)\n", studyPath.c_str());
@@ -4343,11 +4337,23 @@ void LauncherUI::LoadStudy(const std::string& studyPath)
         mConfig->SetCurrentStudyPath(fullPath);
         mConfig->SaveConfig();
 
-        // Auto-load Main chain if it exists
+        // Auto-load a chain: prefer "Main.json", otherwise first alphabetically
         std::string mainChainPath = fullPath + "/chains/Main.json";
         if (fs::exists(mainChainPath)) {
             LoadChain(mainChainPath);
             printf("Auto-loaded Main chain\n");
+        } else {
+            // No Main chain - load first chain alphabetically
+            auto chainFiles = mCurrentStudy->GetChainFiles();
+            if (!chainFiles.empty()) {
+                std::sort(chainFiles.begin(), chainFiles.end());
+                std::string firstChainPath = fullPath + "/chains/" + chainFiles[0];
+                LoadChain(firstChainPath);
+                printf("Auto-loaded first chain: %s\n", chainFiles[0].c_str());
+            } else {
+                // No chains - clear current chain
+                mCurrentChain.reset();
+            }
         }
     } else {
         printf("Failed to load study from: %s\n", fullPath.c_str());

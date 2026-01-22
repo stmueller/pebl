@@ -37,6 +37,8 @@ define Start(p)
     if(PropertyExists(config, "content"))
     {
         content <- config.content
+        ## Strip HTML formatting for plain text display
+        content <- StripHTML(content)
         ## Convert \n to actual line breaks
         content <- ConvertNewlinesToCR(content)
     }
@@ -146,4 +148,38 @@ define Start(p)
 
     ## Normal completion - exit with code 0 (success)
     return(0)
+}
+
+## Strip basic HTML tags for plain text display
+## - Replaces <p> with newline
+## - Replaces closing heading tags </h#> with newline
+## - Strips other tags
+define StripHTML(text)
+{
+    ## Replace <p> and <br> with newlines
+    text <- ReplaceChar(text, "<p>", CR(1))
+    text <- ReplaceChar(text, "<br>", CR(1))
+    text <- ReplaceChar(text, "<br/>", CR(1))
+    text <- ReplaceChar(text, "<br />", CR(1))
+
+    ## Replace closing heading tags with newline
+    text <- ReplaceChar(text, "</h1>", CR(1))
+    text <- ReplaceChar(text, "</h2>", CR(1))
+    text <- ReplaceChar(text, "</h3>", CR(1))
+    text <- ReplaceChar(text, "</h4>", CR(1))
+
+    ## Strip closing tags (no newline)
+    text <- ReplaceChar(text, "</p>", "")
+    text <- ReplaceChar(text, "</div>", "")
+    text <- ReplaceChar(text, "</span>", "")
+
+    ## Strip opening heading tags
+    text <- ReplaceChar(text, "<h1>", "")
+    text <- ReplaceChar(text, "<h2>", "")
+    text <- ReplaceChar(text, "<h3>", "")
+    text <- ReplaceChar(text, "<h4>", "")
+    text <- ReplaceChar(text, "<div>", "")
+    text <- ReplaceChar(text, "<span>", "")
+
+    return(text)
 }

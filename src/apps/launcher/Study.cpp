@@ -325,7 +325,12 @@ bool Study::LoadFromJSON(const std::string& jsonPath) {
                     for (auto& [key, value] : testJson["parameter_variants"].items()) {
                         ParameterVariant variant;
                         variant.description = value.value("description", "");
-                        variant.file = value.value("file", "");
+                        // Handle null file values (default variant has null file)
+                        if (value.contains("file") && !value["file"].is_null()) {
+                            variant.file = value["file"].get<std::string>();
+                        } else {
+                            variant.file = "";
+                        }
                         test.parameterVariants[key] = variant;
                     }
                 }

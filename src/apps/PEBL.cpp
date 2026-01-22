@@ -94,11 +94,15 @@ inline void SignalTestComplete(const char* status = "completed") {
 #include <sys/resource.h>
 //For better fifo scheduling.
 #include <sched.h>
+//For _exit():
+#include <unistd.h>
 
 #elif defined(PEBL_WIN32)
 //For running at higher priority.
 #include <winsock2.h> //avoid collision
 #include <windows.h>
+//For _exit():
+#include <process.h>
 
 STICKYKEYS g_StartupStickyKeys = {sizeof(STICKYKEYS), 0};
 TOGGLEKEYS g_StartupToggleKeys = {sizeof(TOGGLEKEYS), 0};
@@ -841,12 +845,6 @@ int PEBLInterpret( int argc, std::vector<std::string> argv )
                 }
             }
 
-            // Use _exit() to terminate immediately with the script's return code
-            // This avoids running destructors which can crash due to widget cleanup order issues
-            // SDL resources will be cleaned up by the OS
-            cerr << "Exiting with code: " << scriptReturnCode << endl;
-            _exit(scriptReturnCode);
-
 #ifdef PEBL_EMSCRIPTEN
             // Emscripten: Early return without cleanup (browser manages lifecycle)
             cerr << "========================================" << endl;
@@ -881,6 +879,11 @@ int PEBLInterpret( int argc, std::vector<std::string> argv )
             //or SDL_Quit will segfault.
 
             SDL_Quit();
+
+            // Use _exit() to terminate immediately with the script's return code
+            // This avoids running any remaining destructors which can crash due to cleanup order issues
+            cerr << "Exiting with code: " << scriptReturnCode << endl;
+            _exit(scriptReturnCode);
 #endif
 
 

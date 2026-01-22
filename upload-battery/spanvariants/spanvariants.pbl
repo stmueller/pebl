@@ -449,6 +449,12 @@ define SpanTrial(stimlist, length, direction, stimType)
     }
     shuffledDigits <- Shuffle(digitsNoZero)
     shuffledLetters <- Shuffle(gLetters)
+
+    ## Ensure equal length for Transpose - use minimum of the two lengths
+    minLen <- Min([Length(shuffledDigits), Length(shuffledLetters)])
+    shuffledDigits <- SubList(shuffledDigits, 1, minLen)
+    shuffledLetters <- SubList(shuffledLetters, 1, minLen)
+
     combined <- Shuffle([shuffledDigits, shuffledLetters])  ## Randomize which type dominates on odd lengths
     interleaved <- Transpose(combined)
     flattened <- Flatten(interleaved)
@@ -598,6 +604,12 @@ define OrderingTrial(stimlist, length, stimType)
     }
     shuffledDigits <- Shuffle(digitsNoZero)
     shuffledLetters <- Shuffle(gLetters)
+
+    ## Ensure equal length for Transpose - use minimum of the two lengths
+    minLen <- Min([Length(shuffledDigits), Length(shuffledLetters)])
+    shuffledDigits <- SubList(shuffledDigits, 1, minLen)
+    shuffledLetters <- SubList(shuffledLetters, 1, minLen)
+
     combined <- Shuffle([shuffledDigits, shuffledLetters])  ## Randomize which type dominates on odd lengths
     interleaved <- Transpose(combined)
     flattened <- Flatten(interleaved)

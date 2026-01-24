@@ -626,7 +626,12 @@ Variant PEBLHTTP::PostMulti(Variant pagename,
 
 
 
-  Variant fname = mHost + pagename;
+  // Build full URL with protocol (http or https based on port)
+  std::string protocol = "http://";
+  if (mPort == 443) {
+    protocol = "https://";
+  }
+  Variant fname = Variant(protocol) + mHost + Variant(":") + Variant(mPort) + pagename;
   const std::string form2 = form;
   const std::string fname2 = fname;
   const std::string upload2 = uploadname;
@@ -702,8 +707,7 @@ Variant PEBLHTTP::PostMulti(Variant pagename,
 		   CURLFORM_END);
 
 
-      curl_easy_setopt(mCurl, CURLOPT_URL, fname2.c_str()); //set name and port:
-      curl_easy_setopt(mCurl, CURLOPT_PORT,mPort);
+      curl_easy_setopt(mCurl, CURLOPT_URL, fname2.c_str());
 
       curl_easy_setopt(mCurl, CURLOPT_VERBOSE, 1L);
 
@@ -772,7 +776,12 @@ Variant PEBLHTTP::PostHTTP(Variant pagename,
 
 
 
-  Variant fname = mHost + pagename;
+  // Build full URL with protocol (http or https based on port)
+  std::string protocol = "http://";
+  if (mPort == 443) {
+    protocol = "https://";
+  }
+  Variant fname = Variant(protocol) + mHost + Variant(":") + Variant(mPort) + pagename;
 
 
   const std::string fname2 = fname;
@@ -852,8 +861,7 @@ Variant PEBLHTTP::PostHTTP(Variant pagename,
 		   CURLFORM_END);
 
 
-      curl_easy_setopt(mCurl, CURLOPT_URL, fname2.c_str()); //set name and port:
-      curl_easy_setopt(mCurl, CURLOPT_PORT,mPort);
+      curl_easy_setopt(mCurl, CURLOPT_URL, fname2.c_str());
 
       curl_easy_setopt(mCurl, CURLOPT_VERBOSE, 1L);
 

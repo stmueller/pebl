@@ -217,7 +217,9 @@ PUTILITIES_SRC = $(UTIL_DIR)/PEBLUtility.cpp \
 		$(UTIL_DIR)/PEBLPath.cpp \
 		$(UTIL_DIR)/PEBLHTTP.cpp \
 		$(UTIL_DIR)/md5.cpp \
-		$(UTIL_DIR)/happyhttp.cpp 
+		$(UTIL_DIR)/happyhttp.cpp \
+		$(UTIL_DIR)/FontCache.cpp \
+		$(UTIL_DIR)/FormatParser.cpp 
 
 
 

@@ -37,6 +37,7 @@ PLabel::PLabel():
     PTextObject("")
 {
     InitializeProperty("NAME",Variant("<LABEL>"));
+    InitializeProperty("FORMATTED",Variant(0));
     mCDT=CDT_LABEL;
 }
 
@@ -46,6 +47,7 @@ PLabel::PLabel(const std::string & text):
     PTextObject(text)
 {
     InitializeProperty("NAME",Variant("<LABEL>"));
+    InitializeProperty("FORMATTED",Variant(0));
     mCDT=CDT_LABEL;
 }
 
@@ -55,6 +57,7 @@ PLabel::PLabel(const  PLabel & label):
     PTextObject(label.GetText())
 {
     InitializeProperty("NAME",Variant("<LABEL>"));
+    InitializeProperty("FORMATTED",Variant(0));
     mCDT=CDT_LABEL;
 }
 
@@ -65,7 +68,12 @@ PLabel::~PLabel()
 
 bool PLabel::SetProperty(std::string name, Variant v)
 {
-    if(PTextObject::SetProperty(name,v))
+    if(name == "FORMATTED") {
+        // FORMATTED property: 0 or 1
+        PEBLObjectBase::SetProperty(name, v);
+        return true;
+    }
+    else if(PTextObject::SetProperty(name,v))
         return true;
     else return false;
 
@@ -85,9 +93,14 @@ ObjectValidationError PLabel::ValidateProperty(std::string name, Variant v)const
 
 ObjectValidationError PLabel::ValidateProperty(std::string name)const
 {
- 
+    // Check for Label-specific properties first
+    if(name == "FORMATTED") {
+        return OVE_VALID;
+    }
+
+    // Then check parent class properties
     ObjectValidationError ove = PTextObject::ValidateProperty(name);
-    
+
     if(ove == OVE_VALID)
         return ove;
     else

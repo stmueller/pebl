@@ -31,6 +31,8 @@
 #include "../../utility/PError.h"
 #include "../../base/PComplexData.h"
 #include "../../utility/PEBLUtility.h"
+#include "../../utility/FormatParser.h"
+#include "../../utility/FontCache.h"
 #ifdef PEBL_OSX
 #include "SDL.h"
 #include "SDL_ttf.h"
@@ -134,66 +136,188 @@ ostream & PlatformLabel::SendToStream(ostream& out) const
 
 bool  PlatformLabel::RenderText()
 {
+    // Check if formatted text mode is enabled
+    Variant formattedVar = PEBLObjectBase::GetProperty("FORMATTED");
+    bool isFormatted = (formattedVar.GetInteger() != 0);
 
-    //free the memory if it is currently pointing at something.
+    SDL_Surface * finalSurface = NULL;
 
-    SDL_Surface * tmpSurface = NULL;
-    if(mDirection == 1)
-        {
-            //Re-render the text using the associated font.
-            tmpSurface = GetPlatformFont()->RenderText(mText.c_str());
+    if (isFormatted) {
+        // FORMATTED TEXT RENDERING (single-line with baseline alignment)
+
+        // Parse formatted text into segments
+        std::vector<FormatParser::FormatSegment> segments = FormatParser::ParseFormattedText(mText);
+
+        // FIRST PASS: Find maximum ascent for baseline alignment
+        int maxAscent = 0;
+        int totalWidth = 0;
+
+        for (const FormatParser::FormatSegment& seg : segments) {
+            if (!seg.text.empty()) {
+                PlatformFont* segFont = GetPlatformFont();
+                std::string fontFileName = segFont->GetFontFileName();
+                int baseSize = segFont->GetFontSize();
+                PColor baseFgColor = segFont->GetFontColor();
+                PColor baseBgColor = segFont->GetBackgroundColor();
+                bool antiAliased = segFont->GetAntiAliased();
+
+                int segStyle = seg.style;
+                int segSize = seg.hasSizeOverride ? seg.sizeOverride : baseSize;
+                PColor segFgColor = seg.hasColorOverride ? seg.colorOverride : baseFgColor;
+
+                PlatformFont* renderFont = new PlatformFont(
+                    fontFileName, segStyle, segSize,
+                    segFgColor, baseBgColor, antiAliased);
+
+                // Get ascent and width for this segment
+                int ascent = TTF_FontAscent(renderFont->GetTTFFont());
+                if (ascent > maxAscent) maxAscent = ascent;
+
+                int segWidth, segHeight;
+                TTF_SizeText(renderFont->GetTTFFont(), seg.text.c_str(), &segWidth, &segHeight);
+                totalWidth += segWidth;
+
+                delete renderFont;
+            }
         }
-    else
-        {
 
-            std::string rtext = PEBLUtility::strrev_utf8(mText);
-            //Re-render the text using the associated font.
-            tmpSurface  = GetPlatformFont()->RenderText(rtext.c_str());
+        // Calculate total height (use max ascent + max descent)
+        // Note: TTF_FontDescent() returns negative values for portions below baseline
+        int maxDescent = 0;
+        for (const FormatParser::FormatSegment& seg : segments) {
+            if (!seg.text.empty()) {
+                PlatformFont* segFont = GetPlatformFont();
+                std::string fontFileName = segFont->GetFontFileName();
+                int baseSize = segFont->GetFontSize();
+                PColor baseFgColor = segFont->GetFontColor();
+                PColor baseBgColor = segFont->GetBackgroundColor();
+                bool antiAliased = segFont->GetAntiAliased();
+
+                int segStyle = seg.style;
+                int segSize = seg.hasSizeOverride ? seg.sizeOverride : baseSize;
+                PColor segFgColor = seg.hasColorOverride ? seg.colorOverride : baseFgColor;
+
+                PlatformFont* renderFont = new PlatformFont(
+                    fontFileName, segStyle, segSize,
+                    segFgColor, baseBgColor, antiAliased);
+
+                int descent = TTF_FontDescent(renderFont->GetTTFFont());
+                // Convert negative descent to positive for comparison
+                int absDescent = (descent < 0) ? -descent : descent;
+                if (absDescent > maxDescent) maxDescent = absDescent;
+
+                delete renderFont;
+            }
         }
-    
 
-    if( tmpSurface)
-        {
+        int totalHeight = maxAscent + maxDescent;
 
-            //int w, h;
-            //SDL_QueryTexture(mTexture, NULL, NULL, &w, &h);
-            //            mWidth  = w;
-            //            mHeight = h;
+        // Create surface for the entire label
+        #if SDL_BYTEORDER == SDL_BIG_ENDIAN
+            Uint32 rmask = 0xff000000;
+            Uint32 gmask = 0x00ff0000;
+            Uint32 bmask = 0x0000ff00;
+            Uint32 amask = 0x000000ff;
+        #else
+            Uint32 rmask = 0x000000ff;
+            Uint32 gmask = 0x0000ff00;
+            Uint32 bmask = 0x00ff0000;
+            Uint32 amask = 0xff000000;
+        #endif
 
+        finalSurface = SDL_CreateRGBSurface(0, totalWidth, totalHeight, 32,
+                                            rmask, gmask, bmask, amask);
 
-            mWidth  = tmpSurface->w; 
-            mHeight = tmpSurface->h;
-            mTextureWidth = mWidth;
-            mTextureHeight = mHeight;
-            InitializeProperty("HEIGHT",mHeight);
-            InitializeProperty("WIDTH",mWidth);
+        if (!finalSurface) {
+            return false;
+        }
 
+        // Fill with transparent background
+        SDL_FillRect(finalSurface, NULL, SDL_MapRGBA(finalSurface->format, 0, 0, 0, 0));
 
-            //textures get created 
-            if(mTexture)
-                {
+        // SECOND PASS: Render segments with baseline alignment
+        int xOffset = 0;
 
-                    SDL_DestroyTexture(mTexture);
-                    mTexture = NULL;
-                } 
+        for (const FormatParser::FormatSegment& seg : segments) {
+            if (!seg.text.empty()) {
+                PlatformFont* segFont = GetPlatformFont();
+                std::string fontFileName = segFont->GetFontFileName();
+                int baseSize = segFont->GetFontSize();
+                PColor baseFgColor = segFont->GetFontColor();
+                PColor baseBgColor = segFont->GetBackgroundColor();
+                bool antiAliased = segFont->GetAntiAliased();
 
-            if(mRenderer)
-                {
+                int segStyle = seg.style;
+                int segSize = seg.hasSizeOverride ? seg.sizeOverride : baseSize;
+                PColor segFgColor = seg.hasColorOverride ? seg.colorOverride : baseFgColor;
 
-                    mTexture  = SDL_CreateTextureFromSurface(mRenderer, tmpSurface);
-                    // Enable alpha blending for transparency support
-                    SDL_SetTextureBlendMode(mTexture, SDL_BLENDMODE_BLEND);
-                    // Enable best quality filtering (anisotropic) for zoomed textures
-                    SDL_SetTextureScaleMode(mTexture, SDL_ScaleModeBest);
+                PlatformFont* renderFont = new PlatformFont(
+                    fontFileName, segStyle, segSize,
+                    segFgColor, baseBgColor, antiAliased);
 
-                    SDL_FreeSurface(tmpSurface);
-                    tmpSurface = NULL;
+                SDL_Surface* segSurface = renderFont->RenderText(seg.text.c_str());
+
+                if (segSurface) {
+                    // Get ascent for this specific font
+                    int thisAscent = TTF_FontAscent(renderFont->GetTTFFont());
+
+                    // Calculate y-offset to align baseline with max baseline
+                    int yOffset = maxAscent - thisAscent;
+
+                    // Position segment with baseline alignment
+                    SDL_Rect segRect = {xOffset, yOffset, segSurface->w, segSurface->h};
+
+                    SDL_BlitSurface(segSurface, NULL, finalSurface, &segRect);
+                    SDL_FreeSurface(segSurface);
+
+                    xOffset += segRect.w;
                 }
 
-            return true;
+                delete renderFont;
+            }
         }
-    else
+
+    } else {
+        // NORMAL (NON-FORMATTED) RENDERING
+        if(mDirection == 1) {
+            //Re-render the text using the associated font.
+            finalSurface = GetPlatformFont()->RenderText(mText.c_str());
+        } else {
+            std::string rtext = PEBLUtility::strrev_utf8(mText);
+            //Re-render the text using the associated font.
+            finalSurface = GetPlatformFont()->RenderText(rtext.c_str());
+        }
+    }
+
+    if(finalSurface) {
+        mWidth  = finalSurface->w;
+        mHeight = finalSurface->h;
+        mTextureWidth = mWidth;
+        mTextureHeight = mHeight;
+        InitializeProperty("HEIGHT",mHeight);
+        InitializeProperty("WIDTH",mWidth);
+
+        //textures get created
+        if(mTexture) {
+            SDL_DestroyTexture(mTexture);
+            mTexture = NULL;
+        }
+
+        if(mRenderer) {
+            mTexture = SDL_CreateTextureFromSurface(mRenderer, finalSurface);
+            // Enable alpha blending for transparency support
+            SDL_SetTextureBlendMode(mTexture, SDL_BLENDMODE_BLEND);
+            // Enable best quality filtering (anisotropic) for zoomed textures
+            SDL_SetTextureScaleMode(mTexture, SDL_ScaleModeBest);
+
+            SDL_FreeSurface(finalSurface);
+            finalSurface = NULL;
+        }
+
+        return true;
+    } else {
         return false;
+    }
 }
 
 

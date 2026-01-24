@@ -27,6 +27,93 @@ obsolete.
 
 
 
+2.3 (January 2026):
+
+Online Platform & Upload-Battery Expansion:
+- Expanded upload-battery directory with 10 new platform-ready tests (total 58 tests)
+- New tests migrated to upload-battery:
+  - Chimp Test (chimptest) - Iconic/eidetic and spatial memory assessment
+  - Dual-Task Interference Test (dualtask) - Executive function and multitasking
+  - Global-Local Processing Task (globallocal) - Attentional processing and visual perception
+  - Line Judgment Task (linejudgment) - Visual perception and estimation
+  - Matrix Rotation Task (matrixrotation) - Visuospatial reasoning
+  - Dual N-Back Task (nback) - Working memory training and assessment
+  - Span Variants Test (spanvariants) - Comprehensive memory span assessment
+  - Time-Tapping Task (timetap) - Temporal perception and motor timing
+  - Visual Search Task (vsearch) - Attention and visual processing
+  - Even/Odd Task (evenodd) - Number processing and decision making
+- All newly migrated tests feature Layout & Response System integration
+- Enhanced frozen snapshot system for study version control on online platform
+- Improved bundle management for platform test deployment
+
+Layout & Response System (completed January 8, 2026):
+- Comprehensive platform-aware input handling system for cross-platform compatibility
+- Semantic response mapping (LEFT/RIGHT, YES/NO, etc.) independent of physical input device
+- Multiple response mode support: keyboard-safe, mousebutton, touchtarget, touchdrag, mousedrag
+- Automatic adaptation to platform capabilities (touch vs mouse vs keyboard)
+- Sticky Keys prevention for web browsers (avoids Windows accessibility dialog)
+- CreateLayout() function for UI setup with responsemode parameter
+- Unified response handling across native, WebAssembly, and mobile platforms
+- 18+ battery tests migrated to new response system
+- Detailed migration guide in doc/LAYOUT_MIGRATION_GUIDE.md
+
+Native C++ Launcher & Development Tools (completed January 10, 2026):
+- PEBL Launcher (pebl-launcher): Native C++ study management application using Dear ImGui
+  - Visual study builder with drag-and-drop test organization
+  - Chain creation for multi-task experiment sequences
+  - Snapshot export/import system for study version control and sharing
+  - ZIP-based snapshot format with metadata and bundled files
+  - Subject ID management and data directory organization
+  - Token-based upload configuration for PEBL Online Platform
+  - Cross-platform support (Linux, planned Windows/macOS support)
+  - libzip integration for snapshot packaging
+- PEBL Validator (pebl-validator, completed December 27, 2025):
+  - Standalone syntax validation tool for PEBL scripts
+  - Batch validation support for entire directories
+  - Detailed error reporting with line numbers and context
+  - Integration with development workflows
+  - Available as separate binary for CI/CD pipelines
+
+Network & Data Upload Improvements:
+- Token-based authentication system in Transfer.pbl
+  - New auth_token field replaces username/password for platform uploads
+  - Backward compatibility maintained for legacy authentication
+  - Unified authentication across native and WebAssembly builds
+- HTTPS upload fixes in PEBLHTTP.cpp
+  - Automatic protocol detection based on port (443 = HTTPS, others = HTTP)
+  - Full URL construction with protocol prefix for libcurl
+  - Proper SSL/TLS handling for secure data transmission
+  - Fixed port-based routing for encrypted uploads
+- Enhanced upload reliability and error handling
+- Improved network connection management
+
+Build System Improvements:
+- Fixed Emscripten JPEG support with correct SDL2_IMAGE_FORMATS configuration
+  - Changed from "jpeg" to "jpg" format string
+  - Added explicit USE_LIBJPEG=1 flag for Emscripten builds
+  - Resolves image loading failures in WebAssembly deployments
+- Enhanced .gitignore patterns for build artifacts (test bundles, launcher binaries)
+- Improved bundle packaging workflow for online platform deployment
+- Separate handling of frozen snapshot bundles vs. core battery bundles
+
+Battery Test Improvements:
+- Fixed Iowa Gambling Task (iowa.pbl) syntax errors in language detection
+  - Corrected indentation and brace placement in conditional blocks
+  - Fixed nested if/else structure for translation file selection
+  - Applied fixes to both battery/ and upload-battery/ versions
+- Removed legacy backup files (iowa-old.pbl) from upload-battery
+- Enhanced parameter schemas and translation support across migrated tests
+
+Bug Fixes and Refinements:
+- Fixed brace alignment and conditional nesting in language detection code
+- Improved error handling in token-based upload system
+- Corrected JPEG format specifier for SDL2_image in WebAssembly builds
+- Enhanced bundle metadata handling for platform deployment
+- Fixed snapshot bundle path resolution for active studies
+
+
+================================================================================
+
 
 2.2.1 (December 2025):
 

@@ -53,16 +53,19 @@ bool ParseColor(const std::string& colorStr, PColor& outColor) {
 }
 
 /// Parse formatted text into segments
-std::vector<FormatSegment> ParseFormattedText(const std::string& input) {
+std::vector<FormatSegment> ParseFormattedText(const std::string& input, int charWidth) {
     std::vector<FormatSegment> segments;
 
     // Current formatting state
     bool boldOn = false;
     bool italicOn = false;
+    bool underlineOn = false;
     bool colorOn = false;
     PColor currentColor(0, 0, 0, 255);  // Default black
     bool sizeOn = false;
     int currentSize = 0;
+    int currentIndent = 0;  // Current indent in pixels
+    Justification currentJustification = JUSTIFY_NONE;  // Current text justification
 
     std::string currentText;
     size_t pos = 0;
@@ -74,11 +77,13 @@ std::vector<FormatSegment> ParseFormattedText(const std::string& input) {
             if (!currentText.empty()) {
                 FormatSegment seg;
                 seg.text = currentText;
-                seg.style = (boldOn ? 1 : 0) + (italicOn ? 2 : 0);
+                seg.style = (boldOn ? 1 : 0) + (italicOn ? 2 : 0) + (underlineOn ? 4 : 0);
                 seg.hasColorOverride = colorOn;
                 seg.colorOverride = currentColor;
                 seg.hasSizeOverride = sizeOn;
                 seg.sizeOverride = currentSize;
+                seg.indentPixels = currentIndent;
+                seg.justification = currentJustification;
                 segments.push_back(seg);
                 currentText.clear();
             }
@@ -114,10 +119,31 @@ std::vector<FormatSegment> ParseFormattedText(const std::string& input) {
             if (tagName == "br" || tagName == "br/") {
                 // Line break - add newline character to current text
                 currentText += '\n';
+
+                // Flush segment with newline
+                if (!currentText.empty()) {
+                    FormatSegment seg;
+                    seg.text = currentText;
+                    seg.style = (boldOn ? 1 : 0) + (italicOn ? 2 : 0) + (underlineOn ? 4 : 0);
+                    seg.hasColorOverride = colorOn;
+                    seg.colorOverride = currentColor;
+                    seg.hasSizeOverride = sizeOn;
+                    seg.sizeOverride = currentSize;
+                    seg.indentPixels = currentIndent;
+                    seg.justification = currentJustification;
+                    segments.push_back(seg);
+                    currentText.clear();
+                }
+
+                // Reset indent and justification after line break
+                currentIndent = 0;
+                currentJustification = JUSTIFY_NONE;
             } else if (tagName == "b") {
                 boldOn = !isClosing;
             } else if (tagName == "i") {
                 italicOn = !isClosing;
+            } else if (tagName == "u") {
+                underlineOn = !isClosing;
             } else if (tagName == "c") {
                 if (isClosing) {
                     colorOn = false;
@@ -140,6 +166,108 @@ std::vector<FormatSegment> ParseFormattedText(const std::string& input) {
                         // Invalid size, ignore
                     }
                 }
+            } else if (tagName == "h1" || tagName == "h2" || tagName == "h3" ||
+                       tagName == "h4" || tagName == "h5" || tagName == "h6") {
+                // Header tags - shortcuts for bold + specific size
+                // Can optionally include justification: <h1=center>, <h2=right>, etc.
+                if (!isClosing) {
+                    boldOn = true;
+                    sizeOn = true;
+                    // H1=32, H2=28, H3=24, H4=20, H5=18, H6=16
+                    int level = tagName[1] - '0';  // Convert '1'-'6' to 1-6
+                    currentSize = 38 - (level * 4);  // 34, 30, 26, 22, 18, 14
+                    if (level == 1) currentSize = 32;
+                    else if (level == 2) currentSize = 28;
+                    else if (level == 3) currentSize = 24;
+                    else if (level == 4) currentSize = 20;
+                    else if (level == 5) currentSize = 18;
+                    else if (level == 6) currentSize = 16;
+
+                    // Parse optional justification parameter
+                    if (!param.empty()) {
+                        std::string justifyParam = toLower(param);
+                        if (justifyParam == "left") currentJustification = JUSTIFY_LEFT;
+                        else if (justifyParam == "center") currentJustification = JUSTIFY_CENTER;
+                        else if (justifyParam == "right") currentJustification = JUSTIFY_RIGHT;
+                    }
+                } else {
+                    boldOn = false;
+                    sizeOn = false;
+                }
+            } else if (tagName == "indent") {
+                // Indent tag - sets absolute horizontal position like a tab stop
+                // <indent> defaults to 4 characters, <indent=8> sets to 8 character widths from left
+                int indentChars = 4;  // Default
+                if (!param.empty()) {
+                    try {
+                        indentChars = std::stoi(param);
+                    } catch (...) {
+                        // Invalid param, use default
+                    }
+                }
+                currentIndent = indentChars * charWidth;  // Absolute position, not cumulative
+            } else if (tagName == "p") {
+                // Paragraph tag - sets text justification
+                // <p=left>, <p=center>, <p=right>
+                if (!param.empty()) {
+                    std::string justifyParam = toLower(param);
+                    if (justifyParam == "left") currentJustification = JUSTIFY_LEFT;
+                    else if (justifyParam == "center") currentJustification = JUSTIFY_CENTER;
+                    else if (justifyParam == "right") currentJustification = JUSTIFY_RIGHT;
+                }
+            } else if (tagName == "hr") {
+                // Horizontal rule - create special segment with newline so it has a position
+                FormatSegment hrSeg;
+                hrSeg.isHorizontalRule = true;
+                hrSeg.text = "\n";  // Give it a newline so it occupies a position in stripped text
+                hrSeg.indentPixels = currentIndent;
+                segments.push_back(hrSeg);
+                // Reset indent after horizontal rule
+                currentIndent = 0;
+            } else if (tagName == "li") {
+                // Bullet list item - automatically starts on a new line (like HTML <li>)
+
+                // First, flush any current text (without adding newline)
+                if (!currentText.empty()) {
+                    FormatSegment seg;
+                    seg.text = currentText;  // No newline added here
+                    seg.style = (boldOn ? 1 : 0) + (italicOn ? 2 : 0) + (underlineOn ? 4 : 0);
+                    seg.hasColorOverride = colorOn;
+                    seg.colorOverride = currentColor;
+                    seg.hasSizeOverride = sizeOn;
+                    seg.sizeOverride = currentSize;
+                    seg.indentPixels = currentIndent;
+                    seg.justification = currentJustification;
+                    segments.push_back(seg);
+                    currentText.clear();
+                }
+
+                // If there are existing segments, ensure the last one ends with a newline
+                if (!segments.empty()) {
+                    FormatSegment& lastSeg = segments.back();
+                    if (!lastSeg.text.empty() && lastSeg.text.back() != '\n') {
+                        lastSeg.text += '\n';
+                    }
+                    currentIndent = 0;  // Reset indent for new line
+                }
+
+                // Indent the bullet itself from the left margin
+                currentIndent += 2 * charWidth;  // Indent bullet from left margin
+
+                FormatSegment liSeg;
+                liSeg.isBulletItem = true;
+                liSeg.text = "• ";  // Unicode bullet character
+                liSeg.style = (boldOn ? 1 : 0) + (italicOn ? 2 : 0) + (underlineOn ? 4 : 0);
+                liSeg.hasColorOverride = colorOn;
+                liSeg.colorOverride = currentColor;
+                liSeg.hasSizeOverride = sizeOn;
+                liSeg.sizeOverride = currentSize;
+                liSeg.indentPixels = currentIndent;
+                liSeg.justification = currentJustification;
+                segments.push_back(liSeg);
+
+                // Indent the following text further
+                currentIndent += 2 * charWidth;  // Total indent is now 4 * charWidth
             } else {
                 // Unknown tag, treat as literal text
                 currentText += '<';
@@ -153,7 +281,30 @@ std::vector<FormatSegment> ParseFormattedText(const std::string& input) {
             }
         } else {
             // Regular character, add to current text
-            currentText += input[pos];
+            char ch = input[pos];
+            currentText += ch;
+
+            // If we hit a newline, flush the current segment and reset indent
+            if (ch == '\n') {
+                // Save segment with newline
+                if (!currentText.empty()) {
+                    FormatSegment seg;
+                    seg.text = currentText;
+                    seg.style = (boldOn ? 1 : 0) + (italicOn ? 2 : 0) + (underlineOn ? 4 : 0);
+                    seg.hasColorOverride = colorOn;
+                    seg.colorOverride = currentColor;
+                    seg.hasSizeOverride = sizeOn;
+                    seg.sizeOverride = currentSize;
+                    seg.indentPixels = currentIndent;
+                    seg.justification = currentJustification;
+                    segments.push_back(seg);
+                    currentText.clear();
+                }
+                // Reset indent and justification for next line
+                currentIndent = 0;
+                currentJustification = JUSTIFY_NONE;
+            }
+
             pos++;
         }
     }
@@ -162,11 +313,13 @@ std::vector<FormatSegment> ParseFormattedText(const std::string& input) {
     if (!currentText.empty()) {
         FormatSegment seg;
         seg.text = currentText;
-        seg.style = (boldOn ? 1 : 0) + (italicOn ? 2 : 0);
+        seg.style = (boldOn ? 1 : 0) + (italicOn ? 2 : 0) + (underlineOn ? 4 : 0);
         seg.hasColorOverride = colorOn;
         seg.colorOverride = currentColor;
         seg.hasSizeOverride = sizeOn;
         seg.sizeOverride = currentSize;
+        seg.indentPixels = currentIndent;
+        seg.justification = currentJustification;
         segments.push_back(seg);
     }
 
@@ -212,12 +365,23 @@ std::string StripFormatting(const std::string& input) {
             tagName = toLower(tagName);
 
             // Check if it's a recognized formatting tag
-            if (tagName == "b" || tagName == "i" || tagName == "c" ||
-                tagName == "size" || tagName == "br" || tagName == "br/") {
+            if (tagName == "b" || tagName == "i" || tagName == "u" || tagName == "c" ||
+                tagName == "size" || tagName == "br" || tagName == "br/" ||
+                tagName == "h1" || tagName == "h2" || tagName == "h3" ||
+                tagName == "h4" || tagName == "h5" || tagName == "h6" ||
+                tagName == "indent" || tagName == "hr" || tagName == "li" || tagName == "p") {
                 // Skip this tag (don't add to result)
                 // For <br> tags, add a newline instead
                 if (tagName == "br" || tagName == "br/") {
                     result += '\n';
+                }
+                // For <li> tags, add bullet point
+                else if (tagName == "li") {
+                    result += "• ";
+                }
+                // For <hr> tags, add a line of dashes
+                else if (tagName == "hr") {
+                    result += "--------------------\n";
                 }
                 pos = tagEnd + 1;
             } else {

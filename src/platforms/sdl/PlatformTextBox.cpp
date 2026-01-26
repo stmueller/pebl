@@ -37,6 +37,8 @@
 #include "../../utility/rc_ptrs.h"
 #include "../../utility/PError.h"
 #include "../../utility/PEBLUtility.h"
+#include "../../utility/FormatParser.h"
+#include "../../utility/FontCache.h"
 
 
 #ifdef PEBL_OSX
@@ -256,6 +258,18 @@ bool  PlatformTextBox::RenderText()
 
     //cerr << "Textbox: "<< mHeight << " " <<totalheight << endl;
 
+    // Check if formatted text mode is enabled
+    Variant formattedVar = PEBLObjectBase::GetProperty("FORMATTED");
+    bool isFormatted = (formattedVar.GetInteger() != 0);
+
+    // Parse formatted text once if needed
+    std::vector<FormatParser::FormatSegment> segments;
+    if (isFormatted) {
+        // Calculate character width for indent calculations
+        int charWidth = GetPlatformFont()->GetTextWidth("M");  // Use 'M' as average char width
+        segments = FormatParser::ParseFormattedText(mText, charWidth);
+    }
+
     while(i != mBreaks.end() && totalheight < (unsigned int) mHeight)
         {
 
@@ -265,10 +279,16 @@ bool  PlatformTextBox::RenderText()
             if(linelength>0)
                 {
 
-                    SDL_Rect to;
+                     SDL_Rect to;
 
                     // Auto-detect RTL for THIS LINE and adjust justification
-                    std::string line_text = mText.substr(linestart, linelength);
+                    // For formatted text, use stripped text for line extraction
+                    std::string line_text;
+                    if (isFormatted) {
+                        line_text = mStrippedText.substr(linestart, linelength);
+                    } else {
+                        line_text = mText.substr(linestart, linelength);
+                    }
                     bool isLineRTL = has_rtl_text(line_text);
 
                     // Determine effective justification: RTL overrides mJustify
@@ -279,58 +299,242 @@ bool  PlatformTextBox::RenderText()
                         effectiveJustify = mJustify;
                     }
 
-                    if(effectiveJustify == "RIGHT")
-                        {
-                            //right flush
-                            tmpSurface = GetPlatformFont()->RenderText(line_text.c_str());
-                            SDL_Rect tmprect = {mSurface->w - tmpSurface->w,
-                                                static_cast<int>(totalheight),
-                                                tmpSurface->w,tmpSurface->h};
-                            to = tmprect;
+                    if (isFormatted) {
+                        // Cache fonts for this line to avoid repeated creation/deletion
+                        // Key: (style, size, color_as_int) -> Value: PlatformFont*
+                        std::map<std::tuple<int, int, unsigned int>, PlatformFont*> fontCache;
+
+                        // FIRST PASS: Find maximum ascent, total width, justification for baseline alignment
+                        int maxAscent = 0;
+                        int maxLineHeight = 0;  // Track maximum font height on this line
+                        unsigned int segmentTextPos = 0;
+                        bool hasHorizontalRule = false;
+                        int lineIndent = 0;  // Track indent for this line
+                        int totalLineWidth = 0;  // Total width of all segments on this line
+                        FormatParser::Justification lineJustification = FormatParser::JUSTIFY_NONE;  // Line justification
+
+                        // Get base font properties once
+                        PlatformFont* baseFont = GetPlatformFont();
+                        std::string fontFileName = baseFont->GetFontFileName();
+                        int baseFontSize = baseFont->GetFontSize();
+                        PColor baseFgColor = baseFont->GetFontColor();
+                        PColor baseBgColor = baseFont->GetBackgroundColor();
+                        bool antiAliased = baseFont->GetAntiAliased();
+
+                        for (const FormatParser::FormatSegment& seg : segments) {
+                            unsigned int segStart = segmentTextPos;
+                            unsigned int segEnd = segmentTextPos + seg.text.length();
+
+                            if (segEnd > linestart && segStart < linestart + linelength) {
+                                // Check for horizontal rule
+                                if (seg.isHorizontalRule) {
+                                    hasHorizontalRule = true;
+                                }
+
+                                // Track indent (accumulates across segments on same line)
+                                if (seg.indentPixels > 0) {
+                                    lineIndent = seg.indentPixels;
+                                }
+
+                                // Track justification (use first non-NONE justification found on line)
+                                if (lineJustification == FormatParser::JUSTIFY_NONE && seg.justification != FormatParser::JUSTIFY_NONE) {
+                                    lineJustification = seg.justification;
+                                }
+
+                                unsigned int overlapStart = std::max(segStart, (unsigned int)linestart);
+                                unsigned int overlapEnd = std::min(segEnd, (unsigned int)(linestart + linelength));
+                                std::string segmentText = seg.text.substr(overlapStart - segStart, overlapEnd - overlapStart);
+
+                                if (!segmentText.empty()) {
+                                    int segStyle = seg.style;
+                                    int segSize = seg.hasSizeOverride ? seg.sizeOverride : baseFontSize;
+                                    PColor segFgColor = seg.hasColorOverride ? seg.colorOverride : baseFgColor;
+
+                                    // Create cache key (color encoded as R*256*256 + G*256 + B)
+                                    unsigned int colorKey = segFgColor.GetRed() * 65536 +
+                                                           segFgColor.GetGreen() * 256 +
+                                                           segFgColor.GetBlue();
+                                    auto cacheKey = std::make_tuple(segStyle, segSize, colorKey);
+
+                                    // Get or create font
+                                    PlatformFont* renderFont;
+                                    auto it = fontCache.find(cacheKey);
+                                    if (it != fontCache.end()) {
+                                        renderFont = it->second;
+                                    } else {
+                                        renderFont = new PlatformFont(
+                                            fontFileName, segStyle, segSize,
+                                            segFgColor, baseBgColor, antiAliased);
+                                        fontCache[cacheKey] = renderFont;
+                                    }
+
+                                    // Get the ascent (height above baseline) for this font
+                                    int ascent = TTF_FontAscent(renderFont->GetTTFFont());
+                                    if (ascent > maxAscent) maxAscent = ascent;
+
+                                    // Get the full line height (ascent + descent) for this font
+                                    int lineHeight = TTF_FontHeight(renderFont->GetTTFFont());
+                                    if (lineHeight > maxLineHeight) maxLineHeight = lineHeight;
+
+                                    // Calculate width for this segment
+                                    totalLineWidth += renderFont->GetTextWidth(segmentText);
+                                }
+                            }
+                            segmentTextPos += seg.text.length();
                         }
-                    else if (effectiveJustify == "CENTER"){
-                        //centered
-                            tmpSurface = GetPlatformFont()->RenderText(line_text.c_str());
-                            int xval = (mSurface->w - tmpSurface->w)/2;
-                            SDL_Rect tmprect = {xval,static_cast<int>(totalheight),
-                                                tmpSurface->w,tmpSurface->h};
-                            to = tmprect;
-                        }
-                    else{
-                        // LEFT justification (default)
-                            tmpSurface = GetPlatformFont()->RenderText(line_text.c_str());
-                            SDL_Rect tmprect = {0,static_cast<int>(totalheight),tmpSurface->w,tmpSurface->h};
-                            to = tmprect;
+
+                        // Calculate justification offset
+                        int justifyOffset = 0;
+                        if (lineJustification == FormatParser::JUSTIFY_CENTER) {
+                            justifyOffset = (mWidth - totalLineWidth) / 2;
+                        } else if (lineJustification == FormatParser::JUSTIFY_RIGHT) {
+                            justifyOffset = mWidth - totalLineWidth;
                         }
 
+                        // SECOND PASS: Render segments with baseline alignment and justification
+                        int xOffset = justifyOffset;  // Start with justification offset
+                        segmentTextPos = 0;
 
-                    if(0)
-                        {
-                        //This was originally used for international right-to-left font layout, but
-                        //it never worked.
-                            std::string tmptext = mText.substr(linestart,linelength);
+                        // Render horizontal rule if present
+                        if (hasHorizontalRule) {
+                            // Draw a horizontal line across the textbox width
+                            PColor lineColor = GetPlatformFont()->GetFontColor();
+                            int lineY = static_cast<int>(totalheight) + maxAscent / 2;
+                            int lineWidth = mWidth - (lineIndent * 2);  // Leave margins
 
-                            //
-                            std::string rtext = PEBLUtility::strrev_utf8(tmptext);
-
-
-
-                            //Re-render the text using the associated font.
-                            tmpSurface = GetPlatformFont()->RenderText(rtext.c_str());
-
-
-                            SDL_Rect tmprect = {(mSurface->w - tmpSurface->w),static_cast<int>(totalheight),
-                                                tmpSurface->w, tmpSurface->h};
-                            to = tmprect;
-
+                            // Draw horizontal line (simple rectangle)
+                            SDL_Rect hrRect = {lineIndent, lineY, lineWidth, 2};
+                            SDL_FillRect(mSurface, &hrRect,
+                                        SDL_MapRGBA(mSurface->format,
+                                                   lineColor.GetRed(),
+                                                   lineColor.GetGreen(),
+                                                   lineColor.GetBlue(),
+                                                   255));
                         }
 
+                        for (const FormatParser::FormatSegment& seg : segments) {
+                            unsigned int segStart = segmentTextPos;
+                            unsigned int segEnd = segmentTextPos + seg.text.length();
 
-                    SDL_BlitSurface(tmpSurface, NULL, mSurface,&to);
-                    SDL_FreeSurface(tmpSurface);
+                            if (segEnd > linestart && segStart < linestart + linelength) {
+                                unsigned int overlapStart = std::max(segStart, (unsigned int)linestart);
+                                unsigned int overlapEnd = std::min(segEnd, (unsigned int)(linestart + linelength));
+
+                                std::string segmentText = seg.text.substr(
+                                    overlapStart - segStart,
+                                    overlapEnd - overlapStart);
+
+                                if (!segmentText.empty()) {
+                                    // If this segment has an indent, use it as absolute x-position (but only if greater than current xOffset)
+                                    if (seg.indentPixels > xOffset) {
+                                        xOffset = seg.indentPixels;
+                                    }
+
+                                    int segStyle = seg.style;
+                                    int segSize = seg.hasSizeOverride ? seg.sizeOverride : baseFontSize;
+                                    PColor segFgColor = seg.hasColorOverride ? seg.colorOverride : baseFgColor;
+
+                                    // Create cache key (same as first pass)
+                                    unsigned int colorKey = segFgColor.GetRed() * 65536 +
+                                                           segFgColor.GetGreen() * 256 +
+                                                           segFgColor.GetBlue();
+                                    auto cacheKey = std::make_tuple(segStyle, segSize, colorKey);
+
+                                    // Get font from cache (should always exist since we created it in first pass)
+                                    PlatformFont* renderFont = fontCache[cacheKey];
+
+                                    tmpSurface = renderFont->RenderText(segmentText.c_str());
+
+                                    // Get ascent for this specific font
+                                    int thisAscent = TTF_FontAscent(renderFont->GetTTFFont());
+
+                                    // Calculate y-offset to align baseline with max baseline
+                                    int yOffset = maxAscent - thisAscent;
+
+                                    // Position segment with baseline alignment
+                                    SDL_Rect segRect = {xOffset, static_cast<int>(totalheight) + yOffset,
+                                                       tmpSurface->w, tmpSurface->h};
+
+                                    SDL_BlitSurface(tmpSurface, NULL, mSurface, &segRect);
+                                    SDL_FreeSurface(tmpSurface);
+
+                                    xOffset += segRect.w;
+                                }
+                            }
+
+                            segmentTextPos += seg.text.length();
+                        }
+
+                        // Clean up cached fonts for this line
+                        for (auto& pair : fontCache) {
+                            delete pair.second;
+                        }
+
+                        // For formatted text, use the maximum line height found on this line
+                        // instead of the base font height
+                        totalheight += maxLineHeight;
+                    } else {
+                        // Normal (non-formatted) rendering
+                        if(effectiveJustify == "RIGHT")
+                            {
+                                //right flush
+                                tmpSurface = GetPlatformFont()->RenderText(line_text.c_str());
+                                SDL_Rect tmprect = {mSurface->w - tmpSurface->w,
+                                                    static_cast<int>(totalheight),
+                                                    tmpSurface->w,tmpSurface->h};
+                                to = tmprect;
+                            }
+                        else if (effectiveJustify == "CENTER"){
+                            //centered
+                                tmpSurface = GetPlatformFont()->RenderText(line_text.c_str());
+                                int xval = (mSurface->w - tmpSurface->w)/2;
+                                SDL_Rect tmprect = {xval,static_cast<int>(totalheight),
+                                                    tmpSurface->w,tmpSurface->h};
+                                to = tmprect;
+                            }
+                        else{
+                            // LEFT justification (default)
+                                tmpSurface = GetPlatformFont()->RenderText(line_text.c_str());
+                                SDL_Rect tmprect = {0,static_cast<int>(totalheight),tmpSurface->w,tmpSurface->h};
+                                to = tmprect;
+                            }
+
+
+                        if(0)
+                            {
+                            //This was originally used for international right-to-left font layout, but
+                            //it never worked.
+                                std::string tmptext = mText.substr(linestart,linelength);
+
+                                //
+                                std::string rtext = PEBLUtility::strrev_utf8(tmptext);
+
+
+
+                                //Re-render the text using the associated font.
+                                tmpSurface = GetPlatformFont()->RenderText(rtext.c_str());
+
+
+                                SDL_Rect tmprect = {(mSurface->w - tmpSurface->w),static_cast<int>(totalheight),
+                                                    tmpSurface->w, tmpSurface->h};
+                                to = tmprect;
+
+                            }
+
+
+                        SDL_BlitSurface(tmpSurface, NULL, mSurface,&to);
+                        SDL_FreeSurface(tmpSurface);
+
+                        // For normal text, use the base font height
+                        totalheight += height;
+                    }
+                }
+            else
+                {
+                    // No line content, still need to increment height for empty lines
+                    totalheight += height;
                 }
 
-            totalheight += height;
             linestart = *i;
             i++;
 
@@ -406,6 +610,7 @@ bool PlatformTextBox::SetProperty(std::string name, Variant v)
     else if(PTextBox::SetProperty(name,v))
     {
         // If we set it at higher level, don't worry.
+        // This includes FORMATTED property which is handled in PTextBox
     }
     else if (name == "FONT")
         {
@@ -502,6 +707,20 @@ void PlatformTextBox::SetText(string text)
 
 void PlatformTextBox::SetEditable(bool val)
 {
+    // Check if this is a formatted textbox
+    Variant formattedVar = PEBLObjectBase::GetProperty("FORMATTED");
+    bool isFormatted = (formattedVar.GetInteger() != 0);
+
+    if (val && isFormatted) {
+        // Disable formatted mode to allow editing of raw markdown text
+        // Tags will become visible as literal text for editing
+        std::cerr << "INFO: Disabling formatted mode for editing." << std::endl;
+        std::cerr << "  Formatting tags will be visible as text and can be edited directly." << std::endl;
+
+        PEBLObjectBase::SetProperty("FORMATTED", Variant(0));
+        mChanged = true;  // Force re-render to show raw tags
+    }
+
     // Call parent implementation
     PTextBox::SetEditable(val);
 
@@ -534,9 +753,47 @@ void PlatformTextBox::FindBreaks()
 
     mBreaks.clear();
 
+    // Check if formatted text mode is enabled
+    // If so, we need to work on stripped text for line breaking
+    Variant formattedVar = PEBLObjectBase::GetProperty("FORMATTED");
+    bool isFormatted = (formattedVar.GetInteger() != 0);
+
+    // For formatted text, we need to find breaks based on displayable text
+    int maxIndentPixels = 0;
+    int savedWidth = mWidth;
+    std::string textForBreaking = mText;  // Text to use for line break calculations
+
+    if (isFormatted) {
+        // Calculate character width for indent calculations
+        int charWidth = GetPlatformFont()->GetTextWidth("M");  // Use 'M' as average char width
+
+        // Parse formatted text to find maximum indent AND build stripped text
+        std::vector<FormatParser::FormatSegment> segments = FormatParser::ParseFormattedText(mText, charWidth);
+        mStrippedText.clear();
+        for (const FormatParser::FormatSegment& seg : segments) {
+            if (seg.indentPixels > maxIndentPixels) {
+                maxIndentPixels = seg.indentPixels;
+            }
+            // Build stripped text by concatenating segment texts
+            mStrippedText += seg.text;
+        }
+
+        // Reduce available width by maximum indent for line breaking
+        // This ensures we account for the space taken by bullets and indents
+        if (maxIndentPixels > 0) {
+            mWidth = mWidth - maxIndentPixels;
+        }
+
+        textForBreaking = mStrippedText;
+    }
 
     //Now, let's reserve space in mBreaks, roughly twice the amount we
     //think we need. This will make adding elements take less time.
+
+    // Temporarily set mText to the text we're using for breaking
+    // (FindNextLineBreak uses mText directly)
+    std::string originalText = mText;
+    mText = textForBreaking;
 
     int width = GetPlatformFont()->GetTextWidth(mText);
     if (mWidth > 0) {
@@ -572,6 +829,12 @@ void PlatformTextBox::FindBreaks()
             }
 
         }
+
+    // Restore original text and width
+    mText = originalText;
+    if (isFormatted) {
+        mWidth = savedWidth;
+    }
 
     //Update NUMTEXTLINES property to reflect the number of lines
     PEBLObjectBase::SetProperty("NUMTEXTLINES",Variant((int)mBreaks.size()));

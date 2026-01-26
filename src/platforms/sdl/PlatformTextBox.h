@@ -109,6 +109,7 @@ private:
     counted_ptr<PEBLObjectBase> mAdaptiveFontObject;  // Holds adapted font separately to avoid destructor cascade
     std::vector<counted_ptr<PEBLObjectBase>> mIntermediateFonts;  // Keeps intermediate adaptive fonts alive
     bool mIsUTF8;
+    std::string mStrippedText;  // For formatted mode: stores text with tags stripped (used for line breaking)
 
 };
 

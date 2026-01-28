@@ -105,10 +105,19 @@ std::vector<FormatSegment> ParseFormattedText(const std::string& input, int char
             bool isClosing = (tag.length() > 0 && tag[0] == '/');
             std::string tagName = isClosing ? tag.substr(1) : tag;
 
-            // Handle tags with parameters (e.g., c=red, size=16)
+            // Extract just the tag name (first word before space or =)
+            // This handles both <tag=value> and <tag attr=value> formats
             std::string param;
+            size_t spacePos = tagName.find(' ');
             size_t eqPos = tagName.find('=');
-            if (eqPos != std::string::npos) {
+
+            // If there's a space before an =, the tag has attributes (e.g., <p size=80>)
+            // Otherwise it's a simple tag with parameter (e.g., <h1=center>)
+            if (spacePos != std::string::npos && (eqPos == std::string::npos || spacePos < eqPos)) {
+                // Tag with attributes: extract just the tag name, leave rest in tag
+                tagName = tagName.substr(0, spacePos);
+            } else if (eqPos != std::string::npos) {
+                // Simple tag with parameter: extract param
                 param = tagName.substr(eqPos + 1);
                 tagName = tagName.substr(0, eqPos);
             }
@@ -153,14 +162,17 @@ std::vector<FormatSegment> ParseFormattedText(const std::string& input, int char
                     }
                 }
             } else if (tagName == "size") {
+                // DEPRECATED: <size=N> tag (kept for backward compatibility)
+                // Now interpreted as proportional size (100 = base font)
+                // For absolute point sizes, the old behavior would break with adaptive textboxes
                 if (isClosing) {
                     sizeOn = false;
                 } else if (!param.empty()) {
                     try {
                         int size = std::stoi(param);
-                        if (size > 0 && size < 200) {  // Sanity check
+                        if (size > 0 && size < 1000) {  // Sanity check (now percentage)
                             sizeOn = true;
-                            currentSize = size;
+                            currentSize = size;  // Now proportional (100 = base)
                         }
                     } catch (...) {
                         // Invalid size, ignore
@@ -168,20 +180,20 @@ std::vector<FormatSegment> ParseFormattedText(const std::string& input, int char
                 }
             } else if (tagName == "h1" || tagName == "h2" || tagName == "h3" ||
                        tagName == "h4" || tagName == "h5" || tagName == "h6") {
-                // Header tags - shortcuts for bold + specific size
+                // Header tags - shortcuts for bold + proportional size
                 // Can optionally include justification: <h1=center>, <h2=right>, etc.
                 if (!isClosing) {
                     boldOn = true;
                     sizeOn = true;
-                    // H1=32, H2=28, H3=24, H4=20, H5=18, H6=16
+                    // Headers use proportional sizing (100 = base font)
+                    // H1=230%, H2=200%, H3=170%, H4=140%, H5=130%, H6=115%
                     int level = tagName[1] - '0';  // Convert '1'-'6' to 1-6
-                    currentSize = 38 - (level * 4);  // 34, 30, 26, 22, 18, 14
-                    if (level == 1) currentSize = 32;
-                    else if (level == 2) currentSize = 28;
-                    else if (level == 3) currentSize = 24;
-                    else if (level == 4) currentSize = 20;
-                    else if (level == 5) currentSize = 18;
-                    else if (level == 6) currentSize = 16;
+                    if (level == 1) currentSize = 230;
+                    else if (level == 2) currentSize = 200;
+                    else if (level == 3) currentSize = 170;
+                    else if (level == 4) currentSize = 140;
+                    else if (level == 5) currentSize = 130;
+                    else if (level == 6) currentSize = 115;
 
                     // Parse optional justification parameter
                     if (!param.empty()) {
@@ -191,8 +203,13 @@ std::vector<FormatSegment> ParseFormattedText(const std::string& input, int char
                         else if (justifyParam == "right") currentJustification = JUSTIFY_RIGHT;
                     }
                 } else {
+                    // Closing header tag - reset formatting and add implicit newline
                     boldOn = false;
                     sizeOn = false;
+                    currentJustification = JUSTIFY_NONE;
+
+                    // Headers are block-level elements - add newline after closing tag
+                    currentText += '\n';
                 }
             } else if (tagName == "indent") {
                 // Indent tag - sets absolute horizontal position like a tab stop
@@ -207,13 +224,56 @@ std::vector<FormatSegment> ParseFormattedText(const std::string& input, int char
                 }
                 currentIndent = indentChars * charWidth;  // Absolute position, not cumulative
             } else if (tagName == "p") {
-                // Paragraph tag - sets text justification
-                // <p=left>, <p=center>, <p=right>
-                if (!param.empty()) {
-                    std::string justifyParam = toLower(param);
-                    if (justifyParam == "left") currentJustification = JUSTIFY_LEFT;
-                    else if (justifyParam == "center") currentJustification = JUSTIFY_CENTER;
-                    else if (justifyParam == "right") currentJustification = JUSTIFY_RIGHT;
+                // Paragraph tag - sets text justification and/or proportional size
+                // NEW syntax: <p align=center>, <p size=150>, <p align=center size=120>
+                // OLD syntax (deprecated): <p=center> (still supported for backward compatibility)
+
+                if (isClosing) {
+                    // Closing </p> tag - reset paragraph-level formatting
+                    sizeOn = false;
+                    currentJustification = JUSTIFY_NONE;
+                } else {
+                    // Opening <p> tag
+                    // Check for old syntax first: <p=center>
+                    if (!param.empty() && tag.find("align=") == std::string::npos && tag.find("size=") == std::string::npos) {
+                        // Old syntax: <p=center> where param is just "center"
+                        std::string justifyParam = toLower(param);
+                        if (justifyParam == "left") currentJustification = JUSTIFY_LEFT;
+                        else if (justifyParam == "center") currentJustification = JUSTIFY_CENTER;
+                        else if (justifyParam == "right") currentJustification = JUSTIFY_RIGHT;
+                    } else {
+                        // New syntax: parse multiple key=value attributes
+                        // Extract align= and size= from the tag
+                        size_t alignPos = tag.find("align=");
+                        if (alignPos != std::string::npos) {
+                            size_t alignStart = alignPos + 6;  // Skip "align="
+                            size_t alignEnd = tag.find_first_of(" >", alignStart);
+                            if (alignEnd == std::string::npos) alignEnd = tag.length();
+                            std::string alignValue = toLower(tag.substr(alignStart, alignEnd - alignStart));
+
+                            if (alignValue == "left") currentJustification = JUSTIFY_LEFT;
+                            else if (alignValue == "center") currentJustification = JUSTIFY_CENTER;
+                            else if (alignValue == "right") currentJustification = JUSTIFY_RIGHT;
+                        }
+
+                        size_t sizePos = tag.find("size=");
+                        if (sizePos != std::string::npos) {
+                            size_t sizeStart = sizePos + 5;  // Skip "size="
+                            size_t sizeEnd = tag.find_first_of(" >", sizeStart);
+                            if (sizeEnd == std::string::npos) sizeEnd = tag.length();
+                            std::string sizeValue = tag.substr(sizeStart, sizeEnd - sizeStart);
+
+                            try {
+                                int size = std::stoi(sizeValue);
+                                if (size > 0 && size < 1000) {  // Sanity check (percentage)
+                                    sizeOn = true;
+                                    currentSize = size;  // Proportional (100 = base)
+                                }
+                            } catch (...) {
+                                // Invalid size, ignore
+                            }
+                        }
+                    }
                 }
             } else if (tagName == "hr") {
                 // Horizontal rule - create special segment with newline so it has a position

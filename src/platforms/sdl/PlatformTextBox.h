@@ -41,8 +41,11 @@
 
 #include "../../utility/rc_ptrs.h"
 #include "../../base/PEBLObject.h"
+#include "../../utility/FormatParser.h"
 
 #include <vector>
+#include <map>
+#include <tuple>
 
 ///
 /// This class defines an SDL-specific text box.
@@ -102,6 +105,16 @@ private:
 
     void FindBreaks();
     int FindNextLineBreak(unsigned int curposition);
+
+    // Size-aware line breaking for formatted text
+    void FindBreaksFormatted(const std::vector<FormatParser::FormatSegment>& segments);
+    void FindBreaksInSegment(const FormatParser::FormatSegment& seg,
+                            PlatformFont* segFont,
+                            int& currentLineWidth,
+                            int& currentLineMaxHeight,
+                            std::string& currentLineText,
+                            int& strippedTextPos,
+                            int& totalHeight);
 
     void DrawCursor();
 

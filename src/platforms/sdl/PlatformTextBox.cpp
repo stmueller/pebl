@@ -347,7 +347,14 @@ bool  PlatformTextBox::RenderText()
 
                                 if (!segmentText.empty()) {
                                     int segStyle = seg.style;
-                                    int segSize = seg.hasSizeOverride ? seg.sizeOverride : baseFontSize;
+                                    // Calculate proportional size: sizeOverride is now a percentage (100 = base font)
+                                    int segSize = baseFontSize;
+                                    if (seg.hasSizeOverride) {
+                                        segSize = (baseFontSize * seg.sizeOverride) / 100;
+                                        // Sanity check: ensure size is reasonable
+                                        if (segSize < 1) segSize = 1;
+                                        if (segSize > 200) segSize = 200;
+                                    }
                                     PColor segFgColor = seg.hasColorOverride ? seg.colorOverride : baseFgColor;
 
                                     // Create cache key (color encoded as R*256*256 + G*256 + B)
@@ -431,7 +438,14 @@ bool  PlatformTextBox::RenderText()
                                     }
 
                                     int segStyle = seg.style;
-                                    int segSize = seg.hasSizeOverride ? seg.sizeOverride : baseFontSize;
+                                    // Calculate proportional size: sizeOverride is now a percentage (100 = base font)
+                                    int segSize = baseFontSize;
+                                    if (seg.hasSizeOverride) {
+                                        segSize = (baseFontSize * seg.sizeOverride) / 100;
+                                        // Sanity check: ensure size is reasonable
+                                        if (segSize < 1) segSize = 1;
+                                        if (segSize > 200) segSize = 200;
+                                    }
                                     PColor segFgColor = seg.hasColorOverride ? seg.colorOverride : baseFgColor;
 
                                     // Create cache key (same as first pass)
@@ -754,46 +768,27 @@ void PlatformTextBox::FindBreaks()
     mBreaks.clear();
 
     // Check if formatted text mode is enabled
-    // If so, we need to work on stripped text for line breaking
+    // If so, we need to use size-aware line breaking
     Variant formattedVar = PEBLObjectBase::GetProperty("FORMATTED");
     bool isFormatted = (formattedVar.GetInteger() != 0);
-
-    // For formatted text, we need to find breaks based on displayable text
-    int maxIndentPixels = 0;
-    int savedWidth = mWidth;
-    std::string textForBreaking = mText;  // Text to use for line break calculations
 
     if (isFormatted) {
         // Calculate character width for indent calculations
         int charWidth = GetPlatformFont()->GetTextWidth("M");  // Use 'M' as average char width
 
-        // Parse formatted text to find maximum indent AND build stripped text
+        // Parse formatted text segments
         std::vector<FormatParser::FormatSegment> segments = FormatParser::ParseFormattedText(mText, charWidth);
-        mStrippedText.clear();
-        for (const FormatParser::FormatSegment& seg : segments) {
-            if (seg.indentPixels > maxIndentPixels) {
-                maxIndentPixels = seg.indentPixels;
-            }
-            // Build stripped text by concatenating segment texts
-            mStrippedText += seg.text;
-        }
 
-        // Reduce available width by maximum indent for line breaking
-        // This ensures we account for the space taken by bullets and indents
-        if (maxIndentPixels > 0) {
-            mWidth = mWidth - maxIndentPixels;
-        }
-
-        textForBreaking = mStrippedText;
+        // Use size-aware line breaking that accounts for proportional font sizes
+        FindBreaksFormatted(segments);
+        return;  // Done - formatted line breaking complete
     }
+
+    // For non-formatted text, use original algorithm
+    std::string textForBreaking = mText;
 
     //Now, let's reserve space in mBreaks, roughly twice the amount we
     //think we need. This will make adding elements take less time.
-
-    // Temporarily set mText to the text we're using for breaking
-    // (FindNextLineBreak uses mText directly)
-    std::string originalText = mText;
-    mText = textForBreaking;
 
     int width = GetPlatformFont()->GetTextWidth(mText);
     if (mWidth > 0) {
@@ -830,12 +825,6 @@ void PlatformTextBox::FindBreaks()
 
         }
 
-    // Restore original text and width
-    mText = originalText;
-    if (isFormatted) {
-        mWidth = savedWidth;
-    }
-
     //Update NUMTEXTLINES property to reflect the number of lines
     PEBLObjectBase::SetProperty("NUMTEXTLINES",Variant((int)mBreaks.size()));
 
@@ -843,6 +832,173 @@ void PlatformTextBox::FindBreaks()
     //Text is complete only if we processed all text AND it fits in the height
     bool textComplete = (newlinestart >= mText.size()) && (totalheight <= (unsigned int)mHeight);
     PEBLObjectBase::SetProperty("TEXTCOMPLETE",Variant(textComplete ? 1 : 0));
+}
+
+
+/// Size-aware line breaking for formatted text
+/// Parses segments and calculates breaks based on actual font sizes (proportional sizing)
+void PlatformTextBox::FindBreaksFormatted(const std::vector<FormatParser::FormatSegment>& segments)
+{
+    mBreaks.clear();
+    mStrippedText.clear();
+
+    int baseFontSize = GetPlatformFont()->GetFontSize();
+    std::string fontFileName = GetPlatformFont()->GetFontFileName();
+    PColor fgColor = GetPlatformFont()->GetFontColor();
+    PColor bgColor = GetPlatformFont()->GetBackgroundColor();
+    bool antiAliased = GetPlatformFont()->GetAntiAliased();
+
+    // Track current line state
+    int currentLineWidth = 0;
+    int currentLineMaxHeight = 0;
+    std::string currentLineText;
+    int strippedTextPos = 0;
+    int totalHeight = 0;
+
+    // Font cache for this operation (key: style, size -> font)
+    std::map<std::tuple<int, int>, PlatformFont*> fontCache;
+
+    // Check if adaptive mode to determine if we need all breaks
+    Variant isAdaptiveVar = PEBLObjectBase::GetProperty("ISADAPTIVE");
+    bool isAdaptive = isAdaptiveVar.GetInteger() != 0;
+
+    for (const FormatParser::FormatSegment& seg : segments) {
+        // Calculate proportional size for this segment
+        int segSize = baseFontSize;
+        if (seg.hasSizeOverride) {
+            segSize = (baseFontSize * seg.sizeOverride) / 100;
+            segSize = std::max(1, std::min(200, segSize));
+        }
+
+        // Get or create font for this segment
+        auto cacheKey = std::make_tuple(seg.style, segSize);
+        PlatformFont* segFont;
+        auto it = fontCache.find(cacheKey);
+        if (it != fontCache.end()) {
+            segFont = it->second;
+        } else {
+            segFont = new PlatformFont(fontFileName, seg.style, segSize,
+                                      fgColor, bgColor, antiAliased);
+            fontCache[cacheKey] = segFont;
+        }
+
+        // Process segment text, updating line state
+        FindBreaksInSegment(seg, segFont, currentLineWidth,
+                           currentLineMaxHeight, currentLineText,
+                           strippedTextPos, totalHeight);
+
+        // Check if we've exceeded height (for non-adaptive mode)
+        if (!isAdaptive && totalHeight > (unsigned int)mHeight && strippedTextPos < (int)mStrippedText.length()) {
+            break;
+        }
+    }
+
+    // Flush final line if there's remaining text
+    if (!currentLineText.empty()) {
+        mBreaks.push_back(strippedTextPos);
+        totalHeight += currentLineMaxHeight;
+    }
+
+    // Clean up font cache
+    for (auto& pair : fontCache) {
+        delete pair.second;
+    }
+
+    // Update properties
+    PEBLObjectBase::SetProperty("NUMTEXTLINES", Variant((int)mBreaks.size()));
+    bool textComplete = (strippedTextPos >= (int)mStrippedText.length()) && (totalHeight <= (unsigned int)mHeight);
+    PEBLObjectBase::SetProperty("TEXTCOMPLETE", Variant(textComplete ? 1 : 0));
+}
+
+
+/// Process word-by-word breaking within a segment
+/// Updates currentLineWidth, currentLineMaxHeight, currentLineText, strippedTextPos, and totalHeight
+void PlatformTextBox::FindBreaksInSegment(
+    const FormatParser::FormatSegment& seg,
+    PlatformFont* segFont,
+    int& currentLineWidth,
+    int& currentLineMaxHeight,
+    std::string& currentLineText,
+    int& strippedTextPos,
+    int& totalHeight)
+{
+    std::string segText = seg.text;
+    size_t wordStart = 0;
+
+    // Track line height for this segment
+    int segHeight = TTF_FontHeight(segFont->GetTTFFont());
+    if (segHeight > currentLineMaxHeight) {
+        currentLineMaxHeight = segHeight;
+    }
+
+    // Process word by word
+    while (wordStart < segText.length()) {
+        // Find next word boundary (space, newline, or end)
+        size_t wordEnd = segText.find_first_of(" \n", wordStart);
+        if (wordEnd == std::string::npos) {
+            wordEnd = segText.length();
+        }
+
+        // Check if we found a standalone newline (no text before it)
+        // If there's text before the newline, process it as a word first
+        if (wordEnd < segText.length() && segText[wordEnd] == '\n' && wordEnd == wordStart) {
+            // Standalone newline - flush current line
+            // Add newline character to stripped text
+            mStrippedText += '\n';
+            strippedTextPos++;
+
+            // Flush current line (including newline in break position)
+            mBreaks.push_back(strippedTextPos);
+
+            // Add this line's height to total before resetting
+            totalHeight += currentLineMaxHeight;
+
+            // Reset line state
+            currentLineWidth = 0;
+            currentLineMaxHeight = 0;
+            currentLineText.clear();
+
+            // Move past the newline
+            wordStart = wordEnd + 1;
+            continue;
+        }
+
+        // Extract word (including trailing space if present)
+        // NOTE: If wordEnd points to a newline, we DON'T include it - we'll process it next iteration
+        bool hasSpace = (wordEnd < segText.length() && segText[wordEnd] == ' ');
+        std::string word = segText.substr(wordStart, wordEnd - wordStart + (hasSpace ? 1 : 0));
+
+        if (!word.empty()) {
+            // Measure word width using segment's font
+            int wordWidth = segFont->GetTextWidth(word);
+
+            // Check if word fits on current line
+            // Add 10-pixel margin to account for font rendering rounding/kerning differences
+            // This prevents text from being clipped at the exact boundary
+            if (currentLineWidth + wordWidth + 10 >= mWidth && !currentLineText.empty()) {
+
+                // Word doesn't fit - break line before this word
+                mBreaks.push_back(strippedTextPos);
+
+                // Add previous line's height to total before starting new line
+                totalHeight += currentLineMaxHeight;
+
+                // Start new line with this word
+                currentLineWidth = wordWidth;
+                currentLineMaxHeight = segHeight;
+                currentLineText = word;
+            } else {
+                // Word fits - add to current line
+                currentLineWidth += wordWidth;
+                currentLineText += word;
+            }
+
+            mStrippedText += word;
+            strippedTextPos += word.length();
+        }
+
+        wordStart = wordEnd + (hasSpace ? 1 : 0);
+    }
 }
 
 

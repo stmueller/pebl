@@ -1054,3 +1054,90 @@ OBJECT PROPERTIES (variable):
   Can get/set: .x, .y, .text (use SetProperty/GetProperty for others)
   WARNING: .color, .width, .height may not be modifiable on some objects
   Use PropertyExists() to check before setting
+
+
+USING WRITEPNG FOR DEBUGGING SCREENSHOTS
+==========================================
+
+When debugging visual layout or rendering issues, use WritePNG() to capture screenshots
+without needing to display the window:
+
+BASIC USAGE:
+  WritePNG(filename, windowObject, [x, y, width, height])
+
+PARAMETERS:
+  - filename: Path to save PNG file (e.g., "/tmp/screenshot.png" or "debug-output.png")
+  - windowObject: The gWin object you created with MakeWindow()
+  - [x, y, width, height]: Rectangle to capture (optional, defaults to whole window)
+      - x, y: Top-left corner coordinates
+      - width, height: Size of region to capture
+
+EXAMPLES:
+
+1. Capture entire window:
+   WritePNG("/tmp/debug-full.png", gWin, [0, 0, 1920, 1080])
+
+2. Capture specific region:
+   WritePNG("/tmp/textbox-area.png", gWin, [100, 100, 400, 300])
+
+3. Debug text wrapping issues:
+   ## Create textbox with grey background to see bounds
+   gWin <- MakeWindow("grey")
+   textbox <- MakeTextBox(text, font, 380, 350)
+   SetProperty(textbox, "FORMATTED", 1)
+   AddObject(textbox, gWin)
+   Move(textbox, 50, 50)
+   Draw()
+   WritePNG("/tmp/textbox-wrap-test.png", gWin, [0, 0, 800, 600])
+
+4. Capture multiple stages:
+   ## Before modification
+   Draw()
+   WritePNG("/tmp/before.png", gWin, [0, 0, 1920, 1080])
+   
+   ## Make changes
+   SetText(label, "Updated text")
+   Draw()
+   WritePNG("/tmp/after.png", gWin, [0, 0, 1920, 1080])
+
+DEBUGGING WORKFLOW:
+
+1. Set window background to contrasting color to see object bounds:
+   gWin <- MakeWindow("grey")    ## or "white", "black", etc.
+
+2. Create and position your objects
+
+3. Call Draw() before WritePNG():
+   Draw()                           ## Render all objects
+   WritePNG("/tmp/debug.png", gWin, [0, 0, width, height])
+
+4. Check the saved screenshot to verify:
+   - Object positions and alignment
+   - Text wrapping and line breaks
+   - Color rendering
+   - Size calculations
+   - Overlap detection
+
+5. Print debug info alongside screenshots:
+   Print("Screenshot saved to: /tmp/debug.png")
+   Print("Textbox width: " + GetProperty(textbox, "WIDTH"))
+   Print("Number of lines: " + GetProperty(textbox, "NUMTEXTLINES"))
+
+TIPS:
+  - Use /tmp/ directory for temporary debugging screenshots on Linux/Mac
+  - Use consistent naming for comparing multiple versions (debug-1.png, debug-2.png)
+  - Capture specific regions to focus on problematic areas
+  - Grey backgrounds make text and object boundaries clearly visible
+  - Always call Draw() immediately before WritePNG() to ensure current state is captured
+  - Use Wait(100) before WritePNG() if rendering might not be complete
+
+COMMON USE CASES:
+  - Debugging text wrapping in textboxes
+  - Verifying layout calculations
+  - Testing adaptive/responsive sizing
+  - Comparing before/after modifications
+  - Documenting rendering issues for bug reports
+  - Testing color rendering
+  - Verifying multi-font rendering in formatted text
+
+

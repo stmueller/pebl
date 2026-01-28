@@ -100,7 +100,18 @@ PColor::PColor(const string & colorname):
      InitializeProperty("ALPHA",Variant(0));
      //    cout << "Making color by name:" << colorname << endl;
     SetColorByName(colorname);
-    SetAlpha(255);
+
+    // Only set alpha to 255 if it wasn't explicitly set by an 8-character hex code (#RRGGBBAA)
+    // Check if colorname is a hex code with alpha channel
+    bool hasExplicitAlpha = false;
+    if (!colorname.empty() && colorname[0] == '#' && colorname.length() == 9) {
+        // Hex code with alpha - alpha was already set by SetColorByName
+        hasExplicitAlpha = true;
+    }
+    if (!hasExplicitAlpha) {
+        SetAlpha(255);
+    }
+
     mChanged = false;  // Clear flag after construction
 }
 
@@ -246,7 +257,53 @@ void PColor::SetColorByRGBA(int red, int green, int blue, int alpha)
 void PColor::SetColorByName(const string & colorname)
 {
 
+    // Check if this is a hex color code (starts with #)
+    if (!colorname.empty() && colorname[0] == '#')
+    {
+        std::string hexcode = colorname.substr(1);  // Remove the '#'
 
+        // Validate that hexcode contains only hex digits (0-9, A-F, a-f)
+        bool valid = true;
+        for (size_t i = 0; i < hexcode.length(); i++) {
+            char c = hexcode[i];
+            if (!((c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f'))) {
+                valid = false;
+                break;
+            }
+        }
+
+        if (valid && (hexcode.length() == 3 || hexcode.length() == 6 || hexcode.length() == 8))
+        {
+            int r = 0, g = 0, b = 0, a = 255;
+
+            if (hexcode.length() == 3) {
+                // #RGB format - expand to #RRGGBB
+                r = std::stoi(hexcode.substr(0, 1), nullptr, 16) * 17;  // 0xF becomes 0xFF
+                g = std::stoi(hexcode.substr(1, 1), nullptr, 16) * 17;
+                b = std::stoi(hexcode.substr(2, 1), nullptr, 16) * 17;
+            }
+            else if (hexcode.length() == 6) {
+                // #RRGGBB format
+                r = std::stoi(hexcode.substr(0, 2), nullptr, 16);
+                g = std::stoi(hexcode.substr(2, 2), nullptr, 16);
+                b = std::stoi(hexcode.substr(4, 2), nullptr, 16);
+            }
+            else if (hexcode.length() == 8) {
+                // #RRGGBBAA format
+                r = std::stoi(hexcode.substr(0, 2), nullptr, 16);
+                g = std::stoi(hexcode.substr(2, 2), nullptr, 16);
+                b = std::stoi(hexcode.substr(4, 2), nullptr, 16);
+                a = std::stoi(hexcode.substr(6, 2), nullptr, 16);
+            }
+
+            mRed   = To8BitColor(r);
+            mGreen = To8BitColor(g);
+            mBlue  = To8BitColor(b);
+            mAlpha = To8BitColor(a);
+            __SetProps__();
+            return;  // Successfully parsed hex color
+        }
+    }
 
     std::string ucasename = PEBLUtility::ToUpper(colorname);
 

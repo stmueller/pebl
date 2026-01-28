@@ -11,8 +11,7 @@
 ///   <i>italic text</i>
 ///   <u>underline text</u>
 ///   <c=red>colored text</c>
-///   <size=16>sized text</size>
-///   <h1> through <h6> - headers with predefined sizes
+///   <h1> through <h6> - headers with proportional sizes (bold, scaled)
 ///   <h1=center>, <h2=right> - headers with justification
 ///   <br> - line break
 ///
@@ -20,7 +19,12 @@
 ///   <hr> - horizontal rule
 ///   <li> - bullet list item
 ///   <indent> or <indent=8> - indentation (default 4 chars)
-///   <p=left>, <p=center>, <p=right> - paragraph justification
+///   <p align=left>, <p align=center>, <p align=right> - paragraph justification
+///   <p size=150> - proportional font size (100 = base font, 150 = 150% of base)
+///   <p align=center size=120> - combine alignment and size
+///
+/// PROPORTIONAL SIZING: All font sizes are relative to base font (100 = base)
+/// This ensures proper scaling with adaptive textboxes.
 ///
 /// This is a simple, non-nested tag parser for basic text formatting
 /// without requiring external markdown libraries.
@@ -43,7 +47,7 @@ struct FormatSegment {
     bool hasColorOverride;      // True if color was specified in tag
     PColor colorOverride;       // Color override (if hasColorOverride=true)
     bool hasSizeOverride;       // True if size was specified in tag
-    int sizeOverride;           // Font size override (if hasSizeOverride=true)
+    int sizeOverride;           // Font size as percentage of base (100 = base font, 150 = 150% of base)
 
     // Block-level formatting (TextBox only)
     int indentPixels;           // Horizontal indent in pixels (0 = no indent)
@@ -76,16 +80,19 @@ struct FormatSegment {
 ///   <i>text</i>        - Italic text
 ///   <u>text</u>        - Underlined text
 ///   <c=red>text</c>    - Colored text (supports color names and hex #RRGGBB)
-///   <size=16>text</size> - Text with specific font size
-///   <h1>text</h1>      - Header level 1 (bold, 32pt)
-///   <h2>text</h2>      - Header level 2 (bold, 28pt)
-///   <h3>text</h3>      - Header level 3 (bold, 24pt)
-///   <h4>text</h4>      - Header level 4 (bold, 20pt)
-///   <h5>text</h5>      - Header level 5 (bold, 18pt)
-///   <h6>text</h6>      - Header level 6 (bold, 16pt)
+///   <h1>text</h1>      - Header level 1 (bold, 230% of base font)
+///   <h2>text</h2>      - Header level 2 (bold, 200% of base font)
+///   <h3>text</h3>      - Header level 3 (bold, 170% of base font)
+///   <h4>text</h4>      - Header level 4 (bold, 140% of base font)
+///   <h5>text</h5>      - Header level 5 (bold, 130% of base font)
+///   <h6>text</h6>      - Header level 6 (bold, 115% of base font)
 ///   <br>               - Line break
 ///
 /// Block-level tag syntax (TextBox only):
+///   <p align=center>   - Center-aligned paragraph
+///   <p align=right>    - Right-aligned paragraph
+///   <p size=150>       - Proportional font size (150% of base font)
+///   <p align=center size=120> - Combine alignment and size
 ///   <hr>               - Horizontal rule
 ///   <li>               - Bullet list item (• + text)
 ///   <indent>           - Indent by 4 characters
@@ -97,6 +104,8 @@ struct FormatSegment {
 ///   - Unclosed tags extend to end of string
 ///   - Color names: red, blue, green, black, white, gray, yellow, etc. (752 X11 colors)
 ///   - Hex colors: #FF0000 for red, #00FF00 for green, #F0F for magenta, etc.
+///   - All font sizes are PROPORTIONAL (100 = base font, 150 = 150% of base)
+///   - This ensures proper scaling with adaptive textboxes
 std::vector<FormatSegment> ParseFormattedText(const std::string& input, int charWidth = 8);
 
 /// Parse a color from a string (color name or hex #RRGGBB)

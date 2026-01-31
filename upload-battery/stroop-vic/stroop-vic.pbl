@@ -14,6 +14,7 @@ define Start(p)
 
   ##Initialize Window, etc.
   gWin <- MakeWindow("grey40")
+  InitializeLSL(gWin)  ## Initialize LSL outlet if --lsl flag was used (shows prompt)
 
 
   if(gSubNum+""=="0")
@@ -161,6 +162,7 @@ define Start(p)
 
      ## Set block ID for data recording
      gBlock <- "practice" + practiceRound
+     LSLMarker("block_practice" + practiceRound + "_start")
 
      ## Show instruction for practice (first round) or failure feedback (subsequent rounds)
      if(practiceRound == 1)
@@ -195,6 +197,7 @@ define Start(p)
      ## Run the practice block WITH keymap practice on first round
      practiceOut <- Block(congruentStim, dotraining, gTimeLimit)
      practiceErrors <- Fifth(practiceOut)  ## Extract error count
+     LSLMarker("block_practice" + practiceRound + "_end")
 
      dotraining <- 0  ## Turn off keymap practice after first round
      practiceRound <- practiceRound + 1
@@ -220,7 +223,9 @@ define Start(p)
 
 
    gBlock <- 1
+   LSLMarker("block_D_start")
    out1 <-   Block(stim1,0,gTimeLimit)  ## dotraining=0, keymap practice already done
+   LSLMarker("block_D_end")
 
    resp1 <- First(out1)
    time1 <- Second(out1)
@@ -252,7 +257,9 @@ define Start(p)
    Draw()
 
    gBlock <- 2
+   LSLMarker("block_W_start")
    out2 <-  Block(stim2,0,gTimeLimit)
+   LSLMarker("block_W_end")
    resp2 <- First(out2)
    time2 <- Second(out2)
    intrusions2 <- Third(out2) ##should be 0
@@ -282,7 +289,9 @@ define Start(p)
    Draw()
 
    gBlock <- 3
+   LSLMarker("block_C_start")
    out3 <-  Block(stim3,0,gTimeLimit)
+   LSLMarker("block_C_end")
    resp3 <- First(out3)
    time3 <- Second(out3)
    intrusions3 <- Third(out3)
@@ -323,6 +332,9 @@ define Start(p)
      time1+ ","+ resp1+","+ intrusions1+","+corrects1+","+errors1+","+
      time2+ ","+resp2+","+ intrusions2+","+corrects2+","+errors2+","+
      time3+ ","+resp3+","+ intrusions3+","+corrects3+","+errors3)
+
+   ## Finalize LSL
+   FinalizeLSL()
 
 #   MessageBox("This output only provided for testing.  Uncomment for deployment"+CR(1)+text,gWin)
    MessageBox(gExitText,gWin)
@@ -493,6 +505,7 @@ if(dotraining)
 
         corr <- 0
         time0 <- GetTime()  #time 0 is start of trial
+        LSLMarker("stimulus_word" + First(id) + "_color" + Second(id) + "_type" + Third(id) + "_trial" + trial)
 
 
         while(not corr)
@@ -500,6 +513,7 @@ if(dotraining)
            timea <- GetTime()      #timea is start of last presentation
            resp <-  WaitForIt(gKeys)
            timeend <- GetTime()      #time1 is end response
+           LSLMarker("response_key" + resp)
 
            corr <- ScoreTrial(resp,"",Second(id),2)
            colname <- Nth(gColorNames, (resp))
@@ -507,6 +521,7 @@ if(dotraining)
 
            if(not corr)
            {
+                LSLMarker("trial_error")
                 Move(highlight2,highlight.x,highlight.y)
                 Show(highlight2)
                 Draw()
@@ -518,6 +533,7 @@ if(dotraining)
                 errors <- errors + 1
 		intrusions <- intrusions + intrusion
            } else{
+             LSLMarker("trial_correct")
              intrusion <- 0
              corrects <- corrects + corr
            }

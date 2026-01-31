@@ -29,6 +29,7 @@ define Start(p)
   gNumberSounds <- LoadSounds(gNumbers)
 
   gWin <- MakeWindow("black")
+  InitializeLSL(gWin)  ## Initialize LSL outlet if --lsl flag was used (shows prompt)
 
   gSleepEasy <- 1
   if(gSubNum+""=="0")
@@ -93,24 +94,32 @@ define Start(p)
   if(gParams.test1 != "none")
    {
    gBlock <- "p1"
+   LSLMarker("block_p1_start")
    ShowCursor(0)
    DoNBackSequence(gParams.test1,"none",1,gParams.isi,2,2,2,10)
+   LSLMarker("block_p1_end")
 
   MessageKeyBox(gSTrings.inst2,gWin)
 
    ShowCursor(0)
    gBlock <- "p2"
+   LSLMarker("block_p2_start")
    DoNBackSequence(gParams.test1,"none",2,gParams.isi,2,2,2,10)
+   LSLMarker("block_p2_end")
 
   } else {
    gBlock <- "p1"
+   LSLMarker("block_p1_start")
    ShowCursor(0)
    DoNBackSequence(gParams.test1,gParams.test2,1,gParams.isi,2,2,2,10)
+   LSLMarker("block_p1_end")
 
   MessageKeyBox(gStrings.inst3,gWin)
    ShowCursor(0)
    gBlock <- "p2"
+   LSLMarker("block_p2_start")
    DoNBackSequence(gParams.test1,gParams.test2,2,gParams.isi,2,2,2,10)
+   LSLMarker("block_p2_end")
 
   }
 
@@ -121,13 +130,17 @@ define Start(p)
     MessageKeyBox(gStrings.inst4,gWin)
      ShowCursor(0)
      gBlock <- "p3"
+     LSLMarker("block_p3_start")
      DoNBackSequence("none",gParams.test2,1,gParams.isi,2,2,2,10)
+     LSLMarker("block_p3_end")
 
    MessageKeyBox(gStrings.inst5,gWin)
 
      gBlock <- "p4"
     ShowCursor(0)
+     LSLMarker("block_p4_start")
      DoNBackSequence(gParams.test1,gParams.test2,1,gParams.isi,2,2,2,10)
+     LSLMarker("block_p4_end")
    }
 
    ShowCursor(0)
@@ -139,14 +152,20 @@ define Start(p)
       MessageKeyBox(msg,gWin)
 
      gBlock <- "t"+i
+     LSLMarker("block_t" + i + "_start")
      ShowCursor(0)
      DoNBackSequence(gParams.test1,gParams.test2,i,gParams.isi,
                      gParams.dim1targs,gParams.dim2targs,gParams.bothtargs,
 		     gParams.trialsperblock)
+     LSLMarker("block_t" + i + "_end")
     }
 
 
    ShowCursor(1)
+
+   ## Finalize LSL
+   FinalizeLSL()
+
    MessageKeyBox(gStrings.debrief,gWin)
 
    ## Close and upload data file
@@ -465,6 +484,9 @@ define DoNBackSequence(dim1,dim2, n, isi,
 
      Draw()
 
+     ## Send LSL marker for stimulus onset
+     LSLMarker("stimulus_n" + n + "_d1_" + Nth(dim1stim,i) + "_d2_" + Nth(dim2stim,i) + "_trial" + trial)
+
      ## Initialize global response tracking variables
      gNBackTime1 <- -1
      gNBackTime2 <- -1
@@ -513,15 +535,18 @@ define DoNBackSequence(dim1,dim2, n, isi,
      {
        resp1 <- gNBackResp1
        time2 <- gNBackTime1
+       LSLMarker("response1_" + resp1)
      } else {
        resp1 <- "<timeout>"
        time2 <- -1
+       LSLMarker("response1_timeout")
      }
 
      if(gNBackTime2 >= 0)
      {
        resp2 <- gNBackResp2
        time3 <- gNBackTime2
+       LSLMarker("response2_" + resp2)
      } else {
        resp2 <- "<timeout>"
        time3 <- -1
@@ -546,6 +571,20 @@ define DoNBackSequence(dim1,dim2, n, isi,
      if(resp2 == gRightSemantic)
      {
        corr2 <- Nth(des,2)
+     }
+
+     ## Send accuracy markers
+     if(corr1)
+     {
+       LSLMarker("dim1_correct")
+     } else {
+       LSLMarker("dim1_error")
+     }
+     if(corr2)
+     {
+       LSLMarker("dim2_correct")
+     } else {
+       LSLMarker("dim2_error")
      }
 
      Draw()

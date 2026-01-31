@@ -20,6 +20,7 @@ define Start(p)
 
   gSleepEasy <- 1
   gWin <- MakeWindow()
+  InitializeLSL(gWin)  ## Initialize LSL outlet if --lsl flag was used
 
   if(gSubNum+""=="0")
    {
@@ -51,29 +52,41 @@ define Start(p)
 
 
 
+  LSLMarker("scales_start")
   loop(task,tasks)
   {
+    LSLMarker("scale_" + task + "_start")
     if(task=="comfort")
     {
        comfort  <-  Comfort(gWin)
+       LSLMarker("scale_comfort_rating" + comfort)
     }elseif(task=="hotcold")
     {
       hotcold <-  HotCold(gWin)
+      LSLMarker("scale_hotcold_rating" + hotcold)
     } elseif(task=="wetdry")
     {
      wetdry <- WetDry(gWin)
+     LSLMarker("scale_wetdry_rating" + wetdry)
     }elseif(task=="temp")
    {
     temp     <- ( TempChange(gWin))
+    LSLMarker("scale_temp_rating" + temp)
    }elseif(task=="RPE")
    {
      rpe <- BorgRPE(gWin)
+     LSLMarker("scale_RPE_rating" + rpe)
    }elseif(task == "RSME")
    {
      rsme <- RSME(gWin)
+     LSLMarker("scale_RSME_rating" + rsme)
    } 
     
    }
+  LSLMarker("scales_end")
+
+  ## Finalize LSL
+  FinalizeLSL()
 
   gFileOut <- GetNewDataFile(gSubNum,gWin,"physioscales","csv","subnum,timestamp,time,comfort,hotcold,wetdry,temp,borgrpe,rsme")
   FilePrint(gfileout, gSubNum + "," + TimeStamp() +","+(GetTime()/1000)+","+ comfort + "," + hotcold + ","+ wetdry + "," + temp+","+ rpe+  "," + rsme)

@@ -15,6 +15,7 @@ define Start(p)
 
     ## Create window
     gWin <- MakeWindow("black")
+    InitializeLSL(gWin)  ## Initialize LSL outlet if --lsl flag was used
 
     ## Create timestamp label
     timestamp <- TimeStamp()
@@ -37,10 +38,12 @@ define Start(p)
     ## Create instruction
     inst <- EasyLabel("Press any key to complete test", gVideoWidth/2, gVideoHeight/2 + 50, gWin, 18, "white")
 
+    LSLMarker("test_start")
     Draw()
 
     ## Wait for keypress
     WaitForAnyKeyPress()
+    LSLMarker("test_keypress")
 
     ## Create and upload a test data file
     if(uploadResult)
@@ -50,7 +53,11 @@ define Start(p)
         dataFile <- GetNewDataFile(gSubNum, gWin, "test-simple", "csv", "timestamp,participant,color,size,duration,message,status")
         FilePrint(dataFile, timestamp + "," + gSubNum + "," + gParams.color + "," + gParams.size + "," + gParams.duration + "," + gParams.message + ",completed")
 
+        ## Close files before upload (required for Windows file locking compatibility)
+        FileClose(dataFile)
+
         ## Upload the file (use absolute path since working directory has changed)
+        ## Note: .filename property persists after FileClose(), so this is safe
         uploadStatus <- UploadFile(gSubNum, dataFile.filename)
         Print(uploadStatus)
         ## Show upload result
@@ -61,6 +68,10 @@ define Start(p)
     } else {
 #        Wait(gParams.duration)
     }
+
+    LSLMarker("test_complete")
+    ## Finalize LSL
+    FinalizeLSL()
 
     ## Test complete - return control to chain launcher
     return(1)

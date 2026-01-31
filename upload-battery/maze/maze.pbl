@@ -41,6 +41,7 @@ define Start(p)
 
 
   gWin <- MakeWindow("black")
+  InitializeLSL(gWin)  ## Initialize LSL outlet if --lsl flag was used
   ##Get subject code if we need to:
     if(gSubNum+""=="0")
      {
@@ -138,9 +139,10 @@ define Start(p)
 
     ##fill the layout region with the maze.
    mazeSize <- Max([gParams.mazepixelheight,gLayout.stimulusregion.height])
+   LSLMarker("block_test_start")
    loop(mazeid,mazelist)
    {
-
+   LSLMarker("trial_maze" + mazeid + "_start")
    if(gParams.problemset=="random")
       {
       ##get a truly random seed
@@ -203,12 +205,22 @@ define Start(p)
    Draw()
 
  }
+   LSLMarker("block_test_end")
 
-   ##up to 4 files exist
+   ## Finalize LSL
+   FinalizeLSL()
+
+   ## Close files before upload (required for Windows file locking compatibility)
+   FileClose(gFileOut)
+   FileClose(gLogFile)
+   FileClose(gReportFile)
+
+   ## Upload data files (works online, no-op on native)
+   ## Note: .filename property persists after FileClose(), so this is safe
    UploadFile(gSubnum,gFileOUt.filename)
    UploadFile(gSubnum,glogFile.filename)
    UploadFile(gSubnum,gReportFile.filename)
-   
+
    if(VariableExists("fname"))
    {
      UploadFile(gSubnum,fname)
@@ -277,6 +289,7 @@ define DoMazeTrial(maze)
 
   xy <- CalcXY(maze.start,maze)
   Move(me,First(xy),Second(xy))
+  LSLMarker("maze_solving_start")
   Draw()
   header.text <- gStrings.solving
   cont <- 1
@@ -292,6 +305,7 @@ define DoMazeTrial(maze)
 
     resp <- GetResponse(pos,maze)
     curtime <- GetTime()
+    LSLMarker("move_" + Second(resp))
     if(firstresp==0)
     {
       firstresp <-curTime
@@ -322,6 +336,7 @@ define DoMazeTrial(maze)
   moveseq <- path
   path <- RemoveDuplicates(moveseq)
   timeend <- GetTime()
+  LSLMarker("maze_solving_end_success" + success)
 
   out <- Print("Maze ID: " + maze.id)+CR(1)
   out <- out + gSubNum + " " + TimeStamp() + CR(1)

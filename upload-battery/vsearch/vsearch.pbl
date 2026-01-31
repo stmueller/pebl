@@ -32,6 +32,7 @@ define Start(p)
   gParams.reps <- 1
   
   gWin <- MakeWindow("black")
+  InitializeLSL(gWin)  ## Initialize LSL outlet if --lsl flag was used
   gSleepEasy <- 1
 
   ##get subject code if you don't have one.
@@ -123,6 +124,7 @@ define Start(p)
 
   ##Move through each trial of the design.
   trial <- 1
+  LSLMarker("block_test_start")
   ##loop through each trial.
   loop(i,design)
    {
@@ -133,7 +135,9 @@ define Start(p)
      targ     <- First(Second(i))
      targcol  <-  Second(Second(i))
 
+     LSLMarker("trial_" + trial + "_targs" + numTargs + "_size" + num + "_start")
      out <- SearchTrial(targ,foils, MakeColor(targcol),foilcolor,numTargs,num)
+     LSLMarker("trial_response_corr" + Nth(out,5) + "_rt" + Nth(out,6))
 
      FilePrint_(gFileOut,gSubNum + "," + trial + "," + time + "," + numTargs + "," + num + "," +targ + "," + targcol)
      loop(j,SubList(out,3,Length(out)))
@@ -159,6 +163,10 @@ define Start(p)
                                                  ["<N>",numtrials]])
 
    }
+  LSLMarker("block_test_end")
+
+  ## Finalize LSL
+  FinalizeLSL()
 
    #Now, compute search-time means for a simple report.
    gSumFile <- FileOpenWrite("data/"+gSubNum+"/summary-"+gSubNum+".txt")

@@ -46,6 +46,7 @@ define Start(lPar)
 {
 
   gWin <- MakeWindow("black")
+  InitializeLSL(gWin)  ## Initialize LSL outlet if --lsl flag was used
 
   ## Get subject number BEFORE creating layout
   if(gSubNum+""=="0")
@@ -213,6 +214,7 @@ define Start(lPar)
     continue <- 1
     curblock <- []
     endTime <- GetTime() + totalTime
+    LSLMarker("block_test_start")
    while(continue)
    {
 
@@ -239,6 +241,7 @@ define Start(lPar)
 
      trialNum <- trialNum + 1
      timeStart <- GetTime()
+     LSLMarker("trial_" + trialNum + "_isi" + isi + "_start")
 
       ########################
       ### Show fixation cross
@@ -270,6 +273,7 @@ define Start(lPar)
 	  ##Otherwise, present the stimulus and collect the response1
 
           Show(gStim)
+          LSLMarker("stimulus_present")
           Draw()
           time3<-GetTime()
           resp2 <- GetResponse(600000)##long timeout--10 minutes
@@ -281,6 +285,8 @@ define Start(lPar)
           Draw()
           gFeedback.text <- rt + " ms"
           }
+
+         LSLMarker("response_rt" + rt + "_type" + type)
 
          if(giveFeedback)
            {
@@ -324,6 +330,10 @@ define Start(lPar)
       }
        Wait(500)
    }
+   LSLMarker("block_test_end")
+
+   ## Finalize LSL
+   FinalizeLSL()
 
    agg <- AggregateRTs(rts,isis)
 
@@ -354,7 +364,12 @@ define Start(lPar)
 
    PrintMe(reportfile,"--------------------------------------------------------")
 
-   ##Upload data files
+   ## Close files before upload (required for Windows file locking compatibility)
+   FileClose(datafile)
+   FileClose(reportfile)
+
+   ## Upload data files (works online, no-op on native)
+   ## Note: .filename property persists after FileClose(), so this is safe
    Print("Uploading data files...")
    out <- UploadFile(gSubNum, datafile.filename); Print(out)
    out <- UploadFile(gSubNum, reportfile.filename); Print(out)

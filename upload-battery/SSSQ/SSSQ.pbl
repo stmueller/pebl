@@ -12,6 +12,7 @@ define Start(p)
   gDoOutro <- gParams.dooutro
 
   gWin <- MakeWindow("black")
+  InitializeLSL(gWin)  ## Initialize LSL outlet if --lsl flag was used
 
   if(gSubNum+""=="0")
   {
@@ -86,28 +87,41 @@ define Start(p)
   
    responsesout <- []
    timesout <- []
-   
 
-   ##### Instructions go here if you feel like adding them 
-   
+
+   ##### Instructions go here if you feel like adding them
+
    startTime <- GetTime()
-  
-   
+
+   LSLMarker("questionnaire_start")
+   qNum <- 1
    loop(q,questions)
    {
+	LSLMarker("question_" + qNum + "_display")
 	t1 <- GetTime()
         resp <- Likert(q)
 	t2 <- GetTime()
+	LSLMarker("question_" + qNum + "_response" + resp + "_rt" + (t2-t1))
 	PushOnEnd(responsesout, resp )
 	PushOnEnd(timesout, t2-t1 )
+	qNum <- qNum + 1
    }
    
+   LSLMarker("questionnaire_end")
+
+   ## Finalize LSL
+   FinalizeLSL()
+
    # Print the whole output file for the subject
 
     FilePrint_(gFileOut,gSubNum+","+gQuote+TimeStamp()+gQuote+",")
     FilePrint(gFileOut, ConcatenateList(Merge(responsesout,timesout),","))
 
-   ## Upload the data file
+   ## Close files before upload (required for Windows file locking compatibility)
+   FileClose(gFileOut)
+
+   ## Upload data file (works online, no-op on native)
+   ## Note: .filename property persists after FileClose(), so this is safe
    UploadFile(gSubnum, gFileOut)
 
   if(gDoOutro)

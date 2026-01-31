@@ -34,6 +34,7 @@ define Start(p)
   trialtime <- gparams.trialtime*1000   #number of seconds * 1000 = ms
 
   gWin <- MakeWindow()
+  InitializeLSL(gWin)  ## Initialize LSL outlet if --lsl flag was used
   gSleepEasy <- 1
 
    if(gSubNum+""=="0")
@@ -125,8 +126,10 @@ define Start(p)
   ## Wait for initial response to begin
   WaitForLayoutResponse(gLayout)
 
+  LSLMarker("block_test_start")
   while (trial <= numtrials)
   {
+     LSLMarker("trial_" + trial + "_targtime" + Nth(times,trial) + "_start")
      ## Update header with trial counter
      trialText <- SubstituteStrings(gStrings.trialcounter, [["<TRIAL>", trial], ["<TOTAL>", numtrials]])
      gLayout.header.text <- gStrings.header + " - " + trialText
@@ -157,6 +160,7 @@ define Start(p)
     Show(gTimer.front)
     Show(gTimer.back)
     Draw()
+    LSLMarker("tapping_start")
 
     ## Register timer update event (triggers continuously during event loop)
     RegisterEvent("<TIMER>", 1, GetTime(), "<GEQ>", "UpdateTimer", [finaltime, trialtime, gTimer])
@@ -171,11 +175,13 @@ define Start(p)
        if(resp != "<timeout>")
        {
          time <- GetTime()
+         LSLMarker("tap_hit" + hits + "_rt" + (time-prevtime))
          FilePrint(gFileOut,gSubNum + "," + trial + ",1," + targtime + ","  + hits + "," +  time + "," + (time-prevtime))
          hits <- hits + 1
          prevtime <-time
        }
      }
+     LSLMarker("tapping_end_totalhits" + (hits-1))
 
     ## Hide timer and label after trial
     Hide(gTimer.front)
@@ -191,6 +197,10 @@ define Start(p)
    trial <- trial + 1
    WaitForKeyPress("X")
   }
+  LSLMarker("block_test_end")
+
+  ## Finalize LSL
+  FinalizeLSL()
 
   x <- PrintList(data)
   tb.text <- gStrings.report  + CR(3)+ x+ CR(2)+ gstrings.toexit
@@ -198,7 +208,11 @@ define Start(p)
   Show(tb)
   Draw()
 
+  ## Close files before upload (required for Windows file locking compatibility)
+  FileClose(gFileOut)
+
   ## Upload data files (works online, no-op on native)
+  ## Note: .filename property persists after FileClose(), so this is safe
   datafile <- "data/" + gSubNum + "/timetap-" + gSubNum + ".csv"
   UploadFile(gSubNum, datafile, "/upload.json")
 

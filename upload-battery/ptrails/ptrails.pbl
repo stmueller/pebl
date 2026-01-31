@@ -69,6 +69,7 @@ define Start(p)
 
 
   gWin <- MakeWindow()
+  InitializeLSL(gWin)  ## Initialize LSL outlet if --lsl flag was used
   if(gSubNum+""=="0")
    {
      gSubNum <- GetSubNum(gWin)
@@ -244,12 +245,12 @@ define Start(p)
    typeLabels <- ["numbers","alternating numbers and letters","letters"]
    gcondlabels <- ["number","alternating","letter"]
 
-
+   LSLMarker("block_test_start")
 
 
    loop(i,Sequence(1,Length(pts),1))
     {
-
+     LSLMarker("trial_" + trial + "_type" + Nth(types,i) + "_start")
      ##Do a little practice round.
       if(gParams.DoPractice)
       {
@@ -272,13 +273,23 @@ define Start(p)
      PushOnEnd(dat,datline)
       trial <- trial + 1
     }
+   LSLMarker("block_test_end")
 
+  ## Finalize LSL
+  FinalizeLSL()
 
   ## Generate HTML summary report
   html <- CreateHTMLReport(dat)
   reportfile <- GetNewDataFile(gSubNum,gWin,"ptrails-report","html","")
   FilePrint_(reportfile, html)
 
+  ## Close files before upload (required for Windows file locking compatibility)
+  FileClose(gFileOut)
+  FileClose(gSumFile)
+  FileClose(reportfile)
+
+  ## Upload data files (works online, no-op on native)
+  ## Note: .filename property persists after FileClose(), so this is safe
   Print("uploading data")
   out <- UploadFile(gSubnum,gFileOut.filename);  Print(out)
   out <- UploadFile(gSubnum,gSumFile.filename);  Print(out)
@@ -361,6 +372,7 @@ define Trial(pts,type,practice)
    stimObjects <-  PlotTargets(pts,gParams.TargSize,stim)
    stimLines <- []
    Draw()
+   LSLMarker("trail_display")
    starttime <- GetTime()
 
    hits <- 0
@@ -461,6 +473,7 @@ define Trial(pts,type,practice)
         FilePrintList(gFileOut, [gSubNum, gTrial, practice, Nth(gcondlabels,type),
                                   clicks, hits, clicktime, First(pos), Nth(pos, 2),
                                   corr, id, (clicktime - lastclick), (clicktime - lastsucc)], ",")
+        LSLMarker("click_corr" + corr + "_id" + id + "_hits" + hits)
         lastclick <- clicktime
         if(corr)
           {

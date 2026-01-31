@@ -9,6 +9,7 @@ define Start(p)
 
    gScriptName <- "PEBL Line Judgment Task"
   gWin <- MakeWindow("black")
+  InitializeLSL(gWin)  ## Initialize LSL outlet if --lsl flag was used
   gSleepEasy <- 1
 
   ## Initialize upload system for online deployment
@@ -166,6 +167,7 @@ FilePrint(gReportOut,msg)
  loop(deadline,blocks)
   {
    blockID <- blockID + 1
+   LSLMarker("block_" + blockID + "_deadline" + deadline + "_start")
   Show(gTimer,0)
   Show(gFeedback)
   gFeedback.text  <- gSTrings.cont
@@ -204,7 +206,7 @@ FilePrint(gReportOut,msg)
   blocktrial <- 1
   while(blocktrial <= numtrials)
    {
-
+     LSLMarker("trial_" + trial + "_blocktrial" + blocktrial + "_start")
      delta <- Nth(deltas,blocktrial)
 
      shorter <- Sample(Sequence(gParams.minlength,gParams.maxlength-delta,1))
@@ -322,15 +324,24 @@ FilePrint(gReportOut,msg)
     WaitForLayoutResponse(gLayout)
     Hide(interimbox)
     RemoveObject(tab,gWin)
+    LSLMarker("block_" + blockID + "_end")
    }
    FilePrint(gReportOut,"--------------------------------------------------------------------")
 
-   ## Upload data files to server (if online)
+   ## Close files before upload (required for Windows file locking compatibility)
+   FileClose(gFileOut)
+   FileClose(gReportOut)
+
+   ## Upload data files (works online, no-op on native)
+   ## Note: .filename property persists after FileClose(), so this is safe
    datafile <- "data/" + gSubNum + "/linejudgment-data-" + gSubNum + ".csv"
    UploadFile(gSubNum, datafile, "/upload.json")
 
    reportfile <- "data/" + gSubNum + "/linejudgment-report-" + gSubNum + ".txt"
    UploadFile(gSubNum, reportfile, "/upload.json")
+
+   ## Finalize LSL
+   FinalizeLSL()
 
    ## Display debrief using AdaptiveTextBox
    debriefbox <- AdaptiveTextBox(gStrings.debrief,
@@ -366,7 +377,7 @@ define Trial(left,right,deadline,usetimer)
       AddObject(stim2,gWin)
 
       Hide(gFeedback)
-
+      LSLMarker("stimulus_present")
       Draw()
       toolong <- 0
        if(usetimer)
@@ -427,6 +438,7 @@ define Trial(left,right,deadline,usetimer)
              gfeedback.text <- gStrings.incorrect
           }
       }
+      LSLMarker("response_" + resp + "_corr" + corr + "_toolong" + toolong)
      Hide(stim1)
      Hide(stim2)
      Show(gfeedback)

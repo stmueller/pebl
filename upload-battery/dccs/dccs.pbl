@@ -22,6 +22,7 @@ define Start(p)
 
   ## Setup window and display
   gWin <- MakeWindow("white")
+  InitializeLSL(gWin)  ## Initialize LSL outlet if --lsl flag was used (shows prompt)
   gSleepEasy <- 1
   gInst <- EasyTextbox("", gVideoWidth/2-220, 100, gWin, 21, 440, 200)
 
@@ -410,6 +411,7 @@ define Start(p)
   corrsColor <- 0
   rtSumColor <- 0
 
+  LSLMarker("block_colorgame_start")
   loop(i, stimorder)
   {
     card <- Nth(cards, i)
@@ -418,6 +420,7 @@ define Start(p)
 
     if(i==1)
     {
+      LSLMarker("trial_color_red_start")
       gInst.text <- gStrings.red_prompt
       Draw()
       if(gParams.useaudio)
@@ -425,6 +428,7 @@ define Start(p)
         PlayBackground(redPrompt)
       }
     } else {
+      LSLMarker("trial_color_blue_start")
       gInst.text <- gStrings.blue_prompt
       Draw()
       if(gParams.useaudio)
@@ -438,7 +442,15 @@ define Start(p)
     resp <- WaitForClickOnTarget([targetL, targetR], [1, 2])
     time2 <- GetTime()
 
+    LSLMarker("response_side" + resp)
     corr <- resp==(3-i)
+
+    if(corr)
+    {
+      LSLMarker("trial_correct")
+    } else {
+      LSLMarker("trial_error")
+    }
 
     corrsColor <- corrsColor + corr
     rtSumColor <- rtSumColor + (time2-time1)
@@ -451,6 +463,7 @@ define Start(p)
     Move(card, gVideoWidth/2, gVideoHeight/2)
     Draw()
   }
+  LSLMarker("block_colorgame_end")
 
   ## SHAPE GAME introduction
   gInst.text <- gStrings.shape_game_intro
@@ -528,6 +541,7 @@ define Start(p)
   rtSumShape <- 0
   stimorder <- ShuffleDeck(2)
 
+  LSLMarker("block_shapegame_start")
   loop(i, stimorder)
   {
     card <- Nth(cards, i)
@@ -536,6 +550,7 @@ define Start(p)
 
     if(i==1)
     {
+      LSLMarker("trial_shape_rabbit_start")
       gInst.text <- gStrings.rabbit_prompt
       Draw()
       if(gParams.useaudio)
@@ -543,6 +558,7 @@ define Start(p)
         PlayForeground(rabbitPrompt)
       }
     } else {
+      LSLMarker("trial_shape_boat_start")
       gInst.text <- gStrings.boat_prompt
       Draw()
       if(gParams.useaudio)
@@ -556,7 +572,15 @@ define Start(p)
     resp <- WaitForClickOnTarget([targetL, targetR], [1, 2])
     time2 <- GetTime()
 
+    LSLMarker("response_side" + resp)
     corr <- resp==i
+
+    if(corr)
+    {
+      LSLMarker("trial_correct")
+    } else {
+      LSLMarker("trial_error")
+    }
 
     corrsShape <- corrsShape + corr
     rtSumShape <- rtSumShape + (time2-time1)
@@ -569,6 +593,7 @@ define Start(p)
     Move(card, gVideoWidth/2, gVideoHeight/2)
     Draw()
   }
+  LSLMarker("block_shapegame_end")
 
   ## BORDER GAME (advanced version) - only if conditions met
   passedShape <- (corrsShape >= 5)
@@ -671,11 +696,14 @@ define Start(p)
     rtSumBorder <- 0
     stimorder <- ShuffleDeck(4)
 
+    LSLMarker("block_bordergame_start")
     loop(i, stimorder)
     {
       card <- Nth(cards, i)
       Show(card)
       time0 <- GetTime()
+
+      LSLMarker("trial_border_card" + i + "_start")
       gInst.text <- gStrings.switch_prompt
       Draw()
 
@@ -689,8 +717,16 @@ define Start(p)
       resp <- WaitForClickOnTarget([targetL, targetR], [1, 2])
       time2 <- GetTime()
 
+      LSLMarker("response_side" + resp)
       correctside <- Nth(correctmap, i)
       corr <- resp==correctside
+
+      if(corr)
+      {
+        LSLMarker("trial_correct")
+      } else {
+        LSLMarker("trial_error")
+      }
 
       corrsBorder <- corrsBorder + corr
       rtSumBorder <- rtSumBorder + (time2-time1)
@@ -703,6 +739,7 @@ define Start(p)
       Move(card, gVideoWidth/2, gVideoHeight/2)
       Draw()
     }
+    LSLMarker("block_bordergame_end")
   }
 
   ## Generate summary report
@@ -730,6 +767,9 @@ define Start(p)
   ## Upload data files (works online, no-op on native)
   uploadResult <- UploadFile(gSubNum, gFileOut.filename)
   uploadResult2 <- UploadFile(gSubNum, "data/dccs-report-" + gSubNum + ".txt")
+
+  ## Finalize LSL
+  FinalizeLSL()
 
   ## Debrief
   Print(report)

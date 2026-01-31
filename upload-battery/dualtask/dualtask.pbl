@@ -32,6 +32,7 @@ define Start(p)
 
   ## Create window BEFORE calling CreateLayout
   gWin<- MakeWindow("black")
+  InitializeLSL(gWin)  ## Initialize LSL outlet if --lsl flag was used (shows prompt)
 
   ## Initialize strings AFTER window but BEFORE layout (needs gParams)
   GetStrings(gLanguage,gParams.stimtype)
@@ -229,6 +230,9 @@ if(gParams.stimtype==1)
     RemoveObject(tab,gWin)
    }
 
+  ## Finalize LSL
+  FinalizeLSL()
+
   MessageBox(gStrings.debrief,gWin)
 }
 
@@ -239,6 +243,8 @@ define Block(trials,type)
     ShowCursor(0)
 
     gBlock <- gBlock + 1
+
+    LSLMarker("block_" + gBlock + "_type" + type + "_start")
 
      ## Update block progress label
      gBlockLabel.text <- gStrings.block + ": " + gBlock + "/" + gTotalBlocks
@@ -333,6 +339,8 @@ define Block(trials,type)
 	Format(Mean(acc1),5)  + "  " +
 	Format(Mean(acc2),5)  + "  " + Mean(tooslows)))
 
+    LSLMarker("block_" + gBlock + "_end")
+
     ShowCursor(1)
   return  [Mean(rts1), Mean(rts2),Mean(acc1), Mean(acc2), Mean(tooslows)]
 
@@ -345,6 +353,7 @@ define Block(trials,type)
 
 define Trial(stim,type)
 {
+  LSLMarker("trial_stim" + stim + "_type" + type + "_start")
 
   Show(gFixation)
   Hide(gDim1Correct)
@@ -376,6 +385,7 @@ define Trial(stim,type)
   Show(stimObj)
   Hide(gFixation)
 
+  LSLMarker("stimulus_present")
   Draw()
   time0 <- GetTime()
 
@@ -398,6 +408,8 @@ define Trial(stim,type)
    correct1 <- IfElse(stim==1 or stim==3, resp1 == "DIM1A", resp1=="DIM1B")
    correct2 <- IfElse(stim==1 or stim==2, resp2 == "DIM2A", resp2=="DIM2B")
    delay <- 500
+
+  LSLMarker("response_dim1_" + resp1 + "_corr" + correct1 + "_dim2_" + resp2 + "_corr" + correct2)
 
   Hide(stimObj)
 ##now, we need to know whether we are correct for each one!

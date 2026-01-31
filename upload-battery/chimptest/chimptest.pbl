@@ -33,6 +33,8 @@ define Start(p)
   ## Setup window
   gSleepEasy <- 1
   gWin <- MakeWindow("black")
+  InitializeLSL(gWin)  ## Initialize LSL outlet if --lsl flag was used (shows prompt)
+
   ShowCursor(1)
 
   ## Get subject number
@@ -157,11 +159,13 @@ define Start(p)
   gLayout.header.text <- gStrings.practiceHeader
   Draw()
 
+  LSLMarker("block_practice_start")
   loop(i, Sequence(1, gParams.practiceTrials, 1))
   {
     result <- Trial(currentLevel, "practice", trialNum, practiceShowDuration, 0, practiceCondition)
     trialNum <- trialNum + 1
   }
+  LSLMarker("block_practice_end")
 
   ## Show ready message
   inst <- AdaptiveTextBox(gStrings.ready,
@@ -206,6 +210,7 @@ define Start(p)
     gLayout.header.text <- gStrings.testHeader
     Draw()
 
+    LSLMarker("block_test_" + blockNum + "_start")
     ## Limited-hold tasks (showDuration > 0) use fixed 5 items
     ## Masking task (showDuration = 0) uses adaptive staircase
     if(showDuration > 0)
@@ -265,7 +270,11 @@ define Start(p)
       }
       PushOnEnd(allFinalLevels, finalLevel)
     }
+    LSLMarker("block_test_" + blockNum + "_end")
   }
+
+  ## Finalize LSL
+  FinalizeLSL()
 
   ## Show debrief with results from all blocks
   if(Length(gParams.showDurations) == 1)
@@ -289,7 +298,12 @@ define Start(p)
   Draw()
   WaitForDownClick()
 
-  ## Upload data files
+  ## Close files before upload (required for Windows file locking compatibility)
+  FileClose(gFileOut)
+  FileClose(gFileOutTrial)
+
+  ## Upload data files (works online, no-op on native)
+  ## Note: .filename property persists after FileClose(), so this is safe
   UploadFile(gSubNum, gFileOut.filename)
   UploadFile(gSubNum, gFileOutTrial.filename)
 }
@@ -298,6 +312,7 @@ define Start(p)
 ## Run a single trial
 define Trial(numNumbers, phase, trialNum, showDuration, blockNum, condition)
 {
+  LSLMarker("trial_" + trialNum + "_level" + numNumbers + "_start")
   trialStartTime <- GetTime()
 
   ## Randomly select grid positions for this trial
@@ -345,6 +360,7 @@ define Trial(numNumbers, phase, trialNum, showDuration, blockNum, condition)
   }
 
   ## Show numbers
+  LSLMarker("stimulus_present")
   Draw()
 
   ## Now player must click in order (1, 2, 3, ...)
@@ -390,6 +406,8 @@ define Trial(numNumbers, phase, trialNum, showDuration, blockNum, condition)
 
     ## Check if correct
     correct <- (clickedNumber == expectedNumber)
+
+    LSLMarker("click_" + clickNum + "_num" + clickedNumber + "_exp" + expectedNumber + "_corr" + correct)
 
     if(not correct)
     {
@@ -471,6 +489,8 @@ define Trial(numNumbers, phase, trialNum, showDuration, blockNum, condition)
             phase + "," + numNumbers + "," + stimPositionsStr + "," + respSequenceStr + "," +
             numCorrectBeforeError + "," + allCorrect + "," + totalTime + "," +
             gCalData + "," + (gEyeDistance * 2.54) + "," + gScreenWidthCm + "," + gScreenHeightCm + "," + gCalculatedBoxSize + "," + gBoxSizeDegrees + "," + gFinalSpacing)
+
+  LSLMarker("trial_" + trialNum + "_end_allcorr" + allCorrect)
 
   return([allCorrect])
 }

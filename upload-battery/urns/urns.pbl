@@ -58,6 +58,7 @@ define Start(p)
 
   gSleepEasy <- 1
   gWin <- MakeWindow("white")
+  InitializeLSL(gWin)  ## Initialize LSL outlet if --lsl flag was used
   InitializeUpload()  ## Initialize token-based hosting if upload.json exists
 
 
@@ -84,14 +85,21 @@ define Start(p)
  gScore.text <-   gStrings.points+ gPoints
  trials <- Shuffle(RepeatList([1,2],gParams.trialsperjar))
  trialnum <- 1
+ LSLMarker("block_test_start")
  loop(i,trials)
    {
+     LSLMarker("trial_" + trialnum + "_urn" + i + "_start")
      gScore.text <-  gStrings.points+ gPoints
     out <- Trial(i,gParams.drawlimit)
+    LSLMarker("trial_response_corr" + Second(out) + "_draws" + Third(out))
     FilePrint(gFileOut,gSubNum+","+trialNum + ","+ gParams.drawlimit+","+i+","+First(out)+","+Second(out)+","+Third(out)+","+Fourth(out)+","+Fifth(out)+","+Nth(out,6)+","+gPoints)
      trialNum <- trialNum + 1
 
    }
+  LSLMarker("block_test_end")
+
+  ## Finalize LSL
+  FinalizeLSL()
 
   FileClose(gFileOut)
 
@@ -170,6 +178,7 @@ define Trial(urn,limit)
     {
 
       color <- First(SampleDistribution([1,2,3],bias,1))
+      LSLMarker("draw_" + count + "_color" + color)
       bin <- Nth(ballLocs,count)
       ball <- AnimateBall(gVideoWidth/2,gVideoHeight/2,bin.x,bin.y,10,color,gParams.ballsize)
       PushonEnd(balls,ball)

@@ -21,6 +21,7 @@ define Start(p)
   numtrials <- gParams.numtrials
 
   gWin <- MakeWindow("white")
+  InitializeLSL(gWin)  ## Initialize LSL outlet if --lsl flag was used
   InitializeUpload()  ## Initialize token-based hosting if upload.json exists
 
   gSleepEasy <- 1
@@ -154,10 +155,13 @@ stimtable <- [["A", 0,0,0,1,0.14, 0.15],
 
 
   trial <- 1
+  LSLMarker("block_test_start")
   loop(i,stims)
    {
     line <- Nth(stimtable,i)
+    LSLMarker("trial_" + trial + "_config" + First(line) + "_start")
     out <-     Trial(SubList(line,2,5),Nth(line,7))
+    LSLMarker("trial_response_" + Nth(out,4) + "_correct" + Nth(out,6))
 
     FilePrint(gfileout,ConcatenateList(Flatten([[gSubNum,trial],line,out]),","))
 
@@ -183,6 +187,10 @@ stimtable <- [["A", 0,0,0,1,0.14, 0.15],
    trial <- trial + 1
 
    }
+  LSLMarker("block_test_end")
+
+  ## Finalize LSL
+  FinalizeLSL()
 
    FileClose(gFileOut)
 

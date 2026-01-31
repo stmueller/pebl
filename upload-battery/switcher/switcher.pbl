@@ -33,6 +33,7 @@ define Start(p)
    gStim <- FileReadList("Uppercase.txt")
    gFont <- MakeFont(gPEBLBaseFont,0,22,MakeColor("black"),MakeColor("black"),0)
    gWin <- MakeWindow("black")
+   InitializeLSL(gWin)  ## Initialize LSL outlet if --lsl flag was used (shows prompt)
    gSleepEasy <- 1
 
 
@@ -118,10 +119,12 @@ define Start(p)
 
     ##Consistent 2 rule
     gType <- 1
+    LSLMarker("testtype_1_start")
     cuebase <- Shuffle([[1,2],[2,3],[1,3]])
     loop(base,cuebase)
      {
        gBlock <- gBlock  + 1
+       LSLMarker("block_" + gBlock + "_start")
       seq <- Sequence(1,5,1)
       tmpcol <- Shuffle(seq)
       tmpnum <- Shuffle(seq)
@@ -147,11 +150,12 @@ define Start(p)
                 First(ret) + "," + Second(ret)+ ","+lastmatches+","+matchany+
 		","+ tooslow +","+waittime + ","+perftime+","+medtime)
 
-
+      LSLMarker("block_" + gBlock + "_end")
 
       i <- i + 1
 
     }
+    LSLMarker("testtype_1_end")
 
     gInst.text <- gStrings.break2
     Show(gInst)
@@ -162,11 +166,13 @@ define Start(p)
     Draw()
     ##Consistent order-3 rule
     gType <- 2
+    LSLMarker("testtype_2_start")
     threes <- [[1,2,3],[1,3,2],[2,1,3],[2,3,1],[3,1,2],[3,2,1]]
     cuebase <- SampleN(threes,3)
     loop(base,cuebase)
      {
       gBlock <- gBlock  + 1
+      LSLMarker("block_" + gBlock + "_start")
       seq <- Sequence(1,5,1)
       tmpcol <- Shuffle(seq)
       tmpnum <- Shuffle(seq)
@@ -192,10 +198,12 @@ define Start(p)
                 First(ret) + "," + Second(ret)+ ","+lastmatches+","+matchany+","+
 		tooslow +","+waittime + ","+perftime+","+medtime)
 
+      LSLMarker("block_" + gBlock + "_end")
 
    i <- i + 1
 
     }
+    LSLMarker("testtype_2_end")
 
     gInst.text <- gStrings.break3
     Show(gInst)
@@ -206,11 +214,13 @@ define Start(p)
     Draw()
     ##Random order-3 rule
     gType <- 3
+    LSLMarker("testtype_3_start")
     times <- [1,2,3]
     loop(x,times)
      {
 
       gBlock <- gBlock  + 1
+      LSLMarker("block_" + gBlock + "_start")
       seq <- Sequence(1,5,1)
       tmpcol <- Shuffle(seq)
       tmpnum <- Shuffle(seq)
@@ -237,14 +247,26 @@ define Start(p)
       FilePrint(gFileOutSum,gSubNum + "," + TimeStamp()+ ","+ gType + "," +
                 First(ret) + "," + Second(ret)+ ","+lastmatches+","+matchany+","+ tooslow +","+waittime + ","+perftime+","+medtime)
 
+      LSLMarker("block_" + gBlock + "_end")
+
       i <- i + 1
 
     }
+    LSLMarker("testtype_3_end")
+
+ ## Finalize LSL
+ FinalizeLSL()
+
  gInst.text <- gStrings.debrief
  Show(gInst)
   Draw()
 
+  ## Close files before upload (required for Windows file locking compatibility)
+  FileClose(gFileOut)
+  FileClose(gFileOutSum)
+
   ## Upload data files (works online, no-op on native)
+  ## Note: .filename property persists after FileClose(), so this is safe
   UploadFile(gSubNum, gFileOut.filename)          ##"data/" + gSubNum + "/switch-" + gSubNum + ".csv")
   UploadFile(gSubNum, gFileOutSum.filename)       ##"data/" + gSubNum + "/switch-summary-" + gSubNum + ".csv")
 
@@ -330,6 +352,7 @@ define Trial(setup,cues)
      currentval <- Nth(resp,rule)
      cue.text <- Nth(rulelabs,rule)
      Draw()
+     LSLMarker("cue_" + Nth(gRuleNames,rule) + "_success" + successes)
 
      cont <- 1
      while(cont)
@@ -337,6 +360,7 @@ define Trial(setup,cues)
 
        respa <- WaitForClickOnTarget(backs,stim)
        time <- GetTime()
+       LSLMarker("click_id" + Nth(respa,6))
 
 
        SetMouseCursorPosition(Round(Nth(respa,4)+7),Round(Nth(respa,5)+7))
@@ -347,6 +371,7 @@ define Trial(setup,cues)
          Nth(respa,6) <> curid)
         {
        ###Correct
+        LSLMarker("click_correct")
         rt <- (time-lasttime)
         rts <- Append(rts, rt)
         tooslow <- tooslow + (rt > 2000)
@@ -369,6 +394,7 @@ define Trial(setup,cues)
       matchlast <- 0
 
      }else{
+       LSLMarker("click_error")
        inc <- inc + 1
        correct <- 0
 #       Print("wrong")

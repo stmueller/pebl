@@ -49,6 +49,7 @@ define Start(p)
 
   ShowCursor(0)
   gWin <- MakeWindow("black")
+  InitializeLSL(gWin)  ## Initialize LSL outlet if --lsl flag was used (shows prompt)
   InitializeUpload()  ## Initialize token-based hosting if upload.json exists
 
   if(gSubNum==0)
@@ -134,6 +135,7 @@ define Start(p)
   loop(hand,rounds)
   {
 
+  LSLMarker("hand_" + hand + "_start")
   data <- []
   trial <- 1
 
@@ -153,6 +155,7 @@ define Start(p)
   complete <- 0
   while((not complete) and trial <= maxtrials)
    {
+     LSLMarker("trial_" + trial + "_start")
      Show(header)
      Draw()
      sumx  <- 0.0
@@ -205,6 +208,7 @@ define Start(p)
        if(not IsList(x))
          {
            hits <- hits + 1
+           LSLMarker("tap_" + hits)
            sumX <- sumX + rt
            sumXX <- sumXX + (rt)^2
          }
@@ -251,11 +255,13 @@ define Start(p)
      }
    }
 
+   LSLMarker("trial_" + trial + "_end")
    trial <- trial + 1
    Print("waiting.."+contkey)
    WaitForKeyPress(contkey)
    Print("for contkey")
   }
+  LSLMarker("hand_" + hand + "_end")
 
 
   tb.text <- gSummary1 + " ("+hand+"):"+CR(1) +
@@ -308,6 +314,9 @@ define Start(p)
   out <- UploadFile(gSubNum, gFileOut.filename); Print(out)
   out <- UploadFile(gSubNum, reportfile.filename); Print(out)
 
+  ## Finalize LSL
+  FinalizeLSL()
+
   tb.text <-  gStudyComplete
   Show(tb)
   Draw()
@@ -329,16 +338,8 @@ define DrawProgress(bar,percent)
 define GetStrings(lang,trialtime,maxtrials,usekeypad)
 {
 
-  lang <- Uppercase(lang)
-  fname <- "translations/tapping.pbl-"+LowerCase(lang)+".json"
+ gStrings <- GetTranslations("tapping", lang)
 
-  if(FileExists(fname))
-  {
-    gStrings <- ReadTranslationjson(fname,lang)
-  } else
-  {
-    gStrings <- ReadTranslationjson("translations/tapping.pbl-en.json",lang)
-  }
 
 
 

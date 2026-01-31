@@ -54,6 +54,7 @@ define Start(p) {
 
     GetStrings(gLanguage)
     gWin <- MakeWindow(gBlackColor)
+    InitializeLSL(gWin)  ## Initialize LSL outlet if --lsl flag was used
 
 
 
@@ -119,7 +120,11 @@ define Start(p) {
 
     TNT()
 
+    ## Finalize LSL
+    FinalizeLSL()
+
     ## Upload data files (works online, no-op on native)
+    ## Note: .filename property persists after FileClose(), so this is safe
     out <- UploadFile(gSubNum, gFileOut.filename)
     Print(out)
     out <- UploadFile(gSubNum, gfile1.filename)
@@ -174,10 +179,12 @@ define TNT() {
     bloc <- 1
     respMatrix <- []
     #Loop on every condition, i.e Oneback, Rest, Twoback or Zeroback
+    LSLMarker("block_test_start")
     first_run <- 1
     while (bloc <= Length(conditions) - 1) {
 
         condition <- Nth(conditions, bloc)
+        LSLMarker("condition_" + condition + "_start")
 
         Print(condition)
         if (condition == "Rest") {
@@ -1099,6 +1106,11 @@ define TNT() {
 
         bloc <- bloc + 1
     }
+    LSLMarker("block_test_end")
+
+    ## Close files before upload (required for Windows file locking compatibility)
+    FileClose(gFileOut)
+    FileClose(gfile1)
 
 	gLayout.header.text <- gStrings.debrief
 	Draw()

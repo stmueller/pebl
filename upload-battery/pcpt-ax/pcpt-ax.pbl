@@ -214,9 +214,10 @@ define Start(lPar)
     Wait(1000)
     gstim.text <- ""
     Draw()
+    LSLMarker("block_test_start")
     loop(trial,trials2)
     {
-
+      LSLMarker("trial_" + trialNum + "_start")
 
       type <- First(trial)
       stim <- Second(trial)
@@ -265,6 +266,7 @@ define Start(lPar)
       rt <- -1
       responded <- 0
       Show(gStim)
+      LSLMarker("stimulus_" + stim + "_type" + type + "_order" + order)
       Draw()
       time1 <- GetTime()
 
@@ -336,7 +338,7 @@ define Start(lPar)
        corr <- 1-responded
      }
 
-
+     LSLMarker("response_responded" + responded + "_corr" + corr)
 
 
       ## See if we should stop at the end of the block.
@@ -397,6 +399,10 @@ define Start(lPar)
 
 
     }
+   LSLMarker("block_test_end")
+
+   ## Finalize LSL
+   FinalizeLSL()
 
    ##Study is complet are complete
    FilePrint(log,"PEBL CPT-AX Finished: " + gSubNum + " " + TimeStamp())
@@ -468,6 +474,7 @@ define Initialize()
 {
   ##Initialize Window, etc.
   gWin <- MakeWindow("black")
+  InitializeLSL(gWin)  ## Initialize LSL outlet if --lsl flag was used
   gSleepEasy <- 1
 
   ##Initialize Font and colors

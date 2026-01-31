@@ -60,6 +60,7 @@ define Start(p)
  }
 
   gWin <- MakeWindow("black")
+  InitializeLSL(gWin)  ## Initialize LSL outlet if --lsl flag was used (shows prompt)
   InitializeUpload()  ## Initialize token-based hosting if upload.json exists
 
 
@@ -138,12 +139,14 @@ if(gParams.generaterandom == 1)
 }
 
   trial <- 1
+  LSLMarker("block_test_start")
   while(trial <= numtrials)
    {
 
     gFeedback.text <- gStrings.intrial
     Show(gFeedback)
     Draw()
+    LSLMarker("trial_" + trial + "_start")
     res <-   Trial(Nth(traveltimes,trial))
     targ <- First(res)
     resp <- Nth(res,2)
@@ -161,12 +164,14 @@ if(gParams.generaterandom == 1)
     if(acc < .05)
      {
        msg <- msg+gStrings.great
-
+       LSLMarker("trial_accurate")
      } elseif( First(res) < Nth(res,2))
      {
         msg <- msg+gStrings.toolong
+        LSLMarker("trial_toolong")
      } else{
        msg <- msg+gStrings.tooshort
+        LSLMarker("trial_tooshort")
     }
        msg <-  msg + "  " + Round(resp/1000,2) + gStrings.vs +  Round(targ/1000,2)
    }
@@ -176,21 +181,27 @@ if(gParams.generaterandom == 1)
    Show(gFeedback)
    Draw()
    FilePrint(gFileOut,gSubNum + "," + trial +"," + targ + "," + resp + "," + acc + "," + shortlong)
+   LSLMarker("trial_" + trial + "_end")
   WaitForAnyKeyPress()
   Hide(gFeedback)
   trial <- trial + 1
   }
+  LSLMarker("block_test_end")
 
   FileClose(gFileOut)
 
   ##Upload data files
   Print("Uploading data files...")
   out <- UploadFile(gSubNum, gFileOut.filename); Print(out)
+
+  ## Finalize LSL
+  FinalizeLSL()
+
   ###
   Hide(bg)
   Hide(wall)
   Hide(notch)
-  
+
   instruct.text <- gStrings.thanks
   Show(instruct)
   Draw()
@@ -208,6 +219,7 @@ define Trial(traveltime)
 
   # traveltime <- gParams.mintime + (Random()*(gParams.maxtime-gParams.mintime))
    start <- GetTime()
+   LSLMarker("target_appear_traveltime" + traveltime)
    endtime <- start + traveltime
    disappeartime <- start + traveltime * .66667
 
@@ -226,9 +238,11 @@ define Trial(traveltime)
 
    }
    Hide(gtarg)
+   LSLMarker("target_disappear")
    Draw()
    x <-  WaitForAnyKeyPress()
    est <- GetTime()
+   LSLMarker("response")
    return [traveltime, (est-start)]
 
 }

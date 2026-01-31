@@ -36,6 +36,7 @@ define Start(p)
 	gBgColor <- "white"       # Background color (changed from grey80 to white)
 	gFgColor <- "black"       # Foreground color
 	gWin <- MakeWindow(gBgColor)
+	InitializeLSL(gWin)  ## Initialize LSL outlet if --lsl flag was used (shows prompt)
 
 
         ##Set initial values to use if .par file does not exist.
@@ -147,6 +148,7 @@ if(0)
 	gTrial <- 1
 	gBlock <- 0
 	CountDown(gWin)
+	LSLMarker("block_practice_start")
 	abstime <- GetTime()
 	loop(trial,practrials)
 	 {
@@ -154,6 +156,7 @@ if(0)
 	   Trial(trial,1,abstime)
 	   gTrial <- gTrial + 1
 	 }
+	LSLMarker("block_practice_end")
 
 
         MessageKeyBox(gInterblock)
@@ -162,6 +165,7 @@ if(0)
 	## Do the first test round
 	FilePrint(gLog, gSubNum + "," + gLanguage + "," +   TimeStamp()+",ANT,"+gResponseType+",BLOCK 1 BEGIN")
 	gBlock <- 1
+	LSLMarker("block_1_start")
 	abstime <- GetTime()
 	loop(trial,round1)
 	 {
@@ -169,6 +173,7 @@ if(0)
 	   Trial(trial,0,abstime)
 	   gTrial <- gTrial + 1
 	 }
+	LSLMarker("block_1_end")
 
 	tmpSumFile <- GetNewDataFile(gSubNum,gWin,"ANT-summary-block1","txt","")
         datalist <- ComputeStats(tmpSumFile)
@@ -180,6 +185,7 @@ if(0)
 	## Do the second test round
 	FilePrint(gLog, gSubNum + "," + gLanguage + "," +  TimeStamp()+",ANT,"+gResponseType+",BLOCK 2 BEGIN")
 	gBlock <- 2
+	LSLMarker("block_2_start")
 	abstime <- GetTime()
 	loop(trial,round2)
 	 {
@@ -187,6 +193,7 @@ if(0)
 	   Trial(trial,0,abstime)
 	   gTrial <- gTrial + 1
 	 }
+	LSLMarker("block_2_end")
 
 	tmpSumFile <- GetNewDataFile(gSubNum,gWin,"ANT-summary-block2","txt","")
         datalist <- ComputeStats(tmpSumFile)
@@ -199,6 +206,7 @@ if(0)
 	## Do the third test round
 	FilePrint(gLog, gSubNum + "," + gLanguage + "," +   TimeStamp()+",ANT,"+gResponseType+",BLOCK 3 BEGIN")
 	gBlock <- 3
+	LSLMarker("block_3_start")
 	abstime <- GetTime()
 	loop(trial,round3)
 	 {
@@ -206,6 +214,7 @@ if(0)
 	   Trial(trial,0,abstime)
 	   gTrial <- gTrial + 1
 	 }
+	LSLMarker("block_3_end")
 
 
         datalist <- ComputeStats(gSumFileOut)
@@ -218,6 +227,9 @@ if(0)
 	Print("Uploading data files...")
 	out <- UploadFile(gSubNum, gFileOut.filename); Print(out)
 	out <- UploadFile(gSubNum, gSumFileOut.filename); Print(out)
+
+	## Finalize LSL
+	FinalizeLSL()
 
 	MessageKeyBox(gDebrief)
 
@@ -470,14 +482,24 @@ define Trial (stim,practice,endtime)
 	Show(stim)
 	Draw()
 	time2 <- GetTime()
+	LSLMarker("stimulus_cue" + cue + "_pos" + topbottom + "_targ" + targdir + "_flank" + flankercoherence + "_trial" + gTrial)
 	## Use layout response system - returns semantic response ("left", "right", or "<timeout>")
 	resp <- WaitForLayoutResponse(gLayout, 1700)
 	time3 <- GetTime()
+	LSLMarker("response_" + resp)
 	Hide(stim)
 
 	## Update correctness logic to use semantic responses
 	corr <- ((targdir ==1) and (resp == "right")) or
 			((targdir ==-1) and (resp == "left"))
+
+	if(corr)
+	{
+	  LSLMarker("trial_correct")
+	} else {
+	  LSLMarker("trial_error")
+	}
+
 	rt <- time3-time2
 	if(practice)
 	 {

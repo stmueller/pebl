@@ -186,7 +186,9 @@ define Start(lPar)
     taskDirection <- Nth(task, 2)
     taskStimType <- Nth(task, 3)
 
+    LSLMarker("block_" + taskDirection + "_" + taskStimType + "_start")
     result <- RunSpanTask(taskDirection, taskStimType)
+    LSLMarker("block_" + taskDirection + "_" + taskStimType + "_end")
     gAllResults <- Append(gAllResults, result)
 
     ## Write result to report immediately after each task completes
@@ -237,6 +239,9 @@ define Start(lPar)
   Print(out)
   out <- UploadFile(gSubnum,gPooledFile.filename)
   Print(out)
+
+  ## Finalize LSL
+  FinalizeLSL()
 
   ShowCursor(1)
 }
@@ -315,12 +320,21 @@ define RunSpanTask(direction, stimType)
     taskLabel <- direction + "_" + stimType
     FilePrint_(gFileOut, gSubNum + "," + taskLabel + "," + direction + "," + stimType + "," + trialnum + "," + length + "," + try + ",")
 
+    LSLMarker("trial_" + trialnum + "_length" + length + "_start")
     if(direction == "ordering")
     {
       corr <- OrderingTrial(gStim, length, stimType)
     } else {
       corr <- SpanTrial(gStim, length, direction, stimType)
     }
+
+    if(corr)
+    {
+      LSLMarker("trial_correct")
+    }else{
+      LSLMarker("trial_incorrect")
+    }
+    LSLMarker("trial_" + trialnum + "_end")
 
     sumCorrect <- sumcorrect + corr
 
@@ -481,9 +495,11 @@ define SpanTrial(stimlist, length, direction, stimType)
   Wait(1000)
 
   ## Present stimuli
+  LSLMarker("stimulus_presentation_start")
   loop(stim, stimuli)
   {
     FilePrint_(gFileOut, stim)
+    LSLMarker("stimulus_" + stim)
 
     ## Mode 0: Video only
     ## Mode 1: Audio + Video
@@ -519,6 +535,7 @@ define SpanTrial(stimlist, length, direction, stimType)
   FilePrint_(gFileOut, ",")
 
   ## Get response
+  LSLMarker("response_collection_start")
   Hide(gStimLabel)
   gStimLabel.text <- ListToString(dummy)
   Draw()
@@ -538,6 +555,7 @@ define SpanTrial(stimlist, length, direction, stimType)
   time1 <- GetTime()
 
   resptext <- GetTypedResponse(length, direction)
+  LSLMarker("response_" + resptext)
   time2 <- GetTime()
 
   ## Check correctness
@@ -662,9 +680,11 @@ define OrderingTrial(stimlist, length, stimType)
   Wait(1000)
 
   ## Present scrambled stimuli one at a time (like span tasks)
+  LSLMarker("stimulus_presentation_start")
   loop(stim, scrambled)
   {
     FilePrint_(gFileOut, stim)
+    LSLMarker("stimulus_" + stim)
 
     ## Mode 0: Video only
     ## Mode 1: Audio + Video
@@ -700,6 +720,7 @@ define OrderingTrial(stimlist, length, stimType)
   FilePrint_(gFileOut, ",")
 
   ## Get response
+  LSLMarker("response_collection_start")
   Hide(gStimLabel)
   gStimLabel.text <- ListToString(dummy)
   Draw()
@@ -713,6 +734,7 @@ define OrderingTrial(stimlist, length, stimType)
 
   time1 <- GetTime()
   resptext <- GetTypedResponse(length, "forward")
+  LSLMarker("response_" + resptext)
   time2 <- GetTime()
 
   ## Check correctness
@@ -860,6 +882,7 @@ define GetTypedResponse(length, direction)
 define Initialize()
 {
   gWin <- MakeWindow("black")
+  InitializeLSL(gWin)  ## Initialize LSL outlet if --lsl flag was used (shows prompt)
 
   if(gSubNum == 0)
   {

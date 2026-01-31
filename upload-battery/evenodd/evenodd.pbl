@@ -1,6 +1,7 @@
 define Start(p)
 {
    gWin <- MakeWindow("black")
+   InitializeLSL(gWin)  ## Initialize LSL outlet if --lsl flag was used (shows prompt)
 
    parPairs <- [["reps",10],
                 ["isi",500],
@@ -68,7 +69,7 @@ define Start(p)
 
     trials <- Shuffle(Merge(trialsOdd,trialsEven))
 
-
+     LSLMarker("block_practice_start")
      ##do some practice trials that aren't recorded:
 	 Trial(1)
 	 Wait(gParams.ISI)
@@ -78,23 +79,35 @@ define Start(p)
 
 	 Trial(97)
 	 Wait(gParams.ISI)
+     LSLMarker("block_practice_end")
 
     rts <- []
 	corrs <- []
 
+   LSLMarker("block_test_start")
    trial <- 1
    loop(i,trials)
    {
+     LSLMarker("trial_" + trial + "_number" + i + "_start")
      starttime <- GetTime()
      out <-  Trial(i)
      FilePrintList(gFileout,Merge([gSubNum,trial,starttime],out),",")
      PushOnEnd(rts,Nth(out,5))
      PushOnEnd(corrs,Nth(out,4))
 
+     if(Nth(out,4))
+     {
+       LSLMarker("trial_correct")
+     }else{
+       LSLMarker("trial_incorrect")
+     }
+     LSLMarker("trial_" + trial + "_end")
+
      trial <- trial + 1
 
       Wait(gParams.isi)
    }
+   LSLMarker("block_test_end")
 
 
     meanRT <- Mean(rts)
@@ -111,6 +124,9 @@ define Start(p)
 
 	reportfile <- GetNewDataFile(gSubNum,gWin,"evenodd-report","txt","")
 	FilePrint(reportfile,report)
+
+   ## Finalize LSL
+   FinalizeLSL()
 
    ShowInstructions(gStrings.debrief+ CR(2)+ report)
 }
@@ -157,11 +173,13 @@ define Trial(number)
   ## Just create the stimulus in the center of the stimulus region
   stim <- EasyLabel(number+"", gLayout.centerX, gLayout.centerY, gWin, 80)
 
+  LSLMarker("stimulus_" + number)
   Draw()
   time1 <- GetTime()
 
   ## Use layout response system (returns "left" or "right")
   resp <- WaitForLayoutResponse(gLayout, 5000)
+  LSLMarker("response_" + resp)
 
   time2 <- GetTime()
   rt <- (time2-time1)

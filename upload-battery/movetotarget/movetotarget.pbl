@@ -1,0 +1,296 @@
+## Move-to-target (whackamole), with x/y reversal options.
+##
+
+define Start(p)
+{
+  gScriptName <- "PEBL Move-to-target Task"
+  gPi <- 3.14159
+
+  parpairs <- [["numstim",30],  ##number of stim per trial
+               ["numtrials",10],
+	       ["ytrans",-1],
+	       ["xtrans",1],
+	       ["mintime",2000],
+	       ["spreadtime",0],
+       	       ["disttonextmin",300],
+               ["disttonextmax",300],
+	       ["responsemode","none"]
+	      ]
+
+
+  gParams <- CreateParameters(parpairs,gParamFile)
+  gWin <- MakeWindow("black")
+  InitializeLSL(gWin)  ## Initialize LSL outlet if --lsl flag was used
+  InitializeUpload()   ## Initialize file upload if --upload flag was used
+  numTrials <- gParams.numtrials
+
+
+  min <- gParams.mintime        #minimum time to hit target
+  spread <- gParams.spreadtime  ##spread of uniform distribution added to min as time limit
+
+   ##are the testing a non-translation version?
+   gNoTrans <- (gParams.xtrans == 1 ) and (gparams.ytrans == 1)
+
+  if(gSubNum+""=="0")
+   {
+      gSubNum <- GetSubNum(gWin)
+   }
+
+   GetStrings(gLanguage)
+
+   ## Create layout (header/stimulus region ONLY - no response system for mouse tracking)
+   gLayout <- CreateLayout("movetotarget", gWin, gParams)
+   gLayout.header.visible <- 1
+   gLayout.subheader.visible <- 0
+   gLayout.footer.visible <- 0  ## No footer needed (no discrete responses)
+
+   gFileOutRaw <- GetNewDataFile(gSubNum,gWin,"movetotarget-pts","csv",
+                    "subnum,trial,step,xtrans,ytrans,label,startx,starty,time,xpos,ypos,step,targx,targy,dist,timeout,hit")
+
+   gFileOut <- GetNewDataFile(gSubNum,gWin,"movetotarget-summary","csv",
+                    "subnum,trial,step,startx,starty,xtrans,ytrans,label,targx,targy,dist,timeout,hit,rt")
+
+  ## Create adaptive textbox for instructions
+  font <- MakeFont("DejaVuSans.ttf", 0, 33, MakeColor("white"), MakeColor("black"), 0)
+  instructWidth <- Round(gVideoWidth * 0.85)
+  instruct <- MakeTextBox("", font, instructWidth, gVideoHeight - 100)
+  SetProperty(instruct, "FORMATTED", 1)
+  SetProperty(instruct, "ISADAPTIVE", 1)
+  AddObject(instruct, gWin)
+  Move(instruct, gVideoWidth/2 - instructWidth/2, 50)
+
+  instruct.text <- gStrings.inst1
+  Draw()
+  WaitForAnyKeyPress()
+
+  instruct.text <- gStrings.inst2
+  Draw()
+  WaitForAnyKeyPress()
+
+  Hide(instruct)
+
+
+  header <- EasyLabel("",gLayout.centerX,gLayout.header.y + gLayout.header.height/2,gWin,16)
+  trial <- 0
+  gtrial <- trial
+
+  header.text <- SubstituteSTrings(gStrings.header,[["<I>","0"],["<N>",gParams.numtrials]])
+  LSLMarker("trial_practice_start")
+  DoMoveTrial(gparams.numstim,min,spread,1,1,"normal")
+  LSLMarker("trial_practice_end")
+
+  trial <- 1
+  loop(i,gParams.numtrials)
+  {
+    gTrial <- trial
+    header.text <- SubstituteStrings(gStrings.header,[["<I>",i],["<N>",gParams.numtrials]])
+
+    ##this warns about the flip, so only do so when we have a flip!
+    if(trial==1 and gNoTrans==0)
+    {
+      instruct.text <- gStrings.inst3
+      Show(instruct)
+      Draw()
+      WaitForAnyKeyPress()
+      Hide(instruct)
+
+    }else{
+
+      instruct.text <- gStrings.inst4
+      Show(instruct)
+      Draw()
+      WaitForAnyKeyPress()
+      Hide(instruct)
+    }
+
+    LSLMarker("trial_" + trial + "_start")
+    DoMoveTrial(gParams.numstim,min,spread,gParams.xtrans,gParams.ytrans,"MODIFIED"+trial)
+    LSLMarker("trial_" + trial + "_end")
+    trial <- trial + 1
+  }
+
+  ## Close files before upload (required for Windows file locking compatibility)
+  FileClose(gFileOutRaw)
+  FileClose(gFileOut)
+
+  ## Upload data files (works online, no-op on native)
+  ## Note: .filename property persists after FileClose(), so this is safe
+  UploadFile(gSubNum, gFileOutRaw.filename)
+  UploadFile(gSubNum, gFileOut.filename)
+
+  ## Finalize LSL
+  FinalizeLSL()
+
+  instruct.text <- gSTrings.debrief
+  Show(instruct)
+  Draw()
+  WaitForAnyKeyPress()
+
+}
+
+
+
+
+define DoMoveTrial(targets,min,spread,xtrans:1,ytrans:1,label:"NORMAL")
+{
+
+  targsize <- 20
+  fieldx <- 800
+  fieldy <- 600
+  field <- Rectangle(gLayout.centerX,gLayout.centerY,
+                        fieldx+targsize*2,fieldy+targsize*2,MakeColor("grey20"),0)
+  AddObject(field,gWin)
+
+  hits <- 0
+  misses <- 0
+  i <- 1
+
+  meter <- EasyLabel("",gLayout.centerX,gLayout.header.y + gLayout.header.height/2 + 30,gWin,20)
+  target <- Circle(gLayout.centerX,gLayout.centerY,targsize,MakeColor("blue"),1)
+  AddObject(target,gWin)
+  gCursor <- Plus(0,0,10,2,MakeColor("red"))
+  AddObject(gCursor,gWin)
+  Move(gCursor,gLayout.centerX,gLayout.centerY)
+  ShowCursor(0)
+  xy <- [gLayout.centerX,gLayout.centerY]
+
+  while(i <= targets)
+   {
+
+       xy <- GetNextTarget(First(xy),Second(xy),
+                           fieldx,fieldy,
+			   gparams.disttonextmin,gparams.disttonextmax)
+
+
+       timeout <- min + RandomUniform(spread)
+       Move(target,First(xy),Second(xy))
+       Draw()
+       LSLMarker("target_" + i + "_appear")
+       time0 <- GetTime()
+       startpos <- GetMouseCursorPosition()
+       timeEnd <- time0 + timeout
+       cont <- 1
+       step <- 1
+       while(cont)
+       {
+
+          time <- GetTime()
+          mousepos <- GetMouseCursorPosition()
+         if(xtrans<0)
+	  {
+	   xpos <- 2*gLayout.centerX-First(mousepos)
+	  } else {
+	   xpos <- First(mousepos)
+	  }
+	  if(ytrans<0)
+	  {
+	   ypos <- 2*gLayout.centerY-Second(mousepos)
+	  }else{
+	  ypos <- Second(mousepos)
+	  }
+          cursorpos <- [xpos,ypos]
+
+
+          MoveCursor(cursorpos)
+     	  dist <- Sqrt((target.x - First(startpos))^2+ (target.y- Second(startpos))^2)
+	  hit <- Inside(cursorpos,target)
+
+
+          FilePrint(gFileOutRaw,gSubNum+","+gTrial +","+i + "," +xtrans +","+ytrans+","+label+","+
+	   Round(First(startpos)) + "," + Round(Second(startpos)) + "," + time +","+
+	   Round(xpos) +","+Round(ypos)+","+ step+ ","+  Round(target.x) + "," + Round(target.y) + "," +
+	   Round(dist) + ","+  timeout + "," + hit )
+
+	  Wait(10)
+          cont <-  (GetTime()<timeEnd) and (not hit)
+          step <- step + 1
+
+       }
+
+	 hits <- hits + hit
+	 misses <- misses + (1-hit)
+
+	 if(hit)
+	 {
+	   LSLMarker("target_" + i + "_hit")
+	 } else {
+	   LSLMarker("target_" + i + "_miss")
+	 }
+
+	time2 <- GetTime()
+
+
+        FilePrint(gFileOut,gSubNum+ ","+ gTrial + "," +i + "," + Round(First(startpos)) + "," +
+           Round(Second(startpos)) + "," +xtrans +","+ytrans+","+label+","+
+	   Round(target.x) + "," + Round(target.y) + "," +
+	   Round(dist) + ","+  timeout + "," + hit + "," +  (time2-time0))
+
+
+          meter.text <- SubstituteStrings(gStrings.meter,
+	                      [["<HITS>",hits],
+			       ["<MISSES>",misses],
+			       ["<TIMEOUT>",Round(timeout)]])
+
+
+
+         i <- i + 1
+       }
+
+  ## Hide cursor and clean up trial objects
+  Hide(gCursor)
+  RemoveObject(field,gWin)
+  RemoveObject(target,gWin)
+  RemoveObject(gCursor,gWin)
+  RemoveObject(meter,gWin)
+  ShowCursor(1)
+  Draw()
+}
+
+
+
+define MoveCursor(pos)
+
+{
+  gCursor.x <- First(pos)
+  gCursor.y <- Nth(pos,2)
+  Draw()
+}
+
+
+define GetStrings(lang)
+{
+  gStrings <- GetTranslations("movetotarget", lang)
+}
+
+
+define GetNextTarget(curx,cury,fieldwidth,fieldheight,mindist,maxdist)
+{
+
+  cont <- 1
+
+  minX <- gLayout.centerX - fieldwidth/2
+  maxX <- gLayout.centerX + fieldwidth/2
+  minY <- gLayout.centerY - fieldheight/2
+  maxY <- gLayout.centerY + fieldheight/2
+
+
+
+  while(cont)
+    {
+     angle <- Random() * 2 * gPi
+     radius <- mindist + Random()*(maxdist-mindist)
+     newX <- curX + radius * Cos(angle)
+     newY <- curY + radius * Sin(angle)
+
+   if(newX >= minX and newX <= maxX and
+       newY >= minY and newY <= maxY)
+       {
+           cont <- 0
+       }
+
+
+
+  }
+
+  return [newx,newy]
+}

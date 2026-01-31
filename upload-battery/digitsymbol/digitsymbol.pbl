@@ -1,0 +1,678 @@
+##
+##  PEBL Digit-Symbol Substitution Test (DSST)
+##  Based on the Wechsler Digit Symbol Substitution Test
+##
+##  Version 2.0 - Enhanced with symbol support, bidirectional modes, and clickable interface
+##  Originally: Letter-Digit Substitution Task (letterdigit)
+##
+##  (C) 2008-2026 Shane T. Mueller, Ph.D.
+##  smueller at obereed dot net
+##
+##  Modes:
+##    - Letter→Digit (original letterdigit, keyboard input)
+##    - Symbol→Digit (DSST standard, clickable input)
+##    - Digit→Symbol (DSST reverse, clickable input)
+##    - Digit→Letter (reverse letter mode, clickable input)
+##
+
+define Start(p)
+{
+  gScriptName <- "PEBL Digit-Symbol Substitution Test"
+  gSleepEasy <- 1
+  gWin <- MakeWindow("black")
+
+  ## Initialize LSL and upload systems
+  InitializeLSL(gWin)  ## Initialize LSL outlet if --lsl flag was used
+  InitializeUpload()    ## Initialize upload system (online/native detection)
+
+  ## Parameters
+  parpairs <- [["numtrials", 25],
+               ["usefeedback", 0],
+               ["stimulustype", "symbol"],
+               ["direction", "stimulus_to_digit"],
+               ["inputmethod", "auto"],
+               ["timelimit", 180],
+               ["practicetrials", 5]]
+
+  gParams <- CreateParameters(parpairs, gParamFile)
+
+  ## Get subject code if needed
+  if(gSubNum + "" == "0")
+  {
+    gSubNum <- GetSubNum(gWin)
+  }
+
+  ## Define symbol set (Unicode characters from Wechsler DSST)
+  symbols <- ["─",    ## 1: horizontal line (U+2500)
+               "⊥",    ## 2: up tack (U+22A5)
+               "⊐",    ## 3: right square bracket (U+2290)
+               "⌐",    ## 4: top left corner (U+2310)
+               "∪",    ## 5: union/cup (U+222A)
+               "○",    ## 6: white circle (U+25CB)
+               "△",    ## 7: white triangle (U+25B3)
+               "⋈",    ## 8: bowtie (U+22C8)
+               "≡"]    ## 9: triple bar (U+2261)
+
+  gDigits <- ["1", "2", "3", "4", "5", "6", "7", "8", "9"]
+
+  ## Determine stimulus set based on stimulustype
+  if(gParams.stimulustype == "symbol")
+  {
+    stimulusSet <- symbols
+  } elseif(gParams.stimulustype == "letter") {
+    stimulusSet <- Sublist(Shuffle(FileReadList("Uppercase.txt")), 1, 9)
+  } else {
+    ## Mixed mode - use both letters and symbols
+    letters <- Sublist(Shuffle(FileReadList("Uppercase.txt")), 1, 5)
+    symbols <- Sublist(symbols, 1, 4)
+    stimulusSet <- Shuffle(Merge(letters, symbols))
+  }
+
+  ## Create mapping based on direction
+  if(gParams.direction == "stimulus_to_digit")
+  {
+    ## Show stimulus (letter/symbol) → respond with digit
+    gMap <- Transpose([stimulusSet, gDigits])
+  } else {
+    ## Show digit → respond with stimulus (letter/symbol)
+    gMap <- Transpose([gDigits, stimulusSet])
+  }
+
+  ## Determine input method
+  if(gParams.inputmethod == "auto")
+  {
+    ## Auto: use keyboard for digit output, click for symbol/letter output
+    if(gParams.direction == "stimulus_to_digit")
+    {
+      gUseClick <- 0  ## Responding with digits - can use keyboard
+    } else {
+      gUseClick <- 1  ## Responding with symbols/letters - must use click
+    }
+  } elseif(gParams.inputmethod == "click") {
+    gUseClick <- 1
+  } else {
+    gUseClick <- 0
+  }
+
+  ## Create layout (type 'none' so response labels don't show)
+  gParams.responsemode <- "none"
+  gLayout <- CreateLayout("digitsymbol", gWin, gParams)
+
+  ## Create fonts - explicitly use DejaVuSans for best Unicode symbol support
+  ## Note: gPEBLBaseFont may vary by language, but symbols need consistent rendering
+  symbolFont <- "DejaVuSans.ttf"
+  gMappingFont <- MakeFont(symbolFont, 0, 48, MakeColor("white"), MakeColor("black"), 0)
+  gProbeFont <- MakeFont(symbolFont, 0, 48, MakeColor("white"), MakeColor("black"), 0)
+  gButtonFont <- MakeFont(symbolFont, 0, 32, MakeColor("white"), MakeColor("grey20"), 0)
+  gFeedbackFont <- MakeFont(symbolFont, 0, 48, MakeColor("yellow"), MakeColor("black"), 0)
+  gInstructFont <- MakeFont(gPEBLBaseFont, 0, 22, MakeColor("white"), MakeColor("black"), 0)
+
+  ## Create data file
+  gFileOut <- GetNewDataFile(gSubNum, gWin, "digitsymbol", "csv",
+                "subnum,stimtype,direction,inputmethod,block,trial,probe,cresp,resp,corr,rt")
+
+  gDatCorr <- []
+  gDatRT <- []
+
+  ## Get translated strings
+  GetStrings(gLanguage)
+
+  ## Set footer text based on task configuration
+  SetFooterText()
+
+  ## Create mapping and position at top
+  stimObjects <- MakeStimMapping(gMap)
+  PositionStimMapping(stimObjects, 100)
+  Draw()
+
+  ## Create clickable button interface if needed (before instructions)
+  if(gUseClick)
+  {
+    if(gParams.direction == "stimulus_to_digit")
+    {
+      ## Responding with digits - make digit buttons
+      gButtons <- MakeDigitButtons(gWin)
+    } else {
+      ## Responding with symbols/letters - make stimulus buttons
+      gButtons <- MakeStimulusButtons(stimulusSet, gWin)
+    }
+  }
+
+  Draw()
+
+  ## Show instructions using ShowInstructions
+  inst <- GetInstructionText()
+  ShowInstructions(inst)
+
+  ## Instruction 2
+  inst2 <- SubstituteStrings(gStrings.inst2, [["<PRACTICE>", gParams.practicetrials]])
+  ShowInstructions(inst2)
+
+  ## PRACTICE TRIALS
+  LSLMarker("block_practice_start")
+  stimuli <- DesignBalancedSampling(gMap, gParams.practicetrials)
+
+  type <- 0  ## Practice
+  trialnum <- 1
+  loop(stim, stimuli)
+  {
+    LSLMarker("trial_practice_" + trialnum + "_start")
+    FilePrint_(gFileOut, gSubNum + "," + gParams.stimulustype + "," +
+               gParams.direction + "," + gParams.inputmethod + "," +
+               type + "," + trialnum + "," + First(stim) + "," + Nth(stim, 2) + ",")
+    Trial(stim, type)
+    LSLMarker("trial_practice_" + trialnum + "_end")
+    trialnum <- trialnum + 1
+  }
+  LSLMarker("block_practice_end")
+
+  ## Practice done
+  ShowInstructions(gStrings.practicedone)
+
+  ## MAIN TEST TRIALS
+  if(gParams.numtrials > 0)
+  {
+    stimuli <- DesignBalancedSampling(gMap, gParams.numtrials)
+  } else {
+    ## Unlimited trials - will be stopped by time limit
+    stimuli <- Shuffle(RepeatList(gMap, 100))  ## Generate many trials
+  }
+
+  LSLMarker("block_test_start")
+  type <- 1  ## Real trials
+  trialnum <- 1
+  startTime <- GetTime()
+
+  loop(stim, stimuli)
+  {
+    ## Check time limit if set
+    if(gParams.timelimit > 0)
+    {
+      if((GetTime() - startTime) > (gParams.timelimit * 1000))
+      {
+        break  ## Time's up!
+      }
+    }
+
+    LSLMarker("trial_" + trialnum + "_start")
+    FilePrint_(gFileOut, gSubNum + "," + gParams.stimulustype + "," +
+               gParams.direction + "," + gParams.inputmethod + "," +
+               type + "," + trialnum + "," + First(stim) + "," + Nth(stim, 2) + ",")
+    Trial(stim, type)
+    LSLMarker("trial_" + trialnum + "_end")
+    trialnum <- trialnum + 1
+  }
+  LSLMarker("block_test_end")
+
+  ## Calculate results
+  numtrials <- Length(gDatCorr)
+  numcorr <- Sum(gDatCorr)
+  propcorr <- numcorr / numtrials
+  pct <- Round(propcorr * 100)
+  rtmed <- Median(gDatRT)
+  rtmean <- Mean(gDatRT)
+  minrt <- Min(gDatRT)
+  maxrt <- Max(gDatRT)
+  sdrt <- StdDev(gDatRT)
+
+  ## Summary file
+  sumfile <- FileOpenWrite("data/" + gSubNum + "/digitsymbol-summary-" + gSubNum + ".txt")
+  FilePrint(sumfile, "----------------------------------------------")
+  FilePrint(sumfile, "PEBL Digit-Symbol Substitution Test (DSST)")
+  FilePrint(sumfile, "Version 2.0")
+  FilePrint(sumfile, "Released into public domain 2008-2026 by Shane T. Mueller, Ph.D.")
+  FilePrint(sumfile, TimeStamp())
+  FilePrint(sumfile, GetPEBLVersion())
+  FilePrint(sumfile, "----------------------------------------------")
+  FilePrint(sumfile, "Participant code: " + gSubNum)
+  FilePrint(sumfile, "Stimulus type: " + gParams.stimulustype)
+  FilePrint(sumfile, "Direction: " + gParams.direction)
+  FilePrint(sumfile, "Input method: " + gParams.inputmethod)
+  FilePrint(sumfile, "----------------------------------------------")
+  FilePrint(sumfile, "Mapping:")
+  loop(pair, gMap)
+  {
+    FilePrint(sumfile, "  " + First(pair) + " → " + Second(pair))
+  }
+  FilePrint(sumfile, "----------------------------------------------")
+  FilePrint(sumfile, "Number of trials: " + numtrials)
+  FilePrint(sumfile, "Number correct: " + numcorr)
+  FilePrint(sumfile, "Proportion correct: " + propcorr)
+  FilePrint(sumfile, "Percent correct: " + pct + "%")
+  FilePrint(sumfile, "Mean RT: " + Round(rtmean) + " ms")
+  FilePrint(sumfile, "Median RT: " + Round(rtmed) + " ms")
+  FilePrint(sumfile, "Min RT: " + Round(minrt) + " ms")
+  FilePrint(sumfile, "Max RT: " + Round(maxrt) + " ms")
+  FilePrint(sumfile, "RT Std Dev: " + Round(sdrt) + " ms")
+  FilePrint(sumfile, "----------------------------------------------")
+
+  FileClose(sumfile)
+  FileClose(gFileOut)
+
+  ## Finalize LSL
+  FinalizeLSL()
+
+  ## Upload data files (works online, no-op on native)
+  datafile <- "data/" + gSubNum + "/digitsymbol-" + gSubNum + ".csv"
+  summaryfile <- "data/" + gSubNum + "/digitsymbol-summary-" + gSubNum + ".txt"
+  UploadFile(gSubNum, datafile, "/upload.json")
+  UploadFile(gSubNum, summaryfile, "/upload.json")
+
+  ## Debrief
+  RemoveObjects(stimObjects, gWin)
+  if(gUseClick)
+  {
+    loop(btn, gButtons)
+    {
+      RemoveObject(First(btn), gWin)
+      RemoveObject(Second(btn), gWin)
+    }
+  }
+
+  debriefText <- SubstituteStrings(gStrings.debrief,
+                                   [["<TRIALS>", numtrials],
+                                    ["<CORRECT>", numcorr],
+                                    ["<PCT>", pct],
+                                    ["<RT>", Round(rtmed)]])
+  ShowInstructions(debriefText)
+}
+
+
+## Create mapping display with grid boxes (returns objects and metadata)
+define MakeStimMapping(map)
+{
+  stimobjects <- []
+
+  ## Grid configuration - increased by 10% from original
+  numPairs <- 9
+  cellWidth <- 77
+  cellHeight <- Round(99 * 1.25)  ## Increased by 25% in Y
+  gridWidth <- numPairs * cellWidth
+  gridHeight <- cellHeight
+
+  ## Store grid dimensions for later positioning
+  gGridWidth <- gridWidth
+  gGridHeight <- gridHeight
+  gCellWidth <- cellWidth
+  gCellHeight <- cellHeight
+
+  ## Create outer border (position will be set by PositionStimMapping)
+  borderPadding <- 10
+  outerBorder <- Rectangle(0, 0,  ## Position set later
+                           gridWidth + borderPadding * 2,
+                           gridHeight + borderPadding * 2,
+                           MakeColor("white"), 0)
+  AddObject(outerBorder, gWin)
+  stimobjects <- Append(stimobjects, outerBorder)
+
+  ## Create vertical dividers and labels
+  cellNum <- 0
+  loop(i, map)
+  {
+    stim <- First(i)
+    resp <- Nth(i, 2)
+
+    ## Draw vertical divider (except before first cell)
+    if(cellNum > 0)
+    {
+      divider <- Line(0, 0, 0, cellHeight, MakeColor("white"))  ## Position set later
+      AddObject(divider, gWin)
+      stimobjects <- Append(stimobjects, divider)
+    }
+
+    ## Top row: probe stimuli
+    stimLabel <- MakeLabel(stim, gMappingFont)
+    AddObject(stimLabel, gWin)
+    stimobjects <- Append(stimobjects, stimLabel)
+
+    ## Bottom row: response options
+    respLabel <- MakeLabel(resp, gMappingFont)
+    AddObject(respLabel, gWin)
+    stimobjects <- Append(stimobjects, respLabel)
+
+    cellNum <- cellNum + 1
+  }
+
+  ## Draw horizontal divider between top and bottom rows
+  horizDivider <- Line(0, 0, gridWidth, 0, MakeColor("white"))  ## Position set later
+  AddObject(horizDivider, gWin)
+  stimobjects <- Append(stimobjects, horizDivider)
+
+  return(stimobjects)
+}
+
+
+## Position the mapping at a specific Y coordinate
+define PositionStimMapping(stimobjects, yPos)
+{
+  ## Grid positioning
+  startX <- gVideoWidth / 2 - gGridWidth / 2
+  startY <- yPos
+
+  ## Position outer border (first object)
+  outerBorder <- First(stimobjects)
+  Move(outerBorder, gVideoWidth / 2, startY + gGridHeight / 2)
+
+  ## Position remaining objects
+  objIndex <- 2  ## Start after outer border
+  cellNum <- 0
+
+  loop(i, gMap)
+  {
+    ## Position vertical divider (if exists)
+    if(cellNum > 0)
+    {
+      divider <- Nth(stimobjects, objIndex)
+      Move(divider, startX + cellNum * gCellWidth, startY)
+      objIndex <- objIndex + 1
+    }
+
+    ## Position stimulus label (top row)
+    cellX <- startX + cellNum * gCellWidth + gCellWidth / 2
+    stimLabel <- Nth(stimobjects, objIndex)
+    Move(stimLabel, cellX, startY + gCellHeight / 4)
+    objIndex <- objIndex + 1
+
+    ## Position response label (bottom row)
+    respLabel <- Nth(stimobjects, objIndex)
+    Move(respLabel, cellX, startY + 3 * gCellHeight / 4)
+    objIndex <- objIndex + 1
+
+    cellNum <- cellNum + 1
+  }
+
+  ## Position horizontal divider (last object)
+  horizDivider <- Last(stimobjects)
+  Move(horizDivider, startX, startY + gCellHeight / 2)
+}
+
+
+## Create clickable digit buttons (3x3 grid)
+define MakeDigitButtons(win)
+{
+  buttons <- []
+
+  ## Layout for 3x3 grid
+  gridSize <- 3
+  buttonSize <- 80
+  gap <- 20
+  totalWidth <- gridSize * buttonSize + (gridSize - 1) * gap
+  totalHeight <- gridSize * buttonSize + (gridSize - 1) * gap
+
+  startX <- gVideoWidth / 2 - totalWidth / 2 + buttonSize / 2
+  startY <- gVideoHeight - totalHeight - 210
+
+  row <- 0
+  col <- 0
+  loop(digit, gDigits)
+  {
+    x <- startX + col * (buttonSize + gap)
+    y <- startY + row * (buttonSize + gap)
+
+    ## Create button background (square)
+    back <- Square(x, y, buttonSize, MakeColor("grey40"), 1)
+    AddObject(back, win)
+
+    ## Create button label
+    lab <- MakeLabel(digit, gButtonFont)
+    AddObject(lab, win)
+    Move(lab, x, y)
+
+    buttons <- Append(buttons, [back, lab])
+
+    col <- col + 1
+    if(col >= gridSize)
+    {
+      col <- 0
+      row <- row + 1
+    }
+  }
+
+  return(buttons)
+}
+
+
+## Create clickable stimulus buttons (symbols or letters)
+define MakeStimulusButtons(stimuli, win)
+{
+  buttons <- []
+
+  ## Layout for 3x3 grid
+  gridSize <- 3
+  buttonSize <- 80
+  gap <- 20
+  totalWidth <- gridSize * buttonSize + (gridSize - 1) * gap
+  totalHeight <- gridSize * buttonSize + (gridSize - 1) * gap
+
+  startX <- gVideoWidth / 2 - totalWidth / 2 + buttonSize / 2
+  startY <- gVideoHeight - totalHeight - 210
+
+  row <- 0
+  col <- 0
+  loop(stim, stimuli)
+  {
+    x <- startX + col * (buttonSize + gap)
+    y <- startY + row * (buttonSize + gap)
+
+    ## Create button background
+    back <- Square(x, y, buttonSize, MakeColor("grey40"), 1)
+    AddObject(back, win)
+
+    ## Create button label
+    lab <- MakeLabel(stim, gButtonFont)
+    AddObject(lab, win)
+    Move(lab, x, y)
+
+    buttons <- Append(buttons, [back, lab])
+
+    col <- col + 1
+    if(col >= gridSize)
+    {
+      col <- 0
+      row <- row + 1
+    }
+  }
+
+  return(buttons)
+}
+
+
+## Single trial - type==0 is practice, type==1 is real
+define Trial(map, type)
+{
+  probe <- First(map)
+  corresp <- Nth(map, 2)
+
+  ## Show probe stimulus
+  probeLabel <- MakeLabel(probe, gProbeFont)
+  AddObject(probeLabel, gWin)
+  Move(probeLabel, gLayout.centerX, gLayout.centerY - 50)
+
+  Draw()
+  time0 <- GetTime()
+
+  ## Get response
+  if(gUseClick)
+  {
+    ## Clickable interface
+    backgrounds <- []
+    labels <- []
+    loop(btn, gButtons)
+    {
+      backgrounds <- Append(backgrounds, First(btn))
+      labels <- Append(labels, Second(btn))
+    }
+
+    ## Get response options (text from labels)
+    responseOptions <- []
+    loop(lab, labels)
+    {
+      responseOptions <- Append(responseOptions, lab.text)
+    }
+
+    resp <- WaitForClickOnTarget(backgrounds, responseOptions)
+  } else {
+    ## Keyboard interface
+    if(gParams.direction == "stimulus_to_digit")
+    {
+      resp <- WaitForListKeyPress(gDigits)
+    } else {
+      ## This shouldn't happen (digit→stimulus requires click)
+      resp <- WaitForAnyKeyPress()
+    }
+  }
+
+  time1 <- GetTime()
+  rt <- time1 - time0
+
+  ## Check if correct
+  if(resp == corresp)
+  {
+    corr <- 1
+    if(gParams.usefeedback or type == 0)
+    {
+      Hide(probeLabel)
+      feedback <- MakeLabel(gStrings.correct, gFeedbackFont)
+      AddObject(feedback, gWin)
+      Move(feedback, gLayout.centerX, gLayout.centerY - 50)
+      Draw()
+      Wait(500)
+      RemoveObject(feedback, gWin)
+      Show(probeLabel)
+    }
+  } else {
+    corr <- 0
+    if(gParams.usefeedback or type == 0)
+    {
+      Hide(probeLabel)
+      feedback <- MakeLabel(gStrings.incorrect, gFeedbackFont)
+      AddObject(feedback, gWin)
+      Move(feedback, gLayout.centerX, gLayout.centerY - 50)
+      Draw()
+      Wait(500)
+      RemoveObject(feedback, gWin)
+      Show(probeLabel)
+    }
+  }
+
+  ## Record data for real trials
+  if(type == 1)
+  {
+    gDatCorr <- Append(gDatCorr, corr)
+    gDatRT <- Append(gDatRT, rt)
+  }
+
+  ## Write to file
+  FilePrint(gFileOut, resp + "," + corr + "," + rt)
+
+  ## Clean up
+  RemoveObject(probeLabel, gWin)
+  Draw()
+  Wait(500)
+}
+
+
+## Get instruction text based on stimulus type and direction
+define GetInstructionText()
+{
+  text <- ""
+
+  if(gParams.direction == "stimulus_to_digit")
+  {
+    if(gParams.stimulustype == "letter")
+    {
+      text <- gStrings.inst1_letter_to_digit
+    } else {
+      text <- gStrings.inst1_symbol_to_digit
+    }
+  } else {
+    if(gParams.stimulustype == "letter")
+    {
+      text <- gStrings.inst1_digit_to_letter
+    } else {
+      text <- gStrings.inst1_digit_to_symbol
+    }
+  }
+
+  return(text)
+}
+
+
+## Load translated strings
+define GetStrings(lang)
+{
+  gStrings <- GetTranslations("digitsymbol", lang)
+}
+
+
+## Get appropriate footer text based on task configuration
+define GetFooterText()
+{
+  footerKey <- ""
+
+  if(gParams.direction == "stimulus_to_digit")
+  {
+    ## Stimulus to digit mode
+    if(gParams.stimulustype == "letter")
+    {
+      if(gUseClick)
+      {
+        footerKey <- "footer_letter_to_digit_click"
+      } else {
+        footerKey <- "footer_letter_to_digit_keyboard"
+      }
+    } else {
+      ## Symbol or mixed
+      if(gUseClick)
+      {
+        footerKey <- "footer_symbol_to_digit_click"
+      } else {
+        footerKey <- "footer_symbol_to_digit_keyboard"
+      }
+    }
+  } else {
+    ## Digit to stimulus mode
+    if(gParams.stimulustype == "letter")
+    {
+      footerKey <- "footer_digit_to_letter"
+    } else {
+      footerKey <- "footer_digit_to_symbol"
+    }
+  }
+
+  return(gStrings.(footerKey))
+}
+
+
+## Set footer text in layout
+define SetFooterText()
+{
+  footerText <- GetFooterText()
+  gLayout.footer.text <- footerText
+}
+
+
+## Show instructions using HTML-Lite AdaptiveTextBox
+define ShowInstructions(message)
+{
+  ## Display instructions within stimulus region
+  ## 25% wider (750 -> 937), 20% shorter, moved down 50px to avoid overlap
+  instWidth <- 937
+  instX <- gVideoWidth/2 - instWidth/2
+  instY <- gLayout.stimulusRegion.y + 72
+  instHeight <- Round((gLayout.stimulusRegion.height - 90) * 0.8)
+
+  ## Create adaptive textbox
+  inst <- AdaptiveTextBox(message,
+                          instX,
+                          instY,
+                          gWin, 32,
+                          instWidth,
+                          instHeight,
+                          "scalefont")
+  inst.FORMATTED <-  1
+
+  Draw()
+  WaitForAnyKeyPress()
+  RemoveObject(inst, gWin)
+}

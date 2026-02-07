@@ -1,0 +1,63 @@
+#Automated SymSpan Test
+#lines beginning with a '#' are comments, they are ignored
+
+#run:<distract_timeout>:<target_timeout>:{D|T}{1,}
+#static:<timeout>:<path/to/file.txt>
+#battery:<reps>:<min_targets>:<max_targets>:<target_timeout>
+
+#############################################################
+#introductory instructions
+static:-1:symspan_instructions.txt
+
+#practice recall (2 x 2; 2 x 3)
+static:-1:squares.txt
+static:-1:squares2.txt
+run:-1:650:TTF
+run:-1:650:TTF
+run:-1:650:TTTF
+run:-1:650:TTTF
+
+#practice maths problems (15 practice trials)
+static:-1:symmetry.txt
+static:-1:symmetry2.txt
+static:-1:symmetry3.txt
+static:-1:symmetry4.txt
+static:-1:symmetry5.txt
+static:-1:symmetry6.txt
+run:-1:0:DF
+run:-1:0:DDF
+run:-1:0:DF
+run:-1:0:DDF
+run:-1:0:DF
+run:-1:0:DDF
+run:-1:0:DF
+run:-1:0:DDF
+run:-1:0:DF
+run:-1:0:DDF
+run:-1:0:DF
+run:-1:0:DDF
+run:-1:0:DF
+run:-1:0:DDF
+run:-1:0:DF
+
+# config battery on basis of practise results
+batteryconfig
+
+# clearstats before this practice battery
+clearstats
+
+#practice battery
+static:-1:symspan_pracbattery1.txt
+static:-1:symspan_pracbattery2.txt
+static:-1:symspan_pracbattery3.txt
+battery:2:2:2:650
+
+# definitely clear stats before the real
+clearstats
+
+#proper trials
+static:-1:symspan_trials.txt
+battery:3:2:5:650
+
+#end of assessment
+static:2000:end.txt

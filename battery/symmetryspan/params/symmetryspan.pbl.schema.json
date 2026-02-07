@@ -1,7 +1,7 @@
 {
-  "test": "readingspan",
+  "test": "symmetryspan",
   "version": "2.3",
-  "description": "Reading Span Task - measures verbal working memory capacity by combining sentence comprehension with letter recall",
+  "description": "Symmetry Span Task - measures visuospatial working memory capacity by combining symmetry judgments with spatial location recall",
   "parameters": [
     {
       "name": "feedbacktimeout",
@@ -13,13 +13,13 @@
       "name": "distractfile",
       "type": "string",
       "default": "distraction.csv",
-      "description": "CSV file containing sentences (format: sentence,statement,correctness)"
+      "description": "CSV file containing symmetry images (format: imagefile,answer,correctness)"
     },
     {
       "name": "batterythreshold",
       "type": "number",
       "default": 0.85,
-      "description": "Minimum accuracy (0.0-1.0) required on sentence problems to proceed to main test. Typically 0.85 (85%)"
+      "description": "Minimum accuracy (0.0-1.0) required on symmetry problems to proceed to main test. Typically 0.85 (85%)"
     },
     {
       "name": "batteryFeedback",
@@ -31,13 +31,13 @@
       "name": "distracttimeoutminimum",
       "type": "integer",
       "default": 1000,
-      "description": "Minimum timeout in milliseconds for sentence reading during test battery"
+      "description": "Minimum timeout in milliseconds for symmetry problems during test battery"
     },
     {
       "name": "distracttimeoutmultiplier",
       "type": "number",
       "default": 2.5,
-      "description": "Multiplier for standard deviation when calculating sentence timeout: timeout = mean + (multiplier × SD). Following Unsworth et al. (2005) who used 2.5*SD"
+      "description": "Multiplier for standard deviation when calculating symmetry timeout: timeout = mean + (multiplier × SD). Following Unsworth et al. (2005) who used 2.5*SD"
     },
     {
       "name": "requirethresholdprebattery",
@@ -48,7 +48,7 @@
     {
       "name": "allowsecondchance",
       "type": "integer",
-      "default": 0,
+      "default": 1,
       "description": "Allow a second practice attempt if first practice fails to meet threshold (1=yes, 0=no)"
     },
     {
@@ -61,19 +61,21 @@
       "name": "testreps",
       "type": "integer",
       "default": 3,
-      "description": "Number of repetitions for each set size in the test battery (e.g., 3 means each set size appears 3 times)"
+	"description": "Number of repetitions for each set size in the test battery (e.g., 3 means each set size appears 3 times)",
+	"demo_override":1
+	
     },
     {
       "name": "testminsize",
       "type": "integer",
-      "default": 3,
-      "description": "Minimum set size (number of letters to recall) in the test battery. Must be at least 2"
+      "default": 2,
+      "description": "Minimum set size (number of squares to recall) in the test battery. Must be at least 2"
     },
     {
       "name": "testmaxsize",
       "type": "integer",
-      "default": 7,
-      "description": "Maximum set size (number of letters to recall) in the test battery. Cannot exceed 12 (the memory grid size: 3 columns × 4 rows)"
+      "default": 5,
+      "description": "Maximum set size (number of squares to recall) in the test battery. Cannot exceed 16 (the memory grid size: 4 columns × 4 rows)"
     }
   ]
 }

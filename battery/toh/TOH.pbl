@@ -99,7 +99,12 @@ define Start(p)
      gTrial <- gTrial + 1
   }
 
+   ## Close files before upload (required for Windows file locking compatibility)
+   FileClose(gFileOut)
+   FileClose(gFileOutSum)
+
    ##Upload data files
+   ## Note: .filename property persists after FileClose(), so this is safe
    Print("Uploading data files...")
    out <- UploadFile(gSubNum, gFileOut.filename); Print(out)
    out <- UploadFile(gSubNum, gFileOutSum.filename); Print(out)

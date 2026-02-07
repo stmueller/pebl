@@ -48,6 +48,7 @@ define Start(p)
     gParams <- CreateParameters(parpairs,gParamFile)
     gParams.responsesemantics <- "2afc"
     gWin <- MakeWindow(gBgColor)
+    InitializeLSL(gWin)  ## Initialize LSL outlet if --lsl flag was used (shows prompt)
     Initialize()
 
    ##Get subject code if we need to:
@@ -131,6 +132,7 @@ define Start(p)
     ## Do the practice round
     gTrial <- 1
     gBlock <- 0
+    LSLMarker("block_0_practice_start")
     CountDown(gWin)
     abstime <- GetTime()
     loop(trial,practrials)
@@ -138,6 +140,7 @@ define Start(p)
       Trial(trial,1)
       gTrial <- gTrial + 1
     }
+    LSLMarker("block_0_practice_end")
 
     MessageKeyBox(gInterblock)
     CountDown(gWin)
@@ -145,11 +148,13 @@ define Start(p)
     ## Do the first test round
     FilePrint(gLog, gSubNum + "," + gLanguage + "," +   TimeStamp()+",FLANKER,"+gResponseType+",BLOCK 1 BEGIN")
 	gBlock <- 1
+    LSLMarker("block_1_test_start")
     loop(trial,trials)
     {
       Trial(trial,0)
       gTrial <- gTrial + 1
     }
+    LSLMarker("block_1_test_end")
 
 
 
@@ -240,6 +245,15 @@ define Start(p)
 
 
 
+  ## Close files before upload (required for Windows file locking compatibility)
+  FileClose(gFileOut)
+  FileClose(gPooledSummary)
+  FileClose(gLog)
+  FileClose(gSumFileOut)
+  FileClose(gPooledFileOut)
+
+  ## Upload data files (works online, no-op on native)
+  ## Note: .filename property persists after FileClose(), so this is safe
   Print("uploading data")
   out <- UploadFile(gSubnum,gFileOut.filename);  Print(out)
   out <- UploadFile(gSubnum,gPooledSummary.filename);  Print(out)
@@ -247,6 +261,8 @@ define Start(p)
   out <- UploadFile(gSubnum,gSumFileOut.filename);  Print(out)
   out <- UploadFile(gSubnum,gPooledFileOut.filename);  Print(out)
 
+  ## Finalize LSL
+  FinalizeLSL()
 
   MessageKeyBox(gDebrief)
 
@@ -283,12 +299,26 @@ define Trial(stimpair,practice)
 	Hide(fixation)
 	Draw()
 	time2 <- GetTime()
+        ## Send LSL marker for stimulus onset
+        LSLMarker("stimulus_targ" + targdir + "_flank" + flankercoherence + "_trial" + gTrial)
 	resp <- WaitForLayoutResponse(gLayout, gParams.timeout)
 	time3 <- GetTime()
         Hide(stim)
+
+        ## Send LSL marker for response
+        LSLMarker("response_" + resp)
+
         corr <- ((targdir ==1) and (resp == "right")) or
             ((targdir ==-1) and (resp == "left"))
         rt <- time3-time2
+
+        ## Send LSL marker for accuracy
+        if(corr)
+        {
+          LSLMarker("trial_correct")
+        } else {
+          LSLMarker("trial_error")
+        }
 
     if(practice)
      {

@@ -209,7 +209,7 @@ if(gParams.testtype==-1)
   gMinMoves <- 0
   gTotalTime <- 0
 
-
+  LSLMarker("block_test_start")
   loop(pair, stim)
   {
 
@@ -303,6 +303,7 @@ if(gParams.testtype==-1)
 
 
    }
+   LSLMarker("block_test_end")
 
    ##Record a final line
    report <-"Tower of London Test"+CR(1)+
@@ -318,12 +319,22 @@ if(gParams.testtype==-1)
    FilePrint(gPooledFile,gSubNum+","+TimeStamp()+","+  Length(stim)+","+
  gTotalMoves+","+gMinMoves +","+gtotalTime)
 
+   ## Close files before upload (required for Windows file locking compatibility)
+   FileClose(gFileOut)
+   FileClose(gFileOutSum)
+   FileClose(gReportFile)
+   FileClose(gPooledFile)
+
    ##Upload data files
+   ## Note: .filename property persists after FileClose(), so this is safe
    Print("Uploading data files...")
    out <- UploadFile(gSubNum, gFileOut.filename); Print(out)
    out <- UploadFile(gSubNum, gFileOutSum.filename); Print(out)
    out <- UploadFile(gSubNum, gReportFile.filename); Print(out)
    out <- UploadFile(gSubNum, gPooledFile.filename); Print(out)
+
+   ## Finalize LSL
+   FinalizeLSL()
 
    gInstructions.text <- gDebriefing + CR(2) + report
 
@@ -336,6 +347,7 @@ if(gParams.testtype==-1)
 
 define Trial(pair)
 {
+   LSLMarker("trial_" + gTrial + "_attempt" + gTries + "_start")
 
    ##Keep track of time to make first move.
    firstmovetime <- -1
@@ -426,7 +438,7 @@ define Trial(pair)
       ##Check to see if we have succeeded
       if(StackEqual(config,config1))
        {
-
+         LSLMarker("puzzle_solved")
          success <- 1
          continue <- 0
 
@@ -458,6 +470,7 @@ define Trial(pair)
               {
                   success <- 1
               }else{
+                  LSLMarker("moves_ran_out")
                   gMovesRanOut <- 1
                   continue <- 0
                   success <- 0
@@ -471,6 +484,7 @@ define Trial(pair)
      {
          if(gTimeRanOut)
           {
+              LSLMarker("time_ran_out")
               success <- 0
               continue <- 0
 
@@ -480,6 +494,7 @@ define Trial(pair)
     ##see if the move ended because we hit the reset button.
     if(gReset)
       {
+        LSLMarker("reset_button_pressed")
         continue <- 0
         success <- 0
 
@@ -487,6 +502,7 @@ define Trial(pair)
 
     if(gSkip)
       {
+         LSLMarker("skip_button_pressed")
          continue <- 0
 	 success <- 0
       }
@@ -503,6 +519,12 @@ define Trial(pair)
        ","+ gTries + "," + gScore + "," + (step-1) + "," + gStartTime +
        "," +  starttime + "," +   firstmovetime + ","+ (time-starttime))
 
+   if(success)
+   {
+      LSLMarker("trial_success")
+   }else{
+      LSLMarker("trial_failure")
+   }
 
      gTotalMoves <- gTotalMoves+(step-1)
      gMinMoves <- gMinmoves + shortest
@@ -520,7 +542,7 @@ define Trial(pair)
          }
        firstmovetime <- -1
 
-
+   LSLMarker("trial_" + gTrial + "_attempt" + gTries + "_end")
 
    return success
 
@@ -547,6 +569,7 @@ define Init()
 #  gVideoHeight <- 600
 #  ShowCursor(0)
   gWin <- MakeWindow("black")
+  InitializeLSL(gWin)  ## Initialize LSL outlet if --lsl flag was used (shows prompt)
 
    if(gSubNum+""=="0")
    {

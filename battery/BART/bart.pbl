@@ -189,9 +189,13 @@ define Start(p)
 
 
 
+  ## Close files before upload (required for Windows file locking compatibility)
+  FileClose(gFileOut)
+
+  ## Upload data files (works online, no-op on native)
+  ## Note: .filename property persists after FileClose(), so this is safe
   Print("uploading data")
-  settingsfile <- "/upload.json"
-  out <- UploadFile(gSubnum,gFileOut.filename,settingsfile);  Print(out)
+  out <- UploadFile(gSubnum,gFileOut.filename);  Print(out)
 
           Show(inst)
 	  inst.text <- gDebrief

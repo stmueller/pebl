@@ -662,12 +662,20 @@ void PlatformTextBox::SetHeight(int h)
     mTextureHeight = h;
     PTextBox::SetHeight(h);
 
+    // CRITICAL: Clear cached stripped text when height changes
+    // This ensures FindBreaksFormatted() recalculates line breaks with new height
+    mStrippedText.clear();
 }
 
 void PlatformTextBox::SetWidth(int w)
 {
     mTextureWidth = w;
     PTextBox::SetWidth(w);
+
+    // CRITICAL: Clear cached stripped text when width changes
+    // This forces FindBreaksFormatted() to recalculate line breaks with new width
+    // Without this, changing width after textbox creation causes incorrect line wrapping
+    mStrippedText.clear();
 }
 
 
@@ -830,7 +838,26 @@ void PlatformTextBox::FindBreaks()
 
     //Set TEXTCOMPLETE property: 1 if all text rendered, 0 if truncated
     //Text is complete only if we processed all text AND it fits in the height
-    bool textComplete = (newlinestart >= mText.size()) && (totalheight <= (unsigned int)mHeight);
+    //The rendering loop uses totalheight < mHeight, so the last line starts at (totalheight - height)
+    //For the last line to fully fit without cutoff, we need: (totalheight - height) + height <= mHeight
+    //which simplifies to: totalheight <= mHeight
+    //However, we also need to ensure the last line would actually render, which requires:
+    //(totalheight - height) < mHeight, which is equivalent to: totalheight < mHeight + height
+    //To be safe and detect cutoffs correctly, we check if there's enough room for the last line
+    //to both start AND end within the box
+    bool allTextProcessed = (newlinestart >= mText.size());
+    bool lastLineFits = true;
+    if (allTextProcessed && mBreaks.size() > 0 && mHeight > 0) {
+        // Calculate where the last line would start rendering
+        // totalheight is the sum of ALL line heights including the last
+        // So the last line starts at (totalheight - height) and ends at totalheight
+        unsigned int lastLineStart = (totalheight > (unsigned int)height) ? (totalheight - height) : 0;
+        unsigned int lastLineEnd = totalheight;
+        // For no cutoff: line must start before mHeight (so rendering begins)
+        // AND line must end at or before mHeight (so it's fully visible)
+        lastLineFits = (lastLineStart < (unsigned int)mHeight) && (lastLineEnd <= (unsigned int)mHeight);
+    }
+    bool textComplete = allTextProcessed && lastLineFits;
     PEBLObjectBase::SetProperty("TEXTCOMPLETE",Variant(textComplete ? 1 : 0));
 }
 
@@ -906,7 +933,22 @@ void PlatformTextBox::FindBreaksFormatted(const std::vector<FormatParser::Format
 
     // Update properties
     PEBLObjectBase::SetProperty("NUMTEXTLINES", Variant((int)mBreaks.size()));
-    bool textComplete = (strippedTextPos >= (int)mStrippedText.length()) && (totalHeight <= (unsigned int)mHeight);
+
+    // Check if text is complete (all text fits without cutoff)
+    // For formatted text, we need to track the last line's height separately
+    bool allTextProcessed = (strippedTextPos >= (int)mStrippedText.length());
+    bool lastLineFits = true;
+    if (allTextProcessed && mBreaks.size() > 0 && mHeight > 0) {
+        // The last line's height is currentLineMaxHeight (from the final flush at line 926)
+        // totalHeight now includes this last line's height
+        // Calculate where the last line would start and end
+        int lastLineHeight = currentLineMaxHeight;  // Height of the last line
+        unsigned int lastLineStart = (totalHeight > lastLineHeight) ? (totalHeight - lastLineHeight) : 0;
+        unsigned int lastLineEnd = totalHeight;
+        // For no cutoff: line must start before mHeight AND end at or before mHeight
+        lastLineFits = (lastLineStart < (unsigned int)mHeight) && (lastLineEnd <= (unsigned int)mHeight);
+    }
+    bool textComplete = allTextProcessed && lastLineFits;
     PEBLObjectBase::SetProperty("TEXTCOMPLETE", Variant(textComplete ? 1 : 0));
 }
 
@@ -1657,35 +1699,46 @@ bool PlatformTextBox::Draw()
                 int currentFontSize = GetPlatformFont()->GetFontSize();
                 int targetSize = currentFontSize;
 
-                Variant numLinesVar = PEBLObjectBase::GetProperty("NUMTEXTLINES");
-                int numLines = numLinesVar.GetInteger();
+                // Text doesn't fit (TEXTCOMPLETE=0), so we need to shrink the font
+                // On first iteration, use area-based calculation for better initial estimate
+                // On subsequent iterations, just decrement by 1 point
+                if (iteration == 0) {
+                    // Use area calculation for initial estimate
+                    Variant numLinesVar = PEBLObjectBase::GetProperty("NUMTEXTLINES");
+                    int numLines = numLinesVar.GetInteger();
 
-                if (numLines > 0 && mHeight > 0 && mWidth > 0) {
-                    int lineHeight = GetPlatformFont()->GetTextHeight(mText);
+                    if (numLines > 0 && mHeight > 0 && mWidth > 0) {
+                        int lineHeight = GetPlatformFont()->GetTextHeight(mText);
 
-                    // Calculate area of box and area of current text
-                    int boxArea = mWidth * mHeight;
-                    int textArea = mWidth * (numLines * lineHeight);
+                        // Calculate area of box and area of current text
+                        int boxArea = mWidth * mHeight;
+                        int textArea = mWidth * (numLines * lineHeight);
 
-                    if (textArea > boxArea) {
-                        // On first iteration, use area-based calculation
-                        // On subsequent iterations, just decrement by 1
-                        if (iteration == 0) {
+                        if (textArea > boxArea) {
                             // Text doesn't fit - use area ratio for initial estimate
                             // Font area scales as size², so take square root of area ratio
                             double areaRatio = (double)boxArea / (double)textArea;
                             int estimatedSize = (int)(currentFontSize * std::sqrt(areaRatio));
                             targetSize = std::max(estimatedSize, minFontSize);
                         } else {
-                            // Subsequent iterations: decrement by 1 point
+                            // Area calculation thinks it fits, but TEXTCOMPLETE=0 says it doesn't
+                            // This happens with formatted text (variable line heights)
+                            // Just decrement by 1 to be safe
                             targetSize = std::max(currentFontSize - 1, minFontSize);
                         }
-
-                        // Safety: ensure we're actually shrinking, never growing
-                        if (targetSize >= currentFontSize) {
-                            targetSize = std::max(currentFontSize - 1, minFontSize);
-                        }
+                    } else {
+                        // Can't calculate area - just decrement
+                        targetSize = std::max(currentFontSize - 1, minFontSize);
                     }
+                } else {
+                    // Subsequent iterations: always decrement by 1 point
+                    // We know text doesn't fit (TEXTCOMPLETE=0), so keep shrinking
+                    targetSize = std::max(currentFontSize - 1, minFontSize);
+                }
+
+                // Safety: ensure we're actually shrinking, never growing
+                if (targetSize >= currentFontSize) {
+                    targetSize = std::max(currentFontSize - 1, minFontSize);
                 }
 
                 // Create new font if we calculated a different size

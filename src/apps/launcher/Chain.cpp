@@ -116,7 +116,8 @@ std::string ChainItem::GetDisplayName() const {
 // ============================================================================
 
 Chain::Chain()
-    : mParticipantCounter(1001), mUploadEnabled(false)
+    : mParticipantCounter(1001), mUploadEnabled(false),
+      mLSLEnabled(false), mLSLStreamName("PEBL_{test}")
 {
 }
 
@@ -309,6 +310,8 @@ bool Chain::LoadFromJSON(const std::string& jsonPath) {
         mDescription = j.value("description", "");
         mParticipantCounter = j.value("participant_counter", 1001);
         mUploadEnabled = j.value("upload_enabled", false);
+        mLSLEnabled = j.value("lsl_enabled", false);
+        mLSLStreamName = j.value("lsl_stream_name", "PEBL_{test}");
 
         // Load items
         mItems.clear();
@@ -364,6 +367,8 @@ bool Chain::SaveToJSON(const std::string& jsonPath) {
         j["description"] = mDescription;
         j["participant_counter"] = mParticipantCounter;
         j["upload_enabled"] = mUploadEnabled;
+        j["lsl_enabled"] = mLSLEnabled;
+        j["lsl_stream_name"] = mLSLStreamName;
 
         // Save items
         json itemsArray = json::array();

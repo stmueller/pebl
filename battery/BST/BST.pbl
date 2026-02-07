@@ -62,6 +62,7 @@ define Start(p)
    ##Control parameters. Change the following values to
    ##use a different version of the experiment.
    gWin <- MakeWindow("white")
+   InitializeLSL(gWin)  ## Initialize LSL outlet if --lsl flag was used (shows prompt)
 
    GetStrings(gLanguage)
 
@@ -286,6 +287,7 @@ define Start(p)
 gUseAudioFeedback <- 1
      }
 
+   LSLMarker("block_practice_start")
    loop(i,stimSequence)
    {
 
@@ -311,11 +313,13 @@ if(trial > 6 and gUseAudioFeedbackPractice)
 
 
    }
+   LSLMarker("block_practice_end")
 
    ##add a delay to prevent keying through
    Wait(1000)
    ################################################################
    ##now, a pure neutral block
+   LSLMarker("block_neutral_start")
    block <- 1
    trial <- 1
 
@@ -356,12 +360,14 @@ if(trial > 6 and gUseAudioFeedbackPractice)
        trial <- trial + 1
       }
 
+   LSLMarker("block_neutral_end")
 
    ##add a delay to prevent keying through
    Wait(1000)
 
   #########################################################
    ##now, a pure congruent block
+   LSLMarker("block_congruent_start")
    block <- 2
    trial <- 1
 
@@ -402,12 +408,14 @@ if(trial > 6 and gUseAudioFeedbackPractice)
       trial <- trial + 1
    }
 
+   LSLMarker("block_congruent_end")
 
    ##add a delay to prevent keying through
    Wait(1000)
 
   #########################################################
   ##now, a pure INcongruent block
+   LSLMarker("block_incongruent_start")
    block <- 3
    trial <- 1
 
@@ -448,6 +456,7 @@ if(trial > 6 and gUseAudioFeedbackPractice)
       trial <- trial + 1
    }
 
+   LSLMarker("block_incongruent_end")
 
 
 
@@ -458,6 +467,7 @@ if(trial > 6 and gUseAudioFeedbackPractice)
    ####
    ### Testing--mixed block
 
+   LSLMarker("block_mixed_start")
    block <- 4
    trial <- 1
 
@@ -500,6 +510,7 @@ consistency <- 0
       trial <- trial + 1
    }
 
+   LSLMarker("block_mixed_end")
 
 
    ##############################################################
@@ -581,6 +592,9 @@ report <- report + Print("------------------------------------------------------
     outlist <- Flatten([gSubNum,TimeStamp(), pureACC,mixedACC,pureRT,mixedRT])
     FilePrint(summaryfile,ConcatenateList(outlist, ","))
 
+   ## Finalize LSL
+   FinalizeLSL()
+
    Hide(picA1)
    Hide(picA2)
    Hide(picB1)
@@ -597,7 +611,13 @@ report <- report + Print("------------------------------------------------------
                            20, gInstY, gWin, 24, gInstWidth, gInstHeight, "scalefont")
    Draw()
 
+   ## Close files before upload (required for Windows file locking compatibility)
+   FileClose(fileOut)
+   FileClose(reportfile)
+   FileClose(summaryfile)
+
    ## Upload data files (works online, no-op on native)
+   ## Note: .filename property persists after FileClose(), so this is safe
    UploadFile(gSubNum, "data/" + gSubNum + "/BST-" + gSubNum + ".csv")
    UploadFile(gSubNum, "data/report-" + gSubNum + ".txt")
    UploadFile(gSubNum, "data/pooled.csv")
@@ -617,6 +637,8 @@ report <- report + Print("------------------------------------------------------
 
 define Trial(i,consistency)
 {
+    LSLMarker("trial_stim" + i + "_consistency" + consistency + "_start")
+
     ## Center cursor for all modes that might use mouse
     ## On Linux/Wayland, SetMouseCursorPosition often fails or reports incorrect positions
     ## Only reset cursor on Windows where it works reliably
@@ -632,6 +654,7 @@ define Trial(i,consistency)
 
     #First, show the target:
     Show(targ)
+    LSLMarker("stimulus_present")
     Draw()
     time1 <- GetTime()
 
@@ -670,9 +693,11 @@ define Trial(i,consistency)
       timeout <- 1
       resp <- -1
       corr <- 0
+      LSLMarker("response_timeout")
     } else {
       timeout <- 0
       corr <- ScoreTrial(resp,id,consistency)
+      LSLMarker("response_" + resp + "_corr" + corr)
     }
 
     Hide(targ)

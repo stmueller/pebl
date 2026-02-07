@@ -66,6 +66,7 @@ define Start(p)
    soa <- gParams.soa
 
    gWin <- MakeWindow("black")
+   InitializeLSL(gWin)  ## Initialize LSL outlet if --lsl flag was used (shows prompt)
    Initialize()
 
    ##Get subject code if we need to:
@@ -152,6 +153,7 @@ define Start(p)
     ## Do the practice round
     gTrial <- 1
     gBlock <- 0
+    LSLMarker("block_practice_start")
     gLayout.header.text <- gStrings.practice_header
     CountDown(gWin)
 
@@ -163,6 +165,7 @@ define Start(p)
       Trial(trial,1,endtime,gPracticeTrials)
       gTrial <- gTrial + 1
     }
+    LSLMarker("block_practice_end")
 
     MessageKeyBox(gInterblock)
 
@@ -176,6 +179,7 @@ define Start(p)
     ## Do the first test round
     FilePrint(gLog, gSubNum + "," + gLanguage + "," +   TimeStamp()+",ODDBALL TASK,"+gResponseType+",BLOCK 1 BEGIN")
     gBlock <- 1
+    LSLMarker("block_test_start")
     endtime <- GetTime()
 
     loop(trial,basetrials)
@@ -184,6 +188,7 @@ define Start(p)
       Trial(trial,0,endtime,gTestTrials)
       gTrial <- gTrial + 1
     }
+    LSLMarker("block_test_end")
 
 
 
@@ -254,12 +259,23 @@ define Start(p)
    FilePrint(gPooledSummary,gSubNum+","+TimeStamp()+datalist)
    FilePrint(gLog, gSubNum + "," + gLanguage + "," + TimeStamp()+",ODDBALL TASK,"+gResponseType+",EXPERIMENT COMPLETE")
 
+   ## Close files before upload (required for Windows file locking compatibility)
+   FileClose(gFileOut)
+   FileClose(gPooledFileOut)
+   FileClose(gSumFileOut)
+   FileClose(gLog)
+   FileClose(gPooledSummary)
+
    ## Upload data files (works online, no-op on native)
+   ## Note: .filename property persists after FileClose(), so this is safe
    UploadFile(gSubNum, "data/" + gSubNum + "/oddball-" + gSubNum + ".csv")
    UploadFile(gSubNum, "data/" + gSubNum + "/oddball-report-" + gSubNum + ".txt")
    UploadFile(gSubNum, "data/oddball-pooled.csv")
    UploadFile(gSubNum, "data/oddball-log.csv")
    UploadFile(gSubNum, "data/oddball-all.csv")
+
+  ## Finalize LSL
+  FinalizeLSL()
 
   MessageKeyBox(gDebrief)
 
@@ -299,15 +315,24 @@ define Trial (stim,practice,trialend,totalTrials)
 	Draw()
 
     time1 <- GetTime()
+    LSLMarker("stimulus_targ" + targID + "_side" + side + "_oddball" + oddball + "_trial" + gTrial)
     gStimOn <- 1
     RegisterEvent("<TIMER>", 1, time1+500,"<GEQ>","HIDEME", [stim])
     resp <- WaitForLayoutResponse(gLayout, 2500)
     time2 <- GetTime()
     Hide(stim)
+    LSLMarker("response_" + resp)
 
     corr <- ((targID ==2) and (resp == "right")) or
             ((targID ==1) and (resp == "left"))
     rt <- time2-time1
+
+    if(corr)
+    {
+      LSLMarker("trial_correct")
+    } else {
+      LSLMarker("trial_error")
+    }
 
     if(practice)
      {

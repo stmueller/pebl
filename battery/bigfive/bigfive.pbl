@@ -31,6 +31,7 @@ define Start(p)
   MakeDirectory("data")
 
    gWin <- MakeWindow("black")
+   InitializeLSL(gWin)  ## Initialize LSL outlet if --lsl flag was used (shows prompt)
 
    if(gSubNum+""=="0")
    {
@@ -155,6 +156,7 @@ define Start(p)
    ##DO THE INSTRUCTIONS:
    MessageBox(gInst,gWin)
 
+   LSLMarker("survey_start")
    startTime <- GetTime()
    questorder <- 1
    loop(q,questions)
@@ -164,7 +166,9 @@ define Start(p)
      doQuestion <- Nth(traitfilter,type)
       if(doQuestion)
       {
+        LSLMarker("question_" + First(q) + "_dim" + Nth(q,3))
         resp <- Likert(Second(q))
+        LSLMarker("response_" + First(resp))
         dataline <- Flatten([[gSubNum,questorder,GetTime()],q,resp])
         FilePrint(subOutFile,ConcatenateList(dataline,","))
         PushOnEnd(responses,resp)
@@ -175,6 +179,7 @@ define Start(p)
       }
 
    }
+   LSLMarker("survey_end")
 
 
 
@@ -247,7 +252,10 @@ define Start(p)
    FileClose(reportfile)
    FileClose(pooledfile)
    FileClose(suboutfile)
-   
+
+   ## Finalize LSL
+   FinalizeLSL()
+
    UploadFile(gSubnum,reportfile.filename)
    UploadFile(gSubnum,pooledfile.filename)
    UploadFile(gSubnum,suboutfile.filename)
@@ -321,7 +329,15 @@ define Likert(question)
    
 define GetStrings(lang)
 {
-  gStrings <- GetTranslations("bigfive", lang)
+  lang <- Uppercase(lang)
+  fname <- "translations/bigfive.pbl-" + LowerCase(lang) + ".json"
+
+  if(FileExists(fname))
+  {
+    gStrings <- ReadTranslationJSON(fname, lang)
+  } else {
+    gStrings <- ReadTranslationJSON("translations/bigfive.pbl-en.json", lang)
+  }
 
   ## Set global strings from translation
   gInst <- gStrings.instructions

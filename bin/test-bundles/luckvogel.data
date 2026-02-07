@@ -57,6 +57,7 @@ define Start(p)
   gScriptName <- "PEBL Visual Change Detection Task"
 
   gWin <- MakeWindow("black")
+  InitializeLSL(gWin)  ## Initialize LSL outlet if --lsl flag was used
   gSleepEasy <- 1
   ShowCursor(0)
 
@@ -222,8 +223,10 @@ define Start(p)
    out <-  TrialSquares(3,0,0,0)
 
    trial <- 1
+   LSLMarker("block_test_start")
    loop(i,stim)
     {
+      LSLMarker("trial_" + trial + "_size" + First(i) + "_change" + Second(i) + "_start")
       out <-  TrialSquares(First(i),Second(i),trial,gTotalTrials)
       FilePrint(gfileOut,gSubNum+","+trial+","+GetTime()+","+gParams.prestime+","+gParams.delaytime+","+
                 First(i)+","+First(out)+","+Second(out)+","+Third(out)+","+Fourth(out))
@@ -247,6 +250,10 @@ define Start(p)
 
       trial <- trial + 1
     }
+   LSLMarker("block_test_end")
+
+  ## Finalize LSL
+  FinalizeLSL()
 
   ## Display debrief message
   instbox.text <- gStrings.debrief
@@ -254,7 +261,11 @@ define Start(p)
   Draw()
   WaitForAnyKeyPress()
 
+  ## Close files before upload (required for Windows file locking compatibility)
+  FileClose(gFileOut)
+
   ## Upload data files (works online, no-op on native)
+  ## Note: .filename property persists after FileClose(), so this is safe
   out <- UploadFile(gSubNum, gFileOut.filename)
   Print(out)
 }
@@ -279,6 +290,7 @@ define TrialSquares(number,change,trial,total)
     Wait(1000)
 
     ShowAll(First(displays),1)
+    LSLMarker("stimulus_present")
     Draw()
     Wait(gParams.prestime)
     ShowAll(First(displays),0)
@@ -298,6 +310,8 @@ define TrialSquares(number,change,trial,total)
         }else {
               corr <- resp=="left"
         }
+
+    LSLMarker("response_" + resp + "_corr" + corr)
 
    if(gParams.givefeedback)
    {

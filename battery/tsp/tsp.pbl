@@ -6,14 +6,10 @@
 
 define Start (p)
 {
-  gScriptName <- "Travelling Salesman Problem Task"
+   gScriptName <- "Travelling Salesman Problem Task"
    parpairs <- [ ["usefile","subset.csv"], #use exactly these problems, instead of randomly-chosen.  set to 0 for random trials.
 	       ["targsize",20],
                ["dointro",1],
-               ["xoffset",70],  ## Field area upper left
-               ["yoffset",70],  ##
-               ["width",500],
-               ["height",500],
 	       ["trialspersize",5], ##choose up to 15
 	       ["chooserandomtrials",0],
 	       ["inputlabel","click"], ##i.e., click or touch
@@ -30,8 +26,23 @@ define Start (p)
   dointro <- gParams.dointro
    ##backup does not work!!
    gParams.allowbackup <- 1
+   gParams.responsemode <- "none"  ## This task uses custom interaction, not standard response system
+   gParams.responsesemantics <- "none"
+   
+   Init()   ##task initialization
+   InitializeLSL(gWin)  ## Initialize LSL outlet if --lsl flag was used (shows prompt)
+   InitializeUpload()  ## Initialize token-based hosting if upload.json exists
+    
+  ## Create adaptive textbox for instructions
+  font <- MakeFont("DejaVuSans.ttf", 0, 33, MakeColor("white"), MakeColor("black"), 0)
+  instructWidth <- Round(gVideoWidth * 0.85)
+  ginstruct <- MakeTextBox("", font, instructWidth, 200)
+  SetProperty(ginstruct, "FORMATTED", 1)
+  SetProperty(ginstruct, "ISADAPTIVE", 1)
+  AddObject(ginstruct, gWin)
+  Move(ginstruct, gVideoWidth/2 - instructWidth/2, 20)
 
-   Init()
+
 
    gData <- []  ##Log some data for immediate feedback
 
@@ -120,9 +131,9 @@ define Start (p)
 
      inst <- ReplaceChar(gStrings.instNoIntro,"<INPUT>",gParams.inputlabel)
    }
+   ginstruct.text <- inst
 
-   tb <- EasyTextBox(inst,810,50,gWin,18,450,300)
-   Show(gMessage)
+#   Show(gMessage)
    Draw()
    WaitForClickOnButton(gButtonX, gButtonY, gWin, gStrings.continue)
    trial <- trial + 1
@@ -131,15 +142,16 @@ define Start (p)
    {
 
     Show(gMessage)
-
-   tb.text <- tb.text + " "+gParams.inputlabel + gStrings.inst2
+    LSLMarker("block_practice_start")
+    ginstruct.text <- ginstruct.text + " "+gParams.inputlabel + gStrings.inst2
     tsp <- FileReadTable("tours/example06-01.txt")
+    LSLMarker("trial_practice_1_06-01_start")
     Trial(tsp, gSubNum + ",1,tours/example06-01.txt,PRACTICE,")
-
-    tb.text <-ReplaceChar(gStrings.inst3,"<INPUT>",gParams.inputlabel)
+    LSLMarker("trial_practice_1_06-01_end")
+    ginstruct.text <-ReplaceChar(gStrings.inst3,"<INPUT>",gParams.inputlabel)
     Draw()
     WaitForClickOnButton(gButtonX, gButtonY, gWin, gStrings.continue)
-    tb.text <- gStrings.inst4
+    ginstruct.text <- gStrings.inst4
 
 
     tests <- SubList(["tours/example06-02.txt","tours/example06-03.txt","tours/example06-04.txt","tours/example06-05.txt"],1,4)
@@ -149,28 +161,36 @@ define Start (p)
      {
        trial <- trial + 1
        tsp <- FileReadTable(test)
+       LSLMarker("trial_practice_"+trial+"_"+test+"_start")
        Trial(tsp, gSubNum +"," + trial + "," + test + ",PRACTICE,")
+       LSLMarker("trial_practice_"+trial+"_"+test+"_end")
+
        Draw()
      }
 
+  LSLMarker("block_practice_end")
    Draw()
    Hide(gMessage)
-   tb.text <- ReplaceChar(gStrings.inst5,"<INPUT>",gParams.inputlabel)
+   ginstruct.text <- ReplaceChar(gStrings.inst5,"<INPUT>",gParams.inputlabel)
    Draw()
    WaitForClickOnButton(gButtonX, gButtonY, gWin, gStrings.continue)
-   Hide(tb)
+   Hide(ginstruct)
    }
    Draw()
-
+    LSLMarker("block_test_start")
    loop(i,trials)
     {
           trial <- trial  + 1
           tour <- "tours/tour-"+ i + ".txt"
           tsp <- FileReadTable(tour)
+
+          LSLMarker("trial_TEST_"+trial+"_"+tour+"_start")
           Trial(tsp, gSubNum + "," + trial + ","  + tour + ",TEST,")
+          LSLMarker("trial_TEST_"+trial+"_"+tour+"_end")
+
     }
 
-
+   LSLMarker("block_test_end")
    FilePrint(gLogFile, "TSP END " +GetTime() + " " + TimeStamp() +  " " + gSubCode)
 
    tDat <- Transpose(gData)
@@ -195,9 +215,9 @@ define Start (p)
 
    outtab <- Transpose([aggcond, aggtrials,aggtime, aggeff, aggbest])
    dataline <- ""
-   out <- "                 Your Perfomance
-Condition Trials   Time (s)  Effic.   # Perfect
------------------------------------------------" + CR(1)
+   out <- "          " + gStrings.performance_header + CR(1)
+   out <- out + gStrings.performance_columns + CR(1)
+   out <- out + gStrings.performance_divider + CR(1)
 
    loop(line, outtab)
      {
@@ -210,16 +230,16 @@ Condition Trials   Time (s)  Effic.   # Perfect
        }
          out <- out + CR(1)
      }
-   out <- out + "-----------------------------------------------"
+   out <- out + gStrings.performance_divider
 
 
-   FilePrint(gReportFile,"-----------------------------------")
-   FilePrint(gReportFile,"PEBL TSP Task")
-   FilePrint(gReportFile,"http://pebl.sf.net")
-   FilePrint(gReportFile,"Using PEBL Version: " + GetPEBLVersion())
+   FilePrint(gReportFile,gStrings.report_divider)
+   FilePrint(gReportFile,gStrings.report_header)
+   FilePrint(gReportFile,gStrings.report_url)
+   FilePrint(gReportFile,gStrings.report_version + " " + GetPEBLVersion())
    FilePrint(gReportFile,TimeStamp())
-   FilePrint(gReportFile,"Participant code: "+gSubCode)
-   FilePrint(gReportFile,"-----------------------------------")
+   FilePrint(gReportFile,gStrings.report_participant + " " + gSubCode)
+   FilePrint(gReportFile,gStrings.report_divider)
    FilePrint(gReportFile,out)
    FileClose(gReportFile)
 
@@ -228,12 +248,30 @@ Condition Trials   Time (s)  Effic.   # Perfect
    gPooled <- FileOpenAppend("data/tsp-pooled.csv")
    FilePrint(gPooled,gSubNum+","+TimeSTamp()+","+GetTime()+dataline)
 
+
+   FileClose(gFileOut)
+   FileClose(gPooled)
+   FileClose(gReportFile)
+   FileClose(gLogFile)
+  Print(gStrings.upload_msg)
+  uploadResult <- UploadFile(gSubNum, gfileOut.filename)
+  Print(uploadResult)
+  uploadResult <- UploadFile(gSubNum, gPooled.filename)
+  Print(uploadResult)
+  uploadResult <- UploadFile(gSubNum, gReportFile.filename)
+  Print(uploadResult)
+  uploadResult <- UploadFile(gSubNum, gLogFile.filename)
+  Print(uploadResult)
+   
+
    gMessage.text <- out
    Show(gMessage)
 
-   tb.text <- gStrings.debrief
-   Show(tb)
+   ginstruct.text <- gStrings.debrief
+   Show(ginstruct)
    Draw()
+
+   FinalizeLSL()
 
    ##prevent bounce-click:
    Wait(500)
@@ -440,18 +478,35 @@ define WaitForClickOnButton(x,y,win,text)
 define Init()
 {
 
-   gXoffset <- gParams.xoffset  ## Field area upper left
-   gYoffset <- gParams.yoffset  ##
-
-   width  <- gParams.width
-   height <- gParams.height
 
    gSleepEasy <- 1
    gPI <- 3.14159
 
+
+   gWin <- MakeWindow("black")
+
+  if(gSubNum+""=="0")
+   {
+      gSubNum <- GetSubNum(gWin)
+   }
+   gSubCode <- gSubNum
+
+
+    gLayout <- CreateLayout("tsp", gWin, gParams)
+    gLayout.header.visible <- 0  ## Hide header initially, show during trials
+    gLayout.footer.visible <- 0
+    gLayout.centerY <- gLayout.centery + 100
+   width  <- 550
+   height <- 550
+
    ## Squeeze this into width/height area.
    xnum <- 550
    ynum <- 550
+   
+   gXoffset <- gLayout.centerx-width/2  ## Field area upper left
+   gYoffset <- gLayout.centery-height/2 ##
+
+
    gXScale <- width/xnum
    gYScale <- height/ynum
 
@@ -462,13 +517,7 @@ define Init()
    gMinY <- gYOffset
    gMaxY <- gYOffset + height
 
-   gWin <- MakeWindow()
 
-  if(gSubNum+""=="0")
-  {
-    gSubNum <- GetSubNum(gWin)
-  }
-   gSubCode <- gSubNum
 
    GetStrings(gLanguage)
 
@@ -479,26 +528,29 @@ define Init()
 
     ##Make a background the size of the w/x.  Add a bit of size to the
     ## field to make it cover all the points.
-    gBG <- Rectangle(gXoffset + width/2,
-                     gYoffset+height/2, height+100,width+100,MakeColor("white"),1)
+    gBG <- Rectangle(gLayout.centerX, gLayout.centery,
+		     height+100,width+100,MakeColor("white"),1)
    AddObject(gBG,gWin)
 
-   gMessage <- MakeTextBox("",gFont, 450,300)
+   gMessage <- MakeTextBox("",gFont, 550,300)
+   gMessage.isadaptive <- 1
    AddObject(gMessage,gWin)
-   Move(gMessage,810,420)
+   Move(gMessage,gVideoWidth-gMessage.width-10,gLayout.centery-gMessage.height/2)
    Hide(gMessage)
    Draw()
 
    ##add these and hide them; if we don't use them, we just won't show them.
-    gBackupbg <- Rectangle(910,385,200,60,MakeColor("grey60"),1)
+
+
+    gBackupbg <- Rectangle(gLayout.centerx,gLayout.zones.footer.y+50,200,60,MakeColor("grey60"),1)
     AddObject(gbackupbg,gWin)
     gbackuptext <- EasyLabel(gStrings.backup,gbackupbg.x,gbackupbg.y,gWin,30)
     Hide(gBackupBG)
     Hide(gBackupText)
 
 
-   gButtonX <- 1150
-   gButtonY <- 385
+   gButtonX <- gBackupbg.x
+   gButtonY <- gBackupbg.y
 
 
 
@@ -564,9 +616,9 @@ define UpdateState()
    }
 
 
-
+  
   x <- WaitForClickOnTarget(clicktargs,output)
-
+  LSLMarker("CLICKED_" + x+ "_" + Length(clicktargs))
 
   ## x is the index of the current gUnvisited, but we'd
   ## really like to know
@@ -721,15 +773,12 @@ define DisplayStats(header,firstclick)
     dObs <-  ComputePathDistance(gVisitedLocs)
     eff <- dObs/dOpt
 
-     Show(gMessage)
-      time <- GetTime()
-      etime <- time - gTrialStartTime
-    gMessage.text <-      "Route Complete:
-Optimal Path Distance:   [" + dOpt+"]
-Observed Path Distance:  ["+ dObs+"]
-Overall Inefficiency:    ["+ eff+"]
-Time:                    ["+ Round(etime/100)/10+" sec]"  + CR(4) +
-gParams.inputlabel+" button above to continue."
+    Show(gMessage)
+    time <- GetTime()
+    etime <- time - gTrialStartTime
+    tmp <- SubstituteStrings(gStrings.route_stats,[["<OPT>",dOpt],["<OBS>",dObs],["<EFF>",eff],["<TIME>",Round(etime/100)/10]])
+    gMessage.text <- tmp
+
 
    ##See if you got the best:
    best <- eff < 1.0000001
@@ -742,7 +791,9 @@ gParams.inputlabel+" button above to continue."
   gData <- Append(gData, [Length(gPositions), eff, etime/1000, best, 1])
 
   tmp <- SubstituteStrings(gSTrings.popup,[["<EFF>",eff],["<PCT>",Round((eff-1)*10000)/100]])
-  PopupMessage(tmp ,gWin,300,600,400,150)
+  ginstruct.text <- tmp
+  Draw()
+#  PopupMessage(tmp ,gWin,gVideoWidth-420, glayout.centery,400,150)
 
 }
 

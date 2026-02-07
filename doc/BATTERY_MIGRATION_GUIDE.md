@@ -55,6 +55,29 @@ upload-battery/
   rm -rf upload-battery/testname/data/  # Remove any test data
   ```
 
+- [ ] **CRITICAL: Check ALL translation files exist and are complete**
+  ```bash
+  # List all translation files for this test
+  ls battery/testname/translations/
+  ```
+  **Required translations**: en, es, de, pt, fr, nl, it
+  - [ ] hicks.pbl-en.json (English) - **REQUIRED**
+  - [ ] hicks.pbl-es.json (Spanish)
+  - [ ] hicks.pbl-de.json (German)
+  - [ ] hicks.pbl-pt.json (Portuguese)
+  - [ ] hicks.pbl-fr.json (French)
+  - [ ] hicks.pbl-nl.json (Dutch)
+  - [ ] hicks.pbl-it.json (Italian)
+
+  **If any translations are missing**: Create them BEFORE proceeding with migration
+  **All translations must be updated together** when making any text changes
+
+- [ ] **Bundle configuration (REQUIRED for all new tests)**
+  - **IMPORTANT**: From now on, all new tests should be in their own bundle
+  - Add bundle entry to `bundle-config.json` (in `test_bundles` array)
+  - Do NOT add new tests to `core-battery` manifest
+  - Each test gets its own `.data` file in `bin/test-bundles/`
+
 ### Phase 2: Code Modifications
 
 #### 2.1 Data Upload Implementation
@@ -82,19 +105,25 @@ upload-battery/
    gFileOut <- FileOpenWrite("results-" + gSubNum + ".csv")
    FilePrint(gFileOut, "trial,response,rt")
    ## ... more FilePrint calls ...
+
+   ## CRITICAL: Close files BEFORE upload (required for Windows file locking compatibility)
    FileClose(gFileOut)
 
    ## Upload the files (works online, no-op on native)
    ## IMPORTANT: Must use absolute path "/upload.json" because InitializeUpload()
    ## changes the working directory to the battery test folder
+   ## Note: .filename property persists after FileClose(), so this is safe
    datafile <- "data/" + gSubNum + "/results-" + gSubNum + ".csv"
    UploadFile(gSubNum, datafile, "/upload.json")
    ```
 
-   **Critical Note**: `UploadFile()` requires three parameters:
-   - `subcode` - participant ID (typically `gSubNum`)
-   - `datafilename` - path to the data file to upload
-   - `settings` - **MUST be the absolute path `"/upload.json"`** (not relative `"upload.json"`)
+   **Critical Notes**:
+   - **Files must be closed BEFORE upload**: `UploadFile()` internally calls `FileReadText()` which will fail on Windows if the file is still open due to file locking. Always call `FileClose()` before `UploadFile()`.
+   - **File .filename property persists after close**: File objects retain their `.filename` property after `FileClose()`, so accessing `fileOut.filename` after closing is safe.
+   - `UploadFile()` requires three parameters:
+     - `subcode` - participant ID (typically `gSubNum`)
+     - `datafilename` - path to the data file to upload (string) OR file object (will extract .filename automatically)
+     - `settings` - **MUST be the absolute path `"/upload.json"`** (not relative `"upload.json"`)
 
    After `InitializeUpload()` runs, the working directory changes to `/usr/local/share/pebl2/battery/testname/`,
    so a relative path like `"upload.json"` will fail. Always use the absolute path `"/upload.json"`.
@@ -122,9 +151,12 @@ define Start()
         FilePrint(gFileOut, trial.trialnum + "," + trial.stimulus + "," +
                            trial.response + "," + trial.rt + "," + trial.acc)
     }
+
+    ## CRITICAL: Close file BEFORE upload (Windows compatibility)
     FileClose(gFileOut)
 
     ## Upload data (automatic - works online, skipped on native)
+    ## Note: .filename property persists after FileClose()
     datafile <- "data/" + gSubNum + "/results-" + gSubNum + ".csv"
     UploadFile(gSubNum, datafile, "/upload.json")
 
@@ -139,13 +171,19 @@ define Start()
 - Native: Sets flag to skip uploads, allows normal testing
 - `UploadFile()` checks the flag and only uploads when online
 
-**Multiple data files?** Just add multiple upload calls:
+**Multiple data files?** Close all files first, then upload:
 ```pebl
+## Close all files BEFORE any uploads (Windows compatibility)
+FileClose(gFileOut)
+FileClose(gSummaryFile)
+FileClose(gTrialFile)
+
 ## Upload all data files
+## Note: .filename property persists after FileClose()
 settingsfile <- "/upload.json"
-UploadFile(gSubNum, "data/" + gSubNum + "/results-" + gSubNum + ".csv", settingsfile)
-UploadFile(gSubNum, "data/" + gSubNum + "/summary-" + gSubNum + ".txt", settingsfile)
-UploadFile(gSubNum, "data/" + gSubNum + "/trials-" + gSubNum + ".dat", settingsfile)
+UploadFile(gSubNum, gFileOut.filename, settingsfile)
+UploadFile(gSubNum, gSummaryFile.filename, settingsfile)
+UploadFile(gSubNum, gTrialFile.filename, settingsfile)
 ```
 
 **Working examples** in upload-battery/:
@@ -1482,35 +1520,50 @@ mkdir -p PEBLOnlinePlatform/public/battery/testname/data/
 cp -r battery/testname/data/example/ PEBLOnlinePlatform/public/battery/testname/data/
 ```
 
-### Mistake 5: Not Updating Translation Strings Consistently
+### Mistake 5: Not Checking for All Required Translations BEFORE Starting Migration
 
-**What happened (TNT migration)**:
-- Updated instruction text to say "Read the instructions carefully" in English
-- Initially forgot to translate to French and other languages
-- Had to go back and add translations for all languages
+**What happened (Multiple migrations)**:
+- Started migration with only English translation
+- Made code changes, updated parameters, added LSL markers
+- Only discovered missing translations (es, de, pt, fr, nl, it) at the end
+- Had to create 6+ translations retroactively
 
 **Why this was wrong**:
+- **Standard PEBL tests require 7 translations**: en, es, de, pt, fr, nl, it
+- Creating translations after migration requires re-reviewing all text changes
 - Incomplete translations break the test in other languages
-- All translation files should be updated together
 - Missing translations result in blank/undefined strings
+- Much harder to create consistent translations after the fact
 
-**Correct approach**:
-1. Make a list of ALL translation files for the test
-2. When updating ANY string, update it in ALL languages
-3. Use a checklist:
+**Correct approach - CHECK TRANSLATIONS FIRST (Phase 1 of migration)**:
+
 ```bash
-# List all translation files
+# STEP 1: List all existing translation files
 ls battery/testname/translations/
 
-# Update each one:
-# - testname.pbl-en.json ✓
-# - testname.pbl-fr.json ✓
-# - testname.pbl-de.json ✓
-# - testname.pbl-es.json ✓
-# - testname.pbl-it.json ✓
-# - testname.pbl-nl.json ✓
-# - testname.pbl-pt.json ✓
+# STEP 2: Check against required list
+# Required: en, es, de, pt, fr, nl, it
 ```
+
+**Create a checklist and verify BEFORE any code changes**:
+- [ ] testname.pbl-en.json (English) - REQUIRED
+- [ ] testname.pbl-es.json (Spanish)
+- [ ] testname.pbl-de.json (German)
+- [ ] testname.pbl-pt.json (Portuguese)
+- [ ] testname.pbl-fr.json (French)
+- [ ] testname.pbl-nl.json (Dutch)
+- [ ] testname.pbl-it.json (Italian)
+
+**If ANY translation is missing**:
+1. **STOP the migration**
+2. Create missing translations FIRST
+3. Get translations reviewed by native speakers if possible
+4. THEN proceed with code migration
+
+**When updating ANY string during migration**:
+1. Update in ALL 7 languages simultaneously
+2. Never update just English and "come back to translations later"
+3. Keep all translation files in sync throughout migration
 
 ### Mistake 6: Using Actual Line Breaks in JSON Strings
 
@@ -2021,15 +2074,24 @@ All four must be updated for successful web deployment.
 
 Before starting any test migration, check off these items:
 
+- [ ] **FIRST: Check translation files exist (CRITICAL - do this BEFORE any code changes)**
+  ```bash
+  ls battery/testname/translations/
+  ```
+  - [ ] Verify all 7 required translations exist: en, es, de, pt, fr, nl, it
+  - [ ] If ANY are missing, STOP and create them FIRST
+  - [ ] **Do NOT proceed with migration until ALL translations are complete**
+
 - [ ] Read existing test's requirements.json to understand the schema
 - [ ] Check TEST_REQUIREMENTS_SYSTEM.md for current format
 - [ ] Plan to keep battery/ and upload-battery/ identical
 - [ ] Remember upload code goes in BOTH versions (it's a no-op in native)
-- [ ] List all translation files that will need updating
 - [ ] Plan where example data needs to be copied (2 locations: battery/ and PEBLOnlinePlatform/battery/)
 - [ ] **Do NOT** create public/battery/ directory
 - [ ] Check switcher test-metadata JSON for correct `data_output.files` format
-- [ ] Remember: bundles exclude ALL data - do not modify bundle-config.json
+- [ ] **NEW REQUIREMENT**: Plan to create test's own bundle in bundle-config.json
+- [ ] **Do NOT** add new tests to core-battery manifest
+- [ ] Remember: bundles exclude ALL data - do not modify bundle-config.json data excludes
 - [ ] Remember: deploy script excludes ALL data - do not modify deploy script
 - [ ] Have `diff` command ready to verify file synchronization
 

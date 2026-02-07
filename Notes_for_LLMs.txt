@@ -1141,3 +1141,223 @@ COMMON USE CASES:
   - Verifying multi-font rendering in formatted text
 
 
+HTML-LITE FORMATTED TEXT WITH PROPORTIONAL SIZING
+==================================================
+
+PEBL supports a simplified HTML-like markup system for textboxes that allows mixed
+fonts, sizes, and styles within a single textbox. This system uses PROPORTIONAL SIZING
+where all font sizes are specified as percentages of a base font size.
+
+ENABLING FORMATTED TEXT:
+
+To use HTML-lite formatting in a textbox, set the FORMATTED property to 1:
+
+  baseFont <- MakeFont("DejaVuSans.ttf", 0, 14, MakeColor("black"), MakeColor("white"), 1)
+  textbox <- MakeTextBox(formattedText, baseFont, 400, 300)
+  SetProperty(textbox, "FORMATTED", 1)
+  AddObject(textbox, gWin)
+  Move(textbox, 100, 100)
+  Draw()
+
+PROPORTIONAL SIZING SYSTEM:
+
+All font sizes are percentage-based relative to the base font:
+  - 100 = base font size (same as the font passed to MakeTextBox)
+  - 200 = twice the base font size
+  - 50 = half the base font size
+  - Any integer percentage value is supported
+
+WHY PROPORTIONAL SIZING?
+
+This system is critical for ADAPTIVE TEXTBOXES that automatically shrink font size
+to fit content within fixed dimensions. When the base font shrinks, ALL text (headers,
+paragraphs, etc.) shrinks proportionally, maintaining visual hierarchy.
+
+Example:
+  - Base font: 14pt → H1 (230%) = 32pt, H2 (200%) = 28pt, body (100%) = 14pt
+  - Adaptive shrink to 70%: Base 9.8pt → H1 = 22.5pt, H2 = 19.6pt, body = 9.8pt
+  - Visual hierarchy is preserved!
+
+SUPPORTED HTML-LITE TAGS:
+
+1. HEADER TAGS (with default sizes):
+   <h1>...</h1>     230% of base font (largest header)
+   <h2>...</h2>     200% of base font
+   <h3>...</h3>     170% of base font
+   <h4>...</h4>     140% of base font
+   <h5>...</h5>     130% of base font
+   <h6>...</h6>     115% of base font (smallest header)
+
+2. PARAGRAPH TAG WITH SIZE ATTRIBUTE:
+   <p size=N>...</p>    N% of base font (N is any integer percentage)
+
+   Examples:
+   <p size=100>Normal text</p>      ## Same as base font
+   <p size=150>Bigger text</p>      ## 1.5x base font
+   <p size=75>Smaller text</p>      ## 0.75x base font
+   <p size=120>Medium heading</p>   ## Custom size between defaults
+
+3. TEXT STYLING TAGS (inherit parent size):
+   <b>...</b>       Bold text
+   <i>...</i>       Italic text
+   <u>...</u>       Underlined text
+   <center>...</center>  Centered text
+   <right>...</right>    Right-aligned text
+
+   Note: Styling tags do NOT change font size, only appearance/alignment
+
+4. COLOR ATTRIBUTES:
+   Tags can include color and bgcolor attributes:
+   <p size=100 color="#FF0000">Red text</p>
+   <h1 bgcolor="#FFFFCC">Header with light yellow background</h1>
+   <p color="blue" bgcolor="white">Named colors work too</p>
+
+   Supported color formats:
+   - Named colors: "red", "blue", "green", etc. (see RGBColorNames.h for full list)
+   - Hex codes: #RGB (3-digit), #RRGGBB (6-digit), #RRGGBBAA (8-digit with alpha)
+   - Examples: "#F00" (red), "#00FF00" (green), "#0000FF80" (blue 50% opacity)
+
+FORMATTING EXAMPLES:
+
+Basic mixed formatting:
+  text <- "<h1>Test Title</h1>" + CR(1) +
+          "<p size=100>This is normal body text.</p>" + CR(1) +
+          "<p size=120>This is slightly larger emphasis text.</p>"
+
+Headers and paragraphs:
+  text <- "<h2>Section Heading</h2>" + CR(1) +
+          "<p size=100>Introduction paragraph with <b>bold</b> and <i>italic</i> text.</p>" + CR(2) +
+          "<h3>Subsection</h3>" + CR(1) +
+          "<p size=100>More content here.</p>"
+
+Custom sizes and colors:
+  text <- "<p size=150 color='#FF0000'>Large red warning text</p>" + CR(1) +
+          "<p size=100 color='blue' bgcolor='#FFFFCC'>Blue text on yellow background</p>" + CR(1) +
+          "<p size=75 color='grey'>Small grey caption text</p>"
+
+Nested styling:
+  text <- "<h2>Important Notice</h2>" + CR(1) +
+          "<p size=110>This is <b>important</b> information with <u>underlined</u> text.</p>"
+
+ADAPTIVE TEXTBOX USAGE:
+
+Adaptive textboxes automatically shrink font size if content exceeds dimensions.
+The proportional sizing system ensures all text scales together:
+
+  ## Create textbox with fixed dimensions
+  baseFont <- MakeFont("DejaVuSans.ttf", 0, 14, MakeColor("black"), MakeColor("white"), 1)
+
+  text <- "<h1>Adaptive Scaling Test</h1>" + CR(1) +
+          "<h2>Header 2 (200%)</h2>" + CR(1) +
+          "<h3>Header 3 (170%)</h3>" + CR(1) +
+          "<p size=100>Normal text at base size. This will scale proportionally!</p>"
+
+  textbox <- MakeTextBox(text, baseFont, 380, 350)  ## Fixed 380x350 pixels
+  SetProperty(textbox, "FORMATTED", 1)
+  SetProperty(textbox, "ADAPTIVE", 1)  ## Enable adaptive shrinking
+  AddObject(textbox, gWin)
+  Move(textbox, 50, 50)
+  Draw()
+
+How adaptive scaling works:
+  1. Text is rendered with base font size
+  2. If content exceeds textbox dimensions, base font shrinks by 1pt
+  3. ALL sizes recalculate proportionally (H1=230%, H2=200%, etc.)
+  4. Process repeats until content fits or minimum size reached
+  5. Final result: Everything visible, hierarchy preserved
+
+LINE BREAKING AND WRAPPING:
+
+The formatter performs intelligent line breaking:
+  - Calculates text width using actual font sizes for each segment
+  - Breaks lines at word boundaries when width exceeds textbox width
+  - Respects explicit newlines from CR(1) or CR(2)
+  - Adds 10-pixel safety margin to account for rendering rounding
+
+Best practices for line breaking:
+  - Use descriptive text that can wrap naturally
+  - Don't rely on manual line breaks for layout
+  - Test with longer text to ensure wrapping works correctly
+  - Use grey window background during development to see exact textbox bounds
+
+TECHNICAL IMPLEMENTATION DETAILS:
+
+Size calculation (src/utility/FormatParser.cpp):
+  - Parses tags and extracts size attributes
+  - H1-H6 tags map to predefined percentages
+  - <p size=N> uses N as percentage value
+  - Size 100 = base font, applied proportionally
+
+Font creation for each size:
+  - FormatParser creates actual font objects at calculated pixel sizes
+  - Each segment gets its own font at correct proportional size
+  - Fonts inherit color/style from base font and tag attributes
+
+Line breaking (src/platforms/sdl/PlatformTextBox.cpp):
+  - FindBreaksFormatted() processes text segment by segment
+  - Each segment uses its actual proportional font for width calculations
+  - Ensures accurate wrapping even with mixed font sizes
+
+Rendering (src/platforms/sdl/PlatformTextBox.cpp):
+  - Re-parses formatted text during RenderText()
+  - Applies appropriate font to each segment
+  - Handles color attributes and styling
+
+DEBUGGING FORMATTED TEXT:
+
+Use WritePNG() to capture screenshots showing exact rendering:
+
+  gWin <- MakeWindow("grey")  ## Grey background shows textbox bounds clearly
+
+  text <- "<h1>Debug Test</h1>" + CR(1) +
+          "<p size=120>Larger paragraph text</p>" + CR(1) +
+          "<p size=100>Normal paragraph text</p>"
+
+  baseFont <- MakeFont("DejaVuSans.ttf", 0, 14, MakeColor("black"), MakeColor("white"), 1)
+  textbox <- MakeTextBox(text, baseFont, 400, 300)
+  SetProperty(textbox, "FORMATTED", 1)
+  AddObject(textbox, gWin)
+  Move(textbox, 50, 50)
+  Draw()
+
+  WritePNG("/tmp/formatted-text-debug.png", gWin, [0, 0, 800, 600])
+
+  ## Check screenshot to verify:
+  ## - Text fits within textbox bounds (grey shows background)
+  ## - Line breaks occur at appropriate points
+  ## - Font sizes look proportional
+  ## - Colors render correctly
+
+COMMON ISSUES AND SOLUTIONS:
+
+Issue: Text cutting off at textbox edge
+Solution: Increase textbox width or enable adaptive sizing
+
+Issue: Headers too large, causing excessive wrapping
+Solution: Reduce base font size or use smaller header tags (H3 instead of H1)
+
+Issue: Inconsistent spacing between lines
+Solution: Use CR(1) for single line break, CR(2) for paragraph spacing
+
+Issue: Colors not rendering
+Solution: Ensure color format is valid (named color, #RGB, #RRGGBB, or #RRGGBBAA)
+
+Issue: Bold/italic not working
+Solution: Ensure font file supports those styles, or use style parameter in MakeFont()
+
+PERFORMANCE CONSIDERATIONS:
+
+- Formatted text parsing happens during rendering
+- More tags = more parsing overhead
+- For static text, parsing cost is negligible
+- For frequently updated text, consider caching or simplifying markup
+- Adaptive sizing requires multiple render passes (can be slower for complex text)
+
+COMPATIBILITY:
+
+- Works with both native Linux builds and Emscripten/WebAssembly builds
+- All font sizes render consistently across platforms
+- Colors specified via hex codes are portable
+- Named colors use standard RGB color table (RGBColorNames.h)
+
+

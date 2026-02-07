@@ -42,6 +42,7 @@ define Start(p)
    GetStrings(gLanguage)
 
    gWin <- MakeWindow("black")
+   InitializeLSL(gWin)  ## Initialize LSL outlet if --lsl flag was used (shows prompt)
    InitializeUpload()  ## Initialize token-based hosting if upload.json exists
 
    if(gVideoWidth<800 or gVideoheight < 600)
@@ -55,7 +56,7 @@ define Start(p)
 
   if(gLanguage == "HE")
     {
-        gFont <- MakeFont(gPEBLBaseFont,3,18,MakeColor("white"),Makecolor("black"),0)
+        gFont <- MakeFont("DejaVuSans.ttf",3,18,MakeColor("white"),Makecolor("black"),0)
      }else{
         gFont <- MakeFont(gPEBLBaseFontMono,3,18,MakeColor("white"),Makecolor("black"),0)
      }
@@ -119,6 +120,7 @@ define Start(p)
     gXRange <- [gVideoWidth/2 -150, gVideoWidth/2+150]
     gYrange <- [290, 590]
 
+    LSLMarker("block_practice_start")
     gTrial <- "P1"
     dat <-  CollectPath(practicepath,"num",4,4, gTimelimit)
    Print(dat)
@@ -129,6 +131,7 @@ define Start(p)
     gTrial <- "P2"
    dat <-  CollectPath(practicepath,"numletter",4,4, gTimelimit)
    Print(dat)
+    LSLMarker("block_practice_end")
 
     gXRange <- gXrange0
     gYRange <- gYrange0
@@ -163,9 +166,11 @@ define Start(p)
   data <- []
   conds <- []
   footer <- Easylabel("",gVideoWidth/2,Second(gYrange)+20,gWin,22)
+   LSLMarker("block_test_start")
    gTrial <- 1
    loop(i, trials)
     {
+       LSLMarker("trial_" + gTrial + "_start")
 
        type <-First(i)
        path <- Second(i)
@@ -190,6 +195,7 @@ define Start(p)
        footer.text <- foot+gTrialText+gTrial+"/"+Length(trials)+"]"
 
        time0 <- GetTime()
+       LSLMarker("trial_type_" + type)
        dat <-  CollectPath(path,type,gwide,ghigh,gTimelimit)
 
        ##dat returns [numclicks, id-at-finish, time-to-finish]
@@ -206,8 +212,10 @@ define Start(p)
 
        data <- Append(data,Merge(dat,stats))
        conds <- Append(conds,type)
+       LSLMarker("trial_" + gTrial + "_end")
        gTrial <- gtrial + 1
     }
+   LSLMarker("block_test_end")
 
 
   numsdat <- Filter(data,Match(conds,"num"))
@@ -264,6 +272,9 @@ define Start(p)
   Print("Uploading data files...")
   out <- UploadFile(gSubNum, fileOut.filename); Print(out)
   out <- UploadFile(gSubNum, report.filename); Print(out)
+
+  ## Finalize LSL
+  FinalizeLSL()
 
   MessageBox(gThanks+out,gWin)
 
@@ -451,7 +462,7 @@ define CollectPath(path,style,w,h,timelimit)
   Draw()
   WaitForClickOnTarget([First(targets)],[1])
 
-
+  LSLMarker("path_start")
   back.color <- clickedColor
   loop(i,labs)
   {
@@ -539,6 +550,13 @@ define CollectPath(path,style,w,h,timelimit)
 			  resp+","+ clicks+","+ id+","+
                           corr+","+(time-time1))
 
+              if(corr)
+              {
+                LSLMarker("click_correct_" + resp)
+              }else{
+                LSLMarker("click_incorrect_" + resp)
+              }
+
               #Did we make it all the way to the end?
                cont <- (not resp == Nth(path,id))
    	     }
@@ -578,6 +596,7 @@ define CollectPath(path,style,w,h,timelimit)
 
   ##For some reason, the lines/shapes do not go away now.
 
+  LSLMarker("path_complete_id" + (id-1))
   time2 <- GetTime()
   return [clicks,(id-1),(time2-time1)]
 }
@@ -1131,7 +1150,20 @@ define MakeTime(msecs)
 
 define GetStrings(lang)
 {
-  gStrings <- GetTranslations("connections", lang)
+
+   ##Known trasnlations: EN
+
+  lang <- Uppercase(lang)
+  fname <- "translations/connections.pbl-"+LowerCase(lang)+".json"
+
+  if(FileExists(fname))
+  {
+    gStrings <- ReadTranslationjson(fname,lang)
+  } else
+  {
+    gStrings <- ReadTranslationjson("translations/connections.pbl-en.json",lang)
+  }
+
 
 
   gTimeInst <- gStrings.timeinsta +gTimelimit+gStrings.timeinstb

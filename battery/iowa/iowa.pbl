@@ -117,16 +117,21 @@ define Start(lPar)
         ## Extract language code from locale (e.g., "en_US" -> "EN", "zh_CN" -> "ZH")
          gLanguage <- Lowercase(SubString(systemLocale, 1, 2))
       }else{
-        gLanguage <- "en"
+         gLanguage <- "en"
       }
-   }
-    
+
+    }
      ##now glanguage should be something.
-    fname <- "translations/labels-" + gLanguage + tag + ".txt"
-    if(not FileExists(fname))
-     {
-         fname <- "translations/labels-en" + tag + ".txt"
-     }
+     fname <- "translations/labels-" + gLanguage + tag + ".txt"
+      if(not FileExists(fname))
+      {
+          fname <- "translations/labels-en" + tag + ".txt"
+      }
+
+    
+
+
+
   
   textlist <- FileReadList(fname)
   gFontNameMono <- gPEBLBaseFont     # defaults to gPEBLBaseFontMono
@@ -363,9 +368,11 @@ define Start(lPar)
   ##  Main experimental trials loop.
   #####################################################################
 
+  LSLMarker("block_test_start")
   trialnum <- 1
   while(trialnum <= numtrials)
   {
+    LSLMarker("trial_" + trialnum + "_start")
     time0 <- GetTime()
 
 	## Get a response from the subject (using mouse or keyboard).
@@ -390,6 +397,7 @@ define Start(lPar)
 
     time1 <- GetTime()
     rt <- time1 - time0
+    LSLMarker("response_deck" + resp)
     Draw()
 
     ## Depending on deck chosen, update net gain and select card color.
@@ -470,6 +478,7 @@ define Start(lPar)
     Hide(gHeader)
     Show(gFooter)
 	Show(gRewardImage)
+    LSLMarker("stimulus_present_reward" + reward)
     Draw()
     # gRewardSounds <- Shuffle(gRewardSounds)
     # PlayForeground(First(gRewardSounds))
@@ -487,6 +496,7 @@ define Start(lPar)
 	  SetFont(gFooter, gIncorrFont)
 	  Show(gFooter)
 	  Show(gPenaltyImage)
+      LSLMarker("outcome_penalty" + penalty + "_net" + net)
       Draw()
       # gPenaltySounds <- Shuffle(gPenaltySounds)
       # PlayForeground(First(gPenaltySounds))
@@ -533,9 +543,11 @@ define Start(lPar)
     FilePrint_(gFileOut, gSubNum + ",V2," + trialnum + "," + resp + "," + reward + "," + penalty)
     FilePrint(gFileOut, "," + net + "," + gTotal + "," + gBorrow + "," + time1 + "," + rt)
 
+    LSLMarker("trial_" + trialnum + "_end")
     trialnum <- trialnum + 1
   } # End of main while loop.
 
+  LSLMarker("block_test_end")
   Wait(1000)
 
   ## Remove all the graphical elements.
@@ -547,9 +559,12 @@ define Start(lPar)
   ## Close the log file.
   FileClose(gFileOut)
 
+  ## Finalize LSL
+  FinalizeLSL()
+
   ## Upload data file (works online, no-op on native)
   datafile <- "data/" + gSubNum + "/igtlog-" + gSubNum + ".csv"
-  UploadFile(gSubNum, datafile, "/upload.json")
+  UploadFile(gSubNum, datafile)
 
   ## Show debriefing information.
   feed1 <- Nth(textlist, 14)
@@ -588,6 +603,7 @@ define Initialize()
 
   ## Initialize window
   gWin <- MakeWindow("white")
+  InitializeLSL(gWin)  ## Initialize LSL outlet if --lsl flag was used (shows prompt)
 
   ## Initialize font and colors
   bg  <- MakeColor("white")

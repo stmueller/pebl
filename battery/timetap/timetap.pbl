@@ -34,6 +34,7 @@ define Start(p)
   trialtime <- gparams.trialtime*1000   #number of seconds * 1000 = ms
 
   gWin <- MakeWindow()
+  InitializeLSL(gWin)  ## Initialize LSL outlet if --lsl flag was used
   gSleepEasy <- 1
 
    if(gSubNum+""=="0")
@@ -125,8 +126,10 @@ define Start(p)
   ## Wait for initial response to begin
   WaitForLayoutResponse(gLayout)
 
+  LSLMarker("block_test_start")
   while (trial <= numtrials)
   {
+     LSLMarker("trial_" + trial + "_targtime" + Nth(times,trial) + "_start")
      ## Update header with trial counter
      trialText <- SubstituteStrings(gStrings.trialcounter, [["<TRIAL>", trial], ["<TOTAL>", numtrials]])
      gLayout.header.text <- gStrings.header + " - " + trialText
@@ -157,30 +160,28 @@ define Start(p)
     Show(gTimer.front)
     Show(gTimer.back)
     Draw()
+    LSLMarker("tapping_start")
 
     ## Register timer update event (triggers continuously during event loop)
-    RegisterEvent("<TIMER>", 1, GetTime()+500, "<GEQ>", "UpdateTimer", [finaltime, trialtime, gTimer])
+    RegisterEvent("<TIMER>", 1, GetTime(), "<GEQ>", "UpdateTimer", [finaltime, trialtime, gTimer])
 
     while(GetTime() < finaltime)
      {
        ## Calculate remaining time and wait with timeout
        remainingTime <- finaltime - GetTime()
-       UpdateTimer(finaltime, trialtime, gTimer)
        resp <- WaitForLayoutResponse(gLayout, remainingTime)
-       
-       ClearEventLoop()
 
-       Draw()
-       
        ## Only record if we got a real response (not timeout)
        if(resp != "<timeout>")
        {
          time <- GetTime()
+         LSLMarker("tap_hit" + hits + "_rt" + (time-prevtime))
          FilePrint(gFileOut,gSubNum + "," + trial + ",1," + targtime + ","  + hits + "," +  time + "," + (time-prevtime))
          hits <- hits + 1
          prevtime <-time
        }
      }
+     LSLMarker("tapping_end_totalhits" + (hits-1))
 
     ## Hide timer and label after trial
     Hide(gTimer.front)
@@ -196,6 +197,10 @@ define Start(p)
    trial <- trial + 1
    WaitForKeyPress("X")
   }
+  LSLMarker("block_test_end")
+
+  ## Finalize LSL
+  FinalizeLSL()
 
   x <- PrintList(data)
   tb.text <- gStrings.report  + CR(3)+ x+ CR(2)+ gstrings.toexit
@@ -203,7 +208,11 @@ define Start(p)
   Show(tb)
   Draw()
 
+  ## Close files before upload (required for Windows file locking compatibility)
+  FileClose(gFileOut)
+
   ## Upload data files (works online, no-op on native)
+  ## Note: .filename property persists after FileClose(), so this is safe
   datafile <- "data/" + gSubNum + "/timetap-" + gSubNum + ".csv"
   UploadFile(gSubNum, datafile, "/upload.json")
 
@@ -249,22 +258,11 @@ define Train(cycle, durationSec, instructionText)
 
 define UpdateTimer(endtime, maxtime, timer, evt:0)
 {
-
-             prop <- Max([0, endtime - GetTime()]) / maxtime
-             front <- timer.front
-             back <- timer.back
-             front.width <- back.width * prop
-             Draw()
-         
-             ## Re-register to update again in 100ms (keeps timer updating smoothly)
-             if(GetTime() < endtime)
-             {
-                 RegisterEvent("<TIMER>", 1, GetTime() + 250, "<GEQ>", "UpdateTimer", [endtime, maxtime, timer])
-             }
-             return "<REMOVE>"
+    ## Update timer bar proportion
+    prop <- Max([0, endtime - GetTime()]) / maxtime
+    timer.front.width <- timer.back.width * prop
+    Draw()
 }
-         
-
 
 
 define GetStrings(lang)

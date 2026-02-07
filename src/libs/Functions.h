@@ -33,6 +33,7 @@
 #include "PEBLObjects.h"
 #include "PEBLList.h"
 #include "PEBLString.h"
+#include "PEBLLSL.h"
 
 //A little data structure that holds lcase PEBL function names, the actual names of the functions,
 //and the number of arguments to the function.
@@ -171,6 +172,14 @@ namespace PEBLStream
 
             {(char*)"WRITEPNG", WritePNG,                     3,3},
             {(char*)"PARSEJSON",   ParseJSON,       1,1},
+
+            // LSL (Lab Streaming Layer) functions - now always available (stub implementations when PEBL_USE_LSL not defined)
+            {(char*)"CREATELSLOUTLET", CreateLSLOutlet,       1,3},
+            {(char*)"SENDLSLMARKER", SendLSLMarker,           1,1},
+            {(char*)"CLOSELSLOUTLET", CloseLSLOutlet,         0,0},
+            {(char*)"LSLHASCONSUMERS", LSLHasConsumers,       0,0},
+            {(char*)"LSLLOCALCLOCK", LSLLocalClock,           0,0},
+
 #ifdef PEBL_USEPORTS
             {(char*)"OPENPPORT",OpenPPort,                   1,1},
             {(char*)"SETPPORTSTATE",SetPPortState,           2,2},

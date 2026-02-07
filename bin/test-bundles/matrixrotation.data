@@ -50,6 +50,7 @@
   gSleepEasy <- 1
   gScriptName <- "PEBL Matrix Rotation Test"
   gWin <- MakeWindow()
+  InitializeLSL(gWin)  ## Initialize LSL outlet if --lsl flag was used (shows prompt)
 
   ##Get subject code if we need to:
    if(gSubNum+""=="0")
@@ -124,6 +125,7 @@
   ## Practice trials
   if(gParams.numpractice > 0)
   {
+    LSLMarker("block_practice_start")
     practiceConds <- Shuffle(Merge(Repeat("same",gParams.numpractice/2),
                                     Repeat("diff",gParams.numpractice/2)))
     trial <- 1
@@ -132,6 +134,7 @@
       RunTrial(cond, trial, 1, inst1, giveFeedback)
       trial <- trial + 1
     }
+    LSLMarker("block_practice_end")
 
     ## Pause before main block
     inst.text <- gStrings.practiceComplete
@@ -145,20 +148,29 @@
   conds <- Shuffle(Merge(Repeat("same",condsize),
                           Repeat("diff",condsize)))
 
+  LSLMarker("block_test_start")
   trial <- 1
   loop(cond,conds)
    {
      RunTrial(cond, trial, 0, inst1, giveFeedback)
      trial <- trial +1
    }
+  LSLMarker("block_test_end")
 
    inst.text <- gStrings.debrief
    Show(inst)
    Draw()
    WaitForLayoutResponse(gLayout, 0)
 
+  ## Close files before upload (required for Windows file locking compatibility)
+  FileClose(gFileOut)
+
   ## Upload data files (works online, no-op on native)
+  ## Note: .filename property persists after FileClose(), so this is safe
   UploadFile(gSubNum, gFileOut)
+
+  ## Finalize LSL
+  FinalizeLSL()
 
 }
 
@@ -424,6 +436,8 @@ define CheckMatrix(list)
 ## RunTrial - Execute a single trial of the matrix rotation task
 define RunTrial(cond, trialNum, isPractice, inst1, giveFeedback)
 {
+   LSLMarker("trial_" + trialNum + "_cond" + cond + "_start")
+
    ##Create test matrix
    matrix <- MakeMatrix(gSize)
 
@@ -446,6 +460,7 @@ define RunTrial(cond, trialNum, isPractice, inst1, giveFeedback)
     FilePrint_(gFileOut,ConcatenateList(Flatten(test),",")   + ",")
 
  ##Present the study matrix
+    LSLMarker("study_matrix_dir" + dir)
     gLayout.footer.visible <- 1
     gLayout.footer.text <- inst1
 
@@ -491,15 +506,24 @@ define RunTrial(cond, trialNum, isPractice, inst1, giveFeedback)
     }
 
  ## Present the test matrix
+    LSLMarker("test_matrix_present")
     gLayout.footer.text <- ""
     x <- DisplayMatrix(test)
     Draw()
     resp <- WaitForLayoutResponse(gLayout, 0)
+    LSLMarker("response_" + resp)
     RemoveComplex(x,gWin)
     t2 <- GetTime()
 
     corr <- (resp == Lookup(cond,["same","diff"],["left","right"]))
     FilePrint(gFileOut,(t1-starttime) + "," + (t2-t1) + "," + resp + "," + corr)
+
+    if(corr)
+    {
+      LSLMarker("trial_correct")
+    }else{
+      LSLMarker("trial_incorrect")
+    }
 
     if(giveFeedback)
     {
@@ -513,6 +537,8 @@ define RunTrial(cond, trialNum, isPractice, inst1, giveFeedback)
         Wait(800)
         RemoveObject(feedbackLabel, gWin)
     }
+
+    LSLMarker("trial_" + trialNum + "_end")
 }
 
 

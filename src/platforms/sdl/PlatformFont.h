@@ -31,6 +31,7 @@
 #include "../../objects/PColor.h"
 #include "../../utility/rc_ptrs.h"
 #include "../../base/PEBLObject.h"
+#include "../../utility/FontCache.h"
 
 #include "SDLUtility.h"
 
@@ -73,6 +74,9 @@ public:
     unsigned int GetPosition(const std::string & text, unsigned int x);
     virtual std::string ObjectName() const{return "Platform Font";};
 
+    // Access to underlying TTF_Font for baseline alignment
+    TTF_Font* GetTTFFont() const { return mTTF_Font; }
+
     // Change detection for triggering re-renders
     bool HasChanged();  // Checks mChanged flag AND if colors changed
     void ClearChanged();
@@ -85,8 +89,9 @@ private:
 
     std::string StripText(const std::string & text);
 
-    char* mBuffer;  //buffer to hold font cached memory.
-    TTF_Font * mTTF_Font;
+    char* mBuffer;  // Kept for binary compatibility, always NULL with FontCache
+    TTF_Font * mTTF_Font;  // Now shared via FontCache, not owned
+    FontCache::FontCacheKey mCacheKey;  // Cache key for this font
     SDL_Color mSDL_FGColor;
     SDL_Color mSDL_BGColor;
     bool mChanged;  // Flag indicating font properties have changed

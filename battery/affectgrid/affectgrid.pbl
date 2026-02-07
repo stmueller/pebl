@@ -4,24 +4,53 @@
 
 define Start(p)
 {
+  gScriptName <- "PEBL Affect Grid"
 
   parpairs <- [["fg","grey20"],
-               ["bg","white"]]
+               ["bg","white"],
+               ["squaresize",60],
+               ["border",5]]
 
   gParams <- CreateParameters(parpairs,gParamFile)
+  gParams.responsemode <- "none"  ## This task uses custom grid interaction, not standard response system
 
   gSleepEasy <- 1
   gWin <- MakeWindow()
+  InitializeLSL(gWin)  ## Initialize LSL outlet if --lsl flag was used
+  InitializeUpload()  ## Initialize token-based hosting if upload.json exists
 
   if(gSubNum+""=="0")
    {
      gSubNum <- GetSubNum(gWin)
    }
 
-  out <-  AffectGrid(60,5,"grey20","white")
+  ## Load translation strings
+  GetStrings(gLanguage)
+
+  ## Create basic layout for header positioning (no response system needed)
+  gLayout <- CreateLayout("affectgrid", gWin, gParams)
+  gLayout.header.text <- gStrings.header
+  gLayout.header.visible <- 1
+  gLayout.subheader.text <- gStrings.subheader
+  gLayout.subheader.visible <- 1
+  gLayout.footer.visible <- 0
+
+  LSLMarker("task_start")
+  out <-  AffectGrid(gParams.squaresize, gParams.border, gParams.fg, gParams.bg)
+  LSLMarker("task_end_pleasure" + First(out) + "_arousal" + Second(out))
+
   MakeDirectory("data")
-  file <- FileOpenAppend("data/affectgrid-data.csv")
-  FilePrint(file,gSubNum+","+TimeStamp()+","+ ConcatenateList(out,","))
+  fileOut <- GetNewDataFile(gSubNum, gWin, "affectgrid", "csv", "subnum,timestamp,pleasure,arousal")
+  FilePrint(fileOut, gSubNum + "," + TimeStamp() + "," + ConcatenateList(out,","))
+  FileClose(fileOut)
+
+  ## Upload data files
+  Print("Uploading data files...")
+  uploadResult <- UploadFile(gSubNum, fileOut.filename)
+  Print(uploadResult)
+
+  ## Finalize LSL
+  FinalizeLSL()
 }
 
 
@@ -37,9 +66,8 @@ define AffectGrid(squaresize:60,border:5, fgcol:"red",bgcol:"white")
    hilight <- MakeColor("red")
    squares <- []
    affect <- []
-   
-   header <- EasyLabel("Click a square that identifies how you are feeling right now",
-                         gVideoWidth/2,100,gWin,50)
+
+   ## Instruction text is displayed in layout subheader (set in Start())
 
     xmin <- gVideoWidth/2 - 4* (squaresize+border)
     ymin <- gVideoHeight/2-4* (squaresize+border)
@@ -54,7 +82,7 @@ define AffectGrid(squaresize:60,border:5, fgcol:"red",bgcol:"white")
 
            tmp <- Square(xmin+(i-1)*(squaresize+border),
 	                 ymin+(j-1)*(squaresize+border),
-			 squaresize,fg,1) 
+			 squaresize,fg,1)
 	   AddObject(tmp,gWin)
 	   PushOnEnd(squares,tmp)
 	   PushOnEnd(affect,[i,10-j,count])
@@ -63,23 +91,23 @@ define AffectGrid(squaresize:60,border:5, fgcol:"red",bgcol:"white")
 
     }
 
-   bottom <- EasyLabel("High Sleepiness",gVideoWidth/2,gVideoHeight/2+(squaresize+border)*5,gWin,25)
-   top <- EasyLabel("High arousal",gVideoWidth/2,gVideoHeight/2-(squaresize+border)*5,gWin,25)
-   right  <- EasyLabel("Pleasant feelings",gVideoWidth/2+(squaresize+border)*5,gVideoHeight/2,gWin,25)
-   left  <- EasyLabel("Unpleasant feelings",gVideoWidth/2-(squaresize+border)*5,gVideoHeight/2,gWin,25)
+   bottom <- EasyLabel(gStrings.high_sleepiness,gVideoWidth/2,gVideoHeight/2+(squaresize+border)*5,gWin,25)
+   top <- EasyLabel(gStrings.high_arousal,gVideoWidth/2,gVideoHeight/2-(squaresize+border)*5,gWin,25)
+   right  <- EasyLabel(gStrings.pleasant_feelings,gVideoWidth/2+(squaresize+border)*5,gVideoHeight/2,gWin,25)
+   left  <- EasyLabel(gStrings.unpleasant_feelings,gVideoWidth/2-(squaresize+border)*5,gVideoHeight/2,gWin,25)
    right.rotation <- 270
    left.rotation <- 270
 
-    bl  <- EasyLabel("depression",gVideoWidth/2-(squaresize+border)*5,
+    bl  <- EasyLabel(gStrings.depression,gVideoWidth/2-(squaresize+border)*5,
                                  gVideoHeight/2+(squaresize+border)*5,gWin,20)
-    br  <- EasyLabel("relaxation",gVideoWidth/2+(squaresize+border)*5,
+    br  <- EasyLabel(gStrings.relaxation,gVideoWidth/2+(squaresize+border)*5,
                                      gVideoHeight/2+(squaresize+border)*5,gWin,20)
-    tl  <- EasyLabel("stress",gVideoWidth/2-(squaresize+border)*5,
+    tl  <- EasyLabel(gStrings.stress,gVideoWidth/2-(squaresize+border)*5,
                              gVideoHeight/2-(squaresize+border)*5,gWin,20)
-    tr  <- EasyLabel("excitement",gVideoWidth/2+(squaresize+border)*5,
+    tr  <- EasyLabel(gStrings.excitement,gVideoWidth/2+(squaresize+border)*5,
                                      gVideoHeight/2-(squaresize+border)*5,gWin,20)
-    ok <- EasyLabel("OK",gVideoWidth/2,gVideoHeight-150,gWin,40)
-   hit <-  Square(0,0, squaresize,hilight,1) 
+    ok <- EasyLabel(gStrings.ok,gVideoWidth/2,gVideoHeight-150,gWin,40)
+   hit <-  Square(0,0, squaresize,hilight,1)
    AddObject(hit,gWin)
    Hide(hit)
    Hide(ok)
@@ -88,6 +116,7 @@ define AffectGrid(squaresize:60,border:5, fgcol:"red",bgcol:"white")
    Draw()
    lastclick <- 0
    cont <- 1
+   LSLMarker("grid_display")
    while(cont == 1)
    {
 
@@ -97,12 +126,14 @@ define AffectGrid(squaresize:60,border:5, fgcol:"red",bgcol:"white")
       {
         resp <- lastclick
 	cont <- 0
+        LSLMarker("response_confirmed_pleasure" + First(resp) + "_arousal" + Second(resp))
       }else{
-       
+
         lastclick <- resp
 	square <- Nth(squares,Third(resp))
 	Move(hit,square.x,square.y)
 	Show(hit)
+        LSLMarker("grid_click_pleasure" + First(resp) + "_arousal" + Second(resp))
 
       }
 
@@ -115,4 +146,10 @@ define AffectGrid(squaresize:60,border:5, fgcol:"red",bgcol:"white")
        }
    }
    return SubList(resp,1,2)
+}
+
+
+define GetStrings(lang)
+{
+  gStrings <- GetTranslations("affectgrid", lang)
 }

@@ -41,6 +41,8 @@ define Start(p)
   gParams.responsesemantics <- "gonogo"  ## Single-key response (respond to targets, ignore non-targets)
 
   gWin <- MakeWindow("black")
+  InitializeLSL(gWin)  ## Initialize LSL outlet if --lsl flag was used (shows prompt)
+
   gBasecolor <- MakeColor("white")
   gTargcol <- MakeColor("red")
 
@@ -178,13 +180,16 @@ define Start(p)
     hit <- 0
     corrs <- 0
 
+  LSLMarker("block_test_start")
   while(trial <= gParams.trials)
   {
+    LSLMarker("trial_" + trial + "_skip" + doskip + "_start")
    ##compute seconds/clock position, and move there.
     second <- Mod(ticker,60)
     pos <- GetXY(second)
     Move(targ,First(pos),Second(pos))
     Show(targ)
+    LSLMarker("stimulus_sec" + second + "_skip" + doskip)
     Draw()
 
     ##cycle should end 1000 ms after current
@@ -200,10 +205,12 @@ define Start(p)
      {
        pressed <- 0
        resp <- 0
+       LSLMarker("response_none")
      } else {
        ## Response was made (any mode) - give visual feedback
        pressed <- 1
        resp <- 1
+       LSLMarker("response_keypress")
 
        ## Visual feedback: briefly make label bold
        if(VariableExists("gResponseLabel"))
@@ -222,6 +229,18 @@ define Start(p)
     corrs <- corrs + corr
     hit <- hit + (doskip and corr)
     fa <- fa + ((not doskip) and (not corr))
+
+    ## LSL markers for trial accuracy
+    if(doskip and corr)
+    {
+      LSLMarker("trial_hit")
+    } elseif(doskip and not corr) {
+      LSLMarker("trial_miss")
+    } elseif((not doskip) and (not corr)) {
+      LSLMarker("trial_falsealarm")
+    } else {
+      LSLMarker("trial_correctrejection")
+    }
 
     if(resp== 1 and corr)
     {
@@ -249,12 +268,15 @@ define Start(p)
     ticker <- ticker + doskip + 1
     dataTargets <- dataTargets + doskip
 
+    LSLMarker("trial_" + (trial-1) + "_end")
+
     ##Do a brief disappear of the target.
 
     Hide(targ)
     Draw()
     Wait(400)
   }
+  LSLMarker("block_test_end")
 
   text <- "PEBL Mackworth Clock Test "+ CR(1)+
           TimeStamp()+CR(1)+
@@ -271,12 +293,19 @@ define Start(p)
 
    report <- FileOpenAppend("data/"+ gSubNum+"/clock-report-"+gSubNum+".txt")
    FilePrint(report,text)
+
+
+   ## Finalize LSL
+   FinalizeLSL()
+
+   ## Close files before upload (required for Windows file locking compatibility)
    FileClose(report)
+   FileClose(fileout)
 
    ## Upload data files (works online, no-op on native)
-   UploadFile(gSubNum, "data/" + gSubNum + "/clock-" + gSubNum + ".csv")
-   UploadFile(gSubNum, "data/" + gSubNum + "/clock-report-" + gSubNum + ".txt")
-
+   ## Note: .filename property persists after FileClose(), so this is safe
+   UploadFile(gSubNum, fileout.filename)
+   UploadFile(gSubNum, report.filename)
    Draw()
    WaitForLayoutResponse(gLayout)
 

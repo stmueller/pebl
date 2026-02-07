@@ -49,6 +49,7 @@ define Start(p)
    gparams <- CreateParameters(parpairs,gParamFile)
    gSleepEasy <- 1
    gWin <- MakeWindow("black")
+   InitializeLSL(gWin)  ## Initialize LSL outlet if --lsl flag was used (shows prompt)
    InitializeUpload()  ## Initialize token-based hosting if upload.json exists
 
    if(gSubNum+""=="0")
@@ -110,6 +111,7 @@ define Start(p)
   trial <- 0
   block <- "P"
 
+  LSLMarker("block_practice1_start")
   loop(i,Sequence(1,10,1))
    {
       direction <- Sample([-1,1])
@@ -122,10 +124,12 @@ define Start(p)
       }
       FilePrint(gFileOut,"")
    }
+  LSLMarker("block_practice1_end")
 
   MessageBox(gStrings.inst2,gWin)
 
   ShowCursor(0)
+  LSLMarker("block_practice2_start")
   loop(i,Sequence(1,gParams.numpractice,1))
    {
       direction <- Sample([-1,1])
@@ -138,6 +142,7 @@ define Start(p)
       }
       FilePrint(gFileOut,"")
    }
+  LSLMarker("block_practice2_end")
 
   MessageBox(gStrings.inst3,gWin)
 
@@ -145,6 +150,7 @@ define Start(p)
   trial <- 1
   block <- "T"
   data <- []
+  LSLMarker("block_test_start")
   loop(i,Sequence(1,gParams.numtrials,1))
   {
       direction <- Sample([-1,1])
@@ -161,6 +167,8 @@ define Start(p)
       FilePrint(gFileOut,"")
       trial <- trial + 1
    }
+   LSLMarker("block_test_end")
+
    tdat <- Transpose(data)
    correct <- Mean(Nth(tdat,9))
    correctBi <- Mean(Nth(tdat,10))
@@ -184,6 +192,9 @@ define Start(p)
    out <- UploadFile(gSubNum, gFileOut.filename); Print(out)
    out <- UploadFile(gSubNum, reportFile.filename); Print(out)
 
+   ## Finalize LSL
+   FinalizeLSL()
+
    MessageBox(gStrings.debrief+Round(correct,3),gWin)
 
 }
@@ -195,6 +206,7 @@ define Start(p)
 define Trial(side, direction,promptdelay, stimduration)
 {
 
+    LSLMarker("trial_side" + side + "_dir" + direction + "_start")
 
     Show(gFixation)
     ##Move prompt to opposite side.
@@ -209,16 +221,19 @@ define Trial(side, direction,promptdelay, stimduration)
     Hide(arrow)
 
     Draw()
+    LSLMarker("fixation_start")
     time0a <- GetTime()
 
     Wait(delay)
     Hide(gFixation)
     Show(gPrompt)
     Draw()
+    LSLMarker("cue_side" + (-side))
     time0b <- GetTime()
     Wait(promptdelay)
     Show(arrow)
     Draw()
+    LSLMarker("target_dir" + direction + "_side" + side)
     time0c <- GetTime()
     ##we need to show the mask 'in the background' in case
     ## we have a fast response.
@@ -231,6 +246,7 @@ define Trial(side, direction,promptdelay, stimduration)
     ShowStim(arrow,gMask)
     time2 <- GetTime()
 
+    LSLMarker("response_" + resp)
 
     correctresp <- Lookup(direction,gStim,gKeys)
     correct <- (correctresp == resp)
@@ -244,6 +260,14 @@ define Trial(side, direction,promptdelay, stimduration)
                                 ["h","h","v","v"])
 
     bivalentcorr <- (bivalentdir==bivalentresp)
+
+    if(correct)
+    {
+      LSLMarker("trial_correct")
+    } else {
+      LSLMarker("trial_error")
+    }
+
     Hide(gMask)
     Draw()
 

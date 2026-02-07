@@ -116,61 +116,34 @@ unsigned long int readFileToMemory(const char path[], char ** buffr){
 ///Convenience constructor of PlatformFont:
 PlatformFont::PlatformFont(const std::string & filename, int style, int size, PColor fgcolor, PColor bgcolor, bool aa):
     PFont(filename, style, size, fgcolor, bgcolor, aa),
-    mChanged(false),
-    mBuffer(NULL)
+    mBuffer(nullptr),
+    mChanged(false)
 
 {
-
     string fontname = Evaluator::gPath.FindFile(mFontFileName);
     if(fontname == "")
         PError::SignalFatalError(string("Unable to find font file [")  + mFontFileName + string("]."));
 
-    //These convert above properties to sdl-specific font
-    //Open the font.  Should do error checking here.
+    // Create cache key from base class properties (after PFont constructor)
+    mCacheKey.filename = mFontFileName;
+    mCacheKey.style = mFontStyle;
+    mCacheKey.size = mFontSize;
 
-    int tries = 0;
-    mTTF_Font = NULL;
-
-    while(!mTTF_Font & (tries < 10))
-        {
-
-
-            unsigned long int size =  readFileToMemory(fontname.c_str(), &mBuffer);
-
-            SDL_RWops *rw = SDL_RWFromMem(mBuffer,(int)size);
-            //            SDL_RWops * src = NULL;
-
-            //            if (rw != NULL) {
-            //
-            //                SDL_RWread(rw, src, sizeof (buf));
-            //                SDL_RWclose(rw);
-            //            }
-            //            SDL_RWops * src = SDL_RWFromFile(fontname.c_str(),"r");
-
-            //src->close();
-
-            mTTF_Font = TTF_OpenFontRW(rw,1,mFontSize); //0 indicates to leave the RW memory stream open 
-            //SDL_RWclose(rw);  //close the memory stream immediately. file when we are done.
-            //free( buffr);
-            tries++;
-        }
+    // Get font from cache (will load from disk if not cached)
+    mTTF_Font = FontCache::FontCacheManager::GetInstance().GetFont(mCacheKey, fontname);
 
     if(!mTTF_Font)
         {
-
             printf("Oh My Goodness, an error : [%s]\n", TTF_GetError());
             PError::SignalFatalError("Failed to create font\n");
         }
 
-    // Modern Emscripten (2.0+) supports TTF_SetFontStyle
-    TTF_SetFontStyle(mTTF_Font, mFontStyle);
-
    //Translate PColor to SDLcolor for direct use in rendering.
     PColor* fgColor = GetFontColorPtr();
     PColor* bgColor = GetBackgroundColorPtr();
+
     if(fgColor) mSDL_FGColor = SDLUtility::PColorToSDLColor(*fgColor);
     if(bgColor) mSDL_BGColor = SDLUtility::PColorToSDLColor(*bgColor);
-
 }
 
 
@@ -178,8 +151,8 @@ PlatformFont::PlatformFont(const std::string & filename, int style, int size, PC
 ///Copy constructor of PlatformFont:
  PlatformFont::PlatformFont(PlatformFont & font):
     PFont(font),  // Chain to base class copy constructor which handles colors
-    mChanged(false),
-    mBuffer(NULL)
+    mBuffer(nullptr),
+    mChanged(false)
 
 {
     mFontFileName    = font.GetFontFileName();
@@ -187,10 +160,14 @@ PlatformFont::PlatformFont(const std::string & filename, int style, int size, PC
     mFontSize        = font.GetFontSize();
     mAntiAliased     = font.GetAntiAliased();
 
-    //These convert above properties to sdl-specific font
-    //Open the font.  Should do error checking here.
-    mTTF_Font  = TTF_OpenFont(mFontFileName.c_str(), mFontSize);
-    TTF_SetFontStyle(mTTF_Font, mFontStyle);
+    // Create cache key from font properties
+    mCacheKey.filename = mFontFileName;
+    mCacheKey.style = mFontStyle;
+    mCacheKey.size = mFontSize;
+
+    // Get font from cache (may share TTF_Font with source font)
+    string fontname = Evaluator::gPath.FindFile(mFontFileName);
+    mTTF_Font = FontCache::FontCacheManager::GetInstance().GetFont(mCacheKey, fontname);
 
     //Translate PColor to SDLcolor for direct use in rendering.
     PColor* fgColor = GetFontColorPtr();
@@ -205,13 +182,14 @@ PlatformFont::PlatformFont(const std::string & filename, int style, int size, PC
 ///Standard destructor of PlatformFont
 PlatformFont::~PlatformFont()
 {
-
-
-    TTF_CloseFont(mTTF_Font);
+    // Release font from cache (decrements ref count, closes if ref count reaches 0)
+    FontCache::FontCacheManager::GetInstance().ReleaseFont(mCacheKey);
     mTTF_Font = NULL;
 
-    free( mBuffer);
-    mBuffer=NULL;
+    // mBuffer is always nullptr with FontCache, but we keep it for binary compatibility
+    // free(nullptr) is safe and does nothing
+    free(mBuffer);
+    mBuffer = NULL;
 }
 
 
@@ -247,22 +225,44 @@ void PlatformFont::SetBackgroundColor(PColor color)
 ///Override SetFontSize to update TTF font and mark as changed
 void PlatformFont::SetFontSize(const int size)
 {
+    // If size unchanged, nothing to do
+    if (size == mFontSize) return;
+
     //Chain up to parent method
     PFont::SetFontSize(size);
 
-    //Update SDL_ttf font size
-    TTF_SetFontSize(mTTF_Font, size);
+    // Release old cached font
+    FontCache::FontCacheManager::GetInstance().ReleaseFont(mCacheKey);
+
+    // Update cache key with new size
+    mCacheKey.size = size;
+
+    // Get new cached font with new size
+    string fontname = Evaluator::gPath.FindFile(mFontFileName);
+    mTTF_Font = FontCache::FontCacheManager::GetInstance().GetFont(mCacheKey, fontname);
+
     mChanged = true;  // Mark font as changed to trigger re-rendering
 }
 
 ///Override SetFontStyle to update TTF font and mark as changed
 void PlatformFont::SetFontStyle(const int style)
 {
+    // If style unchanged, nothing to do
+    if (style == mFontStyle) return;
+
     //Chain up to parent method
     PFont::SetFontStyle(style);
 
-    //Update SDL_ttf font style (bold, italic, underline)
-    TTF_SetFontStyle(mTTF_Font, style);
+    // Release old cached font
+    FontCache::FontCacheManager::GetInstance().ReleaseFont(mCacheKey);
+
+    // Update cache key with new style
+    mCacheKey.style = style;
+
+    // Get new cached font with new style
+    string fontname = Evaluator::gPath.FindFile(mFontFileName);
+    mTTF_Font = FontCache::FontCacheManager::GetInstance().GetFont(mCacheKey, fontname);
+
     mChanged = true;  // Mark font as changed to trigger re-rendering
 }
 

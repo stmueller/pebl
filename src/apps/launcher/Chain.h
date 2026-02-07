@@ -81,12 +81,16 @@ public:
     int GetItemCount() const { return static_cast<int>(mItems.size()); }
     int GetParticipantCounter() const { return mParticipantCounter; }
     bool GetUploadEnabled() const { return mUploadEnabled; }
+    bool GetLSLEnabled() const { return mLSLEnabled; }
+    const std::string& GetLSLStreamName() const { return mLSLStreamName; }
 
     // Setters
     void SetName(const std::string& name) { mName = name; }
     void SetDescription(const std::string& desc) { mDescription = desc; }
     void SetParticipantCounter(int counter) { mParticipantCounter = counter; }
     void SetUploadEnabled(bool enabled) { mUploadEnabled = enabled; }
+    void SetLSLEnabled(bool enabled) { mLSLEnabled = enabled; }
+    void SetLSLStreamName(const std::string& name) { mLSLStreamName = name; }
 
     // Increment participant counter and save
     void IncrementParticipantCounter();
@@ -119,6 +123,10 @@ private:
 
     // Upload configuration
     bool mUploadEnabled;         // Whether to upload data for tests in this chain
+
+    // LSL configuration
+    bool mLSLEnabled;            // Whether to use LSL streaming for tests in this chain
+    std::string mLSLStreamName;  // Stream name template (supports {test}, {subject} placeholders)
 };
 
 #endif // CHAIN_H

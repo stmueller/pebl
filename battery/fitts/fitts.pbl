@@ -47,6 +47,7 @@ define Start(p)
   fgcol <- MakeColor("grey80")
 
   gWin <- MakeWindow(bgcol)
+  InitializeLSL(gWin)  ## Initialize LSL outlet if --lsl flag was used (shows prompt)
 
   ##Get subject code if we need to:
     if(gSubNum+""=="0")
@@ -109,6 +110,7 @@ define Start(p)
   trials <- Shuffle(RepeatList(cond,reps))
   l <- Length(trials)
   i <- 1
+  LSLMarker("block_test_start")
   loop(trial,trials)
   {
     gCounter.text <- gStrings.trial+" [" + i + "] "+gStrings.of+" "+l
@@ -116,15 +118,19 @@ define Start(p)
     Trial(i, First(trial),Nth(trial,2),testtype)
     i <- i + 1
   }
+  LSLMarker("block_test_end")
   ShowCursor(1)
   FileClose(gFileOut)
   FileClose(gPointFile)
 
+  ## Finalize LSL
+  FinalizeLSL()
+
   ## Upload data files (works online, no-op on native)
   datafile <- gFileOut.filename
   pointfile <- gPointFile.filename
-  UploadFile(gSubNum, datafile, "/upload.json")
-  UploadFile(gSubNum, pointfile, "/upload.json")
+  UploadFile(gSubNum, datafile)
+  UploadFile(gSubNum, pointfile)
 
   ## Debrief
   MessageBox(gStrings.debrief, gWin)
@@ -148,6 +154,7 @@ define ListEqual(l1,l2)
 
 define Trial(trial, pos, size,type)
 {
+   LSLMarker("trial_" + trial + "_pos" + pos + "_size" + size + "_start")
 
    ##Type == 1: OS mouse; don't log cursor; trial end wih click
    ##Type == 2: crosshairs mouse; requires clicking.
@@ -187,6 +194,7 @@ define Trial(trial, pos, size,type)
    Draw()
    WaitForMouseMovement()
 
+   LSLMarker("stimulus_present")
    Show(targ)
    Show(targ0)
    Hide(gMessage)
@@ -277,6 +285,8 @@ define Trial(trial, pos, size,type)
 
      FilePrint_(gFileOut,type+ "," +pos + "," + size + "," + gShowPreview  + "," +First(mousepos) + "," + Nth(mousepos,2) + "," + clicks + ",")
      FilePrint(gFileOut,(endtime - start))
+
+   LSLMarker("trial_" + trial + "_end_clicks" + clicks)
 
    RemoveObject(targ,gWin)
    RemoveObject(targ0,gWin)

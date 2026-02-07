@@ -1056,16 +1056,6 @@ define Inside(click,object)
 }
 
 
-define Dist(a,b)
-{
-  if((not IsList(a)) or (not IsList(b)))
-   {
-     SignalFatalError("Arguments of Dist(a,b) must both be [x,y] lists.")
-   }
-  return   Sqrt((First(a)-First(b))^2 + (Second(a) -Second(b))^2)
-}
-
-
 ## This will read a CSV file into a nested list.  The CSV file should
 ## allow quoted text, and not break on commas within quotes.
 
@@ -1393,20 +1383,27 @@ define WaitForButtonClickOnTarget(targetlist,keylist)
 
 
 
-##  This just waits for a 'down' click.
-##
-define WaitForDownClick()
+## Wait for a mouse button press using RegisterEvent/StartEventLoop pattern
+## Returns mouse event [x, y, button, "<pressed>"] if clicked, or "<timeout>" if timeout expires
+## This replaces the old while loop implementation with event-based approach for Emscripten compatibility
+define WaitForDownClick(timeout:0)
 {
-   continue <- 1
-   while(continue)
-    {
-	x <- WaitForMouseButton()
-        if(Nth(x,4) == "<pressed>")
-        {
-         continue <- 0
-        }
-    }
-     return x
+	## Register mouse button press event
+	RegisterEvent("<MOUSE_BUTTON_PRESS>", 1, 1, "<EQUAL>", "", [])
+
+	## Register timeout if specified
+	if(timeout > 0)
+	{
+		endtime <- GetTime() + timeout
+		RegisterEvent("<TIMER>", 1, endtime, "<GEQ>", "", [])
+	}
+
+	## Start event loop and wait for response
+	resp <- StartEventLoop()
+	ClearEventLoop()
+
+	## Return the event response (mouse event list or "<timeout>")
+	return(resp)
 }
 
 
@@ -1489,19 +1486,21 @@ define CountDown(win,usebg:1)
     SignalFatalError("CountDown(win) needs a window to be specified, not [" + win + "]")
   }
 
-    ## Use layout center if available, otherwise fall back to video center
-    centerX <- gVideoWidth/2
-    centerY <- gVideoHeight/2
+
+
+    ##put the counter at centerX/Y if they exist.
+     x <- gVideoWidth/2
+     y <- gVideoHeight/2
     if(VariableExists("gLayout"))
     {
-      if(PropertyExists(gLayout,"centerx"))
-      {
-        centerX <- gLayout.centerX
-      }
-      if(PropertyExists(gLayout,"centery"))
-      {
-        centerY <- gLayout.centerY
-      }
+        if(PropertyExists(gLayout,"centerx"))
+	{
+	  x <- gLayout.centerX
+	}
+	if(PropertyExists(gLayout,"centery"))
+	{
+	 y <- gLayout.centerY
+	}
     }
 
     bgcol <- win.BGCOLOR
@@ -1511,7 +1510,7 @@ define CountDown(win,usebg:1)
       AddObject(rect,win)
     }
 
-    label <- EasyLabel("",centerX,centerY,win,100)
+    label <- EasyLabel("",x,y,win,100)
     labs <- [3,2,1]
     loop(i,labs)
      {
@@ -1633,9 +1632,31 @@ define MakeParameterObject(pairs)
 
 	if(not val=="")
         {
+         ## Only try numeric conversion if value looks numeric
+         ## This prevents warnings when loading non-numeric parameters like "auto" or lists
+         fval <- 0
+         shouldConvert <- 0
 
-         fval <- ToNumber(val)
-         if(IsFloat(fval) and fval <> 0.0)
+         if(IsNumber(val))
+         {
+             fval <- val
+             shouldConvert <- 1
+         } elseif(IsString(val))
+         {
+             ## Only check length/convert if it's actually a string
+             if(StringLength(val) > 0)
+             {
+                 firstChar <- SubString(val, 1, 1)
+                 ## Check if starts with digit, minus, or period (potential number)
+                 if(IsMember(firstChar, ["0","1","2","3","4","5","6","7","8","9","-","."]))
+                 {
+                     fval <- ToNumber(val)
+                     shouldConvert <- 1
+                 }
+             }
+         }
+
+         if(shouldConvert and IsFloat(fval) and fval <> 0.0)
 	 {
           ##if the value is really 0.0, then we handle it elsewhere; it should
 	  ##probably be fine if handled via the string route below.
@@ -1784,25 +1805,6 @@ define GetNewDataFile(subraw,win,basename,extension,header)
 
 
 ##
-##
-define DrawObject(p)
-{
-
-  if(IsCustomObject(p))
-   {
-     if(PropertyExists(p,"draw"))
-     {
-      CallFunction(p.draw,[p])
-     }else {
-      Draw(p)
-     }
-   }else{
-    Draw(p)
-  }
-}
-
-
-##
 define MoveObject(p,x,y)
 {
   if(IsCustomObject(p))
@@ -1846,12 +1848,12 @@ define ReadTranslation(filename,lang)
   }
 
   stringlist <- ReadCSV(filename)
- # Print(stringlist)
+  Print(stringlist)
   cr <- CR(1)
- # Print(stringlist)
+  Print(stringlist)
   loop(i,stringlist)
   {
-   #  Print(i)
+     Print(i)
     ##Add CR to the
      text <- Second(i)
      text2 <- FormatText(text)
@@ -2504,6 +2506,242 @@ define Indent(level)
             result <- result + "  "
         }
     }
+    return(result)
+}
+
+## Create a font family object with all style variants (normal, bold, italic, bold+italic)
+## This is useful for markdown rendering or any text that needs to switch between styles
+## Without repeatedly creating/destroying fonts.
+##
+## Parameters:
+##   filename - Font filename (e.g., "DejaVuSans.ttf")
+##   size - Point size (e.g., 24)
+##   fgcolor - Foreground color (e.g., MakeColor("black"))
+##   bgcolor - Background color (e.g., MakeColor("white"))
+##   antialiased - Enable antialiasing (1=yes, 0=no)
+##
+## Returns:
+##   Custom object with properties: normal, bold, italic, bolditalic
+##
+## Usage:
+##   family <- MakeFontFamily("DejaVuSans.ttf", 24, MakeColor("black"), MakeColor("white"), 1)
+##   normalLabel <- MakeLabel("Regular text", family.normal)
+##   boldLabel <- MakeLabel("Bold text", family.bold)
+##   italicLabel <- MakeLabel("Italic text", family.italic)
+##   bothLabel <- MakeLabel("Bold italic text", family.bolditalic)
+##
+## Benefits:
+##   - All 4 variants pre-created once, reusable throughout program
+##   - FontCache automatically shares underlying TTF_Font objects
+##   - No repeated create/destroy overhead when switching styles
+##   - Essential for markdown rendering with inline formatting
+##
+define MakeFontFamily(filename, size, fgcolor, bgcolor, antialiased)
+{
+    family <- MakeCustomObject("fontfamily")
+
+    ## Font style constants: PFS_Normal=0, PFS_Bold=1, PFS_Italic=2
+    ## Bold+Italic = PFS_Bold + PFS_Italic = 3
+    SetProperty(family, "normal", MakeFont(filename, 0, size, fgcolor, bgcolor, antialiased))
+    SetProperty(family, "bold", MakeFont(filename, 1, size, fgcolor, bgcolor, antialiased))
+    SetProperty(family, "italic", MakeFont(filename, 2, size, fgcolor, bgcolor, antialiased))
+    SetProperty(family, "bolditalic", MakeFont(filename, 3, size, fgcolor, bgcolor, antialiased))
+
+    return(family)
+}
+
+##############################################################################
+## Lab Streaming Layer (LSL) Support Functions
+##############################################################################
+##
+## LSL provides synchronized multi-modal data acquisition for neuroscience.
+## These wrapper functions follow the "UploadFile() pattern" - they are always
+## callable but only execute when --lsl flag is set on command line.
+##
+## Usage:
+##   1. Run PEBL with --lsl flag:
+##      bin/pebl2 battery/gonogo/gonogo.pbl -s 123 --lsl "PEBL_gonogo"
+##
+##   2. Add to your experiment:
+##      InitializeLSL()           ## At experiment start
+##      LSLMarker("trial_start")  ## Send markers
+##      FinalizeLSL()             ## At experiment end (optional)
+##
+## These functions check gLSLEnabled before calling C++ functions, providing
+## zero-overhead when LSL is disabled.
+##
+
+## InitializeLSL() - Initialize LSL outlet at experiment start
+##
+## This should be called once at the beginning of your experiment, after
+## parameter initialization but before the first trial.
+##
+## Behavior:
+##   - If --lsl flag was NOT set: Returns immediately (no-op)
+##   - If --lsl flag was set: Creates LSL outlet with stream name
+##   - Stream name comes from command-line (--lsl "MyStream") or auto-generates
+##     from gScriptName if no custom name provided
+##
+## Returns:
+##   1 if LSL outlet was successfully created, 0 otherwise
+##
+## Example:
+##   InitializeLSL()
+##   MessageBox("Instructions...", gWin)
+##   ## Now LSL is ready to receive markers
+##
+define InitializeLSL(win:0)
+{
+    ## Check if LSL was enabled via command-line flag
+    if(not gLSLEnabled)
+    {
+        success <- 0  ## LSL not enabled, no-op
+    } else {
+        ## Auto-generate stream name if not provided via command line
+        streamName <- gLSLStreamName
+        if(streamName == "")
+        {
+            ## Extract script base name from gScriptName
+            ## gScriptName may include path (e.g., "./battery/gonogo/gonogo.pbl")
+            ## So extract just the filename without path or extension
+            parts <- SplitString(gScriptName, "/")
+            filename <- Last(parts)
+            ## Remove .pbl extension
+            nameParts <- SplitString(filename, ".")
+            basename <- First(nameParts)
+            streamName <- "PEBL_" + basename
+        }
+
+        ## Create LSL outlet FIRST (before showing prompt)
+        ## This allows LabRecorder to discover the stream before experimenter clicks OK
+        ## type="Markers" for event markers
+        ## source_id="" to auto-generate unique ID
+        success <- CreateLSLOutlet(streamName, "Markers", "")
+
+        if(success)
+        {
+            ## Show prompt for experimenter to start LabRecorder (if window provided)
+            ## Stream is already created and discoverable at this point
+            if(IsWindow(win))
+            {
+                bgcol <- win.BGCOLOR
+                overlay <- Rectangle(gVideoWidth/2, gVideoHeight/2, gVideoWidth, gVideoHeight, bgcol, 1)
+                AddObject(overlay, win)
+
+                ## Get foreground color (white for dark backgrounds, black for light)
+                val <- Max([bgcol.RED, bgcol.GREEN, bgcol.BLUE])
+                if(val <= 100)
+                {
+                    fgcol <- MakeColor("white")
+                } else {
+                    fgcol <- MakeColor("black")
+                }
+
+                ## Create message box
+                message <- "LSL STREAMING ENABLED" + CR(2) +
+                           "Stream name: " + streamName + CR(2) +
+                           "The LSL stream is now active and visible in LabRecorder." + CR(2) +
+                           "Please:" + CR(1) +
+                           "  1. Open LabRecorder (or your LSL recording software)" + CR(1) +
+                           "  2. You should see the stream '" + streamName + "' in the list" + CR(1) +
+                           "  3. Select it and click 'Start' to begin recording" + CR(1) +
+                           "  4. Then click below to continue with the experiment"
+
+                textbox <- EasyTextBox(message, 100, 100, win, 20, gVideoWidth-200, gVideoHeight-300, fgcol, bgcol)
+
+                ## OK button
+                okLabel <- EasyLabel("Click here when LabRecorder is recording", gVideoWidth/2, gVideoHeight-100, win, 24, fgcol)
+                okBack <- Rectangle(gVideoWidth/2, gVideoHeight-100, okLabel.width+40, 50, fgcol, 0)
+                AddObject(okBack, win)
+
+                Draw()
+                ShowCursor(1)
+                WaitForClickOnTarget([okBack], [1])
+
+                ## Clean up
+                RemoveObject(textbox, win)
+                RemoveObject(okLabel, win)
+                RemoveObject(okBack, win)
+                RemoveObject(overlay, win)
+                Draw()
+            }
+            Print("LSL outlet created: [" + streamName + "]")
+        } else {
+            Print("WARNING: LSL outlet creation failed")
+        }
+    }
+
+    return(success)
+}
+
+
+## LSLMarker(marker) - Send an event marker to LSL stream
+##
+## This is the primary function for sending markers during your experiment.
+## Call it at important experimental events (trial start, stimulus onset,
+## response, etc.)
+##
+## Arguments:
+##   marker - String or integer marker to send
+##            Examples: "trial_start", "stimulus_onset", "correct_response", 1, 2
+##
+## Behavior:
+##   - If --lsl flag was NOT set: Returns immediately (no-op, zero overhead)
+##   - If --lsl flag was set: Sends marker with automatic LSL timestamp
+##
+## Returns:
+##   1 if marker was sent, 0 otherwise
+##
+## Example:
+##   LSLMarker("trial_start")
+##   ## Show stimulus
+##   LSLMarker("stimulus_onset")
+##   response <- WaitForKeyPress(["<lshift>", "<rshift>"])
+##   LSLMarker("response_" + response)
+##
+define LSLMarker(marker)
+{
+    ## Check if LSL was enabled via command-line flag
+    if(not gLSLEnabled)
+    {
+        result <- 0  ## LSL not enabled, no-op
+    } else {
+        ## Send marker to LSL stream (automatically timestamped by LSL)
+        result <- SendLSLMarker(marker)
+    }
+
+    return(result)
+}
+
+
+## FinalizeLSL() - Clean up LSL outlet at experiment end
+##
+## This is optional but recommended for clean shutdown. Call it at the end
+## of your experiment after all markers have been sent.
+##
+## Behavior:
+##   - If --lsl flag was NOT set: Returns immediately (no-op)
+##   - If --lsl flag was set: Closes LSL outlet and releases resources
+##
+## Returns:
+##   1 on success
+##
+## Example:
+##   MessageBox("Thank you for participating!", gWin)
+##   FinalizeLSL()
+##
+define FinalizeLSL()
+{
+    ## Check if LSL was enabled via command-line flag
+    if(not gLSLEnabled)
+    {
+        result <- 0  ## LSL not enabled, no-op
+    } else {
+        ## Close LSL outlet
+        result <- CloseLSLOutlet()
+        Print("LSL outlet closed")
+    }
+
     return(result)
 }
 

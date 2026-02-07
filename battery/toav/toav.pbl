@@ -187,6 +187,7 @@ define Start(lPar)
 
     half <- 1
     Wait(2000)
+    LSLMarker("block_test_start")
     trialnum <- 0
     loop(i,stim)
     {
@@ -195,6 +196,7 @@ define Start(lPar)
      if(trialnum == gParams.numCommon+gParams.numRare)
      {
         half <- 2
+        LSLMarker("half_2_start")
      }
 
       resp1     <- 0  ## Was there a response during initial presentation?
@@ -212,6 +214,7 @@ define Start(lPar)
       ### Target
       ###
 
+      LSLMarker("trial_" + trialnum + "_target")
       DrawTarg()
       ## Stimulus presentation window (100ms)
       r1 <- WaitForListKeyPressWithTimeout([" "],100,1)
@@ -233,6 +236,7 @@ define Start(lPar)
       ### Foil
       ###
 
+      LSLMarker("trial_" + trialnum + "_foil")
       DrawFoil()
       ## Stimulus presentation window (100ms)
       r1 <- WaitForListKeyPressWithTimeout([" "],100,1)
@@ -283,6 +287,7 @@ define Start(lPar)
      }
 
      corr <- (i == responded)
+     LSLMarker("response_corr" + corr + "_rt" + rt)
      FilePrint(datafile,gSubNum + "," + trialnum + "," + i + "," + toofast + "," +  responded + "," + corr + "," + mult + "," + timeStart + "," + rt)
 
      ##Now, update counters/structures. based on the stats
@@ -349,7 +354,14 @@ define Start(lPar)
 
     trialNum <- trialNum + 1
  }
+ LSLMarker("block_test_end")
 
+ ## Finalize LSL
+ FinalizeLSL()
+
+   ## Close files before upload (required for Windows file locking compatibility)
+   FileClose(datafile)
+   FileClose(reportfile)
 
 ##Print out report
    FilePrint(reportfile,"---------------------------------------------------")
@@ -388,6 +400,7 @@ define Start(lPar)
    Draw()
 
    ## Upload data files (works online, no-op on native)
+   ## Note: .filename property persists after FileClose(), so this is safe
    UploadFile(gSubNum, "data/" + gSubNum + "/toav-" + gSubNum + ".csv")
    UploadFile(gSubNum, "data/" + gSubNum + "/toav-report-" + gSubNum + ".txt")
 
@@ -402,6 +415,7 @@ define Initialize()
 {
   ##Initialize Window, etc.
   gWin <- MakeWindow("black")
+  InitializeLSL(gWin)  ## Initialize LSL outlet if --lsl flag was used
 
   ##Initialize Font and colors
 

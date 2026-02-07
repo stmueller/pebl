@@ -336,17 +336,17 @@ define Start(p)
    ## Finalize LSL
    FinalizeLSL()
 
-#   MessageBox("This output only provided for testing.  Uncomment for deployment"+CR(1)+text,gWin)
-   MessageBox(gExitText,gWin)
-
    ## Close and upload data files
    FileClose(gFileOut)
    FileClose(gSumFileOut)
    FileClose(filesum)
 
-   UploadFile(gSubNum, "data/" + gSubNum + "/vstroop-" + gSubNum + ".csv")
-   UploadFile(gSubNum, "data/" + gSubNum + "/vstroop-report-" + gSubNum + ".txt")
-   UploadFile(gSubNum, "data/stroop-v-all.csv")
+   UploadFile(gSubNum, gFileOut.filename)
+   UploadFile(gSubNum, gSumFileOut.filename)
+   UploadFile(gSubNum, filesum.filename)
+
+#   MessageBox("This output only provided for testing.  Uncomment for deployment"+CR(1)+text,gWin)
+   MessageBox(gExitText,gWin)
 }
 
 

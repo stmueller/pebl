@@ -21,21 +21,33 @@ define Start(p)
 		["largesize",160],
 		["doyoked",0],
 		["stimtype",3],
-		["type4offset",40]]
+		["type4offset",40],
+		["dim1keys",["1","2"]],
+		["dim2keys",["9","0"]]]
 
   gParams <- CreateParameters(parpairs,gParamFile)
   trialsperblock <- gParams.trialsperblock
 
   gParams.stimtype<-4
+
+  ## Create window BEFORE calling CreateLayout
+  gWin<- MakeWindow("black")
+  InitializeLSL(gWin)  ## Initialize LSL outlet if --lsl flag was used (shows prompt)
+
+  ## Initialize strings AFTER window but BEFORE layout (needs gParams)
   GetStrings(gLanguage,gParams.stimtype)
 
+  ## Initialize Layout system (Category 3: layout-only, no response system)
+  gParams.responsemode <- "none"
+  gLayout <- CreateLayout("dualtask", gWin, gParams)
 
-
-  keys1 <- ["1","2"]
-  keys2 <- ["9","0"]
+  keys1 <- gParams.dim1keys
+  keys2 <- gParams.dim2keys
   keysall <- Merge(keys1,keys2)
 
-  gWin<- MakeWindow("black")
+  ## Define semantic response mappings
+  gSemantic1 <- ["DIM1A", "DIM1B"]  # Dimension 1 semantics
+  gSemantic2 <- ["DIM2A", "DIM2B"]  # Dimension 2 semantics
   if(gSubNum+""=="0")
    {
      gSubNum <- GetSubNum(gWin)
@@ -50,10 +62,10 @@ define Start(p)
 if(gParams.stimtype==1)
 {
   ##Type 1 is circle vs square; big vs small
-   stim1a <- Circle(gVideoWidth/2,gVideoHeight/2,gParams.smallsize/2,MakeColor("red"),1)  ##small
-   stim1b <- Square(gVideoWidth/2,gVideoHeight/2,gParams.smallsize,MakeColor("red"),1) ##small
-   stim2a <- Circle(gVideoWidth/2,gVideoHeight/2,gParams.largesize/2,MakeColor("red"),1) #lg
-   stim2b <- Square(gVideoWidth/2,gVideoHeight/2,gParams.largesize,MakeColor("red"),1) #lg
+   stim1a <- Circle(gLayout.centerX,gLayout.centerY,gParams.smallsize/2,MakeColor("red"),1)  ##small
+   stim1b <- Square(gLayout.centerX,gLayout.centerY,gParams.smallsize,MakeColor("red"),1) ##small
+   stim2a <- Circle(gLayout.centerX,gLayout.centerY,gParams.largesize/2,MakeColor("red"),1) #lg
+   stim2b <- Square(gLayout.centerX,gLayout.centerY,gParams.largesize,MakeColor("red"),1) #lg
    stim1a.aa<-1
    stim2a.aa<-1
 
@@ -61,10 +73,10 @@ if(gParams.stimtype==1)
 {
   ##type 2 is LR arrows, small vs large
 
-  stim1a <- Arrow(-1,MakeColor("red"),gParams.smallsize,gWin,gVideoWidth/2,gVideoHeight/2)
-  stim1b <- Arrow(1,MakeColor("red"),gParams.smallsize,gWin,gVideoWidth/2,gVideoHeight/2)
-  stim2a <- Arrow(-1,MakeColor("red"),gParams.largesize,gWin,gVideoWidth/2,gVideoHeight/2)
-  stim2b <- Arrow(1,MakeColor("red"),gParams.largesize,gWin,gVideoWidth/2,gVideoHeight/2)
+  stim1a <- Arrow(-1,MakeColor("red"),gParams.smallsize,gWin,gLayout.centerX,gLayout.centerY)
+  stim1b <- Arrow(1,MakeColor("red"),gParams.smallsize,gWin,gLayout.centerX,gLayout.centerY)
+  stim2a <- Arrow(-1,MakeColor("red"),gParams.largesize,gWin,gLayout.centerX,gLayout.centerY)
+  stim2b <- Arrow(1,MakeColor("red"),gParams.largesize,gWin,gLayout.centerX,gLayout.centerY)
 
 }elseif(gParams.stimtype==3)
 {
@@ -72,10 +84,10 @@ if(gParams.stimtype==1)
    ##is equal along both decisions.
    col1 <- MakeColor("red")
    col2 <- MakeColor("blue")
-   stim1a <- DoubleArrow(-1,-1,col1,col2,gParams.smallsize,gWin,gVideoWidth/2,gVideoHeight/2)
-   stim1b <- DoubleArrow(-1,1,col1,col2,gParams.smallsize,gWin,gVideoWidth/2,gVideoHeight/2)
-   stim2a <- DoubleArrow(1,-1,col1,col2,gParams.smallsize,gWin,gVideoWidth/2,gVideoHeight/2)
-   stim2b <- DoubleArrow(1,1,col1,col2,gParams.smallsize,gWin,gVideoWidth/2,gVideoHeight/2)
+   stim1a <- DoubleArrow(-1,-1,col1,col2,gParams.smallsize,gWin,gLayout.centerX,gLayout.centerY)
+   stim1b <- DoubleArrow(-1,1,col1,col2,gParams.smallsize,gWin,gLayout.centerX,gLayout.centerY)
+   stim2a <- DoubleArrow(1,-1,col1,col2,gParams.smallsize,gWin,gLayout.centerX,gLayout.centerY)
+   stim2b <- DoubleArrow(1,1,col1,col2,gParams.smallsize,gWin,gLayout.centerX,gLayout.centerY)
 
 } elseif(gParams.stimtype==4)
 {
@@ -83,10 +95,10 @@ if(gParams.stimtype==1)
 
    col1 <- MakeColor("red")
    col2 <- MakeColor("blue")
-   stim1a <- DoubleArrow(-1,-1,col1,col2,gParams.smallsize,gWin,gVideoWidth/2,gVideoHeight/2,gParams.type4offset)
-   stim1b <- DoubleArrow(-1,1,col1,col2,gParams.smallsize,gWin,gVideoWidth/2,gVideoHeight/2,gParams.type4offset)
-   stim2a <- DoubleArrow(1,-1,col1,col2,gParams.smallsize,gWin,gVideoWidth/2,gVideoHeight/2,gParams.type4offset)
-   stim2b <- DoubleArrow(1,1,col1,col2,gParams.smallsize,gWin,gVideoWidth/2,gVideoHeight/2,gParams.type4offset)
+   stim1a <- DoubleArrow(-1,-1,col1,col2,gParams.smallsize,gWin,gLayout.centerX,gLayout.centerY,gParams.type4offset)
+   stim1b <- DoubleArrow(-1,1,col1,col2,gParams.smallsize,gWin,gLayout.centerX,gLayout.centerY,gParams.type4offset)
+   stim2a <- DoubleArrow(1,-1,col1,col2,gParams.smallsize,gWin,gLayout.centerX,gLayout.centerY,gParams.type4offset)
+   stim2b <- DoubleArrow(1,1,col1,col2,gParams.smallsize,gWin,gLayout.centerX,gLayout.centerY,gParams.type4offset)
 
 }
 
@@ -109,16 +121,52 @@ if(gParams.stimtype==1)
 
   loop(i,gVisualStim)
   {
-    Move(i,gVideoWidth/2,gVideoHeight/2)
+    Move(i,gLayout.centerX,gLayout.centerY)
     Hide(i)
   }
 
-    gHeader <- EasyLabel("",gVideoWidth/2,100,gWin,30)
-    gFixation <- Easylabel("+",gVideoWidth/2,gVideoHeight/2,gWin,60)
-    gdim1Correct <- Easylabel("",gVideoWidth/2-200,gVideoHeight/2,gWin,30)
-    gdim2Correct <- Easylabel("",gVideoWidth/2+200,gVideoHeight/2,gWin,30)
-    gFooter1 <- EasyLabel(gstrings.footer2,gVideoWidth/2,gVideoHeight-180,gWin,30)
-    gFooter2 <- EasyLabel(gStrings.footer1,gVideoWidth/2,gVideoHeight-140,gWin,30)
+    ## Hide default layout header and use custom AdaptiveTextBox instead
+    gLayout.header.visible <- 0
+    gLayout.subheader.visible <- 0
+
+    ## Create AdaptiveTextBox for header (100px high, wraps long text)
+    ## Position by upper-left corner, so center the box horizontally
+    headerWidth <- Round(gVideoWidth * 0.9)  ## 90% of screen width
+    headerX <- gLayout.centerX - (headerWidth / 2)  ## Upper-left X position
+    headerY <- gLayout.zones.header.y  ## Top of header zone
+    gHeaderBox <- AdaptiveTextBox("", headerX, headerY, gWin,
+                                  Round(28 * gLayout.scale), headerWidth, 100)
+    ## Set white text on black background
+    gHeaderBox.font.fg <- MakeColor("white")
+    gHeaderBox.font.bg <- MakeColor("black")
+
+    ## Create block progress label on right side below header
+    ## Calculate total blocks: numrounds * (3 blocks or 4 if yoked)
+    gTotalBlocks <- gParams.numrounds * (3 + gParams.doyoked)
+    blockLabelFont <- MakeFont(gPEBLBaseFont, 0, Round(20 * gLayout.scale),
+                               MakeColor("white"), MakeColor("black"), 1)
+    gBlockLabel <- MakeLabel("", blockLabelFont)
+    AddObject(gBlockLabel, gWin)
+    blockLabelY <- headerY + 105  ## Just below the 100px header box
+    Move(gBlockLabel, gVideoWidth - 150, blockLabelY)  ## Right side with padding
+
+    ## Keep custom elements for stimulus display (Layout doesn't provide these)
+    gFixation <- Easylabel("+", gLayout.centerX, gLayout.centerY, gWin, 60)
+    gdim1Correct <- Easylabel("", gLayout.centerX - 200, gLayout.centerY, gWin, 30)
+    gdim2Correct <- Easylabel("", gLayout.centerX + 200, gLayout.centerY, gWin, 30)
+
+    ## Create custom instruction labels in response zone (Layout doesn't provide these with responsemode="none")
+    responseFont <- MakeFont(gPEBLBaseFont, 0, Round(24 * gLayout.scale),
+                             MakeColor("white"), MakeColor("black"), 1)
+    gInstr1 <- MakeLabel(gStrings.footer2, responseFont)
+    gInstr2 <- MakeLabel(gStrings.footer1, responseFont)
+    AddObject(gInstr1, gWin)
+    AddObject(gInstr2, gWin)
+
+    ## Position in response zone using Layout zones with more spacing to avoid overlap
+    responseZoneY <- gLayout.zones.response.y
+    Move(gInstr1, gLayout.centerX, responseZoneY + 10)
+    Move(gInstr2, gLayout.centerX, responseZoneY + 70)
 
 
     gBlock <- 0
@@ -174,12 +222,16 @@ if(gParams.stimtype==1)
     AddObject(tab,gWin)
     Move(tab,gVideoWidth/2,gVideoHeight/2+50)
 
-    Hide(gFooter1)
-    Hide(gFooter2)
-    Hide(gHeader)
+    Hide(gInstr1)
+    Hide(gInstr2)
+    Hide(gHeaderBox)
+    Hide(gBlockLabel)
     MessageBox(gStrings.feedback+CR(1)+gstrings.break,gWin,20,100,100,gVideoHeight/2+200,0)
     RemoveObject(tab,gWin)
    }
+
+  ## Finalize LSL
+  FinalizeLSL()
 
   MessageBox(gStrings.debrief,gWin)
 }
@@ -191,26 +243,33 @@ define Block(trials,type)
     ShowCursor(0)
 
     gBlock <- gBlock + 1
+
+    LSLMarker("block_" + gBlock + "_type" + type + "_start")
+
+     ## Update block progress label
+     gBlockLabel.text <- gStrings.block + ": " + gBlock + "/" + gTotalBlocks
+     Show(gBlockLabel)
+
      if(type==1)
      {
         ##single task.
-	gHeader.text <- gStrings.singleheader1
-	Hide(gFooter1)
-	Show(gFooter2)
+	SetText(gHeaderBox, gStrings.singleheader1)
+	Hide(gInstr1)
+	Show(gInstr2)
      }elseif(type==2)
      {
-     	Show(gFooter2)
-	Hide(gFooter2)
+     	Hide(gInstr1)   ## BUG FIX: was "Show(gFooter2); Hide(gFooter2)"
+	Show(gInstr2)
 
-     	gHeader.text <- gStrings.singleheader2
+     	SetText(gHeaderBox, gStrings.singleheader2)
      }else{ ##3 or 4
 
-     	Show(gFooter1)
-	Show(gFooter2)
-       	gHeader.text <- gstrings.dualheader
+     	Show(gInstr1)
+	Show(gInstr2)
+       	SetText(gHeaderBox, gStrings.dualheader)
      }
 
-    Show(gHeader)
+    Show(gHeaderBox)
     Draw()
 
 
@@ -280,6 +339,8 @@ define Block(trials,type)
 	Format(Mean(acc1),5)  + "  " +
 	Format(Mean(acc2),5)  + "  " + Mean(tooslows)))
 
+    LSLMarker("block_" + gBlock + "_end")
+
     ShowCursor(1)
   return  [Mean(rts1), Mean(rts2),Mean(acc1), Mean(acc2), Mean(tooslows)]
 
@@ -292,6 +353,7 @@ define Block(trials,type)
 
 define Trial(stim,type)
 {
+  LSLMarker("trial_stim" + stim + "_type" + type + "_start")
 
   Show(gFixation)
   Hide(gDim1Correct)
@@ -306,8 +368,8 @@ define Trial(stim,type)
    dotask2 <- type==2 or type==3 or type==4
 
 
-  resps1 <- Ifelse(dotask1, ["1","2"],[])
-  resps2 <- Ifelse(dotask2,["9","0"],[])
+  resps1 <- Ifelse(dotask1, gParams.dim1keys, [])
+  resps2 <- Ifelse(dotask2, gParams.dim2keys, [])
 
   allresps <-   Merge(resps1,resps2)
   if(Length(allresps)==0)
@@ -323,6 +385,7 @@ define Trial(stim,type)
   Show(stimObj)
   Hide(gFixation)
 
+  LSLMarker("stimulus_present")
   Draw()
   time0 <- GetTime()
 
@@ -342,9 +405,11 @@ define Trial(stim,type)
    dim2 <- stim==1 or stim==2
 
 
-   correct1 <- IfElse(stim==1 or stim==3,resp1 == "1",resp1=="2")
-   correct2 <- IfElse(stim==1 or stim==2,resp2 == "9",resp2=="0")
+   correct1 <- IfElse(stim==1 or stim==3, resp1 == "DIM1A", resp1=="DIM1B")
+   correct2 <- IfElse(stim==1 or stim==2, resp2 == "DIM2A", resp2=="DIM2B")
    delay <- 500
+
+  LSLMarker("response_dim1_" + resp1 + "_corr" + correct1 + "_dim2_" + resp2 + "_corr" + correct2)
 
   Hide(stimObj)
 ##now, we need to know whether we are correct for each one!
@@ -404,6 +469,20 @@ define IfElse(ab,a,b)
     ret <- b
  }
  return ret
+}
+
+define MapKeyToSemantic(key, keylist, semanticlist)
+{
+  ## Map physical key press to semantic response value
+  result <- "UNKNOWN"
+  loop(i, Sequence(1, Length(keylist), 1))
+  {
+    if(Nth(keylist, i) == key)
+    {
+      result <- Nth(semanticlist, i)
+    }
+  }
+  return result
 }
 
 
@@ -486,7 +565,7 @@ define Press1(p,p2)
         gPhase <- gPhase + 1
         gResponded1 <- 1  ##flag to allow just one response
 	gTime1 <- GetTime()
-	gResponse1 <- p
+	gResponse1 <- MapKeyToSemantic(p, gParams.dim1keys, gSemantic1)  ## Semantic value
        }
   if(gPhase >= 2)
    {
@@ -504,7 +583,7 @@ define Press2(p,p2)
         gPhase <- gPhase + 1
         gResponded2 <- 1  ##flag to allow just one response
 	gTime2 <- GetTime()
-	gResponse2 <- p
+	gResponse2 <- MapKeyToSemantic(p, gParams.dim2keys, gSemantic2)  ## Semantic value
        }
   if(gPhase >= 2)
    {
@@ -721,6 +800,12 @@ define GetStrings(lang,type)
    gStrings.dim1 <- dim1
    gStrings.dim2 <- dim2
 
+    ## Extract key names for instruction text substitution
+    dim1key1 <- Nth(gParams.dim1keys, 1)
+    dim1key2 <- Nth(gParams.dim1keys, 2)
+    dim2key1 <- Nth(gParams.dim2keys, 1)
+    dim2key2 <- Nth(gParams.dim2keys, 2)
+
     mappings <-    [["<DIM1>",dim1],
                     ["<DIM1A>",dim1a],
 	            ["<DIM1B>",dim1b],
@@ -728,7 +813,11 @@ define GetStrings(lang,type)
 		    ["<DIM2A>",dim2a],
 		     ["<DIM2B>",dim2b],
 		     ["<MODIFIER1>",mod1],
-		     ["<MODIFIER2>",mod2]]
+		     ["<MODIFIER2>",mod2],
+		     ["<KEY1>",dim1key1],
+		     ["<KEY2>",dim1key2],
+		     ["<KEY9>",dim2key1],
+		     ["<KEY0>",dim2key2]]
 
 
    gStrings.footer1 <- SubstituteStrings(gStrings.footer1,mappings)

@@ -166,12 +166,11 @@ define Start(p)
    ## Finalize LSL
    FinalizeLSL()
 
-   MessageKeyBox(gStrings.debrief,gWin)
-
    ## Close and upload data file
    FileClose(gFileOut)
-   datafile <- "data/" + gSubNum + "/nback-" + gSubNum + ".csv"
-   UploadFile(gSubNum, datafile, "/upload.json")
+   UploadFile(gSubNum, gFileOut.filename)
+
+   MessageKeyBox(gStrings.debrief,gWin)
 }
 
 ## This will perform an n-back sequence of trials stimuli.

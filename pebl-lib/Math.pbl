@@ -410,15 +410,6 @@ define SummaryStats(data, cond)
 
 
 
-## New in PEBL 0.11??? maybe not
-##
-define Dist(a,b)
-{
-  return Sqrt((First(a)- First(b))^2 + (Nth(a,2) - Nth(b,2))^2)
-}
-
-
-
 
 ##This returns a list of 0/1, for each element of list that matches item.
 define Match(list,item)
@@ -528,6 +519,17 @@ define VecTimes(a,b)
      out <- Append(out, First(i) * Nth(i,2))
    }
   return out
+}
+
+## Distance between two points
+## Takes two [x,y] coordinate lists and returns Euclidean distance
+define Dist(a,b)
+{
+  if((not IsList(a)) or (not IsList(b)))
+   {
+     SignalFatalError("Arguments of Dist(a,b) must both be [x,y] lists.")
+   }
+  return   Sqrt((First(a)-First(b))^2 + (Second(a) -Second(b))^2)
 }
 
 ## Greatest Common Divisor using Euclidean algorithm

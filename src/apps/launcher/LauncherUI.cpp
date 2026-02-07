@@ -1780,6 +1780,50 @@ void LauncherUI::RenderChainTab()
             ImGui::SameLine();
             ImGui::TextColored(ImVec4(0.2f, 0.8f, 0.2f, 1.0f), "(Enabled)");
         }
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        // LSL configuration checkbox
+        bool lslEnabled = mCurrentChain->GetLSLEnabled();
+        if (ImGui::Checkbox("Enable LSL streaming", &lslEnabled)) {
+            mCurrentChain->SetLSLEnabled(lslEnabled);
+            mCurrentChain->Save();
+        }
+
+        if (lslEnabled) {
+            ImGui::SameLine();
+            ImGui::TextColored(ImVec4(0.2f, 0.8f, 0.2f, 1.0f), "(Enabled)");
+        }
+
+        // LSL stream name input (shown when LSL is enabled)
+        if (lslEnabled) {
+            ImGui::Indent(20.0f);
+            ImGui::Text("LSL Stream Name:");
+            ImGui::SameLine();
+            ImGui::TextDisabled("(?)");
+            if (ImGui::IsItemHovered()) {
+                ImGui::BeginTooltip();
+                ImGui::Text("Stream name template for LSL outlets.");
+                ImGui::Text("Available placeholders:");
+                ImGui::BulletText("{test} - Test name (e.g., 'gonogo')");
+                ImGui::BulletText("{subject} - Subject ID");
+                ImGui::Text("\nExample: PEBL_{test} becomes PEBL_gonogo");
+                ImGui::EndTooltip();
+            }
+
+            char streamName[256];
+            std::strncpy(streamName, mCurrentChain->GetLSLStreamName().c_str(), sizeof(streamName) - 1);
+            streamName[sizeof(streamName) - 1] = '\0';
+
+            if (ImGui::InputText("##lsl_stream_name", streamName, sizeof(streamName))) {
+                mCurrentChain->SetLSLStreamName(std::string(streamName));
+                mCurrentChain->Save();
+            }
+
+            ImGui::Unindent(20.0f);
+        }
     } else {
         ImGui::TextDisabled("No chain loaded. Create a new chain or select an existing one.");
     }
@@ -3327,6 +3371,25 @@ void LauncherUI::ExecuteChainItem(int index)
             args.push_back("--upload");
             args.push_back(uploadPath);
             printf("Upload enabled: %s\n", uploadPath.c_str());
+        }
+
+        // Add LSL flag if chain has LSL enabled
+        if (mCurrentChain->GetLSLEnabled()) {
+            std::string streamName = mCurrentChain->GetLSLStreamName();
+
+            // Replace placeholders: {test} -> test name, {subject} -> subject ID
+            size_t pos;
+            while ((pos = streamName.find("{test}")) != std::string::npos) {
+                streamName.replace(pos, 6, item.testName);
+            }
+            while ((pos = streamName.find("{subject}")) != std::string::npos) {
+                streamName.replace(pos, 9, mSubjectCode);
+            }
+
+            // Add --lsl flag
+            args.push_back("--lsl");
+            args.push_back(streamName);
+            printf("LSL enabled: stream=%s\n", streamName.c_str());
         }
 
         // Add additional arguments from Run tab settings

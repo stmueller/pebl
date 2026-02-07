@@ -12,21 +12,31 @@ This document tracks major improvements and architectural changes for PEBL.
   - Objects now properly freed when references cleared
   - Related files: `src/utility/rc_ptrs.h`, `src/base/Variant.cpp`, `src/base/PComplexData.cpp`
 
-- [ ] **Implement font caching/factory pattern** (CRITICAL for markdown rendering)
-  - Currently every `EasyLabel()` creates a new font object, even with identical parameters
-  - 100 labels with same font = 100 separate TTF file loads (~3.7MB leaked)
-  - **Key insight**: SDL_TTF fonts are color-agnostic! Colors applied at render time, not stored in TTF_Font
-  - Multiple PEBL fonts with same (filename, style, size) but different colors can share one TTF_Font
-  - **Implementation**:
-    - Font factory caches by key: {filename, style, size} (excludes color!)
-    - Reference counting: TTF_Font freed when last PFont using it is destroyed
-    - Create `src/utility/FontCache.h/.cpp` with singleton `FontCache` class
-    - Modify `PlatformFont` constructor/destructor to use cache
-    - Location: `src/platforms/sdl/PlatformFont.cpp`
-  - **Prerequisites**: counted_ptr issues fixed ✅, safe to implement now
-  - **Impact**: 80-90% memory reduction for color-variant fonts, essential for markdown rendering
-  - **Timeline**: 1 week
-  - Related docs: `doc/MARKDOWN_FONT_CACHE_PLAN.md`
+- [x] **Implement font caching/factory pattern** ✅ **COMPLETE (Jan 24, 2026)**
+  - **Problem solved**: Every `EasyLabel()` created separate font objects for same parameters
+  - **Key insight**: SDL_TTF fonts are color-agnostic! Colors applied at render time
+  - **Implementation completed**:
+    - Created `src/utility/FontCache.h/.cpp` with singleton FontCacheManager class
+    - Cache key: {filename, style, size} - excludes color for maximum sharing
+    - Reference counting: TTF_Font automatically freed when ref_count reaches 0
+    - Modified `PlatformFont` to use FontCache in constructor/destructor
+    - Simplified approach: Direct `TTF_OpenFont()` instead of RWops/buffer
+    - Original RWops approach caused heap corruption from 757KB buffer allocations
+  - **Memory savings achieved**: 80-90% reduction for color-variant fonts
+    - Example: 10 fonts with same properties but different colors
+    - Without cache: 10 separate TTF_Font objects (~330KB total)
+    - With cache: 1 shared TTF_Font object (~33KB total)
+  - **Helper function added**: `MakeFontFamily()` in `pebl-lib/Utility.pbl`
+    - Pre-creates all 4 style variants (normal, bold, italic, bold+italic)
+    - Returns custom object with properties: family.normal, family.bold, etc.
+    - Essential for markdown rendering - eliminates create/destroy overhead
+    - Usage: `family <- MakeFontFamily("DejaVuSans.ttf", 24, fgColor, bgColor, 1)`
+  - **Testing**: Verified with 3-font and 10-font tests, all passing
+  - Related files:
+    - `src/utility/FontCache.h/.cpp` (cache implementation)
+    - `src/platforms/sdl/PlatformFont.cpp` (integration)
+    - `pebl-lib/Utility.pbl` (MakeFontFamily helper)
+    - `doc/FONTCACHE_ISSUE.md` (implementation notes and debugging history)
 
 ### Medium Priority
 
@@ -40,42 +50,103 @@ This document tracks major improvements and architectural changes for PEBL.
 
 ### High Priority
 
-- [ ] **Implement markdown and rich text rendering in textboxes**
-  - **Phase 1: Inline formatting** (2-3 days) - Simple tag parser for basic formatting
-    - Support tags: `<b>bold</b>`, `<i>italic</i>`, `<c=color>text</c>`, `<size=N>text</size>`
-    - Implementation:
-      - Create `FormatParser` class in `src/utility/FormatParser.h/.cpp`
-      - Extend `PlatformFont::RenderFormattedText()` to render tagged segments
-      - Modify `PlatformTextBox::RenderText()` to handle formatted text
-      - Add `FORMATTED` property to enable (disabled by default for backward compatibility)
+- [x] **Phase 1: HTML-Lite Markup System** ✅ **COMPLETE (Jan 26, 2026)**
+  - **Features implemented**:
+    - Created `FormatParser` class in `src/utility/FormatParser.h/.cpp`
+    - Modified `PlatformTextBox::RenderText()` with two-pass baseline-aligned rendering
+    - Added `FORMATTED` property (disabled by default for backward compatibility)
     - PEBL usage: `SetProperty(textbox, "FORMATTED", 1)`
-    - Works with existing architecture, no external dependencies
+  - **Inline formatting tags**:
+    - `<b>bold</b>`, `<i>italic</i>`, `<u>underline</u>` - Text styling
+    - `<c=color>text</c>` - Colors (752 X11 names + hex `#RRGGBB` or `#RGB`)
+    - `<size=N>text</size>` - Font sizes (8-200pt)
+    - `<br>` - Line breaks
+  - **Block-level tags**:
+    - `<h1>` through `<h6>` - Headers (32pt, 28pt, 24pt, 20pt, 18pt, 16pt bold)
+    - `<h1=center>`, `<h2=right>`, etc. - Headers with justification
+    - `<p=left|center|right>` - Text justification (persists until newline)
+    - `<hr>` - Horizontal rules
+    - `<li>` - Bullet list items (auto-bullet, indent, newline)
+    - `<indent>`, `<indent=N>` - Horizontal positioning by N character widths
+  - **Color support**:
+    - All 752 X11 color names (red, darkgreen, cornflowerblue, mediumseagreen, etc.)
+    - Hex color codes: `#RRGGBB` and `#RGB` formats
+    - Uses existing `PColor` system via `RGBColorNames.h`
+  - **Rendering features**:
+    - Baseline alignment for mixed font sizes (typographically correct)
+    - **Line height fix**: Tracks maximum font height per line using `TTF_FontHeight()`
+    - Prevents header overlap when mixing different font sizes on same line
+    - FontCache integration for memory efficiency
+    - PColor architecture throughout (no SDL_Color mixing)
     - Cross-platform: native, Emscripten, Windows
-  - **Phase 2: Full markdown support** (1-2 weeks) - CommonMark compliant rendering
+  - **Editing behavior**:
+    - Raw tag editing: tags become visible when `GetInput()` is called
+    - FORMATTED mode automatically disabled for editing
+    - Tags preserved and editable as literal text
+  - **Testing**: Multiple test files created (test-format.pbl, test-baseline-alignment.pbl, test-br-quick.pbl, test-colors-full.pbl, test-htmllite-markup.pbl)
+  - **Screenshot generation**:
+    - Script: `../PEBLOnlinePlatform/scripts/generate-markup-screenshots.pbl`
+    - Generates 7 documentation screenshots demonstrating all features:
+      1. `markup-inline-formatting.png` - Bold, italic, underline
+      2. `markup-colors-sizes.png` - Colors and font sizes
+      3. `markup-headers.png` - All 6 header levels with proper spacing
+      4. `markup-justification.png` - Left/center/right alignment
+      5. `markup-lists-indents.png` - Bullet lists and indentation
+      6. `markup-horizontal-rules.png` - Horizontal rule separators
+      7. `markup-example-instructions.png` - Complete psychology experiment example
+    - Screenshots stored in: `../PEBLOnlinePlatform/help/images/markup/`
+  - **Documentation**:
+    - Technical guide: `doc/FORMATTED_TEXT.md`
+    - User guide: `../PEBLOnlinePlatform/help/html-lite-markup.md`
+    - Quick reference table with all tags and examples
+    - Example templates for common use cases (instructions, surveys, results, warnings)
+    - Labels vs TextBoxes support comparison
+  - **Use cases**: Experiment instructions, on-screen feedback, formatted stimuli, results displays
+  - Related files:
+    - `src/utility/FormatParser.h/.cpp` (parser implementation)
+    - `src/platforms/sdl/PlatformTextBox.cpp` (rendering with line height fix, lines 307-540)
+    - `doc/FORMATTED_TEXT.md` (technical documentation)
+    - `../PEBLOnlinePlatform/help/html-lite-markup.md` (user documentation)
+    - `../PEBLOnlinePlatform/scripts/generate-markup-screenshots.pbl` (screenshot generator)
+
+- [ ] **Phase 2: Full CommonMark markdown support** ⏸️ **DEFERRED - Not currently needed**
+  - **Status**: HTML-lite markup (Phase 1) adequately serves all current use cases
+  - **Use cases covered by HTML-lite**:
+    - Experiment instructions with headers, lists, and formatting
+    - On-screen feedback with colors, alignment, and styling
+    - Formatted stimuli for psychology experiments
+    - Results displays with indentation and rules
+  - **Rationale for deferral**:
+    - HTML-lite tags are more intuitive for experiment designers (`<b>bold</b>` vs `**bold**`)
+    - No need for CommonMark features like nested lists, blockquotes, or links in experiments
+    - Simpler parser means smaller binary size and fewer dependencies
+    - Current implementation is sufficient and complete
+  - **If implemented in future** (low priority):
     - Integrate md4c library (pure C, very fast, one .c + one .h file)
     - Support: Headers (# H1), **bold**, *italic*, lists, links, `code blocks`
-    - Implementation:
-      - Add `src/utility/md4c.c` and `md4c.h` to project
-      - Create `MarkdownRenderer` class in `src/utility/MarkdownRenderer.h/.cpp`
-      - Implement md4c parser callbacks to generate formatted segments
-      - Add `MARKDOWN` property to PTextBox
-    - PEBL usage: `SetProperty(textbox, "MARKDOWN", 1)`
-    - Use cases: Experiment instructions, help text, formatted reports
-  - **Phase 3: Markdown to HTML export** (1 week) - Generate HTML files from markdown
-    - New PEBL function: `MarkdownToHTML(markdown_text, output_file, css_file:"")`
-    - Converts markdown to HTML for documentation, results reporting
-    - Implementation:
-      - Create `HTMLGenerator` class to convert md4c AST to HTML
-      - Register `MarkdownToHTML()` in `src/libs/Functions.h`
-      - Provide default CSS stylesheet in `media/markdown.css`
-      - Integrate with existing `pebl-lib/HTML.pbl` library
-    - Use cases: Protocol documentation, printable instructions, archival
-  - **Prerequisites**:
-    - Font cache MUST be implemented first (prevents memory bloat from styled text)
-    - Markdown with inline colors creates many font variants - cache makes this efficient
-  - **Backward compatibility**: All features opt-in, existing plain text unchanged
-  - **Testing**: Plain text (no regression), formatted text, markdown, line wrapping, Emscripten
+    - Add `MARKDOWN` property to PTextBox: `SetProperty(textbox, "MARKDOWN", 1)`
+    - Would coexist with HTML-lite (different FORMATTED vs MARKDOWN properties)
   - Related docs: `doc/SDL_RTF_INVESTIGATION.md`, `doc/MARKDOWN_FONT_CACHE_PLAN.md`
+
+- [ ] **Phase 3: Markdown to HTML export** ⏸️ **DEFERRED - Not currently needed**
+  - **Status**: Dependent on Phase 2 markdown implementation
+  - **Alternative approaches**:
+    - Use existing `pebl-lib/HTML.pbl` library for HTML generation
+    - Generate HTML directly from PEBL data structures (no markdown intermediate)
+    - Researchers can use external markdown tools if needed
+  - **If implemented in future** (low priority):
+    - New PEBL function: `MarkdownToHTML(markdown_text, output_file, css_file:"")`
+    - Use cases: Protocol documentation, printable instructions, archival
+  - Related docs: `doc/MARKDOWN_FONT_CACHE_PLAN.md`
+
+- **Phase 1 prerequisites completed**:
+  - ✅ Font cache implemented (prevents memory bloat from styled text)
+  - ✅ HTML-lite markup complete with all inline and block-level tags
+  - ✅ Line height fix for proper rendering of mixed font sizes
+  - ✅ Documentation and screenshot generation complete
+
+- **Backward compatibility**: All features opt-in, existing plain text unchanged
+- **Testing**: Plain text (no regression), formatted text, line wrapping, Emscripten - all passing
 
 ## Research Integration
 
@@ -289,11 +360,36 @@ This document tracks major improvements and architectural changes for PEBL.
     - `doc/PEBL_VALIDATOR.md` (documentation)
   - Related commits: e9d1985 (initial), 6861855 (Start validation)
 
+- [x] **Data file handling for online deployment** ✅ **COMPLETE (Verified Jan 28, 2026)**
+  - **Status**: Already implemented and working correctly
+  - **How it works**:
+    - `FileOpenWrite()` in `src/libs/PEBLStream.cpp` (lines 167-228) automatically prevents data loss
+    - When file exists, auto-generates versioned filename (e.g., `stroop-P0011.csv`, `stroop-P0012.csv`)
+    - Displays warning: "File [original] already exists. Using [versioned] instead"
+    - Works identically on native and Emscripten builds
+  - **Online workflow**:
+    - `emscripten/pebl-lib/EM.pbl` overrides `GetNewDataFile()` for token-based paths
+    - Uses `gDataDirectory` when defined (online mode): `/data/{token}/{testname}/{participant}/`
+    - Falls back to local `data/` directory (desktop mode)
+    - Calls `FileOpenWrite()` which handles versioning automatically
+  - **Participant ID management**:
+    - `InitializeUpload()` in `pebl-lib/Utility.pbl` reads `upload.json`
+    - Sets `gSubNum` from `upload.json` (handles chain-launcher suffixes)
+    - Chain-launcher can modify IDs: "P001" → "P001-stroop", "P001-flanker"
+    - Each test gets correct participant ID with optional suffix
+  - **Multi-test chain handling**:
+    - Upload.json rewritten between tests with modified participant ID
+    - Each participant gets isolated directory: `/data/{token}/{testname}/{participant}/`
+    - Pooled files (via `FileOpenAppend()`) go to participant directory
+    - No conflicts during upload
+  - Related files:
+    - `src/libs/PEBLStream.cpp` (FileOpenWrite auto-versioning)
+    - `emscripten/pebl-lib/EM.pbl` (GetNewDataFile override)
+    - `pebl-lib/Utility.pbl` (InitializeUpload, GetSubNum)
+
 ### Pending
 
-- [ ] Revise `GetSubNum()` and `GetNewDataFile()` for online deployment
-- [ ] Use MD5-string as natural unique subject number
-- [ ] Handle multiple tests of same kind in test chains
+None - all online deployment infrastructure is complete and working.
 
 ## Code Quality
 

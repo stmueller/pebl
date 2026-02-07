@@ -2,9 +2,9 @@
  ##
  ## Numerical Stroop Task
  ##
- ## (c) 2011 Shane T. Mueller and Alena Esposito
+ ## (c) 2011-2026 Shane T. Mueller and Alena Esposito
  ## smueller at obereed dot net
- ## PEBL Numerical Stroop Task, Version 0.1
+ ## PEBL Numerical Stroop Task, Version 1.0
  ##
  ##
  ##
@@ -162,11 +162,16 @@ define Start(p)
   gTrial <- 0
   gBlock <- 0
 
-
+   trialNum <- 1
+   totalTrials <- Length(block0)
    loop(trial,block0)
    {
+      ## Update trial counter in subheader
+      gLayout.subheader.text <- SubstituteStrings(gStrings.trial_counter, [["<NUM>", trialNum], ["<NUMTRIALS>", totalTrials]])
+      Draw()
       DoTrial(trial,gResponseType,"data/"+gSubNum+"/trial-"+ZeroPad(gTrial,3)+"-")
 	  gTrial <- gTrial + 1
+	  trialNum <- trialNum + 1
    }
 
 
@@ -191,10 +196,16 @@ define Start(p)
    gBlock <- 1
    ##Do Round 1
    ##
+   trialNum <- 1
+   totalTrials <- Length(block1)
    loop(trial,block1)
    {
+      ## Update block and trial counter in subheader
+      gLayout.subheader.text <- SubstituteStrings(gStrings.block_trial_counter, [["<BLOCKNUM>", 1], ["<TOTALBLOCKS>", 2], ["<NUM>", trialNum], ["<NUMTRIALS>", totalTrials]])
+      Draw()
       DoTrial(trial,gResponseType,"data/"+gSubNum+"/trial-"+ZeroPad(gTrial,3)+"-")
 	  gTrial <- gTrial + 1
+	  trialNum <- trialNum + 1
    }
 
 
@@ -209,10 +220,16 @@ define Start(p)
    gBlock <- 2
    ##Do Round 2
    ##
+   trialNum <- 1
+   totalTrials <- Length(block2)
    loop(trial,block2)
    {
+      ## Update block and trial counter in subheader
+      gLayout.subheader.text <- SubstituteStrings(gStrings.block_trial_counter, [["<BLOCKNUM>", 2], ["<TOTALBLOCKS>", 2], ["<NUM>", trialNum], ["<NUMTRIALS>", totalTrials]])
+      Draw()
       DoTrial(trial,gResponseType,"data/"+gSubNum+"/trial-"+ZeroPad(gTrial,3)+"-")
 	  gTrial <- gTrial + 1
+	  trialNum <- trialNum + 1
    }
 
    ##These compute: condition,  length, median, mean, stdev
@@ -278,16 +295,18 @@ define Start(p)
     FilePrint(filesum,"")
 
    FilePrint(gLog, gSubNum + "," + gLanguage + "," + TimeStamp()+","+"NUMERICAL STROOP,"+gResponseType+",ENDED")
-   MessageBox(gExitText,gWin)
+
 
    ## Close and upload data files
    FileClose(gFileOut)
    FileClose(gSumFileOut)
    FileClose(filesum)
 
-   UploadFile(gSubNum, "data/" + gSubNum + "/numstroop-" + gResponseType + "-" + gSubNum + ".csv")
-   UploadFile(gSubNum, "data/" + gSubNum + "/numstroop-" + gResponseType + "-summary-" + gSubNum + ".txt")
-   UploadFile(gSubNum, "data/numstroop-sumall.csv")
+   UploadFile(gSubNum, gFileOut.filename)
+   UploadFile(gSubNum, gSumFileOut.filename)
+   UploadFile(gSubNum, filesum.filename)
+
+   MessageBox(gExitText,gWin)
 }
 
 ###################################################
@@ -502,8 +521,10 @@ define Initialize()
 
   ## Create layout with responsemode="none" (layout zones only, no response UI)
   gParams.responsemode <- "none"
-  CreateLayout("stroop-number", gWin, gParams)
+  gLayout <- CreateLayout("stroop-number", gWin, gParams)
   ## Footer is hidden by "none" mode, will show when needed in trials
+  ## Make subheader visible for trial counter
+  gLayout.subheader.visible <- 1
 
   ShowCursor(0)
   ##Initialize Font and colors

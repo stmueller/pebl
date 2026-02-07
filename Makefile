@@ -40,6 +40,7 @@ USE_NETWORK=1      ##Optional; comment out to turn off sdl_net library.
 USE_HTTP=1         ##Optional; turn on/off for http get/set
 USE_MIXER=1        ##Optional; uses sdl mixer for better audio+ogg/mp3/etc.
 USE_AUDIOIN=1      ##Optional; enables audio recording and voice key
+USE_LSL=1          ##Optional; enables Lab Streaming Layer (LSL) support
 
 
 USE_DEBUG = 0     ##Optional; turn on/off debugging stuff.
@@ -131,16 +132,26 @@ ifdef USE_AUDIOIN
 	CXXFLAGS6 = -DPEBL_AUDIOIN
 endif
 
+ifdef USE_LSL
+	CXXFLAGS7 = -DPEBL_USE_LSL
+	LSL_LIB_PATH = libs/labstreaminglayer/Apps/LabRecorder/liblsl
+	LSL_INC_PATH = $(LSL_LIB_PATH)/include
+	CXXFLAGS7 += -I$(LSL_INC_PATH)
+	LINKOPTS7 = -L$(LSL_LIB_PATH) -Wl,-rpath,$(CURDIR)/$(LSL_LIB_PATH) -llsl64
+endif
 
-CXXFLAGSX = $(CXXFLAGS0) $(CXXFLAGS1) $(CXXFLAGS2) $(CXXFLAGS2B) $(CXXFLAGS3) $(CXXFLAGS4) $(CXXFLAGS5) $(CXXFLAGS6) $(CXXFLAGS7) 
+CXXFLAGSX = $(CXXFLAGS0) $(CXXFLAGS1) $(CXXFLAGS2) $(CXXFLAGS2B) $(CXXFLAGS3) $(CXXFLAGS4) $(CXXFLAGS5) $(CXXFLAGS6) $(CXXFLAGS7)
 LINKOPTS = $(LINKOPTS1) $(LINKOPTS2) $(LINKOPTS2B) $(LINKOPTS3) $(LINKOPTS4) $(LINKOPTS5) $(LINKOPTS7)
 
 
-em: CXXFLAGS = $(CXXFLAGSX) $(CXXFLAGS_EMSCRIPTEN) -DPEBL_ITERATIVE_EVAL
+em: USE_LSL = 0
+em: CXXFLAGS = $(CXXFLAGSX) $(CXXFLAGS_EMSCRIPTEN) -DPEBL_ITERATIVE_EVAL -UPEBL_USE_LSL
 em: SDL_FLAGS = $(EM_SDL_FLAGS)
-em-opt-real: CXXFLAGS = $(CXXFLAGSX) $(CXXFLAGS_EMSCRIPTEN) -DPEBL_ITERATIVE_EVAL
+em-opt-real: USE_LSL = 0
+em-opt-real: CXXFLAGS = $(CXXFLAGSX) $(CXXFLAGS_EMSCRIPTEN) -DPEBL_ITERATIVE_EVAL -UPEBL_USE_LSL
 em-opt-real: SDL_FLAGS = $(EM_SDL_FLAGS)
-em-test-real: CXXFLAGS = $(CXXFLAGSX) $(CXXFLAGS_EMSCRIPTEN) -DPEBL_ITERATIVE_EVAL
+em-test-real: USE_LSL = 0
+em-test-real: CXXFLAGS = $(CXXFLAGSX) $(CXXFLAGS_EMSCRIPTEN) -DPEBL_ITERATIVE_EVAL -UPEBL_USE_LSL
 em-test-real: SDL_FLAGS = $(EM_SDL_FLAGS)
 main-real: USE_PORTS = 1
 main-real: CXXFLAGS = $(CXXFLAGSX) $(CXXFLAGS_LINUX)
@@ -219,7 +230,8 @@ PUTILITIES_SRC = $(UTIL_DIR)/PEBLUtility.cpp \
 		$(UTIL_DIR)/md5.cpp \
 		$(UTIL_DIR)/happyhttp.cpp \
 		$(UTIL_DIR)/FontCache.cpp \
-		$(UTIL_DIR)/FormatParser.cpp 
+		$(UTIL_DIR)/FormatParser.cpp \
+		$(UTIL_DIR)/PLabStreamingLayer.cpp 
 
 
 
@@ -235,7 +247,10 @@ EMUTILITIES_SRC = $(UTIL_DIR)/PEBLUtility.cpp \
 		$(UTIL_DIR)/BinReloc.cpp \
 		$(UTIL_DIR)/PEBLPath.cpp \
 		$(UTIL_DIR)/PEBLHTTP.cpp \
-		$(UTIL_DIR)/md5.cpp 
+		$(UTIL_DIR)/md5.cpp \
+		$(UTIL_DIR)/FontCache.cpp \
+		$(UTIL_DIR)/FormatParser.cpp \
+		$(UTIL_DIR)/PLabStreamingLayer.cpp
 ##		$(UTIL_DIR)/happyhttp.cpp \
 
 EMUTILITIES_OBJ1  = $(patsubst %.cpp, %.o, $(EMUTILITIES_SRC))
@@ -409,12 +424,12 @@ FUNCTIONLIB_SRC = $(LIBS_DIR)/PEBLMath.cpp \
 		  $(LIBS_DIR)/PEBLObjects.cpp \
                   $(LIBS_DIR)/PEBLEnvironment.cpp \
                   $(LIBS_DIR)/PEBLList.cpp \
-                  $(LIBS_DIR)/PEBLString.cpp
-
-
+                  $(LIBS_DIR)/PEBLString.cpp \
+                  $(LIBS_DIR)/PEBLLSL.cpp
 
 FUNCTIONLIB_OBJ =  $(patsubst %.cpp, %.o, $(FUNCTIONLIB_SRC))
 FUNCTIONLIB_INC =  $(patsubst %.cpp, %.h, $(FUNCTIONLIB_SRC))
+
 
 
 
@@ -449,7 +464,7 @@ EMMAIN_SRC =	$(APPS_DIR)/PEBL.cpp \
 			$(FUNCTIONLIB_SRC) \
 			$(POBJECT_SRC) \
 			$(EMUTILITIES_SRC) \
-			$(PLATFORM_SDL_SRC) 
+			$(PLATFORM_SDL_SRC)
 ###			$(LIB_SRC)
 
 EMMAIN_OBJ = $(patsubst %.cpp, %.o, $(EMMAIN_SRC))
@@ -857,12 +872,14 @@ VALIDATOR_SRC = 	$(APPS_DIR)/PEBLValidator.cpp \
 			$(UTIL_DIR)/md5.cpp \
 			$(UTIL_DIR)/PEBLHTTP.cpp \
 			$(UTIL_DIR)/happyhttp.cpp \
+			$(UTIL_DIR)/PLabStreamingLayer.cpp \
 			$(LIBS_DIR)/PEBLEnvironment.cpp \
 			$(LIBS_DIR)/PEBLMath.cpp \
 			$(LIBS_DIR)/PEBLStream.cpp \
 			$(LIBS_DIR)/PEBLObjects.cpp \
 			$(LIBS_DIR)/PEBLList.cpp \
 			$(LIBS_DIR)/PEBLString.cpp \
+			$(LIBS_DIR)/PEBLLSL.cpp \
 			$(OBJECTS_DIR)/PEnvironment.cpp \
 			$(OBJECTS_DIR)/PCustomObject.cpp \
 			$(OBJECTS_DIR)/PWidget.cpp \
@@ -893,14 +910,14 @@ validator-real: USE_PORTS = 0
 validator-real: USE_MIXER = 0
 validator-real: USE_NETWORK = 0
 validator-real: USE_AUDIOIN = 0
-validator-real: CXXFLAGS = $(CXXFLAGS0) $(CXXFLAGS_LINUX) -UPEBL_MIXER -UPEBL_NETWORK -UPEBL_PORTS -UPEBL_AUDIOIN -UPEBL_HTTP -DPEBL_VALIDATOR
+validator-real: CXXFLAGS = $(CXXFLAGS0) $(CXXFLAGS_LINUX) $(CXXFLAGS7) -UPEBL_MIXER -UPEBL_NETWORK -UPEBL_PORTS -UPEBL_AUDIOIN -UPEBL_HTTP -DPEBL_VALIDATOR
 validator-real: $(DIRS) $(VALIDATOR_OBJ) $(BASE_DIR)/lex.yy.o
 	$(CXX) $(CXXFLAGS) -Wall -Wl,-rpath -Wl,LIBDIR $(DEBUGFLAGS) \
 	-Wno-write-strings \
 	-o $(BIN_DIR)/pebl-validator \
 	$(patsubst %.o, $(OBJ_DIR)/%.o, $(VALIDATOR_OBJ)) \
 	$(OBJ_DIR)/$(BASE_DIR)/lex.yy.o \
-	-lpthread
+	$(LINKOPTS7) -lpthread
 
 .PHONY: validator validator-real
 

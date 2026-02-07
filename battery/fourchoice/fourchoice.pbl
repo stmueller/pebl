@@ -36,6 +36,7 @@ define Start(p)
   isi <- gParams.isi
 
   gWin <- MakeWindow("black")
+  InitializeLSL(gWin)  ## Initialize LSL outlet if --lsl flag was used (shows prompt)
   InitializeUpload()  ## Initialize token-based hosting if upload.json exists
   ##Get subject code if we need to:
   if(gSubNum+""=="0")
@@ -101,15 +102,16 @@ define Start(p)
   gSleepEasy <- 0
   trial <- 1
 
-
+  LSLMarker("block_test_start")
   while(trial <= gNumTrials)
   {
     FilePrint_(gFileOut,gSubNum + "," + gRtype + "," + isi +"," +  trial + ",")
-     x <- Trial()
+     x <- Trial(trial)
     dat <- Append(dat,x)
     Wait(isi)
     trial <- trial + 1
   }
+  LSLMarker("block_test_end")
   gSleepEasy <- 1
   dat2 <- Transpose(dat)
 
@@ -147,6 +149,9 @@ define Start(p)
   Print("Uploading data files...")
   out <- UploadFile(gSubNum, gFileOut.filename); Print(out)
   out <- UploadFile(gSubNum, gSummary.filename); Print(out)
+
+  ## Finalize LSL
+  FinalizeLSL()
 
    inst.text <- gStrings.debrief + CR(1)+feedback
    AddObject(inst,gWin)
@@ -201,7 +206,7 @@ define Practice()
 
 }
 
-define Trial()
+define Trial(trial)
 {
   ##It is supposed to blink, but we won't worry about that.
 
@@ -209,10 +214,11 @@ define Trial()
   quad <- RandomDiscrete(4)
   pos <- GetQuadPosition(quad)
 
-  stim <- EasyLabel("+",Nth(pos,1),Nth(pos,2),gWin,80)  
+  stim <- EasyLabel("+",Nth(pos,1),Nth(pos,2),gWin,80)
   Draw()
   lapse <- 0
   starttime <- GetTime()
+  LSLMarker("stimulus_quad" + quad + "_trial" + trial)
 
   if(gUseSound)
    {
@@ -228,10 +234,19 @@ define Trial()
     }
 
    endtime <- GetTime()
+   LSLMarker("response_" + x)
    respquad <- GetResponseQuadrant(x,gMatch)
 
 
    corr <- (respquad == quad)
+
+   if(corr)
+   {
+     LSLMarker("trial_correct")
+   } else {
+     LSLMarker("trial_error")
+   }
+
    rt <- endtime - starttime
 
    quadlabel <- GetQuadLabel(quad)

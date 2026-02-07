@@ -193,6 +193,16 @@ define GetNewSubNum(server,page,port,username,pword)
 ## Supports token-based authentication for hosted experiments
 define UploadFile(subcode,datafilename,settingsfile:"")
 {
+  ## Handle file objects: if datafilename has a .filename property, extract it
+  ## This allows passing file objects directly instead of just filename strings
+  if(IsPEBLObject(datafilename))
+  {
+    if(PropertyExists(datafilename, "filename"))
+    {
+      datafilename <- datafilename.filename
+    }
+  }
+
   fname <- settingsfile
 
   if(gUpload)

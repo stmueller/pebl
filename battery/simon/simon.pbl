@@ -12,6 +12,7 @@ define Start(p)
   gScriptName <- "PEBL Simon Task"
 
   gWin <- MakeWindow("BLACK")
+  InitializeLSL(gWin)  ## Initialize LSL outlet if --lsl flag was used (shows prompt)
 
   if(gSubNum+""=="0")
    {
@@ -35,8 +36,8 @@ define Start(p)
 
   ## Set semantic labels from translated color names
   gParams.responselabels <- [gStrings.leftcolorname, gStrings.rightcolorname]
-  Print("Parmateer values:" )
-  PrintProperties(gParams)
+#  Print("Parmateer values:" )
+#  PrintProperties(gParams)
   
   ## Create Layout & Response System (initial creation to get response mode)
   gLayout <- CreateLayout("simon", gWin, gParams)
@@ -214,6 +215,7 @@ define Start(p)
      ## Run practice trials
      fixation.text <- "+"
      Draw()
+     LSLMarker("block_practice_start")
 
      loop(i, Sequence(1, gParams.practicetrials, 1))
      {
@@ -240,10 +242,20 @@ define Start(p)
         Show(stimX)
         Draw()
         time0 <- GetTime()
+        LSLMarker("stimulus_type" + type + "_pos" + pos + "_trial_PRACTICE" + i)
         resp <- WaitForLayoutResponse(gLayout)
         time2 <- GetTime()
+        LSLMarker("response_" + resp)
 
         corr <- (resp=="left" and type==1 ) or (resp=="right" and type==2)
+
+        if(corr)
+        {
+          LSLMarker("trial_correct")
+        } else {
+          LSLMarker("trial_error")
+        }
+
         Hide(stimX)
 
         side <-(Abs(Floor(pos/25)) >1) * Sign(pos)
@@ -255,6 +267,7 @@ define Start(p)
 
         Draw()
      }
+     LSLMarker("block_practice_end")
 
      ## Show "Practice is complete" message
      Hide(status)
@@ -298,6 +311,7 @@ define Start(p)
   compats <- []
 
   Draw()
+  LSLMarker("block_test_start")
   trial <- 1
   loop(i,stim)
   {
@@ -323,10 +337,20 @@ define Start(p)
     Show(stim)
     Draw()
     time0 <- GetTime()
+    LSLMarker("stimulus_type" + type + "_pos" + pos + "_trial" + trial)
     resp <- WaitForLayoutResponse(gLayout)
     time2 <- GetTime()
+    LSLMarker("response_" + resp)
 
     corr <- (resp=="left" and type==1 ) or (resp=="right" and type==2)
+
+    if(corr)
+    {
+      LSLMarker("trial_correct")
+    } else {
+      LSLMarker("trial_error")
+    }
+
     Hide(stim)
 
    ##1 if compatible, -1 if incompatible, 0 if neutral.
@@ -368,6 +392,7 @@ define Start(p)
     corrs <- Append(corrs,corr)
     trial <- trial +1
   }
+  LSLMarker("block_test_end")
 
    gInstructions.text <- gStrings.debrief
    Show(gInstructions)
@@ -434,9 +459,17 @@ define Start(p)
       FilePrint(sumfile,PrintList(i))
     }
 
+  ## Close files before upload (required for Windows file locking compatibility)
+  FileClose(gFileOut)
+  FileClose(sumFile)
+
   ## Upload data files (works online, no-op on native)
+  ## Note: .filename property persists after FileClose(), so this is safe
   UploadFile(gSubNum, "data/" + gSubNum + "/simon-" + gSubNum + ".csv")
   UploadFile(gSubNum, "data/" + gSubNum + "/simon-summary-" + gSubNum + ".txt")
+
+  ## Finalize LSL
+  FinalizeLSL()
 
   WaitForAnyKeyPress()
 

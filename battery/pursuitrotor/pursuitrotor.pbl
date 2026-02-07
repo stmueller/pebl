@@ -77,8 +77,10 @@ define Start(p)
    inst.text <- gSTrings.next
    Hide(inst)
 
+   LSLMarker("block_test_start")
    while(trial <= gParams.trials)
     {
+     LSLMarker("trial_" + trial + "_start")
      WaitForDownClick()
      Hide(inst)
      t <- Trial(gParams.trialtime, gSubnum + "," + trial)
@@ -88,8 +90,10 @@ define Start(p)
      Show(inst)
      Draw()
     }
+   LSLMarker("block_test_end")
 
-
+   ## Finalize LSL
+   FinalizeLSL()
 
    out  <-    Print("=====================================")
    out <- out +  CR(1)+ Print("PEBL Pursuit Rotor task, Version 0.1")
@@ -156,6 +160,7 @@ define Trial(timeinsecs,head)
   Draw()
   WaitForClickOnTarget([gTarg],[0])
   Hide(inst)
+  LSLMarker("tracking_start")
   tNow <- GetTime()
   t0 <- GetTime()
   while(cont)
@@ -193,6 +198,7 @@ define Trial(timeinsecs,head)
     Wait(10)  ##Needed to allow mouse to sync.
     steps <- steps + 1
   }
+  LSLMarker("tracking_end_totaltime" + totaltime)
 
   RemoveObject(gTarg,gWin)
   RemoveObject(inst,gWin)
@@ -207,6 +213,7 @@ define Init()
   gHomeY <- Round(gVideoHeight/2)
 
   gWin <- MakeWindow()
+  InitializeLSL(gWin)  ## Initialize LSL outlet if --lsl flag was used
 
   gSleepEasy <- 1
   if(gSubNum+""=="0")
@@ -233,6 +240,16 @@ define Init()
 
 define GetStrings(lang)
 {
-  gStrings <- GetTranslations("pursuitrotor",lang)
 
-}
+  lang <- Uppercase(lang)
+  fname <- "translations/pursuitrotor.pbl-"+LowerCase(lang)+".json"
+
+  if(FileExists(fname))
+  {
+    gStrings <- ReadTranslationjson(fname,lang)
+  } else
+  {
+    gStrings <- ReadTranslationjson("translations/pursuitrotor.pbl-en.json",lang)
+  }
+
+ }

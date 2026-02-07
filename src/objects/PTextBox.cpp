@@ -62,6 +62,7 @@ PTextBox::PTextBox():
     InitializeProperty("ISADAPTIVE",Variant(false));
     InitializeProperty("ADAPTIVEMODE",Variant("scalefont"));
     InitializeProperty("REQUESTEDFONTSIZE",Variant(0));
+    InitializeProperty("FORMATTED",Variant(0));
 }
 
 
@@ -88,6 +89,7 @@ PTextBox::PTextBox(std::string text, int width, int height):
     InitializeProperty("ISADAPTIVE",Variant(false));
     InitializeProperty("ADAPTIVEMODE",Variant("scalefont"));
     InitializeProperty("REQUESTEDFONTSIZE",Variant(0));
+    InitializeProperty("FORMATTED",Variant(0));
 }
 
 
@@ -109,6 +111,7 @@ PTextBox::PTextBox( PTextBox & text):
     InitializeProperty("ISADAPTIVE",Variant(false));
     InitializeProperty("ADAPTIVEMODE",Variant("scalefont"));
     InitializeProperty("REQUESTEDFONTSIZE",Variant(0));
+    InitializeProperty("FORMATTED",Variant(0));
 }
 
 PTextBox::~PTextBox()
@@ -135,9 +138,10 @@ bool PTextBox::SetProperty(std::string name, Variant v)
     else if(name == "CURSORPOS") SetCursorPosition(v);
     else if(name == "LINEWRAP") SetLineWrap(v);
     else if(name == "JUSTIFY") SetJustify(v);
-    else if(name == "ISADAPTIVE" || name == "ADAPTIVEMODE" || name == "REQUESTEDFONTSIZE") {
+    else if(name == "ISADAPTIVE" || name == "ADAPTIVEMODE" || name == "REQUESTEDFONTSIZE" || name == "FORMATTED") {
         // These properties are stored only in the property system
         // Adaptive scaling is handled in PEBL code (UI.pbl)
+        // Formatted text rendering is handled in PlatformTextBox
         // Store the property value and mark as changed
         PEBLObjectBase::SetProperty(name, v);
         mChanged = true;
@@ -171,7 +175,7 @@ ObjectValidationError PTextBox::ValidateProperty(std::string name, Variant v)con
 
 ObjectValidationError PTextBox::ValidateProperty(std::string name)const
 {
-    if(name == "CURSORPOS"| name=="LINEWRAP"| name == "JUSTIFY" | name == "NUMTEXTLINES" | name == "TEXTCOMPLETE" | name == "ISADAPTIVE" | name == "ADAPTIVEMODE" | name == "REQUESTEDFONTSIZE")
+    if(name == "CURSORPOS"| name=="LINEWRAP"| name == "JUSTIFY" | name == "NUMTEXTLINES" | name == "TEXTCOMPLETE" | name == "ISADAPTIVE" | name == "ADAPTIVEMODE" | name == "REQUESTEDFONTSIZE" | name == "FORMATTED")
         return OVE_VALID;
     else
         return PTextObject::ValidateProperty(name);

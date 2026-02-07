@@ -1,246 +1,3 @@
-TESTING PARAMETER FILES FOR SPANVARIANTS
-=========================================
-
-These .par.json files make it easy to test specific variants without running the full battery.
-
-USAGE:
-------
-Run PEBL with the --pfile option to load a parameter file:
-
-  bin/pebl2 battery/spanvariants/spanvariants.pbl --pfile battery/spanvariants/params/test-forward-digit.par.json
-
-Or from the spanvariants directory:
-
-  ../../bin/pebl2 spanvariants.pbl --pfile params/test-forward-digit.par.json
-
-
-AVAILABLE TEST FILES:
----------------------
-
-1. test-forward-digit.par.json
-   - Tests only forward digit span
-   - Quick: upperbound=6, perlength=2
-   - Good for basic functionality testing
-
-2. test-letter-spans.par.json
-   - Tests forward and backward letter span
-   - Uses letters from letter_set parameter
-   - Tests audio support for letters
-
-3. test-ordering.par.json
-   - Tests all three ordering tasks (digit, letter, mixed)
-   - Quick version with reduced bounds
-
-4. test-mixed-spans.par.json
-   - Tests forward and backward mixed digit/letter spans
-   - Tests the most complex stimulus type
-
-5. test-video-only.par.json
-   - Tests with UseAudio=0 (video presentation only)
-   - Good for testing without audio files
-
-6. test-audio-only.par.json
-   - Tests with UseAudio=2 (audio-only presentation)
-   - Harder task, tests auditory working memory
-
-7. test-staircase.par.json
-   - Tests staircase (adaptive) method (version=3)
-   - Only 10 trials, quickly finds span
-
-8. test-all-quick.par.json
-   - Runs all 9 variants with reduced parameters
-   - Only 1 trial per length, shorter ISI/ITI
-   - Good for full system testing
-
-
-CUSTOMIZING:
-------------
-You can create your own .par.json file by copying one of these and modifying:
-
-- Set any task's _order parameter to 0 to skip it
-- Reduce upperbound/lowerbound to shorten testing
-- Reduce perlength to do fewer trials per length
-- Change UseAudio: 0=video, 1=audio+video, 2=audio-only
-- Change version: 1=low-to-high, 2=high-to-low, 3=staircase
-
-
-EXAMPLES:
----------
-
-Test just forward digit span with audio+video:
-  --pfile params/test-forward-digit.par.json
-
-Test ordering tasks (modify UseAudio in the .json file for audio-only):
-  --pfile params/test-ordering.par.json
-
-Test all variants quickly:
-  --pfile params/test-all-quick.par.json
-
-Override subject number:
-  -s 999 --pfile params/test-forward-digit.par.json
-forward_digit_order|1|Execution order for forward digit span (0=skip, else order number)
-backward_digit_order|2|Execution order for backward digit span (0=skip, else order number)
-forward_letter_order|3|Execution order for forward letter span (0=skip, else order number)
-backward_letter_order|4|Execution order for backward letter span (0=skip, else order number)
-forward_mixed_order|5|Execution order for forward mixed digit/letter span (0=skip, else order number)
-backward_mixed_order|6|Execution order for backward mixed digit/letter span (0=skip, else order number)
-digit_ordering_order|7|Execution order for digit ordering task (0=skip, else order number)
-letter_ordering_order|8|Execution order for letter ordering task (0=skip, else order number)
-mixed_ordering_order|9|Execution order for mixed ordering task (0=skip, else order number)
-input|keyboard|Input method: keyboard, keypad, or mouse
-UseAudio|1|Presentation mode: 0=video only, 1=audio+video, 2=audio only (works for digits and letters C,H,K,N,R,W,X,Y)
-AllowBackspace|1|Allow users to backspace over responses (1=yes, 0=no)
-AllowSkip|1|Allow users to skip over cells with '-' key (1=yes, 0=no)
-version|1|Test progression type (1=low-to-high, 2=high-to-low, 3=staircase)
-endearly|0|End list length when criterion is met (1=yes, 0=no)
-upperbound|9|The longest list length to test
-lowerbound|3|The shortest list length to test
-perlength|2|The number of trials at each length
-criterion|1|Number of correct trials needed to proceed to next length
-staircasestart|4|Starting list length for staircase method
-staircasetrials|16|Number of trials for staircase method
-ISI|1000|Inter-stimulus interval in milliseconds
-iti|1500|Inter-trial interval in milliseconds
-letter_set|CHKNPQRWXY|Set of letters to use for letter span tasks (easily distinguishable, audio support for C,H,K,N,R,W,X,Y)
-{
-  "forward_digit_order": 1,
-  "backward_digit_order": 2,
-  "forward_letter_order": 3,
-  "backward_letter_order": 4,
-  "forward_mixed_order": 5,
-  "backward_mixed_order": 6,
-  "digit_ordering_order": 7,
-  "letter_ordering_order": 8,
-  "mixed_ordering_order": 9,
-  "UseAudio": 1,
-  "version": 1,
-  "upperbound": 6,
-  "lowerbound": 3,
-  "perlength": 1,
-  "criterion": 1,
-  "ISI": 800,
-  "iti": 500
-}
-{
-  "forward_digit_order": 1,
-  "backward_digit_order": 0,
-  "forward_letter_order": 2,
-  "backward_letter_order": 0,
-  "forward_mixed_order": 0,
-  "backward_mixed_order": 0,
-  "digit_ordering_order": 0,
-  "letter_ordering_order": 0,
-  "mixed_ordering_order": 0,
-  "UseAudio": 2,
-  "version": 1,
-  "upperbound": 5,
-  "lowerbound": 3,
-  "perlength": 2,
-  "criterion": 1
-}
-{
-  "forward_digit_order": 1,
-  "backward_digit_order": 0,
-  "forward_letter_order": 0,
-  "backward_letter_order": 0,
-  "forward_mixed_order": 0,
-  "backward_mixed_order": 0,
-  "digit_ordering_order": 0,
-  "letter_ordering_order": 0,
-  "mixed_ordering_order": 0,
-  "UseAudio": 1,
-  "version": 1,
-  "upperbound": 6,
-  "lowerbound": 3,
-  "perlength": 2,
-  "criterion": 1,
-  "staircasetrials": 8
-}
-{
-  "forward_digit_order": 0,
-  "backward_digit_order": 0,
-  "forward_letter_order": 1,
-  "backward_letter_order": 2,
-  "forward_mixed_order": 0,
-  "backward_mixed_order": 0,
-  "digit_ordering_order": 0,
-  "letter_ordering_order": 0,
-  "mixed_ordering_order": 0,
-  "UseAudio": 1,
-  "version": 1,
-  "upperbound": 6,
-  "lowerbound": 3,
-  "perlength": 2,
-  "criterion": 1
-}
-{
-  "forward_digit_order": 0,
-  "backward_digit_order": 0,
-  "forward_letter_order": 0,
-  "backward_letter_order": 0,
-  "forward_mixed_order": 1,
-  "backward_mixed_order": 2,
-  "digit_ordering_order": 0,
-  "letter_ordering_order": 0,
-  "mixed_ordering_order": 0,
-  "UseAudio": 1,
-  "version": 1,
-  "upperbound": 6,
-  "lowerbound": 3,
-  "perlength": 2,
-  "criterion": 1
-}
-{
-  "forward_digit_order": 0,
-  "backward_digit_order": 0,
-  "forward_letter_order": 0,
-  "backward_letter_order": 0,
-  "forward_mixed_order": 0,
-  "backward_mixed_order": 0,
-  "digit_ordering_order": 1,
-  "letter_ordering_order": 2,
-  "mixed_ordering_order": 3,
-  "UseAudio": 1,
-  "version": 1,
-  "upperbound": 6,
-  "lowerbound": 3,
-  "perlength": 2,
-  "criterion": 1
-}
-{
-  "forward_digit_order": 1,
-  "backward_digit_order": 0,
-  "forward_letter_order": 0,
-  "backward_letter_order": 0,
-  "forward_mixed_order": 0,
-  "backward_mixed_order": 0,
-  "digit_ordering_order": 0,
-  "letter_ordering_order": 0,
-  "mixed_ordering_order": 0,
-  "UseAudio": 1,
-  "version": 3,
-  "staircasestart": 4,
-  "staircasetrials": 10,
-  "upperbound": 9,
-  "lowerbound": 3
-}
-{
-  "forward_digit_order": 1,
-  "backward_digit_order": 0,
-  "forward_letter_order": 2,
-  "backward_letter_order": 0,
-  "forward_mixed_order": 0,
-  "backward_mixed_order": 0,
-  "digit_ordering_order": 0,
-  "letter_ordering_order": 0,
-  "mixed_ordering_order": 0,
-  "UseAudio": 0,
-  "version": 1,
-  "upperbound": 5,
-  "lowerbound": 3,
-  "perlength": 2,
-  "criterion": 1
-}
 ###########################################################
 ## Span Variants Test, Version 0.1
 ## For use with PEBL 2.0 or later
@@ -279,12 +36,12 @@ define Start(lPar)
     ## Task ordering parameters (0=skip, else execution order)
     ["forward_digit_order", 1],    ## Forward digit span
     ["backward_digit_order", 2],   ## Backward digit span
-    ["forward_letter_order", 3],   ## Forward letter span
-    ["backward_letter_order", 4],  ## Backward letter span
-    ["forward_mixed_order", 5],    ## Forward mixed digit/letter span
-    ["backward_mixed_order", 6],   ## Backward mixed digit/letter span
-    ["digit_ordering_order", 7],   ## Digit ordering task
-    ["letter_ordering_order", 8],  ## Letter ordering task
+    ["forward_letter_order", 0],   ## Forward letter span
+    ["backward_letter_order", 0],  ## Backward letter span
+    ["forward_mixed_order", 0],    ## Forward mixed digit/letter span
+    ["backward_mixed_order", 0],   ## Backward mixed digit/letter span
+    ["digit_ordering_order", 0],   ## Digit ordering task
+    ["letter_ordering_order", 0],  ## Letter ordering task
     ["mixed_ordering_order", 9],   ## Mixed digit/letter ordering
 
     ## Display and input parameters
@@ -292,6 +49,7 @@ define Start(lPar)
     ["UseAudio",1],                ## 0=video only, 1=audio+video, 2=audio only
     ["AllowBackspace", 1],         ## Allow users to backspace over responses?
     ["AllowSkip", 1],              ## Allow users to skip over cells?
+    ["responsemode", "none"],      ## Layout response mode (none for this task)
 
     ## Test progression parameters
     ["version",1],                 ## 1=low-to-high; 2=high-to-low; 3=staircase
@@ -315,6 +73,16 @@ define Start(lPar)
 
   gParams <- CreateParameters(parpairs,gParamFile)
 
+  ## Create layout after params are available
+  gLayout <- CreateLayout("spanvariants", gWin, gParams)
+  gLayout.header.visible <- 0      ## Initially hidden
+  gLayout.subheader.visible <- 0   ## Initially hidden
+  gLayout.footer.visible <- 0      ## Not used
+
+  ## Update stimulus and feedback positions to use layout
+  Move(gStimLabel, gLayout.centerX, gLayout.centerY)
+  Move(gFeedback, gLayout.centerX, gLayout.centerY + 70)
+
   ## Setup input device
   gInputDevice <- gParams.input
   ShowCursor(1)
@@ -327,7 +95,13 @@ define Start(lPar)
   gFileOut <- GetNewDataFile(gSubNum,gWin,"spanvariants","csv",
               "subnum,tasktype,direction,stimulus_type,trialnum,length,try,input,response,correct,resptime")
   gReportFile <- GetNewDataFile(gSubNum,gWin,"spanvariants-report","txt","")
-  gPooledFile <- FileOpenAppend("data/pooled-spanvariants-" + gSubNum +".csv")
+  gPooledFile <- FileOpenAppend("data/pooled-spanvariants.csv")
+
+  ## Write report header immediately (so we have something even if test is abandoned)
+  FilePrint(gReportFile, "PEBL Span Variants Test")
+  FilePrint(gReportFile, "Participant: " + gSubNum)
+  FilePrint(gReportFile, "Started: " + Timestamp())
+  FilePrint(gReportFile, "")
 
   ## Build task list based on parameters
   gTaskList <- []
@@ -414,12 +188,25 @@ define Start(lPar)
 
     result <- RunSpanTask(taskDirection, taskStimType)
     gAllResults <- Append(gAllResults, result)
+
+    ## Write result to report immediately after each task completes
+    taskType <- First(result)
+    span <- Nth(result, 2)
+    correct <- Nth(result, 3)
+    FilePrint(gReportFile, taskType + " span: " + span + " (total correct: " + correct + ")")
   }
 
   ## Close data files
   FileClose(gFileOut)
+  FileClose(gPooledFile)
 
-  ## Generate final report
+  ## Write final summary to report
+  FilePrint(gReportFile, "")
+  FilePrint(gReportFile, "Completed: " + Timestamp())
+  FilePrint(gReportFile, "Total time: " + Round(GetTime()/1000/60,2) + " min")
+  FileClose(gReportFile)
+
+  ## Build final report text for display
   report <- "PEBL Span Variants Test" + CR(1)
   report <- report + "Participant: " + gSubNum + CR(1)
   report <- report + Timestamp() + CR(2)
@@ -433,8 +220,6 @@ define Start(lPar)
   }
 
   report <- report + CR(1) + "Total time: " + Round(GetTime()/1000/60,2) + " min"
-
-  FilePrint(gReportFile, report)
 
   ## Show final feedback
   feedback <- gStrings.debrief + CR(2) + report + CR(2) + gStrings.exit
@@ -627,7 +412,8 @@ define RunSpanTask(direction, stimType)
     trialnum <- trialnum + 1
   }
 
-  Hide(gHeader)
+  Hide(gLayout.header)
+  Hide(gLayout.subheader)
   Draw()
 
   ## Calculate final span
@@ -649,7 +435,28 @@ define RunSpanTask(direction, stimType)
 ## Standard span trial (forward or backward)
 define SpanTrial(stimlist, length, direction, stimType)
 {
-  stimuli <- SampleN(stimlist, length)
+  ## For mixed type, ensure balanced digit/letter ratio
+  if(stimType == "mixed")
+  {
+    ## Exclude 0 from digits to avoid confusion with letter O
+    digitsNoZero <- []
+    loop(d, gDigits)
+    {
+      if(not (d == "0"))
+      {
+        digitsNoZero <- Append(digitsNoZero, d)
+      }
+    }
+    shuffledDigits <- Shuffle(digitsNoZero)
+    shuffledLetters <- Shuffle(gLetters)
+    combined <- Shuffle([shuffledDigits, shuffledLetters])  ## Randomize which type dominates on odd lengths
+    interleaved <- Transpose(combined)
+    flattened <- Flatten(interleaved)
+    stimuli <- Shuffle(SubList(flattened, 1, length))  ## Take first n, then shuffle for presentation order
+  } else {
+    stimuli <- SampleN(stimlist, length)
+  }
+
   string <- ListToString(stimuli)
   dummy  <- Repeat("_", length)
 
@@ -713,8 +520,10 @@ define SpanTrial(stimlist, length, direction, stimType)
     PlayForeground(gBeep)
   }
 
-  gHeader.text <- gStrings.header
-  Show(gHeader)
+  ## Set task-specific subheader prompt
+  headerKey <- Uppercase(direction + "_" + stimType + "_header")
+  gLayout.subheader.text <- GetProperty(gStrings, headerKey)
+  gLayout.subheader.visible <- 1
   Show(gStimLabel)
   Draw()
 
@@ -735,9 +544,16 @@ define SpanTrial(stimlist, length, direction, stimType)
 
   FilePrint(gFileOut, resptext + "," + corr + "," + (time2-time1))
 
-  ## Show feedback
+  ## Show feedback - for backward span, show the correct reversed answer
   Wait(200)
-  gFeedback.text <- ListToString(stimuli)
+  if(direction == "backward")
+  {
+    gFeedback.text <- ListToString(Reverse(stimuli))
+  } else {
+    gFeedback.text <- ListToString(stimuli)
+  }
+  ## Position feedback adaptively based on stimulus height
+  gFeedback.y <- gStimLabel.y + gStimLabel.height + 10
   Show(gFeedback)
   Draw()
   Wait(1500)
@@ -768,7 +584,27 @@ define SpanTrial(stimlist, length, direction, stimType)
 ## Ordering trial - show scrambled items, user types them in order
 define OrderingTrial(stimlist, length, stimType)
 {
-  stimuli <- SampleN(stimlist, length)
+  ## For mixed type, ensure balanced digit/letter ratio
+  if(stimType == "mixed")
+  {
+    ## Exclude 0 from digits to avoid confusion with letter O
+    digitsNoZero <- []
+    loop(d, gDigits)
+    {
+      if(not (d == "0"))
+      {
+        digitsNoZero <- Append(digitsNoZero, d)
+      }
+    }
+    shuffledDigits <- Shuffle(digitsNoZero)
+    shuffledLetters <- Shuffle(gLetters)
+    combined <- Shuffle([shuffledDigits, shuffledLetters])  ## Randomize which type dominates on odd lengths
+    interleaved <- Transpose(combined)
+    flattened <- Flatten(interleaved)
+    stimuli <- SubList(flattened, 1, length)  ## Don't shuffle - will be scrambled below
+  } else {
+    stimuli <- SampleN(stimlist, length)
+  }
 
   ## Determine correct sorted order
   if(stimType == "mixed")
@@ -856,8 +692,10 @@ define OrderingTrial(stimlist, length, stimType)
   gStimLabel.text <- ListToString(dummy)
   Draw()
 
-  gHeader.text <- gStrings.ordering_header
-  Show(gHeader)
+  ## Set task-specific subheader prompt for ordering
+  headerKey <- Uppercase("ordering_" + stimType + "_header")
+  gLayout.subheader.text <- GetProperty(gStrings, headerKey)
+  gLayout.subheader.visible <- 1
   Show(gStimLabel)
   Draw()
 
@@ -878,6 +716,8 @@ define OrderingTrial(stimlist, length, stimType)
   ## Show feedback
   Wait(200)
   gFeedback.text <- ListToString(correctOrder)
+  ## Position feedback adaptively based on stimulus height
+  gFeedback.y <- gStimLabel.y + gStimLabel.height + 10
   Show(gFeedback)
   Draw()
   Wait(1500)
@@ -980,18 +820,27 @@ define GetTypedResponse(length, direction)
       }
     }
 
+    ## Build display text
     if(direction == "forward")
     {
+      ## Forward: show response list as-is with underscores after
       resptext <- ListToString(Merge(responseList, Repeat("_", (length - position + 1))))
     } else {
-      resptext <- ListToString(Merge(Repeat("_", (length - position + 1)), responseList))
+      ## Backward: show what user typed in the order they typed it (not reversed)
+      ## responseList is built in correct backward order via prepending
+      ## but we want to show the typing sequence (reversed visual order)
+      displayList <- Reverse(responseList)
+      resptext <- ListToString(Merge(displayList, Repeat("_", (length - position + 1))))
     }
 
     gStimLabel.text <- resptext
     Draw()
   }
 
-  return(resptext)
+  ## Return the actual response (not the display text)
+  ## For backward, responseList contains the correct reversed sequence
+  ## For forward, responseList is already in correct order
+  return(ListToString(responseList))
 }
 
 
@@ -1008,35 +857,1395 @@ define Initialize()
   GetStrings(gLanguage)
 
   bg <- MakeColor("black")
-  bg1 <- MakeColor("grey20")
   fg <- MakeColor("white")
   bg2 <- MakeColor("grey20")
 
-  colGreen <- MakeColor("green")
-  colRed   <- MakeColor("red")
-
-  gStimFont         <- MakeFont(gPEBLBaseFontMono, 0, 56, fg, bg, 1)
+  gStimFont         <- MakeFont(gPEBLBaseFontMono, 0, 84, fg, bg, 1)  ## 50% larger than 56
   gInstructionsFont <- MakeFont(gPEBLBaseFont, 0, 18, fg, bg2, 1)
-  gHeaderFont       <- MakeFont(gPEBLBaseFont, 0, 24, fg, bg, 1)
 
   gInstructions <- MakeTextBox("", gInstructionsFont, 800, 500)
   AddObject(gInstructions, gWin)
   Move(gInstructions, gVideoWidth/2-400, gVideoHeight/2-250)
   Hide(gInstructions)
 
-  gHeader <- MakeTextBox("", gHeaderFont, 600, 200)
-  AddObject(gHeader, gWin)
-  Move(gHeader, gVideoWidth/2-300, 50)
-  Hide(gHeader)
-
+  ## Create stimuli labels (positioned after layout is created)
   gStimLabel <- MakeLabel("", gStimFont)
   AddObject(gStimLabel, gWin)
-  Move(gStimLabel, gVideoWidth/2, gVideoHeight/2)
   Hide(gStimLabel)
 
   gFeedback <- MakeLabel("", gStimFont)
   AddObject(gFeedback, gWin)
-  Move(gFeedback, gVideoWidth/2, gVideoHeight/2+70)
+  Hide(gFeedback)
+}
+
+
+define WaitForIt()
+{
+  if(gInputDevice == "keyboard" or gInputDevice == "keypad")
+  {
+    WaitForAnyKeyPress()
+  } elseif(gInputDevice == "mouse")
+  {
+    WaitForDownClick()
+  }
+}
+
+
+define GetStrings(lang)
+{
+  gStrings <- GetTranslations("spanvariants", lang)
+  PrintProperties(gStrings)
+}
+
+
+## Get the sound object for a given stimulus
+define GetSoundForStim(stim, stimType)
+{
+  sound <- 0
+
+  if(stimType == "digit")
+  {
+    idx <- Match([stim], gDigits)
+    if(Length(idx) > 0 and Length(gDigitSounds) > 0)
+    {
+      pos <- First(idx)
+      if(pos > 0 and pos <= Length(gDigitSounds))
+      {
+        sound <- Nth(gDigitSounds, pos)
+      }
+    }
+  } elseif(stimType == "letter") {
+    idx <- Match([stim], gLetters)
+    if(Length(idx) > 0 and Length(gLetterSounds) > 0)
+    {
+      pos <- First(idx)
+      if(pos > 0 and pos <= Length(gLetterSounds))
+      {
+        sound <- Nth(gLetterSounds, pos)
+      }
+    }
+  } else {
+    ## Mixed - check if digit or letter
+    if(IsMember(stim, gDigits))
+    {
+      idx <- Match([stim], gDigits)
+      if(Length(idx) > 0 and Length(gDigitSounds) > 0)
+      {
+        pos <- First(idx)
+        if(pos > 0 and pos <= Length(gDigitSounds))
+        {
+          sound <- Nth(gDigitSounds, pos)
+        }
+      }
+    } else {
+      idx <- Match([stim], gLetters)
+      if(Length(idx) > 0 and Length(gLetterSounds) > 0)
+      {
+        pos <- First(idx)
+        if(pos > 0 and pos <= Length(gLetterSounds))
+        {
+          sound <- Nth(gLetterSounds, pos)
+        }
+      }
+    }
+  }
+
+  return(sound)
+}
+TESTING PARAMETER FILES FOR SPANVARIANTS
+=========================================
+
+These .par.json files make it easy to test specific variants without running the full battery.
+
+USAGE:
+------
+Run PEBL with the --pfile option to load a parameter file:
+
+  bin/pebl2 battery/spanvariants/spanvariants.pbl --pfile battery/spanvariants/params/test-forward-digit.par.json
+
+Or from the spanvariants directory:
+
+  ../../bin/pebl2 spanvariants.pbl --pfile params/test-forward-digit.par.json
+
+
+AVAILABLE TEST FILES:
+---------------------
+
+1. test-forward-digit.par.json
+   - Tests only forward digit span
+   - Quick: upperbound=6, perlength=2
+   - Good for basic functionality testing
+
+2. test-letter-spans.par.json
+   - Tests forward and backward letter span
+   - Uses letters from letter_set parameter
+   - Tests audio support for letters
+
+3. test-ordering.par.json
+   - Tests all three ordering tasks (digit, letter, mixed)
+   - Quick version with reduced bounds
+
+4. test-mixed-spans.par.json
+   - Tests forward and backward mixed digit/letter spans
+   - Tests the most complex stimulus type
+
+5. test-video-only.par.json
+   - Tests with UseAudio=0 (video presentation only)
+   - Good for testing without audio files
+
+6. test-audio-only.par.json
+   - Tests with UseAudio=2 (audio-only presentation)
+   - Harder task, tests auditory working memory
+
+7. test-staircase.par.json
+   - Tests staircase (adaptive) method (version=3)
+   - Only 10 trials, quickly finds span
+
+8. test-all-quick.par.json
+   - Runs all 9 variants with reduced parameters
+   - Only 1 trial per length, shorter ISI/ITI
+   - Good for full system testing
+
+
+CUSTOMIZING:
+------------
+You can create your own .par.json file by copying one of these and modifying:
+
+- Set any task's _order parameter to 0 to skip it
+- Reduce upperbound/lowerbound to shorten testing
+- Reduce perlength to do fewer trials per length
+- Change UseAudio: 0=video, 1=audio+video, 2=audio-only
+- Change version: 1=low-to-high, 2=high-to-low, 3=staircase
+
+
+EXAMPLES:
+---------
+
+Test just forward digit span with audio+video:
+  --pfile params/test-forward-digit.par.json
+
+Test ordering tasks (modify UseAudio in the .json file for audio-only):
+  --pfile params/test-ordering.par.json
+
+Test all variants quickly:
+  --pfile params/test-all-quick.par.json
+
+Override subject number:
+  -s 999 --pfile params/test-forward-digit.par.json
+{
+  "test": "spanvariants",
+  "version": "0.1",
+  "description": "Span Variants Test - Comprehensive battery of 9 working memory span tasks",
+  "parameters": [
+    {
+      "name": "forward_digit_order",
+      "type": "integer",
+      "default": 1,
+      "description": "Execution order for forward digit span (0=skip, else order number)"
+    },
+    {
+      "name": "backward_digit_order",
+      "type": "integer",
+      "default": 2,
+      "description": "Execution order for backward digit span (0=skip, else order number)"
+    },
+    {
+      "name": "forward_letter_order",
+      "type": "integer",
+      "default": 0,
+      "description": "Execution order for forward letter span (0=skip, else order number)"
+    },
+    {
+      "name": "backward_letter_order",
+      "type": "integer",
+      "default": 0,
+      "description": "Execution order for backward letter span (0=skip, else order number)"
+    },
+    {
+      "name": "forward_mixed_order",
+      "type": "integer",
+      "default": 0,
+      "description": "Execution order for forward mixed digit/letter span (0=skip, else order number)"
+    },
+    {
+      "name": "backward_mixed_order",
+      "type": "integer",
+      "default": 0,
+      "description": "Execution order for backward mixed digit/letter span (0=skip, else order number)"
+    },
+    {
+      "name": "digit_ordering_order",
+      "type": "integer",
+      "default": 0,
+      "description": "Execution order for digit ordering task (0=skip, else order number)"
+    },
+    {
+      "name": "letter_ordering_order",
+      "type": "integer",
+      "default": 0,
+      "description": "Execution order for letter ordering task (0=skip, else order number)"
+    },
+    {
+      "name": "mixed_ordering_order",
+      "type": "integer",
+      "default": 9,
+      "description": "Execution order for mixed ordering task (0=skip, else order number)"
+    },
+    {
+      "name": "input",
+      "type": "string",
+      "default": "keyboard",
+      "options": ["keyboard", "keypad", "mouse"],
+      "description": "Input method: keyboard (top row numbers), keypad (numeric keypad), or mouse"
+    },
+    {
+      "name": "UseAudio",
+      "type": "integer",
+      "default": 1,
+      "options": [0, 1, 2],
+      "description": "Presentation mode: 0=video only, 1=audio+video, 2=audio only (works for digits and letters C,H,K,N,R,W,X,Y)"
+    },
+    {
+      "name": "AllowBackspace",
+      "type": "integer",
+      "default": 1,
+      "options": [0, 1],
+      "description": "Allow users to backspace over responses (1=yes, 0=no)"
+    },
+    {
+      "name": "AllowSkip",
+      "type": "integer",
+      "default": 1,
+      "options": [0, 1],
+      "description": "Allow users to skip over cells with '-' key (1=yes, 0=no)"
+    },
+    {
+      "name": "responsemode",
+      "type": "string",
+      "default": "none",
+      "description": "Layout response mode (use 'none' for manual keyboard input)"
+    },
+    {
+      "name": "version",
+      "type": "integer",
+      "default": 1,
+      "options": [1, 2, 3],
+      "description": "Test progression type: 1=low-to-high (traditional), 2=high-to-low, 3=staircase"
+    },
+    {
+      "name": "endearly",
+      "type": "integer",
+      "default": 0,
+      "options": [0, 1],
+      "description": "End list length when criterion is met (1=yes, 0=test all trials)"
+    },
+    {
+      "name": "upperbound",
+      "type": "integer",
+      "default": 9,
+      "description": "The longest list length to test"
+    },
+    {
+      "name": "lowerbound",
+      "type": "integer",
+      "default": 3,
+      "description": "The shortest list length to test"
+    },
+    {
+      "name": "perlength",
+      "type": "integer",
+      "default": 2,
+      "description": "The number of trials at each length"
+    },
+    {
+      "name": "criterion",
+      "type": "integer",
+      "default": 1,
+      "description": "Number of correct trials needed to proceed to next length"
+    },
+    {
+      "name": "staircasestart",
+      "type": "integer",
+      "default": 4,
+      "description": "Starting list length for staircase method (version=3)"
+    },
+    {
+      "name": "staircasetrials",
+      "type": "integer",
+      "default": 16,
+      "description": "Number of trials for staircase method (version=3)"
+    },
+    {
+      "name": "ISI",
+      "type": "integer",
+      "default": 1000,
+      "description": "Inter-stimulus interval in milliseconds"
+    },
+    {
+      "name": "iti",
+      "type": "integer",
+      "default": 1500,
+      "description": "Inter-trial interval in milliseconds"
+    },
+    {
+      "name": "letter_set",
+      "type": "string",
+      "default": "CHKNPQRWXY",
+      "description": "Set of letters to use for letter span tasks (easily distinguishable, audio support for C,H,K,N,R,W,X,Y)"
+    }
+  ]
+}
+{
+  "forward_digit_order": 1,
+  "backward_digit_order": 2,
+  "forward_letter_order": 3,
+  "backward_letter_order": 4,
+  "forward_mixed_order": 5,
+  "backward_mixed_order": 6,
+  "digit_ordering_order": 7,
+  "letter_ordering_order": 8,
+  "mixed_ordering_order": 9,
+  "UseAudio": 1,
+  "version": 1,
+  "upperbound": 6,
+  "lowerbound": 3,
+  "perlength": 1,
+  "criterion": 1,
+  "ISI": 800,
+  "iti": 500
+}
+{
+  "forward_digit_order": 1,
+  "backward_digit_order": 0,
+  "forward_letter_order": 2,
+  "backward_letter_order": 0,
+  "forward_mixed_order": 0,
+  "backward_mixed_order": 0,
+  "digit_ordering_order": 0,
+  "letter_ordering_order": 0,
+  "mixed_ordering_order": 0,
+  "UseAudio": 2,
+  "version": 1,
+  "upperbound": 5,
+  "lowerbound": 3,
+  "perlength": 2,
+  "criterion": 1
+}
+{
+  "forward_digit_order": 1,
+  "backward_digit_order": 0,
+  "forward_letter_order": 0,
+  "backward_letter_order": 0,
+  "forward_mixed_order": 0,
+  "backward_mixed_order": 0,
+  "digit_ordering_order": 0,
+  "letter_ordering_order": 0,
+  "mixed_ordering_order": 0,
+  "UseAudio": 1,
+  "version": 1,
+  "upperbound": 6,
+  "lowerbound": 3,
+  "perlength": 2,
+  "criterion": 1,
+  "staircasetrials": 8
+}
+{
+  "forward_digit_order": 0,
+  "backward_digit_order": 0,
+  "forward_letter_order": 1,
+  "backward_letter_order": 2,
+  "forward_mixed_order": 0,
+  "backward_mixed_order": 0,
+  "digit_ordering_order": 0,
+  "letter_ordering_order": 0,
+  "mixed_ordering_order": 0,
+  "UseAudio": 1,
+  "version": 1,
+  "upperbound": 6,
+  "lowerbound": 3,
+  "perlength": 2,
+  "criterion": 1
+}
+{
+  "forward_digit_order": 0,
+  "backward_digit_order": 0,
+  "forward_letter_order": 0,
+  "backward_letter_order": 0,
+  "forward_mixed_order": 1,
+  "backward_mixed_order": 2,
+  "digit_ordering_order": 0,
+  "letter_ordering_order": 0,
+  "mixed_ordering_order": 0,
+  "UseAudio": 1,
+  "version": 1,
+  "upperbound": 6,
+  "lowerbound": 3,
+  "perlength": 2,
+  "criterion": 1
+}
+{
+  "forward_digit_order": 0,
+  "backward_digit_order": 0,
+  "forward_letter_order": 0,
+  "backward_letter_order": 0,
+  "forward_mixed_order": 0,
+  "backward_mixed_order": 0,
+  "digit_ordering_order": 1,
+  "letter_ordering_order": 2,
+  "mixed_ordering_order": 3,
+  "UseAudio": 1,
+  "version": 1,
+  "upperbound": 6,
+  "lowerbound": 3,
+  "perlength": 2,
+  "criterion": 1
+}
+{
+  "forward_digit_order": 1,
+  "backward_digit_order": 0,
+  "forward_letter_order": 0,
+  "backward_letter_order": 0,
+  "forward_mixed_order": 0,
+  "backward_mixed_order": 0,
+  "digit_ordering_order": 0,
+  "letter_ordering_order": 0,
+  "mixed_ordering_order": 0,
+  "UseAudio": 1,
+  "version": 3,
+  "staircasestart": 4,
+  "staircasetrials": 10,
+  "upperbound": 9,
+  "lowerbound": 3
+}
+{
+  "forward_digit_order": 1,
+  "backward_digit_order": 0,
+  "forward_letter_order": 2,
+  "backward_letter_order": 0,
+  "forward_mixed_order": 0,
+  "backward_mixed_order": 0,
+  "digit_ordering_order": 0,
+  "letter_ordering_order": 0,
+  "mixed_ordering_order": 0,
+  "UseAudio": 0,
+  "version": 1,
+  "upperbound": 5,
+  "lowerbound": 3,
+  "perlength": 2,
+  "criterion": 1
+}
+###########################################################
+## Span Variants Test, Version 0.1
+## For use with PEBL 2.0 or later
+## http://pebl.sf.net
+## Part of  The PEBL Psychological Testing Battery
+## 2025 Released into Public Domain
+## by Shane T. Mueller, Ph.D. (smueller at obereed dot net)
+##
+## This test combines multiple working memory span variants commonly
+## used for cognitive self-assessment:
+##  - Forward/Backward Digit Span
+##  - Forward/Backward Letter Span (with subset of easily distinguishable letters)
+##  - Forward/Backward Mixed Span (digits and letters presented sequentially)
+##  - Digit Ordering (recall digits in numerical order)
+##  - Letter Ordering (recall letters in alphabetical order)
+##  - Mixed Ordering (recall digits then letters, each in order)
+##
+## Each variant can be enabled/disabled and ordered via parameters.
+## Based on the PEBL Digit Span test.
+###########################################################
+
+define Start(lPar)
+{
+  InitializeUpload()  ## Initialize token-based hosting if upload.json exists
+
+  ## Initialize global objects for use later. Defined at end of file
+  Initialize()
+
+  ##Get subject code if one has not been supplied
+  if(gSubNum+""=="0")
+  {
+   gSubNum <- GetSubNum(gWin)
+  }
+
+  parpairs <- [
+    ## Task ordering parameters (0=skip, else execution order)
+    ["forward_digit_order", 1],    ## Forward digit span
+    ["backward_digit_order", 2],   ## Backward digit span
+    ["forward_letter_order", 0],   ## Forward letter span
+    ["backward_letter_order", 0],  ## Backward letter span
+    ["forward_mixed_order", 0],    ## Forward mixed digit/letter span
+    ["backward_mixed_order", 0],   ## Backward mixed digit/letter span
+    ["digit_ordering_order", 0],   ## Digit ordering task
+    ["letter_ordering_order", 0],  ## Letter ordering task
+    ["mixed_ordering_order", 9],   ## Mixed digit/letter ordering
+
+    ## Display and input parameters
+    ["input","keyboard"],          ## keyboard, keypad, or mouse
+    ["UseAudio",1],                ## 0=video only, 1=audio+video, 2=audio only
+    ["AllowBackspace", 1],         ## Allow users to backspace over responses?
+    ["AllowSkip", 1],              ## Allow users to skip over cells?
+    ["responsemode", "none"],      ## Layout response mode (none for this task)
+
+    ## Test progression parameters
+    ["version",1],                 ## 1=low-to-high; 2=high-to-low; 3=staircase
+    ["endearly",0],                ## End length when criterion met vs test all trials
+
+    ## Length and criterion parameters
+    ["upperbound", 9],             ## The longest list length
+    ["lowerbound", 3],             ## The shortest list length
+    ["perlength", 2],              ## The number of trials at each length
+    ["criterion", 1],              ## The number that must be correct to proceed
+    ["staircasestart", 4],         ## Starting point for staircase
+    ["staircasetrials", 16],       ## Number of staircase trials
+
+    ## Timing parameters
+    ["ISI", 1000],                 ## Inter-stimulus interval in ms
+    ["iti", 1500],                 ## Inter-trial interval in ms
+
+    ## Letter set for letter span tasks
+    ["letter_set", "CHKNPQRWXY"]   ## Easily distinguishable letters with audio support
+  ]
+
+  gParams <- CreateParameters(parpairs,gParamFile)
+
+  ## Create layout after params are available
+  gLayout <- CreateLayout("spanvariants", gWin, gParams)
+  gLayout.header.visible <- 0      ## Initially hidden
+  gLayout.subheader.visible <- 0   ## Initially hidden
+  gLayout.footer.visible <- 0      ## Not used
+
+  ## Update stimulus and feedback positions to use layout
+  Move(gStimLabel, gLayout.centerX, gLayout.centerY)
+  Move(gFeedback, gLayout.centerX, gLayout.centerY + 70)
+
+  ## Setup input device
+  gInputDevice <- gParams.input
+  ShowCursor(1)
+
+  gUseAudio <- gParams.useaudio
+  gAllowBackspace <- gParams.allowbackspace
+  gAllowSkip      <- gParams.allowskip
+
+  ## Create data files
+  gFileOut <- GetNewDataFile(gSubNum,gWin,"spanvariants","csv",
+              "subnum,tasktype,direction,stimulus_type,trialnum,length,try,input,response,correct,resptime")
+  gReportFile <- GetNewDataFile(gSubNum,gWin,"spanvariants-report","txt","")
+  gPooledFile <- FileOpenAppend("data/pooled-spanvariants.csv")
+
+  ## Write report header immediately (so we have something even if test is abandoned)
+  FilePrint(gReportFile, "PEBL Span Variants Test")
+  FilePrint(gReportFile, "Participant: " + gSubNum)
+  FilePrint(gReportFile, "Started: " + Timestamp())
+  FilePrint(gReportFile, "")
+
+  ## Build task list based on parameters
+  gTaskList <- []
+
+  if(gParams.forward_digit_order > 0)
+  {
+    gTaskList <- Append(gTaskList, [gParams.forward_digit_order, "forward", "digit"])
+  }
+  if(gParams.backward_digit_order > 0)
+  {
+    gTaskList <- Append(gTaskList, [gParams.backward_digit_order, "backward", "digit"])
+  }
+  if(gParams.forward_letter_order > 0)
+  {
+    gTaskList <- Append(gTaskList, [gParams.forward_letter_order, "forward", "letter"])
+  }
+  if(gParams.backward_letter_order > 0)
+  {
+    gTaskList <- Append(gTaskList, [gParams.backward_letter_order, "backward", "letter"])
+  }
+  if(gParams.forward_mixed_order > 0)
+  {
+    gTaskList <- Append(gTaskList, [gParams.forward_mixed_order, "forward", "mixed"])
+  }
+  if(gParams.backward_mixed_order > 0)
+  {
+    gTaskList <- Append(gTaskList, [gParams.backward_mixed_order, "backward", "mixed"])
+  }
+  if(gParams.digit_ordering_order > 0)
+  {
+    gTaskList <- Append(gTaskList, [gParams.digit_ordering_order, "ordering", "digit"])
+  }
+  if(gParams.letter_ordering_order > 0)
+  {
+    gTaskList <- Append(gTaskList, [gParams.letter_ordering_order, "ordering", "letter"])
+  }
+  if(gParams.mixed_ordering_order > 0)
+  {
+    gTaskList <- Append(gTaskList, [gParams.mixed_ordering_order, "ordering", "mixed"])
+  }
+
+  ## Sort tasks by their order values
+  gTaskList <- SortBy(gTaskList, First(Transpose(gTaskList)))
+
+  ## Load stimuli
+  gDigits <- FileReadList("Digits.txt")
+  gLetters <- SplitString(gParams.letter_set, "")
+
+  ## Load audio if enabled (modes 1 or 2)
+  gDigitSounds <- []
+  gLetterSounds <- []
+
+  if(gUseAudio > 0)
+  {
+    ## Load digit sounds (0-9)
+    loop(i, gDigits)
+    {
+      x <- LoadSound(i + ".ogg")
+      gDigitSounds <- Append(gDigitSounds, x)
+    }
+
+    ## Load letter sounds - all letters in letter_set
+    loop(letter, gLetters)
+    {
+      sound <- LoadSound(letter + ".ogg")
+      gLetterSounds <- Append(gLetterSounds, sound)
+    }
+
+    gReady <- LoadSound("ready.ogg")
+    gBeep  <- LoadSound("beep.ogg")
+    gCorrect <- LoadSound("correct.ogg")
+    gIncorrect <- LoadSound("incorrect.ogg")
+  }
+
+  ## Initialize results storage
+  gAllResults <- []
+
+  ## Run each task in sequence
+  loop(task, gTaskList)
+  {
+    taskOrder <- First(task)
+    taskDirection <- Nth(task, 2)
+    taskStimType <- Nth(task, 3)
+
+    LSLMarker("block_" + taskDirection + "_" + taskStimType + "_start")
+    result <- RunSpanTask(taskDirection, taskStimType)
+    LSLMarker("block_" + taskDirection + "_" + taskStimType + "_end")
+    gAllResults <- Append(gAllResults, result)
+
+    ## Write result to report immediately after each task completes
+    taskType <- First(result)
+    span <- Nth(result, 2)
+    correct <- Nth(result, 3)
+    FilePrint(gReportFile, taskType + " span: " + span + " (total correct: " + correct + ")")
+  }
+
+  ## Close data files
+  FileClose(gFileOut)
+  FileClose(gPooledFile)
+
+  ## Write final summary to report
+  FilePrint(gReportFile, "")
+  FilePrint(gReportFile, "Completed: " + Timestamp())
+  FilePrint(gReportFile, "Total time: " + Round(GetTime()/1000/60,2) + " min")
+  FileClose(gReportFile)
+
+  ## Build final report text for display
+  report <- "PEBL Span Variants Test" + CR(1)
+  report <- report + "Participant: " + gSubNum + CR(1)
+  report <- report + Timestamp() + CR(2)
+
+  loop(result, gAllResults)
+  {
+    taskType <- First(result)
+    span <- Nth(result, 2)
+    correct <- Nth(result, 3)
+    report <- report + taskType + " span: " + span + " (total correct: " + correct + ")" + CR(1)
+  }
+
+  report <- report + CR(1) + "Total time: " + Round(GetTime()/1000/60,2) + " min"
+
+  ## Show final feedback
+  feedback <- gStrings.debrief + CR(2) + report + CR(2) + gStrings.exit
+
+  SetText(gInstructions, feedback)
+  Show(gInstructions)
+  Draw()
+  WaitForIt()
+
+  ## Upload data files
+  Print("uploading data")
+  out <- UploadFile(gSubnum,gFileOut.filename)
+  Print(out)
+  out <- UploadFile(gSubnum,gReportFile.filename)
+  Print(out)
+  out <- UploadFile(gSubnum,gPooledFile.filename)
+  Print(out)
+
+  ## Finalize LSL
+  FinalizeLSL()
+
+  ShowCursor(1)
+}
+
+
+## Main function to run a single span task variant
+define RunSpanTask(direction, stimType)
+{
+  ## Get appropriate instructions
+  instKey <- Uppercase(direction + "_" + stimType + "_inst")
+  inst <- GetProperty(gStrings, instKey)
+
+  if(gAllowSkip)
+  {
+    inst <- inst + gStrings.instskip
+  } else {
+    inst <- inst + gStrings.instnoskip
+  }
+
+  if(gAllowBackspace)
+  {
+    inst <- inst + gStrings.instback
+  } else {
+    inst <- inst + gStrings.instnoback
+  }
+
+  ## Add version-specific instructions
+  if(gParams.version == 1) {
+    inst <- inst + gStrings.lth
+  } elseif(gParams.version == 2) {
+    inst <- inst + gStrings.htl
+  } else {
+    inst <- inst + gStrings.scs
+  }
+
+  SetText(gInstructions, inst)
+  Show(gInstructions)
+  Draw()
+  WaitForIt()
+  Hide(gInstructions)
+  Draw()
+
+  ## Set up stimuli for this task
+  if(stimType == "digit")
+  {
+    gStim <- gDigits
+  } elseif(stimType == "letter")
+  {
+    gStim <- gLetters
+  } else {  ## mixed
+    gStim <- Merge(gDigits, gLetters)
+  }
+
+  ## Determine starting length
+  if(gParams.version == 1) {
+    startLength <- gParams.lowerbound
+  } elseif(gParams.version == 2) {
+    startLength <- gParams.upperbound
+  } else {
+    startLength <- gParams.staircasestart
+  }
+
+  ## Run trials
+  trialnum <- 1
+  continue <- 1
+  currcorrect <- 0
+  try <- 0
+  length <- startLength
+  lengths <- []
+  sumCorrect <- 0
+
+  while(continue)
+  {
+    Wait(gParams.iti)
+
+    taskLabel <- direction + "_" + stimType
+    FilePrint_(gFileOut, gSubNum + "," + taskLabel + "," + direction + "," + stimType + "," + trialnum + "," + length + "," + try + ",")
+
+    LSLMarker("trial_" + trialnum + "_length" + length + "_start")
+    if(direction == "ordering")
+    {
+      corr <- OrderingTrial(gStim, length, stimType)
+    } else {
+      corr <- SpanTrial(gStim, length, direction, stimType)
+    }
+
+    if(corr)
+    {
+      LSLMarker("trial_correct")
+    }else{
+      LSLMarker("trial_incorrect")
+    }
+    LSLMarker("trial_" + trialnum + "_end")
+
+    sumCorrect <- sumcorrect + corr
+
+    ## Update progression based on version
+    if(gParams.version == 1)
+    {
+      try <- try + 1
+      currcorrect <- currcorrect + corr
+
+      if(gParams.endearly)
+      {
+        if(currcorrect >= gParams.criterion)
+        {
+          length <- length + 1
+          currcorrect <- 0
+          try <- 0
+        } elseif(try >= gParams.perlength) {
+          continue <- 0
+        }
+      } else {
+        if(try >= gParams.perlength)
+        {
+          if(currcorrect >= gParams.criterion)
+          {
+            length <- length + 1
+            currcorrect <- 0
+            try <- 0
+          } else {
+            continue <- 0
+          }
+        }
+      }
+
+      if(length > gParams.upperbound)
+      {
+        continue <- 0
+      }
+
+    } elseif(gParams.version == 2) {
+
+      try <- try + 1
+      currcorrect <- currcorrect + corr
+
+      if(gParams.endearly) {
+        if(currcorrect >= gParams.criterion)
+        {
+          continue <- 0
+        } elseif(try >= gParams.perlength) {
+          length <- length - 1
+          currcorrect <- 0
+          try <- 0
+        }
+      } else {
+        if(try >= gParams.perlength) {
+          if(currcorrect == gParams.perlength)
+          {
+            continue <- 0
+          } else {
+            length <- length -1
+            currcorrect <- 0
+            try <- 0
+          }
+        }
+      }
+
+      if(length < gParams.lowerbound)
+      {
+        continue <- 0
+      }
+
+    } else {
+      ## Staircase
+      if(corr)
+      {
+        length <- Min([length + 1, gParams.upperbound])
+      } else {
+        length <- Max([gParams.lowerbound, length-1])
+      }
+      if(trialnum >= gParams.staircasetrials)
+      {
+        continue <- 0
+      }
+    }
+
+    if(trialnum > 4) {
+      lengths <- Append(lengths, length)
+    }
+
+    trialnum <- trialnum + 1
+  }
+
+  Hide(gLayout.header)
+  Hide(gLayout.subheader)
+  Draw()
+
+  ## Calculate final span
+  if(gParams.version == 1) {
+    finalSpan <- length - 1
+  } elseif(gParams.version == 2) {
+    finalSpan <- length + 1
+  } else {
+    finalSpan <- Mean(lengths)
+  }
+
+  ## Record to pooled file
+  FilePrint(gPooledFile, gSubNum + "," + TimeStamp() + "," + taskLabel + "," + finalSpan + "," + sumCorrect)
+
+  return([taskLabel, finalSpan, sumCorrect])
+}
+
+
+## Standard span trial (forward or backward)
+define SpanTrial(stimlist, length, direction, stimType)
+{
+  ## For mixed type, ensure balanced digit/letter ratio
+  if(stimType == "mixed")
+  {
+    ## Exclude 0 from digits to avoid confusion with letter O
+    digitsNoZero <- []
+    loop(d, gDigits)
+    {
+      if(not (d == "0"))
+      {
+        digitsNoZero <- Append(digitsNoZero, d)
+      }
+    }
+    shuffledDigits <- Shuffle(digitsNoZero)
+    shuffledLetters <- Shuffle(gLetters)
+
+    ## Ensure equal length for Transpose - use minimum of the two lengths
+    minLen <- Min([Length(shuffledDigits), Length(shuffledLetters)])
+    shuffledDigits <- SubList(shuffledDigits, 1, minLen)
+    shuffledLetters <- SubList(shuffledLetters, 1, minLen)
+
+    combined <- Shuffle([shuffledDigits, shuffledLetters])  ## Randomize which type dominates on odd lengths
+    interleaved <- Transpose(combined)
+    flattened <- Flatten(interleaved)
+    stimuli <- Shuffle(SubList(flattened, 1, length))  ## Take first n, then shuffle for presentation order
+  } else {
+    stimuli <- SampleN(stimlist, length)
+  }
+
+  string <- ListToString(stimuli)
+  dummy  <- Repeat("_", length)
+
+  gStimLabel.text <- gStrings.length + length
+  Show(gStimLabel)
+  Draw()
+
+  if(gUseAudio > 0)
+  {
+    PlayForeground(gReady)
+  }
+  Wait(800)
+  Hide(gStimLabel)
+  Draw()
+  Show(gStimLabel)
+  Wait(1000)
+
+  ## Present stimuli
+  LSLMarker("stimulus_presentation_start")
+  loop(stim, stimuli)
+  {
+    FilePrint_(gFileOut, stim)
+    LSLMarker("stimulus_" + stim)
+
+    ## Mode 0: Video only
+    ## Mode 1: Audio + Video
+    ## Mode 2: Audio only
+    if(gUseAudio == 2)
+    {
+      ## Audio only - don't show text
+      gStimLabel.text <- ""
+    } else {
+      ## Video only or Audio+Video
+      gStimLabel.text <- stim
+    }
+    Draw()
+
+    ## Play audio if mode 1 or 2
+    if(gUseAudio > 0)
+    {
+      sound <- GetSoundForStim(stim, stimType)
+      if(not (sound == 0))
+      {
+        t1 <- GetTime()
+        PlayForeground(sound)
+        t2 <- GetTime()
+        Wait(gParams.isi - (t2 - t1))
+      } else {
+        ## No audio file available, just wait
+        Wait(gParams.isi)
+      }
+    } else {
+      Wait(gParams.isi)
+    }
+  }
+  FilePrint_(gFileOut, ",")
+
+  ## Get response
+  LSLMarker("response_collection_start")
+  Hide(gStimLabel)
+  gStimLabel.text <- ListToString(dummy)
+  Draw()
+  if(gUseAudio > 0) {
+    PlayForeground(gBeep)
+  }
+
+  ## Set task-specific subheader prompt
+  headerKey <- Uppercase(direction + "_" + stimType + "_header")
+  gLayout.subheader.text <- GetProperty(gStrings, headerKey)
+  gLayout.subheader.visible <- 1
+  Show(gStimLabel)
+  Draw()
+
+  responseList <- []
+  position <- 1
+  time1 <- GetTime()
+
+  resptext <- GetTypedResponse(length, direction)
+  LSLMarker("response_" + resptext)
+  time2 <- GetTime()
+
+  ## Check correctness
+  if(ListToString(stimuli) == resptext)
+  {
+    corr <- 1
+  } else {
+    corr <- 0
+  }
+
+  FilePrint(gFileOut, resptext + "," + corr + "," + (time2-time1))
+
+  ## Show feedback - for backward span, show the correct reversed answer
+  Wait(200)
+  if(direction == "backward")
+  {
+    gFeedback.text <- ListToString(Reverse(stimuli))
+  } else {
+    gFeedback.text <- ListToString(stimuli)
+  }
+  ## Position feedback adaptively based on stimulus height
+  gFeedback.y <- gStimLabel.y + gStimLabel.height + 10
+  Show(gFeedback)
+  Draw()
+  Wait(1500)
+
+  if(corr)
+  {
+    gFeedback.text <- gStrings.correct
+    if(gUseAudio > 0) {
+      PlayForeground(gCorrect)
+    }
+  } else {
+    gFeedback.text <- gStrings.incorrect
+    if(gUseAudio > 0) {
+      PlayForeground(gIncorrect)
+    }
+  }
+  Draw()
+  Wait(1500)
+
+  Hide(gFeedback)
+  Hide(gStimLabel)
+  Draw()
+
+  return(corr)
+}
+
+
+## Ordering trial - show scrambled items, user types them in order
+define OrderingTrial(stimlist, length, stimType)
+{
+  ## For mixed type, ensure balanced digit/letter ratio
+  if(stimType == "mixed")
+  {
+    ## Exclude 0 from digits to avoid confusion with letter O
+    digitsNoZero <- []
+    loop(d, gDigits)
+    {
+      if(not (d == "0"))
+      {
+        digitsNoZero <- Append(digitsNoZero, d)
+      }
+    }
+    shuffledDigits <- Shuffle(digitsNoZero)
+    shuffledLetters <- Shuffle(gLetters)
+
+    ## Ensure equal length for Transpose - use minimum of the two lengths
+    minLen <- Min([Length(shuffledDigits), Length(shuffledLetters)])
+    shuffledDigits <- SubList(shuffledDigits, 1, minLen)
+    shuffledLetters <- SubList(shuffledLetters, 1, minLen)
+
+    combined <- Shuffle([shuffledDigits, shuffledLetters])  ## Randomize which type dominates on odd lengths
+    interleaved <- Transpose(combined)
+    flattened <- Flatten(interleaved)
+    stimuli <- SubList(flattened, 1, length)  ## Don't shuffle - will be scrambled below
+  } else {
+    stimuli <- SampleN(stimlist, length)
+  }
+
+  ## Determine correct sorted order
+  if(stimType == "mixed")
+  {
+    ## For mixed: digits first (numerically sorted), then letters (alphabetically sorted)
+    digits <- []
+    letters <- []
+    loop(item, stimuli)
+    {
+      if(IsMember(item, gDigits))
+      {
+        digits <- Append(digits, item)
+      } else {
+        letters <- Append(letters, item)
+      }
+    }
+    correctOrder <- Merge(Sort(digits), Sort(letters))
+  } else {
+    correctOrder <- Sort(stimuli)
+  }
+
+  ## Shuffle until we get an order different from the correct answer
+  scrambled <- Shuffle(stimuli)
+  while(ListToString(scrambled) == ListToString(correctOrder))
+  {
+    scrambled <- Shuffle(stimuli)
+  }
+
+  dummy <- Repeat("_", length)
+
+  gStimLabel.text <- gStrings.ordering_length + length
+  Show(gStimLabel)
+  Draw()
+
+  if(gUseAudio > 0)
+  {
+    PlayForeground(gReady)
+  }
+  Wait(800)
+  Hide(gStimLabel)
+  Draw()
+  Show(gStimLabel)
+  Wait(1000)
+
+  ## Present scrambled stimuli one at a time (like span tasks)
+  LSLMarker("stimulus_presentation_start")
+  loop(stim, scrambled)
+  {
+    FilePrint_(gFileOut, stim)
+    LSLMarker("stimulus_" + stim)
+
+    ## Mode 0: Video only
+    ## Mode 1: Audio + Video
+    ## Mode 2: Audio only
+    if(gUseAudio == 2)
+    {
+      ## Audio only - don't show text
+      gStimLabel.text <- ""
+    } else {
+      ## Video only or Audio+Video
+      gStimLabel.text <- stim
+    }
+    Draw()
+
+    ## Play audio if mode 1 or 2
+    if(gUseAudio > 0)
+    {
+      sound <- GetSoundForStim(stim, stimType)
+      if(not (sound == 0))
+      {
+        t1 <- GetTime()
+        PlayForeground(sound)
+        t2 <- GetTime()
+        Wait(gParams.isi - (t2 - t1))
+      } else {
+        ## No audio file available, just wait
+        Wait(gParams.isi)
+      }
+    } else {
+      Wait(gParams.isi)
+    }
+  }
+  FilePrint_(gFileOut, ",")
+
+  ## Get response
+  LSLMarker("response_collection_start")
+  Hide(gStimLabel)
+  gStimLabel.text <- ListToString(dummy)
+  Draw()
+
+  ## Set task-specific subheader prompt for ordering
+  headerKey <- Uppercase("ordering_" + stimType + "_header")
+  gLayout.subheader.text <- GetProperty(gStrings, headerKey)
+  gLayout.subheader.visible <- 1
+  Show(gStimLabel)
+  Draw()
+
+  time1 <- GetTime()
+  resptext <- GetTypedResponse(length, "forward")
+  LSLMarker("response_" + resptext)
+  time2 <- GetTime()
+
+  ## Check correctness
+  if(ListToString(correctOrder) == resptext)
+  {
+    corr <- 1
+  } else {
+    corr <- 0
+  }
+
+  FilePrint(gFileOut, resptext + "," + corr + "," + (time2-time1))
+
+  ## Show feedback
+  Wait(200)
+  gFeedback.text <- ListToString(correctOrder)
+  ## Position feedback adaptively based on stimulus height
+  gFeedback.y <- gStimLabel.y + gStimLabel.height + 10
+  Show(gFeedback)
+  Draw()
+  Wait(1500)
+
+  if(corr)
+  {
+    gFeedback.text <- gStrings.correct
+  } else {
+    gFeedback.text <- gStrings.incorrect
+  }
+  Draw()
+  Wait(1500)
+
+  Hide(gFeedback)
+  Hide(gStimLabel)
+  Draw()
+
+  return(corr)
+}
+
+
+## Get typed response (reusable for both span and ordering tasks)
+define GetTypedResponse(length, direction)
+{
+  responseList <- []
+  position <- 1
+  resp <- ""
+
+  ## Set up valid responses based on input device
+  if(gInputDevice == "keyboard")
+  {
+    responses <- ["1","2","3","4","5","6","7","8","9","0","<return>","<kp_1>","<kp_2>","<kp_3>","<kp_4>","<kp_5>","<kp_6>",
+                  "<kp_7>","<kp_8>","<kp_9>","<kp_0>","<kp_enter>"]
+    ## Add letters for letter span tasks
+    responses <- Merge(responses, ["A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z"])
+
+  } elseif(gInputDevice == "keypad")
+  {
+    responses <- ["<kp_1>","<kp_2>","<kp_3>","<kp_4>","<kp_5>","<kp_6>",
+                  "<kp_7>","<kp_8>","<kp_9>","<kp_0>","<kp_enter>","<return>"]
+    responses <- Merge(responses, ["A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z"])
+  }
+
+  if(gInputDevice == "keyboard")
+  {
+    if(gAllowBackspace)
+    {
+      responses <- Append(responses, "<backspace>")
+    }
+    if(gAllowSkip)
+    {
+      responses <- Append(responses, "-")
+    }
+  }
+
+  while(not (resp == "<return>" or resp == "<kp_enter>"))
+  {
+    if(gInputDevice == "keyboard" or gInputDevice == "keypad")
+    {
+      resp <- WaitForListKeyPress(responses)
+
+    } elseif(gInputDevice == "mouse")
+    {
+      ## Mouse support not yet implemented for letters
+      resp <- "<return>"
+    }
+
+    if(resp == "<backspace>")
+    {
+      if(Length(responseList) == 1)
+      {
+        responseList <- []
+        position <- 1
+      } else {
+        if(direction == "forward")
+        {
+          responseList <- SubList(responseList, 1, Length(responseList)-1)
+          position <- position - 1
+        } else {
+          responseList <- SubList(responseList, 2, Length(responseList))
+          position <- position - 1
+        }
+      }
+
+    } elseif(resp == "<return>" or resp == "<kp_enter>") {
+      ## Done entering
+      33
+    } else {
+      if(position <= length)
+      {
+        position <- position + 1
+        ## Uppercase letters for consistent comparison
+        uppercaseResp <- Uppercase(resp)
+        if(direction == "forward")
+        {
+          responseList <- Append(responseList, uppercaseResp)
+        } else {
+          responseList <- Merge([uppercaseResp], responseList)
+        }
+      }
+    }
+
+    ## Build display text
+    if(direction == "forward")
+    {
+      ## Forward: show response list as-is with underscores after
+      resptext <- ListToString(Merge(responseList, Repeat("_", (length - position + 1))))
+    } else {
+      ## Backward: show what user typed in the order they typed it (not reversed)
+      ## responseList is built in correct backward order via prepending
+      ## but we want to show the typing sequence (reversed visual order)
+      displayList <- Reverse(responseList)
+      resptext <- ListToString(Merge(displayList, Repeat("_", (length - position + 1))))
+    }
+
+    gStimLabel.text <- resptext
+    Draw()
+  }
+
+  ## Return the actual response (not the display text)
+  ## For backward, responseList contains the correct reversed sequence
+  ## For forward, responseList is already in correct order
+  return(ListToString(responseList))
+}
+
+
+##  Standard initializer function
+define Initialize()
+{
+  gWin <- MakeWindow("black")
+  InitializeLSL(gWin)  ## Initialize LSL outlet if --lsl flag was used (shows prompt)
+
+  if(gSubNum == 0)
+  {
+    gSubNum <- GetSubNum(gWin)
+  }
+
+  GetStrings(gLanguage)
+
+  bg <- MakeColor("black")
+  fg <- MakeColor("white")
+  bg2 <- MakeColor("grey20")
+
+  gStimFont         <- MakeFont(gPEBLBaseFontMono, 0, 84, fg, bg, 1)  ## 50% larger than 56
+  gInstructionsFont <- MakeFont(gPEBLBaseFont, 0, 18, fg, bg2, 1)
+
+  gInstructions <- MakeTextBox("", gInstructionsFont, 800, 500)
+  AddObject(gInstructions, gWin)
+  Move(gInstructions, gVideoWidth/2-400, gVideoHeight/2-250)
+  Hide(gInstructions)
+
+  ## Create stimuli labels (positioned after layout is created)
+  gStimLabel <- MakeLabel("", gStimFont)
+  AddObject(gStimLabel, gWin)
+  Hide(gStimLabel)
+
+  gFeedback <- MakeLabel("", gStimFont)
+  AddObject(gFeedback, gWin)
   Hide(gFeedback)
 }
 
@@ -1224,6 +2433,24 @@ and cognitive training assessment.
 
   "ORDERING_HEADER": "اكتب العناصر بالترتيب الصحيح، اضغط على Enter عند الانتهاء",
 
+  "FORWARD_DIGIT_HEADER": "Enter digits in same order shown",
+
+  "BACKWARD_DIGIT_HEADER": "Enter digits in reverse order",
+
+  "FORWARD_LETTER_HEADER": "Enter letters in same order shown",
+
+  "BACKWARD_LETTER_HEADER": "Enter letters in reverse order",
+
+  "FORWARD_MIXED_HEADER": "Enter in same order shown",
+
+  "BACKWARD_MIXED_HEADER": "Enter in reverse order",
+
+  "ORDERING_DIGIT_HEADER": "Enter digits in numerical order (low to high)",
+
+  "ORDERING_LETTER_HEADER": "Enter letters in alphabetical order",
+
+  "ORDERING_MIXED_HEADER": "Enter digits (numerical), then letters (alphabetical)",
+
   "CORRECT": "صحيح!",
 
   "INCORRECT": "غير صحيح",
@@ -1274,6 +2501,24 @@ and cognitive training assessment.
   "HEADER": "আপনার উত্তর টাইপ করুন (0-9, A-Z), সম্পূর্ণ হলে Enter চাপুন",
 
   "ORDERING_HEADER": "আইটেমগুলি সঠিক ক্রমে টাইপ করুন, সম্পূর্ণ হলে Enter চাপুন",
+
+  "FORWARD_DIGIT_HEADER": "Enter digits in same order shown",
+
+  "BACKWARD_DIGIT_HEADER": "Enter digits in reverse order",
+
+  "FORWARD_LETTER_HEADER": "Enter letters in same order shown",
+
+  "BACKWARD_LETTER_HEADER": "Enter letters in reverse order",
+
+  "FORWARD_MIXED_HEADER": "Enter in same order shown",
+
+  "BACKWARD_MIXED_HEADER": "Enter in reverse order",
+
+  "ORDERING_DIGIT_HEADER": "Enter digits in numerical order (low to high)",
+
+  "ORDERING_LETTER_HEADER": "Enter letters in alphabetical order",
+
+  "ORDERING_MIXED_HEADER": "Enter digits (numerical), then letters (alphabetical)",
 
   "CORRECT": "সঠিক!",
 
@@ -1326,6 +2571,24 @@ and cognitive training assessment.
 
   "ORDERING_HEADER": "按正确顺序输入项目，完成后按回车键",
 
+  "FORWARD_DIGIT_HEADER": "Enter digits in same order shown",
+
+  "BACKWARD_DIGIT_HEADER": "Enter digits in reverse order",
+
+  "FORWARD_LETTER_HEADER": "Enter letters in same order shown",
+
+  "BACKWARD_LETTER_HEADER": "Enter letters in reverse order",
+
+  "FORWARD_MIXED_HEADER": "Enter in same order shown",
+
+  "BACKWARD_MIXED_HEADER": "Enter in reverse order",
+
+  "ORDERING_DIGIT_HEADER": "Enter digits in numerical order (low to high)",
+
+  "ORDERING_LETTER_HEADER": "Enter letters in alphabetical order",
+
+  "ORDERING_MIXED_HEADER": "Enter digits (numerical), then letters (alphabetical)",
+
   "CORRECT": "正确！",
 
   "INCORRECT": "错误",
@@ -1376,6 +2639,24 @@ and cognitive training assessment.
   "HEADER": "Geben Sie Ihre Antwort ein (0-9, A-Z), drücken Sie Enter wenn fertig",
 
   "ORDERING_HEADER": "Geben Sie Elemente in korrekter Reihenfolge ein, drücken Sie Enter wenn fertig",
+
+  "FORWARD_DIGIT_HEADER": "Geben Sie Ziffern in derselben gezeigten Reihenfolge ein",
+
+  "BACKWARD_DIGIT_HEADER": "Geben Sie Ziffern in umgekehrter Reihenfolge ein",
+
+  "FORWARD_LETTER_HEADER": "Geben Sie Buchstaben in derselben gezeigten Reihenfolge ein",
+
+  "BACKWARD_LETTER_HEADER": "Geben Sie Buchstaben in umgekehrter Reihenfolge ein",
+
+  "FORWARD_MIXED_HEADER": "Geben Sie in derselben gezeigten Reihenfolge ein",
+
+  "BACKWARD_MIXED_HEADER": "Geben Sie in umgekehrter Reihenfolge ein",
+
+  "ORDERING_DIGIT_HEADER": "Geben Sie Ziffern in numerischer Reihenfolge ein (niedrig zu hoch)",
+
+  "ORDERING_LETTER_HEADER": "Geben Sie Buchstaben in alphabetischer Reihenfolge ein",
+
+  "ORDERING_MIXED_HEADER": "Geben Sie Ziffern (numerisch), dann Buchstaben (alphabetisch) ein",
 
   "CORRECT": "Richtig!",
 
@@ -1428,6 +2709,24 @@ and cognitive training assessment.
 
   "ORDERING_HEADER": "Type items in correct order, press Enter when complete",
 
+  "FORWARD_DIGIT_HEADER": "Enter digits in same order shown",
+
+  "BACKWARD_DIGIT_HEADER": "Enter digits in reverse order",
+
+  "FORWARD_LETTER_HEADER": "Enter letters in same order shown",
+
+  "BACKWARD_LETTER_HEADER": "Enter letters in reverse order",
+
+  "FORWARD_MIXED_HEADER": "Enter in same order shown",
+
+  "BACKWARD_MIXED_HEADER": "Enter in reverse order",
+
+  "ORDERING_DIGIT_HEADER": "Enter digits in numerical order (low to high)",
+
+  "ORDERING_LETTER_HEADER": "Enter letters in alphabetical order",
+
+  "ORDERING_MIXED_HEADER": "Enter digits (numerical), then letters (alphabetical)",
+
   "CORRECT": "Correct!",
 
   "INCORRECT": "Incorrect",
@@ -1478,6 +2777,24 @@ and cognitive training assessment.
   "HEADER": "Escriba su respuesta (0-9, A-Z), presione Enter cuando termine",
 
   "ORDERING_HEADER": "Escriba los elementos en el orden correcto, presione Enter cuando termine",
+
+  "FORWARD_DIGIT_HEADER": "Ingrese dígitos en el mismo orden mostrado",
+
+  "BACKWARD_DIGIT_HEADER": "Ingrese dígitos en orden inverso",
+
+  "FORWARD_LETTER_HEADER": "Ingrese letras en el mismo orden mostrado",
+
+  "BACKWARD_LETTER_HEADER": "Ingrese letras en orden inverso",
+
+  "FORWARD_MIXED_HEADER": "Ingrese en el mismo orden mostrado",
+
+  "BACKWARD_MIXED_HEADER": "Ingrese en orden inverso",
+
+  "ORDERING_DIGIT_HEADER": "Ingrese dígitos en orden numérico (de menor a mayor)",
+
+  "ORDERING_LETTER_HEADER": "Ingrese letras en orden alfabético",
+
+  "ORDERING_MIXED_HEADER": "Ingrese dígitos (numérico), luego letras (alfabético)",
 
   "CORRECT": "¡Correcto!",
 
@@ -1530,6 +2847,24 @@ and cognitive training assessment.
 
   "ORDERING_HEADER": "Tapez les éléments dans le bon ordre, appuyez sur Entrée quand terminé",
 
+  "FORWARD_DIGIT_HEADER": "Entrez les chiffres dans le même ordre affiché",
+
+  "BACKWARD_DIGIT_HEADER": "Entrez les chiffres dans l'ordre inverse",
+
+  "FORWARD_LETTER_HEADER": "Entrez les lettres dans le même ordre affiché",
+
+  "BACKWARD_LETTER_HEADER": "Entrez les lettres dans l'ordre inverse",
+
+  "FORWARD_MIXED_HEADER": "Entrez dans le même ordre affiché",
+
+  "BACKWARD_MIXED_HEADER": "Entrez dans l'ordre inverse",
+
+  "ORDERING_DIGIT_HEADER": "Entrez les chiffres dans l'ordre numérique (du plus petit au plus grand)",
+
+  "ORDERING_LETTER_HEADER": "Entrez les lettres dans l'ordre alphabétique",
+
+  "ORDERING_MIXED_HEADER": "Entrez les chiffres (numérique), puis les lettres (alphabétique)",
+
   "CORRECT": "Correct !",
 
   "INCORRECT": "Incorrect",
@@ -1580,6 +2915,24 @@ and cognitive training assessment.
   "HEADER": "अपना उत्तर टाइप करें (0-9, A-Z), पूर्ण होने पर Enter दबाएं",
 
   "ORDERING_HEADER": "वस्तुओं को सही क्रम में टाइप करें, पूर्ण होने पर Enter दबाएं",
+
+  "FORWARD_DIGIT_HEADER": "Enter digits in same order shown",
+
+  "BACKWARD_DIGIT_HEADER": "Enter digits in reverse order",
+
+  "FORWARD_LETTER_HEADER": "Enter letters in same order shown",
+
+  "BACKWARD_LETTER_HEADER": "Enter letters in reverse order",
+
+  "FORWARD_MIXED_HEADER": "Enter in same order shown",
+
+  "BACKWARD_MIXED_HEADER": "Enter in reverse order",
+
+  "ORDERING_DIGIT_HEADER": "Enter digits in numerical order (low to high)",
+
+  "ORDERING_LETTER_HEADER": "Enter letters in alphabetical order",
+
+  "ORDERING_MIXED_HEADER": "Enter digits (numerical), then letters (alphabetical)",
 
   "CORRECT": "सही!",
 
@@ -1632,6 +2985,24 @@ and cognitive training assessment.
 
   "ORDERING_HEADER": "Upišite stavke točnim redoslijedom, pritisnite Enter kada završite",
 
+  "FORWARD_DIGIT_HEADER": "Enter digits in same order shown",
+
+  "BACKWARD_DIGIT_HEADER": "Enter digits in reverse order",
+
+  "FORWARD_LETTER_HEADER": "Enter letters in same order shown",
+
+  "BACKWARD_LETTER_HEADER": "Enter letters in reverse order",
+
+  "FORWARD_MIXED_HEADER": "Enter in same order shown",
+
+  "BACKWARD_MIXED_HEADER": "Enter in reverse order",
+
+  "ORDERING_DIGIT_HEADER": "Enter digits in numerical order (low to high)",
+
+  "ORDERING_LETTER_HEADER": "Enter letters in alphabetical order",
+
+  "ORDERING_MIXED_HEADER": "Enter digits (numerical), then letters (alphabetical)",
+
   "CORRECT": "Točno!",
 
   "INCORRECT": "Netočno",
@@ -1682,6 +3053,24 @@ and cognitive training assessment.
   "HEADER": "Digita la tua risposta (0-9, A-Z), premi Invio quando hai finito",
 
   "ORDERING_HEADER": "Digita gli elementi nell'ordine corretto, premi Invio quando hai finito",
+
+  "FORWARD_DIGIT_HEADER": "Inserisci le cifre nello stesso ordine mostrato",
+
+  "BACKWARD_DIGIT_HEADER": "Inserisci le cifre in ordine inverso",
+
+  "FORWARD_LETTER_HEADER": "Inserisci le lettere nello stesso ordine mostrato",
+
+  "BACKWARD_LETTER_HEADER": "Inserisci le lettere in ordine inverso",
+
+  "FORWARD_MIXED_HEADER": "Inserisci nello stesso ordine mostrato",
+
+  "BACKWARD_MIXED_HEADER": "Inserisci in ordine inverso",
+
+  "ORDERING_DIGIT_HEADER": "Inserisci le cifre in ordine numerico (dal più basso al più alto)",
+
+  "ORDERING_LETTER_HEADER": "Inserisci le lettere in ordine alfabetico",
+
+  "ORDERING_MIXED_HEADER": "Inserisci cifre (numerico), poi lettere (alfabetico)",
 
   "CORRECT": "Corretto!",
 
@@ -1734,6 +3123,24 @@ and cognitive training assessment.
 
   "ORDERING_HEADER": "項目を正しい順序で入力し、完了したらEnterキーを押してください",
 
+  "FORWARD_DIGIT_HEADER": "Enter digits in same order shown",
+
+  "BACKWARD_DIGIT_HEADER": "Enter digits in reverse order",
+
+  "FORWARD_LETTER_HEADER": "Enter letters in same order shown",
+
+  "BACKWARD_LETTER_HEADER": "Enter letters in reverse order",
+
+  "FORWARD_MIXED_HEADER": "Enter in same order shown",
+
+  "BACKWARD_MIXED_HEADER": "Enter in reverse order",
+
+  "ORDERING_DIGIT_HEADER": "Enter digits in numerical order (low to high)",
+
+  "ORDERING_LETTER_HEADER": "Enter letters in alphabetical order",
+
+  "ORDERING_MIXED_HEADER": "Enter digits (numerical), then letters (alphabetical)",
+
   "CORRECT": "正解！",
 
   "INCORRECT": "不正解",
@@ -1784,6 +3191,24 @@ and cognitive training assessment.
   "HEADER": "답변을 입력하십시오 (0-9, A-Z), 완료되면 Enter를 누르십시오",
 
   "ORDERING_HEADER": "항목을 올바른 순서로 입력하고 완료되면 Enter를 누르십시오",
+
+  "FORWARD_DIGIT_HEADER": "Enter digits in same order shown",
+
+  "BACKWARD_DIGIT_HEADER": "Enter digits in reverse order",
+
+  "FORWARD_LETTER_HEADER": "Enter letters in same order shown",
+
+  "BACKWARD_LETTER_HEADER": "Enter letters in reverse order",
+
+  "FORWARD_MIXED_HEADER": "Enter in same order shown",
+
+  "BACKWARD_MIXED_HEADER": "Enter in reverse order",
+
+  "ORDERING_DIGIT_HEADER": "Enter digits in numerical order (low to high)",
+
+  "ORDERING_LETTER_HEADER": "Enter letters in alphabetical order",
+
+  "ORDERING_MIXED_HEADER": "Enter digits (numerical), then letters (alphabetical)",
 
   "CORRECT": "정답!",
 
@@ -1836,6 +3261,24 @@ and cognitive training assessment.
 
   "ORDERING_HEADER": "Įveskite elementus teisinga tvarka, paspauskite Enter kai baigsite",
 
+  "FORWARD_DIGIT_HEADER": "Enter digits in same order shown",
+
+  "BACKWARD_DIGIT_HEADER": "Enter digits in reverse order",
+
+  "FORWARD_LETTER_HEADER": "Enter letters in same order shown",
+
+  "BACKWARD_LETTER_HEADER": "Enter letters in reverse order",
+
+  "FORWARD_MIXED_HEADER": "Enter in same order shown",
+
+  "BACKWARD_MIXED_HEADER": "Enter in reverse order",
+
+  "ORDERING_DIGIT_HEADER": "Enter digits in numerical order (low to high)",
+
+  "ORDERING_LETTER_HEADER": "Enter letters in alphabetical order",
+
+  "ORDERING_MIXED_HEADER": "Enter digits (numerical), then letters (alphabetical)",
+
   "CORRECT": "Teisingai!",
 
   "INCORRECT": "Neteisingai",
@@ -1886,6 +3329,24 @@ and cognitive training assessment.
   "HEADER": "Typ uw antwoord (0-9, A-Z), druk op Enter wanneer klaar",
 
   "ORDERING_HEADER": "Typ items in de juiste volgorde, druk op Enter wanneer klaar",
+
+  "FORWARD_DIGIT_HEADER": "Voer cijfers in dezelfde getoonde volgorde in",
+
+  "BACKWARD_DIGIT_HEADER": "Voer cijfers in omgekeerde volgorde in",
+
+  "FORWARD_LETTER_HEADER": "Voer letters in dezelfde getoonde volgorde in",
+
+  "BACKWARD_LETTER_HEADER": "Voer letters in omgekeerde volgorde in",
+
+  "FORWARD_MIXED_HEADER": "Voer in dezelfde getoonde volgorde in",
+
+  "BACKWARD_MIXED_HEADER": "Voer in omgekeerde volgorde in",
+
+  "ORDERING_DIGIT_HEADER": "Voer cijfers in numerieke volgorde in (laag naar hoog)",
+
+  "ORDERING_LETTER_HEADER": "Voer letters in alfabetische volgorde in",
+
+  "ORDERING_MIXED_HEADER": "Voer cijfers (numeriek), dan letters (alfabetisch) in",
 
   "CORRECT": "Correct!",
 
@@ -1938,6 +3399,24 @@ and cognitive training assessment.
 
   "ORDERING_HEADER": "Wpisz elementy we właściwej kolejności, naciśnij Enter po zakończeniu",
 
+  "FORWARD_DIGIT_HEADER": "Enter digits in same order shown",
+
+  "BACKWARD_DIGIT_HEADER": "Enter digits in reverse order",
+
+  "FORWARD_LETTER_HEADER": "Enter letters in same order shown",
+
+  "BACKWARD_LETTER_HEADER": "Enter letters in reverse order",
+
+  "FORWARD_MIXED_HEADER": "Enter in same order shown",
+
+  "BACKWARD_MIXED_HEADER": "Enter in reverse order",
+
+  "ORDERING_DIGIT_HEADER": "Enter digits in numerical order (low to high)",
+
+  "ORDERING_LETTER_HEADER": "Enter letters in alphabetical order",
+
+  "ORDERING_MIXED_HEADER": "Enter digits (numerical), then letters (alphabetical)",
+
   "CORRECT": "Poprawnie!",
 
   "INCORRECT": "Niepoprawnie",
@@ -1988,6 +3467,24 @@ and cognitive training assessment.
   "HEADER": "Digite sua resposta (0-9, A-Z), pressione Enter quando terminar",
 
   "ORDERING_HEADER": "Digite os itens na ordem correta, pressione Enter quando terminar",
+
+  "FORWARD_DIGIT_HEADER": "Insira os dígitos na mesma ordem mostrada",
+
+  "BACKWARD_DIGIT_HEADER": "Insira os dígitos em ordem inversa",
+
+  "FORWARD_LETTER_HEADER": "Insira as letras na mesma ordem mostrada",
+
+  "BACKWARD_LETTER_HEADER": "Insira as letras em ordem inversa",
+
+  "FORWARD_MIXED_HEADER": "Insira na mesma ordem mostrada",
+
+  "BACKWARD_MIXED_HEADER": "Insira em ordem inversa",
+
+  "ORDERING_DIGIT_HEADER": "Insira os dígitos em ordem numérica (do menor ao maior)",
+
+  "ORDERING_LETTER_HEADER": "Insira as letras em ordem alfabética",
+
+  "ORDERING_MIXED_HEADER": "Insira dígitos (numérico), depois letras (alfabético)",
 
   "CORRECT": "Correto!",
 
@@ -2040,6 +3537,24 @@ and cognitive training assessment.
 
   "ORDERING_HEADER": "Введите элементы в правильном порядке, нажмите Enter когда закончите",
 
+  "FORWARD_DIGIT_HEADER": "Enter digits in same order shown",
+
+  "BACKWARD_DIGIT_HEADER": "Enter digits in reverse order",
+
+  "FORWARD_LETTER_HEADER": "Enter letters in same order shown",
+
+  "BACKWARD_LETTER_HEADER": "Enter letters in reverse order",
+
+  "FORWARD_MIXED_HEADER": "Enter in same order shown",
+
+  "BACKWARD_MIXED_HEADER": "Enter in reverse order",
+
+  "ORDERING_DIGIT_HEADER": "Enter digits in numerical order (low to high)",
+
+  "ORDERING_LETTER_HEADER": "Enter letters in alphabetical order",
+
+  "ORDERING_MIXED_HEADER": "Enter digits (numerical), then letters (alphabetical)",
+
   "CORRECT": "Правильно!",
 
   "INCORRECT": "Неправильно",
@@ -2090,6 +3605,24 @@ and cognitive training assessment.
   "HEADER": "พิมพ์คำตอบของคุณ (0-9, A-Z) กด Enter เมื่อเสร็จสิ้น",
 
   "ORDERING_HEADER": "พิมพ์รายการในลำดับที่ถูกต้อง กด Enter เมื่อเสร็จสิ้น",
+
+  "FORWARD_DIGIT_HEADER": "Enter digits in same order shown",
+
+  "BACKWARD_DIGIT_HEADER": "Enter digits in reverse order",
+
+  "FORWARD_LETTER_HEADER": "Enter letters in same order shown",
+
+  "BACKWARD_LETTER_HEADER": "Enter letters in reverse order",
+
+  "FORWARD_MIXED_HEADER": "Enter in same order shown",
+
+  "BACKWARD_MIXED_HEADER": "Enter in reverse order",
+
+  "ORDERING_DIGIT_HEADER": "Enter digits in numerical order (low to high)",
+
+  "ORDERING_LETTER_HEADER": "Enter letters in alphabetical order",
+
+  "ORDERING_MIXED_HEADER": "Enter digits (numerical), then letters (alphabetical)",
 
   "CORRECT": "ถูกต้อง!",
 
@@ -2142,6 +3675,24 @@ and cognitive training assessment.
 
   "ORDERING_HEADER": "Öğeleri doğru sırada yazın, bittiğinde Enter'a basın",
 
+  "FORWARD_DIGIT_HEADER": "Enter digits in same order shown",
+
+  "BACKWARD_DIGIT_HEADER": "Enter digits in reverse order",
+
+  "FORWARD_LETTER_HEADER": "Enter letters in same order shown",
+
+  "BACKWARD_LETTER_HEADER": "Enter letters in reverse order",
+
+  "FORWARD_MIXED_HEADER": "Enter in same order shown",
+
+  "BACKWARD_MIXED_HEADER": "Enter in reverse order",
+
+  "ORDERING_DIGIT_HEADER": "Enter digits in numerical order (low to high)",
+
+  "ORDERING_LETTER_HEADER": "Enter letters in alphabetical order",
+
+  "ORDERING_MIXED_HEADER": "Enter digits (numerical), then letters (alphabetical)",
+
   "CORRECT": "Doğru!",
 
   "INCORRECT": "Yanlış",
@@ -2192,6 +3743,24 @@ and cognitive training assessment.
   "HEADER": "Nhập câu trả lời của bạn (0-9, A-Z), nhấn Enter khi hoàn thành",
 
   "ORDERING_HEADER": "Nhập các mục theo đúng thứ tự, nhấn Enter khi hoàn thành",
+
+  "FORWARD_DIGIT_HEADER": "Enter digits in same order shown",
+
+  "BACKWARD_DIGIT_HEADER": "Enter digits in reverse order",
+
+  "FORWARD_LETTER_HEADER": "Enter letters in same order shown",
+
+  "BACKWARD_LETTER_HEADER": "Enter letters in reverse order",
+
+  "FORWARD_MIXED_HEADER": "Enter in same order shown",
+
+  "BACKWARD_MIXED_HEADER": "Enter in reverse order",
+
+  "ORDERING_DIGIT_HEADER": "Enter digits in numerical order (low to high)",
+
+  "ORDERING_LETTER_HEADER": "Enter letters in alphabetical order",
+
+  "ORDERING_MIXED_HEADER": "Enter digits (numerical), then letters (alphabetical)",
 
   "CORRECT": "Đúng!",
 

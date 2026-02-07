@@ -203,15 +203,18 @@ define Start(lPar)
   numCats <- 0
   numCatsExp <- 1
   pending <- 1
+  LSLMarker("block_test_start")
   ##Loop through each stimulus card
    loop(s,stim)
    {
       trialsoncat <- trialsoncat+1
 
+      LSLMarker("trial_" + trialnum + "_rule" + rule + "_start")
       #Display the card
       card <- Nth(s,4)
       AddObject(card,gWin)
       Move(card,gVideoWidth/2+300,300)
+      LSLMarker("stimulus_color" + Nth(s,1) + "_shape" + Nth(s,2) + "_num" + Nth(s,3))
       Draw()
       pending <- 0
       time0 <- GetTime()
@@ -253,6 +256,8 @@ define Start(lPar)
 
       time1 <- GetTime()
       rt <- time1 - time0
+
+      LSLMarker("response_" + resp)
 
       ## Score the trial returns a pair.  [cur-rule, last-rule]
       ##
@@ -307,9 +312,11 @@ define Start(lPar)
         run <- run + 1
         totCorr <- totCorr + 1
         feedback <- gCorrect
+        LSLMarker("trial_correct")
       } else {
         ##It is incorrect.
         feedback <- gIncorrect
+        LSLMarker("trial_incorrect")
         ##Increment failuretomaintain if run>=5
         if(run>=5)
          {
@@ -339,6 +346,7 @@ define Start(lPar)
            persev <- persev + 1
            trialpersev <- 1
            trialPersevErr <- 0
+           LSLMarker("trial_perseveration")
 
 
 
@@ -348,6 +356,7 @@ define Start(lPar)
               {
                   totPersErr <- totPersErr +1
                   trialPersevErr <- 1
+                  LSLMarker("trial_perseverative_error")
               }
 
           } else {
@@ -413,10 +422,12 @@ define Start(lPar)
       ##if you have a run of runlength correct, change rules.
       if(run >= runlength)
       {
+        LSLMarker("category_complete_rule" + rule)
         pending <- 1 ##flag to set when a card in a new category has been seen.
         lastrule <- rule
         rule <- First(rules)
         rules <- Rotate(rules,1)
+        LSLMarker("rule_change_newrule" + rule)
 
         #Update conceptual responses when a category is complete
         conceptual <- conceptual + run
@@ -445,6 +456,7 @@ define Start(lPar)
 
       }
 
+      LSLMarker("trial_" + trialnum + "_end")
       trialnum <- trialnum + 1
       if(numCats >= 9 )
       {
@@ -453,6 +465,7 @@ define Start(lPar)
         break
       }
     }  #end of loop(s,stimuli)
+  LSLMarker("block_test_end")
 
  ##in this case, we changed rules after the last card,
    #but no new cards were presented because the deck ran out.
@@ -610,6 +623,9 @@ define Start(lPar)
    FilePrint(report,"*PEBL, the PEBL test battery, and this test are unaffiliated with the Wells Printing Company or PAR Inc, the producers of the 'Wisconsin Card Sorting Test' (tm)")
    FileClose(report)
 
+  ## Finalize LSL
+  FinalizeLSL()
+
   Print("uploading data")
   out <- UploadFile(gSubnum,gFileOut.filename);  Print(out)
   out <- UploadFile(gSubnum,report.filename);  Print(out)
@@ -641,6 +657,7 @@ define Initialize()
 {
   ##Initialize Window, etc.
   gWin <- MakeWindow("black")
+  InitializeLSL(gWin)  ## Initialize LSL outlet if --lsl flag was used (shows prompt)
 
   ##Initialize Font and colors
   gSleepEasy <- 1
@@ -846,6 +863,7 @@ return cards
 
 define GetStrings(lang)
 {
+  ##use cardsort.pbl translations here:
   gStrings <- GetTranslations("bcst-64", lang)
 
 
@@ -861,13 +879,6 @@ define GetStrings(lang)
      gContinue <- gStrings.continuekey#
      gInst2 <- gStrings.inst2key#
      gPromptText <- gStrings.headerkey#
-}
-
-
-   gInst1 <- gStrings.inst1 + CR(1)+gContinue#
-   gInst3 <- gStrings.inst3 + CR(1) + gContinue#
-   gDebrief <- gStrings.debrief#
-
 }
 
 

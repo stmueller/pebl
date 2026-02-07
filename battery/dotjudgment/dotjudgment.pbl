@@ -57,6 +57,7 @@ define Start(p)
     thresholds <-[gParams.thresh1,gParams.thresh2,gParams.thresh3,gParams.thresh4]
 
    gWin <- MakeWindow("black")
+   InitializeLSL(gWin)  ## Initialize LSL outlet if --lsl flag was used (shows prompt)
 
    Initialize()
    InitializeUpload()  ## Initialize token-based hosting if upload.json exists
@@ -127,11 +128,12 @@ define Start(p)
 
     loop(gBlock,Sequence(1,gParams.numblocks,1))
     {
+     LSLMarker("block_" + gBlock + "_start")
 
      design <- Shuffle(RepeatList([1,2,3,4],gParams.repsperblock))
      blockBaseVals <- []
      blockThresh  <- []
-     blocktrial <- 1     
+     blocktrial <- 1
      loop(type,design)
      {
 
@@ -163,6 +165,7 @@ define Start(p)
     dataBaseVals <- Merge(dataBaseVals,blockBaseVals)
     dataThresh <- Merge(dataThresh,blockThresh)
 
+    LSLMarker("block_" + gBlock + "_end")
 
     if(gBlock <gParams.numblocks)
      {
@@ -217,7 +220,15 @@ define Start(p)
 
    FilePrint(gLog, gSubNum + "," + gLanguage + "," + TimeStamp()+",dots ,"+gResponseType+",EXPERIMENT COMPLETE")
 
-   ## Upload data files to server if using online platform
+   ## Finalize LSL
+   FinalizeLSL()
+
+   ## Close files before upload (required for Windows file locking compatibility)
+   FileClose(gFileOut)
+   FileClose(gSumFileOut)
+
+   ## Upload data files (works online, no-op on native)
+   ## Note: .filename property persists after FileClose(), so this is safe
    UploadFile(gSubnum,gFileOut.filename)
    UploadFile(gSubnum,gSumFileOut.filename)
 
@@ -227,6 +238,7 @@ define Start(p)
 
 define Trial(stim,thresh,practice,statustext)
 {
+   LSLMarker("trial_" + gTrial + "_stim" + stim + "_thresh" + thresh + "_start")
 
 
    ClearEventLoop()
@@ -351,6 +363,7 @@ define Trial(stim,thresh,practice,statustext)
 	##make the timing pre-presentation more similar
         Wait(200-elapsed)
 
+	LSLMarker("stimulus_present")
 	Draw()
     time2 <- GetTime()
     gStimOn <- 1
@@ -365,6 +378,8 @@ define Trial(stim,thresh,practice,statustext)
     corr <- ((order ==-1) and (resp == "right")) or
             ((order ==1) and (resp == "left"))
     rt <- time3-time2
+
+    LSLMarker("response_" + resp + "_corr" + corr)
 
    gRunningCorr <- Append(gRunningCorr,corr)
    if(Length(gRunningcorr)>10)

@@ -247,10 +247,8 @@ loop(target,targlevs) ##target
   FileClose(gSumFile)
 
   ## Upload data files (works online, no-op on native)
-  datafile <- "data/" + gSubNum + "/vsearch-" + gSubNum + ".csv"
-  summaryfile <- "data/" + gSubNum + "/summary-" + gSubNum + ".txt"
-  UploadFile(gSubNum, datafile, "/upload.json")
-  UploadFile(gSubNum, summaryfile, "/upload.json")
+  UploadFile(gSubNum, gFileOut.filename)
+  UploadFile(gSubNum, gSumFile.filename)
 
   MessageBox(gStrings.debrief,gWin,40)
 }

@@ -1,10 +1,6 @@
 ##
 ##   This is a basic version of a 'trail making' task.
 ##   The goal is to connect the dots.
-##  Version 0.4; 2025. Modifications supporting on-line running; an .html report, and
-                       added 'swappoints' setting to
-##                     increase difficulty of path search a little. set 'pathswaps' to 0 to
-##                     use original TSP-like paths.
 ##
 ##  Version 0.3; 2013.  Add letter trials, and practice rounds as options.
 ##
@@ -15,7 +11,6 @@
 
 define Start(p)
 {
-
       InitializeUpload()  ## Initialize token-based hosting if upload.json exists
 
       gScriptName <- "PEBL Trailmaking Test"
@@ -24,8 +19,7 @@ define Start(p)
                       ["useShortPath",1], ## Whether to shorten the path so points tend to
                                           ## be adjacent.
 		      ["shorteningtries",1],   ##how many attempts do you make to shorten the path?
-		                               ## Default is 1, which is the original
-		      ["pathswaps",5],         ##adjacent swaps to do to shortened path to add complexity
+		                               ## Default is 1, which is the original way
 
 
 		      ["numtrials",4], ##total number of trials per condition (A and B)
@@ -38,14 +32,14 @@ define Start(p)
 		      ["doPractice",1],  ##Do a short practice round between each round, using 4 items,
                                          ## to let them see how to do it.
 
-		      ["targsize",30],  ##Size in pixels of targets (radius)
-		      ["TargclickSize",30], ##Size of click zone; may be smaller or larger
+		      ["targsize",25],  ##Size in pixels of targets (radius)
+		      ["TargclickSize",25], ##Size of click zone; may be smaller or larger
 		      ["pointtolerance",2],  # #minimum number of pixels of separation between targets
                                              ## (soft constraint that will be violated if proper
                                              ## configuration cannot be found)
 		      ["NumTargs", 26 ],     #Number of targets
 		      ["DrawLines", 1 ],     #Whether to draw lines
-		      ["fieldwidth",750],
+		      ["fieldwidth",700],
 		      ["fieldheight",500],
 		      ["maxanglethresh",2.8] ##maximum angle (in radians) to allow on path.  Make this smaller to make the path jaggier.
                      ]
@@ -75,6 +69,7 @@ define Start(p)
 
 
   gWin <- MakeWindow()
+  InitializeLSL(gWin)  ## Initialize LSL outlet if --lsl flag was used
   if(gSubNum+""=="0")
    {
      gSubNum <- GetSubNum(gWin)
@@ -191,18 +186,8 @@ define Start(p)
 	 ##now, we have shortened the path as much as we need. Pick the best one.
 	 tour <- Nth(tours,ArgMin(lengths))
 
-        Print("----------------")
-	Print(tour)
-        ##now, apply the swaps
-	if(gParams.pathswaps>0)
-	{
-          tour <- SwapPoints(tour,gParams.pathswaps)
-	}
-        order <- Order(tour)
 
-        pts <- SortBy(pts,order)  #re-sort the original points
-
-
+         pts <- SortBy(pts,(Order(tour)))  #re-sort the original points
          tourangles <- GetAngles(pts)   #find angles of the tour. These are
 	                                   #compute to range between 0 and pi, with
 					   #pi=3.14 a straight line.  We want to get
@@ -260,12 +245,12 @@ define Start(p)
    typeLabels <- ["numbers","alternating numbers and letters","letters"]
    gcondlabels <- ["number","alternating","letter"]
 
-
+   LSLMarker("block_test_start")
 
 
    loop(i,Sequence(1,Length(pts),1))
     {
-
+     LSLMarker("trial_" + trial + "_type" + Nth(types,i) + "_start")
      ##Do a little practice round.
       if(gParams.DoPractice)
       {
@@ -288,18 +273,27 @@ define Start(p)
      PushOnEnd(dat,datline)
       trial <- trial + 1
     }
+   LSLMarker("block_test_end")
 
+  ## Finalize LSL
+  FinalizeLSL()
 
   ## Generate HTML summary report
   html <- CreateHTMLReport(dat)
   reportfile <- GetNewDataFile(gSubNum,gWin,"ptrails-report","html","")
   FilePrint_(reportfile, html)
 
+  ## Close files before upload (required for Windows file locking compatibility)
+  FileClose(gFileOut)
+  FileClose(gSumFile)
+  FileClose(reportfile)
+
+  ## Upload data files (works online, no-op on native)
+  ## Note: .filename property persists after FileClose(), so this is safe
   Print("uploading data")
-  settingsfile <- "/upload.json"
-  out <- UploadFile(gSubnum,gFileOut.filename,settingsfile);  Print(out)
-  out <- UploadFile(gSubnum,gSumFile.filename,settingsfile);  Print(out)
-  out <- UploadFile(gSubnum,reportfile.filename,settingsfile);  Print(out)
+  out <- UploadFile(gSubnum,gFileOut.filename);  Print(out)
+  out <- UploadFile(gSubnum,gSumFile.filename);  Print(out)
+  out <- UploadFile(gSubnum,reportfile.filename);  Print(out)
 
 
 
@@ -378,6 +372,7 @@ define Trial(pts,type,practice)
    stimObjects <-  PlotTargets(pts,gParams.TargSize,stim)
    stimLines <- []
    Draw()
+   LSLMarker("trail_display")
    starttime <- GetTime()
 
    hits <- 0
@@ -478,6 +473,7 @@ define Trial(pts,type,practice)
         FilePrintList(gFileOut, [gSubNum, gTrial, practice, Nth(gcondlabels,type),
                                   clicks, hits, clicktime, First(pos), Nth(pos, 2),
                                   corr, id, (clicktime - lastclick), (clicktime - lastsucc)], ",")
+        LSLMarker("click_corr" + corr + "_id" + id + "_hits" + hits)
         lastclick <- clicktime
         if(corr)
           {
@@ -987,7 +983,7 @@ define CreateHTMLReport(dat)
   html <- html + MakeDivPage(
     H("Results from PEBL Trailmaking Test",1) +
     P("<pre>Participant/Patient Code: " + gSubNum + "</pre>") +
-P("<em>This test measures visual attention, processing speed, and executive function through sequential number and letter connecting tasks.</em>") +
+    P("<em>This test measures visual attention, processing speed, and executive function through sequential number and letter connecting tasks.</em>") +
     HL() +
     P(B("Test began: ") + TimeStamp()) +
     P(B("Total time taken: ") + Round(totalTime/60000,2) + " min") +
@@ -1000,7 +996,6 @@ P("<em>This test measures visual attention, processing speed, and executive func
     P(B("Use letters: ") + gParams.useLetters) +
     P(B("Practice trials: ") + gParams.doPractice) +
     P(B("Draw lines: ") + gParams.DrawLines) +
-    P(B("Point swaps: ")+gParams.pathswaps)+
     P(B("Use shortest path: ") + gParams.useShortPath))
 
   ## Second page: Summary statistics table
@@ -1039,36 +1034,3 @@ P("<em>This test measures visual attention, processing speed, and executive func
 
 
 
-
-define SwapPoints(path,num)
-{
-
-   ##we will only swap odd/even elements, starting at point 3/4, up to the end.
-   ##and only up to n/2
-
-   maxswaps <- Floor((Length(path)-3)/2)
-   
-   if(num>maxswaps)
-   {
-      num <- maxswaps
-   }
-
-   if(num>0)
-   {
-      swappables <- SampleN(Sequence(1,maxswaps,1),num)
-   }
-
-   ## swap of 1 indicates 3-4, etc.
-   ## a swap of 11 (max for 26) indicates 23/24
-   ## for 25, it is still 11 max swap, so 23/24 retains the last position.
-   loop(i,swappables)
-   {
-      ## Print("swapping:"+ (i*2+1) + "  " + (i*2+2))
-      tmp <- Nth(path,i*2+1)  ##the first element
-      SetElement(path,i*2+1,  Nth(path,i*2+2)) ##set first to value in second
-      SetELement(path,i*2+2,tmp) #set second
-   }
-
-
-   return path
-}

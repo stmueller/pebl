@@ -2,9 +2,9 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## CRITICAL: Read Notes_for_Claude_on_Programming_PEBL.txt First
+## CRITICAL: Read Notes_for_LLMs.txt First
 
-**Before writing any PEBL code, you MUST read `Notes_for_Claude_on_Programming_PEBL.txt`.**
+**Before writing any PEBL code, you MUST read `Notes_for_LLMs.txt`.**
 
 This file contains essential information about:
 - Common PEBL programming mistakes and how to avoid them

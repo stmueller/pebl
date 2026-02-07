@@ -28,6 +28,7 @@ define Start(p)
    gScaleHeight <- gParams.scaleheight
 
    gWin <- MakeWindow("black")
+   InitializeLSL(gWin)  ## Initialize LSL outlet if --lsl flag was used
    gSleepEasy <- 1
    if(gSubNum+"" == "0")
    {
@@ -77,6 +78,7 @@ define Start(p)
    weights <- Repeat(0,6)       #data to record. we only need 6
    if(gDoWeightings)
     {
+     LSLMarker("weighting_start")
      pairs <- Pairs(Sequence(1,6,1))          #Actual pairings
      order <- Shuffle(Sequence(1,Length(pairs),1))
 
@@ -95,7 +97,8 @@ define Start(p)
 	 rtext.text <- Nth(expl,Second(use))
 	 Draw()
 	 resp <- WaitForClickOnTarget([rectL,rectR],use)
-	 
+	 LSLMarker("weighting_pair" + First(pair) + "v" + Second(pair) + "_choice" + resp)
+
 	 ##now resp is the preferred dimension. Update the counter.
 	 SetElement(weights,resp, Nth(weights,resp)+1)	 
 
@@ -111,9 +114,11 @@ define Start(p)
     RemoveObject(rtext,gWin)		 
     RemoveObject(rectL,gWin)
     RemoveObject(rectR,gWin)
+    LSLMarker("weighting_end")
 
    }
 
+  LSLMarker("ratings_start")
   labelmain.text  <- gStrings.ratings_label+taskname
 
   xs <- [-300,-180,-60,60,180,300]
@@ -212,6 +217,11 @@ define Start(p)
    FilePrint(pooledfileout,outline)
    FileClose(fileout)
    FileClose(pooledfileout)
+   LSLMarker("ratings_end")
+
+   ## Finalize LSL
+   FinalizeLSL()
+
    UploadFile(gSubNum,fileout.filename)
    UploadFile(gSubnum,pooledfileout.filename)
 

@@ -124,6 +124,7 @@ if(gParams.testtype== "dense")
 
    ##Let's pre-cache each of the stimuli.
    gWin <- MakeWindow("black")
+   InitializeLSL(gWin)  ## Initialize LSL outlet if --lsl flag was used (shows prompt)
 
 
    if(gSubNum+""=="0")
@@ -171,7 +172,7 @@ if(gParams.testtype== "dense")
 
 
      stimulus <-  MakeNavonFromPoints(points,
-                Second(i), gPEBLBaseFontMono,gParams.fontsize,scale)
+                Second(i), "DejaVuSansMono.ttf",gParams.fontsize,scale)
 
 
 
@@ -204,7 +205,7 @@ loop(i,localpairs)
     points <- Nth(stimPoints,Lookup(First(i),[gParams.stim1,gParams.stim2,gparams.stimdummy],[1,2,3]))
 
     stimulus <-  MakeNavonFromPoints(points,
-                Second(i), gPEBLBaseFontMono,gParams.fontsize, scale)
+                Second(i), "DejaVuSansMono.ttf",gParams.fontsize, scale)
 
 
      PushOnEnd(stimcacheL,stimulus)
@@ -292,11 +293,14 @@ loop(i,localpairs)
 
 
    trial <- 1
+   LSLMarker("block_practice_start")
    loop(i,trials)
     {
+      LSLMarker("trial_" + trial + "_start")
 
       stimlabel.text <- i
       Show(stimlabel)
+      LSLMarker("stimulus_present")
       Draw()
       time1 <- GetTime()
 
@@ -310,6 +314,8 @@ loop(i,localpairs)
          }else {
            corr <- i==gParams.stim2
          }
+
+      LSLMarker("response_" + resp + "_corr" + corr)
 
 
       globalStim <- "O"
@@ -352,10 +358,11 @@ loop(i,localpairs)
 
       Draw()
       Wait(500)
+      LSLMarker("trial_" + trial + "_end")
      trial <- trial + 1
     }
 
-
+   LSLMarker("block_practice_end")
 
     block <- 2
     ##Block 2: Letter blocks
@@ -387,12 +394,15 @@ loop(i,localpairs)
       trials <- Shuffle(RepeatList([1,2],gParams.reps))
       stims <- [tmp1,tmp2]
 
+      LSLMarker("block_2_start")
        loop(i,trials)
         {
+          LSLMarker("trial_" + trial + "_start")
 
          stim   <- Nth(stims,i)
 
           Show(stim)
+          LSLMarker("stimulus_present")
           Draw()
           time1 <- GetTime()
 
@@ -408,6 +418,8 @@ loop(i,localpairs)
            }else {
             corr <- i==2
            }
+
+      LSLMarker("response_" + resp + "_corr" + corr)
 
 
 
@@ -450,10 +462,12 @@ loop(i,localpairs)
          Hide(stim)
          Draw()
          Wait(500)
+         LSLMarker("trial_" + trial + "_end")
          trial <- trial + 1
 
         }
 
+   LSLMarker("block_2_end")
    RemoveObject(tmp1,gWin)
    RemoveObject(tmp2,gWin)
 
@@ -489,12 +503,15 @@ loop(i,localpairs)
       trials <- Shuffle(RepeatList([1,2],gParams.reps))
       stims <- [tmp1,tmp2]
 
+      LSLMarker("block_3_start")
        loop(i,trials)
         {
+          LSLMarker("trial_" + trial + "_start")
 
          stim   <- Nth(stims,i)
 
           Show(stim)
+          LSLMarker("stimulus_present")
           Draw()
           time1 <- GetTime()
 
@@ -506,6 +523,8 @@ loop(i,localpairs)
            }else {
             corr <- i==2
            }
+
+      LSLMarker("response_" + resp + "_corr" + corr)
 
 
       globalStim <- Nth(stimset,Nth(keyGlobalGlobal,i))
@@ -546,9 +565,11 @@ loop(i,localpairs)
          Hide(stim)
          Draw()
          Wait(500)
+         LSLMarker("trial_" + trial + "_end")
          trial <- trial + 1
 
         }
+   LSLMarker("block_3_end")
    RemoveObject(tmp1,gWin)
    RemoveObject(tmp2,gWin)
 
@@ -597,12 +618,15 @@ loop(i,localpairs)
 
       trials <- Shuffle(RepeatList(Sequence(1,6,1),gParams.reps))
 
+      LSLMarker("block_4_start")
        loop(i,trials)
         {
+          LSLMarker("trial_" + trial + "_start")
 
           stim   <- Nth(stimCacheL,i)
 
           Show(stim)
+          LSLMarker("stimulus_present")
           Draw()
           time1 <- GetTime()
 
@@ -626,6 +650,8 @@ loop(i,localpairs)
 
            }
           corr <- correctLocal
+
+      LSLMarker("response_" + resp + "_corr" + corr)
           Hide(stim)
 
 
@@ -662,10 +688,12 @@ loop(i,localpairs)
          Hide(stim)
          Draw()
          Wait(500)
+         LSLMarker("trial_" + trial + "_end")
          trial <- trial + 1
 
         }
 
+      LSLMarker("block_4_end")
       loop(i,stimCacheL)
       {
         RemoveObject(i,gWin)
@@ -716,12 +744,15 @@ loop(i,localpairs)
 
       trials <- Shuffle(RepeatList(Sequence(1,6,1),gParams.reps))
 
+      LSLMarker("block_5_start")
        loop(i,trials)
         {
+          LSLMarker("trial_" + trial + "_start")
 
           stim   <- Nth(stimCacheG,i)
 
           Show(stim)
+          LSLMarker("stimulus_present")
           Draw()
           time1 <- GetTime()
 
@@ -745,6 +776,8 @@ loop(i,localpairs)
 
            }
           corr <- correctGlobal
+
+      LSLMarker("response_" + resp + "_corr" + corr)
           correctresp   <- globalStim
 
       consistency <- GetConsistency(globalstim, localstim)
@@ -780,10 +813,12 @@ loop(i,localpairs)
          Hide(stim)
          Draw()
          Wait(500)
+         LSLMarker("trial_" + trial + "_end")
          trial <- trial + 1
 
         }
 
+      LSLMarker("block_5_end")
       loop(i,stimCacheG)
       {
         RemoveObject(i,gWin)
@@ -835,14 +870,17 @@ if(gParams.doscatterconditions)
 
       trials <- Shuffle(RepeatList(Sequence(1,6,1),gParams.reps))
 
+      LSLMarker("block_6_start")
        loop(i,trials)
         {
+          LSLMarker("trial_" + trial + "_start")
 
           stim   <- Nth(stimCacheL,i)
 	  positionX <- gLayout.centerX -gParams.scatterwidth/2 + Random()*gParams.scatterwidth
 	  positionY <- gLayout.centerY -gParams.scatterheight/2 + Random()*gParams.scatterheight
 	  Move(stim,positionX,positionY)
           Show(stim)
+          LSLMarker("stimulus_present")
           Draw()
           time1 <- GetTime()
 
@@ -866,6 +904,8 @@ if(gParams.doscatterconditions)
 
            }
           corr <- correctLocal
+
+      LSLMarker("response_" + resp + "_corr" + corr)
           Hide(stim)
 
 
@@ -902,10 +942,12 @@ if(gParams.doscatterconditions)
          Hide(stim)
          Draw()
          Wait(500)
+         LSLMarker("trial_" + trial + "_end")
          trial <- trial + 1
 
         }
 
+      LSLMarker("block_6_end")
       loop(i,stimCacheL)
       {
         RemoveObject(i,gWin)
@@ -956,8 +998,10 @@ if(gParams.doscatterconditions)
 
       trials <- Shuffle(RepeatList(Sequence(1,6,1),gParams.reps))
 
+      LSLMarker("block_7_start")
        loop(i,trials)
         {
+          LSLMarker("trial_" + trial + "_start")
 
           stim   <- Nth(stimCacheG,i)
 
@@ -966,6 +1010,7 @@ if(gParams.doscatterconditions)
 	  Move(stim,positionX,positionY)
 
           Show(stim)
+          LSLMarker("stimulus_present")
           Draw()
           time1 <- GetTime()
 
@@ -989,6 +1034,8 @@ if(gParams.doscatterconditions)
 
            }
           corr <- correctGlobal
+
+      LSLMarker("response_" + resp + "_corr" + corr)
           correctresp   <- globalStim
 
       consistency <- GetConsistency(globalstim, localstim)
@@ -1024,10 +1071,12 @@ if(gParams.doscatterconditions)
          Hide(stim)
          Draw()
          Wait(500)
+         LSLMarker("trial_" + trial + "_end")
          trial <- trial + 1
 
         }
 
+      LSLMarker("block_7_end")
       loop(i,stimCacheG)
       {
         RemoveObject(i,gWin)
@@ -1142,6 +1191,8 @@ if(gParams.doscatterconditions)
   FilePrint(gReportFile,"--------------------------------------------------")
   FileClose(gReportFile)
 
+  ## Finalize LSL
+  FinalizeLSL()
 
   MessageBox(gStrings.debrief,gWin)
 

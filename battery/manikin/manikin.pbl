@@ -24,6 +24,7 @@ define Start(p)
   InitializeUpload()
 
   gWin <- MakeWindow("white")
+  InitializeLSL(gWin)  ## Initialize LSL outlet if --lsl flag was used
    ##Get subject code if we need to:
     if(gSubNum+""=="0")
     {
@@ -120,10 +121,11 @@ define Start(p)
 
 
    block <- "PRACTICE"
+   LSLMarker("block_practice_start")
    trials <- SubList(Shuffle(conditions),1,8)
    loop(trial,trials)
     {
-
+      LSLMarker("trial_" + trialnum + "_start")
 
       Draw()
       Wait(200)
@@ -148,6 +150,7 @@ define Start(p)
       gLayout.header.text <- ""
       trialnum <- trialnum +1
      }
+   LSLMarker("block_practice_end")
 
  numtrials <- gParams.numblocks*16
  ready <- ReplaceChar(gStrings.ready2,"<N>",numtrials)
@@ -159,11 +162,11 @@ define Start(p)
   trialnum <- 1
  loop(block,gParams.numBlocks)
   {
-
+   LSLMarker("block_" + block + "_start")
    trials <- Shuffle(conditions)
    loop(trial,trials)
     {
-
+      LSLMarker("trial_" + trialnum + "_start")
       gLayout.header.text <-  ReplaceChar(ReplaceChar(gStrings.header,"<X>", trialnum),"<Y>",16*gparams.numBlocks)
       Draw()
       Wait(200)
@@ -178,6 +181,7 @@ define Start(p)
 
       trialnum <- trialnum+ 1
      }
+   LSLMarker("block_" + block + "_end")
 }
 
 
@@ -191,6 +195,9 @@ define Start(p)
   FileClose(gFileOut)
   datafile <- "data/" + gSubNum + "/manikin-" + gSubNum + ".csv"
   UploadFile(gSubNum, datafile)
+
+  ## Finalize LSL
+  FinalizeLSL()
 
   ##do debriefing
   PracticeScreen("manikin1.png",debrief,"any",400)
@@ -264,10 +271,12 @@ define Trial(target, forback, updown, hand)
     AddObject(foil,gWin)
     Show(img)
     time1 <- GetTime()
+    LSLMarker("stimulus_present")
     Draw()
     resp <-  WaitForLayoutResponse(gLayout)
     time2 <- GetTime()
     corr <- (resp=="right" and hand== -1) or (resp=="left" and hand==1)
+    LSLMarker("response_" + resp + "_corr" + corr)
 
 
     Hide(img)

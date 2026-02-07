@@ -20,6 +20,7 @@ define Start(p)
 
 
    gWin <- MakeWindow("black")
+   InitializeLSL(gWin)  ## Initialize LSL outlet if --lsl flag was used
    if(gSubNum == 0)
    {
      gSubNum <- GetSubNum(gWin)
@@ -41,14 +42,18 @@ define Start(p)
       outTiredness <- "NA,NA,NA,NA,NA,NA,NA,NA"
     if(gParams.DOKSS)
     {
+      LSLMarker("KSS_start")
       outKSS <-  DoKSS()
+      LSLMarker("KSS_end_rating" + outKSS)
       kssTime <- GetTime()/1000
     }
 
    tirednessStart <- GetTime()
     if(gParams.DOTIREDNESS)
     {
+      LSLMarker("tiredness_start")
       outTiredness <- DoTiredness()
+      LSLMarker("tiredness_end")
     }
 
    outline <- gSubnum +"," + TimeStamp() +","+outKSS+","+outTiredness  + "," + (GetTime()-tirednessStart)
@@ -58,9 +63,12 @@ define Start(p)
    pF <- FileOpenAppend(pooledFile)
    FilePrint(pf,outline)
    FileClose(pf)
-   
+
+   ## Finalize LSL
+   FinalizeLSL()
+
    ## Upload the data file
-   Print("saving data to: " + gDataFile.filename) 
+   Print("saving data to: " + gDataFile.filename)
    UploadFile(gSubnum,gdatafile.filename)
 }
 

@@ -31,6 +31,7 @@ define Start(p)
 
 
    win <- MakeWindow()
+   InitializeLSL(win)  ## Initialize LSL outlet if --lsl flag was used
    gSleepEasy <- 1
    if(gSubNum+""=="0")
    {
@@ -55,7 +56,12 @@ define Start(p)
 
   inst <-gStrings.inst
 
-  instruct <- EasyTextBox(inst,50,20,win,14,500,400)
+  font <- MakeFont("DejaVuSans.ttf", 0, 22, MakeColor("black"), MakeColor("white"), 0)
+  instruct <- MakeTextBox(inst, font, gVideoWidth - 100, gVideoHeight - 100)
+  SetProperty(instruct, "FORMATTED", 1)
+  SetProperty(instruct, "ISADAPTIVE", 1)
+  AddObject(instruct, win)
+  Move(instruct, 50, 50)
   Draw()
   WaitForAnyKeyPress()
   Hide(instruct)
@@ -79,15 +85,17 @@ define Start(p)
 
   ####################################
   #Do practice trials
+  LSLMarker("block_0_practice_start")
   trial <- 1
   while(trial <= numPracticeTrials)
   {
 
     FilePrint_(gFileOut,gSubNum + ",0," + trial + ",")
-    Trial(1)
+    Trial(1, trial)
     trial <- trial + 1
     Wait(isi)
   }
+  LSLMarker("block_0_practice_end")
 
 
   instruct.text <- ReplaceChar(gStrings.practice,"<TRIALS>",numtrials)
@@ -103,22 +111,28 @@ define Start(p)
   ####################################
   ##Do regular trials
 
+  LSLMarker("block_1_test_start")
   trial <- 1
   while(trial <= numTrials)
   {
     FilePrint_(gFileOut,gSubNum + ",1," + trial + ",")
 
-    result <-  Trial(0)
+    result <-  Trial(0, trial)
 
     trial <- trial + 1
     Wait(isi)
   }
+  LSLMarker("block_1_test_end")
 
   ####################################
   # Clean up and give feedback
   FileClose(gFileOut)
   FilePrint(gSummaryFile,"PEBL Two-column addition task" + Timestamp())
   FileClose(gSummaryFile)
+
+  ## Finalize LSL
+  FinalizeLSL()
+
   ShowAll(0)
   Hide(gSum)
   instruct.text <- gStrings.debrief
@@ -130,7 +144,7 @@ define Start(p)
 }
 
 
-define Trial(feedback)
+define Trial(feedback, trialnumber)
 {
 
 
@@ -144,6 +158,7 @@ define Trial(feedback)
   gSum.text <- "?"
   Show(gSum)
   ShowAll(1)
+  LSLMarker("stimulus_trial_" + trialnumber)
 
    starttime <- GetTime()
    endtime <- starttime + gTimeout
@@ -168,12 +183,14 @@ define Trial(feedback)
          {
            continue <- 0
            toolong <- 1
+           LSLMarker("response_timeout")
          }
 
       if(resp == "<return>" or resp == "<kp_enter>")
       {
         continue <- 0
         completetime <- GetTime()-starttime
+        LSLMarker("response_submitted")
 
       } else {
 
@@ -222,6 +239,9 @@ define Trial(feedback)
   if(resp  == num1+num2+num3)
    {
      corr <- 1
+     LSLMarker("trial_correct")
+   } else {
+     LSLMarker("trial_error")
    }
 
    FilePrintCSVList(gFileOut, [num1, num2, num3, (num1+num2+num3), resp, corr, toolong, clicks, starttime, firstclick, completetime])

@@ -431,9 +431,11 @@ int PEBLInterpret( int argc, std::vector<std::string> argv )
     bool upload = false;
     bool showHelp = false;
     bool showTestResults = false;
-    
+    bool lslEnabled = false;
+
     Variant uploadConfigFile = "";
-    
+    Variant lslStreamName = "";  // Optional custom stream name
+
     Variant lang = "";
     Variant subnum = 0;
 
@@ -521,6 +523,21 @@ int PEBLInterpret( int argc, std::vector<std::string> argv )
                     upload = true;
                     uploadConfigFile = Variant(argv[++j]);  //Pass the upload config file in
                     cerr << "setting upload file: [" << uploadConfigFile << "]\n";
+                }
+
+            else if(strcmp(argv[j].c_str(),"--lsl")==0)
+                {
+                    lslEnabled = true;
+                    // Check if next argument is a stream name (not another flag)
+                    if(j+1 < argc && argv[j+1].c_str()[0] != '-')
+                    {
+                        lslStreamName = Variant(argv[++j]);
+                        cerr << "LSL enabled with stream name: [" << lslStreamName << "]\n";
+                    }
+                    else
+                    {
+                        cerr << "LSL enabled (auto-generate stream name)\n";
+                    }
                 }
 
             else if(strcmp(argv[j].c_str(),"--resizeable")==0 ||
@@ -755,7 +772,13 @@ int PEBLInterpret( int argc, std::vector<std::string> argv )
     //if non-0, that specifies the upload config file
     Evaluator::gGlobalVariableMap.AddVariable("gUpload",Variant(upload));
     Evaluator::gGlobalVariableMap.AddVariable("gUploadFile",uploadConfigFile); //"" if upload is false
-    
+
+    //LSL (Lab Streaming Layer) configuration
+    //Set by --lsl command-line flag
+    //If enabled but no custom name, PEBL wrapper will auto-generate: "PEBL_" + gScriptName
+    Evaluator::gGlobalVariableMap.AddVariable("gLSLEnabled",Variant(lslEnabled));
+    Evaluator::gGlobalVariableMap.AddVariable("gLSLStreamName",lslStreamName);  // "" means auto-generate
+
     //Translate lang to the uppercase 2-letter code
     std::string tmps =lang;
     transform(tmps.begin(),tmps.end(),tmps.begin(),toupper);
@@ -1198,6 +1221,20 @@ std::list<std::string> GetFiles(int argc,  std::vector<std::string> argv)
                 {
                     //This is the variable switch.  get rid of it and the next argument.
                     i++;
+                }
+            else if(i->compare("--lsl")==0)
+                {
+                    // LSL flag - check if next arg is a stream name (not a flag or .pbl file)
+                    std::vector<std::string>::iterator next = i;
+                    next++;
+                    if(next != argv.end() &&
+                       next->c_str()[0] != '-' &&
+                       next->find(".pbl") == std::string::npos)
+                    {
+                        // Next arg is stream name, skip it too
+                        i++;
+                    }
+                    // Otherwise just skip the --lsl flag itself
                 }
             else if (i->compare("--driver")==0 ||
                      i->compare("--display")==0 ||

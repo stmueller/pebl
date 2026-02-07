@@ -23,6 +23,7 @@ define Start(p)
 	       ["round8",""]]
 
   gParams <- CreateParameters(parpairs,gParamFile)
+  gParams.responsemode <- "none"  ## This task uses custom numeric keypad response, not standard response system
 
  ##here are some additional parameters that we won't expose to the interface
  gParams.fgcolor <- "grey25"  #Color of box interior
@@ -33,6 +34,8 @@ define Start(p)
 
 
   gWin <- MakeWindow("black")
+  InitializeLSL(gWin)  ## Initialize LSL outlet if --lsl flag was used
+  InitializeUpload()  ## Initialize token-based hosting if upload.json exists
 
   gSleepEasy <- 1
   ShowCursor(0)
@@ -44,18 +47,34 @@ define Start(p)
 
   GetStrings(gLanguage)
 
+  ## Create layout for header positioning (no response system needed)
+  gLayout <- CreateLayout("hicks", gWin, gParams)
+  gLayout.header.text <- gStrings.header
+  gLayout.header.visible <- 0  ## Hidden during instructions, shown during trials
+  gLayout.subheader.visible <- 0  ## Will show between blocks
+  gLayout.footer.visible <- 0  ## No standard response labels needed
+
   gFileout <- GetNewdataFile(gSubNum,gWin,"hicks","csv",
                   "subnum,block,numtrials,trial,opts,numopts,delay,stim,resp,correctresp,correct,rt")
 
 
   gReportFile <- GetNewdataFile(gSubNum,gWin,"hicks-report","txt","")
 
+  LSLMarker("task_start")
 
-
-  inst <- EasyTextbox(gSTrings.inst1,50,50,gWin,26,gVideoWidth-100,400)
+  ## Create instruction textbox within stimulus region
+  inst <- AdaptiveTextBox(gSTrings.inst1,
+                        gLayout.stimulusRegion.x + 20,
+                        gLayout.stimulusRegion.y + 20,
+                        gWin, 26,
+                        gLayout.stimulusRegion.width - 40,
+                        gLayout.stimulusRegion.height - 40,
+                        "scalefont")
+  SetProperty(inst, "FORMATTED", 1)  ## Enable HTML-lite markup rendering
 
  Draw()
  WaitForAnyKeyPress()
+ Hide(inst)  ## Hide instructions before starting blocks
  ## creat the rounds:
   rounds <- []
   if(StringLength(gParams.round1+"")>0)
@@ -98,17 +117,21 @@ define Start(p)
 
   loop(i, rounds)
    {
+     LSLMarker("block_start_" + gBlock + "_numopts" + Length(i))
 
      ##replace character on each round as it changes.
      label <- ListToString(i)
      inst.text <- ReplaceChar(gstrings.inst2,"<LABEL>",label)
 
+    gLayout.header.visible <- 0  ## Hide header during block instructions
     Show(inst)
     Draw()
 
     WaitForAnyKeyPress()
     Hide(inst)
+    gLayout.header.visible <- 1  ## Show header during trials
     data <-  Trials(gParams.numtrials,i)
+    LSLMarker("block_end_" + gBlock)
     gBlock <- gblock +1
     PushonEnd(dataSet,[i,data])
 
@@ -138,6 +161,16 @@ define Start(p)
 
   Print(report)
   FilePrint(greportfile,report)
+
+  ## Close and upload data files
+  FileClose(gFileOut)
+  FileClose(gReportFile)
+  LSLMarker("task_end")
+  FinalizeLSL()
+  UploadFile(gSubNum, gFileOut.filename)
+  UploadFile(gSubNum, gReportFile.filename)
+
+  gLayout.header.visible <- 0  ## Hide header during debrief
   inst.font <- MakeFont(gPEBLBaseFontMono,0,14,MakeColor("black"),MakeColor("white"),0)
   inst.text <-  gStrings.debrief + CR(1)+report
   Show(inst)
@@ -151,17 +184,13 @@ define Trials(numTrials, stimuli)
 {
   bgcol <- MakeColor(gparams.bgcolor)
   fgcol <- MakeColor(gparams.fgcolor)
-  ##Make header
-  head <- EasyLabel(gStrings.header,
-                      gVideoWidth/2,80,gWin,30)
 
-
-
-  feedback <- Easylabel(gStrings.ready,gVideoWidth/2,200,gWin,44)
+  ## Feedback label positioned in stimulus region
+  feedback <- Easylabel(gStrings.ready,gLayout.centerX,gLayout.stimulusRegion.y + 50,gWin,44)
   gap <- 20  ##how big of a gap between hands?
   ##Now, make backing stimuli.
   Draw()
-  y <- gVideoHeight/2
+  y <- gLayout.centerY
   stimsize <- (gVideoWidth-100-gap)/10
   min1 <- 50 + stimSize/2
   max1  <- min1 + stimsize*4
@@ -173,11 +202,11 @@ define Trials(numTrials, stimuli)
               Sequence(min2,max2,stimsize))
 
 
-  background <-Rectangle(gVideoWidth/2,gVideoHeight/2,
+  background <-Rectangle(gLayout.centerX,gLayout.centerY,
                gVideoWidth-90,stimsize+10,bgcol,1)
   AddObject(background,gWin)
 
-  sep <-Rectangle(gVideoWidth/2,gVideoHeight/2,
+  sep <-Rectangle(gLayout.centerX,gLayout.centerY,
                   gap-6,stimsize+10,MakeColor("black"),1)
   AddObject(sep,gWin)
 
@@ -243,16 +272,20 @@ define Trials(numTrials, stimuli)
    Wait(500)
    loop(i,stim)
    {
-
+     ## Update trial progress counter
+     gLayout.trialText <- "Trial " + trial + " of " + numtrials
+     LSLMarker("trial_start_" + trial)
      delay <- gParams.itimin + Random()*(gParams.itimax-gParams.itimin)
      Wait(delay)
      ##Move the highlight square.
      Move(highlight,Nth(xs,ToInteger(i)),y)
      Show(highlight)
+     LSLMarker("stimulus_" + i)
      Draw()
      time0 <- GetTime()
      resp <-  WaitForListKeyPress(stimuli)
      time1 <- GetTime()
+     LSLMarker("response_" + resp)
 
      Hide(highlight)
      Draw()

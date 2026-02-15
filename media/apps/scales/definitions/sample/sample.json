@@ -1,0 +1,167 @@
+{
+  "scale_info": {
+    "name": "Sample Scale with All Question Types",
+    "code": "sample",
+    "version": "1.0",
+    "citation": "Sample Scale for Demonstration Purposes",
+    "description": "Demonstrates all 10 question types supported by ScaleRunner",
+    "url": "http://pebl.sf.net"
+  },
+
+  "parameters": {
+    "shuffle_questions": {
+      "type": "boolean",
+      "default": 0,
+      "description": "Randomize question order"
+    }
+  },
+
+  "dimensions": [
+    {
+      "id": "satisfaction",
+      "name": "Satisfaction",
+      "enabled_param": "do_satisfaction"
+    },
+    {
+      "id": "engagement",
+      "name": "Engagement",
+      "enabled_param": "do_engagement"
+    }
+  ],
+
+  "likert_options": {
+    "points": 5,
+    "labels": ["likert_1", "likert_2", "likert_3", "likert_4", "likert_5"],
+    "question_head": "question_head"
+  },
+
+  "questions": [
+    {
+      "id": "inst1",
+      "text_key": "inst1",
+      "type": "inst"
+    },
+    {
+      "id": "q1",
+      "text_key": "q1",
+      "type": "likert",
+      "points": 5
+    },
+    {
+      "id": "q2",
+      "text_key": "q2",
+      "type": "likert",
+      "points": 5
+    },
+    {
+      "id": "q3",
+      "text_key": "q3",
+      "type": "vas",
+      "min": 0,
+      "max": 100,
+      "min_label": "vas_min_label",
+      "max_label": "vas_max_label"
+    },
+    {
+      "id": "q4",
+      "text_key": "q4",
+      "type": "grid",
+      "subitems": [
+        {"id": "q4a", "text_key": "q4a"},
+        {"id": "q4b", "text_key": "q4b"},
+        {"id": "q4c", "text_key": "q4c"}
+      ],
+      "grid_options": {
+        "points": 7,
+        "labels": ["grid_1", "grid_2", "grid_3", "grid_4", "grid_5", "grid_6", "grid_7"]
+      }
+    },
+    {
+      "id": "q5",
+      "text_key": "q5",
+      "type": "multi",
+      "options": [
+        {"value": 1, "text_key": "q5_opt1"},
+        {"value": 2, "text_key": "q5_opt2"},
+        {"value": 3, "text_key": "q5_opt3"},
+        {"value": 4, "text_key": "q5_opt4"}
+      ]
+    },
+    {
+      "id": "q6",
+      "text_key": "q6",
+      "type": "multicheck",
+      "options": [
+        {"value": "option_a", "text_key": "q6_opt1"},
+        {"value": "option_b", "text_key": "q6_opt2"},
+        {"value": "option_c", "text_key": "q6_opt3"},
+        {"value": "option_d", "text_key": "q6_opt4"}
+      ]
+    },
+    {
+      "id": "q7",
+      "text_key": "q7",
+      "type": "short",
+      "maxlength": 50
+    },
+    {
+      "id": "q8",
+      "text_key": "q8",
+      "type": "long",
+      "maxlength": 500,
+      "rows": 5,
+      "cols": 60
+    },
+    {
+      "id": "q9",
+      "text_key": "q9",
+      "type": "image",
+      "image_file": "../../media/images/smiley-big.png"
+    },
+    {
+      "id": "q10",
+      "text_key": "q10",
+      "type": "imageresponse",
+      "image_file": "../../media/images/pebl.png"
+    }
+  ],
+
+  "scoring": {
+    "satisfaction": {
+      "method": "sum_coded",
+      "items": ["q1", "q2"],
+      "description": "Sum of coded responses (q2 is reverse-coded)",
+      "item_coding": {
+        "q1": 1,
+        "q2": -1
+      }
+    },
+    "engagement": {
+      "method": "mean_coded",
+      "items": ["q3", "q4"],
+      "description": "Mean of coded responses",
+      "item_coding": {
+        "q3": 1,
+        "q4": 1
+      }
+    }
+  },
+
+  "report": {
+    "template": "standard",
+    "include": ["timestamp", "completion_time", "dimension_scores"],
+    "header": "Sample scale demonstrating all question types in ScaleRunner.",
+    "footer_refs": [
+      "This is a demonstration scale showing all supported question types.",
+      "See http://pebl.sf.net for more information."
+    ]
+  },
+
+  "data_output": {
+    "individual_file": "sample-{subnum}.csv",
+    "pooled_file": "sample-pooled.csv",
+    "report_file": "sample-report-{subnum}.txt",
+    "columns": "subnum,order,time,qnum,ques,dim,valence,resp,rt",
+    "pooled_columns": "subnum,timestamp,time,q1,q2,q3,q4,q5,q6,q7,q8,q9,q10,satisfaction,engagement"
+  }
+}

@@ -501,6 +501,7 @@ std::string ExperimentRunner::GetLaunchLogPath()
 
     // Look for pebl-exp.X.X directories (newest first)
     const char* versions[] = {
+        "pebl-exp.2.4",
         "pebl-exp.2.3",
         "pebl-exp.2.2",
         "pebl-exp.2.1",

@@ -90,7 +90,7 @@ const ParameterVariant* Test::GetVariant(const std::string& variantName) const {
 // ============================================================================
 
 Study::Study()
-    : mVersion(1)
+    : mVersion(1), mUploadEnabled(false)
 {
 }
 
@@ -496,7 +496,7 @@ bool Study::CreateUploadConfigForTest(const std::string& testName) {
         page = url.substr(slashPos);
     } else {
         host = url;
-        page = "/scripts/uploadPEBL_token.php";  // Default page
+        page = "/api/upload.php";  // Default page
     }
 
     // Check for port in host (host:port format)
@@ -515,8 +515,7 @@ bool Study::CreateUploadConfigForTest(const std::string& testName) {
         j["subnumpage"] = "/api/getNewParticipantId.php";  // For server-assigned participant IDs
         j["port"] = port;
         j["token"] = mStudyToken;
-        // Use display name if available, otherwise fall back to test ID
-        j["taskname"] = test->displayName.empty() ? testName : test->displayName;
+        j["taskname"] = testName;
         j["username"] = mStudyToken;
         j["uploadpassword"] = mStudyToken;
 

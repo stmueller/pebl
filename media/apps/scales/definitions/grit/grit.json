@@ -1,0 +1,190 @@
+{
+  "scale_info": {
+    "name": "Grit Scale",
+    "code": "grit",
+    "abbreviation": "Grit-O",
+    "description": "12-item scale measuring perseverance and passion for long-term goals",
+    "citation": "Duckworth, A. L., Peterson, C., Matthews, M. D., & Kelly, D. R. (2007). Grit: Perseverance and passion for long-term goals. Journal of Personality and Social Psychology, 92(6), 1087-1101. https://doi.org/10.1037/0022-3514.92.6.1087",
+    "license": "Published measure, available for non-commercial research use",
+    "version": "1.0",
+    "url": "https://angeladuckworth.com/grit-scale/"
+  },
+
+  "parameters": {
+    "shuffle_questions": {
+      "type": "boolean",
+      "default": 0,
+      "description": "Randomize question order"
+    }
+  },
+
+  "likert_options": {
+    "points": 5,
+    "question_head": "question_head",
+    "labels": ["likert_1", "likert_2", "likert_3", "likert_4", "likert_5"]
+  },
+
+  "dimensions": [
+    {
+      "id": "COI",
+      "name": "Consistency of Interest",
+      "abbreviation": "COI",
+      "description": "The tendency to maintain focus on long-term goals despite distractions",
+      "enabled_param": null
+    },
+    {
+      "id": "POE",
+      "name": "Perseverance of Effort",
+      "abbreviation": "POE",
+      "description": "The tendency to work hard and persist despite setbacks",
+      "enabled_param": null
+    }
+  ],
+
+  "questions": [
+    {
+      "id": "inst1",
+      "text_key": "inst1",
+      "type": "inst"
+    },
+    {
+      "id": "grit2",
+      "text_key": "grit2",
+      "type": "likert",
+      "likert_points": 5
+    },
+    {
+      "id": "grit3",
+      "text_key": "grit3",
+      "type": "likert",
+      "likert_points": 5
+    },
+    {
+      "id": "grit5",
+      "text_key": "grit5",
+      "type": "likert",
+      "likert_points": 5
+    },
+    {
+      "id": "grit6",
+      "text_key": "grit6",
+      "type": "likert",
+      "likert_points": 5
+    },
+    {
+      "id": "grit7",
+      "text_key": "grit7",
+      "type": "likert",
+      "likert_points": 5
+    },
+    {
+      "id": "grit8",
+      "text_key": "grit8",
+      "type": "likert",
+      "likert_points": 5
+    },
+    {
+      "id": "grit9",
+      "text_key": "grit9",
+      "type": "likert",
+      "likert_points": 5
+    },
+    {
+      "id": "grit10",
+      "text_key": "grit10",
+      "type": "likert",
+      "likert_points": 5
+    },
+    {
+      "id": "grit11",
+      "text_key": "grit11",
+      "type": "likert",
+      "likert_points": 5
+    },
+    {
+      "id": "grit14",
+      "text_key": "grit14",
+      "type": "likert",
+      "likert_points": 5
+    },
+    {
+      "id": "grit16",
+      "text_key": "grit16",
+      "type": "likert",
+      "likert_points": 5
+    },
+    {
+      "id": "grit17",
+      "text_key": "grit17",
+      "type": "likert",
+      "likert_points": 5
+    }
+  ],
+
+  "scoring": {
+    "COI": {
+      "method": "mean_coded",
+      "items": ["grit3", "grit5", "grit7", "grit9", "grit10", "grit16"],
+      "description": "Mean consistency of interest score (1-5 scale)",
+      "item_coding": {
+        "grit3": -1,
+        "grit5": -1,
+        "grit7": -1,
+        "grit9": -1,
+        "grit10": -1,
+        "grit16": -1
+      }
+    },
+    "POE": {
+      "method": "mean_coded",
+      "items": ["grit2", "grit6", "grit8", "grit11", "grit14", "grit17"],
+      "description": "Mean perseverance of effort score (1-5 scale)",
+      "item_coding": {
+        "grit2": 1,
+        "grit6": 1,
+        "grit8": 1,
+        "grit11": 1,
+        "grit14": 1,
+        "grit17": 1
+      }
+    },
+    "GRIT_TOTAL": {
+      "method": "mean_coded",
+      "items": ["grit2", "grit3", "grit5", "grit6", "grit7", "grit8", "grit9", "grit10", "grit11", "grit14", "grit16", "grit17"],
+      "description": "Overall grit score (1-5 scale)",
+      "item_coding": {
+        "grit2": 1,
+        "grit3": -1,
+        "grit5": -1,
+        "grit6": 1,
+        "grit7": -1,
+        "grit8": 1,
+        "grit9": -1,
+        "grit10": -1,
+        "grit11": 1,
+        "grit14": 1,
+        "grit16": -1,
+        "grit17": 1
+      }
+    }
+  },
+
+  "report": {
+    "template": "standard",
+    "include": ["timestamp", "completion_time", "dimension_scores"],
+    "header": "The Grit Scale measures perseverance and passion for long-term goals.",
+    "footer_refs": [
+      "Duckworth, A. L., Peterson, C., Matthews, M. D., & Kelly, D. R. (2007). Grit: Perseverance and passion for long-term goals. Journal of Personality and Social Psychology, 92(6), 1087-1101.",
+      "See <a href='https://doi.org/10.1037/0022-3514.92.6.1087'>https://doi.org/10.1037/0022-3514.92.6.1087</a> for more information.",
+      "Available at <a href='https://angeladuckworth.com/grit-scale/'>https://angeladuckworth.com/grit-scale/</a>"
+    ]
+  },
+
+  "data_output": {
+    "individual_file": "grit-{subnum}.csv",
+    "pooled_file": "grit-pooled.csv",
+    "report_file": "grit-report-{subnum}.html",
+    "columns": "subnum,order,time,qnum,ques,dim,valence,resp,rt",
+    "pooled_columns": "subnum,timestamp,time,grit2,grit3,grit5,grit6,grit7,grit8,grit9,grit10,grit11,grit14,grit16,grit17,COI,POE,GRIT_TOTAL"
+  }
+}

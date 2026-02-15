@@ -10,7 +10,7 @@
 
 // Version and prefix constants - defined here to avoid Makefile quoting issues
 #ifndef PEBL_VERSION
-#define PEBL_VERSION "2.3"
+#define PEBL_VERSION "2.4"
 #endif
 
 #ifndef PREFIX

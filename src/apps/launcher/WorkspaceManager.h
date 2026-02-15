@@ -34,6 +34,7 @@ public:
     std::string GetStudiesPath() const { return mWorkspacePath + "/my_studies"; }
     std::string GetSnapshotsPath() const { return mWorkspacePath + "/snapshots"; }
     std::string GetChainsPath() const { return mWorkspacePath + "/chains"; }
+    std::string GetScalesPath() const { return mWorkspacePath + "/scales"; }
     std::string GetDocsPath() const { return mWorkspacePath + "/doc"; }
     std::string GetDemoPath() const { return mWorkspacePath + "/demo"; }
     std::string GetTutorialPath() const { return mWorkspacePath + "/tutorial"; }

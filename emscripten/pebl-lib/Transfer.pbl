@@ -312,3 +312,111 @@ define SyncDataFile(server,page,port,username,pword,taskname,subcode,datafilenam
 
  return out
 }
+
+
+## Appends a single line of CSV data to a file on the server via the
+## append_line.php endpoint. Uses file locking server-side for safety.
+##
+## Two modes controlled by the 'pooled' parameter:
+##   pooled=1 (default): Appends to a shared task-level file.
+##     Server path: uploads/{taskname}/{filename}
+##     All participants write to the same file. Essential for Emscripten
+##     where each participant has an isolated filesystem.
+##   pooled=0: Appends to a per-participant file.
+##     Server path: uploads/{taskname}/{subnum}/{filename}
+##     Useful for trial-by-trial uploads during long experiments so data
+##     is saved incrementally rather than only at the end.
+##
+## Arguments:
+##   subcode      - participant ID
+##   filename     - target filename on server (e.g., "grit-pooled.csv")
+##   header       - CSV header line (written only if server file is new)
+##   line         - CSV data line to append
+##   pooled       - 1 = shared task-level file, 0 = per-participant file
+##   settingsfile - optional path to upload.json settings
+define UploadLine(subcode, filename, header, line, pooled:1, settingsfile:"")
+{
+  out <- 0
+  if(gUpload)
+  {
+
+  ## Resolve settings file (same logic as UploadFile)
+  if(settingsfile != "")
+  {
+    if(not FileExists(settingsfile))
+    {
+      settingsfile <- ""
+    }
+  }
+
+  if(settingsfile == "")
+  {
+    settingsfile <- gUploadFile
+    if(not FileExists(settingsfile))
+    {
+      settingsfile <- ""
+    }
+  }
+
+  if(settingsfile == "")
+  {
+    if(FileExists("upload.json"))
+    {
+      settingsfile <- "upload.json"
+    }
+  }
+
+  if(settingsfile == "")
+  {
+    Print("WARNING: Cannot upload line - no settings file found")
+    out <- 0
+  } else {
+
+  settings <- ParseJSON(FileReadText(settingsfile))
+  host <- settings.host
+  page <- settings.page
+  port <- ToInteger(settings.port)
+  taskname <- settings.taskname
+  if(taskname == "<USE_TASK_NAME>")
+  {
+    taskname <- gScriptName
+  }
+
+  ## Derive append endpoint from upload page path
+  appendPage <- ReplaceChar(page, "upload.php", "append_line.php")
+
+  ## Build form field args with auth and data
+  token <- ""
+  if(PropertyExists(settings, "token"))
+  {
+    token <- settings.token
+    args <- ["auth_token", token,
+             "taskname", taskname,
+             "subnum", subcode + "",
+             "target_file", filename,
+             "header", header,
+             "line", line,
+             "pooled", pooled + ""]
+  } else {
+    args <- ["user_name", settings.username,
+             "upload_password", settings.uploadpassword,
+             "taskname", taskname,
+             "subnum", subcode + "",
+             "target_file", filename,
+             "header", header,
+             "line", line,
+             "pooled", pooled + ""]
+  }
+
+  ## PostHTTPFile requires a file argument; write a minimal temp file.
+  ## The server reads the data from form fields, not the file upload.
+  tempPath <- ".pebl_append_temp.txt"
+  tempFile <- FileOpenOverwrite(tempPath)
+  FilePrint(tempFile, line)
+  FileClose(tempFile)
+
+  out <- PostHTTPFile(host, port, appendPage, args, tempPath, "dummy")
+   }
+ }
+  return(out)
+}

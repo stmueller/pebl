@@ -33,7 +33,7 @@ PREFIX = /usr/local/
 PEBLNAME = pebl2
 PEBLDIRNAME = "pebl2"
 EXECNAME = $(PEBLNAME)
-PEBL_VERSION = 2.3
+PEBL_VERSION = 2.4
 #USE_WAAVE=1       ##Optional; comment out to turn off waave multimedia library
 USE_NETWORK=1      ##Optional; comment out to turn off sdl_net library.
 ##USE_PORTS is set conditionally below based on target platform (native only, not emscripten)

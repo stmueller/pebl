@@ -10,6 +10,8 @@
 #include "WorkspaceManager.h"
 #include "SnapshotManager.h"
 #include "ZipExtractor.h"
+#include "ScaleDefinition.h"
+#include "ScaleManager.h"
 #include "../../utility/BinReloc.h"
 #include "imgui.h"
 #include <SDL2/SDL_image.h>
@@ -21,6 +23,7 @@
 #include <map>
 #include <filesystem>
 #include <fstream>
+#include <sstream>
 #include <numeric>
 #include <sys/stat.h>
 #include <json.hpp>
@@ -137,22 +140,37 @@ LauncherUI::LauncherUI(LauncherConfig* config, SDL_Renderer* renderer)
     , mOutputExpanded(false)
     , mSelectedStudyIndex(-1)
     , mSelectedChainIndex(-1)
+    , mSelectedStudyTestIndex(-1)
+    , mStudyTestScreenshot(nullptr)
+    , mStudyTestScreenshotW(0)
+    , mStudyTestScreenshotH(0)
     , mRunningChain(false)
     , mCurrentChainItemIndex(-1)
     , mShowParameterEditor(false)
     , mShowVariantNameDialog(false)
     , mEditingTestIndex(-1)
     , mShowDuplicateSubjectWarning(false)
+    , mShowSnapshotCreated(false)
     , mShowSettings(false)
     , mShowNewStudyDialog(false)
     , mShowNewChainDialog(false)
     , mShowStudySettingsDialog(false)
     , mShowFirstRunDialog(false)
+    , mShowGettingStartedDialog(false)
     , mShowEditParticipantCodeDialog(false)
     , mAddTestSubTab(0)
     , mQuickLaunchSelectedFile(-1)
     , mShowCodeEditor(false)
+    , mShowScaleBuilder(false)
+    , mSelectedScaleIndex(-1)
+    , mSelectedDimensionIndex(-1)
+    , mScaleBrowserScreenshot(nullptr)
+    , mScaleBrowserScreenshotW(0)
+    , mScaleBrowserScreenshotH(0)
+    , mScaleBrowserScreenshotForIndex(-1)
+    , mScaleTransSelectedKey(-1)
 {
+    mScaleTransLanguage[0] = '\0';
     // Configure PEBL syntax highlighting based on doc/pebl.lang
     auto lang = TextEditor::LanguageDefinition();
 
@@ -203,6 +221,8 @@ LauncherUI::LauncherUI(LauncherConfig* config, SDL_Renderer* renderer)
     mStudyCode[0] = '\0';
     mQuickLaunchPath[0] = '\0';
     mQuickLaunchParamFile[0] = '\0';
+    mLastSnapshotName[0] = '\0';
+    mLastSnapshotPath[0] = '\0';
 
     // Set Quick Launch to start in workspace directory
     // Portable mode: portable root directory (for access to PEBL/battery, demo, tutorial)
@@ -248,6 +268,19 @@ LauncherUI::LauncherUI(LauncherConfig* config, SDL_Renderer* renderer)
     mWorkspace = std::make_shared<WorkspaceManager>();
     mSnapshots = std::make_shared<SnapshotManager>();
 
+    // Initialize scale manager with battery and workspace paths
+    std::string batteryPathForScales = config->GetBatteryPath();
+    std::string workspacePathForScales = mWorkspace->GetWorkspacePath();
+    if (!batteryPathForScales.empty()) {
+        mScaleManager = std::make_shared<ScaleManager>(batteryPathForScales, workspacePathForScales);
+        printf("Initialized Scale Manager with battery path: %s, workspace path: %s\n",
+               batteryPathForScales.c_str(), workspacePathForScales.c_str());
+        fflush(stdout);
+    } else {
+        printf("Warning: Battery path not set, Scale Builder will not be available\n");
+        fflush(stdout);
+    }
+
     // Check for first run
     if (mWorkspace->IsFirstRun()) {
         mShowFirstRunDialog = true;
@@ -256,6 +289,12 @@ LauncherUI::LauncherUI(LauncherConfig* config, SDL_Renderer* renderer)
         // On first run, we wait for user confirmation in the dialog
         if (!mWorkspace->Initialize()) {
             printf("Warning: Failed to initialize workspace\n");
+        }
+
+        // Check if there are no studies (after workspace init, but not on first run)
+        auto studyDirs = mWorkspace->GetStudyDirectories();
+        if (studyDirs.empty()) {
+            mShowGettingStartedDialog = true;
         }
     }
 
@@ -308,6 +347,7 @@ LauncherUI::LauncherUI(LauncherConfig* config, SDL_Renderer* renderer)
         ScanExperimentDirectory(batteryPath);
         printf("Scanned battery directory: %s - found %zu tests\n",
                batteryPath.c_str(), mExperiments.size());
+        fflush(stdout);
     }
 
     // Scan templates directory
@@ -334,6 +374,12 @@ LauncherUI::LauncherUI(LauncherConfig* config, SDL_Renderer* renderer)
 LauncherUI::~LauncherUI()
 {
     FreeScreenshot();
+    FreeStudyTestScreenshot();
+
+    if (mScaleBrowserScreenshot) {
+        SDL_DestroyTexture(mScaleBrowserScreenshot);
+        mScaleBrowserScreenshot = nullptr;
+    }
 
     // Clean up running experiment if any
     if (mRunningExperiment) {
@@ -487,6 +533,11 @@ render_ui:
 
     RenderMenuBar();
 
+    // Reserve space at bottom for output panel, then wrap tab content
+    float outputPanelHeight = mOutputExpanded ? 250.0f : 30.0f;
+    float contentHeight = ImGui::GetContentRegionAvail().y - outputPanelHeight;
+    ImGui::BeginChild("MainTabArea", ImVec2(0, contentHeight));
+
     // Top-level tabbed interface: Manage Studies vs Quick Launch
     // Make tab headers larger and more prominent (colors, padding, and larger font)
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(30, 8));   // Larger horizontal and vertical padding
@@ -611,6 +662,29 @@ render_ui:
             RenderQuickLaunchTab();
             ImGui::EndTabItem();
 
+            // Restore styles for next top-level tab header
+            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(30, 8));
+            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(12, 8));
+            ImGui::PushStyleVar(ImGuiStyleVar_TabRounding, 8.0f);
+            ImGui::PushStyleColor(ImGuiCol_Tab, ImVec4(0.35f, 0.40f, 0.48f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_TabHovered, ImVec4(0.35f, 0.60f, 0.85f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_TabActive, ImVec4(0.20f, 0.60f, 0.95f, 1.0f));
+            ImGui::SetWindowFontScale(1.5f);
+        }
+
+        // Scales/Surveys tab
+        ImGuiTabItemFlags scaleBuilderFlags = (mTopLevelTab == 2) ? ImGuiTabItemFlags_SetSelected : 0;
+        if (ImGui::BeginTabItem("Scales/Surveys", nullptr, scaleBuilderFlags)) {
+            if (mTopLevelTab == 2) {
+                mTopLevelTab = -1;  // Reset flag after first frame
+            }
+            ImGui::SetWindowFontScale(1.0f);
+            ImGui::PopStyleColor(3);
+            ImGui::PopStyleVar(3);
+
+            ShowScaleBuilder();
+            ImGui::EndTabItem();
+
             // Restore styles for consistency
             ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(30, 8));
             ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(12, 8));
@@ -632,6 +706,11 @@ render_ui:
         ImGui::PopStyleColor(3);
         ImGui::PopStyleVar(3);
     }
+
+    ImGui::EndChild();  // MainTabArea
+
+    // Output panel at bottom of window
+    RenderOutputPanel();
 
     ImGui::End();
 
@@ -670,6 +749,31 @@ render_ui:
         ShowCodeEditor();
     }
 
+    // Show question editor dialog if requested
+    if (mQuestionEditor.show) {
+        ShowQuestionEditor();
+    }
+
+    // Show batch import dialog if requested
+    if (mBatchImport.show) {
+        ShowBatchImportDialog();
+    }
+
+    // Show dimension editor dialog if requested
+    if (mDimensionEditor.show) {
+        ShowDimensionEditor();
+    }
+
+    // Show create study from scale dialog if requested
+    if (mCreateStudyDialog.show) {
+        ShowCreateStudyFromScaleDialog();
+    }
+
+    // Show correct answers editor dialog if requested
+    if (mCorrectAnswersEditor.show) {
+        ShowCorrectAnswersEditor();
+    }
+
     // Show translation editor dialog if requested
     if (mTranslationEditor.show) {
         ShowTranslationEditorDialog();
@@ -695,6 +799,11 @@ render_ui:
         ShowFirstRunDialog();
     }
 
+    // Show getting started dialog if there are no studies
+    if (mShowGettingStartedDialog) {
+        ShowGettingStartedDialog();
+    }
+
     // Show duplicate subject code warning if requested
     if (mShowDuplicateSubjectWarning) {
         ShowDuplicateSubjectWarning();
@@ -703,6 +812,11 @@ render_ui:
     // Show edit participant code dialog if requested
     if (mShowEditParticipantCodeDialog) {
         ShowEditParticipantCodeDialog();
+    }
+
+    // Show snapshot created dialog if requested
+    if (mShowSnapshotCreated) {
+        ShowSnapshotCreatedDialog();
     }
 }
 
@@ -819,9 +933,17 @@ void LauncherUI::RenderMenuBar()
                     std::string snapshotName = mSnapshots->CreateSnapshot(mCurrentStudy->GetPath(), snapshotsDir);
 
                     if (!snapshotName.empty()) {
-                        printf("Created snapshot: %s\n", snapshotName.c_str());
-                        // Show success message
-                        ImGui::OpenPopup("Snapshot Created");
+                        std::string snapshotPath = snapshotsDir + "/" + snapshotName;
+                        printf("Created snapshot: %s at %s\n", snapshotName.c_str(), snapshotPath.c_str());
+
+                        // Store snapshot info for dialog
+                        std::strncpy(mLastSnapshotName, snapshotName.c_str(), sizeof(mLastSnapshotName) - 1);
+                        mLastSnapshotName[sizeof(mLastSnapshotName) - 1] = '\0';
+                        std::strncpy(mLastSnapshotPath, snapshotPath.c_str(), sizeof(mLastSnapshotPath) - 1);
+                        mLastSnapshotPath[sizeof(mLastSnapshotPath) - 1] = '\0';
+
+                        // Show success dialog
+                        mShowSnapshotCreated = true;
                     } else {
                         printf("Failed to create snapshot\n");
                     }
@@ -934,6 +1056,13 @@ void LauncherUI::RenderMenuBar()
             }
             if (ImGui::IsItemHovered()) {
                 ImGui::SetTooltip("Combine data files from a directory");
+            }
+
+            if (ImGui::MenuItem("Scales/Surveys...", nullptr, false, mScaleManager != nullptr)) {
+                mTopLevelTab = 2;  // Switch to Scales/Surveys tab
+            }
+            if (ImGui::IsItemHovered()) {
+                ImGui::SetTooltip("Create and edit psychological scales/surveys");
             }
 
             ImGui::Separator();
@@ -1494,56 +1623,6 @@ void LauncherUI::RenderDetailsTab()
     if (ImGui::IsItemHovered()) {
         ImGui::SetTooltip("Open experiment folder in file browser");
     }
-
-    // Output display
-    ImGui::Spacing();
-    ImGui::Separator();
-    ImGui::Spacing();
-
-    // Toggle button for stdout/stderr and expand button
-    const char* outputLabel = mShowStderr ? "stderr" : "stdout";
-    ImGui::Text("Output (%s):", outputLabel);
-
-    // Expand/collapse button
-    ImGui::SameLine(ImGui::GetContentRegionAvail().x - 150);
-    if (ImGui::Button(mOutputExpanded ? "-" : "+", ImVec2(25, 0))) {
-        mOutputExpanded = !mOutputExpanded;
-    }
-    if (ImGui::IsItemHovered()) {
-        ImGui::SetTooltip(mOutputExpanded ? "Collapse output" : "Expand output");
-    }
-
-    // stdout/stderr toggle button
-    ImGui::SameLine();
-    if (ImGui::Button(mShowStderr ? "Show stdout" : "Show stderr", ImVec2(120, 0))) {
-        mShowStderr = !mShowStderr;
-    }
-
-    // Scrollable output window - height depends on expanded state
-    float outputHeight = mOutputExpanded ? ImGui::GetContentRegionAvail().y : 150.0f;
-    ImGui::BeginChild("OutputWindow", ImVec2(0, outputHeight), true, ImGuiWindowFlags_HorizontalScrollbar);
-
-    if (mRunningExperiment) {
-        const std::string& output = mShowStderr ? mRunningExperiment->GetStderr() :
-                                                   mRunningExperiment->GetStdout();
-
-        if (!output.empty()) {
-            // Use InputTextMultiline for selectable text
-            ImGui::InputTextMultiline("##output",
-                                       const_cast<char*>(output.c_str()),
-                                       output.size() + 1,
-                                       ImVec2(-1, -1),
-                                       ImGuiInputTextFlags_ReadOnly);
-        } else if (mRunningExperiment->IsRunning()) {
-            ImGui::TextDisabled("Waiting for output...");
-        } else {
-            ImGui::TextDisabled("No output captured");
-        }
-    } else {
-        ImGui::TextDisabled("Run an experiment to see output here");
-    }
-
-    ImGui::EndChild();
 }
 
 void LauncherUI::RenderChainTab()
@@ -1739,14 +1818,12 @@ void LauncherUI::RenderChainTab()
                 if (!hasConfig) {
                     ImGui::OpenPopup("Upload Config Required");
                 } else {
-                    // Ensure all tests in chain have upload.json
+                    // Create/update upload.json for all tests in chain
                     int created = 0;
                     for (const auto& item : mCurrentChain->GetItems()) {
                         if (!item.IsPageItem()) {
-                            if (!mCurrentStudy->TestHasUploadConfig(item.testName)) {
-                                if (mCurrentStudy->CreateUploadConfigForTest(item.testName)) {
-                                    created++;
-                                }
+                            if (mCurrentStudy->CreateUploadConfigForTest(item.testName)) {
+                                created++;
                             }
                         }
                     }
@@ -2145,7 +2222,7 @@ void LauncherUI::ShowSettingsDialog()
                 // Workspace path
                 ImGui::Text("Workspace Path:");
                 if (ImGui::IsItemHovered()) {
-                    ImGui::SetTooltip("Main workspace directory (typically Documents/pebl-exp.2.3/)");
+                    ImGui::SetTooltip("Main workspace directory (typically Documents/pebl-exp.%s/)", PEBL_VERSION);
                 }
                 char workspacePath[512];
                 std::strncpy(workspacePath, mConfig->GetWorkspacePath().c_str(), sizeof(workspacePath) - 1);
@@ -2902,6 +2979,87 @@ void LauncherUI::FreeScreenshot()
     }
 }
 
+void LauncherUI::FreeStudyTestScreenshot()
+{
+    if (mStudyTestScreenshot) {
+        SDL_DestroyTexture(mStudyTestScreenshot);
+        mStudyTestScreenshot = nullptr;
+        mStudyTestScreenshotW = 0;
+        mStudyTestScreenshotH = 0;
+    }
+}
+
+void LauncherUI::LoadStudyTestPreview(int testIndex)
+{
+    FreeStudyTestScreenshot();
+    mStudyTestDescription.clear();
+
+    if (!mCurrentStudy || testIndex < 0) return;
+
+    const auto& tests = mCurrentStudy->GetTests();
+    if (testIndex >= (int)tests.size()) return;
+
+    const std::string& testName = tests[testIndex].testName;
+    std::string studyPath = mCurrentStudy->GetPath();
+    std::string testDir = studyPath + "/tests/" + testName;
+
+    printf("LoadStudyTestPreview: testName='%s' studyPath='%s' testDir='%s'\n",
+           testName.c_str(), studyPath.c_str(), testDir.c_str());
+
+    // Load about.txt from study's local test directory
+    std::string aboutPath = testDir + "/" + testName + ".pbl.about.txt";
+    printf("  aboutPath='%s' exists=%d\n", aboutPath.c_str(), fs::exists(aboutPath) ? 1 : 0);
+    if (fs::exists(aboutPath)) {
+        std::ifstream aboutFile(aboutPath);
+        if (aboutFile.is_open()) {
+            mStudyTestDescription = std::string(
+                (std::istreambuf_iterator<char>(aboutFile)),
+                std::istreambuf_iterator<char>());
+            aboutFile.close();
+        }
+    }
+
+    // If not found locally, try battery source
+    if (mStudyTestDescription.empty()) {
+        // Look in battery for matching test
+        for (const auto& exp : mExperiments) {
+            fs::path expPath(exp.path);
+            std::string expName = expPath.stem().string();
+            if (expName == testName && !exp.description.empty()) {
+                mStudyTestDescription = exp.description;
+                break;
+            }
+        }
+    }
+
+    // Load screenshot from study's local test directory
+    std::string screenshotPath = testDir + "/" + testName + ".pbl.png";
+    printf("  screenshotPath='%s' exists=%d\n", screenshotPath.c_str(), fs::exists(screenshotPath) ? 1 : 0);
+    if (!fs::exists(screenshotPath)) {
+        // Fall back to battery source
+        for (const auto& exp : mExperiments) {
+            fs::path expPath(exp.path);
+            std::string expName = expPath.stem().string();
+            if (expName == testName && exp.hasScreenshot) {
+                screenshotPath = exp.screenshotPath;
+                break;
+            }
+        }
+    }
+
+    if (fs::exists(screenshotPath)) {
+        SDL_Surface* surface = IMG_Load(screenshotPath.c_str());
+        if (surface) {
+            mStudyTestScreenshot = SDL_CreateTextureFromSurface(mRenderer, surface);
+            if (mStudyTestScreenshot) {
+                mStudyTestScreenshotW = surface->w;
+                mStudyTestScreenshotH = surface->h;
+            }
+            SDL_FreeSurface(surface);
+        }
+    }
+}
+
 void LauncherUI::LoadExperimentInfo(const std::string& scriptPath)
 {
     if (mSelectedExperiment < 0 || mSelectedExperiment >= (int)mExperiments.size()) {
@@ -3345,13 +3503,23 @@ void LauncherUI::ExecuteChainItem(int index)
 
         // Note: Language is handled by ExperimentRunner::RunExperiment via the language parameter
 
-        // Add parameter variant if not default
-        if (!item.paramVariant.empty() && item.paramVariant != "default") {
-            // Look up the actual filename from the parameter variant
-            const ParameterVariant* variant = test->GetVariant(item.paramVariant);
-            if (variant && !variant->file.empty()) {
-                // Just pass params/filename - working dir is set to test directory
-                std::string paramFile = "params/" + variant->file;
+        // Add parameter file (variant or default)
+        // Note: PEBL automatically looks in params/ directory, so just pass filename
+        if (!item.paramVariant.empty()) {
+            std::string paramFile;
+
+            if (item.paramVariant == "default") {
+                // Use default parameter file: testName.pbl.par.json
+                paramFile = baseName + ".pbl.par.json";
+            } else {
+                // Look up the actual filename from the parameter variant
+                const ParameterVariant* variant = test->GetVariant(item.paramVariant);
+                if (variant && !variant->file.empty()) {
+                    paramFile = variant->file;
+                }
+            }
+
+            if (!paramFile.empty()) {
                 args.push_back("--pfile");
                 args.push_back(paramFile);
             }
@@ -3361,11 +3529,8 @@ void LauncherUI::ExecuteChainItem(int index)
         if (mCurrentChain->GetUploadEnabled()) {
             std::string uploadPath = mCurrentStudy->GetUploadConfigPath(item.testName);
 
-            // Ensure upload.json exists for this test
-            if (!mCurrentStudy->TestHasUploadConfig(item.testName)) {
-                printf("Creating upload.json for test: %s\n", item.testName.c_str());
-                mCurrentStudy->CreateUploadConfigForTest(item.testName);
-            }
+            // Create/update upload.json for this test
+            mCurrentStudy->CreateUploadConfigForTest(item.testName);
 
             // Add --upload flag
             args.push_back("--upload");
@@ -3395,6 +3560,13 @@ void LauncherUI::ExecuteChainItem(int index)
         // Add additional arguments from Run tab settings
         std::vector<std::string> additionalArgs = BuildAdditionalArguments();
         args.insert(args.end(), additionalArgs.begin(), additionalArgs.end());
+
+        // Debug: print all arguments being passed
+        printf("ExecuteChainItem: Passing %zu arguments to PEBL:\n", args.size());
+        for (size_t i = 0; i < args.size(); i++) {
+            printf("  arg[%zu]: %s\n", i, args[i].c_str());
+        }
+        fflush(stdout);
 
         bool success = mRunningExperiment->RunExperiment(testPath, args,
                                                           mSubjectCode,
@@ -3902,50 +4074,111 @@ void LauncherUI::RenderStudyTab()
 
     ImGui::Spacing();
 
-    // Tests in study section
+    // Tests in study section - split view: list on left, preview on right
     ImGui::Text("Tests in Study:");
-    ImGui::BeginChild("StudyTestsList", ImVec2(0, -40), true);
+
+    float listWidth = ImGui::GetContentRegionAvail().x * 0.4f;
+
+    // Left side: Test list
+    ImGui::BeginChild("StudyTestsList", ImVec2(listWidth, -40), true);
 
     if (!mCurrentStudy) {
         ImGui::TextDisabled("Load a study to view tests");
     } else if (mCurrentStudy->GetTests().empty()) {
         ImGui::TextDisabled("No tests in this study. Use 'Add to Study' button on Details tab to add tests.");
     } else {
-        // Display tests in study
+        // Display tests in study as selectable items
         const auto& tests = mCurrentStudy->GetTests();
         for (size_t i = 0; i < tests.size(); i++) {
             ImGui::PushID((int)i);
 
-            ImGui::Text("%zu.", i + 1);
-            ImGui::SameLine();
-            ImGui::Text("%s", tests[i].testName.c_str());
+            // Display name (prefer displayName, fall back to testName)
+            std::string displayLabel = tests[i].displayName.empty()
+                ? tests[i].testName : tests[i].displayName;
 
-            // Show parameter variants
-            if (!tests[i].parameterVariants.empty()) {
-                ImGui::SameLine();
-                ImGui::TextDisabled("(%zu variants)", tests[i].parameterVariants.size());
+            bool is_selected = (mSelectedStudyTestIndex == (int)i);
+            if (ImGui::Selectable(displayLabel.c_str(), is_selected)) {
+                if (mSelectedStudyTestIndex != (int)i) {
+                    mSelectedStudyTestIndex = (int)i;
+                    LoadStudyTestPreview((int)i);
+                }
             }
 
-            ImGui::SameLine(ImGui::GetContentRegionAvail().x - 200);
-
-            // Edit parameters button
-            if (ImGui::SmallButton("Edit Params")) {
-                EditTestParameters(i);
-            }
-
-            ImGui::SameLine();
-
-            // Remove button
-            if (ImGui::SmallButton("Remove")) {
-                // Need to pass testName, not index
-                const std::string testName = tests[i].testName;
-                RemoveTestFromStudy(testName);
-                ImGui::PopID();
-                break;
+            // Show parameter variants as tooltip
+            if (ImGui::IsItemHovered() && !tests[i].parameterVariants.empty()) {
+                ImGui::SetTooltip("%zu parameter variants", tests[i].parameterVariants.size());
             }
 
             ImGui::PopID();
         }
+    }
+
+    ImGui::EndChild();
+
+    ImGui::SameLine();
+
+    // Right side: Test preview (screenshot + about.txt)
+    ImGui::BeginChild("StudyTestPreview", ImVec2(0, -40), true);
+
+    if (mCurrentStudy && mSelectedStudyTestIndex >= 0 &&
+        mSelectedStudyTestIndex < (int)mCurrentStudy->GetTests().size()) {
+
+        const auto& test = mCurrentStudy->GetTests()[mSelectedStudyTestIndex];
+
+        // Test name header
+        std::string headerName = test.displayName.empty() ? test.testName : test.displayName;
+        ImGui::TextColored(ImVec4(0.4f, 0.7f, 1.0f, 1.0f), "%s", headerName.c_str());
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        // Action buttons
+        if (ImGui::SmallButton("Edit Params")) {
+            EditTestParameters(mSelectedStudyTestIndex);
+        }
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Remove from Study")) {
+            const std::string testName = test.testName;
+            RemoveTestFromStudy(testName);
+            // Reset selection if removed test was selected
+            if (mSelectedStudyTestIndex >= (int)mCurrentStudy->GetTests().size()) {
+                mSelectedStudyTestIndex = (int)mCurrentStudy->GetTests().size() - 1;
+                if (mSelectedStudyTestIndex >= 0) {
+                    LoadStudyTestPreview(mSelectedStudyTestIndex);
+                } else {
+                    FreeStudyTestScreenshot();
+                    mStudyTestDescription.clear();
+                }
+            }
+        }
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        // Screenshot
+        if (mStudyTestScreenshot) {
+            float aspectRatio = (float)mStudyTestScreenshotH / (float)mStudyTestScreenshotW;
+            float displayWidth = ImGui::GetContentRegionAvail().x;
+            float displayHeight = displayWidth * aspectRatio;
+
+            if (displayHeight > 400) {
+                displayHeight = 400;
+                displayWidth = displayHeight / aspectRatio;
+            }
+
+            ImGui::Image((ImTextureID)(intptr_t)mStudyTestScreenshot,
+                        ImVec2(displayWidth, displayHeight));
+            ImGui::Spacing();
+        }
+
+        // Description
+        if (!mStudyTestDescription.empty()) {
+            ImGui::TextWrapped("%s", mStudyTestDescription.c_str());
+        } else {
+            ImGui::TextDisabled("No description available");
+        }
+    } else {
+        ImGui::TextDisabled("Select a test to view details");
     }
 
     ImGui::EndChild();
@@ -4395,6 +4628,11 @@ void LauncherUI::LoadStudy(const std::string& studyPath)
     mCurrentStudy = Study::LoadFromDirectory(fullPath);
     if (mCurrentStudy) {
         printf("Study loaded: %s\n", mCurrentStudy->GetName().c_str());
+
+        // Reset study test preview
+        mSelectedStudyTestIndex = -1;
+        FreeStudyTestScreenshot();
+        mStudyTestDescription.clear();
 
         // Save selected study to config
         mConfig->SetCurrentStudyPath(fullPath);
@@ -5185,7 +5423,16 @@ void LauncherUI::RenderStudyBar()
 void LauncherUI::RenderTestsTab()
 {
     if (!mCurrentStudy) {
-        ImGui::TextWrapped("No study loaded. Create a new study or open an existing one to begin.");
+        // No study loaded - show full-width battery browser for exploration
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.8f, 0.2f, 1.0f));
+        ImGui::TextWrapped("No study loaded. Browse available tests below, then create or open a study to add them.");
+        ImGui::PopStyleColor();
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        // Show battery browser full-width (without "Add to Study" button)
+        RenderBatteryBrowser();
         return;
     }
 
@@ -5218,8 +5465,9 @@ void LauncherUI::RenderTestsInStudy()
         return;
     }
 
-    // Scrollable list of tests
-    ImGui::BeginChild("TestList", ImVec2(0, -40), false);
+    // Scrollable list of tests - reserve space for preview below when a test is selected
+    float listHeight = (mSelectedStudyTestIndex >= 0) ? ImGui::GetContentRegionAvail().y * 0.4f : -1;
+    ImGui::BeginChild("TestList", ImVec2(0, listHeight), false);
 
     for (size_t i = 0; i < tests.size(); i++) {
         ImGui::PushID((int)i);
@@ -5245,32 +5493,12 @@ void LauncherUI::RenderTestsInStudy()
             displayName += "...";
         }
 
-        // Make test name clickable to select in Add Test panel (shows test info)
+        // Make test name clickable to show preview
+        bool is_selected = (mSelectedStudyTestIndex == (int)i);
         ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.4f, 0.7f, 1.0f, 1.0f));  // Blue color
-        if (ImGui::Selectable(displayName.c_str(), false, ImGuiSelectableFlags_None, ImVec2(availableWidth, 0))) {
-            // Find this test in the battery browser and select it to show info
-            std::string testNameToFind = tests[i].testName;
-
-            // Search for this test in the mExperiments list by name
-            // Match by comparing the experiment name with the test name
-            bool found = false;
-            for (int j = 0; j < (int)mExperiments.size(); j++) {
-                // Check if experiment name matches testName
-                // Experiment name could be "testname" or "parentdir/testname"
-                if (mExperiments[j].name == testNameToFind ||
-                    mExperiments[j].name.find("/" + testNameToFind) != std::string::npos ||
-                    mExperiments[j].name.find(testNameToFind + "/") != std::string::npos) {
-                    mSelectedExperiment = j;
-                    LoadExperimentInfo(mExperiments[j].path);
-                    mAddTestSubTab = 0;  // Switch to Battery tab
-                    found = true;
-                    break;
-                }
-            }
-
-            if (!found) {
-                printf("Note: Test '%s' not found in battery browser\n", testNameToFind.c_str());
-            }
+        if (ImGui::Selectable(displayName.c_str(), is_selected, ImGuiSelectableFlags_None, ImVec2(availableWidth, 0))) {
+            mSelectedStudyTestIndex = (int)i;
+            LoadStudyTestPreview((int)i);
         }
         ImGui::PopStyleColor();
         if (ImGui::IsItemHovered()) {
@@ -5391,8 +5619,32 @@ void LauncherUI::RenderTestsInStudy()
 
     ImGui::EndChild();
 
-    // Note: Individual tests should be run as part of chains in the Run tab,
-    // or previewed from the battery browser. No "Run" button here.
+    // Preview section for selected study test
+    if (mSelectedStudyTestIndex >= 0 && mSelectedStudyTestIndex < (int)tests.size()) {
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        // Screenshot
+        if (mStudyTestScreenshot) {
+            float aspectRatio = (float)mStudyTestScreenshotH / (float)mStudyTestScreenshotW;
+            float displayWidth = ImGui::GetContentRegionAvail().x;
+            float displayHeight = displayWidth * aspectRatio;
+
+            if (displayHeight > 300) {
+                displayHeight = 300;
+                displayWidth = displayHeight / aspectRatio;
+            }
+
+            ImGui::Image((ImTextureID)(intptr_t)mStudyTestScreenshot,
+                        ImVec2(displayWidth, displayHeight));
+            ImGui::Spacing();
+        }
+
+        // Description
+        if (!mStudyTestDescription.empty()) {
+            ImGui::TextWrapped("%s", mStudyTestDescription.c_str());
+        }
+    }
 }
 
 void LauncherUI::RenderAddTestPanel()
@@ -5401,7 +5653,7 @@ void LauncherUI::RenderAddTestPanel()
     ImGui::Separator();
     ImGui::Spacing();
 
-    // Three sub-tabs: Battery, File, New
+    // Four sub-tabs: Battery, Scale, File, New
     if (ImGui::BeginTabBar("AddTestTabs")) {
         if (ImGui::BeginTabItem("Battery")) {
             mAddTestSubTab = 0;
@@ -5409,14 +5661,20 @@ void LauncherUI::RenderAddTestPanel()
             ImGui::EndTabItem();
         }
 
-        if (ImGui::BeginTabItem("File")) {
+        if (ImGui::BeginTabItem("Scale")) {
             mAddTestSubTab = 1;
+            RenderScaleBrowser();
+            ImGui::EndTabItem();
+        }
+
+        if (ImGui::BeginTabItem("File")) {
+            mAddTestSubTab = 2;
             RenderFileImport();
             ImGui::EndTabItem();
         }
 
         if (ImGui::BeginTabItem("New")) {
-            mAddTestSubTab = 2;
+            mAddTestSubTab = 3;
             RenderNewTestTemplate();
             ImGui::EndTabItem();
         }
@@ -5521,16 +5779,26 @@ void LauncherUI::RenderBatteryBrowser()
         ImGui::Separator();
         ImGui::Spacing();
 
-        // Add to Study button (at top)
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.7f, 0.2f, 1.0f));
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.3f, 0.8f, 0.3f, 1.0f));
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.1f, 0.6f, 0.1f, 1.0f));
+        // Add to Study button (only available when study is loaded)
+        if (mCurrentStudy) {
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.7f, 0.2f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.3f, 0.8f, 0.3f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.1f, 0.6f, 0.1f, 1.0f));
 
-        if (ImGui::Button("Add to Study", ImVec2(-1, 40))) {
-            AddTestToStudy();
+            if (ImGui::Button("Add to Study", ImVec2(-1, 40))) {
+                AddTestToStudy();
+            }
+
+            ImGui::PopStyleColor(3);
+        } else {
+            // No study loaded - show disabled button with tooltip
+            ImGui::BeginDisabled();
+            ImGui::Button("Create or Open a Study First", ImVec2(-1, 40));
+            ImGui::EndDisabled();
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+                ImGui::SetTooltip("Create or open a study to add tests");
+            }
         }
-
-        ImGui::PopStyleColor(3);
 
         ImGui::Spacing();
         ImGui::Separator();
@@ -5584,6 +5852,303 @@ void LauncherUI::RenderBatteryBrowser()
                     ImGui::SetTooltip("%s", tooltip.c_str());
                 } else {
                     ImGui::SetTooltip("This test has translation support");
+                }
+            }
+        }
+    }
+
+    ImGui::EndChild();
+}
+
+void LauncherUI::RenderScaleBrowser()
+{
+    // Filter box
+    static char filter[256] = "";
+    ImGui::PushItemWidth(-1);
+    ImGui::InputTextWithHint("##ScaleFilter", "Filter scales...", filter, sizeof(filter));
+    ImGui::PopItemWidth();
+
+    ImGui::Spacing();
+
+    // Ensure scale list is loaded
+    if (mScaleList.empty()) {
+        mScaleList = mScaleManager->GetAvailableScales();
+    }
+
+    // Split into scale list (left) and details (right)
+    float listWidth = ImGui::GetContentRegionAvail().x * 0.4f;
+
+    ImGui::BeginChild("ScaleList", ImVec2(listWidth, 0), true);
+
+    ImGui::Text("Available Scales (%zu found):", mScaleList.size());
+    ImGui::Separator();
+
+    // Scrollable scale list
+    for (int i = 0; i < (int)mScaleList.size(); i++) {
+        const std::string& scaleName = mScaleList[i];
+
+        // Apply filter
+        if (strlen(filter) > 0 &&
+            scaleName.find(filter) == std::string::npos) {
+            continue;
+        }
+
+        bool is_selected = (mSelectedScaleIndex == i);
+        if (ImGui::Selectable(scaleName.c_str(), is_selected)) {
+            mSelectedScaleIndex = i;
+        }
+    }
+
+    // Keyboard navigation
+    if (ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows)) {
+        int newSelection = mSelectedScaleIndex;
+
+        if (ImGui::IsKeyPressed(ImGuiKey_DownArrow)) {
+            // Find next visible item after current selection
+            bool foundCurrent = (mSelectedScaleIndex < 0);
+            for (int i = 0; i < (int)mScaleList.size(); i++) {
+                if (strlen(filter) > 0 && mScaleList[i].find(filter) == std::string::npos) {
+                    continue;
+                }
+                if (foundCurrent) {
+                    newSelection = i;
+                    break;
+                }
+                if (i == mSelectedScaleIndex) {
+                    foundCurrent = true;
+                }
+            }
+        } else if (ImGui::IsKeyPressed(ImGuiKey_UpArrow)) {
+            // Find previous visible item before current selection
+            for (int i = (int)mScaleList.size() - 1; i >= 0; i--) {
+                if (strlen(filter) > 0 && mScaleList[i].find(filter) == std::string::npos) {
+                    continue;
+                }
+                if (i < mSelectedScaleIndex) {
+                    newSelection = i;
+                    break;
+                }
+            }
+        }
+
+        // Update selection if changed
+        if (newSelection != mSelectedScaleIndex && newSelection >= 0 && newSelection < (int)mScaleList.size()) {
+            mSelectedScaleIndex = newSelection;
+        }
+    }
+
+    ImGui::EndChild();
+
+    ImGui::SameLine();
+
+    // Right side: Scale details
+    ImGui::BeginChild("ScaleDetails", ImVec2(0, 0), true);
+
+    if (mSelectedScaleIndex < 0 || mSelectedScaleIndex >= (int)mScaleList.size()) {
+        ImGui::TextDisabled("Select a scale to view details");
+    } else {
+        const std::string& scaleCode = mScaleList[mSelectedScaleIndex];
+        auto metadata = mScaleManager->GetScaleMetadata(scaleCode);
+
+        // Scale name
+        if (!metadata.name.empty()) {
+            ImGui::TextColored(ImVec4(0.4f, 0.7f, 1.0f, 1.0f), "%s", metadata.name.c_str());
+        } else {
+            ImGui::TextColored(ImVec4(0.4f, 0.7f, 1.0f, 1.0f), "%s", scaleCode.c_str());
+        }
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        // Load screenshot if selection changed
+        if (mSelectedScaleIndex != mScaleBrowserScreenshotForIndex) {
+            if (mScaleBrowserScreenshot) {
+                SDL_DestroyTexture(mScaleBrowserScreenshot);
+                mScaleBrowserScreenshot = nullptr;
+                mScaleBrowserScreenshotW = 0;
+                mScaleBrowserScreenshotH = 0;
+            }
+
+            // Get definition path and derive parent directory
+            std::string defPath = mScaleManager->GetDefinitionPath(scaleCode);
+            fs::path defDir = fs::path(defPath).parent_path();
+            std::string screenshotPath = (defDir / (scaleCode + ".pbl.png")).string();
+
+            if (fs::exists(screenshotPath)) {
+                SDL_Surface* surface = IMG_Load(screenshotPath.c_str());
+                if (surface) {
+                    mScaleBrowserScreenshot = SDL_CreateTextureFromSurface(mRenderer, surface);
+                    if (mScaleBrowserScreenshot) {
+                        mScaleBrowserScreenshotW = surface->w;
+                        mScaleBrowserScreenshotH = surface->h;
+                    }
+                    SDL_FreeSurface(surface);
+                }
+            }
+
+            mScaleBrowserScreenshotForIndex = mSelectedScaleIndex;
+        }
+
+        // Display screenshot
+        if (mScaleBrowserScreenshot) {
+            float aspectRatio = (float)mScaleBrowserScreenshotH / (float)mScaleBrowserScreenshotW;
+            float displayWidth = ImGui::GetContentRegionAvail().x;
+            float displayHeight = displayWidth * aspectRatio;
+
+            if (displayHeight > 300.0f) {
+                displayHeight = 300.0f;
+                displayWidth = displayHeight / aspectRatio;
+            }
+
+            ImGui::Image((ImTextureID)(intptr_t)mScaleBrowserScreenshot,
+                        ImVec2(displayWidth, displayHeight));
+            ImGui::Spacing();
+        }
+
+        // Add to Study button (only available when study is loaded)
+        if (mCurrentStudy) {
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.7f, 0.2f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.3f, 0.8f, 0.3f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.1f, 0.6f, 0.1f, 1.0f));
+
+            if (ImGui::Button("Add to Study", ImVec2(-1, 40))) {
+                // Load the scale and add it to the study
+                auto scale = mScaleManager->LoadScale(scaleCode);
+                if (!scale) {
+                    printf("Failed to load scale '%s'\n", scaleCode.c_str());
+                } else {
+                    std::string studyPath = mCurrentStudy->GetPath();
+                    std::string testDir = studyPath + "/tests/" + scaleCode;
+
+                    try {
+                        // Create test directory structure
+                        fs::create_directories(testDir);
+                        fs::create_directories(testDir + "/definitions");
+                        fs::create_directories(testDir + "/translations");
+                        fs::create_directories(testDir + "/params");
+
+                        // Copy ScaleRunner.pbl and rename to scalecode.pbl
+                        std::string scaleRunnerSource = mBatteryPath + "/../media/apps/scales/ScaleRunner.pbl";
+                        std::string scaleRunnerDest = testDir + "/" + scaleCode + ".pbl";
+
+                        if (!fs::exists(scaleRunnerSource)) {
+                            printf("Error: ScaleRunner.pbl not found at: %s\n", scaleRunnerSource.c_str());
+                        } else {
+                            fs::copy_file(scaleRunnerSource, scaleRunnerDest, fs::copy_options::overwrite_existing);
+                            printf("Copied ScaleRunner.pbl to %s\n", scaleRunnerDest.c_str());
+
+                            // Export scale definition and translations
+                            std::string destDefPath = testDir + "/definitions";
+                            std::string destTransPath = testDir + "/translations";
+
+                            if (!scale->ExportToJSON(destDefPath, destTransPath)) {
+                                printf("Error: Failed to export scale files\n");
+                            } else {
+                                printf("Exported scale definition and translations\n");
+
+                                // Create default parameter file
+                                std::string paramFilePath = testDir + "/params/" + scaleCode + ".pbl.par.json";
+                                nlohmann::json paramJson = {
+                                    {"scale", scaleCode},
+                                    {"shuffle_questions", 0}
+                                };
+
+                                std::ofstream paramFile(paramFilePath);
+                                if (paramFile.is_open()) {
+                                    paramFile << paramJson.dump(2);
+                                    paramFile.close();
+                                    printf("Created parameter file: %s\n", paramFilePath.c_str());
+                                }
+
+                                // Copy schema file
+                                std::string schemaSource = mBatteryPath + "/../media/apps/scales/params/ScaleRunner.pbl.schema.json";
+                                std::string schemaDest = testDir + "/params/" + scaleCode + ".pbl.schema.json";
+
+                                if (fs::exists(schemaSource)) {
+                                    fs::copy_file(schemaSource, schemaDest, fs::copy_options::overwrite_existing);
+                                    printf("Copied schema file: %s\n", schemaDest.c_str());
+                                }
+
+                                // Add test to study
+                                Test test;
+                                test.testName = scaleCode;
+                                test.displayName = metadata.name.empty() ? scaleCode : metadata.name;
+                                test.testPath = scaleCode;
+                                test.included = true;
+
+                                mCurrentStudy->AddTest(test);
+                                mCurrentStudy->Save();
+
+                                // Add to Main chain if it exists
+                                std::string mainChainPath = studyPath + "/chains/Main.json";
+                                if (fs::exists(mainChainPath)) {
+                                    ChainItem item(ItemType::Test);
+                                    item.testName = scaleCode;
+                                    item.paramVariant = "default";
+                                    item.language = "en";
+                                    item.randomGroup = 0;
+
+                                    if (mCurrentChain && mCurrentChain->GetFilePath() == mainChainPath) {
+                                        mCurrentChain->AddItem(item);
+                                        mCurrentChain->Save();
+                                        printf("Added test to Main chain (current chain)\n");
+                                    } else {
+                                        auto mainChain = Chain::LoadFromFile(mainChainPath);
+                                        if (mainChain) {
+                                            mainChain->AddItem(item);
+                                            mainChain->Save();
+                                            printf("Added test to Main chain\n");
+                                        }
+                                    }
+                                }
+
+                                printf("Added scale '%s' to study\n", scaleCode.c_str());
+                            }
+                        }
+                    } catch (const fs::filesystem_error& e) {
+                        printf("Error adding scale to study: %s\n", e.what());
+                    }
+                }
+            }
+
+            ImGui::PopStyleColor(3);
+        } else {
+            // No study loaded - show disabled button with tooltip
+            ImGui::BeginDisabled();
+            ImGui::Button("Create or Open a Study First", ImVec2(-1, 40));
+            ImGui::EndDisabled();
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+                ImGui::SetTooltip("Create or open a study to add scales");
+            }
+        }
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        // Scale description
+        if (!metadata.description.empty()) {
+            ImGui::TextWrapped("%s", metadata.description.c_str());
+            ImGui::Spacing();
+        }
+
+        // Scale info
+        ImGui::Text("Code: %s", scaleCode.c_str());
+
+        if (!metadata.author.empty()) {
+            ImGui::Text("Author: %s", metadata.author.c_str());
+        }
+
+        ImGui::Text("Questions: %d", metadata.questionCount);
+
+        if (!metadata.availableLanguages.empty()) {
+            ImGui::Text("Languages: ");
+            ImGui::SameLine();
+            for (size_t i = 0; i < metadata.availableLanguages.size(); i++) {
+                ImGui::TextColored(ImVec4(0.2f, 0.8f, 0.2f, 1.0f), "%s", metadata.availableLanguages[i].c_str());
+                if (i < metadata.availableLanguages.size() - 1) {
+                    ImGui::SameLine();
+                    ImGui::Text(",");
+                    ImGui::SameLine();
                 }
             }
         }
@@ -5983,97 +6548,6 @@ void LauncherUI::RenderRunTab()
     }
 
     ImGui::PopStyleColor(3);
-
-    // Output display
-    ImGui::Spacing();
-    ImGui::Separator();
-    ImGui::Spacing();
-
-    // Output header with stdout/stderr toggle
-    ImGui::TextColored(ImVec4(0.7f, 0.7f, 1.0f, 1.0f), "Output");
-    if (ImGui::IsItemHovered()) {
-        ImGui::SetTooltip("stdout and stderr from the running chain");
-    }
-
-    ImGui::SameLine();
-    if (ImGui::RadioButton("stdout", !mShowStderr)) {
-        mShowStderr = false;
-    }
-    ImGui::SameLine();
-    if (ImGui::RadioButton("stderr", mShowStderr)) {
-        mShowStderr = true;
-    }
-
-    // "Open in Editor" button
-    ImGui::SameLine(ImGui::GetContentRegionAvail().x - 135);
-    if (ImGui::Button("Open in Editor", ImVec2(130, 0))) {
-        // Get current output
-        std::string output;
-        if (mRunningExperiment) {
-            if (mRunningChain) {
-                output = mShowStderr ? mChainAccumulatedStderr : mChainAccumulatedStdout;
-                const std::string& currentOutput = mShowStderr ? mRunningExperiment->GetStderr() :
-                                                                 mRunningExperiment->GetStdout();
-                output += currentOutput;
-            } else {
-                output = mShowStderr ? mRunningExperiment->GetStderr() :
-                                       mRunningExperiment->GetStdout();
-            }
-        } else if (!mChainAccumulatedStdout.empty() || !mChainAccumulatedStderr.empty()) {
-            output = mShowStderr ? mChainAccumulatedStderr : mChainAccumulatedStdout;
-        }
-
-        if (!output.empty()) {
-            mCodeEditor.SetText(output);
-            mCodeEditorFilePath = ""; // Empty path indicates unsaved output
-            mShowCodeEditor = true;
-        }
-    }
-
-    // Scrollable output window - always full size
-    ImGui::BeginChild("OutputWindow", ImVec2(0, 0), true, ImGuiWindowFlags_HorizontalScrollbar);
-
-    if (mRunningExperiment) {
-        std::string output;
-
-        // If running a chain, show accumulated output from all items plus current item
-        if (mRunningChain) {
-            output = mShowStderr ? mChainAccumulatedStderr : mChainAccumulatedStdout;
-            // Add current item's output
-            const std::string& currentOutput = mShowStderr ? mRunningExperiment->GetStderr() :
-                                                             mRunningExperiment->GetStdout();
-            output += currentOutput;
-        } else {
-            // Single test run - just show current output
-            output = mShowStderr ? mRunningExperiment->GetStderr() :
-                                   mRunningExperiment->GetStdout();
-        }
-
-        if (!output.empty()) {
-            // Use InputTextMultiline for selectable text
-            ImGui::InputTextMultiline("##output",
-                                       const_cast<char*>(output.c_str()),
-                                       output.size() + 1,
-                                       ImVec2(-1, -1),
-                                       ImGuiInputTextFlags_ReadOnly);
-        } else if (mRunningExperiment->IsRunning()) {
-            ImGui::TextDisabled("Waiting for output...");
-        } else {
-            ImGui::TextDisabled("No output captured");
-        }
-    } else if (!mChainAccumulatedStdout.empty() || !mChainAccumulatedStderr.empty()) {
-        // Chain completed - show final accumulated output
-        const std::string& output = mShowStderr ? mChainAccumulatedStderr : mChainAccumulatedStdout;
-        ImGui::InputTextMultiline("##output",
-                                   const_cast<char*>(output.c_str()),
-                                   output.size() + 1,
-                                   ImVec2(-1, -1),
-                                   ImGuiInputTextFlags_ReadOnly);
-    } else {
-        ImGui::TextDisabled("Run a chain to see output here");
-    }
-
-    ImGui::EndChild();
 }
 
 void LauncherUI::RenderQuickLaunchTab()
@@ -6392,66 +6866,106 @@ void LauncherUI::RenderQuickLaunchTab()
     if (!canRun) {
         ImGui::EndDisabled();
     }
+}
 
-    ImGui::Spacing();
+void LauncherUI::RenderOutputPanel()
+{
     ImGui::Separator();
-    ImGui::Spacing();
 
-    // Output window
-    ImGui::TextColored(ImVec4(0.7f, 0.7f, 1.0f, 1.0f), "Output");
+    // Header bar - always visible
+    // Expand/collapse toggle with arrow indicator
+    const char* toggleLabel = mOutputExpanded ? "v Output" : "> Output";
+    if (ImGui::Button(toggleLabel, ImVec2(100, 0))) {
+        mOutputExpanded = !mOutputExpanded;
+    }
     if (ImGui::IsItemHovered()) {
-        ImGui::SetTooltip("stdout and stderr from the running script");
+        ImGui::SetTooltip(mOutputExpanded ? "Collapse output panel" : "Expand output panel");
     }
 
+    if (!mOutputExpanded) {
+        // Collapsed - just show a brief status on the same line
+        ImGui::SameLine();
+        if (mRunningExperiment && mRunningExperiment->IsRunning()) {
+            ImGui::TextDisabled("(running...)");
+        } else if (mRunningExperiment || !mChainAccumulatedStdout.empty() || !mChainAccumulatedStderr.empty()) {
+            ImGui::TextDisabled("(click to expand)");
+        }
+        return;
+    }
+
+    // Expanded - show stdout/stderr toggle and controls
     ImGui::SameLine();
-    if (ImGui::RadioButton("stdout", !mShowStderr)) {
+    if (ImGui::RadioButton("stdout##bottom", !mShowStderr)) {
         mShowStderr = false;
     }
     ImGui::SameLine();
-    if (ImGui::RadioButton("stderr", mShowStderr)) {
+    if (ImGui::RadioButton("stderr##bottom", mShowStderr)) {
         mShowStderr = true;
     }
 
     // "Open in Editor" button
     ImGui::SameLine(ImGui::GetContentRegionAvail().x - 135);
-    if (ImGui::Button("Open in Editor", ImVec2(130, 0))) {
+    if (ImGui::Button("Open in Editor##bottom", ImVec2(130, 0))) {
+        std::string output;
         if (mRunningExperiment) {
-            const std::string& output = mShowStderr ?
-                mRunningExperiment->GetStderr() :
-                mRunningExperiment->GetStdout();
-
-            if (!output.empty()) {
-                mCodeEditor.SetText(output);
-                mCodeEditorFilePath = ""; // Empty path indicates unsaved output
-                mShowCodeEditor = true;
+            if (mRunningChain) {
+                output = mShowStderr ? mChainAccumulatedStderr : mChainAccumulatedStdout;
+                const std::string& currentOutput = mShowStderr ? mRunningExperiment->GetStderr() :
+                                                                 mRunningExperiment->GetStdout();
+                output += currentOutput;
+            } else {
+                output = mShowStderr ? mRunningExperiment->GetStderr() :
+                                       mRunningExperiment->GetStdout();
             }
+        } else if (!mChainAccumulatedStdout.empty() || !mChainAccumulatedStderr.empty()) {
+            output = mShowStderr ? mChainAccumulatedStderr : mChainAccumulatedStdout;
+        }
+
+        if (!output.empty()) {
+            mCodeEditor.SetText(output);
+            mCodeEditorFilePath = "";
+            mShowCodeEditor = true;
         }
     }
 
-    ImGui::BeginChild("QuickLaunchOutput", ImVec2(0, 0), true);
+    // Scrollable output window - fills remaining space
+    ImGui::BeginChild("BottomOutputPanel", ImVec2(0, 0), true, ImGuiWindowFlags_HorizontalScrollbar);
 
-    if (mRunningExperiment && mRunningExperiment->IsRunning()) {
-        const std::string& output = mShowStderr ?
-            mRunningExperiment->GetStderr() :
-            mRunningExperiment->GetStdout();
+    if (mRunningExperiment) {
+        std::string output;
 
-        ImGui::InputTextMultiline("##qloutput",
-                                   const_cast<char*>(output.c_str()),
-                                   output.size() + 1,
-                                   ImVec2(-1, -1),
-                                   ImGuiInputTextFlags_ReadOnly);
-    } else if (mRunningExperiment && !mRunningExperiment->IsRunning()) {
-        const std::string& output = mShowStderr ?
-            mRunningExperiment->GetStderr() :
-            mRunningExperiment->GetStdout();
+        // If running a chain, show accumulated output from all items plus current item
+        if (mRunningChain) {
+            output = mShowStderr ? mChainAccumulatedStderr : mChainAccumulatedStdout;
+            const std::string& currentOutput = mShowStderr ? mRunningExperiment->GetStderr() :
+                                                             mRunningExperiment->GetStdout();
+            output += currentOutput;
+        } else {
+            output = mShowStderr ? mRunningExperiment->GetStderr() :
+                                   mRunningExperiment->GetStdout();
+        }
 
-        ImGui::InputTextMultiline("##qloutput",
+        if (!output.empty()) {
+            ImGui::InputTextMultiline("##bottomoutput",
+                                       const_cast<char*>(output.c_str()),
+                                       output.size() + 1,
+                                       ImVec2(-1, -1),
+                                       ImGuiInputTextFlags_ReadOnly);
+        } else if (mRunningExperiment->IsRunning()) {
+            ImGui::TextDisabled("Waiting for output...");
+        } else {
+            ImGui::TextDisabled("No output captured");
+        }
+    } else if (!mChainAccumulatedStdout.empty() || !mChainAccumulatedStderr.empty()) {
+        // Chain completed - show final accumulated output
+        const std::string& output = mShowStderr ? mChainAccumulatedStderr : mChainAccumulatedStdout;
+        ImGui::InputTextMultiline("##bottomoutput",
                                    const_cast<char*>(output.c_str()),
                                    output.size() + 1,
                                    ImVec2(-1, -1),
                                    ImGuiInputTextFlags_ReadOnly);
     } else {
-        ImGui::TextDisabled("Run a script to see output here");
+        ImGui::TextDisabled("Run a test or chain to see output here");
     }
 
     ImGui::EndChild();
@@ -6795,7 +7309,7 @@ void LauncherUI::ShowFirstRunDialog()
 
     if (ImGui::BeginPopupModal("Welcome to PEBL!", nullptr, 0))
     {
-        ImGui::TextWrapped("Welcome! This appears to be your first time running PEBL 2.3.");
+        ImGui::TextWrapped("Welcome! This appears to be your first time running PEBL %s.", PEBL_VERSION);
         ImGui::Spacing();
         ImGui::Separator();
         ImGui::Spacing();
@@ -6897,6 +7411,67 @@ void LauncherUI::ShowFirstRunDialog()
 
             mShowFirstRunDialog = false;
             ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::EndPopup();
+    }
+}
+
+void LauncherUI::ShowGettingStartedDialog()
+{
+    ImGui::OpenPopup("Create a Study to Get Started");
+
+    ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+    ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+    ImGui::SetNextWindowSize(ImVec2(500, 300), ImGuiCond_FirstUseEver);
+
+    if (ImGui::BeginPopupModal("Create a Study to Get Started", nullptr, ImGuiWindowFlags_NoResize))
+    {
+        ImGui::Spacing();
+        ImGui::TextWrapped("Welcome! To begin using PEBL, you need to create a study.");
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        ImGui::TextWrapped("A study is a container for:");
+        ImGui::BulletText("Tests from the PEBL battery");
+        ImGui::BulletText("Chains (sequences of tests and instructions)");
+        ImGui::BulletText("Participant data and results");
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        // Center the buttons
+        float buttonWidth = 150.0f;
+        float spacing = 20.0f;
+        float totalWidth = buttonWidth * 2 + spacing;
+        float windowWidth = ImGui::GetContentRegionAvail().x;
+        ImGui::SetCursorPosX((windowWidth - totalWidth) * 0.5f);
+
+        // New Study button (green)
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.7f, 0.2f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.3f, 0.8f, 0.3f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.1f, 0.6f, 0.1f, 1.0f));
+
+        if (ImGui::Button("New Study", ImVec2(buttonWidth, 40))) {
+            mShowGettingStartedDialog = false;
+            mShowNewStudyDialog = true;
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::PopStyleColor(3);
+
+        ImGui::SameLine(0, spacing);
+
+        // Browse Tests button
+        if (ImGui::Button("Browse Tests", ImVec2(buttonWidth, 40))) {
+            mShowGettingStartedDialog = false;
+            mTopLevelTab = 0;  // Switch to Manage Studies tab
+            ImGui::CloseCurrentPopup();
+        }
+
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Explore available battery tests before creating a study");
         }
 
         ImGui::EndPopup();
@@ -7596,4 +8171,2502 @@ std::vector<std::string> LauncherUI::BuildAdditionalArguments()
     }
 
     return args;
+}
+
+// ============================================================================
+// Scale Builder Implementation
+// ============================================================================
+
+void LauncherUI::ShowScaleBuilder()
+{
+    if (!mScaleManager) {
+        return;
+    }
+
+    // Main layout: left panel (scale list) + right panel (editor)
+    ImGui::BeginChild("ScaleLeftPanel", ImVec2(250, 0), true);
+    RenderScaleList();
+    ImGui::EndChild();
+
+    ImGui::SameLine();
+
+    ImGui::BeginChild("ScaleRightPanel", ImVec2(0, 0), true);
+    if (mCurrentScale) {
+        // Tab bar for different editor sections
+        if (ImGui::BeginTabBar("ScaleEditorTabs"))
+        {
+            if (ImGui::BeginTabItem("Scale Info"))
+            {
+                RenderScaleInfoEditor();
+                ImGui::EndTabItem();
+            }
+
+            if (ImGui::BeginTabItem("Questions"))
+            {
+                RenderQuestionsEditor();
+                ImGui::EndTabItem();
+            }
+
+            if (ImGui::BeginTabItem("Dimensions & Scoring"))
+            {
+                RenderScoringEditor();
+                ImGui::EndTabItem();
+            }
+
+            if (ImGui::BeginTabItem("Translations"))
+            {
+                RenderTranslationsEditor();
+                ImGui::EndTabItem();
+            }
+
+            ImGui::EndTabBar();
+        }
+    } else {
+        ImGui::TextWrapped("Select a scale from the list or create a new one to begin editing.");
+        ImGui::Spacing();
+        if (ImGui::Button("Create New Scale")) {
+            mCurrentScale = ScaleDefinition::CreateNew("newscale");
+            mScaleTransLanguage[0] = '\0';
+            mScaleTransSelectedKey = -1;
+        }
+    }
+    ImGui::EndChild();
+}
+
+void LauncherUI::RenderScaleList()
+{
+    ImGui::Text("Available Scales");
+    ImGui::Separator();
+
+    // Row 1: New Scale | Save Scale
+    float buttonWidth = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x) / 2.0f;
+
+    // New Scale button (default style)
+    if (ImGui::Button("New Scale", ImVec2(buttonWidth, 0))) {
+        mCurrentScale = ScaleDefinition::CreateNew("newscale");
+        mSelectedScaleIndex = -1;
+        mScaleTransLanguage[0] = '\0';
+        mScaleTransSelectedKey = -1;
+    }
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("Create a new scale definition (Ctrl+N)");
+    }
+
+    ImGui::SameLine();
+
+    // Save Scale button (blue)
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.4f, 0.8f, 1.0f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.3f, 0.5f, 0.9f, 1.0f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.1f, 0.3f, 0.7f, 1.0f));
+
+    bool canSaveScale = (mCurrentScale != nullptr);
+    if (!canSaveScale) {
+        ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 0.5f);
+    }
+
+    if (ImGui::Button("Save Scale", ImVec2(buttonWidth, 0))) {
+        if (canSaveScale) {
+            if (mScaleManager->SaveScale(mCurrentScale)) {
+                printf("Scale saved successfully\n");
+                mScaleList = mScaleManager->GetAvailableScales();
+            } else {
+                printf("Error: Failed to save scale\n");
+            }
+        }
+    }
+
+    if (!canSaveScale) {
+        ImGui::PopStyleVar();
+    }
+    if (ImGui::IsItemHovered() && !canSaveScale) {
+        ImGui::SetTooltip("Select a scale first");
+    } else if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("Save the current scale definition (Ctrl+S)");
+    }
+
+    ImGui::PopStyleColor(3);
+
+    // Row 2: Test Scale | Create Study
+    // Test Scale button (orange)
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.5f, 0.0f, 1.0f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.9f, 0.6f, 0.1f, 1.0f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.7f, 0.4f, 0.0f, 1.0f));
+
+    bool canTestScale = (mCurrentScale != nullptr);
+    if (!canTestScale) {
+        ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 0.5f);
+    }
+
+    if (ImGui::Button("Test Scale", ImVec2(buttonWidth, 0))) {
+        if (canTestScale) {
+            TestCurrentScale();
+        }
+    }
+
+    if (!canTestScale) {
+        ImGui::PopStyleVar();
+    }
+    if (ImGui::IsItemHovered() && !canTestScale) {
+        ImGui::SetTooltip("Select a scale first");
+    } else if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("Preview this scale in ScaleRunner (Ctrl+T)");
+    }
+
+    ImGui::PopStyleColor(3);
+
+    ImGui::SameLine();
+
+    // Add to Study button (green)
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.6f, 0.0f, 1.0f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.0f, 0.7f, 0.0f, 1.0f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.0f, 0.5f, 0.0f, 1.0f));
+
+    bool canAddToStudy = (mCurrentScale != nullptr && mWorkspace != nullptr);
+    if (!canAddToStudy) {
+        ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 0.5f);
+    }
+
+    if (ImGui::Button("Add to Study", ImVec2(buttonWidth, 0))) {
+        if (canAddToStudy) {
+            mCreateStudyDialog.show = true;
+            mCreateStudyDialog.needScaleSelection = false;
+            mCreateStudyDialog.addToExisting = false;
+            mCreateStudyDialog.selectedStudyIndex = -1;
+            std::strncpy(mCreateStudyDialog.studyName, mCurrentScale->GetScaleInfo().code.c_str(),
+                        sizeof(mCreateStudyDialog.studyName) - 1);
+            mCreateStudyDialog.studyName[sizeof(mCreateStudyDialog.studyName) - 1] = '\0';
+            mCreateStudyDialog.errorMessage[0] = '\0';
+            mCreateStudyDialog.confirmOverwrite = false;
+            // Refresh study list for the dropdown
+            mStudyList = mWorkspace->GetStudyDirectories();
+        }
+    }
+
+    if (!canAddToStudy) {
+        ImGui::PopStyleVar();
+    }
+    if (ImGui::IsItemHovered() && !canAddToStudy) {
+        ImGui::SetTooltip("Select a scale first");
+    } else if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("Add this scale to a new or existing study");
+    }
+
+    ImGui::PopStyleColor(3);
+
+    // Row 3: Open Test Data (only shown when a scale is loaded and test data exists)
+    if (mCurrentScale && mWorkspace) {
+        std::string testDataDir = mWorkspace->GetWorkspacePath() + "/temp/scale-test-"
+                                  + mCurrentScale->GetScaleInfo().code + "/data";
+        if (fs::exists(testDataDir)) {
+            if (ImGui::Button("Open Test Data", ImVec2(-1, 0))) {
+                OpenDirectoryInFileBrowser(testDataDir);
+            }
+            if (ImGui::IsItemHovered()) {
+                ImGui::SetTooltip("Open test output directory: %s", testDataDir.c_str());
+            }
+        }
+    }
+
+    ImGui::Spacing();
+
+    // Load scale list if empty
+    if (mScaleList.empty()) {
+        mScaleList = mScaleManager->GetAvailableScales();
+    }
+
+    // Display scale list
+    for (size_t i = 0; i < mScaleList.size(); i++) {
+        bool isSelected = (i == (size_t)mSelectedScaleIndex);
+        if (ImGui::Selectable(mScaleList[i].c_str(), isSelected)) {
+            mSelectedScaleIndex = (int)i;
+            // Load the selected scale
+            mCurrentScale = mScaleManager->LoadScale(mScaleList[i]);
+            mScaleTransLanguage[0] = '\0';
+            mScaleTransSelectedKey = -1;
+            if (mCurrentScale) {
+                printf("Loaded scale: %s\n", mScaleList[i].c_str());
+            } else {
+                printf("Error: Failed to load scale: %s\n", mScaleList[i].c_str());
+            }
+        }
+    }
+}
+
+void LauncherUI::RenderScaleInfoEditor()
+{
+    if (!mCurrentScale) return;
+
+    ImGui::Text("Basic Information");
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    auto& info = mCurrentScale->GetScaleInfo();
+
+    // Scale name
+    char name[256];
+    std::strncpy(name, info.name.c_str(), sizeof(name) - 1);
+    name[sizeof(name) - 1] = '\0';
+    if (ImGui::InputText("Name", name, sizeof(name))) {
+        info.name = name;
+    }
+
+    // Scale code
+    char code[64];
+    std::strncpy(code, info.code.c_str(), sizeof(code) - 1);
+    code[sizeof(code) - 1] = '\0';
+    if (ImGui::InputText("Code", code, sizeof(code))) {
+        info.code = code;
+    }
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("Short identifier (e.g., 'grit', 'crt')");
+    }
+
+    // Abbreviation
+    char abbrev[64];
+    std::strncpy(abbrev, info.abbreviation.c_str(), sizeof(abbrev) - 1);
+    abbrev[sizeof(abbrev) - 1] = '\0';
+    if (ImGui::InputText("Abbreviation", abbrev, sizeof(abbrev))) {
+        info.abbreviation = abbrev;
+    }
+
+    // Description
+    char desc[1024];
+    std::strncpy(desc, info.description.c_str(), sizeof(desc) - 1);
+    desc[sizeof(desc) - 1] = '\0';
+    if (ImGui::InputTextMultiline("Description", desc, sizeof(desc), ImVec2(-1, 80))) {
+        info.description = desc;
+    }
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Text("Publication Info");
+    ImGui::Spacing();
+
+    // Citation
+    char citation[1024];
+    std::strncpy(citation, info.citation.c_str(), sizeof(citation) - 1);
+    citation[sizeof(citation) - 1] = '\0';
+    if (ImGui::InputTextMultiline("Citation", citation, sizeof(citation), ImVec2(-1, 100))) {
+        info.citation = citation;
+    }
+
+    // License
+    char license[256];
+    std::strncpy(license, info.license.c_str(), sizeof(license) - 1);
+    license[sizeof(license) - 1] = '\0';
+    if (ImGui::InputText("License", license, sizeof(license))) {
+        info.license = license;
+    }
+
+    // Version
+    char version[32];
+    std::strncpy(version, info.version.c_str(), sizeof(version) - 1);
+    version[sizeof(version) - 1] = '\0';
+    if (ImGui::InputText("Version", version, sizeof(version))) {
+        info.version = version;
+    }
+
+    // URL
+    char url[512];
+    std::strncpy(url, info.url.c_str(), sizeof(url) - 1);
+    url[sizeof(url) - 1] = '\0';
+    if (ImGui::InputText("URL", url, sizeof(url))) {
+        info.url = url;
+    }
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Text("Participant Display (English)");
+    ImGui::Spacing();
+
+    // Display Title (what participants see - optional override of scale name)
+    std::string displayTitle = mCurrentScale->GetTranslation("en", "display_title");
+    if (displayTitle.empty()) {
+        displayTitle = info.name;  // Default to scale name
+    }
+    char dispTitle[256];
+    std::strncpy(dispTitle, displayTitle.c_str(), sizeof(dispTitle) - 1);
+    dispTitle[sizeof(dispTitle) - 1] = '\0';
+    if (ImGui::InputText("Display Title", dispTitle, sizeof(dispTitle))) {
+        mCurrentScale->AddTranslation("en", "display_title", dispTitle);
+        mCurrentScale->SetDirty(true);
+    }
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("Title shown to participants (leave blank to use scale name).\nUse this to avoid revealing the scale's purpose.");
+    }
+
+    // Instructions (question_head)
+    std::string instructions = mCurrentScale->GetTranslation("en", "question_head");
+    char instr[512];
+    std::strncpy(instr, instructions.c_str(), sizeof(instr) - 1);
+    instr[sizeof(instr) - 1] = '\0';
+    if (ImGui::InputTextMultiline("Instructions", instr, sizeof(instr), ImVec2(-1, 60))) {
+        mCurrentScale->AddTranslation("en", "question_head", instr);
+        mCurrentScale->SetDirty(true);
+    }
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("Instructions shown before each question");
+    }
+
+    // Debrief
+    std::string debrief = mCurrentScale->GetTranslation("en", "debrief");
+    char debr[512];
+    std::strncpy(debr, debrief.c_str(), sizeof(debr) - 1);
+    debr[sizeof(debr) - 1] = '\0';
+    if (ImGui::InputTextMultiline("Debrief Message", debr, sizeof(debr), ImVec2(-1, 60))) {
+        mCurrentScale->AddTranslation("en", "debrief", debr);
+        mCurrentScale->SetDirty(true);
+    }
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("Message shown after completing the scale");
+    }
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Text("Likert Scale Defaults");
+    ImGui::Spacing();
+
+    auto& likert = mCurrentScale->GetLikertOptions();
+
+    // Default number of points
+    int points = likert.points;
+    if (ImGui::InputInt("Default Points", &points)) {
+        if (points >= 2 && points <= 10) {
+            likert.points = points;
+
+            // Auto-populate labels if points increased beyond current label count
+            size_t currentLabelCount = likert.labels.size();
+            if (static_cast<size_t>(points) > currentLabelCount) {
+                std::string scaleCode = mCurrentScale->GetScaleInfo().code;
+                for (size_t i = currentLabelCount; i < static_cast<size_t>(points); i++) {
+                    int labelNum = static_cast<int>(i) + 1;
+                    std::string newKey = scaleCode + "_response_" + std::to_string(labelNum);
+                    likert.labels.push_back(newKey);
+                    mCurrentScale->AddTranslation("en", newKey, "Response " + std::to_string(labelNum));
+                }
+            }
+
+            mCurrentScale->SetDirty(true);
+        }
+    }
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("Default number of response options for Likert questions");
+    }
+
+    // Default min/max values
+    int minVal = likert.min;
+    if (ImGui::InputInt("Default Min Value", &minVal)) {
+        likert.min = minVal;
+        mCurrentScale->SetDirty(true);
+    }
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("Default minimum value (-1 = auto: binary scales use 0, regular scales use 1)");
+    }
+
+    int maxVal = likert.max;
+    if (ImGui::InputInt("Default Max Value", &maxVal)) {
+        likert.max = maxVal;
+        mCurrentScale->SetDirty(true);
+    }
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("Default maximum value (-1 = auto: points-1 for binary, points for regular)");
+    }
+
+    ImGui::Spacing();
+    ImGui::Text("Response Options (available for all questions)");
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("Define response options that questions can use.\nValues are computed from Points, Min, and Max settings above.");
+    }
+
+    // Display response options as a table
+    std::vector<std::string>& labelKeys = likert.labels;
+
+    // Calculate what the values would be for these labels
+    // Binary scales (points=2): reverse order (max to min)
+    // Regular scales: natural order (min to max)
+    std::vector<int> values;
+    int actualMin = (likert.min == -1) ? ((points == 2) ? 0 : 1) : likert.min;
+    int actualMax = (likert.max == -1) ? (actualMin + points - 1) : likert.max;
+
+    for (int i = 1; i <= points; i++) {
+        int value;
+        if (points == 2) {
+            // Binary: reverse order
+            value = actualMax - (i - 1);
+        } else {
+            // Regular: natural order
+            value = actualMin + (i - 1);
+        }
+        values.push_back(value);
+    }
+
+    // Table header
+    if (ImGui::BeginTable("ResponseOptionsTable", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
+        ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthFixed, 60.0f);
+        ImGui::TableSetupColumn("Label Key", ImGuiTableColumnFlags_WidthFixed, 150.0f);
+        ImGui::TableSetupColumn("Label Text", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn("Actions", ImGuiTableColumnFlags_WidthFixed, 80.0f);
+        ImGui::TableHeadersRow();
+
+        // Track if we need to remove any labels
+        int removeIndex = -1;
+
+        // Display rows
+        for (size_t i = 0; i < labelKeys.size() && i < values.size(); i++) {
+            ImGui::TableNextRow();
+            ImGui::PushID(static_cast<int>(i));
+
+            // Column 1: Value (computed, read-only)
+            ImGui::TableSetColumnIndex(0);
+            ImGui::Text("%d", values[i]);
+
+            // Column 2: Label Key (editable)
+            ImGui::TableSetColumnIndex(1);
+            char keyBuffer[64];
+            std::strncpy(keyBuffer, labelKeys[i].c_str(), sizeof(keyBuffer) - 1);
+            keyBuffer[sizeof(keyBuffer) - 1] = '\0';
+            ImGui::SetNextItemWidth(-FLT_MIN);
+            if (ImGui::InputText("##key", keyBuffer, sizeof(keyBuffer))) {
+                // Update the key (need to update both the vector and translations)
+                std::string oldKey = labelKeys[i];
+                std::string newKey = keyBuffer;
+                std::string labelText = mCurrentScale->GetTranslation("en", oldKey);
+                labelKeys[i] = newKey;
+                mCurrentScale->AddTranslation("en", newKey, labelText);
+                mCurrentScale->SetDirty(true);
+            }
+
+            // Column 3: Label Text (editable)
+            ImGui::TableSetColumnIndex(2);
+            std::string labelText = mCurrentScale->GetTranslation("en", labelKeys[i]);
+            char textBuffer[256];
+            std::strncpy(textBuffer, labelText.c_str(), sizeof(textBuffer) - 1);
+            textBuffer[sizeof(textBuffer) - 1] = '\0';
+            ImGui::SetNextItemWidth(-FLT_MIN);
+            if (ImGui::InputText("##text", textBuffer, sizeof(textBuffer))) {
+                mCurrentScale->AddTranslation("en", labelKeys[i], textBuffer);
+                mCurrentScale->SetDirty(true);
+            }
+
+            // Column 4: Actions
+            ImGui::TableSetColumnIndex(3);
+            if (ImGui::SmallButton("Remove")) {
+                removeIndex = static_cast<int>(i);
+            }
+
+            ImGui::PopID();
+        }
+
+        ImGui::EndTable();
+
+        // Remove label if requested
+        if (removeIndex >= 0) {
+            labelKeys.erase(labelKeys.begin() + removeIndex);
+            // Update points to match (since we removed an option)
+            likert.points = static_cast<int>(labelKeys.size());
+            mCurrentScale->SetDirty(true);
+        }
+    }
+
+    // Add new option button
+    if (ImGui::Button("Add Response Option")) {
+        // Generate new label key using scale code
+        std::string scaleCode = mCurrentScale->GetScaleInfo().code;
+        int nextNum = static_cast<int>(labelKeys.size()) + 1;
+        std::string newKey = scaleCode + "_response_" + std::to_string(nextNum);
+        labelKeys.push_back(newKey);
+        mCurrentScale->AddTranslation("en", newKey, "Response " + std::to_string(nextNum));
+        // Update points to match
+        likert.points = static_cast<int>(labelKeys.size());
+        mCurrentScale->SetDirty(true);
+    }
+
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("Add a new response option (will update Points automatically)");
+    }
+}
+
+void LauncherUI::RenderQuestionsEditor()
+{
+    if (!mCurrentScale) return;
+
+    ImGui::Text("Questions");
+    ImGui::SameLine();
+    if (ImGui::Button("Add Question")) {
+        mQuestionEditor.show = true;
+        mQuestionEditor.editingIndex = -1;
+        mQuestionEditor.id[0] = '\0';
+        mQuestionEditor.textKey[0] = '\0';
+        mQuestionEditor.questionText[0] = '\0';
+        mQuestionEditor.questionType = 0;  // Default to likert
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Batch Import...")) {
+        mBatchImport.show = true;
+        mBatchImport.questionText[0] = '\0';
+        // Pre-fill with scale code if available
+        if (mCurrentScale) {
+            std::strncpy(mBatchImport.idPrefix, mCurrentScale->GetScaleInfo().code.c_str(), sizeof(mBatchImport.idPrefix) - 1);
+            mBatchImport.idPrefix[sizeof(mBatchImport.idPrefix) - 1] = '\0';
+        }
+    }
+
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    auto& questions = mCurrentScale->GetQuestions();
+    ImGui::Text("Total questions: %zu", questions.size());
+    ImGui::Spacing();
+
+    // Question list
+    if (ImGui::BeginTable("QuestionsTable", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY)) {
+        ImGui::TableSetupColumn("ID", ImGuiTableColumnFlags_WidthFixed, 80);
+        ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthFixed, 70);
+        ImGui::TableSetupColumn("Question Text", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn("Edit", ImGuiTableColumnFlags_WidthFixed, 50);
+        ImGui::TableHeadersRow();
+
+        for (size_t i = 0; i < questions.size(); i++) {
+            auto& q = questions[i];
+            ImGui::TableNextRow();
+            ImGui::PushID((int)i);
+
+            // ID column
+            ImGui::TableNextColumn();
+            ImGui::Text("%s", q.id.c_str());
+
+            // Type column
+            ImGui::TableNextColumn();
+            ImGui::Text("%s", q.type.c_str());
+
+            // Question Text column (truncated with tooltip)
+            ImGui::TableNextColumn();
+            std::string questionText = mCurrentScale->GetTranslation("en", q.text_key);
+            if (questionText.empty()) {
+                questionText = "[" + q.text_key + "]";
+            }
+
+            // Truncate to 60 characters
+            std::string displayText = questionText;
+            if (displayText.length() > 60) {
+                displayText = displayText.substr(0, 57) + "...";
+            }
+
+            ImGui::TextWrapped("%s", displayText.c_str());
+            if (ImGui::IsItemHovered() && questionText.length() > 60) {
+                ImGui::BeginTooltip();
+                ImGui::PushTextWrapPos(400.0f);
+                ImGui::TextWrapped("%s", questionText.c_str());
+                ImGui::PopTextWrapPos();
+                ImGui::EndTooltip();
+            }
+
+            // Edit button column
+            ImGui::TableNextColumn();
+            if (ImGui::SmallButton("Edit##q")) {
+                printf("Edit question %s\n", q.id.c_str());
+                // Open question editor with current values
+                mQuestionEditor.show = true;
+                mQuestionEditor.editingIndex = (int)i;
+                std::strncpy(mQuestionEditor.id, q.id.c_str(), sizeof(mQuestionEditor.id) - 1);
+                mQuestionEditor.id[sizeof(mQuestionEditor.id) - 1] = '\0';
+                std::strncpy(mQuestionEditor.textKey, q.text_key.c_str(), sizeof(mQuestionEditor.textKey) - 1);
+                mQuestionEditor.textKey[sizeof(mQuestionEditor.textKey) - 1] = '\0';
+
+                // Load question text from translation (English)
+                std::string qText = mCurrentScale->GetTranslation("en", q.text_key);
+                std::strncpy(mQuestionEditor.questionText, qText.c_str(), sizeof(mQuestionEditor.questionText) - 1);
+                mQuestionEditor.questionText[sizeof(mQuestionEditor.questionText) - 1] = '\0';
+
+                // Set question type index
+                const char* questionTypes[] = { "likert", "multi", "short", "long", "vas", "inst", "multicheck", "grid", "image", "imageresponse" };
+                for (int ti = 0; ti < 10; ti++) {
+                    if (q.type == questionTypes[ti]) {
+                        mQuestionEditor.questionType = ti;
+                        break;
+                    }
+                }
+
+                // Load Likert-specific fields
+                mQuestionEditor.likertPoints = q.likert_points;
+                mQuestionEditor.likertMin = q.likert_min;
+                mQuestionEditor.likertMax = q.likert_max;
+
+                // Load VAS-specific fields
+                mQuestionEditor.vasMinValue = q.min_value;
+                mQuestionEditor.vasMaxValue = q.max_value;
+                std::strncpy(mQuestionEditor.vasLeftLabel, q.left_label.c_str(), sizeof(mQuestionEditor.vasLeftLabel) - 1);
+                mQuestionEditor.vasLeftLabel[sizeof(mQuestionEditor.vasLeftLabel) - 1] = '\0';
+                std::strncpy(mQuestionEditor.vasRightLabel, q.right_label.c_str(), sizeof(mQuestionEditor.vasRightLabel) - 1);
+                mQuestionEditor.vasRightLabel[sizeof(mQuestionEditor.vasRightLabel) - 1] = '\0';
+
+                // Load Multi/multicheck-specific fields (join options with newlines)
+                std::string optionsText;
+                for (size_t oi = 0; oi < q.options.size(); oi++) {
+                    if (oi > 0) optionsText += "\n";
+                    optionsText += q.options[oi];
+                }
+                std::strncpy(mQuestionEditor.multiOptions, optionsText.c_str(), sizeof(mQuestionEditor.multiOptions) - 1);
+                mQuestionEditor.multiOptions[sizeof(mQuestionEditor.multiOptions) - 1] = '\0';
+
+                // Load Grid-specific fields
+                std::string columnsText;
+                for (size_t ci = 0; ci < q.columns.size(); ci++) {
+                    if (ci > 0) columnsText += "\n";
+                    columnsText += q.columns[ci];
+                }
+                std::strncpy(mQuestionEditor.gridColumns, columnsText.c_str(), sizeof(mQuestionEditor.gridColumns) - 1);
+                mQuestionEditor.gridColumns[sizeof(mQuestionEditor.gridColumns) - 1] = '\0';
+
+                std::string rowsText;
+                for (size_t ri = 0; ri < q.rows.size(); ri++) {
+                    if (ri > 0) rowsText += "\n";
+                    rowsText += q.rows[ri];
+                }
+                std::strncpy(mQuestionEditor.gridRows, rowsText.c_str(), sizeof(mQuestionEditor.gridRows) - 1);
+                mQuestionEditor.gridRows[sizeof(mQuestionEditor.gridRows) - 1] = '\0';
+
+                // Load Image-specific fields
+                std::strncpy(mQuestionEditor.imagePath, q.image.c_str(), sizeof(mQuestionEditor.imagePath) - 1);
+                mQuestionEditor.imagePath[sizeof(mQuestionEditor.imagePath) - 1] = '\0';
+            }
+
+            ImGui::PopID();
+        }
+
+        ImGui::EndTable();
+    }
+}
+
+void LauncherUI::RenderScoringEditor()
+{
+    if (!mCurrentScale) return;
+
+    auto& dimensions = mCurrentScale->GetDimensions();
+    auto& scoring = mCurrentScale->GetScoring();
+    auto& questions = mCurrentScale->GetQuestions();
+
+    if (dimensions.empty()) {
+        ImGui::TextWrapped("No dimensions defined yet. Add a dimension to configure scoring.");
+        ImGui::Spacing();
+        if (ImGui::Button("Add Dimension")) {
+            mDimensionEditor.show = true;
+            mDimensionEditor.editingIndex = -1;
+            mDimensionEditor.id[0] = '\0';
+            mDimensionEditor.name[0] = '\0';
+            mDimensionEditor.abbreviation[0] = '\0';
+            mDimensionEditor.description[0] = '\0';
+        }
+        return;
+    }
+
+    // Two-column layout: Dimensions list on left, scoring on right
+    ImGui::BeginChild("DimensionList", ImVec2(200, 0), true);
+
+    if (ImGui::Button("Add", ImVec2(-1, 0))) {
+        mDimensionEditor.show = true;
+        mDimensionEditor.editingIndex = -1;
+        mDimensionEditor.id[0] = '\0';
+        mDimensionEditor.name[0] = '\0';
+        mDimensionEditor.abbreviation[0] = '\0';
+        mDimensionEditor.description[0] = '\0';
+    }
+    ImGui::Separator();
+
+    // List all dimensions
+    for (size_t i = 0; i < dimensions.size(); i++) {
+        bool isSelected = (i == static_cast<size_t>(mSelectedDimensionIndex));
+        if (ImGui::Selectable(dimensions[i].name.c_str(), isSelected)) {
+            mSelectedDimensionIndex = static_cast<int>(i);
+        }
+    }
+
+    ImGui::EndChild();
+
+    ImGui::SameLine();
+
+    // Right panel: dimension info + scoring for selected dimension
+    ImGui::BeginChild("ItemSelection", ImVec2(0, 0), true);
+
+    if (mSelectedDimensionIndex >= 0 && mSelectedDimensionIndex < static_cast<int>(dimensions.size())) {
+        const auto& selectedDim = dimensions[mSelectedDimensionIndex];
+
+        // Dimension info header
+        ImGui::Text("%s", selectedDim.name.c_str());
+        ImGui::SameLine();
+        ImGui::TextDisabled("(%s)", selectedDim.id.c_str());
+        ImGui::SameLine();
+
+        // Edit button
+        if (ImGui::SmallButton("Edit##dim")) {
+            mDimensionEditor.show = true;
+            mDimensionEditor.editingIndex = mSelectedDimensionIndex;
+            strncpy(mDimensionEditor.id, selectedDim.id.c_str(), sizeof(mDimensionEditor.id) - 1);
+            strncpy(mDimensionEditor.name, selectedDim.name.c_str(), sizeof(mDimensionEditor.name) - 1);
+            strncpy(mDimensionEditor.abbreviation, selectedDim.abbreviation.c_str(), sizeof(mDimensionEditor.abbreviation) - 1);
+            strncpy(mDimensionEditor.description, selectedDim.description.c_str(), sizeof(mDimensionEditor.description) - 1);
+        }
+        ImGui::SameLine();
+
+        // Delete button
+        if (ImGui::SmallButton("Delete##dim")) {
+            // Remove scoring for this dimension
+            scoring.erase(selectedDim.id);
+            // Remove the dimension itself
+            mCurrentScale->GetDimensions().erase(mCurrentScale->GetDimensions().begin() + mSelectedDimensionIndex);
+            mCurrentScale->SetDirty(true);
+            if (mSelectedDimensionIndex >= static_cast<int>(mCurrentScale->GetDimensions().size())) {
+                mSelectedDimensionIndex = static_cast<int>(mCurrentScale->GetDimensions().size()) - 1;
+            }
+            ImGui::EndChild();
+            return;
+        }
+
+        // Show abbreviation and description if present
+        if (!selectedDim.abbreviation.empty() || !selectedDim.description.empty()) {
+            if (!selectedDim.abbreviation.empty()) {
+                ImGui::TextDisabled("Abbrev: %s", selectedDim.abbreviation.c_str());
+                if (!selectedDim.description.empty()) {
+                    ImGui::SameLine();
+                    ImGui::TextDisabled("  |  %s", selectedDim.description.c_str());
+                }
+            } else {
+                ImGui::TextDisabled("%s", selectedDim.description.c_str());
+            }
+        }
+
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        // Get or create scoring for this dimension
+        if (scoring.find(selectedDim.id) == scoring.end()) {
+            DimensionScoring newScoring;
+            newScoring.method = "mean_coded";
+            newScoring.description = "";
+            scoring[selectedDim.id] = newScoring;
+        }
+
+        auto& dimScoring = scoring[selectedDim.id];
+
+        // Scoring method dropdown
+        const char* methodOptions[] = { "mean_coded", "sum_coded", "weighted_sum", "sum_correct" };
+        int currentMethod = 0;
+        for (int i = 0; i < 4; i++) {
+            if (dimScoring.method == methodOptions[i]) {
+                currentMethod = i;
+                break;
+            }
+        }
+
+        if (ImGui::Combo("Scoring Method", &currentMethod, methodOptions, 4)) {
+            dimScoring.method = methodOptions[currentMethod];
+            mCurrentScale->SetDirty(true);
+        }
+
+        bool isSumCorrect = (dimScoring.method == "sum_correct");
+
+        ImGui::Spacing();
+        if (isSumCorrect) {
+            ImGui::Text("Select items and set correct answers:");
+            ImGui::SameLine();
+            ImGui::TextDisabled("(?)");
+            if (ImGui::IsItemHovered()) {
+                ImGui::BeginTooltip();
+                ImGui::PushTextWrapPos(400.0f);
+                ImGui::TextWrapped("Enter acceptable answers separated by | (pipe).\n"
+                                   "Matching is case-insensitive with trimmed whitespace.\n"
+                                   "Wildcards: * = any characters, ? = any single character.\n"
+                                   "Example: 5|five|.05|0.05|$0.05|5 cents|*5*cent*");
+                ImGui::PopTextWrapPos();
+                ImGui::EndTooltip();
+            }
+        } else {
+            ImGui::Text("Select items and set coding:");
+        }
+        ImGui::Separator();
+
+        // Items table
+        int numCols = 4;
+        if (ImGui::BeginTable("ItemScoringTable", numCols, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY)) {
+            ImGui::TableSetupColumn("Include", ImGuiTableColumnFlags_WidthFixed, 60);
+            ImGui::TableSetupColumn("ID", ImGuiTableColumnFlags_WidthFixed, 80);
+            if (isSumCorrect) {
+                ImGui::TableSetupColumn("Question Text", ImGuiTableColumnFlags_WidthFixed, 200);
+                ImGui::TableSetupColumn("Correct Answers", ImGuiTableColumnFlags_WidthStretch);
+            } else {
+                ImGui::TableSetupColumn("Question Text", ImGuiTableColumnFlags_WidthStretch);
+                ImGui::TableSetupColumn("Coding", ImGuiTableColumnFlags_WidthFixed, 120);
+            }
+            ImGui::TableHeadersRow();
+
+            for (const auto& question : questions) {
+                ImGui::TableNextRow();
+                ImGui::PushID(question.id.c_str());
+
+                auto itemIt = std::find(dimScoring.items.begin(), dimScoring.items.end(), question.id);
+                bool isIncluded = (itemIt != dimScoring.items.end());
+
+                // Checkbox column
+                ImGui::TableSetColumnIndex(0);
+                if (ImGui::Checkbox("##include", &isIncluded)) {
+                    if (isIncluded) {
+                        dimScoring.items.push_back(question.id);
+                        if (!isSumCorrect && dimScoring.item_coding.find(question.id) == dimScoring.item_coding.end()) {
+                            dimScoring.item_coding[question.id] = 1;
+                        }
+                    } else {
+                        dimScoring.items.erase(itemIt);
+                        dimScoring.item_coding.erase(question.id);
+                        dimScoring.correct_answers.erase(question.id);
+                    }
+                    mCurrentScale->SetDirty(true);
+                }
+
+                // ID column
+                ImGui::TableSetColumnIndex(1);
+                ImGui::Text("%s", question.id.c_str());
+
+                // Question text column
+                ImGui::TableSetColumnIndex(2);
+                std::string questionText = mCurrentScale->GetTranslation("en", question.text_key);
+                if (questionText.empty()) {
+                    questionText = "[" + question.text_key + "]";
+                }
+                std::string displayText = questionText;
+                int truncLen = isSumCorrect ? 40 : 60;
+                if (static_cast<int>(displayText.length()) > truncLen) {
+                    displayText = displayText.substr(0, truncLen - 3) + "...";
+                }
+                ImGui::TextWrapped("%s", displayText.c_str());
+                if (ImGui::IsItemHovered() && static_cast<int>(questionText.length()) > truncLen) {
+                    ImGui::BeginTooltip();
+                    ImGui::PushTextWrapPos(400.0f);
+                    ImGui::TextWrapped("%s", questionText.c_str());
+                    ImGui::PopTextWrapPos();
+                    ImGui::EndTooltip();
+                }
+
+                // Last column: Coding or Correct Answers
+                ImGui::TableSetColumnIndex(3);
+                if (isSumCorrect) {
+                    if (isIncluded) {
+                        auto caIt = dimScoring.correct_answers.find(question.id);
+                        int answerCount = (caIt != dimScoring.correct_answers.end()) ? (int)caIt->second.size() : 0;
+
+                        std::string btnLabel;
+                        if (answerCount == 0) {
+                            btnLabel = "[click to add]##ca";
+                        } else {
+                            btnLabel = std::to_string(answerCount) + " answer" + (answerCount != 1 ? "s" : "") + "##ca";
+                        }
+
+                        if (ImGui::SmallButton(btnLabel.c_str())) {
+                            mCorrectAnswersEditor.show = true;
+                            mCorrectAnswersEditor.questionId = question.id;
+                            mCorrectAnswersEditor.dimensionId = selectedDim.id;
+                            mCorrectAnswersEditor.questionType = question.type;
+
+                            std::string qText = mCurrentScale->GetTranslation("en", question.text_key);
+                            if (qText.empty()) qText = "[" + question.text_key + "]";
+                            mCorrectAnswersEditor.questionText = qText;
+
+                            mCorrectAnswersEditor.answers.clear();
+                            mCorrectAnswersEditor.caseSensitive.clear();
+                            if (caIt != dimScoring.correct_answers.end()) {
+                                for (const auto& raw : caIt->second) {
+                                    if (raw.size() >= 4 && raw.substr(0, 4) == "(?c)") {
+                                        mCorrectAnswersEditor.answers.push_back(raw.substr(4));
+                                        mCorrectAnswersEditor.caseSensitive.push_back(true);
+                                    } else {
+                                        mCorrectAnswersEditor.answers.push_back(raw);
+                                        mCorrectAnswersEditor.caseSensitive.push_back(false);
+                                    }
+                                }
+                            }
+                        }
+
+                        if (ImGui::IsItemHovered() && answerCount > 0) {
+                            ImGui::BeginTooltip();
+                            ImGui::PushTextWrapPos(300.0f);
+                            for (const auto& ans : caIt->second) {
+                                ImGui::BulletText("%s", ans.c_str());
+                            }
+                            ImGui::PopTextWrapPos();
+                            ImGui::EndTooltip();
+                        }
+                    } else {
+                        ImGui::TextDisabled("--");
+                    }
+                } else {
+                    if (isIncluded) {
+                        int currentCoding = 1;
+                        auto codingIt = dimScoring.item_coding.find(question.id);
+                        if (codingIt != dimScoring.item_coding.end()) {
+                            currentCoding = codingIt->second;
+                        }
+
+                        const char* codingOptions[] = { "Normal (1)", "Reverse (-1)", "Not Scored (0)" };
+                        int codingIndex = (currentCoding == 1) ? 0 : (currentCoding == -1) ? 1 : 2;
+
+                        if (ImGui::Combo("##coding", &codingIndex, codingOptions, 3)) {
+                            switch (codingIndex) {
+                                case 0: dimScoring.item_coding[question.id] = 1; break;
+                                case 1: dimScoring.item_coding[question.id] = -1; break;
+                                case 2: dimScoring.item_coding[question.id] = 0; break;
+                            }
+                            mCurrentScale->SetDirty(true);
+                        }
+                    } else {
+                        ImGui::TextDisabled("--");
+                    }
+                }
+
+                ImGui::PopID();
+            }
+
+            ImGui::EndTable();
+        }
+
+        ImGui::Spacing();
+        ImGui::Text("Items in dimension: %zu", dimScoring.items.size());
+
+    } else {
+        ImGui::Text("Select a dimension from the list");
+    }
+
+    ImGui::EndChild();
+}
+
+void LauncherUI::RenderTranslationsEditor()
+{
+    if (!mCurrentScale) return;
+
+    auto& translations = mCurrentScale->GetTranslations();
+
+    // Collect available languages from the translations map
+    std::vector<std::string> availableLanguages;
+    availableLanguages.push_back("en");  // English always first
+    for (const auto& [lang, _] : translations) {
+        if (lang != "en") {
+            availableLanguages.push_back(lang);
+        }
+    }
+
+    // Ensure English translations exist
+    if (translations.find("en") == translations.end()) {
+        translations["en"] = {};
+    }
+
+    // Collect all keys from English translations
+    std::vector<std::string> allKeys;
+    for (const auto& [key, _] : translations["en"]) {
+        allKeys.push_back(key);
+    }
+    // Sort keys for consistent display
+    std::sort(allKeys.begin(), allKeys.end());
+
+    // Header: language selector
+    ImGui::Text("Language:");
+    ImGui::SameLine();
+    ImGui::PushItemWidth(100);
+
+    if (ImGui::BeginCombo("##ScaleTransLang", mScaleTransLanguage[0] ? mScaleTransLanguage : "Select...")) {
+        for (const auto& lang : availableLanguages) {
+            bool isSelected = (std::string(mScaleTransLanguage) == lang);
+            if (ImGui::Selectable(lang.c_str(), isSelected)) {
+                std::strncpy(mScaleTransLanguage, lang.c_str(), sizeof(mScaleTransLanguage) - 1);
+                mScaleTransLanguage[sizeof(mScaleTransLanguage) - 1] = '\0';
+                mScaleTransSelectedKey = allKeys.empty() ? -1 : 0;
+            }
+        }
+        // New language option
+        ImGui::Separator();
+        ImGui::TextDisabled("Add language (2-3 chars):");
+        static char newScaleLang[16] = "";
+        ImGui::PushItemWidth(60);
+        if (ImGui::InputText("##NewScaleLang", newScaleLang, 4, ImGuiInputTextFlags_EnterReturnsTrue)) {
+            if (strlen(newScaleLang) > 0) {
+                // Create the new language entry with empty values copied from English keys
+                std::string langCode(newScaleLang);
+                for (char& c : langCode) c = tolower(c);
+                if (translations.find(langCode) == translations.end()) {
+                    translations[langCode] = {};
+                    for (const auto& [key, _] : translations["en"]) {
+                        translations[langCode][key] = "";
+                    }
+                    mCurrentScale->SetDirty(true);
+                }
+                std::strncpy(mScaleTransLanguage, langCode.c_str(), sizeof(mScaleTransLanguage) - 1);
+                mScaleTransLanguage[sizeof(mScaleTransLanguage) - 1] = '\0';
+                newScaleLang[0] = '\0';
+                ImGui::CloseCurrentPopup();
+            }
+        }
+        ImGui::PopItemWidth();
+        ImGui::EndCombo();
+    }
+    ImGui::PopItemWidth();
+
+    ImGui::SameLine(0, 20);
+    ImGui::TextDisabled("%zu keys, %zu languages", allKeys.size(), availableLanguages.size());
+
+    ImGui::Separator();
+
+    if (!mScaleTransLanguage[0]) {
+        ImGui::Spacing();
+        ImGui::TextWrapped("Select a language to view or edit translations. English (en) is the base language.");
+        return;
+    }
+
+    std::string currentLang(mScaleTransLanguage);
+    bool isEnglish = (currentLang == "en");
+
+    // Ensure target language map exists
+    if (translations.find(currentLang) == translations.end()) {
+        translations[currentLang] = {};
+    }
+    auto& targetMap = translations[currentLang];
+    auto& englishMap = translations["en"];
+
+    if (allKeys.empty()) {
+        ImGui::Spacing();
+        ImGui::TextWrapped("No translation keys defined yet. Keys are created automatically when you add questions in the Questions tab.");
+        return;
+    }
+
+    // Two-panel layout
+    float contentHeight = ImGui::GetContentRegionAvail().y;
+
+    // Left panel - key list
+    ImGui::BeginChild("ScaleTransKeyList", ImVec2(180, contentHeight), true);
+    ImGui::TextDisabled("Keys");
+    ImGui::Separator();
+
+    for (size_t i = 0; i < allKeys.size(); i++) {
+        const std::string& key = allKeys[i];
+        bool isSelected = (mScaleTransSelectedKey == (int)i);
+
+        // Show indicator if target value is empty (untranslated)
+        bool untranslated = false;
+        if (!isEnglish) {
+            auto it = targetMap.find(key);
+            untranslated = (it == targetMap.end() || it->second.empty());
+        }
+
+        if (untranslated) {
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.5f, 0.0f, 1.0f));
+        }
+
+        if (ImGui::Selectable(key.c_str(), isSelected)) {
+            mScaleTransSelectedKey = (int)i;
+        }
+
+        if (untranslated) {
+            ImGui::PopStyleColor();
+        }
+    }
+    ImGui::EndChild();
+
+    ImGui::SameLine();
+
+    // Right panel - edit area
+    ImGui::BeginChild("ScaleTransEditPanel", ImVec2(0, contentHeight), true);
+
+    if (mScaleTransSelectedKey >= 0 && mScaleTransSelectedKey < (int)allKeys.size()) {
+        const std::string& selectedKey = allKeys[mScaleTransSelectedKey];
+
+        ImGui::TextColored(ImVec4(0.4f, 0.7f, 1.0f, 1.0f), "Key: %s", selectedKey.c_str());
+        ImGui::Spacing();
+
+        float availHeight = ImGui::GetContentRegionAvail().y;
+
+        if (isEnglish) {
+            // Editing English: single editable box
+            ImGui::Text("English (editing):");
+
+            std::string& val = englishMap[selectedKey];
+            char editBuf[8192];
+            std::strncpy(editBuf, val.c_str(), sizeof(editBuf) - 1);
+            editBuf[sizeof(editBuf) - 1] = '\0';
+
+            if (ImGui::InputTextMultiline("##scaletrans_edit", editBuf, sizeof(editBuf),
+                    ImVec2(-1, availHeight - 30), ImGuiInputTextFlags_WordWrap)) {
+                val = editBuf;
+                mCurrentScale->SetDirty(true);
+            }
+        } else {
+            // Editing another language: English reference on top, target below
+            float boxHeight = (availHeight - 60) / 2;
+
+            ImGui::Text("English (reference):");
+            ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.15f, 0.15f, 0.15f, 1.0f));
+            std::string englishVal = englishMap.count(selectedKey) ? englishMap[selectedKey] : "";
+            char refBuf[8192];
+            std::strncpy(refBuf, englishVal.c_str(), sizeof(refBuf) - 1);
+            refBuf[sizeof(refBuf) - 1] = '\0';
+            ImGui::InputTextMultiline("##scaletrans_ref", refBuf, sizeof(refBuf),
+                ImVec2(-1, boxHeight), ImGuiInputTextFlags_ReadOnly | ImGuiInputTextFlags_WordWrap);
+            ImGui::PopStyleColor();
+
+            ImGui::Spacing();
+
+            ImGui::Text("%s (editing):", currentLang.c_str());
+            std::string& targetVal = targetMap[selectedKey];
+            char editBuf[8192];
+            std::strncpy(editBuf, targetVal.c_str(), sizeof(editBuf) - 1);
+            editBuf[sizeof(editBuf) - 1] = '\0';
+
+            if (ImGui::InputTextMultiline("##scaletrans_target", editBuf, sizeof(editBuf),
+                    ImVec2(-1, boxHeight), ImGuiInputTextFlags_WordWrap)) {
+                targetVal = editBuf;
+                mCurrentScale->SetDirty(true);
+            }
+        }
+    } else {
+        ImGui::TextDisabled("Select a key from the list to edit");
+    }
+
+    ImGui::EndChild();
+}
+
+void LauncherUI::ShowQuestionEditor()
+{
+    if (!mCurrentScale) {
+        mQuestionEditor.show = false;
+        return;
+    }
+
+    ImGui::SetNextWindowSize(ImVec2(600, 450), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x * 0.5f, ImGui::GetIO().DisplaySize.y * 0.5f), ImGuiCond_FirstUseEver, ImVec2(0.5f, 0.5f));
+
+    const char* title = (mQuestionEditor.editingIndex >= 0) ? "Edit Question" : "Add Question";
+    if (!ImGui::Begin(title, &mQuestionEditor.show, ImGuiWindowFlags_NoCollapse))
+    {
+        ImGui::End();
+        return;
+    }
+
+    ImGui::Text("Question Details");
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    // Question ID
+    ImGui::InputText("ID", mQuestionEditor.id, sizeof(mQuestionEditor.id));
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("Unique identifier (e.g., moci1, moci2)");
+    }
+
+    // Text Key (defaults to same as ID if empty)
+    ImGui::InputText("Text Key", mQuestionEditor.textKey, sizeof(mQuestionEditor.textKey));
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("Translation key (usually same as ID)");
+    }
+
+    // Question Text (multiline input)
+    ImGui::Text("Question Text:");
+    ImGui::InputTextMultiline("##QuestionText", mQuestionEditor.questionText, sizeof(mQuestionEditor.questionText),
+                              ImVec2(-FLT_MIN, ImGui::GetTextLineHeight() * 4));
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("The actual question text (English). Quotes are allowed.");
+    }
+
+    // Question Type
+    const char* questionTypes[] = { "likert", "multi", "short", "long", "vas", "inst", "multicheck", "grid", "image", "imageresponse" };
+    ImGui::Combo("Type", &mQuestionEditor.questionType, questionTypes, IM_ARRAYSIZE(questionTypes));
+
+    // Likert-specific fields (only show if type is likert)
+    if (mQuestionEditor.questionType == 0) {  // likert
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Text("Likert Options");
+        ImGui::Spacing();
+
+        ImGui::InputInt("Number of Points", &mQuestionEditor.likertPoints);
+        if (mQuestionEditor.likertPoints < 2) mQuestionEditor.likertPoints = 2;
+        if (mQuestionEditor.likertPoints > 10) mQuestionEditor.likertPoints = 10;
+
+        ImGui::InputInt("Min Value", &mQuestionEditor.likertMin);
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Minimum value (-1 = use scale default)");
+        }
+
+        ImGui::InputInt("Max Value", &mQuestionEditor.likertMax);
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Maximum value (-1 = use scale default)");
+        }
+
+        // Response Options Selection
+        ImGui::Spacing();
+        ImGui::Text("Response Options for this Question");
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Select which response options to use (leave all unchecked to use scale defaults)");
+        }
+
+        // Get scale-level response options
+        auto& scaleLikert = mCurrentScale->GetLikertOptions();
+        auto& scaleLabels = scaleLikert.labels;
+
+        // Get current question's labels (for editing mode)
+        std::vector<std::string> currentLabels;
+        if (mQuestionEditor.editingIndex >= 0) {
+            auto& questions = mCurrentScale->GetQuestions();
+            if (mQuestionEditor.editingIndex < (int)questions.size()) {
+                currentLabels = questions[mQuestionEditor.editingIndex].likert_labels;
+            }
+        }
+
+        // Display checkboxes for each scale-level option
+        if (scaleLabels.empty()) {
+            ImGui::TextColored(ImVec4(0.8f, 0.8f, 0.0f, 1.0f), "No response options defined at scale level.");
+            ImGui::TextWrapped("Go to the Info tab to add response options.");
+        } else {
+            // Initialize selected flags if needed
+            if (mQuestionEditor.selectedResponseOptions.size() != scaleLabels.size()) {
+                mQuestionEditor.selectedResponseOptions.resize(scaleLabels.size(), false);
+                // Initialize from current question's labels
+                for (size_t i = 0; i < scaleLabels.size(); i++) {
+                    mQuestionEditor.selectedResponseOptions[i] = (std::find(currentLabels.begin(), currentLabels.end(), scaleLabels[i]) != currentLabels.end());
+                }
+            }
+
+            for (size_t i = 0; i < scaleLabels.size(); i++) {
+                std::string labelText = mCurrentScale->GetTranslation("en", scaleLabels[i]);
+                std::string displayText = scaleLabels[i] + ": " + labelText;
+                // std::vector<bool> uses proxy references, need a temp variable
+                bool selected = mQuestionEditor.selectedResponseOptions[i];
+                if (ImGui::Checkbox(displayText.c_str(), &selected)) {
+                    mQuestionEditor.selectedResponseOptions[i] = selected;
+                }
+            }
+
+            ImGui::Text("(Leave all unchecked to use all scale-level options)");
+        }
+    }
+
+    // VAS-specific fields (only show if type is vas)
+    if (mQuestionEditor.questionType == 4) {  // vas
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Text("VAS (Visual Analog Scale) Options");
+        ImGui::Spacing();
+
+        ImGui::InputInt("Min Value", &mQuestionEditor.vasMinValue);
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Minimum value for the scale (e.g., 0)");
+        }
+
+        ImGui::InputInt("Max Value", &mQuestionEditor.vasMaxValue);
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Maximum value for the scale (e.g., 100)");
+        }
+
+        ImGui::InputText("Top Label", mQuestionEditor.vasLeftLabel, sizeof(mQuestionEditor.vasLeftLabel));
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Text for top of vertical scale (e.g., 'Extremely')");
+        }
+
+        ImGui::InputText("Bottom Label", mQuestionEditor.vasRightLabel, sizeof(mQuestionEditor.vasRightLabel));
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Text for bottom of vertical scale (e.g., 'Not at all')");
+        }
+    }
+
+    // Multi/multicheck-specific fields (only show if type is multi or multicheck)
+    if (mQuestionEditor.questionType == 1 || mQuestionEditor.questionType == 6) {  // multi or multicheck
+        ImGui::Spacing();
+        ImGui::Separator();
+        const char* typeLabel = (mQuestionEditor.questionType == 1) ? "Multiple Choice" : "Multiple Check";
+        ImGui::Text("%s Options", typeLabel);
+        ImGui::Spacing();
+
+        ImGui::Text("Options (one per line):");
+        ImGui::InputTextMultiline("##MultiOptions", mQuestionEditor.multiOptions, sizeof(mQuestionEditor.multiOptions),
+                                  ImVec2(-FLT_MIN, ImGui::GetTextLineHeight() * 6));
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Enter one option per line. These will become answer choices.");
+        }
+    }
+
+    // Grid-specific fields (only show if type is grid)
+    if (mQuestionEditor.questionType == 7) {  // grid
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Text("Grid Question Options");
+        ImGui::Spacing();
+
+        ImGui::Text("Column Headers (one per line):");
+        ImGui::InputTextMultiline("##GridColumns", mQuestionEditor.gridColumns, sizeof(mQuestionEditor.gridColumns),
+                                  ImVec2(-FLT_MIN, ImGui::GetTextLineHeight() * 3));
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Rating scale labels (e.g., 'Never', 'Sometimes', 'Always')");
+        }
+
+        ImGui::Text("Row Labels/Sub-questions (one per line):");
+        ImGui::InputTextMultiline("##GridRows", mQuestionEditor.gridRows, sizeof(mQuestionEditor.gridRows),
+                                  ImVec2(-FLT_MIN, ImGui::GetTextLineHeight() * 6));
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Sub-questions that will be rated using the column headers");
+        }
+    }
+
+    // Image-specific fields (only show if type is image or imageresponse)
+    if (mQuestionEditor.questionType == 8 || mQuestionEditor.questionType == 9) {  // image or imageresponse
+        ImGui::Spacing();
+        ImGui::Separator();
+        const char* typeLabel = (mQuestionEditor.questionType == 8) ? "Image Display" : "Image Response";
+        ImGui::Text("%s Options", typeLabel);
+        ImGui::Spacing();
+
+        ImGui::InputText("Image Path", mQuestionEditor.imagePath, sizeof(mQuestionEditor.imagePath));
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Path to image file (relative to test directory or absolute)");
+        }
+    }
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    // Buttons
+    const char* buttonLabel = (mQuestionEditor.editingIndex >= 0) ? "Save" : "Add Question";
+    if (ImGui::Button(buttonLabel, ImVec2(120, 0))) {
+        // Validate
+        if (strlen(mQuestionEditor.id) == 0) {
+            printf("Error: Question ID cannot be empty\n");
+        } else if (mQuestionEditor.editingIndex >= 0) {
+            // Update existing question
+            auto& questions = mCurrentScale->GetQuestions();
+            if (mQuestionEditor.editingIndex < (int)questions.size()) {
+                questions[mQuestionEditor.editingIndex].id = mQuestionEditor.id;
+                questions[mQuestionEditor.editingIndex].text_key = strlen(mQuestionEditor.textKey) > 0 ? mQuestionEditor.textKey : mQuestionEditor.id;
+                questions[mQuestionEditor.editingIndex].type = questionTypes[mQuestionEditor.questionType];
+
+                // Update Likert-specific fields if type is likert
+                if (mQuestionEditor.questionType == 0) {  // likert
+                    questions[mQuestionEditor.editingIndex].likert_points = mQuestionEditor.likertPoints;
+                    questions[mQuestionEditor.editingIndex].likert_min = mQuestionEditor.likertMin;
+                    questions[mQuestionEditor.editingIndex].likert_max = mQuestionEditor.likertMax;
+
+                    // Save selected response options
+                    auto& scaleLikert = mCurrentScale->GetLikertOptions();
+                    auto& scaleLabels = scaleLikert.labels;
+                    questions[mQuestionEditor.editingIndex].likert_labels.clear();
+                    bool anySelected = false;
+                    for (size_t i = 0; i < scaleLabels.size() && i < mQuestionEditor.selectedResponseOptions.size(); i++) {
+                        if (mQuestionEditor.selectedResponseOptions[i]) {
+                            questions[mQuestionEditor.editingIndex].likert_labels.push_back(scaleLabels[i]);
+                            anySelected = true;
+                        }
+                    }
+                    // If none selected, clear the labels array to use scale defaults
+                    if (!anySelected) {
+                        questions[mQuestionEditor.editingIndex].likert_labels.clear();
+                    }
+                }
+
+                // Update VAS-specific fields if type is vas
+                if (mQuestionEditor.questionType == 4) {  // vas
+                    questions[mQuestionEditor.editingIndex].min_value = mQuestionEditor.vasMinValue;
+                    questions[mQuestionEditor.editingIndex].max_value = mQuestionEditor.vasMaxValue;
+                    questions[mQuestionEditor.editingIndex].left_label = mQuestionEditor.vasLeftLabel;
+                    questions[mQuestionEditor.editingIndex].right_label = mQuestionEditor.vasRightLabel;
+                }
+
+                // Update Multi/multicheck-specific fields if type is multi or multicheck
+                if (mQuestionEditor.questionType == 1 || mQuestionEditor.questionType == 6) {  // multi or multicheck
+                    // Parse multiline options (split by newlines)
+                    questions[mQuestionEditor.editingIndex].options.clear();
+                    std::string optionsStr = mQuestionEditor.multiOptions;
+                    std::istringstream iss(optionsStr);
+                    std::string line;
+                    while (std::getline(iss, line)) {
+                        // Trim whitespace and skip empty lines
+                        line.erase(0, line.find_first_not_of(" \t\r\n"));
+                        line.erase(line.find_last_not_of(" \t\r\n") + 1);
+                        if (!line.empty()) {
+                            questions[mQuestionEditor.editingIndex].options.push_back(line);
+                        }
+                    }
+                }
+
+                // Update Grid-specific fields if type is grid
+                if (mQuestionEditor.questionType == 7) {  // grid
+                    // Parse column headers
+                    questions[mQuestionEditor.editingIndex].columns.clear();
+                    std::string columnsStr = mQuestionEditor.gridColumns;
+                    std::istringstream colIss(columnsStr);
+                    std::string line;
+                    while (std::getline(colIss, line)) {
+                        line.erase(0, line.find_first_not_of(" \t\r\n"));
+                        line.erase(line.find_last_not_of(" \t\r\n") + 1);
+                        if (!line.empty()) {
+                            questions[mQuestionEditor.editingIndex].columns.push_back(line);
+                        }
+                    }
+
+                    // Parse row labels
+                    questions[mQuestionEditor.editingIndex].rows.clear();
+                    std::string rowsStr = mQuestionEditor.gridRows;
+                    std::istringstream rowIss(rowsStr);
+                    while (std::getline(rowIss, line)) {
+                        line.erase(0, line.find_first_not_of(" \t\r\n"));
+                        line.erase(line.find_last_not_of(" \t\r\n") + 1);
+                        if (!line.empty()) {
+                            questions[mQuestionEditor.editingIndex].rows.push_back(line);
+                        }
+                    }
+                }
+
+                // Update Image-specific fields if type is image or imageresponse
+                if (mQuestionEditor.questionType == 8 || mQuestionEditor.questionType == 9) {  // image or imageresponse
+                    questions[mQuestionEditor.editingIndex].image = mQuestionEditor.imagePath;
+                }
+
+                // Update question text in translation (English)
+                std::string textKey = questions[mQuestionEditor.editingIndex].text_key;
+                std::string questionText = mQuestionEditor.questionText;
+                mCurrentScale->AddTranslation("en", textKey, questionText);
+
+                printf("Updated question: %s (type: %s)\n", questions[mQuestionEditor.editingIndex].id.c_str(), questions[mQuestionEditor.editingIndex].type.c_str());
+                mCurrentScale->SetDirty(true);
+            }
+            mQuestionEditor.show = false;
+        } else {
+            // Create new question
+            ScaleQuestion newQuestion;
+            newQuestion.id = mQuestionEditor.id;
+            newQuestion.text_key = strlen(mQuestionEditor.textKey) > 0 ? mQuestionEditor.textKey : mQuestionEditor.id;
+            newQuestion.type = questionTypes[mQuestionEditor.questionType];
+
+            // Set Likert-specific fields if type is likert
+            if (mQuestionEditor.questionType == 0) {  // likert
+                newQuestion.likert_points = mQuestionEditor.likertPoints;
+                newQuestion.likert_min = mQuestionEditor.likertMin;
+                newQuestion.likert_max = mQuestionEditor.likertMax;
+
+                // Save selected response options
+                auto& scaleLikert = mCurrentScale->GetLikertOptions();
+                auto& scaleLabels = scaleLikert.labels;
+                bool anySelected = false;
+                for (size_t i = 0; i < scaleLabels.size() && i < mQuestionEditor.selectedResponseOptions.size(); i++) {
+                    if (mQuestionEditor.selectedResponseOptions[i]) {
+                        newQuestion.likert_labels.push_back(scaleLabels[i]);
+                        anySelected = true;
+                    }
+                }
+                // If none selected, leave labels empty to use scale defaults
+                if (!anySelected) {
+                    newQuestion.likert_labels.clear();
+                }
+            }
+
+            // Set VAS-specific fields if type is vas
+            if (mQuestionEditor.questionType == 4) {  // vas
+                newQuestion.min_value = mQuestionEditor.vasMinValue;
+                newQuestion.max_value = mQuestionEditor.vasMaxValue;
+                newQuestion.left_label = mQuestionEditor.vasLeftLabel;
+                newQuestion.right_label = mQuestionEditor.vasRightLabel;
+            }
+
+            // Set Multi/multicheck-specific fields if type is multi or multicheck
+            if (mQuestionEditor.questionType == 1 || mQuestionEditor.questionType == 6) {  // multi or multicheck
+                // Parse multiline options (split by newlines)
+                std::string optionsStr = mQuestionEditor.multiOptions;
+                std::istringstream iss(optionsStr);
+                std::string line;
+                while (std::getline(iss, line)) {
+                    // Trim whitespace and skip empty lines
+                    line.erase(0, line.find_first_not_of(" \t\r\n"));
+                    line.erase(line.find_last_not_of(" \t\r\n") + 1);
+                    if (!line.empty()) {
+                        newQuestion.options.push_back(line);
+                    }
+                }
+            }
+
+            // Set Grid-specific fields if type is grid
+            if (mQuestionEditor.questionType == 7) {  // grid
+                // Parse column headers
+                std::string columnsStr = mQuestionEditor.gridColumns;
+                std::istringstream colIss(columnsStr);
+                std::string line;
+                while (std::getline(colIss, line)) {
+                    line.erase(0, line.find_first_not_of(" \t\r\n"));
+                    line.erase(line.find_last_not_of(" \t\r\n") + 1);
+                    if (!line.empty()) {
+                        newQuestion.columns.push_back(line);
+                    }
+                }
+
+                // Parse row labels
+                std::string rowsStr = mQuestionEditor.gridRows;
+                std::istringstream rowIss(rowsStr);
+                while (std::getline(rowIss, line)) {
+                    line.erase(0, line.find_first_not_of(" \t\r\n"));
+                    line.erase(line.find_last_not_of(" \t\r\n") + 1);
+                    if (!line.empty()) {
+                        newQuestion.rows.push_back(line);
+                    }
+                }
+            }
+
+            // Set Image-specific fields if type is image or imageresponse
+            if (mQuestionEditor.questionType == 8 || mQuestionEditor.questionType == 9) {  // image or imageresponse
+                newQuestion.image = mQuestionEditor.imagePath;
+            }
+
+            // Add to scale
+            mCurrentScale->GetQuestions().push_back(newQuestion);
+
+            // Add question text to translation (English)
+            std::string textKey = newQuestion.text_key;
+            std::string questionText = mQuestionEditor.questionText;
+            mCurrentScale->AddTranslation("en", textKey, questionText);
+
+            printf("Added question: %s (type: %s)\n", newQuestion.id.c_str(), newQuestion.type.c_str());
+            mCurrentScale->SetDirty(true);
+
+            mQuestionEditor.show = false;
+        }
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Cancel", ImVec2(120, 0))) {
+        mQuestionEditor.show = false;
+    }
+
+    ImGui::End();
+}
+
+void LauncherUI::ShowBatchImportDialog()
+{
+    if (!mCurrentScale) {
+        mBatchImport.show = false;
+        return;
+    }
+
+    ImGui::SetNextWindowSize(ImVec2(700, 600), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x * 0.5f, ImGui::GetIO().DisplaySize.y * 0.5f), ImGuiCond_FirstUseEver, ImVec2(0.5f, 0.5f));
+
+    if (!ImGui::Begin("Batch Import Questions", &mBatchImport.show, ImGuiWindowFlags_NoCollapse))
+    {
+        ImGui::End();
+        return;
+    }
+
+    ImGui::TextWrapped("Paste your questions below, one per line. Each line will become a separate question.");
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    // Common settings
+    ImGui::Text("Common Settings for All Questions");
+    ImGui::Spacing();
+
+    // ID Prefix
+    ImGui::InputText("ID Prefix", mBatchImport.idPrefix, sizeof(mBatchImport.idPrefix));
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("Will be combined with zero-padded numbers (e.g., 'MOCI' becomes MOCI001, MOCI002, ...)");
+    }
+
+    // Start Number
+    ImGui::InputInt("Start Number", &mBatchImport.startNumber);
+
+    // Question Type
+    const char* questionTypes[] = { "likert", "multi", "short", "long", "vas", "inst", "multicheck", "grid", "image", "imageresponse" };
+    if (ImGui::Combo("Type", &mBatchImport.questionType, questionTypes, IM_ARRAYSIZE(questionTypes))) {
+        // Reset likert config when type changes
+        if (mBatchImport.questionType == 0) {  // likert
+            mBatchImport.likertPreset = 0;
+            mBatchImport.likertPoints = 5;
+        }
+    }
+
+    // Likert-specific configuration (only show if type is likert)
+    if (mBatchImport.questionType == 0) {  // likert
+        ImGui::Spacing();
+        ImGui::Text("Likert Response Options:");
+        ImGui::Indent();
+
+        // Preset dropdown
+        const char* likertPresets[] = {
+            "Custom",
+            "TRUE / FALSE (2-point)",
+            "Disagree / Agree (5-point)",
+            "Strongly Disagree / Strongly Agree (7-point)",
+            "Never / Always (5-point)",
+            "Not at all / Extremely (5-point)"
+        };
+
+        if (ImGui::Combo("Preset", &mBatchImport.likertPreset, likertPresets, IM_ARRAYSIZE(likertPresets))) {
+            // Apply preset values
+            switch (mBatchImport.likertPreset) {
+                case 1:  // TRUE/FALSE
+                    mBatchImport.likertPoints = 2;
+                    std::strncpy(mBatchImport.likertLabels, "TRUE|FALSE", sizeof(mBatchImport.likertLabels) - 1);
+                    break;
+                case 2:  // Agree 5-point
+                    mBatchImport.likertPoints = 5;
+                    std::strncpy(mBatchImport.likertLabels, "Strongly Disagree|Disagree|Neutral|Agree|Strongly Agree", sizeof(mBatchImport.likertLabels) - 1);
+                    break;
+                case 3:  // Agree 7-point
+                    mBatchImport.likertPoints = 7;
+                    std::strncpy(mBatchImport.likertLabels, "Strongly Disagree|Disagree|Somewhat Disagree|Neutral|Somewhat Agree|Agree|Strongly Agree", sizeof(mBatchImport.likertLabels) - 1);
+                    break;
+                case 4:  // Never/Always 5-point
+                    mBatchImport.likertPoints = 5;
+                    std::strncpy(mBatchImport.likertLabels, "Never|Rarely|Sometimes|Often|Always", sizeof(mBatchImport.likertLabels) - 1);
+                    break;
+                case 5:  // Not at all/Extremely 5-point
+                    mBatchImport.likertPoints = 5;
+                    std::strncpy(mBatchImport.likertLabels, "Not at all|A little|Moderately|Quite a bit|Extremely", sizeof(mBatchImport.likertLabels) - 1);
+                    break;
+                default:  // Custom
+                    mBatchImport.likertPoints = 5;
+                    mBatchImport.likertLabels[0] = '\0';
+                    break;
+            }
+            mBatchImport.likertLabels[sizeof(mBatchImport.likertLabels) - 1] = '\0';
+        }
+
+        // Manual configuration
+        ImGui::InputInt("Number of Points", &mBatchImport.likertPoints);
+        if (mBatchImport.likertPoints < 2) mBatchImport.likertPoints = 2;
+        if (mBatchImport.likertPoints > 10) mBatchImport.likertPoints = 10;
+
+        ImGui::InputInt("Min Value", &mBatchImport.likertMin);
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Minimum value for responses (-1 = use default based on points)");
+        }
+
+        ImGui::InputInt("Max Value", &mBatchImport.likertMax);
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Maximum value for responses (-1 = use default based on points)");
+        }
+
+        ImGui::InputText("Response Labels", mBatchImport.likertLabels, sizeof(mBatchImport.likertLabels));
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Pipe-separated labels (e.g., 'True|False' or 'Strongly Disagree|...|Strongly Agree')");
+        }
+
+        ImGui::Unindent();
+        ImGui::Spacing();
+    }
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    // Question text input
+    ImGui::Text("Question Text (one per line):");
+    ImGui::InputTextMultiline("##QuestionText", mBatchImport.questionText, sizeof(mBatchImport.questionText), ImVec2(-1, 250));
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    // Preview count
+    int lineCount = 0;
+    for (int i = 0; mBatchImport.questionText[i] != '\0'; i++) {
+        if (mBatchImport.questionText[i] == '\n') lineCount++;
+    }
+    if (strlen(mBatchImport.questionText) > 0 && mBatchImport.questionText[strlen(mBatchImport.questionText)-1] != '\n') {
+        lineCount++;  // Count last line if it doesn't end with newline
+    }
+    ImGui::Text("Questions to import: %d", lineCount);
+
+    ImGui::Spacing();
+
+    // Buttons
+    if (ImGui::Button("Import Questions", ImVec2(150, 0))) {
+        if (strlen(mBatchImport.idPrefix) == 0) {
+            printf("Error: ID Prefix cannot be empty\n");
+        } else {
+            // Parse questions line by line
+            std::vector<std::string> lines;
+            std::string text(mBatchImport.questionText);
+            size_t start = 0;
+            size_t end = text.find('\n');
+
+            while (end != std::string::npos) {
+                std::string line = text.substr(start, end - start);
+                // Trim whitespace
+                while (!line.empty() && isspace(line.front())) line.erase(0, 1);
+                while (!line.empty() && isspace(line.back())) line.pop_back();
+                if (!line.empty()) {
+                    lines.push_back(line);
+                }
+                start = end + 1;
+                end = text.find('\n', start);
+            }
+
+            // Handle last line
+            if (start < text.length()) {
+                std::string line = text.substr(start);
+                while (!line.empty() && isspace(line.front())) line.erase(0, 1);
+                while (!line.empty() && isspace(line.back())) line.pop_back();
+                if (!line.empty()) {
+                    lines.push_back(line);
+                }
+            }
+
+            // Parse likert labels if this is a likert type
+            std::vector<std::string> likertLabelsList;
+            if (mBatchImport.questionType == 0 && strlen(mBatchImport.likertLabels) > 0) {
+                std::string labelsStr(mBatchImport.likertLabels);
+                size_t start = 0;
+                size_t end = labelsStr.find('|');
+                while (end != std::string::npos) {
+                    likertLabelsList.push_back(labelsStr.substr(start, end - start));
+                    start = end + 1;
+                    end = labelsStr.find('|', start);
+                }
+                // Handle last label
+                if (start < labelsStr.length()) {
+                    likertLabelsList.push_back(labelsStr.substr(start));
+                }
+            }
+
+            // Create questions
+            int questionNumber = mBatchImport.startNumber;
+
+            // Prepare label keys if labels are provided (will be set per-question)
+            std::vector<std::string> labelKeys;
+            if (mBatchImport.questionType == 0 && !likertLabelsList.empty()) {
+                // Create translation keys for response labels
+                for (size_t i = 0; i < likertLabelsList.size(); i++) {
+                    std::string labelKey = std::string(mBatchImport.idPrefix) + "_response_" + std::to_string(i + 1);
+                    labelKeys.push_back(labelKey);
+                    // Add label to translations
+                    mCurrentScale->GetTranslations()["en"][labelKey] = likertLabelsList[i];
+                }
+
+                // Also update scale-level defaults (for questions that don't override)
+                mCurrentScale->GetLikertOptions().points = mBatchImport.likertPoints;
+                mCurrentScale->GetLikertOptions().labels = labelKeys;
+                mCurrentScale->GetLikertOptions().min = mBatchImport.likertMin;
+                mCurrentScale->GetLikertOptions().max = mBatchImport.likertMax;
+            }
+
+            for (const auto& line : lines) {
+                ScaleQuestion newQuestion;
+                // Format question number with 3-digit zero padding (e.g., 001, 002, ..., 010, 011)
+                char numStr[16];
+                snprintf(numStr, sizeof(numStr), "%03d", questionNumber);
+                newQuestion.id = std::string(mBatchImport.idPrefix) + numStr;
+                newQuestion.text_key = newQuestion.id;
+                newQuestion.type = questionTypes[mBatchImport.questionType];
+
+                // Apply likert-specific settings
+                if (mBatchImport.questionType == 0) {  // likert
+                    newQuestion.likert_points = mBatchImport.likertPoints;
+                    newQuestion.likert_min = mBatchImport.likertMin;
+                    newQuestion.likert_max = mBatchImport.likertMax;
+                    // Set labels at question level
+                    newQuestion.likert_labels = labelKeys;
+                }
+
+                mCurrentScale->GetQuestions().push_back(newQuestion);
+
+                // Also add to translations (English)
+                mCurrentScale->GetTranslations()["en"][newQuestion.text_key] = line;
+
+                questionNumber++;
+            }
+
+            printf("Batch imported %zu questions\n", lines.size());
+            mBatchImport.show = false;
+        }
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Cancel", ImVec2(150, 0))) {
+        mBatchImport.show = false;
+    }
+
+    ImGui::End();
+}
+
+void LauncherUI::ShowDimensionEditor()
+{
+    if (!mCurrentScale) {
+        mDimensionEditor.show = false;
+        return;
+    }
+
+    ImGui::SetNextWindowSize(ImVec2(500, 400), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x * 0.5f, ImGui::GetIO().DisplaySize.y * 0.5f), ImGuiCond_FirstUseEver, ImVec2(0.5f, 0.5f));
+
+    bool isEditing = (mDimensionEditor.editingIndex >= 0);
+    const char* windowTitle = isEditing ? "Edit Dimension" : "Add Dimension";
+
+    if (!ImGui::Begin(windowTitle, &mDimensionEditor.show, ImGuiWindowFlags_NoCollapse))
+    {
+        ImGui::End();
+        return;
+    }
+
+    ImGui::Text("Dimension Details");
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    // Dimension ID (read-only when editing to avoid breaking scoring references)
+    if (isEditing) {
+        ImGui::InputText("ID", mDimensionEditor.id, sizeof(mDimensionEditor.id), ImGuiInputTextFlags_ReadOnly);
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("ID cannot be changed after creation (used in scoring references)");
+        }
+    } else {
+        ImGui::InputText("ID", mDimensionEditor.id, sizeof(mDimensionEditor.id));
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Short identifier used in scoring (e.g., 'checking', 'cleaning')");
+        }
+    }
+
+    // Name
+    ImGui::InputText("Name", mDimensionEditor.name, sizeof(mDimensionEditor.name));
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("Full name (e.g., 'Checking Behaviors')");
+    }
+
+    // Abbreviation
+    ImGui::InputText("Abbreviation", mDimensionEditor.abbreviation, sizeof(mDimensionEditor.abbreviation));
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("Short abbreviation (e.g., 'CHK')");
+    }
+
+    // Description
+    ImGui::Spacing();
+    ImGui::Text("Description:");
+    ImGui::InputTextMultiline("##DimDescription", mDimensionEditor.description, sizeof(mDimensionEditor.description), ImVec2(-1, 100));
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    // Buttons
+    const char* okLabel = isEditing ? "Save" : "Create";
+    if (ImGui::Button(okLabel, ImVec2(120, 0))) {
+        // Validate
+        if (strlen(mDimensionEditor.id) == 0) {
+            printf("Error: Dimension ID cannot be empty\n");
+        } else if (strlen(mDimensionEditor.name) == 0) {
+            printf("Error: Dimension name cannot be empty\n");
+        } else if (isEditing) {
+            // Update existing dimension
+            auto& dim = mCurrentScale->GetDimensions()[mDimensionEditor.editingIndex];
+            dim.name = mDimensionEditor.name;
+            dim.abbreviation = mDimensionEditor.abbreviation;
+            dim.description = mDimensionEditor.description;
+            mCurrentScale->SetDirty(true);
+            mDimensionEditor.show = false;
+        } else {
+            // Create new dimension
+            ScaleDimension newDimension;
+            newDimension.id = mDimensionEditor.id;
+            newDimension.name = mDimensionEditor.name;
+            newDimension.abbreviation = mDimensionEditor.abbreviation;
+            newDimension.description = mDimensionEditor.description;
+
+            mCurrentScale->GetDimensions().push_back(newDimension);
+            mCurrentScale->SetDirty(true);
+            printf("Added dimension: %s (%s)\n", newDimension.name.c_str(), newDimension.id.c_str());
+
+            mDimensionEditor.show = false;
+        }
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Cancel", ImVec2(120, 0))) {
+        mDimensionEditor.show = false;
+    }
+
+    ImGui::End();
+}
+
+void LauncherUI::ShowCorrectAnswersEditor()
+{
+    if (!mCurrentScale) {
+        mCorrectAnswersEditor.show = false;
+        return;
+    }
+
+    ImGui::SetNextWindowSize(ImVec2(800, 500), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x * 0.5f, ImGui::GetIO().DisplaySize.y * 0.5f),
+                            ImGuiCond_FirstUseEver, ImVec2(0.5f, 0.5f));
+
+    std::string title = "Correct Answers: " + mCorrectAnswersEditor.questionId;
+    if (!ImGui::Begin(title.c_str(), &mCorrectAnswersEditor.show, ImGuiWindowFlags_NoCollapse))
+    {
+        ImGui::End();
+        return;
+    }
+
+    // Compact header: question context + instructions side by side
+    ImGui::TextWrapped("Q: %s", mCorrectAnswersEditor.questionText.c_str());
+    ImGui::SameLine();
+    ImGui::TextDisabled("(%s)", mCorrectAnswersEditor.questionType.c_str());
+
+    if (mCorrectAnswersEditor.questionType == "multicheck") {
+        ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.3f, 1.0f),
+            "Multicheck: enter the set of options that should all be selected.");
+    } else if (mCorrectAnswersEditor.questionType == "grid") {
+        ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.3f, 1.0f),
+            "Grid: enter one correct value per row (column number, 1-based).");
+    } else {
+        ImGui::TextDisabled("Response is correct if it matches ANY entry below.  "
+                            "Use * for any chars, ? for single char.  Case-insensitive by default.");
+    }
+
+    ImGui::Separator();
+
+    // Answer list header
+    float matchCaseWidth = 80.0f;
+    float removeWidth = 60.0f;
+    float spacing = ImGui::GetStyle().ItemSpacing.x;
+
+    // Column labels
+    ImGui::Text("Answer / Pattern");
+    ImGui::SameLine(ImGui::GetContentRegionAvail().x - matchCaseWidth - removeWidth - spacing);
+    ImGui::Text("Aa");
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("Match case: when checked, comparison is case-sensitive");
+    }
+
+    // Scrollable answer list
+    int removeIndex = -1;
+
+    ImGui::BeginChild("AnswerList", ImVec2(0, -35), true);
+    for (size_t i = 0; i < mCorrectAnswersEditor.answers.size(); i++) {
+        ImGui::PushID((int)i);
+
+        // Input field
+        char buf[512];
+        std::strncpy(buf, mCorrectAnswersEditor.answers[i].c_str(), sizeof(buf) - 1);
+        buf[sizeof(buf) - 1] = '\0';
+
+        float inputWidth = ImGui::GetContentRegionAvail().x - matchCaseWidth - removeWidth - spacing * 2;
+        ImGui::SetNextItemWidth(inputWidth);
+        if (ImGui::InputText("##ans", buf, sizeof(buf))) {
+            mCorrectAnswersEditor.answers[i] = buf;
+        }
+
+        // Match case checkbox
+        ImGui::SameLine();
+        // Ensure caseSensitive vector is in sync
+        while (mCorrectAnswersEditor.caseSensitive.size() <= i) {
+            mCorrectAnswersEditor.caseSensitive.push_back(false);
+        }
+        bool cs = mCorrectAnswersEditor.caseSensitive[i];
+        if (ImGui::Checkbox("Match##cs", &cs)) {
+            mCorrectAnswersEditor.caseSensitive[i] = cs;
+        }
+
+        // Remove button
+        ImGui::SameLine();
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.6f, 0.2f, 0.2f, 1.0f));
+        if (ImGui::Button("X", ImVec2(25, 0))) {
+            removeIndex = (int)i;
+        }
+        ImGui::PopStyleColor();
+
+        ImGui::PopID();
+    }
+    ImGui::EndChild();
+
+    // Remove the marked item (outside the loop)
+    if (removeIndex >= 0) {
+        mCorrectAnswersEditor.answers.erase(mCorrectAnswersEditor.answers.begin() + removeIndex);
+        if (removeIndex < static_cast<int>(mCorrectAnswersEditor.caseSensitive.size())) {
+            mCorrectAnswersEditor.caseSensitive.erase(mCorrectAnswersEditor.caseSensitive.begin() + removeIndex);
+        }
+    }
+
+    // Bottom buttons
+    if (ImGui::Button("+ Add")) {
+        mCorrectAnswersEditor.answers.push_back("");
+        mCorrectAnswersEditor.caseSensitive.push_back(false);
+    }
+
+    ImGui::SameLine(ImGui::GetContentRegionAvail().x - 160);
+
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.6f, 0.2f, 1.0f));
+    if (ImGui::Button("OK", ImVec2(70, 0))) {
+        // Save answers back to scoring data, reconstructing (?c) prefix
+        auto& scoring = mCurrentScale->GetScoring();
+        auto it = scoring.find(mCorrectAnswersEditor.dimensionId);
+        if (it != scoring.end()) {
+            std::vector<std::string> cleaned;
+            for (size_t i = 0; i < mCorrectAnswersEditor.answers.size(); i++) {
+                const auto& ans = mCorrectAnswersEditor.answers[i];
+                if (!ans.empty()) {
+                    bool cs = (i < mCorrectAnswersEditor.caseSensitive.size()) && mCorrectAnswersEditor.caseSensitive[i];
+                    if (cs) {
+                        cleaned.push_back("(?c)" + ans);
+                    } else {
+                        cleaned.push_back(ans);
+                    }
+                }
+            }
+            if (cleaned.empty()) {
+                it->second.correct_answers.erase(mCorrectAnswersEditor.questionId);
+            } else {
+                it->second.correct_answers[mCorrectAnswersEditor.questionId] = cleaned;
+            }
+            mCurrentScale->SetDirty(true);
+        }
+        mCorrectAnswersEditor.show = false;
+    }
+    ImGui::PopStyleColor();
+
+    ImGui::SameLine();
+    if (ImGui::Button("Cancel", ImVec2(70, 0))) {
+        mCorrectAnswersEditor.show = false;
+    }
+
+    ImGui::End();
+}
+
+void LauncherUI::ShowCreateStudyFromScaleDialog()
+{
+    // If in scale-selection mode, we need mWorkspace but not mCurrentScale
+    // If not in scale-selection mode, we need both
+    if (!mWorkspace) {
+        mCreateStudyDialog.show = false;
+        return;
+    }
+
+    if (!mCreateStudyDialog.needScaleSelection && !mCurrentScale) {
+        mCreateStudyDialog.show = false;
+        return;
+    }
+
+    ImGui::SetNextWindowSize(ImVec2(500, 350), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x * 0.5f, ImGui::GetIO().DisplaySize.y * 0.5f), ImGuiCond_FirstUseEver, ImVec2(0.5f, 0.5f));
+
+    if (!ImGui::Begin("Add Scale to Study", &mCreateStudyDialog.show, ImGuiWindowFlags_NoCollapse))
+    {
+        ImGui::End();
+        return;
+    }
+
+    ImGui::Text("Add this scale as a test in a study.");
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    // Scale selection (if needed - when opened from Study Bar)
+    if (mCreateStudyDialog.needScaleSelection) {
+        ImGui::Text("Select Scale:");
+        const char* currentScaleName = (mCreateStudyDialog.selectedScaleIndex >= 0 &&
+                                        mCreateStudyDialog.selectedScaleIndex < (int)mScaleList.size())
+                                        ? mScaleList[mCreateStudyDialog.selectedScaleIndex].c_str()
+                                        : "Select a scale...";
+
+        if (ImGui::BeginCombo("##ScaleSelect", currentScaleName)) {
+            for (size_t i = 0; i < mScaleList.size(); i++) {
+                bool is_selected = (mCreateStudyDialog.selectedScaleIndex == (int)i);
+                if (ImGui::Selectable(mScaleList[i].c_str(), is_selected)) {
+                    mCreateStudyDialog.selectedScaleIndex = i;
+                    std::strncpy(mCreateStudyDialog.studyName, mScaleList[i].c_str(),
+                                sizeof(mCreateStudyDialog.studyName) - 1);
+                    mCreateStudyDialog.studyName[sizeof(mCreateStudyDialog.studyName) - 1] = '\0';
+                    mCreateStudyDialog.confirmOverwrite = false;
+                    mCreateStudyDialog.errorMessage[0] = '\0';
+                }
+                if (is_selected) {
+                    ImGui::SetItemDefaultFocus();
+                }
+            }
+            ImGui::EndCombo();
+        }
+        ImGui::Spacing();
+    }
+
+    // Mode selector: Create New Study vs Add to Existing Study
+    if (ImGui::RadioButton("Create new study", !mCreateStudyDialog.addToExisting)) {
+        mCreateStudyDialog.addToExisting = false;
+        mCreateStudyDialog.errorMessage[0] = '\0';
+        mCreateStudyDialog.confirmOverwrite = false;
+    }
+    ImGui::SameLine();
+    if (ImGui::RadioButton("Add to existing study", mCreateStudyDialog.addToExisting)) {
+        mCreateStudyDialog.addToExisting = true;
+        mCreateStudyDialog.errorMessage[0] = '\0';
+        mCreateStudyDialog.confirmOverwrite = false;
+    }
+
+    ImGui::Spacing();
+
+    if (mCreateStudyDialog.addToExisting) {
+        // Existing study dropdown
+        ImGui::Text("Select Study:");
+        const char* currentStudyName = (mCreateStudyDialog.selectedStudyIndex >= 0 &&
+                                        mCreateStudyDialog.selectedStudyIndex < (int)mStudyList.size())
+                                        ? mStudyList[mCreateStudyDialog.selectedStudyIndex].c_str()
+                                        : "Select a study...";
+
+        if (ImGui::BeginCombo("##ExistingStudySelect", currentStudyName)) {
+            for (size_t i = 0; i < mStudyList.size(); i++) {
+                bool is_selected = (mCreateStudyDialog.selectedStudyIndex == (int)i);
+                if (ImGui::Selectable(mStudyList[i].c_str(), is_selected)) {
+                    mCreateStudyDialog.selectedStudyIndex = (int)i;
+                    mCreateStudyDialog.errorMessage[0] = '\0';
+                }
+                if (is_selected) {
+                    ImGui::SetItemDefaultFocus();
+                }
+            }
+            ImGui::EndCombo();
+        }
+    } else {
+        // New study name input
+        ImGui::Text("Study Name:");
+        if (ImGui::InputText("##StudyName", mCreateStudyDialog.studyName, sizeof(mCreateStudyDialog.studyName))) {
+            mCreateStudyDialog.confirmOverwrite = false;
+            mCreateStudyDialog.errorMessage[0] = '\0';
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("The name of the study directory to create in my_studies/");
+        }
+    }
+
+    ImGui::Spacing();
+
+    // Show error message if any
+    if (strlen(mCreateStudyDialog.errorMessage) > 0) {
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.2f, 0.2f, 1.0f));
+        ImGui::TextWrapped("%s", mCreateStudyDialog.errorMessage);
+        ImGui::PopStyleColor();
+        ImGui::Spacing();
+    }
+
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    // Action button
+    const char* buttonText = mCreateStudyDialog.addToExisting ? "Add" :
+                             (mCreateStudyDialog.confirmOverwrite ? "Update" : "Create");
+    if (ImGui::Button(buttonText, ImVec2(120, 0))) {
+        // Load the scale if needed
+        std::shared_ptr<ScaleDefinition> scaleToUse = mCurrentScale;
+        if (mCreateStudyDialog.needScaleSelection) {
+            if (mCreateStudyDialog.selectedScaleIndex < 0) {
+                std::strncpy(mCreateStudyDialog.errorMessage, "Please select a scale first.",
+                            sizeof(mCreateStudyDialog.errorMessage) - 1);
+                scaleToUse = nullptr;
+            } else {
+                std::string scaleCode = mScaleList[mCreateStudyDialog.selectedScaleIndex];
+                scaleToUse = mScaleManager->LoadScale(scaleCode);
+                if (!scaleToUse) {
+                    std::strncpy(mCreateStudyDialog.errorMessage, "Failed to load selected scale.",
+                                sizeof(mCreateStudyDialog.errorMessage) - 1);
+                }
+            }
+        }
+
+        if (scaleToUse) {
+            if (mCreateStudyDialog.addToExisting) {
+                // Add to existing study
+                if (mCreateStudyDialog.selectedStudyIndex < 0 ||
+                    mCreateStudyDialog.selectedStudyIndex >= (int)mStudyList.size()) {
+                    std::strncpy(mCreateStudyDialog.errorMessage, "Please select a study.",
+                                sizeof(mCreateStudyDialog.errorMessage) - 1);
+                } else {
+                    std::string studyDir = mStudyList[mCreateStudyDialog.selectedStudyIndex];
+                    std::string studyPath = mWorkspace->GetStudiesPath() + "/" + studyDir;
+
+                    if (mScaleManager->AddScaleToStudy(scaleToUse, studyPath)) {
+                        printf("Scale '%s' added to study '%s'\n",
+                               scaleToUse->GetScaleInfo().code.c_str(), studyDir.c_str());
+
+                        // Also add to "Main" chain if it exists
+                        std::string mainChainPath = studyPath + "/chains/Main.json";
+                        if (fs::exists(mainChainPath)) {
+                            ChainItem item(ItemType::Test);
+                            item.testName = scaleToUse->GetScaleInfo().code;
+                            item.paramVariant = "default";
+                            item.language = "en";
+                            item.randomGroup = 0;
+
+                            if (mCurrentChain && mCurrentChain->GetFilePath() == mainChainPath) {
+                                mCurrentChain->AddItem(item);
+                                mCurrentChain->Save();
+                                printf("Added scale to Main chain (current chain)\n");
+                            } else {
+                                auto mainChain = Chain::LoadFromFile(mainChainPath);
+                                if (mainChain) {
+                                    mainChain->AddItem(item);
+                                    mainChain->Save();
+                                    printf("Added scale to Main chain\n");
+                                }
+                            }
+                        }
+
+                        mCreateStudyDialog.show = false;
+                        mStudyList = mWorkspace->GetStudyDirectories();
+                    } else {
+                        std::strncpy(mCreateStudyDialog.errorMessage,
+                                    "Failed to add scale to study. Check console for details.",
+                                    sizeof(mCreateStudyDialog.errorMessage) - 1);
+                    }
+                }
+            } else {
+                // Create new study
+                if (strlen(mCreateStudyDialog.studyName) == 0) {
+                    std::strncpy(mCreateStudyDialog.errorMessage, "Study name cannot be empty.",
+                                sizeof(mCreateStudyDialog.errorMessage) - 1);
+                } else {
+                    std::string studyPath = mWorkspace->GetStudiesPath() + "/" + std::string(mCreateStudyDialog.studyName);
+                    if (fs::exists(studyPath) && !mCreateStudyDialog.confirmOverwrite) {
+                        std::string warnMsg = "Study '" + std::string(mCreateStudyDialog.studyName) + "' already exists. Click Update to overwrite it.";
+                        std::strncpy(mCreateStudyDialog.errorMessage, warnMsg.c_str(),
+                                    sizeof(mCreateStudyDialog.errorMessage) - 1);
+                        mCreateStudyDialog.errorMessage[sizeof(mCreateStudyDialog.errorMessage) - 1] = '\0';
+                        mCreateStudyDialog.confirmOverwrite = true;
+                    } else {
+                        std::string customName = std::string(mCreateStudyDialog.studyName);
+                        if (mScaleManager->CreateStudyFromScale(scaleToUse, mWorkspace->GetStudiesPath(), customName)) {
+                            printf("Scale study '%s' created successfully in my_studies/\n", mCreateStudyDialog.studyName);
+                            mCreateStudyDialog.show = false;
+                            mCreateStudyDialog.confirmOverwrite = false;
+                            mStudyList = mWorkspace->GetStudyDirectories();
+                        } else {
+                            std::strncpy(mCreateStudyDialog.errorMessage,
+                                        "Failed to create study. Check console for details.",
+                                        sizeof(mCreateStudyDialog.errorMessage) - 1);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Cancel", ImVec2(120, 0))) {
+        mCreateStudyDialog.show = false;
+        mCreateStudyDialog.confirmOverwrite = false;
+    }
+
+    ImGui::End();
+}
+
+void LauncherUI::TestCurrentScale()
+{
+    if (!mCurrentScale) {
+        printf("Error: No scale loaded to test\n");
+        return;
+    }
+
+    if (!mWorkspace) {
+        printf("Error: No workspace loaded\n");
+        return;
+    }
+
+    // Save the scale first
+    if (!mScaleManager->SaveScale(mCurrentScale)) {
+        printf("Error: Failed to save scale before testing\n");
+        return;
+    }
+
+    printf("Testing scale: %s\n", mCurrentScale->GetScaleInfo().code.c_str());
+
+    try {
+        std::string scaleCode = mCurrentScale->GetScaleInfo().code;
+
+        // Create temp directory in workspace: workspace/temp/scale-test-{code}/
+        std::string tempDir = mWorkspace->GetWorkspacePath() + "/temp/scale-test-" + scaleCode;
+
+        // Remove old temp directory if it exists
+        if (fs::exists(tempDir)) {
+            fs::remove_all(tempDir);
+        }
+
+        // Create temp directory structure with per-scale subdirectory
+        fs::create_directories(tempDir);
+        std::string scaleSubDir = tempDir + "/" + scaleCode;
+        fs::create_directories(scaleSubDir);
+        fs::create_directories(tempDir + "/params");
+        fs::create_directories(tempDir + "/data");
+
+        printf("Created temp test directory: %s\n", tempDir.c_str());
+
+        // Copy ScaleRunner.pbl to temp directory
+        std::string scaleRunnerSource = mBatteryPath + "/../media/apps/scales/ScaleRunner.pbl";
+        std::string scaleRunnerDest = tempDir + "/" + scaleCode + ".pbl";
+
+        if (!fs::exists(scaleRunnerSource)) {
+            printf("Error: ScaleRunner.pbl not found at: %s\n", scaleRunnerSource.c_str());
+            return;
+        }
+
+        fs::copy_file(scaleRunnerSource, scaleRunnerDest, fs::copy_options::overwrite_existing);
+        printf("Copied ScaleRunner.pbl\n");
+
+        // Export scale definition and translations to per-scale subdirectory
+        if (!mCurrentScale->ExportToJSON(scaleSubDir, scaleSubDir)) {
+            printf("Error: Failed to export scale files\n");
+            return;
+        }
+
+        printf("Exported scale definition and translations\n");
+
+        // Create parameter file (same pattern as study tests)
+        std::string paramFileName = scaleCode + ".pbl.par.json";
+        std::string paramFilePath = tempDir + "/params/" + paramFileName;
+        nlohmann::json paramJson = {
+            {"scale", scaleCode},
+            {"shuffle_questions", 0}
+        };
+
+        std::ofstream paramFile(paramFilePath);
+        if (paramFile.is_open()) {
+            paramFile << paramJson.dump(2);
+            paramFile.close();
+            printf("Created parameter file: %s\n", paramFileName.c_str());
+        }
+
+        printf("Preparing to test scale...\n");
+
+        // Create experiment runner
+        if (mRunningExperiment) {
+            if (mRunningExperiment->IsRunning()) {
+                printf("Warning: Previous test still running\n");
+                return;
+            }
+            delete mRunningExperiment;
+            mRunningExperiment = nullptr;
+        }
+
+        // Run the test using --pfile to pass the parameter file
+        // (PEBL prepends "params/" to the --pfile argument)
+        mRunningExperiment = new ExperimentRunner(mConfig);
+        std::vector<std::string> args = {
+            "--pfile", paramFileName,
+            "--windowed"
+        };
+
+        bool success = mRunningExperiment->RunExperiment(scaleRunnerDest, args,
+                                                          ("TEST_" + scaleCode).c_str(),
+                                                          "en", false);
+
+        if (success) {
+            printf("Scale test started successfully\n");
+            printf("Working directory: %s\n", tempDir.c_str());
+            printf("Data will be saved to: %s/data/\n", tempDir.c_str());
+            mShowStderr = false;  // Start showing stdout
+        } else {
+            printf("Failed to run scale test\n");
+            delete mRunningExperiment;
+            mRunningExperiment = nullptr;
+        }
+
+    } catch (const std::exception& e) {
+        printf("Exception while testing scale: %s\n", e.what());
+    }
+}
+
+void LauncherUI::ShowSnapshotCreatedDialog()
+{
+    ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+    ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+    ImGui::SetNextWindowSize(ImVec2(650, 300), ImGuiCond_FirstUseEver);
+
+    if (!ImGui::Begin("Snapshot Created", &mShowSnapshotCreated, ImGuiWindowFlags_NoCollapse))
+    {
+        ImGui::End();
+        return;
+    }
+
+    ImGui::TextColored(ImVec4(0.2f, 0.8f, 0.2f, 1.0f), "✓ Snapshot created successfully!");
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    // Show snapshot info
+    ImGui::Text("Snapshot Name:");
+    ImGui::SameLine();
+    ImGui::TextColored(ImVec4(0.4f, 0.7f, 1.0f, 1.0f), "%s", mLastSnapshotName);
+
+    ImGui::Spacing();
+
+    ImGui::Text("Location:");
+    ImGui::TextWrapped("%s", mLastSnapshotPath);
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    ImGui::TextWrapped("This snapshot excludes data/ directories and is ready to upload to PEBLHub or share with others.");
+    ImGui::Spacing();
+
+    // Buttons
+    if (ImGui::Button("Open in File Manager", ImVec2(200, 0))) {
+        OpenDirectoryInFileBrowser(std::string(mLastSnapshotPath));
+    }
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("Open the snapshot directory in your file manager");
+    }
+
+    ImGui::SameLine();
+
+    // Create ZIP button
+    if (ImGui::Button("Create ZIP", ImVec2(150, 0))) {
+        // Create ZIP file from snapshot
+        std::string zipPath = std::string(mLastSnapshotPath) + ".zip";
+        printf("Creating ZIP file: %s\n", zipPath.c_str());
+
+        // Use zip command (cross-platform via shell)
+#ifdef _WIN32
+        // Windows: Use PowerShell Compress-Archive
+        std::string command = "powershell -Command \"Compress-Archive -Path '" +
+                             std::string(mLastSnapshotPath) + "' -DestinationPath '" +
+                             zipPath + "' -Force\"";
+#else
+        // Linux/Mac: Use zip command
+        std::string command = "cd \"" + fs::path(mLastSnapshotPath).parent_path().string() + "\" && " +
+                             "zip -r \"" + fs::path(zipPath).filename().string() + "\" \"" +
+                             fs::path(mLastSnapshotPath).filename().string() + "\"";
+#endif
+
+        printf("Running: %s\n", command.c_str());
+        int result = system(command.c_str());
+
+        if (result == 0) {
+            printf("ZIP file created: %s\n", zipPath.c_str());
+            // Show success message
+            ImGui::OpenPopup("ZIP Created");
+        } else {
+            printf("Failed to create ZIP file (exit code: %d)\n", result);
+            ImGui::OpenPopup("ZIP Failed");
+        }
+    }
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("Create a ZIP file from this snapshot for easy sharing/upload");
+    }
+
+    ImGui::SameLine();
+
+    if (ImGui::Button("Close", ImVec2(100, 0))) {
+        mShowSnapshotCreated = false;
+    }
+
+    // Success/failure popups for ZIP creation
+    if (ImGui::BeginPopupModal("ZIP Created", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::TextColored(ImVec4(0.2f, 0.8f, 0.2f, 1.0f), "ZIP file created successfully!");
+        ImGui::Text("Location: %s.zip", mLastSnapshotPath);
+        ImGui::Spacing();
+        if (ImGui::Button("OK", ImVec2(120, 0))) {
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::EndPopup();
+    }
+
+    if (ImGui::BeginPopupModal("ZIP Failed", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::TextColored(ImVec4(1.0f, 0.3f, 0.3f, 1.0f), "Failed to create ZIP file");
+        ImGui::Text("You can manually ZIP the snapshot directory:");
+        ImGui::TextWrapped("%s", mLastSnapshotPath);
+        ImGui::Spacing();
+        if (ImGui::Button("OK", ImVec2(120, 0))) {
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::EndPopup();
+    }
+
+    ImGui::End();
 }

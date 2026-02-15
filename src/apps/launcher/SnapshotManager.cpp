@@ -363,11 +363,7 @@ bool SnapshotManager::ConvertSnapshotFormat(const std::string& studyPath) {
         }
         launcherJson["version"] = versionInt;
 
-        // Try to extract token and upload URL from first test's upload.json
-        std::string studyToken = "";
-        std::string uploadServerUrl = "";
-
-        // Convert tests array and look for upload.json
+        // Convert tests array
         json testsArray = json::array();
         if (platformJson.contains("tests") && platformJson["tests"].is_array()) {
             for (const auto& platformTest : platformJson["tests"]) {
@@ -412,47 +408,14 @@ bool SnapshotManager::ConvertSnapshotFormat(const std::string& studyPath) {
                 launcherTest["parameter_variants"] = paramVariants;
 
                 testsArray.push_back(launcherTest);
-
-                // Try to read upload.json from this test if we haven't found token yet
-                if (studyToken.empty() && !testId.empty()) {
-                    std::string uploadJsonPath = studyPath + "/tests/" + testId + "/upload.json";
-                    std::ifstream uploadFile(uploadJsonPath);
-                    if (uploadFile.is_open()) {
-                        try {
-                            json uploadJson;
-                            uploadFile >> uploadJson;
-                            uploadFile.close();
-
-                            // Extract token
-                            if (uploadJson.contains("token") && !uploadJson["token"].is_null()) {
-                                studyToken = uploadJson["token"].get<std::string>();
-                            }
-
-                            // Construct upload URL from host/port/page
-                            if (uploadJson.contains("host") && !uploadJson["host"].is_null()) {
-                                std::string host = uploadJson["host"].get<std::string>();
-                                int port = uploadJson.value("port", 443);
-                                std::string page = uploadJson.value("page", "/scripts/uploadPEBL_token.php");
-
-                                // Build URL: https://host:port or https://host if port is 443
-                                if (port == 443) {
-                                    uploadServerUrl = "https://" + host;
-                                } else {
-                                    uploadServerUrl = "https://" + host + ":" + std::to_string(port);
-                                }
-                                printf("Found upload config: token=%s, url=%s\n", studyToken.c_str(), uploadServerUrl.c_str());
-                            }
-                        } catch (const std::exception& e) {
-                            printf("Warning: Could not parse upload.json: %s\n", e.what());
-                        }
-                    }
-                }
             }
         }
         launcherJson["tests"] = testsArray;
 
-        launcherJson["study_token"] = studyToken;
-        launcherJson["upload_server_url"] = uploadServerUrl;
+        // Upload config must be set intentionally via Study Settings;
+        // do not auto-populate from upload.json files in test directories
+        launcherJson["study_token"] = "";
+        launcherJson["upload_server_url"] = "";
         launcherJson["created_date"] = platformJson.value("created_at", "");
         launcherJson["modified_date"] = platformJson.value("created_at", "");
 

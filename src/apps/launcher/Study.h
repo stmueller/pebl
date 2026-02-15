@@ -64,6 +64,7 @@ public:
     const std::string& GetAuthor() const { return mAuthor; }
     const std::string& GetStudyToken() const { return mStudyToken; }
     const std::string& GetUploadServerURL() const { return mUploadServerURL; }
+    bool GetUploadEnabled() const { return mUploadEnabled; }
     const std::string& GetCreatedDate() const { return mCreatedDate; }
     const std::string& GetModifiedDate() const { return mModifiedDate; }
     const std::string& GetPath() const { return mPath; }
@@ -78,6 +79,7 @@ public:
     void SetAuthor(const std::string& author) { mAuthor = author; UpdateModifiedDate(); }
     void SetStudyToken(const std::string& token) { mStudyToken = token; UpdateModifiedDate(); }
     void SetUploadServerURL(const std::string& url) { mUploadServerURL = url; UpdateModifiedDate(); }
+    void SetUploadEnabled(bool enabled) { mUploadEnabled = enabled; UpdateModifiedDate(); }
     void IncrementVersion() { mVersion++; UpdateModifiedDate(); }
 
     // Test management
@@ -123,6 +125,7 @@ private:
     std::string mUploadServerURL; // Server URL for uploading (e.g., https://pebl.example.com)
     std::string mCreatedDate;    // ISO 8601
     std::string mModifiedDate;   // ISO 8601
+    bool mUploadEnabled;
     std::vector<Test> mTests;
 };
 

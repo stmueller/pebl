@@ -137,13 +137,13 @@ LauncherConfig::LauncherConfig()
 #endif
         }
     } else {
-        // Installed mode: use Documents/pebl-exp.2.3/
+        // Installed mode: use Documents/pebl-exp.VERSION/
         std::string documentsPath = GetDocumentsPath();
         if (!documentsPath.empty()) {
 #ifdef _WIN32
-            mWorkspacePath = documentsPath + "\\pebl-exp.2.3";
+            mWorkspacePath = documentsPath + "\\pebl-exp." + PEBL_VERSION;
 #else
-            mWorkspacePath = documentsPath + "/pebl-exp.2.3";
+            mWorkspacePath = documentsPath + "/pebl-exp." + PEBL_VERSION;
 #endif
         }
 
@@ -209,11 +209,13 @@ std::string LauncherConfig::DetectPEBLInstallation() const
 
         if (stat(peblBattery, &st) == 0 && S_ISDIR(st.st_mode)) {
             printf("Found PEBL battery in portable mode: %s\n", peblBattery);
+            fflush(stdout);
             return peblBattery;
         }
 
         if (stat(parentPeblBattery, &st) == 0 && S_ISDIR(st.st_mode)) {
             printf("Found PEBL battery in portable mode: %s\n", parentPeblBattery);
+            fflush(stdout);
             return parentPeblBattery;
         }
     }
@@ -336,13 +338,13 @@ std::string LauncherConfig::GetConfigFilePath() const
 #endif
     }
 
-    // Store config file in Documents/pebl-exp.2.3/settings/launcher.cfg
+    // Store config file in Documents/pebl-exp.VERSION/settings/launcher.cfg
     std::string documentsPath = GetDocumentsPath();
     if (!documentsPath.empty()) {
 #ifdef _WIN32
-        return documentsPath + "\\pebl-exp.2.3\\settings\\launcher.cfg";
+        return documentsPath + "\\pebl-exp." + PEBL_VERSION + "\\settings\\launcher.cfg";
 #else
-        return documentsPath + "/pebl-exp.2.3/settings/launcher.cfg";
+        return documentsPath + "/pebl-exp." + PEBL_VERSION + "/settings/launcher.cfg";
 #endif
     }
 

@@ -18,6 +18,8 @@ class Chain;
 class ChainItem;
 class WorkspaceManager;
 class SnapshotManager;
+class ScaleDefinition;
+class ScaleManager;
 
 struct ExperimentInfo {
     std::string path;
@@ -81,6 +83,127 @@ struct TranslationEditorState {
     }
 };
 
+// Question editor dialog state
+struct QuestionEditorState {
+    bool show;
+    int editingIndex;  // -1 for new, >= 0 for editing existing
+    char id[64];
+    char textKey[64];
+    char questionText[2048];  // Actual question text (from translation)
+    int questionType;  // 0=likert, 1=multi, 2=multicheck, 3=vas, 4=short, 5=long
+
+    // Likert-specific fields
+    int likertPoints;
+    int likertMin;
+    int likertMax;
+    std::vector<bool> selectedResponseOptions;  // Tracks which scale-level options are selected
+
+    // VAS-specific fields
+    int vasMinValue;
+    int vasMaxValue;
+    char vasLeftLabel[256];
+    char vasRightLabel[256];
+
+    // Multi/multicheck-specific fields
+    char multiOptions[4096];  // Pipe-separated list of options (one per line for editing)
+
+    // Grid-specific fields
+    char gridColumns[2048];  // Column headers (one per line)
+    char gridRows[4096];     // Row labels/sub-questions (one per line)
+
+    // Image-specific fields
+    char imagePath[512];     // Path to image file
+
+    QuestionEditorState() : show(false), editingIndex(-1), questionType(0),
+                           likertPoints(5), likertMin(-1), likertMax(-1),
+                           vasMinValue(0), vasMaxValue(100) {
+        id[0] = '\0';
+        textKey[0] = '\0';
+        questionText[0] = '\0';
+        vasLeftLabel[0] = '\0';
+        vasRightLabel[0] = '\0';
+        multiOptions[0] = '\0';
+        gridColumns[0] = '\0';
+        gridRows[0] = '\0';
+        imagePath[0] = '\0';
+    }
+};
+
+// Dimension editor dialog state
+struct DimensionEditorState {
+    bool show;
+    int editingIndex;  // -1 for new, >= 0 for editing existing
+    char id[64];
+    char name[256];
+    char abbreviation[64];
+    char description[512];
+
+    DimensionEditorState() : show(false), editingIndex(-1) {
+        id[0] = '\0';
+        name[0] = '\0';
+        abbreviation[0] = '\0';
+        description[0] = '\0';
+    }
+};
+
+// Batch import dialog state
+struct BatchImportState {
+    bool show;
+    char questionText[8192];  // Multiline input for questions
+    char idPrefix[64];        // e.g., "moci"
+    char dimension[64];       // Common dimension
+    int questionType;         // Type for all questions
+    int codingMode;           // 0=all normal, 1=all reverse, 2=alternating
+    int startNumber;          // Starting number for IDs (e.g., 1)
+
+    // Likert-specific configuration
+    int likertPreset;         // 0=custom, 1=TRUE/FALSE, 2=Agree5, 3=Agree7, etc.
+    int likertPoints;         // Number of response options
+    int likertMin;            // Minimum value (-1 = use default)
+    int likertMax;            // Maximum value (-1 = use default)
+    char likertLabels[512];   // Pipe-separated labels (e.g., "True|False")
+
+    BatchImportState() : show(false), questionType(0), codingMode(0), startNumber(1),
+                         likertPreset(0), likertPoints(5), likertMin(-1), likertMax(-1) {
+        questionText[0] = '\0';
+        idPrefix[0] = '\0';
+        dimension[0] = '\0';
+        likertLabels[0] = '\0';
+    }
+};
+
+// Correct answers editor dialog state (for sum_correct scoring)
+struct CorrectAnswersEditorState {
+    bool show;
+    std::string questionId;       // Which question we're editing answers for
+    std::string dimensionId;      // Which dimension's scoring
+    std::string questionText;     // Display text for context
+    std::string questionType;     // Question type (short, multi, etc.)
+    std::vector<std::string> answers;  // Individual answer patterns being edited
+    std::vector<bool> caseSensitive;   // Per-answer case sensitivity flag
+
+    CorrectAnswersEditorState() : show(false) {}
+};
+
+// Create Study from Scale dialog state
+struct CreateStudyFromScaleState {
+    bool show;
+    char studyName[256];
+    char errorMessage[512];
+    bool confirmOverwrite;  // True if waiting for user to confirm overwrite
+    bool needScaleSelection;  // True if opened from Study Bar (need to select scale)
+    int selectedScaleIndex;  // Index in scale list when needScaleSelection is true
+    bool addToExisting;  // True = add to existing study, False = create new study
+    int selectedStudyIndex;  // Index in study list when adding to existing
+
+    CreateStudyFromScaleState() : show(false), confirmOverwrite(false),
+                                  needScaleSelection(false), selectedScaleIndex(-1),
+                                  addToExisting(false), selectedStudyIndex(-1) {
+        studyName[0] = '\0';
+        errorMessage[0] = '\0';
+    }
+};
+
 struct Parameter {
     std::string name;
     std::string value;
@@ -104,11 +227,13 @@ private:
     void RenderChainsTab();
     void RenderRunTab();
     void RenderQuickLaunchTab();
+    void RenderOutputPanel();
 
     // Tests tab sub-components
     void RenderTestsInStudy();
     void RenderAddTestPanel();
     void RenderBatteryBrowser();
+    void RenderScaleBrowser();
     void RenderFileImport();
     void RenderNewTestTemplate();
 
@@ -123,10 +248,26 @@ private:
     void ShowNewChainDialog();
     void ShowStudySettingsDialog();
     void ShowFirstRunDialog();
+    void ShowGettingStartedDialog();
     void ShowDuplicateSubjectWarning();
     void ShowEditParticipantCodeDialog();
     void ShowCodeEditor();
     void ShowTranslationEditorDialog();
+    void ShowSnapshotCreatedDialog();
+
+    // Scale Builder
+    void ShowScaleBuilder();
+    void RenderScaleList();
+    void RenderScaleInfoEditor();
+    void RenderQuestionsEditor();
+    void RenderScoringEditor();
+    void RenderTranslationsEditor();
+    void ShowQuestionEditor();
+    void ShowBatchImportDialog();
+    void ShowDimensionEditor();
+    void ShowCreateStudyFromScaleDialog();
+    void ShowCorrectAnswersEditor();
+    void TestCurrentScale();
 
     // Helper to load parameter editor after variant name is entered
     void LoadParameterEditorForVariant();
@@ -234,6 +375,15 @@ private:
     std::vector<std::string> mChainList;
     int mSelectedChainIndex;
 
+    // Study test preview state
+    int mSelectedStudyTestIndex;
+    std::string mStudyTestDescription;  // about.txt content for selected study test
+    SDL_Texture* mStudyTestScreenshot;
+    int mStudyTestScreenshotW;
+    int mStudyTestScreenshotH;
+    void LoadStudyTestPreview(int testIndex);
+    void FreeStudyTestScreenshot();
+
     // Chain execution
     bool mRunningChain;
     int mCurrentChainItemIndex;
@@ -251,12 +401,18 @@ private:
     bool mShowDuplicateSubjectWarning;
     std::vector<std::string> mDuplicateWarningCodes;
 
+    // Snapshot success dialog
+    bool mShowSnapshotCreated;
+    char mLastSnapshotName[512];
+    char mLastSnapshotPath[1024];
+
     // Dialogs
     bool mShowSettings;
     bool mShowNewStudyDialog;
     bool mShowNewChainDialog;
     bool mShowStudySettingsDialog;
     bool mShowFirstRunDialog;
+    bool mShowGettingStartedDialog;  // Shown when no studies exist
     bool mShowEditParticipantCodeDialog;
     PageEditorState mPageEditor;
     TestEditorState mTestEditor;
@@ -289,6 +445,28 @@ private:
     bool mShowCodeEditor;
     std::string mCodeEditorFilePath;
     TextEditor mCodeEditor;
+
+    // Scale Builder
+    bool mShowScaleBuilder;
+    std::shared_ptr<ScaleManager> mScaleManager;
+    std::shared_ptr<ScaleDefinition> mCurrentScale;
+    std::vector<std::string> mScaleList;
+    int mSelectedScaleIndex;
+    int mSelectedDimensionIndex;  // For scoring editor
+    QuestionEditorState mQuestionEditor;
+    BatchImportState mBatchImport;
+    DimensionEditorState mDimensionEditor;
+    CreateStudyFromScaleState mCreateStudyDialog;
+    CorrectAnswersEditorState mCorrectAnswersEditor;
+
+    // Scale browser screenshot state
+    SDL_Texture* mScaleBrowserScreenshot;
+    int mScaleBrowserScreenshotW, mScaleBrowserScreenshotH;
+    int mScaleBrowserScreenshotForIndex;  // -1 = none loaded
+
+    // Scale Builder translations tab state
+    char mScaleTransLanguage[16];
+    int mScaleTransSelectedKey;
 };
 
 

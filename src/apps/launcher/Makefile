@@ -3,7 +3,7 @@
 # Licensed under GPL
 
 # Version
-PEBL_VERSION = 2.3
+PEBL_VERSION = 2.4
 
 # Compiler and flags
 CXX = g++
@@ -38,6 +38,8 @@ LAUNCHER_SOURCES = \
 	WorkspaceManager.cpp \
 	SnapshotManager.cpp \
 	ZipExtractor.cpp \
+	ScaleDefinition.cpp \
+	ScaleManager.cpp \
 	../../utility/BinReloc.cpp
 
 IMGUI_SOURCES = \

@@ -1,0 +1,420 @@
+##  PEBL Scale Validator
+##
+##  Validates scale definition and translation files for ScaleRunner
+##
+##  Usage:
+##    bin/pebl2 battery/scales/scale-validator.pbl -v scalename
+##
+
+define Start(p)
+{
+  ## Get scale code from command line (-v arguments)
+  scaleCode <- ""
+
+  if(Length(p) > 0)
+  {
+    scaleCode <- First(p)
+  }
+
+  ## Check if scaleCode is empty, "0", or 0
+  if(scaleCode == "" or scaleCode == "0" or scaleCode == 0)
+  {
+    Print("ERROR: No scale specified")
+    Print("Usage: bin/pebl2 battery/scales/scale-validator.pbl -v SCALECODE")
+    Print("Example: bin/pebl2 battery/scales/scale-validator.pbl -v grit")
+  } else {
+
+    Print("")
+    Print("===========================================")
+    Print("  PEBL Scale Validator")
+    Print("===========================================")
+    Print("")
+    Print("Validating scale: " + scaleCode)
+    Print("")
+
+    ## Track errors and warnings
+    errors <- 0
+    warnings <- 0
+    continueValidation <- 1
+    scaleDef <- 0  ## Declare here so it's available throughout
+
+  ##############################################################################
+  ## CHECK 1: Definition file exists and is valid JSON
+  ##############################################################################
+
+  defFile <- "definitions/" + scaleCode + ".json"
+
+  if(continueValidation)
+  {
+    if(not FileExists(defFile))
+    {
+      Print("✗ ERROR: Definition file not found: " + defFile)
+      errors <- errors + 1
+      Print("")
+      Print("VALIDATION FAILED: " + errors + " errors, " + warnings + " warnings")
+      continueValidation <- 0
+    } else {
+      Print("✓ Definition file exists: " + defFile)
+    }
+  }
+
+  ## Try to parse JSON
+  if(continueValidation)
+  {
+    jsonText <- FileReadText(defFile)
+
+    if(StringLength(jsonText) > 0)
+    {
+      scaleDef <- ParseJSON(jsonText)
+      if(scaleDef == 0)
+      {
+        Print("✗ ERROR: Invalid JSON syntax in " + defFile)
+        errors <- errors + 1
+        Print("")
+        Print("VALIDATION FAILED: " + errors + " errors, " + warnings + " warnings")
+        continueValidation <- 0
+      } else {
+        Print("✓ JSON syntax valid")
+      }
+    } else {
+      Print("✗ ERROR: Definition file is empty")
+      errors <- errors + 1
+      Print("")
+      Print("VALIDATION FAILED: " + errors + " errors, " + warnings + " warnings")
+      continueValidation <- 0
+    }
+  }
+
+  ##############################################################################
+  ## CHECK 2: Required top-level fields
+  ##############################################################################
+
+  if(continueValidation)
+  {
+    requiredFields <- ["scale_info", "questions"]
+
+    loop(field, requiredFields)
+    {
+      if(not PropertyExists(scaleDef, field))
+      {
+        Print("✗ ERROR: Missing required field: " + field)
+        errors <- errors + 1
+      }
+    }
+
+    if(errors == 0)
+    {
+      Print("✓ Required top-level fields present")
+    }
+  }
+
+  ##############################################################################
+  ## CHECK 3: scale_info fields
+  ##############################################################################
+
+  if(continueValidation)
+  {
+   if(PropertyExists(scaleDef, "scale_info"))
+  {
+    scaleInfo <- scaleDef.scale_info
+    requiredInfo <- ["name", "code", "description"]
+
+    loop(field, requiredInfo)
+    {
+      if(not PropertyExists(scaleInfo, field))
+      {
+        Print("✗ ERROR: Missing scale_info." + field)
+        errors <- errors + 1
+      }
+    }
+
+    if(errors == 0)
+    {
+      Print("✓ scale_info fields complete")
+    }
+
+    ## Check if code matches filename
+    if(PropertyExists(scaleInfo, "code"))
+    {
+      if(scaleInfo.code <> scaleCode)
+      {
+        Print("⚠ WARNING: scale_info.code '" + scaleInfo.code + "' doesn't match filename '" + scaleCode + "'")
+        warnings <- warnings + 1
+      }
+    }
+   }
+  }
+
+  ##############################################################################
+  ## CHECK 4: Questions structure
+  ##############################################################################
+
+  questionIDs <- []
+  textKeys <- []
+
+  if(continueValidation)
+  {
+   if(PropertyExists(scaleDef, "questions"))
+  {
+    questions <- scaleDef.questions
+
+    if(Length(questions) == 0)
+    {
+      Print("✗ ERROR: No questions defined")
+      errors <- errors + 1
+    } else {
+      Print("✓ Found " + Length(questions) + " questions")
+
+      ## Check each question has required fields
+      qnum <- 1
+
+      loop(qdef, questions)
+      {
+        ## Required fields for all questions
+        if(not PropertyExists(qdef, "id"))
+        {
+          Print("✗ ERROR: Question " + qnum + " missing 'id' field")
+          errors <- errors + 1
+        } else {
+          PushOnEnd(questionIDs, qdef.id)
+        }
+
+        if(not PropertyExists(qdef, "type"))
+        {
+          Print("✗ ERROR: Question " + qnum + " missing 'type' field")
+          errors <- errors + 1
+        } else {
+          ## Check valid question type
+          validTypes <- ["inst", "likert", "vas", "grid", "short", "long", "multi", "multicheck", "image", "imageresponse"]
+          if(not IsMember(qdef.type, validTypes))
+          {
+            Print("✗ ERROR: Question " + qnum + " has invalid type: " + qdef.type)
+            errors <- errors + 1
+          }
+        }
+
+        if(not PropertyExists(qdef, "text_key"))
+        {
+          Print("✗ ERROR: Question " + qnum + " missing 'text_key' field")
+          errors <- errors + 1
+        } else {
+          PushOnEnd(textKeys, qdef.text_key)
+        }
+
+        qnum <- qnum + 1
+      }
+
+      if(errors == 0)
+      {
+        Print("✓ All questions have required fields")
+      }
+    }
+   }
+  }
+
+  ##############################################################################
+  ## CHECK 5: Translation file exists
+  ##############################################################################
+
+  if(continueValidation)
+  {
+    transFile <- "translations/" + scaleCode + ".pbl-en.json"
+
+    if(not FileExists(transFile))
+    {
+      Print("✗ ERROR: English translation file not found: " + transFile)
+      errors <- errors + 1
+    } else {
+      Print("✓ Translation file exists: " + transFile)
+
+      ## Parse translation JSON
+      transText <- FileReadText(transFile)
+      translations <- ParseJSON(transText)
+
+      if(translations == 0)
+      {
+        Print("✗ ERROR: Invalid JSON syntax in " + transFile)
+        errors <- errors + 1
+      } else {
+        Print("✓ Translation JSON syntax valid")
+
+        ## Check all text_keys have translations
+        missingKeys <- []
+        loop(key, textKeys)
+        {
+          if(not PropertyExists(translations, key))
+          {
+            PushOnEnd(missingKeys, key)
+          }
+        }
+
+        if(Length(missingKeys) > 0)
+        {
+          Print("✗ ERROR: Missing translations for " + Length(missingKeys) + " text keys:")
+          loop(key, missingKeys)
+          {
+            Print("    - " + key)
+          }
+          errors <- errors + Length(missingKeys)
+        } else {
+          Print("✓ All question text_keys have translations")
+        }
+
+        ## Check for debrief message
+        if(not PropertyExists(translations, "debrief"))
+        {
+          Print("⚠ WARNING: Missing 'debrief' translation (recommended)")
+          warnings <- warnings + 1
+        }
+      }
+    }
+  }
+
+  ##############################################################################
+  ## CHECK 6: Scoring definitions (if present)
+  ##############################################################################
+
+  if(continueValidation)
+  {
+   if(PropertyExists(scaleDef, "scoring"))
+  {
+    scoring <- scaleDef.scoring
+    dimIDs <- GetPropertyList(scoring)
+
+    Print("✓ Found " + Length(dimIDs) + " scoring dimensions")
+
+    ## Check each dimension references valid question IDs
+    loop(dimID, dimIDs)
+    {
+      scoreDef <- GetProperty(scoring, dimID)
+
+      if(not PropertyExists(scoreDef, "method"))
+      {
+        Print("✗ ERROR: Scoring dimension '" + dimID + "' missing 'method' field")
+        errors <- errors + 1
+      } else {
+        validMethods <- ["sum_coded", "mean_coded", "weighted_sum", "sum_correct"]
+        if(not IsMember(scoreDef.method, validMethods))
+        {
+          Print("⚠ WARNING: Dimension '" + dimID + "' uses unknown method: " + scoreDef.method)
+          warnings <- warnings + 1
+        }
+      }
+
+      if(not PropertyExists(scoreDef, "items"))
+      {
+        Print("✗ ERROR: Scoring dimension '" + dimID + "' missing 'items' field")
+        errors <- errors + 1
+      } else {
+        ## Check all item IDs exist in questions
+        items <- scoreDef.items
+        loop(itemID, items)
+        {
+          if(not IsMember(itemID, questionIDs))
+          {
+            Print("✗ ERROR: Dimension '" + dimID + "' references non-existent question: " + itemID)
+            errors <- errors + 1
+          }
+        }
+      }
+    }
+
+    if(errors == 0)
+    {
+      Print("✓ All scoring dimensions reference valid questions")
+    }
+   }
+  }
+
+  ##############################################################################
+  ## CHECK 7: Dimension definitions match scoring (if present)
+  ##############################################################################
+
+  if(continueValidation)
+  {
+   if(PropertyExists(scaleDef, "dimensions"))
+   {
+    if(PropertyExists(scaleDef, "scoring"))
+  {
+    dimensions <- scaleDef.dimensions
+    scoring <- scaleDef.scoring
+
+    ## Get dimension IDs from both places
+    dimIDs_def <- []
+    loop(dim, dimensions)
+    {
+      PushOnEnd(dimIDs_def, dim.id)
+    }
+
+    dimIDs_score <- GetPropertyList(scoring)
+
+    ## Check consistency
+    loop(dimID, dimIDs_score)
+    {
+      if(not IsMember(dimID, dimIDs_def))
+      {
+        Print("⚠ WARNING: Scoring dimension '" + dimID + "' not defined in dimensions array")
+        warnings <- warnings + 1
+      }
+    }
+
+    if(warnings == 0)
+    {
+      Print("✓ Dimension definitions consistent with scoring")
+    }
+   }
+   }
+  }
+
+  ##############################################################################
+  ## CHECK 8: Data output configuration (if present)
+  ##############################################################################
+
+  if(continueValidation)
+  {
+   if(PropertyExists(scaleDef, "data_output"))
+  {
+    dataOut <- scaleDef.data_output
+    requiredFields <- ["individual_file", "pooled_file", "columns"]
+
+    loop(field, requiredFields)
+    {
+      if(not PropertyExists(dataOut, field))
+      {
+        Print("⚠ WARNING: data_output missing recommended field: " + field)
+        warnings <- warnings + 1
+      }
+    }
+   }
+  }
+
+  ##############################################################################
+  ## SUMMARY
+  ##############################################################################
+
+  if(continueValidation)
+  {
+    Print("")
+    Print("===========================================")
+
+    if(errors == 0 and warnings == 0)
+    {
+      Print("✓ VALIDATION PASSED")
+      Print("  Scale definition is valid and complete")
+    } elseif(errors == 0)
+    {
+      Print("✓ VALIDATION PASSED with warnings")
+      Print("  " + warnings + " warnings (non-critical)")
+    } else {
+      Print("✗ VALIDATION FAILED")
+      Print("  " + errors + " errors, " + warnings + " warnings")
+    }
+
+    Print("===========================================")
+    Print("")
+  }
+
+  }  ## End else block for valid scale code
+
+  return(1)
+}

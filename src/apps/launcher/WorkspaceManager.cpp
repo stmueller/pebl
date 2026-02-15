@@ -41,7 +41,7 @@ WorkspaceManager::WorkspaceManager()
     if (IsPortableMode()) {
         mWorkspacePath = GetPortableWorkspacePath();
     } else {
-        mWorkspacePath = GetDocumentsPath() + "/pebl-exp.2.3";
+        mWorkspacePath = GetDocumentsPath() + "/pebl-exp." + PEBL_VERSION;
     }
 }
 
@@ -146,6 +146,7 @@ bool WorkspaceManager::Initialize() {
     std::vector<std::string> subdirs = {
         "/my_studies",
         "/snapshots",
+        "/scales",
         "/doc",
         "/demo",
         "/tutorials",
@@ -160,6 +161,11 @@ bool WorkspaceManager::Initialize() {
             }
         }
     }
+
+    // Create scales subdirectories
+    std::string scalesPath = mWorkspacePath + "/scales";
+    CreateDir(scalesPath + "/definitions");
+    CreateDir(scalesPath + "/translations");
 
     mInitialized = true;
     return true;
@@ -179,7 +185,7 @@ bool WorkspaceManager::CopyResources(const std::string& installationPath) {
     CreateDir(docDest);
 
     std::vector<std::string> docFiles = {
-        "doc/pman/PEBLManual2.3.pdf",
+        std::string("doc/pman/PEBLManual") + PEBL_VERSION + ".pdf",
         "doc/ReleaseNotes.txt",
         "Notes_for_LLMs.txt"
     };

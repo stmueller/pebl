@@ -1,0 +1,131 @@
+{
+  "scale_info": {
+    "name": "System Usability Scale",
+    "code": "SUS",
+    "abbreviation": "SUS",
+    "description": "10-item scale measuring perceived system usability. Traditional SUS score (0-100) = 25 * (mean_coded - 1).",
+    "citation": "Brooke, J. (1996). SUS: A 'Quick and Dirty' Usability Scale. In P. W. Jordan, B. Thomas, I. L. McClelland, & B. Weerdmeester (Eds.), Usability Evaluation in Industry (pp. 189-194). https://doi.org/10.1201/9781498710411",
+    "license": "Free to use (no known copyright restrictions)",
+    "version": "1.0",
+    "url": "https://doi.org/10.1201/9781498710411"
+  },
+
+  "likert_options": {
+    "points": 5,
+    "min": 1,
+    "max": 5,
+    "labels": ["SUS_response_1", "SUS_response_2", "SUS_response_3", "SUS_response_4", "SUS_response_5"],
+    "question_head": "question_head"
+  },
+
+  "dimensions": [
+    {
+      "id": "usability",
+      "name": "System Usability",
+      "abbreviation": "SUS",
+      "description": "Overall perceived usability. Traditional SUS score (0-100) = 25 * (mean - 1).",
+      "enabled_param": null
+    }
+  ],
+
+  "questions": [
+    {
+      "id": "SUS01",
+      "text_key": "SUS01",
+      "type": "likert",
+      "likert_points": 5
+    },
+    {
+      "id": "SUS02",
+      "text_key": "SUS02",
+      "type": "likert",
+      "likert_points": 5
+    },
+    {
+      "id": "SUS03",
+      "text_key": "SUS03",
+      "type": "likert",
+      "likert_points": 5
+    },
+    {
+      "id": "SUS04",
+      "text_key": "SUS04",
+      "type": "likert",
+      "likert_points": 5
+    },
+    {
+      "id": "SUS05",
+      "text_key": "SUS05",
+      "type": "likert",
+      "likert_points": 5
+    },
+    {
+      "id": "SUS06",
+      "text_key": "SUS06",
+      "type": "likert",
+      "likert_points": 5
+    },
+    {
+      "id": "SUS07",
+      "text_key": "SUS07",
+      "type": "likert",
+      "likert_points": 5
+    },
+    {
+      "id": "SUS08",
+      "text_key": "SUS08",
+      "type": "likert",
+      "likert_points": 5
+    },
+    {
+      "id": "SUS09",
+      "text_key": "SUS09",
+      "type": "likert",
+      "likert_points": 5
+    },
+    {
+      "id": "SUS10",
+      "text_key": "SUS10",
+      "type": "likert",
+      "likert_points": 5
+    }
+  ],
+
+  "scoring": {
+    "usability": {
+      "method": "mean_coded",
+      "items": ["SUS01", "SUS02", "SUS03", "SUS04", "SUS05", "SUS06", "SUS07", "SUS08", "SUS09", "SUS10"],
+      "description": "Mean usability score (1-5 scale). Traditional SUS (0-100) = 25 * (mean - 1).",
+      "item_coding": {
+        "SUS01": 1,
+        "SUS02": -1,
+        "SUS03": 1,
+        "SUS04": -1,
+        "SUS05": 1,
+        "SUS06": -1,
+        "SUS07": 1,
+        "SUS08": -1,
+        "SUS09": 1,
+        "SUS10": -1
+      }
+    }
+  },
+
+  "report": {
+    "template": "standard",
+    "include": ["timestamp", "completion_time", "dimension_scores"],
+    "header": "The System Usability Scale (SUS) measures perceived usability of a system or product.",
+    "footer_refs": [
+      "Brooke, J. (1996). SUS: A 'Quick and Dirty' Usability Scale. In P. W. Jordan et al. (Eds.), Usability Evaluation in Industry (pp. 189-194).",
+      "See <a href='https://doi.org/10.1201/9781498710411'>https://doi.org/10.1201/9781498710411</a> for more information."
+    ]
+  },
+
+  "data_output": {
+    "individual_file": "SUS-{subnum}.csv",
+    "pooled_file": "SUS-pooled.csv",
+    "report_file": "SUS-report-{subnum}.html",
+    "columns": "subnum,order,time,qnum,ques,dim,valence,resp,rt",
+    "pooled_columns": "subnum,timestamp,time,SUS01,SUS02,SUS03,SUS04,SUS05,SUS06,SUS07,SUS08,SUS09,SUS10,usability"
+  }
+}

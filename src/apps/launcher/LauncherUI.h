@@ -83,10 +83,20 @@ struct TranslationEditorState {
     }
 };
 
+// Condition editor entry (shared by question and dimension editors)
+struct EditorCondition {
+    int sourceType;      // 0=parameter, 1=question
+    char sourceName[64];
+    int op;              // 0=equals, 1=not_equals, 2=greater_than, 3=less_than
+    char value[256];
+    EditorCondition() : sourceType(0), op(0) { sourceName[0]='\0'; value[0]='\0'; }
+};
+
 // Question editor dialog state
 struct QuestionEditorState {
     bool show;
     int editingIndex;  // -1 for new, >= 0 for editing existing
+    bool isSection;    // true when editing/adding a section marker
     char id[64];
     char textKey[64];
     char questionText[2048];  // Actual question text (from translation)
@@ -114,9 +124,39 @@ struct QuestionEditorState {
     // Image-specific fields
     char imagePath[512];     // Path to image file
 
-    QuestionEditorState() : show(false), editingIndex(-1), questionType(0),
+    int randomGroup;
+    int requiredState;  // -1 = use default, 0 = optional, 1 = required
+
+    // Conditional display
+    bool hasVisibleWhen;
+    int visibleWhenLogic;  // 0=AND, 1=OR
+    bool visibleWhenIsComplex;
+    std::vector<EditorCondition> visibleWhenConditions;
+
+    // Input validation — per-constraint (each has enabled flag, value, error message text)
+    bool valMinLengthEnabled;  int valMinLength;  char valMinLengthError[256];
+    bool valMaxLengthEnabled;  int valMaxLength;  char valMaxLengthError[256];
+    bool valMinWordsEnabled;   int valMinWords;   char valMinWordsError[256];
+    bool valMaxWordsEnabled;   int valMaxWords;   char valMaxWordsError[256];
+    bool valNumberMinEnabled;  double valNumberMin; char valNumberMinError[256];
+    bool valNumberMaxEnabled;  double valNumberMax; char valNumberMaxError[256];
+    bool valPatternEnabled;    char valPattern[256]; char valPatternError[256];
+    bool valMinSelectedEnabled; int valMinSelected; char valMinSelectedError[256];
+    bool valMaxSelectedEnabled; int valMaxSelected; char valMaxSelectedError[256];
+
+    QuestionEditorState() : show(false), editingIndex(-1), isSection(false), questionType(0),
                            likertPoints(5), likertMin(-1), likertMax(-1),
-                           vasMinValue(0), vasMaxValue(100) {
+                           vasMinValue(0), vasMaxValue(100), randomGroup(1), requiredState(-1),
+                           hasVisibleWhen(false), visibleWhenLogic(0), visibleWhenIsComplex(false),
+                           valMinLengthEnabled(false), valMinLength(0),
+                           valMaxLengthEnabled(false), valMaxLength(0),
+                           valMinWordsEnabled(false),  valMinWords(0),
+                           valMaxWordsEnabled(false),  valMaxWords(0),
+                           valNumberMinEnabled(false), valNumberMin(0),
+                           valNumberMaxEnabled(false), valNumberMax(0),
+                           valPatternEnabled(false),
+                           valMinSelectedEnabled(false), valMinSelected(0),
+                           valMaxSelectedEnabled(false), valMaxSelected(0) {
         id[0] = '\0';
         textKey[0] = '\0';
         questionText[0] = '\0';
@@ -126,6 +166,11 @@ struct QuestionEditorState {
         gridColumns[0] = '\0';
         gridRows[0] = '\0';
         imagePath[0] = '\0';
+        valMinLengthError[0] = valMaxLengthError[0] = '\0';
+        valMinWordsError[0]  = valMaxWordsError[0]  = '\0';
+        valNumberMinError[0] = valNumberMaxError[0] = '\0';
+        valPattern[0] = valPatternError[0] = '\0';
+        valMinSelectedError[0] = valMaxSelectedError[0] = '\0';
     }
 };
 
@@ -138,7 +183,13 @@ struct DimensionEditorState {
     char abbreviation[64];
     char description[512];
 
-    DimensionEditorState() : show(false), editingIndex(-1) {
+    // Conditional display
+    bool hasVisibleWhen;
+    int visibleWhenLogic;  // 0=AND, 1=OR
+    std::vector<EditorCondition> visibleWhenConditions;
+
+    DimensionEditorState() : show(false), editingIndex(-1),
+                             hasVisibleWhen(false), visibleWhenLogic(0) {
         id[0] = '\0';
         name[0] = '\0';
         abbreviation[0] = '\0';
@@ -262,7 +313,10 @@ private:
     void RenderQuestionsEditor();
     void RenderScoringEditor();
     void RenderTranslationsEditor();
+    void RenderSectionsTab();
     void ShowQuestionEditor();
+    void RenderSectionEditorForm();
+    void RenderVisibleWhenEditor(QuestionEditorState& e);
     void ShowBatchImportDialog();
     void ShowDimensionEditor();
     void ShowCreateStudyFromScaleDialog();
@@ -303,6 +357,7 @@ private:
     void ScanTemplates();  // Dynamically load available templates
     void EditTestParameters(int testIndex);
     void ScanParameterVariants(int testIndex);
+    bool SyncScaleSchema(const std::string& testDir, const std::string& scaleCode);
 
     // Chain management (new system)
     void CreateNewChain();
@@ -394,6 +449,7 @@ private:
     bool mShowVariantNameDialog;  // Prompt for variant name before editing
     char mVariantName[256];  // User input for variant name (e.g., "mousebutton", "touchscreen")
     int mEditingTestIndex;  // Which test we're creating a variant for
+    bool mEditingDefaultParams;  // True when editing default .pbl.par.json, false for named variant
     std::vector<Parameter> mParameters;
     std::string mParameterFile;
 
@@ -452,6 +508,9 @@ private:
     std::shared_ptr<ScaleDefinition> mCurrentScale;
     std::vector<std::string> mScaleList;
     int mSelectedScaleIndex;
+    int mNextSectionId = 1;       // Auto-increment for generating "sec_1", "sec_2", etc.
+    int mDeleteConfirmIndex = -1; // Index of question pending delete confirmation (-1 = none)
+    int mSelectedBranchGroupIndex = -1;  // Which branch group is selected in the list (-1 = none)
     int mSelectedDimensionIndex;  // For scoring editor
     QuestionEditorState mQuestionEditor;
     BatchImportState mBatchImport;

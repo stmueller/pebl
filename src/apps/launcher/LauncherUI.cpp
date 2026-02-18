@@ -21,6 +21,7 @@
 #include <algorithm>
 #include <random>
 #include <map>
+#include <set>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -149,6 +150,7 @@ LauncherUI::LauncherUI(LauncherConfig* config, SDL_Renderer* renderer)
     , mShowParameterEditor(false)
     , mShowVariantNameDialog(false)
     , mEditingTestIndex(-1)
+    , mEditingDefaultParams(true)
     , mShowDuplicateSubjectWarning(false)
     , mShowSnapshotCreated(false)
     , mShowSettings(false)
@@ -289,12 +291,6 @@ LauncherUI::LauncherUI(LauncherConfig* config, SDL_Renderer* renderer)
         // On first run, we wait for user confirmation in the dialog
         if (!mWorkspace->Initialize()) {
             printf("Warning: Failed to initialize workspace\n");
-        }
-
-        // Check if there are no studies (after workspace init, but not on first run)
-        auto studyDirs = mWorkspace->GetStudyDirectories();
-        if (studyDirs.empty()) {
-            mShowGettingStartedDialog = true;
         }
     }
 
@@ -1474,6 +1470,10 @@ void LauncherUI::RenderDetailsTab()
     // Parameter editor button (if experiment has parameters)
     if (exp.hasParams) {
         if (ImGui::Button("Edit Parameters", ImVec2(-1, 0))) {
+            // Sync schema from scale definition if this is a scale-based test
+            std::string expScaleCode = fs::path(exp.path).stem().string();
+            SyncScaleSchema(exp.directory, expScaleCode);
+
             // Load parameters from schema file
             mParameters.clear();
 
@@ -2394,7 +2394,24 @@ void LauncherUI::ShowParameterEditor()
 
     if (ImGui::BeginPopupModal("Parameter Editor", &mShowParameterEditor, 0))
     {
-        ImGui::TextWrapped("Edit experiment parameters. Changes will be saved to a .par.json file.");
+        // Header row: description on left, Variants button on right
+        if (mEditingDefaultParams) {
+            ImGui::Text("Editing default parameters");
+        } else {
+            ImGui::Text("Editing variant: %s", mVariantName);
+        }
+        ImGui::SameLine(ImGui::GetContentRegionAvail().x - 80);
+        if (ImGui::SmallButton("Variants...")) {
+            mShowVariantNameDialog = true;
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Create or switch to a named parameter variant\n(e.g., for different input devices or conditions)");
+        }
+        if (mEditingDefaultParams) {
+            ImGui::TextDisabled("Values here override the built-in defaults from the test definition.");
+        } else {
+            ImGui::TextDisabled("Variants are alternate parameter sets for different conditions.");
+        }
         ImGui::Separator();
         ImGui::Spacing();
 
@@ -2408,7 +2425,7 @@ void LauncherUI::ShowParameterEditor()
             if (ImGui::BeginTable("ParameterTable", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
                 ImGui::TableSetupColumn("Parameter", ImGuiTableColumnFlags_WidthFixed, 150.0f);
                 ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthFixed, 150.0f);
-                ImGui::TableSetupColumn("Description (default)", ImGuiTableColumnFlags_WidthStretch);
+                ImGui::TableSetupColumn("Description (built-in)", ImGuiTableColumnFlags_WidthStretch);
                 ImGui::TableSetupColumn("Reset", ImGuiTableColumnFlags_WidthFixed, 60.0f);
                 ImGui::TableHeadersRow();
 
@@ -2424,26 +2441,54 @@ void LauncherUI::ShowParameterEditor()
                     ImGui::TableSetColumnIndex(0);
                     ImGui::TextWrapped("%s", param.name.c_str());
 
-                    // Column 2: Editable value
+                    // Column 2: Editable value — use combo/checkbox when options available
                     ImGui::TableSetColumnIndex(1);
-                    char buffer[256];
-                    std::strncpy(buffer, param.value.c_str(), sizeof(buffer) - 1);
-                    buffer[sizeof(buffer) - 1] = '\0';
-
                     ImGui::PushItemWidth(-1);
-                    if (shouldFocusFirst && i == 0) {
-                        ImGui::SetKeyboardFocusHere();
+
+                    if (!param.options.empty()) {
+                        // Combo box for parameters with defined options
+                        // Find current selection index
+                        int currentIdx = -1;
+                        for (size_t j = 0; j < param.options.size(); j++) {
+                            if (param.options[j] == param.value) {
+                                currentIdx = (int)j;
+                                break;
+                            }
+                        }
+                        std::string preview = (currentIdx >= 0) ? param.options[currentIdx] : param.value;
+                        if (ImGui::BeginCombo("##value", preview.c_str())) {
+                            for (size_t j = 0; j < param.options.size(); j++) {
+                                bool isSelected = ((int)j == currentIdx);
+                                if (ImGui::Selectable(param.options[j].c_str(), isSelected)) {
+                                    param.value = param.options[j];
+                                }
+                                if (isSelected) {
+                                    ImGui::SetItemDefaultFocus();
+                                }
+                            }
+                            ImGui::EndCombo();
+                        }
+                    } else {
+                        // Free text input
+                        char buffer[256];
+                        std::strncpy(buffer, param.value.c_str(), sizeof(buffer) - 1);
+                        buffer[sizeof(buffer) - 1] = '\0';
+
+                        if (shouldFocusFirst && i == 0) {
+                            ImGui::SetKeyboardFocusHere();
+                        }
+                        if (ImGui::InputText("##value", buffer, sizeof(buffer))) {
+                            param.value = buffer;
+                        }
                     }
-                    if (ImGui::InputText("##value", buffer, sizeof(buffer))) {
-                        param.value = buffer;
-                    }
+
                     ImGui::PopItemWidth();
 
                     // Column 3: Description with default value
                     ImGui::TableSetColumnIndex(2);
                     std::string descText = param.description;
                     if (!param.defaultValue.empty()) {
-                        descText += " (default: [" + param.defaultValue + "])";
+                        descText += " (built-in: " + param.defaultValue + ")";
                     }
                     // Show options if available
                     if (!param.options.empty()) {
@@ -2490,36 +2535,31 @@ void LauncherUI::ShowParameterEditor()
                     file.close();
                     printf("Parameters saved to: %s\n", mParameterFile.c_str());
 
-                    // Register the new variant with the study
-                    // Extract variant name from file path (e.g., "variant-20260110-123456.par.json" -> "variant-20260110-123456")
-                    size_t lastSlash = mParameterFile.find_last_of("/\\");
-                    std::string filename = (lastSlash != std::string::npos)
-                                         ? mParameterFile.substr(lastSlash + 1)
-                                         : mParameterFile;
-                    size_t dotPar = filename.find(".par.json");
-                    if (dotPar != std::string::npos) {
-                        std::string variantName = filename.substr(0, dotPar);
+                    // Register named variants with the study (skip for default par.json)
+                    if (!mEditingDefaultParams) {
+                        size_t lastSlash = mParameterFile.find_last_of("/\\");
+                        std::string filename = (lastSlash != std::string::npos)
+                                             ? mParameterFile.substr(lastSlash + 1)
+                                             : mParameterFile;
+                        size_t dotPar = filename.find(".par.json");
+                        if (dotPar != std::string::npos) {
+                            std::string variantName = filename.substr(0, dotPar);
 
-                        // Find which test this belongs to by checking the path
-                        // Path format: studyPath/tests/testName/params/variant.par.json
-                        size_t testsPos = mParameterFile.find("/tests/");
-                        if (testsPos != std::string::npos && mCurrentStudy) {
-                            size_t testNameStart = testsPos + 7;  // After "/tests/"
-                            size_t testNameEnd = mParameterFile.find("/", testNameStart);
-                            if (testNameEnd != std::string::npos) {
-                                std::string testName = mParameterFile.substr(testNameStart, testNameEnd - testNameStart);
-
-                                // Add variant to study
-                                Test* test = mCurrentStudy->GetTest(testName);
-                                if (test) {
-                                    ParameterVariant variant;
-                                    variant.file = variantName + ".par.json";
-                                    variant.description = "Custom variant created " + variantName;
-                                    test->parameterVariants[variantName] = variant;
-
-                                    // Save study to persist the new variant
-                                    mCurrentStudy->Save();
-                                    printf("Registered variant '%s' for test '%s'\n", variantName.c_str(), testName.c_str());
+                            size_t testsPos = mParameterFile.find("/tests/");
+                            if (testsPos != std::string::npos && mCurrentStudy) {
+                                size_t testNameStart = testsPos + 7;
+                                size_t testNameEnd = mParameterFile.find("/", testNameStart);
+                                if (testNameEnd != std::string::npos) {
+                                    std::string testName = mParameterFile.substr(testNameStart, testNameEnd - testNameStart);
+                                    Test* test = mCurrentStudy->GetTest(testName);
+                                    if (test) {
+                                        ParameterVariant variant;
+                                        variant.file = variantName + ".par.json";
+                                        variant.description = "Custom variant";
+                                        test->parameterVariants[variantName] = variant;
+                                        mCurrentStudy->Save();
+                                        printf("Registered variant '%s' for test '%s'\n", variantName.c_str(), testName.c_str());
+                                    }
                                 }
                             }
                         }
@@ -2566,21 +2606,36 @@ void LauncherUI::ShowVariantNameDialog()
             }
         }
 
-        ImGui::TextWrapped("Parameter variants for test: %s", testName.c_str());
+        ImGui::TextWrapped("Parameter sets for test: %s", testName.c_str());
+        ImGui::TextDisabled("The default parameter set is edited directly. Variants are named alternate configurations.");
         ImGui::Separator();
         ImGui::Spacing();
 
-        // Show existing variants
+        // Edit Default button (prominent)
+        if (ImGui::Button("Edit Default Parameters", ImVec2(-1, 35))) {
+            mVariantName[0] = '\0';
+            LoadParameterEditorForVariant();
+            mShowVariantNameDialog = false;
+            ImGui::CloseCurrentPopup();
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Edit the default %s.pbl.par.json file.\nThese are the parameters used when no variant is specified.", testName.c_str());
+        }
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        // Show existing named variants
         if (variants && !variants->empty()) {
-            ImGui::Text("Existing Parameter Variants:");
+            ImGui::Text("Named Variants:");
             ImGui::Spacing();
 
-            ImGui::BeginChild("ExistingVariants", ImVec2(0, 150), true);
+            ImGui::BeginChild("ExistingVariants", ImVec2(0, 120), true);
             for (const auto& pair : *variants) {
                 ImGui::PushID(pair.first.c_str());
 
-                if (ImGui::Selectable(pair.first.c_str(), false, 0, ImVec2(0, 30))) {
-                    // Load this variant for editing
+                if (ImGui::Selectable(pair.first.c_str(), false, 0, ImVec2(0, 26))) {
                     std::strncpy(mVariantName, pair.first.c_str(), sizeof(mVariantName) - 1);
                     mVariantName[sizeof(mVariantName) - 1] = '\0';
                     LoadParameterEditorForVariant();
@@ -2598,57 +2653,39 @@ void LauncherUI::ShowVariantNameDialog()
             ImGui::EndChild();
 
             ImGui::Spacing();
-            ImGui::Separator();
-            ImGui::Spacing();
-        } else {
-            ImGui::TextDisabled("No existing parameter variants found.");
-            ImGui::Spacing();
-            ImGui::Separator();
-            ImGui::Spacing();
         }
 
         // Create new variant section
         ImGui::Text("Create New Variant:");
         ImGui::Spacing();
 
-        ImGui::Text("Variant Name:");
+        ImGui::Text("Name:");
         ImGui::SameLine();
         ImGui::TextDisabled("(?)");
         if (ImGui::IsItemHovered()) {
             ImGui::SetTooltip("Examples: mousebutton, touchscreen, leftclick, arrowLR\n"
                             "The variant will be saved as %s-<name>.par.json", testName.c_str());
         }
-
-        ImGui::PushItemWidth(-1);
-        if (ImGui::IsWindowAppearing()) {
-            ImGui::SetKeyboardFocusHere();
-        }
+        ImGui::SameLine();
+        ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x - 130);
         ImGui::InputText("##variantname", mVariantName, sizeof(mVariantName));
         ImGui::PopItemWidth();
+        ImGui::SameLine();
 
-        ImGui::Spacing();
-        ImGui::TextDisabled("File will be saved as: %s-%s.par.json", testName.c_str(), mVariantName);
-        ImGui::Spacing();
-
-        // Buttons
         bool canCreate = strlen(mVariantName) > 0;
-
         if (!canCreate) {
             ImGui::BeginDisabled();
         }
-
-        if (ImGui::Button("Create New", ImVec2(120, 0))) {
-            // Load parameter editor with this variant name
+        if (ImGui::Button("Create", ImVec2(120, 0))) {
             LoadParameterEditorForVariant();
             mShowVariantNameDialog = false;
             ImGui::CloseCurrentPopup();
         }
-
         if (!canCreate) {
             ImGui::EndDisabled();
         }
 
-        ImGui::SameLine();
+        ImGui::Spacing();
 
         if (ImGui::Button("Cancel", ImVec2(120, 0))) {
             mShowVariantNameDialog = false;
@@ -2676,6 +2713,9 @@ void LauncherUI::LoadParameterEditorForVariant()
     std::string studyPath = mCurrentStudy->GetPath();
     std::string testPath = studyPath + "/tests/" + test.testPath;
     std::string schemaPath = testPath + "/params/" + test.testName + ".pbl.schema.json";
+
+    // Sync schema from scale definition if this is a scale-based test
+    SyncScaleSchema(testPath, test.testName);
 
     printf("Loading parameter schema from: %s\n", schemaPath.c_str());
 
@@ -2744,14 +2784,34 @@ void LauncherUI::LoadParameterEditorForVariant()
                 param.description = paramJson["description"].get<std::string>();
             }
 
+            // Extract options if available
+            if (paramJson.contains("options") && paramJson["options"].is_array()) {
+                for (const auto& opt : paramJson["options"]) {
+                    if (opt.is_string()) {
+                        param.options.push_back(opt.get<std::string>());
+                    } else {
+                        param.options.push_back(opt.dump());
+                    }
+                }
+            }
+
             param.value = param.defaultValue;  // Initialize to default
             mParameters.push_back(param);
         }
 
         printf("Loaded %zu parameters from schema\n", mParameters.size());
 
-        // Build parameter file path using testname-variantname.par.json pattern
-        std::string variantFileName = test.testName + "-" + std::string(mVariantName) + ".par.json";
+        // Build parameter file path
+        // Empty variant name = default parameter file (testname.pbl.par.json)
+        // Non-empty variant name = named variant (testname-variantname.par.json)
+        std::string variantFileName;
+        if (strlen(mVariantName) == 0) {
+            variantFileName = test.testName + ".pbl.par.json";
+            mEditingDefaultParams = true;
+        } else {
+            variantFileName = test.testName + "-" + std::string(mVariantName) + ".par.json";
+            mEditingDefaultParams = false;
+        }
         mParameterFile = testPath + "/params/" + variantFileName;
         printf("Parameter file: %s\n", mParameterFile.c_str());
 
@@ -3094,19 +3154,30 @@ void LauncherUI::LoadExperimentInfo(const std::string& scriptPath)
     if (exp.hasTranslations) {
         fs::path translationsDir = fs::path(scriptPath).parent_path() / "translations";
         try {
+            std::set<std::string> langSet;
             for (const auto& entry : fs::directory_iterator(translationsDir)) {
                 if (entry.is_regular_file() && entry.path().extension() == ".json") {
                     std::string filename = entry.path().stem().string();
-                    // Extract language code from filename like "taskname.pbl-en.json"
+                    std::string langCode;
+                    // Try dash-based format: "taskname.pbl-en"
                     size_t dashPos = filename.find_last_of('-');
                     if (dashPos != std::string::npos) {
-                        std::string langCode = filename.substr(dashPos + 1);
-                        mAvailableLanguages.push_back(langCode);
+                        langCode = filename.substr(dashPos + 1);
+                    } else {
+                        // Try dot-based format: "taskname.en"
+                        size_t dotPos = filename.find_last_of('.');
+                        if (dotPos != std::string::npos) {
+                            langCode = filename.substr(dotPos + 1);
+                        }
+                    }
+                    if (!langCode.empty()) {
+                        langSet.insert(langCode);
                     }
                 }
             }
+            mAvailableLanguages.assign(langSet.begin(), langSet.end());
 
-            // Sort language codes
+            // Sort language codes (already sorted by set, but be explicit)
             std::sort(mAvailableLanguages.begin(), mAvailableLanguages.end());
 
             // Default to first available language if current language not in list
@@ -4032,6 +4103,9 @@ void LauncherUI::RenderStudyTab()
     const char* currentStudyName = mCurrentStudy ? mCurrentStudy->GetName().c_str() : "None";
     ImGui::PushItemWidth(250);
     if (ImGui::BeginCombo("##StudySelect", currentStudyName)) {
+        // Refresh study list from disk each time the combo is opened
+        mStudyList = mWorkspace->GetStudyDirectories();
+
         // "None" option
         if (ImGui::Selectable("None", !mCurrentStudy)) {
             mCurrentStudy.reset();
@@ -4042,10 +4116,7 @@ void LauncherUI::RenderStudyTab()
             bool is_selected = (mCurrentStudy && mCurrentStudy->GetName() == mStudyList[i]);
             if (ImGui::Selectable(mStudyList[i].c_str(), is_selected)) {
                 mSelectedStudyIndex = i;
-                auto studyDirs = mWorkspace->GetStudyDirectories();
-                if (i < studyDirs.size()) {
-                    LoadStudy(studyDirs[i]);
-                }
+                LoadStudy(mStudyList[i]);
             }
         }
         ImGui::EndCombo();
@@ -5041,6 +5112,161 @@ void LauncherUI::RemoveTestFromStudy(const std::string& testName)
     printf("Removed test from study: %s\n", testName.c_str());
 }
 
+bool LauncherUI::SyncScaleSchema(const std::string& testDir, const std::string& scaleCode)
+{
+    // Look for scale definition JSON in the test directory.
+    // Scale tests store definitions in subdirectories like:
+    //   testDir/CODE/CODE.json  or  testDir/definitions/CODE.json
+    std::string scaleJsonPath;
+    std::vector<std::string> candidates = {
+        testDir + "/" + scaleCode + "/" + scaleCode + ".json",
+        testDir + "/definitions/" + scaleCode + ".json"
+    };
+    for (const auto& path : candidates) {
+        if (fs::exists(path)) {
+            scaleJsonPath = path;
+            break;
+        }
+    }
+
+    // Also check the scale library (original source with full options)
+    if (mScaleManager) {
+        std::string libPath = mScaleManager->GetDefinitionPath(scaleCode);
+        if (!libPath.empty() && fs::exists(libPath)) {
+            // Prefer the library source — it has the original options
+            scaleJsonPath = libPath;
+        }
+    }
+
+    if (scaleJsonPath.empty()) {
+        return false;  // Not a scale-based test
+    }
+
+    // Parse scale definition to extract parameters
+    nlohmann::json scaleDef;
+    try {
+        std::ifstream scaleFile(scaleJsonPath);
+        if (!scaleFile.is_open()) return false;
+        scaleFile >> scaleDef;
+        scaleFile.close();
+    } catch (const std::exception& e) {
+        printf("Error parsing scale JSON %s: %s\n", scaleJsonPath.c_str(), e.what());
+        return false;
+    }
+
+    printf("Syncing schema from scale definition: %s\n", scaleJsonPath.c_str());
+
+    // Build schema JSON from scale parameters
+    nlohmann::json schemaJson = {
+        {"test", scaleCode},
+        {"version", "1.0"},
+        {"description", scaleCode + " Scale"}
+    };
+    nlohmann::json schemaParams = nlohmann::json::array();
+
+    // Always include the scale selector (fixed to this scale)
+    schemaParams.push_back({
+        {"name", "scale"},
+        {"type", "string"},
+        {"default", scaleCode},
+        {"description", "Scale code"}
+    });
+
+    // Build par.json defaults
+    nlohmann::json parDefaults = {{"scale", scaleCode}};
+
+    // Extract each parameter from scale definition (if any)
+    if (scaleDef.contains("parameters"))
+    for (auto& [pName, pDef] : scaleDef["parameters"].items()) {
+        nlohmann::json sp;
+        sp["name"] = pName;
+
+        std::string pType = "string";
+        if (pDef.contains("type")) pType = pDef["type"].get<std::string>();
+        sp["type"] = pType;
+
+        // Default value
+        if (pDef.contains("default")) {
+            sp["default"] = pDef["default"];
+            // Also set in par defaults
+            parDefaults[pName] = pDef["default"];
+        }
+
+        if (pDef.contains("description")) {
+            sp["description"] = pDef["description"].get<std::string>();
+        }
+
+        // Options
+        if (pDef.contains("options") && pDef["options"].is_array()) {
+            sp["options"] = pDef["options"];
+        } else if (pType == "boolean") {
+            sp["options"] = nlohmann::json::array({0, 1});
+        }
+
+        schemaParams.push_back(sp);
+    }
+
+    // Always include shuffle_questions as a standard ScaleRunner parameter
+    if (!parDefaults.contains("shuffle_questions")) {
+        schemaParams.push_back({
+            {"name", "shuffle_questions"},
+            {"type", "boolean"},
+            {"default", 0},
+            {"options", nlohmann::json::array({0, 1})},
+            {"description", "Randomize question order within randomization groups (group 0 = fixed)"}
+        });
+        parDefaults["shuffle_questions"] = 0;
+    }
+
+    schemaJson["parameters"] = schemaParams;
+
+    // Write schema file
+    std::string schemaPath = testDir + "/params/" + scaleCode + ".pbl.schema.json";
+    fs::create_directories(testDir + "/params");
+    std::ofstream schemaFile(schemaPath);
+    if (schemaFile.is_open()) {
+        schemaFile << schemaJson.dump(2);
+        schemaFile.close();
+        printf("Updated schema: %s\n", schemaPath.c_str());
+    }
+
+    // Create or update par.json — add missing parameters without overwriting existing values
+    std::string parPath = testDir + "/params/" + scaleCode + ".pbl.par.json";
+    nlohmann::json existingParams;
+    if (fs::exists(parPath)) {
+        try {
+            std::ifstream existingFile(parPath);
+            if (existingFile.is_open()) {
+                existingFile >> existingParams;
+                existingFile.close();
+            }
+        } catch (...) {
+            existingParams = nlohmann::json::object();
+        }
+    }
+
+    // Merge: add defaults for any parameters not already in the file
+    bool updated = false;
+    for (auto& [key, val] : parDefaults.items()) {
+        if (!existingParams.contains(key)) {
+            existingParams[key] = val;
+            updated = true;
+        }
+    }
+
+    if (updated || !fs::exists(parPath)) {
+        std::ofstream parFile(parPath);
+        if (parFile.is_open()) {
+            parFile << existingParams.dump(2);
+            parFile.close();
+            printf("%s params: %s\n", updated ? "Updated" : "Created", parPath.c_str());
+        }
+    }
+
+    return true;
+}
+
+
 void LauncherUI::EditTestParameters(int testIndex)
 {
     if (!mCurrentStudy) {
@@ -5057,6 +5283,10 @@ void LauncherUI::EditTestParameters(int testIndex)
     const Test& test = tests[testIndex];
     std::string studyPath = mCurrentStudy->GetPath();
     std::string testPath = studyPath + "/tests/" + test.testPath;
+
+    // Sync schema from scale definition if this is a scale-based test
+    SyncScaleSchema(testPath, test.testName);
+
     std::string schemaPath = testPath + "/params/" + test.testName + ".pbl.schema.json";
 
     // Check if schema file exists
@@ -5074,9 +5304,9 @@ void LauncherUI::EditTestParameters(int testIndex)
     // Scan for existing parameter variants in the params directory
     ScanParameterVariants(testIndex);
 
-    // Clear variant name and show dialog
+    // Load the default parameter set directly (skip variant dialog)
     mVariantName[0] = '\0';
-    mShowVariantNameDialog = true;
+    LoadParameterEditorForVariant();
 }
 
 void LauncherUI::ScanParameterVariants(int testIndex)
@@ -6045,28 +6275,8 @@ void LauncherUI::RenderScaleBrowser()
                             } else {
                                 printf("Exported scale definition and translations\n");
 
-                                // Create default parameter file
-                                std::string paramFilePath = testDir + "/params/" + scaleCode + ".pbl.par.json";
-                                nlohmann::json paramJson = {
-                                    {"scale", scaleCode},
-                                    {"shuffle_questions", 0}
-                                };
-
-                                std::ofstream paramFile(paramFilePath);
-                                if (paramFile.is_open()) {
-                                    paramFile << paramJson.dump(2);
-                                    paramFile.close();
-                                    printf("Created parameter file: %s\n", paramFilePath.c_str());
-                                }
-
-                                // Copy schema file
-                                std::string schemaSource = mBatteryPath + "/../media/apps/scales/params/ScaleRunner.pbl.schema.json";
-                                std::string schemaDest = testDir + "/params/" + scaleCode + ".pbl.schema.json";
-
-                                if (fs::exists(schemaSource)) {
-                                    fs::copy_file(schemaSource, schemaDest, fs::copy_options::overwrite_existing);
-                                    printf("Copied schema file: %s\n", schemaDest.c_str());
-                                }
+                                // Generate schema and default params from scale definition
+                                SyncScaleSchema(testDir, scaleCode);
 
                                 // Add test to study
                                 Test test;
@@ -6825,16 +7035,8 @@ void LauncherUI::RenderQuickLaunchTab()
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.1f, 0.6f, 0.1f, 1.0f));
 
     if (ImGui::Button("Run Script", ImVec2(-1, 50))) {
-        // Build arguments
+        // Build extra arguments (subject code and language are handled by RunExperiment)
         std::vector<std::string> args;
-        if (strlen(mSubjectCode) > 0) {
-            args.push_back("-s");
-            args.push_back(mSubjectCode);
-        }
-        if (strlen(mLanguageCode) > 0) {
-            args.push_back("-v");
-            args.push_back(mLanguageCode);
-        }
         if (strlen(mQuickLaunchParamFile) > 0) {
             args.push_back("--pfile");
             args.push_back(mQuickLaunchParamFile);
@@ -7767,7 +7969,17 @@ void LauncherUI::ShowTranslationEditorDialog()
         // Build file paths
         std::string baseName = fs::path(test.testName).filename().string();
         std::string translationsDir = (fs::path(mTranslationEditor.testPath) / "translations").string();
-        std::string englishFile = (fs::path(translationsDir) / (baseName + ".pbl-en.json")).string();
+        bool isScale = fs::exists(fs::path(mTranslationEditor.testPath) / "definitions");
+
+        // English file: scales prefer new format, fall back to old; traditional tests use old format
+        std::string englishFile;
+        if (isScale) {
+            std::string newPath = (fs::path(translationsDir) / (baseName + ".en.json")).string();
+            std::string oldPath = (fs::path(translationsDir) / (baseName + ".pbl-en.json")).string();
+            englishFile = fs::exists(newPath) ? newPath : (fs::exists(oldPath) ? oldPath : newPath);
+        } else {
+            englishFile = (fs::path(translationsDir) / (baseName + ".pbl-en.json")).string();
+        }
 
         // Header
         ImGui::TextColored(ImVec4(0.4f, 0.7f, 1.0f, 1.0f), "Test:");
@@ -7779,18 +7991,30 @@ void LauncherUI::ShowTranslationEditorDialog()
         availableLanguages.push_back("en");  // English is always available as base
 
         if (fs::exists(translationsDir) && fs::is_directory(translationsDir)) {
+            std::set<std::string> langSet;
             for (const auto& entry : fs::directory_iterator(translationsDir)) {
                 if (entry.is_regular_file()) {
                     std::string filename = entry.path().filename().string();
+                    std::string lang;
+                    // Try dash-based format: "name.pbl-lang.json"
                     size_t dashPos = filename.rfind('-');
                     size_t dotPos = filename.rfind(".json");
                     if (dashPos != std::string::npos && dotPos != std::string::npos && dotPos > dashPos) {
-                        std::string lang = filename.substr(dashPos + 1, dotPos - dashPos - 1);
-                        if (lang != "en") {
-                            availableLanguages.push_back(lang);
+                        lang = filename.substr(dashPos + 1, dotPos - dashPos - 1);
+                    } else if (dotPos != std::string::npos) {
+                        // Try dot-based format: "name.lang.json"
+                        size_t lastDot = filename.rfind('.', dotPos - 1);
+                        if (lastDot != std::string::npos) {
+                            lang = filename.substr(lastDot + 1, dotPos - lastDot - 1);
                         }
                     }
+                    if (!lang.empty() && lang != "en") {
+                        langSet.insert(lang);
+                    }
                 }
+            }
+            for (const auto& l : langSet) {
+                availableLanguages.push_back(l);
             }
         }
 
@@ -7856,7 +8080,14 @@ void LauncherUI::ShowTranslationEditorDialog()
 
             // Then load target language if it exists and is not English
             if (std::string(mTranslationEditor.language) != "en") {
-                std::string targetFile = (fs::path(translationsDir) / (baseName + ".pbl-" + mTranslationEditor.language + ".json")).string();
+                std::string targetFile;
+                if (isScale) {
+                    std::string newPath = (fs::path(translationsDir) / (baseName + "." + mTranslationEditor.language + ".json")).string();
+                    std::string oldPath = (fs::path(translationsDir) / (baseName + ".pbl-" + mTranslationEditor.language + ".json")).string();
+                    targetFile = fs::exists(newPath) ? newPath : oldPath;
+                } else {
+                    targetFile = (fs::path(translationsDir) / (baseName + ".pbl-" + mTranslationEditor.language + ".json")).string();
+                }
                 if (fs::exists(targetFile)) {
                     try {
                         std::ifstream f(targetFile);
@@ -7903,7 +8134,11 @@ void LauncherUI::ShowTranslationEditorDialog()
             ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), "No English translation file found.");
             ImGui::TextWrapped("Create translations/");
             ImGui::SameLine(0, 0);
-            ImGui::Text("%s.pbl-en.json", baseName.c_str());
+            if (isScale) {
+                ImGui::Text("%s.en.json", baseName.c_str());
+            } else {
+                ImGui::Text("%s.pbl-en.json", baseName.c_str());
+            }
             ImGui::SameLine(0, 0);
             ImGui::TextWrapped(" first.");
         } else {
@@ -7996,6 +8231,8 @@ void LauncherUI::ShowTranslationEditorDialog()
             std::string targetFile;
             if (std::string(mTranslationEditor.language) == "en") {
                 targetFile = englishFile;
+            } else if (isScale) {
+                targetFile = (fs::path(translationsDir) / (baseName + "." + mTranslationEditor.language + ".json")).string();
             } else {
                 targetFile = (fs::path(translationsDir) / (baseName + ".pbl-" + mTranslationEditor.language + ".json")).string();
             }
@@ -8219,6 +8456,12 @@ void LauncherUI::ShowScaleBuilder()
                 ImGui::EndTabItem();
             }
 
+            if (ImGui::BeginTabItem("Sections"))
+            {
+                RenderSectionsTab();
+                ImGui::EndTabItem();
+            }
+
             ImGui::EndTabBar();
         }
     } else {
@@ -8353,17 +8596,26 @@ void LauncherUI::RenderScaleList()
 
     ImGui::PopStyleColor(3);
 
-    // Row 3: Open Test Data (only shown when a scale is loaded and test data exists)
-    if (mCurrentScale && mWorkspace) {
-        std::string testDataDir = mWorkspace->GetWorkspacePath() + "/temp/scale-test-"
-                                  + mCurrentScale->GetScaleInfo().code + "/data";
-        if (fs::exists(testDataDir)) {
+    // Row 3: Open Test Data (always reserve space to prevent scrollbox bounce)
+    {
+        bool hasTestData = false;
+        std::string testDataDir;
+        if (mCurrentScale && mWorkspace) {
+            testDataDir = mWorkspace->GetWorkspacePath() + "/temp/scale-test-"
+                          + mCurrentScale->GetScaleInfo().code + "/data";
+            hasTestData = fs::exists(testDataDir);
+        }
+
+        if (hasTestData) {
             if (ImGui::Button("Open Test Data", ImVec2(-1, 0))) {
                 OpenDirectoryInFileBrowser(testDataDir);
             }
             if (ImGui::IsItemHovered()) {
                 ImGui::SetTooltip("Open test output directory: %s", testDataDir.c_str());
             }
+        } else {
+            // Reserve the same height as a button to prevent layout shift
+            ImGui::Dummy(ImVec2(-1, ImGui::GetFrameHeight()));
         }
     }
 
@@ -8684,6 +8936,28 @@ void LauncherUI::RenderScaleInfoEditor()
     if (ImGui::IsItemHovered()) {
         ImGui::SetTooltip("Add a new response option (will update Points automatically)");
     }
+
+    // Default Required setting
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Text("Required Questions");
+    ImGui::Spacing();
+
+    {
+        int defReq = mCurrentScale->GetDefaultRequired();
+        const char* defReqItems[] = { "Per-type defaults", "All required", "All optional" };
+        int defReqIdx = (defReq == -1) ? 0 : (defReq == 1 ? 1 : 2);
+        if (ImGui::Combo("Default Required", &defReqIdx, defReqItems, IM_ARRAYSIZE(defReqItems))) {
+            int newVal = (defReqIdx == 0) ? -1 : (defReqIdx == 1 ? 1 : 0);
+            mCurrentScale->SetDefaultRequired(newVal);
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Scale-level default for whether questions must be answered.\n"
+                              "Per-type defaults: scored types (likert, vas, etc.) are required,\n"
+                              "text entry (short, long) is optional.\n"
+                              "Individual questions can override this in their settings.");
+        }
+    }
 }
 
 void LauncherUI::RenderQuestionsEditor()
@@ -8695,19 +8969,61 @@ void LauncherUI::RenderQuestionsEditor()
     if (ImGui::Button("Add Question")) {
         mQuestionEditor.show = true;
         mQuestionEditor.editingIndex = -1;
-        mQuestionEditor.id[0] = '\0';
+        mQuestionEditor.isSection = false;
+        // Auto-generate first unused q{N} ID
+        {
+            const auto& qs = mCurrentScale->GetQuestions();
+            std::set<std::string> used;
+            for (const auto& q : qs) used.insert(q.id);
+            int nextNum = 1;
+            while (used.count("q" + std::to_string(nextNum))) nextNum++;
+            snprintf(mQuestionEditor.id, sizeof(mQuestionEditor.id), "q%d", nextNum);
+        }
         mQuestionEditor.textKey[0] = '\0';
         mQuestionEditor.questionText[0] = '\0';
         mQuestionEditor.questionType = 0;  // Default to likert
+        mQuestionEditor.randomGroup = 1;   // Default: all in same shuffle pool
+        mQuestionEditor.requiredState = -1;  // Default: use type/scale default
+        mQuestionEditor.hasVisibleWhen = false;
+        mQuestionEditor.visibleWhenLogic = 0;
+        mQuestionEditor.visibleWhenIsComplex = false;
+        mQuestionEditor.visibleWhenConditions.clear();
     }
     ImGui::SameLine();
     if (ImGui::Button("Batch Import...")) {
         mBatchImport.show = true;
         mBatchImport.questionText[0] = '\0';
-        // Pre-fill with scale code if available
+        // Pre-fill with scale code and advance startNumber past existing IDs
         if (mCurrentScale) {
             std::strncpy(mBatchImport.idPrefix, mCurrentScale->GetScaleInfo().code.c_str(), sizeof(mBatchImport.idPrefix) - 1);
             mBatchImport.idPrefix[sizeof(mBatchImport.idPrefix) - 1] = '\0';
+            std::string prefix = mBatchImport.idPrefix;
+            int maxNum = 0;
+            for (const auto& q : mCurrentScale->GetQuestions()) {
+                if (q.id.size() > prefix.size() && q.id.substr(0, prefix.size()) == prefix) {
+                    try {
+                        int n = std::stoi(q.id.substr(prefix.size()));
+                        if (n > maxNum) maxNum = n;
+                    } catch (...) {}
+                }
+            }
+            mBatchImport.startNumber = maxNum + 1;
+        }
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Add Section")) {
+        mQuestionEditor = QuestionEditorState{};
+        mQuestionEditor.show = true;
+        mQuestionEditor.editingIndex = -1;
+        mQuestionEditor.isSection = true;
+        // Find first unused sec_{N} ID
+        {
+            const auto& qs = mCurrentScale->GetQuestions();
+            std::set<std::string> used;
+            for (const auto& q : qs) used.insert(q.id);
+            int nextNum = 1;
+            while (used.count("sec_" + std::to_string(nextNum))) nextNum++;
+            std::snprintf(mQuestionEditor.id, sizeof(mQuestionEditor.id), "sec_%d", nextNum);
         }
     }
 
@@ -8719,10 +9035,14 @@ void LauncherUI::RenderQuestionsEditor()
     ImGui::Spacing();
 
     // Question list
-    if (ImGui::BeginTable("QuestionsTable", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY)) {
+    if (ImGui::BeginTable("QuestionsTable", 8, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY)) {
         ImGui::TableSetupColumn("ID", ImGuiTableColumnFlags_WidthFixed, 80);
         ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthFixed, 70);
+        ImGui::TableSetupColumn("Req", ImGuiTableColumnFlags_WidthFixed, 25);
+        ImGui::TableSetupColumn("Rand", ImGuiTableColumnFlags_WidthFixed, 40);
+        ImGui::TableSetupColumn("Cond", ImGuiTableColumnFlags_WidthFixed, 30);
         ImGui::TableSetupColumn("Question Text", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn("Order", ImGuiTableColumnFlags_WidthFixed, 50);
         ImGui::TableSetupColumn("Edit", ImGuiTableColumnFlags_WidthFixed, 50);
         ImGui::TableHeadersRow();
 
@@ -8731,6 +9051,108 @@ void LauncherUI::RenderQuestionsEditor()
             ImGui::TableNextRow();
             ImGui::PushID((int)i);
 
+            // Section marker — render as a distinct blue-tinted row
+            if (q.type == "section") {
+                ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0,
+                    ImGui::GetColorU32(ImVec4(0.15f, 0.25f, 0.45f, 0.85f)));
+
+                // ID column
+                ImGui::TableNextColumn();
+                ImGui::TextUnformatted(q.id.c_str());
+
+                // Type column
+                ImGui::TableNextColumn();
+                ImGui::TextColored(ImVec4(0.7f, 0.85f, 1.0f, 1.0f), "[section]");
+
+                // Req column — blank
+                ImGui::TableNextColumn();
+
+                // Rand column — blank
+                ImGui::TableNextColumn();
+
+                // Cond column — show "S" if has visible_when
+                ImGui::TableNextColumn();
+                if (q.has_visible_when) {
+                    ImGui::TextUnformatted("S");
+                    if (ImGui::IsItemHovered())
+                        ImGui::SetTooltip("Section has a visible_when condition");
+                }
+
+                // Question Text column — show translated title if set
+                ImGui::TableNextColumn();
+                if (!q.text_key.empty() && mCurrentScale) {
+                    std::string title = mCurrentScale->GetTranslation("en", q.text_key);
+                    if (!title.empty())
+                        ImGui::TextUnformatted(title.c_str());
+                }
+
+                // Order column — move up/down
+                ImGui::TableNextColumn();
+                {
+                    bool canMoveUp   = (i > 0);
+                    bool canMoveDown = (i < questions.size() - 1);
+                    if (!canMoveUp) ImGui::BeginDisabled();
+                    if (ImGui::SmallButton("^##sup")) {
+                        mCurrentScale->MoveQuestion((int)i, (int)i - 1);
+                        mCurrentScale->SetDirty(true);
+                    }
+                    if (!canMoveUp) ImGui::EndDisabled();
+                    ImGui::SameLine();
+                    if (!canMoveDown) ImGui::BeginDisabled();
+                    if (ImGui::SmallButton("v##sdn")) {
+                        mCurrentScale->MoveQuestion((int)i, (int)i + 1);
+                        mCurrentScale->SetDirty(true);
+                    }
+                    if (!canMoveDown) ImGui::EndDisabled();
+                }
+
+                // Edit / Delete column
+                ImGui::TableNextColumn();
+                if (ImGui::SmallButton("Edit##s")) {
+                    auto& e = mQuestionEditor;
+                    e = QuestionEditorState{};
+                    e.show = true;
+                    e.editingIndex = (int)i;
+                    e.isSection = true;
+                    std::strncpy(e.id, q.id.c_str(), sizeof(e.id) - 1);
+                    e.id[sizeof(e.id) - 1] = '\0';
+                    if (!q.text_key.empty() && mCurrentScale) {
+                        std::string titleText = mCurrentScale->GetTranslation("en", q.text_key);
+                        std::strncpy(e.questionText, titleText.c_str(), sizeof(e.questionText) - 1);
+                        e.questionText[sizeof(e.questionText) - 1] = '\0';
+                    }
+                    e.hasVisibleWhen = q.has_visible_when;
+                    e.visibleWhenLogic = (q.visible_when_logic == "any") ? 1 : 0;
+                    e.visibleWhenIsComplex = q.visible_when_is_complex;
+                    e.visibleWhenConditions.clear();
+                    for (const auto& c : q.visible_when_simple) {
+                        EditorCondition ec;
+                        ec.sourceType = (c.source_type == "question") ? 1 : 0;
+                        std::strncpy(ec.sourceName, c.source_name.c_str(), sizeof(ec.sourceName) - 1);
+                        ec.sourceName[sizeof(ec.sourceName) - 1] = '\0';
+                        if (c.op == "not_equals") ec.op = 1;
+                        else if (c.op == "greater_than") ec.op = 2;
+                        else if (c.op == "less_than") ec.op = 3;
+                        else ec.op = 0;
+                        std::strncpy(ec.value, c.value.c_str(), sizeof(ec.value) - 1);
+                        ec.value[sizeof(ec.value) - 1] = '\0';
+                        e.visibleWhenConditions.push_back(ec);
+                    }
+                }
+                ImGui::SameLine();
+                ImGui::PushStyleColor(ImGuiCol_Button,        ImVec4(0.6f, 0.1f, 0.1f, 1.0f));
+                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
+                ImGui::PushStyleColor(ImGuiCol_ButtonActive,  ImVec4(0.9f, 0.1f, 0.1f, 1.0f));
+                if (ImGui::SmallButton("Del##s")) {
+                    mDeleteConfirmIndex = (int)i;
+                    ImGui::OpenPopup("Confirm Delete");
+                }
+                ImGui::PopStyleColor(3);
+
+                ImGui::PopID();
+                continue;
+            }
+
             // ID column
             ImGui::TableNextColumn();
             ImGui::Text("%s", q.id.c_str());
@@ -8738,6 +9160,114 @@ void LauncherUI::RenderQuestionsEditor()
             // Type column
             ImGui::TableNextColumn();
             ImGui::Text("%s", q.type.c_str());
+
+            // Req (required) column - clickable toggle: default -> required -> optional -> default
+            ImGui::TableNextColumn();
+            {
+                bool isDisplayOnly = (q.type == "inst" || q.type == "image");
+                if (!isDisplayOnly) {
+                    // Resolve display symbol and tooltip
+                    std::string symbol;
+                    std::string tooltipText;
+                    if (q.required_state == 1) {
+                        symbol = "+";
+                        tooltipText = "Required (explicit)\nClick to toggle";
+                    } else if (q.required_state == 0) {
+                        symbol = "-";
+                        tooltipText = "Optional (explicit)\nClick to toggle";
+                    } else {
+                        // Resolve effective from scale/type default
+                        int scaleDef = mCurrentScale->GetDefaultRequired();
+                        bool effectiveRequired;
+                        if (scaleDef == 1) {
+                            effectiveRequired = true;
+                            tooltipText = "Required (scale default)\nClick to toggle";
+                        } else if (scaleDef == 0) {
+                            effectiveRequired = false;
+                            tooltipText = "Optional (scale default)\nClick to toggle";
+                        } else {
+                            effectiveRequired = (q.type != "short" && q.type != "long");
+                            tooltipText = effectiveRequired ? "Required (type default)\nClick to toggle" : "Optional (type default)\nClick to toggle";
+                        }
+                        symbol = effectiveRequired ? "(+)" : "(-)";
+                    }
+                    ImGui::PushID(static_cast<int>(i * 100 + 99));
+                    float colWidth = ImGui::GetColumnWidth();
+                    float textWidth = ImGui::CalcTextSize(symbol.c_str()).x;
+                    float indent = (colWidth - textWidth) * 0.5f;
+                    if (indent > 0.0f) ImGui::SetCursorPosX(ImGui::GetCursorPosX() + indent);
+                    if (ImGui::Selectable(symbol.c_str(), false, 0, ImVec2(colWidth, 0))) {
+                        // Cycle: -1 (default) -> 1 (required) -> 0 (optional) -> -1 (default)
+                        if (q.required_state == -1) {
+                            q.required_state = 1;
+                        } else if (q.required_state == 1) {
+                            q.required_state = 0;
+                        } else {
+                            q.required_state = -1;
+                        }
+                        mCurrentScale->SetDirty(true);
+                    }
+                    ImGui::PopID();
+                    if (ImGui::IsItemHovered()) {
+                        ImGui::SetTooltip("%s", tooltipText.c_str());
+                    }
+                }
+            }
+
+            // Rand (randomization group) column
+            ImGui::TableNextColumn();
+            ImGui::PushItemWidth(40);
+            int rg = q.random_group;
+            if (ImGui::InputInt("##rg", &rg, 0, 0)) {
+                if (rg < 0) rg = 0;
+                q.random_group = rg;
+                mCurrentScale->SetDirty(true);
+            }
+            ImGui::PopItemWidth();
+            if (ImGui::IsItemHovered()) {
+                ImGui::SetTooltip("Randomization group\n0 = fixed position\n1+ = shuffle within group");
+            }
+
+            // Cond (condition indicator) column
+            ImGui::TableNextColumn();
+            {
+                std::string condLabel;
+                std::string condTooltip;
+                bool hasP = false, hasQ = false, hasD = false;
+                for (const auto& c : q.visible_when_simple) {
+                    if (c.source_type == "parameter") hasP = true;
+                    else hasQ = true;
+                }
+                // Check dimension-level visible_when
+                if (!q.dimension.empty()) {
+                    for (const auto& dim : mCurrentScale->GetDimensions()) {
+                        if (dim.id == q.dimension && dim.has_visible_when) {
+                            hasD = true;
+                            break;
+                        }
+                    }
+                }
+                if (q.has_visible_when && q.visible_when_is_complex) {
+                    condLabel = "*";
+                    condTooltip = "Complex nested condition (edit in code)";
+                } else {
+                    if (hasP) condLabel += "P";
+                    if (hasQ) condLabel += "Q";
+                    if (hasD) condLabel += "D";
+                }
+                if (!condLabel.empty()) {
+                    ImGui::TextUnformatted(condLabel.c_str());
+                    if (ImGui::IsItemHovered()) {
+                        if (condTooltip.empty()) {
+                            condTooltip = "";
+                            if (hasP) condTooltip += "P = parameter condition\n";
+                            if (hasQ) condTooltip += "Q = question condition\n";
+                            if (hasD) condTooltip += "D = dimension condition";
+                        }
+                        ImGui::SetTooltip("%s", condTooltip.c_str());
+                    }
+                }
+            }
 
             // Question Text column (truncated with tooltip)
             ImGui::TableNextColumn();
@@ -8761,13 +9291,34 @@ void LauncherUI::RenderQuestionsEditor()
                 ImGui::EndTooltip();
             }
 
-            // Edit button column
+            // Order (move up/down) column
+            ImGui::TableNextColumn();
+            {
+                bool canMoveUp = (i > 0);
+                bool canMoveDown = (i < questions.size() - 1);
+                if (!canMoveUp) ImGui::BeginDisabled();
+                if (ImGui::SmallButton("^##up")) {
+                    mCurrentScale->MoveQuestion((int)i, (int)i - 1);
+                    mCurrentScale->SetDirty(true);
+                }
+                if (!canMoveUp) ImGui::EndDisabled();
+                ImGui::SameLine();
+                if (!canMoveDown) ImGui::BeginDisabled();
+                if (ImGui::SmallButton("v##dn")) {
+                    mCurrentScale->MoveQuestion((int)i, (int)i + 1);
+                    mCurrentScale->SetDirty(true);
+                }
+                if (!canMoveDown) ImGui::EndDisabled();
+            }
+
+            // Edit / Delete column
             ImGui::TableNextColumn();
             if (ImGui::SmallButton("Edit##q")) {
                 printf("Edit question %s\n", q.id.c_str());
                 // Open question editor with current values
                 mQuestionEditor.show = true;
                 mQuestionEditor.editingIndex = (int)i;
+                mQuestionEditor.isSection = false;
                 std::strncpy(mQuestionEditor.id, q.id.c_str(), sizeof(mQuestionEditor.id) - 1);
                 mQuestionEditor.id[sizeof(mQuestionEditor.id) - 1] = '\0';
                 std::strncpy(mQuestionEditor.textKey, q.text_key.c_str(), sizeof(mQuestionEditor.textKey) - 1);
@@ -8785,6 +9336,59 @@ void LauncherUI::RenderQuestionsEditor()
                         mQuestionEditor.questionType = ti;
                         break;
                     }
+                }
+
+                // Load randomization group and required state
+                mQuestionEditor.randomGroup = q.random_group;
+                mQuestionEditor.requiredState = q.required_state;
+
+                // Load validation — per-constraint fields
+                {
+                    auto loadErr = [&](const std::string& key, char* buf, size_t sz) {
+                        std::string txt = key.empty() ? "" : (mCurrentScale ? mCurrentScale->GetTranslation("en", key) : "");
+                        strncpy(buf, txt.c_str(), sz - 1); buf[sz - 1] = '\0';
+                    };
+                    const auto& val = q.validation;
+                    auto& e = mQuestionEditor;
+                    e.valMinLengthEnabled  = val.min_length  >= 0; e.valMinLength  = val.min_length  >= 0 ? val.min_length  : 0;
+                    e.valMaxLengthEnabled  = val.max_length  >= 0; e.valMaxLength  = val.max_length  >= 0 ? val.max_length  : 0;
+                    e.valMinWordsEnabled   = val.min_words   >= 0; e.valMinWords   = val.min_words   >= 0 ? val.min_words   : 0;
+                    e.valMaxWordsEnabled   = val.max_words   >= 0; e.valMaxWords   = val.max_words   >= 0 ? val.max_words   : 0;
+                    e.valNumberMinEnabled  = val.number_min_set; e.valNumberMin = val.number_min;
+                    e.valNumberMaxEnabled  = val.number_max_set; e.valNumberMax = val.number_max;
+                    e.valPatternEnabled    = !val.pattern.empty();
+                    strncpy(e.valPattern, val.pattern.c_str(), sizeof(e.valPattern) - 1); e.valPattern[sizeof(e.valPattern)-1] = '\0';
+                    e.valMinSelectedEnabled = val.min_selected >= 0; e.valMinSelected = val.min_selected >= 0 ? val.min_selected : 0;
+                    e.valMaxSelectedEnabled = val.max_selected >= 0; e.valMaxSelected = val.max_selected >= 0 ? val.max_selected : 0;
+                    loadErr(val.min_length_error,   e.valMinLengthError,   sizeof(e.valMinLengthError));
+                    loadErr(val.max_length_error,   e.valMaxLengthError,   sizeof(e.valMaxLengthError));
+                    loadErr(val.min_words_error,    e.valMinWordsError,    sizeof(e.valMinWordsError));
+                    loadErr(val.max_words_error,    e.valMaxWordsError,    sizeof(e.valMaxWordsError));
+                    loadErr(val.number_min_error,   e.valNumberMinError,   sizeof(e.valNumberMinError));
+                    loadErr(val.number_max_error,   e.valNumberMaxError,   sizeof(e.valNumberMaxError));
+                    loadErr(val.pattern_error,      e.valPatternError,     sizeof(e.valPatternError));
+                    loadErr(val.min_selected_error, e.valMinSelectedError, sizeof(e.valMinSelectedError));
+                    loadErr(val.max_selected_error, e.valMaxSelectedError, sizeof(e.valMaxSelectedError));
+                }
+
+                // Load conditional display
+                mQuestionEditor.hasVisibleWhen = q.has_visible_when;
+                mQuestionEditor.visibleWhenLogic = (q.visible_when_logic == "any") ? 1 : 0;
+                mQuestionEditor.visibleWhenIsComplex = q.visible_when_is_complex;
+                mQuestionEditor.visibleWhenConditions.clear();
+                for (const auto& c : q.visible_when_simple) {
+                    EditorCondition ec;
+                    ec.sourceType = (c.source_type == "question") ? 1 : 0;
+                    strncpy(ec.sourceName, c.source_name.c_str(), sizeof(ec.sourceName) - 1);
+                    ec.sourceName[sizeof(ec.sourceName) - 1] = '\0';
+                    // Map operator string to index
+                    if (c.op == "not_equals") ec.op = 1;
+                    else if (c.op == "greater_than") ec.op = 2;
+                    else if (c.op == "less_than") ec.op = 3;
+                    else ec.op = 0;  // equals
+                    strncpy(ec.value, c.value.c_str(), sizeof(ec.value) - 1);
+                    ec.value[sizeof(ec.value) - 1] = '\0';
+                    mQuestionEditor.visibleWhenConditions.push_back(ec);
                 }
 
                 // Load Likert-specific fields
@@ -8830,8 +9434,49 @@ void LauncherUI::RenderQuestionsEditor()
                 std::strncpy(mQuestionEditor.imagePath, q.image.c_str(), sizeof(mQuestionEditor.imagePath) - 1);
                 mQuestionEditor.imagePath[sizeof(mQuestionEditor.imagePath) - 1] = '\0';
             }
+            ImGui::SameLine();
+            ImGui::PushStyleColor(ImGuiCol_Button,        ImVec4(0.6f, 0.1f, 0.1f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive,  ImVec4(0.9f, 0.1f, 0.1f, 1.0f));
+            if (ImGui::SmallButton("Del##q")) {
+                mDeleteConfirmIndex = (int)i;
+                ImGui::OpenPopup("Confirm Delete");
+            }
+            ImGui::PopStyleColor(3);
 
             ImGui::PopID();
+        }
+
+        // Deletion confirmation modal — rendered outside the loop so index is stable
+        ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+        if (ImGui::BeginPopupModal("Confirm Delete", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+            if (mDeleteConfirmIndex >= 0 && mDeleteConfirmIndex < (int)questions.size()) {
+                const auto& dq = questions[mDeleteConfirmIndex];
+                ImGui::Text("Delete '%s' (%s)?", dq.id.c_str(), dq.type.c_str());
+                ImGui::Spacing();
+                ImGui::TextDisabled("Translation text is kept in the language file.");
+                ImGui::TextDisabled("It can be reused if an item with the same ID is added later.");
+                ImGui::Spacing();
+                ImGui::PushStyleColor(ImGuiCol_Button,        ImVec4(0.7f, 0.1f, 0.1f, 1.0f));
+                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.9f, 0.2f, 0.2f, 1.0f));
+                ImGui::PushStyleColor(ImGuiCol_ButtonActive,  ImVec4(1.0f, 0.1f, 0.1f, 1.0f));
+                if (ImGui::Button("Delete", ImVec2(100, 0))) {
+                    questions.erase(questions.begin() + mDeleteConfirmIndex);
+                    mCurrentScale->SetDirty(true);
+                    mDeleteConfirmIndex = -1;
+                    ImGui::CloseCurrentPopup();
+                }
+                ImGui::PopStyleColor(3);
+                ImGui::SameLine();
+                if (ImGui::Button("Cancel", ImVec2(100, 0))) {
+                    mDeleteConfirmIndex = -1;
+                    ImGui::CloseCurrentPopup();
+                }
+            } else {
+                mDeleteConfirmIndex = -1;
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::EndPopup();
         }
 
         ImGui::EndTable();
@@ -8856,6 +9501,9 @@ void LauncherUI::RenderScoringEditor()
             mDimensionEditor.name[0] = '\0';
             mDimensionEditor.abbreviation[0] = '\0';
             mDimensionEditor.description[0] = '\0';
+            mDimensionEditor.hasVisibleWhen = false;
+            mDimensionEditor.visibleWhenLogic = 0;
+            mDimensionEditor.visibleWhenConditions.clear();
         }
         return;
     }
@@ -8870,6 +9518,9 @@ void LauncherUI::RenderScoringEditor()
         mDimensionEditor.name[0] = '\0';
         mDimensionEditor.abbreviation[0] = '\0';
         mDimensionEditor.description[0] = '\0';
+        mDimensionEditor.hasVisibleWhen = false;
+        mDimensionEditor.visibleWhenLogic = 0;
+        mDimensionEditor.visibleWhenConditions.clear();
     }
     ImGui::Separator();
 
@@ -8905,6 +9556,24 @@ void LauncherUI::RenderScoringEditor()
             strncpy(mDimensionEditor.name, selectedDim.name.c_str(), sizeof(mDimensionEditor.name) - 1);
             strncpy(mDimensionEditor.abbreviation, selectedDim.abbreviation.c_str(), sizeof(mDimensionEditor.abbreviation) - 1);
             strncpy(mDimensionEditor.description, selectedDim.description.c_str(), sizeof(mDimensionEditor.description) - 1);
+
+            // Load conditional display
+            mDimensionEditor.hasVisibleWhen = selectedDim.has_visible_when;
+            mDimensionEditor.visibleWhenLogic = (selectedDim.visible_when_logic == "any") ? 1 : 0;
+            mDimensionEditor.visibleWhenConditions.clear();
+            for (const auto& c : selectedDim.visible_when) {
+                EditorCondition ec;
+                ec.sourceType = (c.source_type == "question") ? 1 : 0;
+                strncpy(ec.sourceName, c.source_name.c_str(), sizeof(ec.sourceName) - 1);
+                ec.sourceName[sizeof(ec.sourceName) - 1] = '\0';
+                if (c.op == "not_equals") ec.op = 1;
+                else if (c.op == "greater_than") ec.op = 2;
+                else if (c.op == "less_than") ec.op = 3;
+                else ec.op = 0;
+                strncpy(ec.value, c.value.c_str(), sizeof(ec.value) - 1);
+                ec.value[sizeof(ec.value) - 1] = '\0';
+                mDimensionEditor.visibleWhenConditions.push_back(ec);
+            }
         }
         ImGui::SameLine();
 
@@ -8987,9 +9656,9 @@ void LauncherUI::RenderScoringEditor()
 
         // Items table
         int numCols = 4;
-        if (ImGui::BeginTable("ItemScoringTable", numCols, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY)) {
+        if (ImGui::BeginTable("ItemScoringTable", numCols, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY | ImGuiTableFlags_Resizable)) {
             ImGui::TableSetupColumn("Include", ImGuiTableColumnFlags_WidthFixed, 60);
-            ImGui::TableSetupColumn("ID", ImGuiTableColumnFlags_WidthFixed, 80);
+            ImGui::TableSetupColumn("ID", ImGuiTableColumnFlags_WidthFixed, 120);
             if (isSumCorrect) {
                 ImGui::TableSetupColumn("Question Text", ImGuiTableColumnFlags_WidthFixed, 200);
                 ImGui::TableSetupColumn("Correct Answers", ImGuiTableColumnFlags_WidthStretch);
@@ -9329,10 +9998,247 @@ void LauncherUI::RenderTranslationsEditor()
     ImGui::EndChild();
 }
 
+void LauncherUI::RenderSectionsTab()
+{
+    if (!mCurrentScale) return;
+
+    auto& raw = mCurrentScale->GetRawDefinition();
+    const auto& questions = mCurrentScale->GetQuestions();
+
+    // Collect section IDs from question list (in order)
+    std::vector<std::string> sectionIds;
+    for (const auto& q : questions)
+        if (q.type == "section")
+            sectionIds.push_back(q.id);
+
+    // ── Left panel: randomization ────────────────────────────────────────
+    ImGui::BeginChild("SectionsRandomPanel", ImVec2(320, 0), true);
+    ImGui::Text("Section Order Randomization (S4)");
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    // Top-level toggle
+    bool randomizeEnabled = raw.contains("randomize_sections");
+    if (ImGui::Checkbox("Randomize section order", &randomizeEnabled)) {
+        if (randomizeEnabled) {
+            raw["randomize_sections"] = {{"method", "shuffle"}, {"fixed", nlohmann::json::array()}};
+        } else {
+            raw.erase("randomize_sections");
+        }
+        mCurrentScale->SetDirty(true);
+    }
+
+    if (randomizeEnabled && raw.contains("randomize_sections")) {
+        auto& rs = raw["randomize_sections"];
+
+        // Build fixed set for fast lookup
+        std::set<std::string> fixedSet;
+        if (rs.contains("fixed") && rs["fixed"].is_array())
+            for (const auto& f : rs["fixed"])
+                if (f.is_string()) fixedSet.insert(f.get<std::string>());
+
+        ImGui::Spacing();
+        ImGui::TextDisabled("Fixed sections are not shuffled:");
+        ImGui::Spacing();
+
+        if (sectionIds.empty()) {
+            ImGui::TextDisabled("(No sections defined — add sections in the Questions tab)");
+        } else {
+            for (const auto& sid : sectionIds) {
+                bool isFixed = fixedSet.count(sid) > 0;
+                std::string label = "Fixed##fix_" + sid;
+                if (ImGui::Checkbox(label.c_str(), &isFixed)) {
+                    if (isFixed)
+                        fixedSet.insert(sid);
+                    else
+                        fixedSet.erase(sid);
+                    // Rebuild fixed array
+                    rs["fixed"] = nlohmann::json::array();
+                    for (const auto& f : fixedSet)
+                        rs["fixed"].push_back(f);
+                    mCurrentScale->SetDirty(true);
+                }
+                ImGui::SameLine();
+                ImGui::TextUnformatted(sid.c_str());
+            }
+        }
+    }
+    ImGui::EndChild();
+
+    ImGui::SameLine();
+
+    // ── Right panel: branch groups ───────────────────────────────────────
+    ImGui::BeginChild("SectionsBranchPanel", ImVec2(0, 0), true);
+    ImGui::Text("Branch Groups (A1)");
+    ImGui::Separator();
+    ImGui::Spacing();
+    ImGui::TextWrapped(
+        "Branch groups let you randomly assign participants to different "
+        "sequences of sections. Each group has named arms; the runner picks "
+        "one arm per participant.");
+    ImGui::Spacing();
+
+    // Ensure branches key exists as array if missing
+    bool hasBranches = raw.contains("branches") && raw["branches"].is_array();
+
+    if (ImGui::Button("Add Branch Group")) {
+        if (!hasBranches) {
+            raw["branches"] = nlohmann::json::array();
+            hasBranches = true;
+        }
+        nlohmann::json newGroup;
+        newGroup["id"] = "branch_" + std::to_string(raw["branches"].size() + 1);
+        newGroup["method"] = "random";
+        newGroup["arms"] = nlohmann::json::array();
+        raw["branches"].push_back(newGroup);
+        mSelectedBranchGroupIndex = (int)raw["branches"].size() - 1;
+        mCurrentScale->SetDirty(true);
+    }
+
+    if (hasBranches) {
+        auto& branches = raw["branches"];
+        int numGroups = (int)branches.size();
+
+        // Left sub-column: group list
+        ImGui::BeginChild("BranchGroupList", ImVec2(160, 0), true);
+        for (int gi = 0; gi < numGroups; ++gi) {
+            std::string groupId = branches[gi].value("id", "branch_" + std::to_string(gi+1));
+            bool selected = (mSelectedBranchGroupIndex == gi);
+            if (ImGui::Selectable(groupId.c_str(), selected))
+                mSelectedBranchGroupIndex = gi;
+        }
+        ImGui::EndChild();
+        ImGui::SameLine();
+
+        // Right sub-column: group editor
+        ImGui::BeginChild("BranchGroupEditor", ImVec2(0, 0), true);
+        if (mSelectedBranchGroupIndex >= 0 && mSelectedBranchGroupIndex < numGroups) {
+            auto& grp = branches[mSelectedBranchGroupIndex];
+
+            // Group ID
+            char gidBuf[64];
+            std::string gidStr = grp.value("id", "");
+            std::strncpy(gidBuf, gidStr.c_str(), sizeof(gidBuf) - 1);
+            gidBuf[sizeof(gidBuf)-1] = '\0';
+            ImGui::Text("Group ID:"); ImGui::SameLine();
+            ImGui::SetNextItemWidth(150);
+            if (ImGui::InputText("##gid", gidBuf, sizeof(gidBuf)))
+            { grp["id"] = gidBuf; mCurrentScale->SetDirty(true); }
+
+            // Method
+            ImGui::Text("Method:"); ImGui::SameLine();
+            const char* methods[] = {"random", "balanced", "parameter"};
+            int methodIdx = 0;
+            std::string curMethod = grp.value("method", "random");
+            for (int m = 0; m < 3; ++m)
+                if (curMethod == methods[m]) { methodIdx = m; break; }
+            ImGui::SetNextItemWidth(130);
+            if (ImGui::Combo("##gmethod", &methodIdx, methods, 3))
+            { grp["method"] = methods[methodIdx]; mCurrentScale->SetDirty(true); }
+
+            ImGui::Spacing();
+            ImGui::Separator();
+            ImGui::Text("Arms:");
+
+            // Arms
+            if (!grp.contains("arms") || !grp["arms"].is_array())
+                grp["arms"] = nlohmann::json::array();
+            auto& arms = grp["arms"];
+
+            if (ImGui::Button("+ Add Arm")) {
+                nlohmann::json arm;
+                arm["id"] = "arm_" + std::to_string(arms.size() + 1);
+                arm["sections"] = nlohmann::json::array();
+                arms.push_back(arm);
+                mCurrentScale->SetDirty(true);
+            }
+
+            int armToDelete = -1;
+            for (int ai = 0; ai < (int)arms.size(); ++ai) {
+                auto& arm = arms[ai];
+                ImGui::PushID(ai);
+
+                // Arm ID input
+                char armIdBuf[64];
+                std::string armIdStr = arm.value("id", "");
+                std::strncpy(armIdBuf, armIdStr.c_str(), sizeof(armIdBuf) - 1);
+                armIdBuf[sizeof(armIdBuf)-1] = '\0';
+                ImGui::SetNextItemWidth(100);
+                if (ImGui::InputText("##armid", armIdBuf, sizeof(armIdBuf)))
+                { arm["id"] = armIdBuf; mCurrentScale->SetDirty(true); }
+
+                ImGui::SameLine();
+
+                // Section checklist popup
+                std::string popupId = "ArmSections##" + std::to_string(ai);
+                if (!arm.contains("sections") || !arm["sections"].is_array())
+                    arm["sections"] = nlohmann::json::array();
+                std::set<std::string> armSecs;
+                for (const auto& s : arm["sections"])
+                    if (s.is_string()) armSecs.insert(s.get<std::string>());
+                std::string secLabel = std::to_string(armSecs.size()) + " section(s)";
+                if (ImGui::Button(secLabel.c_str()))
+                    ImGui::OpenPopup(popupId.c_str());
+                if (ImGui::BeginPopup(popupId.c_str())) {
+                    ImGui::Text("Sections in this arm:");
+                    ImGui::Separator();
+                    if (sectionIds.empty()) {
+                        ImGui::TextDisabled("(No sections — add in Questions tab)");
+                    } else {
+                        for (const auto& sid : sectionIds) {
+                            bool inArm = armSecs.count(sid) > 0;
+                            if (ImGui::Checkbox(sid.c_str(), &inArm)) {
+                                if (inArm) armSecs.insert(sid);
+                                else armSecs.erase(sid);
+                                // Rebuild sections array preserving order from sectionIds
+                                arm["sections"] = nlohmann::json::array();
+                                for (const auto& s : sectionIds)
+                                    if (armSecs.count(s)) arm["sections"].push_back(s);
+                                mCurrentScale->SetDirty(true);
+                            }
+                        }
+                    }
+                    ImGui::EndPopup();
+                }
+
+                ImGui::SameLine();
+                if (ImGui::SmallButton("Del")) armToDelete = ai;
+
+                ImGui::PopID();
+            }
+            if (armToDelete >= 0) {
+                arms.erase(arms.begin() + armToDelete);
+                mCurrentScale->SetDirty(true);
+            }
+
+            ImGui::Spacing();
+            ImGui::Separator();
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.7f,0.15f,0.15f,1.0f));
+            if (ImGui::Button("Delete Branch Group")) {
+                branches.erase(branches.begin() + mSelectedBranchGroupIndex);
+                mSelectedBranchGroupIndex = -1;
+                mCurrentScale->SetDirty(true);
+            }
+            ImGui::PopStyleColor();
+        } else {
+            ImGui::TextDisabled("Select a branch group from the list.");
+        }
+        ImGui::EndChild();
+    }
+
+    ImGui::EndChild(); // SectionsBranchPanel
+}
+
 void LauncherUI::ShowQuestionEditor()
 {
     if (!mCurrentScale) {
         mQuestionEditor.show = false;
+        return;
+    }
+
+    // Branch for section editor — uses its own simplified form
+    if (mQuestionEditor.isSection) {
+        RenderSectionEditorForm();
         return;
     }
 
@@ -9350,16 +10256,12 @@ void LauncherUI::ShowQuestionEditor()
     ImGui::Separator();
     ImGui::Spacing();
 
-    // Question ID
+    // Question ID (also used as translation key — lowercase letters, digits, underscores only)
     ImGui::InputText("ID", mQuestionEditor.id, sizeof(mQuestionEditor.id));
     if (ImGui::IsItemHovered()) {
-        ImGui::SetTooltip("Unique identifier (e.g., moci1, moci2)");
-    }
-
-    // Text Key (defaults to same as ID if empty)
-    ImGui::InputText("Text Key", mQuestionEditor.textKey, sizeof(mQuestionEditor.textKey));
-    if (ImGui::IsItemHovered()) {
-        ImGui::SetTooltip("Translation key (usually same as ID)");
+        ImGui::SetTooltip("Unique question identifier (e.g., q1, age, grit2).\n"
+                          "Use lowercase letters, digits, and underscores only.\n"
+                          "Also used as the translation key for the question text.");
     }
 
     // Question Text (multiline input)
@@ -9372,7 +10274,141 @@ void LauncherUI::ShowQuestionEditor()
 
     // Question Type
     const char* questionTypes[] = { "likert", "multi", "short", "long", "vas", "inst", "multicheck", "grid", "image", "imageresponse" };
+    int prevType = mQuestionEditor.questionType;
     ImGui::Combo("Type", &mQuestionEditor.questionType, questionTypes, IM_ARRAYSIZE(questionTypes));
+    // Auto-set randomization group to 0 when type changes to inst
+    if (mQuestionEditor.questionType != prevType && mQuestionEditor.questionType == 5) {
+        mQuestionEditor.randomGroup = 0;
+    }
+
+    // Randomization Group
+    ImGui::InputInt("Randomization Group", &mQuestionEditor.randomGroup, 1, 1);
+    if (mQuestionEditor.randomGroup < 0) mQuestionEditor.randomGroup = 0;
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("0 = fixed position\n1+ = shuffle within group when randomization is enabled");
+    }
+
+    // Required
+    {
+        // Build label for default option based on type
+        const char* qTypes[] = { "likert", "multi", "short", "long", "vas", "inst", "multicheck", "grid", "image", "imageresponse" };
+        std::string currentType = qTypes[mQuestionEditor.questionType];
+        bool isDisplayOnly = (currentType == "inst" || currentType == "image");
+        std::string defaultLabel = "Default (";
+        if (isDisplayOnly) {
+            defaultLabel += "n/a - display only)";
+        } else {
+            int scaleDef = mCurrentScale ? mCurrentScale->GetDefaultRequired() : -1;
+            if (scaleDef == 1) {
+                defaultLabel += "required, scale setting)";
+            } else if (scaleDef == 0) {
+                defaultLabel += "optional, scale setting)";
+            } else {
+                bool typeRequired = (currentType != "short" && currentType != "long");
+                defaultLabel += typeRequired ? "required, type default)" : "optional, type default)";
+            }
+        }
+        const char* requiredItems[] = { defaultLabel.c_str(), "Required", "Optional" };
+        int reqComboIdx = (mQuestionEditor.requiredState == -1) ? 0 : (mQuestionEditor.requiredState == 1 ? 1 : 2);
+        if (ImGui::Combo("Required", &reqComboIdx, requiredItems, IM_ARRAYSIZE(requiredItems))) {
+            mQuestionEditor.requiredState = (reqComboIdx == 0) ? -1 : (reqComboIdx == 1 ? 1 : 0);
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Whether the participant must answer this question.\n"
+                              "Default: scored types are required, text entry is optional.\n"
+                              "Can also be overridden at scale level in the Info tab.");
+        }
+    }
+
+    // Input Validation section — per-constraint, only for short, long, multicheck
+    {
+        std::string currentType = questionTypes[mQuestionEditor.questionType];
+        bool isText     = (currentType == "short" || currentType == "long");
+        bool isShort    = (currentType == "short");
+        bool isMulti    = (currentType == "multicheck");
+        if (isText || isMulti) {
+            ImGui::Spacing();
+            ImGui::Separator();
+            ImGui::Text("Input Validation");
+            ImGui::Spacing();
+            ImGui::TextDisabled("Enable individual constraints below. Each can have its own error message.");
+            ImGui::Spacing();
+
+            // Helper macro-like lambda for one constraint row
+            auto constraintRow = [&](const char* label, bool& enabled, int& val,
+                                     char* errBuf, size_t errBufSz, const char* tooltip) {
+                ImGui::Checkbox(label, &enabled);
+                if (ImGui::IsItemHovered() && tooltip[0]) ImGui::SetTooltip("%s", tooltip);
+                if (enabled) {
+                    ImGui::SameLine();
+                    ImGui::SetNextItemWidth(80);
+                    std::string intId = std::string("##v") + label;
+                    ImGui::InputInt(intId.c_str(), &val);
+                    ImGui::SameLine();
+                    std::string errId = std::string("##e") + label;
+                    ImGui::SetNextItemWidth(-FLT_MIN);
+                    ImGui::InputText(errId.c_str(), errBuf, errBufSz);
+                    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Error message shown when this constraint fails (English)");
+                }
+            };
+            auto constraintRowDbl = [&](const char* label, bool& enabled, double& val,
+                                        char* errBuf, size_t errBufSz, const char* tooltip) {
+                ImGui::Checkbox(label, &enabled);
+                if (ImGui::IsItemHovered() && tooltip[0]) ImGui::SetTooltip("%s", tooltip);
+                if (enabled) {
+                    ImGui::SameLine();
+                    ImGui::SetNextItemWidth(100);
+                    std::string dblId = std::string("##v") + label;
+                    ImGui::InputDouble(dblId.c_str(), &val, 1.0, 10.0, "%.2f");
+                    ImGui::SameLine();
+                    std::string errId = std::string("##e") + label;
+                    ImGui::SetNextItemWidth(-FLT_MIN);
+                    ImGui::InputText(errId.c_str(), errBuf, errBufSz);
+                    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Error message shown when this constraint fails (English)");
+                }
+            };
+
+            auto& e = mQuestionEditor;
+            if (isText) {
+                ImGui::TextDisabled("Characters:"); ImGui::SameLine(); ImGui::TextDisabled("value"); ImGui::SameLine(); ImGui::TextDisabled("  error message");
+                constraintRow("Min characters", e.valMinLengthEnabled, e.valMinLength, e.valMinLengthError, sizeof(e.valMinLengthError), "Minimum number of characters required");
+                constraintRow("Max characters", e.valMaxLengthEnabled, e.valMaxLength, e.valMaxLengthError, sizeof(e.valMaxLengthError), "Maximum number of characters allowed");
+                ImGui::Spacing();
+                ImGui::TextDisabled("Words:"); ImGui::SameLine(); ImGui::TextDisabled("value"); ImGui::SameLine(); ImGui::TextDisabled("  error message");
+                constraintRow("Min words",      e.valMinWordsEnabled,  e.valMinWords,  e.valMinWordsError,  sizeof(e.valMinWordsError),  "Minimum number of words required");
+                constraintRow("Max words",      e.valMaxWordsEnabled,  e.valMaxWords,  e.valMaxWordsError,  sizeof(e.valMaxWordsError),  "Maximum number of words allowed");
+            }
+            if (isShort) {
+                ImGui::Spacing();
+                ImGui::TextDisabled("Numeric range (also restricts input to digits):");
+                constraintRowDbl("Min value", e.valNumberMinEnabled, e.valNumberMin, e.valNumberMinError, sizeof(e.valNumberMinError), "Minimum numeric value");
+                constraintRowDbl("Max value", e.valNumberMaxEnabled, e.valNumberMax, e.valNumberMaxError, sizeof(e.valNumberMaxError), "Maximum numeric value");
+                ImGui::Spacing();
+                ImGui::Checkbox("Pattern (regex)", &e.valPatternEnabled);
+                if (e.valPatternEnabled) {
+                    ImGui::SetNextItemWidth(200);
+                    ImGui::InputText("##vpat", e.valPattern, sizeof(e.valPattern));
+                    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Regular expression. Supports: . ^ $ * + ? [] \\s \\w \\d | ()");
+                    ImGui::SameLine();
+                    ImGui::SetNextItemWidth(-FLT_MIN);
+                    ImGui::InputText("##epat", e.valPatternError, sizeof(e.valPatternError));
+                    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Error message shown when pattern does not match (English)");
+                }
+            }
+            if (isMulti) {
+                constraintRow("Min selected", e.valMinSelectedEnabled, e.valMinSelected, e.valMinSelectedError, sizeof(e.valMinSelectedError), "Minimum number of options to select");
+                constraintRow("Max selected", e.valMaxSelectedEnabled, e.valMaxSelected, e.valMaxSelectedError, sizeof(e.valMaxSelectedError), "Maximum number of options to select");
+            }
+        }
+    }
+
+    // Conditional Display section
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Text("Conditional Display");
+    ImGui::Spacing();
+
+    RenderVisibleWhenEditor(mQuestionEditor);
 
     // Likert-specific fields (only show if type is likert)
     if (mQuestionEditor.questionType == 0) {  // likert
@@ -9538,8 +10574,67 @@ void LauncherUI::ShowQuestionEditor()
             auto& questions = mCurrentScale->GetQuestions();
             if (mQuestionEditor.editingIndex < (int)questions.size()) {
                 questions[mQuestionEditor.editingIndex].id = mQuestionEditor.id;
-                questions[mQuestionEditor.editingIndex].text_key = strlen(mQuestionEditor.textKey) > 0 ? mQuestionEditor.textKey : mQuestionEditor.id;
+                questions[mQuestionEditor.editingIndex].text_key = mQuestionEditor.id;
                 questions[mQuestionEditor.editingIndex].type = questionTypes[mQuestionEditor.questionType];
+                questions[mQuestionEditor.editingIndex].random_group = mQuestionEditor.randomGroup;
+                questions[mQuestionEditor.editingIndex].required_state = mQuestionEditor.requiredState;
+
+                // Update validation (C9) — per-constraint fields
+                {
+                    auto& val = questions[mQuestionEditor.editingIndex].validation;
+                    std::string qid = mQuestionEditor.id;
+                    auto& e = mQuestionEditor;
+
+                    auto storeErr = [&](const char* buf, const std::string& suffix) -> std::string {
+                        if (buf[0] && mCurrentScale) {
+                            std::string key = qid + "_" + suffix;
+                            mCurrentScale->AddTranslation("en", key, buf);
+                            return key;
+                        }
+                        return "";
+                    };
+
+                    val.min_length     = e.valMinLengthEnabled   ? e.valMinLength    : -1;
+                    val.max_length     = e.valMaxLengthEnabled   ? e.valMaxLength    : -1;
+                    val.min_words      = e.valMinWordsEnabled    ? e.valMinWords     : -1;
+                    val.max_words      = e.valMaxWordsEnabled    ? e.valMaxWords     : -1;
+                    val.number_min_set = e.valNumberMinEnabled;
+                    val.number_min     = e.valNumberMinEnabled   ? e.valNumberMin    : 0.0;
+                    val.number_max_set = e.valNumberMaxEnabled;
+                    val.number_max     = e.valNumberMaxEnabled   ? e.valNumberMax    : 0.0;
+                    val.pattern        = e.valPatternEnabled     ? e.valPattern      : "";
+                    val.min_selected   = e.valMinSelectedEnabled ? e.valMinSelected  : -1;
+                    val.max_selected   = e.valMaxSelectedEnabled ? e.valMaxSelected  : -1;
+
+                    val.min_length_error    = e.valMinLengthEnabled   ? storeErr(e.valMinLengthError,    "min_length_err")    : "";
+                    val.max_length_error    = e.valMaxLengthEnabled   ? storeErr(e.valMaxLengthError,    "max_length_err")    : "";
+                    val.min_words_error     = e.valMinWordsEnabled    ? storeErr(e.valMinWordsError,     "min_words_err")     : "";
+                    val.max_words_error     = e.valMaxWordsEnabled    ? storeErr(e.valMaxWordsError,     "max_words_err")     : "";
+                    val.number_min_error    = e.valNumberMinEnabled   ? storeErr(e.valNumberMinError,    "number_min_err")    : "";
+                    val.number_max_error    = e.valNumberMaxEnabled   ? storeErr(e.valNumberMaxError,    "number_max_err")    : "";
+                    val.pattern_error       = e.valPatternEnabled     ? storeErr(e.valPatternError,      "pattern_err")       : "";
+                    val.min_selected_error  = e.valMinSelectedEnabled ? storeErr(e.valMinSelectedError,  "min_selected_err")  : "";
+                    val.max_selected_error  = e.valMaxSelectedEnabled ? storeErr(e.valMaxSelectedError,  "max_selected_err")  : "";
+                }
+
+                // Update conditional display
+                if (!mQuestionEditor.visibleWhenIsComplex) {
+                    questions[mQuestionEditor.editingIndex].has_visible_when = mQuestionEditor.hasVisibleWhen;
+                    questions[mQuestionEditor.editingIndex].visible_when_logic = (mQuestionEditor.visibleWhenLogic == 1) ? "any" : "all";
+                    questions[mQuestionEditor.editingIndex].visible_when_simple.clear();
+                    if (mQuestionEditor.hasVisibleWhen) {
+                        const char* opNames[] = { "equals", "not_equals", "greater_than", "less_than" };
+                        for (const auto& ec : mQuestionEditor.visibleWhenConditions) {
+                            VisibleWhenCondition c;
+                            c.source_type = (ec.sourceType == 1) ? "question" : "parameter";
+                            c.source_name = ec.sourceName;
+                            c.op = opNames[ec.op];
+                            c.value = ec.value;
+                            questions[mQuestionEditor.editingIndex].visible_when_simple.push_back(c);
+                        }
+                    }
+                    questions[mQuestionEditor.editingIndex].visible_when_is_complex = false;
+                }
 
                 // Update Likert-specific fields if type is likert
                 if (mQuestionEditor.questionType == 0) {  // likert
@@ -9632,11 +10727,75 @@ void LauncherUI::ShowQuestionEditor()
             }
             mQuestionEditor.show = false;
         } else {
+            // Check for duplicate ID before creating
+            auto& existingQs = mCurrentScale->GetQuestions();
+            bool isDuplicate = false;
+            for (const auto& eq : existingQs) {
+                if (eq.id == mQuestionEditor.id) { isDuplicate = true; break; }
+            }
+            if (isDuplicate) {
+                printf("Error: Question ID '%s' already exists\n", mQuestionEditor.id);
+            } else {
             // Create new question
             ScaleQuestion newQuestion;
             newQuestion.id = mQuestionEditor.id;
-            newQuestion.text_key = strlen(mQuestionEditor.textKey) > 0 ? mQuestionEditor.textKey : mQuestionEditor.id;
+            newQuestion.text_key = mQuestionEditor.id;
             newQuestion.type = questionTypes[mQuestionEditor.questionType];
+            newQuestion.random_group = mQuestionEditor.randomGroup;
+            newQuestion.required_state = mQuestionEditor.requiredState;
+
+            // Set validation (C9) — per-constraint fields
+            {
+                auto& val = newQuestion.validation;
+                std::string qid = mQuestionEditor.id;
+                auto& e = mQuestionEditor;
+
+                auto storeErr = [&](const char* buf, const std::string& suffix) -> std::string {
+                    if (buf[0] && mCurrentScale) {
+                        std::string key = qid + "_" + suffix;
+                        mCurrentScale->AddTranslation("en", key, buf);
+                        return key;
+                    }
+                    return "";
+                };
+
+                val.min_length     = e.valMinLengthEnabled   ? e.valMinLength    : -1;
+                val.max_length     = e.valMaxLengthEnabled   ? e.valMaxLength    : -1;
+                val.min_words      = e.valMinWordsEnabled    ? e.valMinWords     : -1;
+                val.max_words      = e.valMaxWordsEnabled    ? e.valMaxWords     : -1;
+                val.number_min_set = e.valNumberMinEnabled;
+                val.number_min     = e.valNumberMinEnabled   ? e.valNumberMin    : 0.0;
+                val.number_max_set = e.valNumberMaxEnabled;
+                val.number_max     = e.valNumberMaxEnabled   ? e.valNumberMax    : 0.0;
+                val.pattern        = e.valPatternEnabled     ? e.valPattern      : "";
+                val.min_selected   = e.valMinSelectedEnabled ? e.valMinSelected  : -1;
+                val.max_selected   = e.valMaxSelectedEnabled ? e.valMaxSelected  : -1;
+
+                val.min_length_error    = e.valMinLengthEnabled   ? storeErr(e.valMinLengthError,    "min_length_err")    : "";
+                val.max_length_error    = e.valMaxLengthEnabled   ? storeErr(e.valMaxLengthError,    "max_length_err")    : "";
+                val.min_words_error     = e.valMinWordsEnabled    ? storeErr(e.valMinWordsError,     "min_words_err")     : "";
+                val.max_words_error     = e.valMaxWordsEnabled    ? storeErr(e.valMaxWordsError,     "max_words_err")     : "";
+                val.number_min_error    = e.valNumberMinEnabled   ? storeErr(e.valNumberMinError,    "number_min_err")    : "";
+                val.number_max_error    = e.valNumberMaxEnabled   ? storeErr(e.valNumberMaxError,    "number_max_err")    : "";
+                val.pattern_error       = e.valPatternEnabled     ? storeErr(e.valPatternError,      "pattern_err")       : "";
+                val.min_selected_error  = e.valMinSelectedEnabled ? storeErr(e.valMinSelectedError,  "min_selected_err")  : "";
+                val.max_selected_error  = e.valMaxSelectedEnabled ? storeErr(e.valMaxSelectedError,  "max_selected_err")  : "";
+            }
+
+            // Set conditional display
+            newQuestion.has_visible_when = mQuestionEditor.hasVisibleWhen;
+            newQuestion.visible_when_logic = (mQuestionEditor.visibleWhenLogic == 1) ? "any" : "all";
+            if (mQuestionEditor.hasVisibleWhen) {
+                const char* opNames[] = { "equals", "not_equals", "greater_than", "less_than" };
+                for (const auto& ec : mQuestionEditor.visibleWhenConditions) {
+                    VisibleWhenCondition c;
+                    c.source_type = (ec.sourceType == 1) ? "question" : "parameter";
+                    c.source_name = ec.sourceName;
+                    c.op = opNames[ec.op];
+                    c.value = ec.value;
+                    newQuestion.visible_when_simple.push_back(c);
+                }
+            }
 
             // Set Likert-specific fields if type is likert
             if (mQuestionEditor.questionType == 0) {  // likert
@@ -9727,12 +10886,159 @@ void LauncherUI::ShowQuestionEditor()
             mCurrentScale->SetDirty(true);
 
             mQuestionEditor.show = false;
+            } // end duplicate-ID check else
         }
     }
     ImGui::SameLine();
     if (ImGui::Button("Cancel", ImVec2(120, 0))) {
         mQuestionEditor.show = false;
     }
+
+    ImGui::End();
+}
+
+void LauncherUI::RenderVisibleWhenEditor(QuestionEditorState& e)
+{
+    if (e.visibleWhenIsComplex) {
+        ImGui::TextWrapped("This item has nested conditional logic.");
+        ImGui::TextWrapped("Conditions are preserved — use code editor to modify.");
+        return;
+    }
+
+    ImGui::Checkbox("Show conditionally", &e.hasVisibleWhen);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("When checked, this item is only shown when conditions are met");
+
+    if (e.hasVisibleWhen) {
+        const char* logicItems[] = { "AND (all must match)", "OR (any must match)" };
+        ImGui::Combo("Combine with", &e.visibleWhenLogic, logicItems, IM_ARRAYSIZE(logicItems));
+
+        int removeIndex = -1;
+        for (int ci = 0; ci < (int)e.visibleWhenConditions.size(); ci++) {
+            auto& cond = e.visibleWhenConditions[ci];
+            ImGui::PushID(ci);
+
+            const char* sourceTypes[] = { "Parameter", "Question" };
+            ImGui::PushItemWidth(90);
+            ImGui::Combo("##src", &cond.sourceType, sourceTypes, IM_ARRAYSIZE(sourceTypes));
+            ImGui::PopItemWidth();
+            ImGui::SameLine();
+
+            ImGui::PushItemWidth(100);
+            ImGui::InputText("##name", cond.sourceName, sizeof(cond.sourceName));
+            ImGui::PopItemWidth();
+            ImGui::SameLine();
+
+            const char* operators[] = { "equals", "not_equals", "greater_than", "less_than" };
+            ImGui::PushItemWidth(100);
+            ImGui::Combo("##op", &cond.op, operators, IM_ARRAYSIZE(operators));
+            ImGui::PopItemWidth();
+            ImGui::SameLine();
+
+            ImGui::PushItemWidth(100);
+            ImGui::InputText("##val", cond.value, sizeof(cond.value));
+            ImGui::PopItemWidth();
+            ImGui::SameLine();
+
+            if (ImGui::SmallButton("X"))
+                removeIndex = ci;
+
+            ImGui::PopID();
+        }
+        if (removeIndex >= 0)
+            e.visibleWhenConditions.erase(e.visibleWhenConditions.begin() + removeIndex);
+
+        if (ImGui::SmallButton("+ Add Condition")) {
+            EditorCondition ec;
+            e.visibleWhenConditions.push_back(ec);
+            e.randomGroup = 0;
+        }
+    }
+}
+
+void LauncherUI::RenderSectionEditorForm()
+{
+    auto& e = mQuestionEditor;
+    if (!e.show) return;
+
+    const char* title = (e.editingIndex >= 0) ? "Edit Section" : "Add Section";
+    ImGui::SetNextWindowSize(ImVec2(500, 400), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowPos(
+        ImVec2(ImGui::GetIO().DisplaySize.x * 0.5f, ImGui::GetIO().DisplaySize.y * 0.5f),
+        ImGuiCond_FirstUseEver, ImVec2(0.5f, 0.5f));
+
+    if (!ImGui::Begin(title, &e.show, ImGuiWindowFlags_NoCollapse)) {
+        ImGui::End();
+        return;
+    }
+
+    ImGui::Text("Section Marker");
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    ImGui::InputText("Section ID", e.id, sizeof(e.id));
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Unique section identifier (e.g., sec_1, demographics).\n"
+                          "Use lowercase letters, digits, and underscores only.");
+
+    ImGui::Text("Title (optional):");
+    ImGui::SetNextItemWidth(-FLT_MIN);
+    ImGui::InputText("##sec_title", e.questionText, sizeof(e.questionText));
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Displayed as a section heading by runners that support it.\n"
+                          "Stored in translation file under the section ID as key.");
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Text("Conditional Display");
+    ImGui::Spacing();
+
+    RenderVisibleWhenEditor(e);
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    bool canSave = (e.id[0] != '\0');
+    if (!canSave) ImGui::BeginDisabled();
+    const char* saveLabel = (e.editingIndex < 0) ? "Add Section" : "Save Section";
+    if (ImGui::Button(saveLabel, ImVec2(120, 0))) {
+        ScaleQuestion sec;
+        sec.id = e.id;
+        sec.type = "section";
+        sec.text_key = e.id;  // convention: key == id
+        sec.has_visible_when = e.hasVisibleWhen;
+        sec.visible_when_logic = (e.visibleWhenLogic == 1) ? "any" : "all";
+        sec.visible_when_is_complex = false;
+        if (e.hasVisibleWhen) {
+            const char* opNames[] = { "equals", "not_equals", "greater_than", "less_than" };
+            for (const auto& ec : e.visibleWhenConditions) {
+                VisibleWhenCondition c;
+                c.source_type = (ec.sourceType == 1) ? "question" : "parameter";
+                c.source_name = ec.sourceName;
+                c.op = opNames[ec.op];
+                c.value = ec.value;
+                sec.visible_when_simple.push_back(c);
+            }
+        }
+        if (e.questionText[0] && mCurrentScale)
+            mCurrentScale->AddTranslation("en", sec.id, e.questionText);
+
+        if (e.editingIndex < 0) {
+            mCurrentScale->AddQuestion(sec);
+        } else {
+            auto& questions = mCurrentScale->GetQuestions();
+            if (e.editingIndex < (int)questions.size()) {
+                questions[e.editingIndex] = sec;
+                mCurrentScale->SetDirty(true);
+            }
+        }
+        e.show = false;
+    }
+    if (!canSave) ImGui::EndDisabled();
+    ImGui::SameLine();
+    if (ImGui::Button("Cancel", ImVec2(80, 0)))
+        e.show = false;
 
     ImGui::End();
 }
@@ -9947,6 +11253,10 @@ void LauncherUI::ShowBatchImportDialog()
                 mCurrentScale->GetLikertOptions().max = mBatchImport.likertMax;
             }
 
+            // Pre-build set of existing IDs to detect duplicates
+            std::set<std::string> existingIds;
+            for (const auto& q : mCurrentScale->GetQuestions()) existingIds.insert(q.id);
+
             for (const auto& line : lines) {
                 ScaleQuestion newQuestion;
                 // Format question number with 3-digit zero padding (e.g., 001, 002, ..., 010, 011)
@@ -9955,6 +11265,14 @@ void LauncherUI::ShowBatchImportDialog()
                 newQuestion.id = std::string(mBatchImport.idPrefix) + numStr;
                 newQuestion.text_key = newQuestion.id;
                 newQuestion.type = questionTypes[mBatchImport.questionType];
+
+                // Skip if ID already exists
+                if (existingIds.count(newQuestion.id)) {
+                    printf("Warning: Skipping duplicate question ID '%s'\n", newQuestion.id.c_str());
+                    questionNumber++;
+                    continue;
+                }
+                existingIds.insert(newQuestion.id);  // Track newly added ID
 
                 // Apply likert-specific settings
                 if (mBatchImport.questionType == 0) {  // likert
@@ -10038,9 +11356,86 @@ void LauncherUI::ShowDimensionEditor()
     ImGui::Text("Description:");
     ImGui::InputTextMultiline("##DimDescription", mDimensionEditor.description, sizeof(mDimensionEditor.description), ImVec2(-1, 100));
 
+    // Conditional Display section
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Text("Conditional Display");
+    ImGui::Spacing();
+
+    ImGui::Checkbox("Show conditionally##dim", &mDimensionEditor.hasVisibleWhen);
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("When set, all questions in this dimension are shown/hidden\nbased on these conditions. Evaluated dynamically —\ncan reference previous answers.");
+    }
+
+    if (mDimensionEditor.hasVisibleWhen) {
+        const char* logicItems[] = { "AND (all must match)", "OR (any must match)" };
+        ImGui::Combo("Combine with##dim", &mDimensionEditor.visibleWhenLogic, logicItems, IM_ARRAYSIZE(logicItems));
+
+        int removeIndex = -1;
+        for (int ci = 0; ci < (int)mDimensionEditor.visibleWhenConditions.size(); ci++) {
+            auto& cond = mDimensionEditor.visibleWhenConditions[ci];
+            ImGui::PushID(ci);
+
+            const char* sourceTypes[] = { "Parameter", "Question" };
+            ImGui::PushItemWidth(90);
+            ImGui::Combo("##src", &cond.sourceType, sourceTypes, IM_ARRAYSIZE(sourceTypes));
+            ImGui::PopItemWidth();
+            ImGui::SameLine();
+
+            ImGui::PushItemWidth(100);
+            ImGui::InputText("##name", cond.sourceName, sizeof(cond.sourceName));
+            ImGui::PopItemWidth();
+            ImGui::SameLine();
+
+            const char* operators[] = { "equals", "not_equals", "greater_than", "less_than" };
+            ImGui::PushItemWidth(100);
+            ImGui::Combo("##op", &cond.op, operators, IM_ARRAYSIZE(operators));
+            ImGui::PopItemWidth();
+            ImGui::SameLine();
+
+            ImGui::PushItemWidth(100);
+            ImGui::InputText("##val", cond.value, sizeof(cond.value));
+            ImGui::PopItemWidth();
+            ImGui::SameLine();
+
+            if (ImGui::SmallButton("X")) {
+                removeIndex = ci;
+            }
+
+            ImGui::PopID();
+        }
+        if (removeIndex >= 0) {
+            mDimensionEditor.visibleWhenConditions.erase(
+                mDimensionEditor.visibleWhenConditions.begin() + removeIndex);
+        }
+
+        if (ImGui::SmallButton("+ Add Condition##dim")) {
+            EditorCondition ec;
+            mDimensionEditor.visibleWhenConditions.push_back(ec);
+        }
+    }
+
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::Spacing();
+
+    // Helper lambda to save visible_when from editor to dimension
+    auto saveDimVisibleWhen = [this](ScaleDimension& dim) {
+        dim.has_visible_when = mDimensionEditor.hasVisibleWhen;
+        dim.visible_when_logic = (mDimensionEditor.visibleWhenLogic == 1) ? "any" : "all";
+        dim.visible_when.clear();
+        if (mDimensionEditor.hasVisibleWhen) {
+            const char* opNames[] = { "equals", "not_equals", "greater_than", "less_than" };
+            for (const auto& ec : mDimensionEditor.visibleWhenConditions) {
+                VisibleWhenCondition c;
+                c.source_type = (ec.sourceType == 1) ? "question" : "parameter";
+                c.source_name = ec.sourceName;
+                c.op = opNames[ec.op];
+                c.value = ec.value;
+                dim.visible_when.push_back(c);
+            }
+        }
+    };
 
     // Buttons
     const char* okLabel = isEditing ? "Save" : "Create";
@@ -10056,6 +11451,7 @@ void LauncherUI::ShowDimensionEditor()
             dim.name = mDimensionEditor.name;
             dim.abbreviation = mDimensionEditor.abbreviation;
             dim.description = mDimensionEditor.description;
+            saveDimVisibleWhen(dim);
             mCurrentScale->SetDirty(true);
             mDimensionEditor.show = false;
         } else {
@@ -10065,6 +11461,7 @@ void LauncherUI::ShowDimensionEditor()
             newDimension.name = mDimensionEditor.name;
             newDimension.abbreviation = mDimensionEditor.abbreviation;
             newDimension.description = mDimensionEditor.description;
+            saveDimVisibleWhen(newDimension);
 
             mCurrentScale->GetDimensions().push_back(newDimension);
             mCurrentScale->SetDirty(true);
@@ -10402,6 +11799,11 @@ void LauncherUI::ShowCreateStudyFromScaleDialog()
 
                         mCreateStudyDialog.show = false;
                         mStudyList = mWorkspace->GetStudyDirectories();
+
+                        // Reload current study so the new test appears in the listing
+                        if (mCurrentStudy && mCurrentStudy->GetPath() == studyPath) {
+                            LoadStudy(studyPath);
+                        }
                     } else {
                         std::strncpy(mCreateStudyDialog.errorMessage,
                                     "Failed to add scale to study. Check console for details.",
@@ -10507,20 +11909,8 @@ void LauncherUI::TestCurrentScale()
 
         printf("Exported scale definition and translations\n");
 
-        // Create parameter file (same pattern as study tests)
-        std::string paramFileName = scaleCode + ".pbl.par.json";
-        std::string paramFilePath = tempDir + "/params/" + paramFileName;
-        nlohmann::json paramJson = {
-            {"scale", scaleCode},
-            {"shuffle_questions", 0}
-        };
-
-        std::ofstream paramFile(paramFilePath);
-        if (paramFile.is_open()) {
-            paramFile << paramJson.dump(2);
-            paramFile.close();
-            printf("Created parameter file: %s\n", paramFileName.c_str());
-        }
+        // Generate schema and default params from scale definition
+        SyncScaleSchema(tempDir, scaleCode);
 
         printf("Preparing to test scale...\n");
 
@@ -10538,7 +11928,7 @@ void LauncherUI::TestCurrentScale()
         // (PEBL prepends "params/" to the --pfile argument)
         mRunningExperiment = new ExperimentRunner(mConfig);
         std::vector<std::string> args = {
-            "--pfile", paramFileName,
+            "--pfile", scaleCode + ".pbl.par.json",
             "--windowed"
         };
 

@@ -9,6 +9,7 @@
 #include <vector>
 #include <map>
 #include <memory>
+#include <json.hpp>
 
 // Scale metadata (matches ScaleRunner scale_info)
 struct ScaleInfo {
@@ -26,9 +27,10 @@ struct ScaleInfo {
 
 // Runtime parameter definition
 struct ScaleParameter {
-    std::string type;           // "boolean", "integer", "string"
+    std::string type;           // "boolean", "integer", "string", "choice"
     std::string defaultValue;   // Default value as string
     std::string description;    // Description
+    std::vector<std::string> options;  // Allowed values (for choice/boolean types)
 
     ScaleParameter() = default;
     ScaleParameter(const std::string& t, const std::string& d, const std::string& desc)
@@ -47,6 +49,15 @@ struct LikertOptions {
     // Note: min=-1, max=-1 means "use defaults based on points"
 };
 
+// Visible-when condition (for conditional display)
+struct VisibleWhenCondition {
+    std::string source_type;  // "parameter" or "question"
+    std::string source_name;  // parameter name or question ID
+    std::string op;           // "equals", "not_equals", "greater_than", "less_than"
+    std::string value;
+    VisibleWhenCondition() : source_type("parameter"), op("equals") {}
+};
+
 // Dimension definition (for scoring and organization)
 struct ScaleDimension {
     std::string id;             // "COI" (used in scoring)
@@ -55,18 +66,79 @@ struct ScaleDimension {
     std::string description;    // Full description
     std::string enabled_param;  // Parameter name to enable/disable (or empty)
 
-    ScaleDimension() = default;
+    // Dynamic visibility conditions
+    bool has_visible_when;
+    std::string visible_when_logic;  // "all" or "any"
+    std::vector<VisibleWhenCondition> visible_when;
+
+    ScaleDimension() : has_visible_when(false), visible_when_logic("all") {}
     ScaleDimension(const std::string& i, const std::string& n, const std::string& abbr)
-        : id(i), name(n), abbreviation(abbr) {}
+        : id(i), name(n), abbreviation(abbr), has_visible_when(false), visible_when_logic("all") {}
+};
+
+// Per-question input validation — each constraint is independent with its own error key.
+// Integer constraints use -1 to mean "not set". Boolean flags gate the number constraints.
+struct QuestionValidation {
+    // Character length (short / long)
+    int min_length;                   // -1 = not set
+    int max_length;                   // -1 = not set
+    std::string min_length_error;     // translation key (auto-generated from question id)
+    std::string max_length_error;
+
+    // Word count (short / long)
+    int min_words;
+    int max_words;
+    std::string min_words_error;
+    std::string max_words_error;
+
+    // Numeric range (short — implies number-only keyboard)
+    bool number_min_set;
+    bool number_max_set;
+    double number_min;
+    double number_max;
+    std::string number_min_error;
+    std::string number_max_error;
+
+    // Regex pattern (short)
+    std::string pattern;              // empty = not set
+    std::string pattern_error;
+
+    // Selection count (multicheck)
+    int min_selected;
+    int max_selected;
+    std::string min_selected_error;
+    std::string max_selected_error;
+
+    bool HasAnyValidation() const {
+        return min_length >= 0 || max_length >= 0 ||
+               min_words >= 0 || max_words >= 0 ||
+               number_min_set || number_max_set ||
+               !pattern.empty() ||
+               min_selected >= 0 || max_selected >= 0;
+    }
+
+    QuestionValidation()
+        : min_length(-1), max_length(-1), min_words(-1), max_words(-1),
+          number_min_set(false), number_max_set(false), number_min(0), number_max(0),
+          min_selected(-1), max_selected(-1) {}
 };
 
 // Question definition (structure only - text comes from translations)
 struct ScaleQuestion {
     std::string id;             // "grit2"
     std::string text_key;       // Translation key (usually same as id)
-    std::string type;           // inst, likert, vas, grid, short, long, multi, multicheck, image, imageresponse
+    std::string type;           // inst, likert, vas, grid, short, long, multi, multicheck, image, imageresponse, section
     std::string dimension;      // Dimension id (or empty/null)
     int coding;                 // 1 = normal, -1 = reverse, 0 = not scored
+    int random_group;           // 0 = fixed position, >0 = shuffle group ID
+    int required_state;         // -1 = use default, 0 = optional, 1 = required
+    QuestionValidation validation;  // Input validation rules (C9)
+
+    // Conditional display
+    bool has_visible_when;
+    std::string visible_when_logic;                        // "all" or "any"
+    std::vector<VisibleWhenCondition> visible_when_simple;  // flat conditions (UI-editable)
+    bool visible_when_is_complex;                           // nested beyond flat — raw JSON only
 
     // Type-specific fields
     int likert_points;          // For likert questions
@@ -83,7 +155,7 @@ struct ScaleQuestion {
     std::vector<std::string> columns;  // Translation keys for grid columns
     std::vector<std::string> rows;     // Translation keys for grid rows
 
-    ScaleQuestion() : coding(1), likert_points(5), likert_min(-1), likert_max(-1), min_value(0), max_value(100) {}
+    ScaleQuestion() : coding(1), random_group(1), required_state(-1), has_visible_when(false), visible_when_logic("all"), visible_when_is_complex(false), likert_points(5), likert_min(-1), likert_max(-1), min_value(0), max_value(100) {}
 };
 
 // Scoring definition for a dimension
@@ -150,6 +222,7 @@ public:
     ReportConfig& GetReportConfig() { return mReportConfig; }
     DataOutput& GetDataOutput() { return mDataOutput; }
     ScaleTranslations& GetTranslations() { return mTranslations; }
+    nlohmann::json& GetRawDefinition() { return mRawDefinition; }
 
     // Const getters
     const ScaleInfo& GetScaleInfo() const { return mScaleInfo; }
@@ -161,6 +234,7 @@ public:
     const ReportConfig& GetReportConfig() const { return mReportConfig; }
     const DataOutput& GetDataOutput() const { return mDataOutput; }
     const ScaleTranslations& GetTranslations() const { return mTranslations; }
+    const nlohmann::json& GetRawDefinition() const { return mRawDefinition; }
 
     // Question management
     void AddQuestion(const ScaleQuestion& question);
@@ -187,6 +261,10 @@ public:
     };
     ValidationResult ValidateInternal() const;
 
+    // Default required setting (-1 = type defaults, 0 = all optional, 1 = all required)
+    int GetDefaultRequired() const { return mDefaultRequired; }
+    void SetDefaultRequired(int val) { mDefaultRequired = val; mDirty = true; }
+
     // Dirty flag for unsaved changes
     bool IsDirty() const { return mDirty; }
     void SetDirty(bool dirty) { mDirty = dirty; }
@@ -206,7 +284,11 @@ private:
     ReportConfig mReportConfig;
     DataOutput mDataOutput;
     ScaleTranslations mTranslations;
+    int mDefaultRequired;       // -1 = type defaults, 0 = all optional, 1 = all required
     bool mDirty;
+
+    // Raw JSON from original file - preserves unknown fields (pages, response_footer, etc.)
+    nlohmann::json mRawDefinition;
 };
 
 #endif // SCALE_DEFINITION_H

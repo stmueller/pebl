@@ -153,16 +153,26 @@ struct ScaleQuestion {
     int likert_min;             // For likert questions (optional, -1 = use scale default)
     int likert_max;             // For likert questions (optional, -1 = use scale default)
     bool likert_reverse;        // Display buttons right-to-left (highest value on left)
+    bool randomize_options;     // Shuffle option order for multi/multicheck (S5)
     std::vector<std::string> likert_labels;  // For likert questions (optional, empty = use scale default)
     int min_value;              // For vas
     int max_value;              // For vas
-    std::string left_label;     // Translation key for VAS left
-    std::string right_label;    // Translation key for VAS right
+    std::string left_label;     // Translation key for VAS left (min_label)
+    std::string right_label;    // Translation key for VAS right (max_label)
+    std::string vas_orientation; // "horizontal" (default) or "vertical"
+    struct VasAnchor {
+        double value;
+        std::string label;      // Translation key
+    };
+    std::vector<VasAnchor> vas_anchors;  // Named anchor points along the scale
     std::vector<std::string> options;  // Translation keys for multi/multicheck
     std::vector<std::string> correct;  // Correct answer keys for multi
     std::string image;          // Image path for image/imageresponse
     std::vector<std::string> columns;  // Translation keys for grid columns
     std::vector<std::string> rows;     // Translation keys for grid rows
+
+    // Per-item question head — overrides scale-level likert_options.question_head
+    std::string question_head;  // Translation key (empty = use scale default)
 
     // Answer alias — optional semantic name for use in {answer.alias} piping
     std::string answer_alias;
@@ -179,7 +189,7 @@ struct ScaleQuestion {
     bool section_randomize;  // Default false: shuffle non-fixed questions within section
     std::vector<std::string> section_randomize_fixed;  // Question IDs pinned to original position
 
-    ScaleQuestion() : coding(1), random_group(1), required_state(-1), has_visible_when(false), visible_when_logic("all"), visible_when_is_complex(false), likert_points(-1), likert_min(-1), likert_max(-1), likert_reverse(false), min_value(0), max_value(100), has_gate(false), gate_value(0.0), revisable(true), section_randomize(false) {}
+    ScaleQuestion() : coding(1), random_group(1), required_state(-1), has_visible_when(false), visible_when_logic("all"), visible_when_is_complex(false), likert_points(-1), likert_min(-1), likert_max(-1), likert_reverse(false), randomize_options(false), min_value(0), max_value(100), has_gate(false), gate_value(0.0), revisable(true), section_randomize(false) {}
 };
 
 struct NormThreshold {

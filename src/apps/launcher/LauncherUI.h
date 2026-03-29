@@ -121,6 +121,7 @@ struct QuestionEditorState {
     int likertMin;
     int likertMax;
     bool likertReverse;
+    bool randomizeOptions;
     std::vector<bool> selectedResponseOptions;  // Tracks which scale-level options are selected
 
     // VAS-specific fields
@@ -128,6 +129,9 @@ struct QuestionEditorState {
     int vasMaxValue;
     char vasLeftLabel[256];
     char vasRightLabel[256];
+    int vasOrientationIdx;  // 0 = horizontal, 1 = vertical
+    struct AnchorEdit { float value; char label[256]; AnchorEdit() : value(0) { label[0] = '\0'; } };
+    std::vector<AnchorEdit> vasAnchors;
 
     // Multi/multicheck-specific fields
     char multiOptions[4096];  // Pipe-separated list of options (one per line for editing)
@@ -149,6 +153,7 @@ struct QuestionEditorState {
     std::vector<EditorCondition> visibleWhenConditions;
 
     // Answer alias — optional semantic name for {answer.alias} piping (S3)
+    char questionHead[256];
     char answerAlias[64];
 
     // Gate (blocking) — multi: exact match; short: numeric operator + threshold
@@ -176,8 +181,8 @@ struct QuestionEditorState {
     bool valMaxSelectedEnabled; int valMaxSelected; char valMaxSelectedError[256];
 
     QuestionEditorState() : show(false), editingIndex(-1), isSection(false), isVirtualStart(false), questionType(0),
-                           likertPoints(5), likertMin(-1), likertMax(-1), likertReverse(false),
-                           vasMinValue(0), vasMaxValue(100), randomGroup(1), requiredState(-1),
+                           likertPoints(5), likertMin(-1), likertMax(-1), likertReverse(false), randomizeOptions(false),
+                           vasMinValue(0), vasMaxValue(100), vasOrientationIdx(0), randomGroup(1), requiredState(-1),
                            hasVisibleWhen(false), visibleWhenLogic(0), visibleWhenIsComplex(false),
                            hasGate(false), gateOperator(0), gateValue(0.0), sectionRevisable(true), sectionRandomize(false),
                            valMinLengthEnabled(false), valMinLength(0),
@@ -198,6 +203,7 @@ struct QuestionEditorState {
         gridColumns[0] = '\0';
         gridRows[0] = '\0';
         imagePath[0] = '\0';
+        questionHead[0] = '\0';
         answerAlias[0] = '\0';
         gateRequiredValue[0] = '\0';
         gateTerminateMessageKey[0] = '\0';

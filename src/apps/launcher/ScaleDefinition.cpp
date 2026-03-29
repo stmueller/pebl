@@ -571,13 +571,26 @@ bool ScaleDefinition::ParseDefinitionFromJSON(const json& j)
                 if (qj.contains("likert_min")) q.likert_min = qj["likert_min"];
                 if (qj.contains("likert_max")) q.likert_max = qj["likert_max"];
                 if (qj.contains("likert_reverse")) q.likert_reverse = qj["likert_reverse"].get<bool>();
+                if (qj.contains("randomize_options")) q.randomize_options = qj["randomize_options"].get<bool>();
                 if (qj.contains("likert_labels") && qj["likert_labels"].is_array()) {
                     q.likert_labels = qj["likert_labels"].get<std::vector<std::string>>();
                 }
                 if (qj.contains("min")) q.min_value = qj["min"];
                 if (qj.contains("max")) q.max_value = qj["max"];
                 if (qj.contains("left")) q.left_label = qj["left"];
+                else if (qj.contains("min_label")) q.left_label = qj["min_label"];
                 if (qj.contains("right")) q.right_label = qj["right"];
+                else if (qj.contains("max_label")) q.right_label = qj["max_label"];
+                if (qj.contains("orientation")) q.vas_orientation = qj["orientation"];
+                if (qj.contains("anchors") && qj["anchors"].is_array()) {
+                    q.vas_anchors.clear();
+                    for (const auto& a : qj["anchors"]) {
+                        ScaleQuestion::VasAnchor va;
+                        if (a.contains("value")) va.value = a["value"].get<double>();
+                        if (a.contains("label")) va.label = a["label"];
+                        q.vas_anchors.push_back(va);
+                    }
+                }
                 if (qj.contains("options")) {
                     // Options can be plain strings OR objects {text_key, value, ...}
                     q.options.clear();
@@ -603,6 +616,8 @@ bool ScaleDefinition::ParseDefinitionFromJSON(const json& j)
                 // Answer alias (S3 answer piping)
                 if (qj.contains("answer_alias") && qj["answer_alias"].is_string())
                     q.answer_alias = qj["answer_alias"];
+                if (qj.contains("question_head") && qj["question_head"].is_string())
+                    q.question_head = qj["question_head"];
 
                 // Gate (blocking item)
                 if (qj.contains("gate") && qj["gate"].is_object()) {
@@ -954,13 +969,21 @@ bool ScaleDefinition::BuildDefinitionJSONObject(json& outJSON) const
                 if (q.type == "vas") {
                     qj["min"] = q.min_value;
                     qj["max"] = q.max_value;
-                    // Only write left/right if they were in the original
-                    // (don't overwrite min_label/max_label with empty left/right)
                     if (!q.left_label.empty()) {
-                        qj["left"] = q.left_label;
+                        qj["min_label"] = q.left_label;
                     }
                     if (!q.right_label.empty()) {
-                        qj["right"] = q.right_label;
+                        qj["max_label"] = q.right_label;
+                    }
+                    if (!q.vas_orientation.empty() && q.vas_orientation != "horizontal") {
+                        qj["orientation"] = q.vas_orientation;
+                    }
+                    if (!q.vas_anchors.empty()) {
+                        nlohmann::json anchorsArr = nlohmann::json::array();
+                        for (const auto& a : q.vas_anchors) {
+                            anchorsArr.push_back({{"value", a.value}, {"label", a.label}});
+                        }
+                        qj["anchors"] = anchorsArr;
                     }
                 }
                 if (q.type == "multi" || q.type == "multicheck") {
@@ -980,6 +1003,9 @@ bool ScaleDefinition::BuildDefinitionJSONObject(json& outJSON) const
                             qj["options"] = q.options;
                         }
                         // If object-format, qj already has the original from rawQuestionMap
+                    }
+                    if (q.randomize_options) {
+                        qj["randomize_options"] = true;
                     }
                     if (!q.correct.empty()) {
                         qj["correct"] = q.correct;
@@ -1011,6 +1037,8 @@ bool ScaleDefinition::BuildDefinitionJSONObject(json& outJSON) const
                 // Answer alias (S3 answer piping)
                 if (!q.answer_alias.empty())
                     qj["answer_alias"] = q.answer_alias;
+                if (!q.question_head.empty())
+                    qj["question_head"] = q.question_head;
                 else
                     qj.erase("answer_alias");
 

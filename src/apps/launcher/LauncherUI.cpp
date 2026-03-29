@@ -9293,6 +9293,7 @@ void LauncherUI::RenderQuestionsEditor()
         mQuestionEditor.gateValue = 0.0;
         mQuestionEditor.gateTerminateMessageKey[0] = '\0';
         mQuestionEditor.gateTerminateMessageText[0] = '\0';
+        mQuestionEditor.questionHead[0] = '\0';
         mQuestionEditor.answerAlias[0] = '\0';
     }
     ImGui::SameLine();
@@ -9535,6 +9536,8 @@ void LauncherUI::RenderQuestionsEditor()
                         else if (c.op == "less_than") ec.op = 3;
                         else if (c.op == "in") ec.op = 4;
                         else if (c.op == "not_in") ec.op = 5;
+                        else if (c.op == "is_answered") ec.op = 6;
+                        else if (c.op == "is_not_answered") ec.op = 7;
                         else ec.op = 0;
                         if (c.is_list) {
                             std::string joined;
@@ -9814,6 +9817,8 @@ void LauncherUI::RenderQuestionsEditor()
                 }
 
                 // Load answer alias (S3 answer piping)
+                strncpy(mQuestionEditor.questionHead, q.question_head.c_str(), sizeof(mQuestionEditor.questionHead) - 1);
+                mQuestionEditor.questionHead[sizeof(mQuestionEditor.questionHead) - 1] = '\0';
                 strncpy(mQuestionEditor.answerAlias, q.answer_alias.c_str(), sizeof(mQuestionEditor.answerAlias) - 1);
                 mQuestionEditor.answerAlias[sizeof(mQuestionEditor.answerAlias) - 1] = '\0';
 
@@ -9855,6 +9860,8 @@ void LauncherUI::RenderQuestionsEditor()
                     else if (c.op == "less_than") ec.op = 3;
                     else if (c.op == "in") ec.op = 4;
                     else if (c.op == "not_in") ec.op = 5;
+                    else if (c.op == "is_answered") ec.op = 6;
+                    else if (c.op == "is_not_answered") ec.op = 7;
                     else ec.op = 0;  // equals
                     if (c.is_list) {
                         std::string joined;
@@ -9875,6 +9882,7 @@ void LauncherUI::RenderQuestionsEditor()
                 mQuestionEditor.likertMin = q.likert_min;
                 mQuestionEditor.likertMax = q.likert_max;
                 mQuestionEditor.likertReverse = q.likert_reverse;
+                mQuestionEditor.randomizeOptions = q.randomize_options;
 
                 // Load VAS-specific fields
                 mQuestionEditor.vasMinValue = q.min_value;
@@ -9883,6 +9891,15 @@ void LauncherUI::RenderQuestionsEditor()
                 mQuestionEditor.vasLeftLabel[sizeof(mQuestionEditor.vasLeftLabel) - 1] = '\0';
                 std::strncpy(mQuestionEditor.vasRightLabel, q.right_label.c_str(), sizeof(mQuestionEditor.vasRightLabel) - 1);
                 mQuestionEditor.vasRightLabel[sizeof(mQuestionEditor.vasRightLabel) - 1] = '\0';
+                mQuestionEditor.vasOrientationIdx = (q.vas_orientation == "vertical") ? 1 : 0;
+                mQuestionEditor.vasAnchors.clear();
+                for (const auto& a : q.vas_anchors) {
+                    QuestionEditorState::AnchorEdit ae;
+                    ae.value = (float)a.value;
+                    std::strncpy(ae.label, a.label.c_str(), sizeof(ae.label) - 1);
+                    ae.label[sizeof(ae.label) - 1] = '\0';
+                    mQuestionEditor.vasAnchors.push_back(ae);
+                }
 
                 // Load Multi/multicheck-specific fields (join options with newlines)
                 std::string optionsText;
@@ -11618,6 +11635,53 @@ void LauncherUI::ShowQuestionEditor()
         if (ImGui::IsItemHovered()) {
             ImGui::SetTooltip("Text for bottom of vertical scale (e.g., 'Not at all')");
         }
+
+        // Orientation
+        const char* orientOptions[] = { "horizontal", "vertical" };
+        ImGui::Combo("Orientation", &mQuestionEditor.vasOrientationIdx, orientOptions, 2);
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Vertical orientation is recommended when there are many\nanchors or when anchor labels are long.");
+        }
+
+        // Named anchors
+        ImGui::Spacing();
+        ImGui::Text("Named Anchors");
+        ImGui::SameLine();
+        ImGui::TextDisabled("(?)");
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Positioned text labels along the slider.\nWhen anchors are present, min/max labels are ignored.\nEach anchor has a numeric position and a translation key.");
+        }
+
+        int removeAnchorIdx = -1;
+        for (int ai = 0; ai < (int)mQuestionEditor.vasAnchors.size(); ai++) {
+            auto& anc = mQuestionEditor.vasAnchors[ai];
+            ImGui::PushID(ai);
+
+            ImGui::PushItemWidth(80);
+            ImGui::InputFloat("##ancVal", &anc.value, 0, 0, "%.4g");
+            ImGui::PopItemWidth();
+            ImGui::SameLine();
+
+            ImGui::PushItemWidth(200);
+            ImGui::InputText("##ancLabel", anc.label, sizeof(anc.label));
+            ImGui::PopItemWidth();
+            ImGui::SameLine();
+
+            if (ImGui::SmallButton("X##anc")) {
+                removeAnchorIdx = ai;
+            }
+
+            ImGui::PopID();
+        }
+
+        if (removeAnchorIdx >= 0) {
+            mQuestionEditor.vasAnchors.erase(mQuestionEditor.vasAnchors.begin() + removeAnchorIdx);
+        }
+
+        if (ImGui::SmallButton("+ Add Anchor")) {
+            QuestionEditorState::AnchorEdit ae;
+            mQuestionEditor.vasAnchors.push_back(ae);
+        }
     }
 
     // Multi/multicheck-specific fields (only show if type is multi or multicheck)
@@ -11633,6 +11697,11 @@ void LauncherUI::ShowQuestionEditor()
                                   ImVec2(-FLT_MIN, ImGui::GetTextLineHeight() * 6));
         if (ImGui::IsItemHovered()) {
             ImGui::SetTooltip("Enter one option per line. These will become answer choices.");
+        }
+
+        ImGui::Checkbox("Randomize option order", &mQuestionEditor.randomizeOptions);
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Shuffle the order of response options for each participant.\nUseful to reduce order effects in multiple-choice questions.");
         }
     }
 
@@ -11669,6 +11738,25 @@ void LauncherUI::ShowQuestionEditor()
         ImGui::InputText("Image Path", mQuestionEditor.imagePath, sizeof(mQuestionEditor.imagePath));
         if (ImGui::IsItemHovered()) {
             ImGui::SetTooltip("Path to image file (relative to test directory or absolute)");
+        }
+    }
+
+    // ── Per-item Question Head override ─────────────────────────────────────
+    {
+        int qt = mQuestionEditor.questionType;
+        // Applies to scored types: likert, multi, multicheck, vas, grid
+        if (qt == 0 || qt == 1 || qt == 4 || qt == 6 || qt == 7) {
+            ImGui::Spacing();
+            ImGui::Separator();
+            ImGui::Spacing();
+            ImGui::Text("Question Head (override)");
+            ImGui::TextDisabled("Translation key for a question stem shown above this item. Leave blank to use scale default.");
+            ImGui::InputText("##questionHead", mQuestionEditor.questionHead, sizeof(mQuestionEditor.questionHead));
+            if (ImGui::IsItemHovered()) {
+                ImGui::SetTooltip("Overrides the scale-level question_head for this item.\n"
+                                  "Useful when a block of items shares a different stem\n"
+                                  "than the rest of the scale (e.g., 'In the past month...').");
+            }
         }
     }
 
@@ -11785,6 +11873,9 @@ void LauncherUI::ShowQuestionEditor()
                     val.max_selected_error  = e.valMaxSelectedEnabled ? storeErr(e.valMaxSelectedError,  "max_selected_err")  : "";
                 }
 
+                // Update question head override
+                questions[mQuestionEditor.editingIndex].question_head = mQuestionEditor.questionHead;
+
                 // Update answer alias (S3)
                 questions[mQuestionEditor.editingIndex].answer_alias = mQuestionEditor.answerAlias;
 
@@ -11822,12 +11913,12 @@ void LauncherUI::ShowQuestionEditor()
                     questions[mQuestionEditor.editingIndex].visible_when_logic = (mQuestionEditor.visibleWhenLogic == 1) ? "any" : "all";
                     questions[mQuestionEditor.editingIndex].visible_when_simple.clear();
                     if (mQuestionEditor.hasVisibleWhen) {
-                        const char* opNames[] = { "equals", "not_equals", "greater_than", "less_than", "in", "not_in" };
+                        const char* opNames[] = { "equals", "not_equals", "greater_than", "less_than", "in", "not_in", "is_answered", "is_not_answered" };
                         for (const auto& ec : mQuestionEditor.visibleWhenConditions) {
                             VisibleWhenCondition c;
                             c.source_type = (ec.sourceType == 1) ? "item" : "parameter";
                             c.source_name = ec.sourceName;
-                            c.op = opNames[ec.op < 6 ? ec.op : 0];
+                            c.op = opNames[ec.op < 8 ? ec.op : 0];
                             if (ec.op == 4 || ec.op == 5) {
                                 c.is_list = true;
                                 std::istringstream ss(ec.value);
@@ -11854,6 +11945,10 @@ void LauncherUI::ShowQuestionEditor()
                     questions[mQuestionEditor.editingIndex].likert_min = mQuestionEditor.likertMin;
                     questions[mQuestionEditor.editingIndex].likert_max = mQuestionEditor.likertMax;
                     questions[mQuestionEditor.editingIndex].likert_reverse = mQuestionEditor.likertReverse;
+                }
+                // Randomize options applies to multi/multicheck
+                if (mQuestionEditor.questionType == 1 || mQuestionEditor.questionType == 6) {
+                    questions[mQuestionEditor.editingIndex].randomize_options = mQuestionEditor.randomizeOptions;
 
                     // Save selected response options
                     auto& scaleLikert = mCurrentScale->GetLikertOptions();
@@ -11878,6 +11973,14 @@ void LauncherUI::ShowQuestionEditor()
                     questions[mQuestionEditor.editingIndex].max_value = mQuestionEditor.vasMaxValue;
                     questions[mQuestionEditor.editingIndex].left_label = mQuestionEditor.vasLeftLabel;
                     questions[mQuestionEditor.editingIndex].right_label = mQuestionEditor.vasRightLabel;
+                    questions[mQuestionEditor.editingIndex].vas_orientation = (mQuestionEditor.vasOrientationIdx == 1) ? "vertical" : "";
+                    questions[mQuestionEditor.editingIndex].vas_anchors.clear();
+                    for (const auto& ae : mQuestionEditor.vasAnchors) {
+                        ScaleQuestion::VasAnchor va;
+                        va.value = (double)ae.value;
+                        va.label = ae.label;
+                        questions[mQuestionEditor.editingIndex].vas_anchors.push_back(va);
+                    }
                 }
 
                 // Update Multi/multicheck-specific fields if type is multi or multicheck
@@ -11995,6 +12098,9 @@ void LauncherUI::ShowQuestionEditor()
                 val.max_selected_error  = e.valMaxSelectedEnabled ? storeErr(e.valMaxSelectedError,  "max_selected_err")  : "";
             }
 
+            // Set question head override
+            newQuestion.question_head = mQuestionEditor.questionHead;
+
             // Set answer alias (S3)
             newQuestion.answer_alias = mQuestionEditor.answerAlias;
 
@@ -12027,12 +12133,12 @@ void LauncherUI::ShowQuestionEditor()
             newQuestion.has_visible_when = mQuestionEditor.hasVisibleWhen;
             newQuestion.visible_when_logic = (mQuestionEditor.visibleWhenLogic == 1) ? "any" : "all";
             if (mQuestionEditor.hasVisibleWhen) {
-                const char* opNames[] = { "equals", "not_equals", "greater_than", "less_than", "in", "not_in" };
+                const char* opNames[] = { "equals", "not_equals", "greater_than", "less_than", "in", "not_in", "is_answered", "is_not_answered" };
                 for (const auto& ec : mQuestionEditor.visibleWhenConditions) {
                     VisibleWhenCondition c;
                     c.source_type = (ec.sourceType == 1) ? "item" : "parameter";
                     c.source_name = ec.sourceName;
-                    c.op = opNames[ec.op < 6 ? ec.op : 0];
+                    c.op = opNames[ec.op < 8 ? ec.op : 0];
                     if (ec.op == 4 || ec.op == 5) {
                         c.is_list = true;
                         std::istringstream ss(ec.value);
@@ -12080,10 +12186,18 @@ void LauncherUI::ShowQuestionEditor()
                 newQuestion.max_value = mQuestionEditor.vasMaxValue;
                 newQuestion.left_label = mQuestionEditor.vasLeftLabel;
                 newQuestion.right_label = mQuestionEditor.vasRightLabel;
+                newQuestion.vas_orientation = (mQuestionEditor.vasOrientationIdx == 1) ? "vertical" : "";
+                for (const auto& ae : mQuestionEditor.vasAnchors) {
+                    ScaleQuestion::VasAnchor va;
+                    va.value = (double)ae.value;
+                    va.label = ae.label;
+                    newQuestion.vas_anchors.push_back(va);
+                }
             }
 
             // Set Multi/multicheck-specific fields if type is multi or multicheck
             if (mQuestionEditor.questionType == 1 || mQuestionEditor.questionType == 6) {  // multi or multicheck
+                newQuestion.randomize_options = mQuestionEditor.randomizeOptions;
                 // Parse multiline options (split by newlines)
                 std::string optionsStr = mQuestionEditor.multiOptions;
                 std::istringstream iss(optionsStr);
@@ -12184,17 +12298,19 @@ void LauncherUI::RenderVisibleWhenEditor(QuestionEditorState& e)
             ImGui::PopItemWidth();
             ImGui::SameLine();
 
-            const char* operators[] = { "equals", "not_equals", "greater_than", "less_than", "in", "not_in" };
+            const char* operators[] = { "equals", "not_equals", "greater_than", "less_than", "in", "not_in", "is_answered", "is_not_answered" };
             ImGui::PushItemWidth(100);
             ImGui::Combo("##op", &cond.op, operators, IM_ARRAYSIZE(operators));
             ImGui::PopItemWidth();
             ImGui::SameLine();
 
-            ImGui::PushItemWidth(cond.op >= 4 ? 200 : 100);
-            ImGui::InputText("##val", cond.value, sizeof(cond.value));
-            if (cond.op >= 4 && ImGui::IsItemHovered())
-                ImGui::SetTooltip("Comma-separated list of values, e.g. edu_grad,edu_phd");
-            ImGui::PopItemWidth();
+            if (cond.op < 6) {  // is_answered/is_not_answered don't need a value
+                ImGui::PushItemWidth((cond.op == 4 || cond.op == 5) ? 200 : 100);
+                ImGui::InputText("##val", cond.value, sizeof(cond.value));
+                if ((cond.op == 4 || cond.op == 5) && ImGui::IsItemHovered())
+                    ImGui::SetTooltip("Comma-separated list of values, e.g. edu_grad,edu_phd");
+                ImGui::PopItemWidth();
+            }
             ImGui::SameLine();
 
             if (ImGui::SmallButton("X"))
@@ -12311,12 +12427,12 @@ void LauncherUI::RenderSectionEditorForm()
             }
         }
         if (e.hasVisibleWhen) {
-            const char* opNames[] = { "equals", "not_equals", "greater_than", "less_than", "in", "not_in" };
+            const char* opNames[] = { "equals", "not_equals", "greater_than", "less_than", "in", "not_in", "is_answered", "is_not_answered" };
             for (const auto& ec : e.visibleWhenConditions) {
                 VisibleWhenCondition c;
                 c.source_type = (ec.sourceType == 1) ? "item" : "parameter";
                 c.source_name = ec.sourceName;
-                c.op = opNames[ec.op < 6 ? ec.op : 0];
+                c.op = opNames[ec.op < 8 ? ec.op : 0];
                 if (ec.op == 4 || ec.op == 5) {
                     c.is_list = true;
                     std::istringstream ss(ec.value);
@@ -12723,7 +12839,7 @@ void LauncherUI::ShowDimensionEditor()
             ImGui::PopItemWidth();
             ImGui::SameLine();
 
-            const char* operators[] = { "equals", "not_equals", "greater_than", "less_than" };
+            const char* operators[] = { "equals", "not_equals", "greater_than", "less_than", "in", "not_in", "is_answered", "is_not_answered" };
             ImGui::PushItemWidth(100);
             ImGui::Combo("##op", &cond.op, operators, IM_ARRAYSIZE(operators));
             ImGui::PopItemWidth();
@@ -12761,12 +12877,12 @@ void LauncherUI::ShowDimensionEditor()
         dim.visible_when_logic = (mDimensionEditor.visibleWhenLogic == 1) ? "any" : "all";
         dim.visible_when.clear();
         if (mDimensionEditor.hasVisibleWhen) {
-            const char* opNames[] = { "equals", "not_equals", "greater_than", "less_than", "in", "not_in" };
+            const char* opNames[] = { "equals", "not_equals", "greater_than", "less_than", "in", "not_in", "is_answered", "is_not_answered" };
             for (const auto& ec : mDimensionEditor.visibleWhenConditions) {
                 VisibleWhenCondition c;
                 c.source_type = (ec.sourceType == 1) ? "item" : "parameter";
                 c.source_name = ec.sourceName;
-                c.op = opNames[ec.op < 6 ? ec.op : 0];
+                c.op = opNames[ec.op < 8 ? ec.op : 0];
                 if (ec.op == 4 || ec.op == 5) {
                     c.is_list = true;
                     std::istringstream ss(ec.value);

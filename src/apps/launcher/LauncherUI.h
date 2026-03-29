@@ -11,6 +11,7 @@
 #include <memory>
 #include <SDL2/SDL.h>
 #include "TextEditor.h"
+#include "ScaleManager.h"
 
 class LauncherConfig;
 class Study;
@@ -18,8 +19,6 @@ class Chain;
 class ChainItem;
 class WorkspaceManager;
 class SnapshotManager;
-class ScaleDefinition;
-class ScaleManager;
 
 struct ExperimentInfo {
     std::string path;
@@ -56,9 +55,14 @@ struct TestEditorState {
 // Translation editor dialog state
 struct TranslationEditorState {
     bool show;
-    int testIndex;  // Which test we're editing translations for
+    int testIndex;  // Which test we're editing translations for (-1 in scale mode)
     char language[16];  // Target language to edit/create
-    char testPath[512];  // Full path to test directory
+    char testPath[512];  // Full path to test directory (unused in scale mode)
+
+    // Scale mode: editing translations for a scale definition (not a battery test)
+    bool scaleMode;
+    char scaleCode[64];   // Scale code, e.g. "GAD7"
+    char scaleDir[512];   // Full path to scale directory (translations live here directly)
 
     // In-app translation editor data
     bool dataLoaded;
@@ -68,9 +72,12 @@ struct TranslationEditorState {
     std::map<std::string, std::string> englishValues;  // Key -> English text
     std::map<std::string, std::string> targetValues;   // Key -> Target language text (editable)
 
-    TranslationEditorState() : show(false), testIndex(-1), dataLoaded(false), dirty(false), selectedKeyIndex(-1) {
+    TranslationEditorState() : show(false), testIndex(-1), scaleMode(false),
+                               dataLoaded(false), dirty(false), selectedKeyIndex(-1) {
         language[0] = '\0';
         testPath[0] = '\0';
+        scaleCode[0] = '\0';
+        scaleDir[0] = '\0';
     }
 
     void Clear() {
@@ -81,13 +88,19 @@ struct TranslationEditorState {
         englishValues.clear();
         targetValues.clear();
     }
+
+    void ClearScaleMode() {
+        scaleMode = false;
+        scaleCode[0] = '\0';
+        scaleDir[0] = '\0';
+    }
 };
 
 // Condition editor entry (shared by question and dimension editors)
 struct EditorCondition {
     int sourceType;      // 0=parameter, 1=question
     char sourceName[64];
-    int op;              // 0=equals, 1=not_equals, 2=greater_than, 3=less_than
+    int op;              // 0=equals, 1=not_equals, 2=greater_than, 3=less_than, 4=in, 5=not_in
     char value[256];
     EditorCondition() : sourceType(0), op(0) { sourceName[0]='\0'; value[0]='\0'; }
 };
@@ -96,7 +109,8 @@ struct EditorCondition {
 struct QuestionEditorState {
     bool show;
     int editingIndex;  // -1 for new, >= 0 for editing existing
-    bool isSection;    // true when editing/adding a section marker
+    bool isSection;       // true when editing/adding a section marker
+    bool isVirtualStart;  // true when editing the implicit section-0 (insert at front on save)
     char id[64];
     char textKey[64];
     char questionText[2048];  // Actual question text (from translation)
@@ -106,6 +120,7 @@ struct QuestionEditorState {
     int likertPoints;
     int likertMin;
     int likertMax;
+    bool likertReverse;
     std::vector<bool> selectedResponseOptions;  // Tracks which scale-level options are selected
 
     // VAS-specific fields
@@ -133,6 +148,22 @@ struct QuestionEditorState {
     bool visibleWhenIsComplex;
     std::vector<EditorCondition> visibleWhenConditions;
 
+    // Answer alias — optional semantic name for {answer.alias} piping (S3)
+    char answerAlias[64];
+
+    // Gate (blocking) — multi: exact match; short: numeric operator + threshold
+    bool hasGate;
+    char gateRequiredValue[64];         // multi: value that allows continuation
+    int  gateOperator;                  // short: 0=greater_than,1=less_than,2=equals,3=not_equals
+    double gateValue;                   // short: numeric threshold
+    char gateTerminateMessageKey[64];   // Translation key for the termination message
+    char gateTerminateMessageText[512]; // Actual message text (English)
+
+    // Section-specific
+    bool sectionRevisable;   // true = Back button allowed within this section (default true)
+    bool sectionRandomize;   // true = shuffle non-fixed questions within section
+    char sectionRandomizeFixed[512];  // comma-separated question IDs to keep in fixed position
+
     // Input validation — per-constraint (each has enabled flag, value, error message text)
     bool valMinLengthEnabled;  int valMinLength;  char valMinLengthError[256];
     bool valMaxLengthEnabled;  int valMaxLength;  char valMaxLengthError[256];
@@ -144,10 +175,11 @@ struct QuestionEditorState {
     bool valMinSelectedEnabled; int valMinSelected; char valMinSelectedError[256];
     bool valMaxSelectedEnabled; int valMaxSelected; char valMaxSelectedError[256];
 
-    QuestionEditorState() : show(false), editingIndex(-1), isSection(false), questionType(0),
-                           likertPoints(5), likertMin(-1), likertMax(-1),
+    QuestionEditorState() : show(false), editingIndex(-1), isSection(false), isVirtualStart(false), questionType(0),
+                           likertPoints(5), likertMin(-1), likertMax(-1), likertReverse(false),
                            vasMinValue(0), vasMaxValue(100), randomGroup(1), requiredState(-1),
                            hasVisibleWhen(false), visibleWhenLogic(0), visibleWhenIsComplex(false),
+                           hasGate(false), gateOperator(0), gateValue(0.0), sectionRevisable(true), sectionRandomize(false),
                            valMinLengthEnabled(false), valMinLength(0),
                            valMaxLengthEnabled(false), valMaxLength(0),
                            valMinWordsEnabled(false),  valMinWords(0),
@@ -166,11 +198,16 @@ struct QuestionEditorState {
         gridColumns[0] = '\0';
         gridRows[0] = '\0';
         imagePath[0] = '\0';
+        answerAlias[0] = '\0';
+        gateRequiredValue[0] = '\0';
+        gateTerminateMessageKey[0] = '\0';
+        gateTerminateMessageText[0] = '\0';
         valMinLengthError[0] = valMaxLengthError[0] = '\0';
         valMinWordsError[0]  = valMaxWordsError[0]  = '\0';
         valNumberMinError[0] = valNumberMaxError[0] = '\0';
         valPattern[0] = valPatternError[0] = '\0';
         valMinSelectedError[0] = valMaxSelectedError[0] = '\0';
+        sectionRandomizeFixed[0] = '\0';
     }
 };
 
@@ -183,17 +220,24 @@ struct DimensionEditorState {
     char abbreviation[64];
     char description[512];
 
+    // Parameter-driven enable/disable
+    bool selectable;
+    bool defaultEnabled;
+    char enabledParam[128];
+
     // Conditional display
     bool hasVisibleWhen;
     int visibleWhenLogic;  // 0=AND, 1=OR
     std::vector<EditorCondition> visibleWhenConditions;
 
     DimensionEditorState() : show(false), editingIndex(-1),
+                             selectable(false), defaultEnabled(true),
                              hasVisibleWhen(false), visibleWhenLogic(0) {
         id[0] = '\0';
         name[0] = '\0';
         abbreviation[0] = '\0';
         description[0] = '\0';
+        enabledParam[0] = '\0';
     }
 };
 
@@ -221,6 +265,19 @@ struct BatchImportState {
         dimension[0] = '\0';
         likertLabels[0] = '\0';
     }
+};
+
+// Norms editor dialog state
+struct NormsEditorState {
+    bool show = false;
+    std::string dimensionId;
+    std::string dimensionName;
+    struct ThresholdEdit {
+        float minVal = 0.0f;
+        float maxVal = 0.0f;
+        char label[128] = {};
+    };
+    std::vector<ThresholdEdit> rows;
 };
 
 // Correct answers editor dialog state (for sum_correct scoring)
@@ -314,6 +371,7 @@ private:
     void RenderScoringEditor();
     void RenderTranslationsEditor();
     void RenderSectionsTab();
+    void RenderParametersEditor();
     void ShowQuestionEditor();
     void RenderSectionEditorForm();
     void RenderVisibleWhenEditor(QuestionEditorState& e);
@@ -321,6 +379,7 @@ private:
     void ShowDimensionEditor();
     void ShowCreateStudyFromScaleDialog();
     void ShowCorrectAnswersEditor();
+    void ShowNormsEditor();
     void TestCurrentScale();
 
     // Helper to load parameter editor after variant name is entered
@@ -370,6 +429,7 @@ private:
     void RemoveChainItem(int index);
     void MoveChainItemUp(int index);
     void MoveChainItemDown(int index);
+    void MoveChainItemTo(int from, int to);
     void EditChainItem(int index);
     void TestChainItem(int index);
     void RunChain();
@@ -517,6 +577,7 @@ private:
     DimensionEditorState mDimensionEditor;
     CreateStudyFromScaleState mCreateStudyDialog;
     CorrectAnswersEditorState mCorrectAnswersEditor;
+    NormsEditorState mNormsEditor;
 
     // Scale browser screenshot state
     SDL_Texture* mScaleBrowserScreenshot;
@@ -526,6 +587,17 @@ private:
     // Scale Builder translations tab state
     char mScaleTransLanguage[16];
     int mScaleTransSelectedKey;
+
+    // Loose OSD files found in workspace/scales/ (not yet installed into subdirectories)
+    std::vector<ScaleManager::LooseOSDEntry> mLooseOSDEntries;
+    bool mLooseOSDEntriesLoaded = false;  // true once first scan has been done
+
+    // Install OSD dialog state
+    struct InstallOSDDialogState {
+        bool show = false;
+        ScaleManager::LooseOSDEntry entry;
+        char errorMessage[256] = {};
+    } mInstallOSDDialog;
 };
 
 

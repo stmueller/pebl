@@ -13,14 +13,17 @@
 
 // Scale metadata (matches ScaleRunner scale_info)
 struct ScaleInfo {
-    std::string name;           // "Grit Scale"
-    std::string code;           // "grit"
-    std::string abbreviation;   // "Grit-O"
-    std::string description;    // Brief description
-    std::string citation;       // Full citation with DOI
-    std::string license;        // License information
-    std::string version;        // "1.0"
-    std::string url;            // Website URL
+    std::string name;                // "Grit Scale"
+    std::string code;                // "grit"
+    std::string abbreviation;        // "Grit-O"
+    std::string description;         // Brief description
+    std::string citation;            // Full citation with DOI
+    std::string license;             // Short license label (e.g., "CC BY 4.0", "Public Domain")
+    std::string license_explanation; // Full license terms / permissions grant
+    std::string license_url;         // URL documenting the license terms
+    std::string version;             // "1.0"
+    std::string url;                 // Website URL
+    std::string domain;              // Subject domain (e.g., "Mood", "Substance Use", "Personality")
 
     ScaleInfo() : version("1.0") {}
 };
@@ -53,9 +56,11 @@ struct LikertOptions {
 struct VisibleWhenCondition {
     std::string source_type;  // "parameter" or "question"
     std::string source_name;  // parameter name or question ID
-    std::string op;           // "equals", "not_equals", "greater_than", "less_than"
-    std::string value;
-    VisibleWhenCondition() : source_type("parameter"), op("equals") {}
+    std::string op;           // "equals", "not_equals", "greater_than", "less_than", "in", "not_in"
+    std::string value;                   // scalar value (when is_list == false)
+    std::vector<std::string> values;     // list value (when is_list == true, for "in"/"not_in")
+    bool is_list;                        // true when value field is a JSON array
+    VisibleWhenCondition() : source_type("parameter"), op("equals"), is_list(false) {}
 };
 
 // Dimension definition (for scoring and organization)
@@ -65,13 +70,16 @@ struct ScaleDimension {
     std::string abbreviation;   // "COI"
     std::string description;    // Full description
     std::string enabled_param;  // Parameter name to enable/disable (or empty)
+    bool selectable;            // If true, auto-generate a boolean enable param in schema
+    bool default_enabled;       // Default value for the auto-generated enable param
 
     // Dynamic visibility conditions
     bool has_visible_when;
     std::string visible_when_logic;  // "all" or "any"
     std::vector<VisibleWhenCondition> visible_when;
 
-    ScaleDimension() : has_visible_when(false), visible_when_logic("all") {}
+    ScaleDimension() : selectable(false), default_enabled(true),
+                       has_visible_when(false), visible_when_logic("all") {}
     ScaleDimension(const std::string& i, const std::string& n, const std::string& abbr)
         : id(i), name(n), abbreviation(abbr), has_visible_when(false), visible_when_logic("all") {}
 };
@@ -144,6 +152,7 @@ struct ScaleQuestion {
     int likert_points;          // For likert questions
     int likert_min;             // For likert questions (optional, -1 = use scale default)
     int likert_max;             // For likert questions (optional, -1 = use scale default)
+    bool likert_reverse;        // Display buttons right-to-left (highest value on left)
     std::vector<std::string> likert_labels;  // For likert questions (optional, empty = use scale default)
     int min_value;              // For vas
     int max_value;              // For vas
@@ -155,17 +164,52 @@ struct ScaleQuestion {
     std::vector<std::string> columns;  // Translation keys for grid columns
     std::vector<std::string> rows;     // Translation keys for grid rows
 
-    ScaleQuestion() : coding(1), random_group(1), required_state(-1), has_visible_when(false), visible_when_logic("all"), visible_when_is_complex(false), likert_points(5), likert_min(-1), likert_max(-1), min_value(0), max_value(100) {}
+    // Answer alias — optional semantic name for use in {answer.alias} piping
+    std::string answer_alias;
+
+    // Gate (blocking) — if set, a wrong answer stops the scale, saves data, and shows a message
+    bool has_gate;
+    std::string gate_required_value;        // Exact-match form (multi): value that allows continuation
+    std::string gate_operator;              // Numeric form (short): "greater_than","less_than","equals","not_equals"
+    double gate_value;                      // Numeric form (short): threshold to compare against
+    std::string gate_terminate_message_key; // Translation key for the termination message
+
+    // Section control (type == "section" only)
+    bool revisable;  // Default true: runners allow Back button within this section. false = responses are final.
+    bool section_randomize;  // Default false: shuffle non-fixed questions within section
+    std::vector<std::string> section_randomize_fixed;  // Question IDs pinned to original position
+
+    ScaleQuestion() : coding(1), random_group(1), required_state(-1), has_visible_when(false), visible_when_logic("all"), visible_when_is_complex(false), likert_points(-1), likert_min(-1), likert_max(-1), likert_reverse(false), min_value(0), max_value(100), has_gate(false), gate_value(0.0), revisable(true), section_randomize(false) {}
+};
+
+struct NormThreshold {
+    double min;
+    double max;
+    std::string label;
+    NormThreshold() : min(0), max(0) {}
+    NormThreshold(double mn, double mx, const std::string& lbl) : min(mn), max(mx), label(lbl) {}
+};
+
+// A single transform step: op (add/subtract/multiply/divide) + numeric value
+struct TransformStep {
+    std::string op;    // "add", "subtract", "multiply", "divide"
+    double value;      // Numeric operand
+
+    TransformStep() : op("add"), value(0.0) {}
+    TransformStep(const std::string& o, double v) : op(o), value(v) {}
 };
 
 // Scoring definition for a dimension
 struct DimensionScoring {
-    std::string method;         // mean_coded, sum_coded, weighted_sum, sum_correct
+    std::string method;         // mean_coded, sum_coded, weighted_sum, weighted_mean, sum_correct
     std::vector<std::string> items;  // Question IDs in this score
+    std::vector<std::string> scores; // Score IDs used as inputs (for composite scores)
     std::string description;    // Description of the score
     std::map<std::string, double> weights;  // For weighted_sum (optional)
     std::map<std::string, int> item_coding;  // Per-item coding: item_id -> 1 (normal), -1 (reverse), 0 (not scored)
     std::map<std::string, std::vector<std::string>> correct_answers;  // For sum_correct: item_id -> list of acceptable answers/patterns
+    std::vector<NormThreshold> norms;  // Interpretation thresholds for report (optional)
+    std::vector<TransformStep> transform;  // Post-scoring arithmetic transform steps (optional)
 
     DimensionScoring() : method("mean_coded") {}
 };
@@ -189,6 +233,15 @@ struct DataOutput {
     std::string pooled_columns;    // Pooled file columns
 };
 
+// Computed variable definition (S7)
+struct ComputedVariable {
+    std::string expression;     // e.g., "score.PHQ_total >= 10" or "answer.q1 * answer.q2 * 8.0"
+    std::string type;           // "boolean", "number"
+    std::vector<NormThreshold> norms;  // Optional interpretation thresholds
+
+    ComputedVariable() : type("number") {}
+};
+
 // Translation data (language -> key -> value)
 using ScaleTranslations = std::map<std::string, std::map<std::string, std::string>>;
 
@@ -205,9 +258,16 @@ public:
     // Serialization
     bool SaveToFile(const std::string& jsonPath);
     bool ExportToJSON(const std::string& definitionsPath, const std::string& translationsPath);
+    bool ExportToOSD(const std::string& outputDir);   // Bundle definition + all translations into {CODE}.osd
 
     // Load definition and translations from a scales directory (<basePath>/<code>/<code>.json)
     bool LoadFromScalesDir(const std::string& basePath, const std::string& scaleCode);
+
+    // Load from a standalone .osd bundle file
+    static std::shared_ptr<ScaleDefinition> LoadFromOSDFile(const std::string& osdPath);
+
+    // True if this scale was loaded from a .osd bundle (vs. unpacked .json)
+    bool IsSourceOSD() const { return mSourceIsOSD; }
 
     // Validation
     bool Validate(std::string& errorOutput);
@@ -219,6 +279,7 @@ public:
     std::vector<ScaleQuestion>& GetQuestions() { return mQuestions; }
     std::vector<ScaleDimension>& GetDimensions() { return mDimensions; }
     std::map<std::string, DimensionScoring>& GetScoring() { return mScoring; }
+    std::map<std::string, ComputedVariable>& GetComputed() { return mComputed; }
     ReportConfig& GetReportConfig() { return mReportConfig; }
     DataOutput& GetDataOutput() { return mDataOutput; }
     ScaleTranslations& GetTranslations() { return mTranslations; }
@@ -231,6 +292,7 @@ public:
     const std::vector<ScaleQuestion>& GetQuestions() const { return mQuestions; }
     const std::vector<ScaleDimension>& GetDimensions() const { return mDimensions; }
     const std::map<std::string, DimensionScoring>& GetScoring() const { return mScoring; }
+    const std::map<std::string, ComputedVariable>& GetComputed() const { return mComputed; }
     const ReportConfig& GetReportConfig() const { return mReportConfig; }
     const DataOutput& GetDataOutput() const { return mDataOutput; }
     const ScaleTranslations& GetTranslations() const { return mTranslations; }
@@ -238,6 +300,7 @@ public:
 
     // Question management
     void AddQuestion(const ScaleQuestion& question);
+    void InsertQuestion(int index, const ScaleQuestion& question);
     void RemoveQuestion(const std::string& questionID);
     void MoveQuestion(int fromIndex, int toIndex);
     ScaleQuestion* GetQuestion(const std::string& questionID);
@@ -271,9 +334,12 @@ public:
 
 private:
     bool LoadDefinitionJSON(const std::string& jsonPath);
+    bool ParseDefinitionFromJSON(const nlohmann::json& j);   // Parse already-loaded JSON object
+    bool LoadFromOSDBundlePath(const std::string& osdPath);  // Load from .osd bundle file
     bool LoadTranslationJSON(const std::string& jsonPath, const std::string& language);
     bool SaveDefinitionJSON(const std::string& jsonPath);
     bool SaveTranslationJSON(const std::string& jsonPath, const std::string& language);
+    bool BuildDefinitionJSONObject(nlohmann::json& outJSON) const;  // Build definition JSON from memory
 
     ScaleInfo mScaleInfo;
     std::map<std::string, ScaleParameter> mParameters;
@@ -281,11 +347,13 @@ private:
     std::vector<ScaleQuestion> mQuestions;
     std::vector<ScaleDimension> mDimensions;
     std::map<std::string, DimensionScoring> mScoring;  // dimension_id -> scoring
+    std::map<std::string, ComputedVariable> mComputed; // computed variable name -> definition
     ReportConfig mReportConfig;
     DataOutput mDataOutput;
     ScaleTranslations mTranslations;
     int mDefaultRequired;       // -1 = type defaults, 0 = all optional, 1 = all required
     bool mDirty;
+    bool mSourceIsOSD;          // true if loaded from a .osd bundle file
 
     // Raw JSON from original file - preserves unknown fields (pages, response_footer, etc.)
     nlohmann::json mRawDefinition;

@@ -60,7 +60,7 @@ std::vector<std::string> ScaleManager::GetAvailableScales()
 {
     std::set<std::string> scalesSet;  // Use set to avoid duplicates
 
-    // Scan a directory for per-scale subdirectories containing <code>/<code>.json
+    // Scan a directory for per-scale subdirectories containing <code>/<code>.json or <code>.osd
     auto scanForScales = [&](const std::string& basePath) {
         try {
             if (!fs::exists(basePath)) return;
@@ -68,7 +68,8 @@ std::vector<std::string> ScaleManager::GetAvailableScales()
                 if (entry.is_directory()) {
                     std::string dirName = entry.path().filename().string();
                     std::string defFile = entry.path().string() + "/" + dirName + ".json";
-                    if (fs::exists(defFile)) {
+                    std::string osdFile = entry.path().string() + "/" + dirName + ".osd";
+                    if (fs::exists(defFile) || fs::exists(osdFile)) {
                         scalesSet.insert(dirName);
                     }
                 }
@@ -124,6 +125,7 @@ bool ScaleManager::SaveScale(std::shared_ptr<ScaleDefinition> scale)
     }
 
     // Save to per-scale directory in workspace: workspace/scales/<code>/
+    // Primary format is .osd (single-file bundle); no separate .json or translation files needed.
     std::string scaleDir = GetScalesPath() + "/" + scale->GetScaleInfo().code;
     try {
         fs::create_directories(scaleDir);
@@ -131,13 +133,8 @@ bool ScaleManager::SaveScale(std::shared_ptr<ScaleDefinition> scale)
         printf("Error creating scale directory: %s\n", e.what());
         return false;
     }
-    if (!scale->ExportToJSON(scaleDir, scaleDir)) {
-        return false;
-    }
 
-    // Generate screenshot — run from scales parent dir so script finds <code>/<code>.json
-    GenerateScreenshot(scale->GetScaleInfo().code, scaleDir);
-    return true;
+    return scale->ExportToOSD(scaleDir);
 }
 
 bool ScaleManager::DeleteScale(const std::string& code)
@@ -173,6 +170,77 @@ std::shared_ptr<ScaleDefinition> ScaleManager::ImportFromFile(const std::string&
     return ScaleDefinition::LoadFromFile(filePath);
 }
 
+std::vector<ScaleManager::LooseOSDEntry> ScaleManager::GetLooseOSDEntries() const
+{
+    std::vector<LooseOSDEntry> entries;
+    if (mWorkspaceScalesPath.empty()) return entries;
+
+    try {
+        if (!fs::exists(mWorkspaceScalesPath)) return entries;
+        for (const auto& entry : fs::directory_iterator(mWorkspaceScalesPath)) {
+            if (!entry.is_regular_file()) continue;
+            std::string filename = entry.path().filename().string();
+            if (filename.size() < 5 || filename.substr(filename.size() - 4) != ".osd") continue;
+
+            // Only treat as loose if there is no matching <code>/ subdirectory already
+            std::string stemCode = filename.substr(0, filename.size() - 4);
+            std::string subdirPath = mWorkspaceScalesPath + "/" + stemCode;
+            if (fs::exists(subdirPath) && fs::is_directory(subdirPath)) continue;
+
+            // Read code/name from the .osd bundle
+            try {
+                std::ifstream f(entry.path().string());
+                if (!f.is_open()) continue;
+                json bundle = json::parse(f);
+                if (!bundle.contains("definition")) continue;
+
+                LooseOSDEntry e;
+                e.path = entry.path().string();
+                if (bundle["definition"].contains("scale_info")) {
+                    auto& si = bundle["definition"]["scale_info"];
+                    if (si.contains("code")) e.code = si["code"].get<std::string>();
+                    if (si.contains("name")) e.name = si["name"].get<std::string>();
+                }
+                if (e.code.empty()) e.code = stemCode;
+                if (e.name.empty()) e.name = e.code;
+                entries.push_back(e);
+            } catch (...) {}
+        }
+    } catch (...) {}
+
+    return entries;
+}
+
+std::shared_ptr<ScaleDefinition> ScaleManager::InstallLooseOSD(const std::string& osdPath)
+{
+    // Load the .osd to determine the scale code
+    auto scale = ScaleDefinition::LoadFromOSDFile(osdPath);
+    if (!scale) {
+        printf("InstallLooseOSD: failed to load OSD from: %s\n", osdPath.c_str());
+        return nullptr;
+    }
+    std::string code = scale->GetScaleInfo().code;
+    if (code.empty()) {
+        printf("InstallLooseOSD: scale has no code in: %s\n", osdPath.c_str());
+        return nullptr;
+    }
+
+    // Create workspace/scales/<code>/ directory
+    std::string targetDir = mWorkspaceScalesPath + "/" + code;
+    std::string targetFile = targetDir + "/" + code + ".osd";
+    try {
+        fs::create_directories(targetDir);
+        fs::copy_file(osdPath, targetFile, fs::copy_options::overwrite_existing);
+        fs::remove(osdPath);  // Remove the loose file now that it is installed
+        printf("Installed OSD '%s' to: %s\n", code.c_str(), targetFile.c_str());
+    } catch (const std::exception& e) {
+        printf("InstallLooseOSD error: %s\n", e.what());
+        return nullptr;
+    }
+
+    return scale;
+}
+
 std::string ScaleManager::GetDefinitionPath(const std::string& code) const
 {
     // Check workspace: workspace/scales/<code>/<code>.json
@@ -189,20 +257,39 @@ std::string ScaleManager::GetDefinitionPath(const std::string& code) const
     return mBatteryDefinitionsPath + "/" + code + "/" + code + ".json";
 }
 
+std::string ScaleManager::GetOSDPath(const std::string& code) const
+{
+    // Check workspace: workspace/scales/<code>/<code>.osd
+    if (!mWorkspaceScalesPath.empty()) {
+        std::string path = mWorkspaceScalesPath + "/" + code + "/" + code + ".osd";
+        if (fs::exists(path)) return path;
+    }
+    // Check library definitions: media/apps/scales/definitions/<code>/<code>.osd
+    {
+        std::string path = mBatteryDefinitionsPath + "/" + code + "/" + code + ".osd";
+        if (fs::exists(path)) return path;
+    }
+    return "";
+}
+
 std::string ScaleManager::GetTranslationPath(const std::string& code, const std::string& lang) const
 {
-    // Check workspace: workspace/scales/<code>/<code>.pbl-<lang>.json
+    // Check workspace: new format first, then old
     if (!mWorkspaceScalesPath.empty()) {
-        std::string path = mWorkspaceScalesPath + "/" + code + "/" + code + ".pbl-" + lang + ".json";
-        if (fs::exists(path)) return path;
+        std::string newPath = mWorkspaceScalesPath + "/" + code + "/" + code + "." + lang + ".json";
+        if (fs::exists(newPath)) return newPath;
+        std::string oldPath = mWorkspaceScalesPath + "/" + code + "/" + code + ".pbl-" + lang + ".json";
+        if (fs::exists(oldPath)) return oldPath;
     }
-    // Check library: media/apps/scales/definitions/<code>/<code>.pbl-<lang>.json
+    // Check library: new format first, then old
     {
-        std::string path = mBatteryDefinitionsPath + "/" + code + "/" + code + ".pbl-" + lang + ".json";
-        if (fs::exists(path)) return path;
+        std::string newPath = mBatteryDefinitionsPath + "/" + code + "/" + code + "." + lang + ".json";
+        if (fs::exists(newPath)) return newPath;
+        std::string oldPath = mBatteryDefinitionsPath + "/" + code + "/" + code + ".pbl-" + lang + ".json";
+        if (fs::exists(oldPath)) return oldPath;
     }
-    // Return expected library path even if not found
-    return mBatteryDefinitionsPath + "/" + code + "/" + code + ".pbl-" + lang + ".json";
+    // Return expected path in new format
+    return mBatteryDefinitionsPath + "/" + code + "/" + code + "." + lang + ".json";
 }
 
 bool ScaleManager::ScaleExists(const std::string& code) const
@@ -215,25 +302,42 @@ std::vector<std::string> ScaleManager::GetTranslationFiles(const std::string& co
     std::set<std::string> langsSeen;  // Track languages to avoid duplicates
     std::vector<std::string> files;
 
-    std::string prefix = code + ".pbl-";
+    std::string newPrefix = code + ".";
+    std::string oldPrefix = code + ".pbl-";
 
     auto scanDir = [&](const std::string& dirPath) {
         try {
             if (!fs::exists(dirPath)) return;
             for (const auto& entry : fs::directory_iterator(dirPath)) {
-                if (entry.is_regular_file()) {
-                    std::string filename = entry.path().filename().string();
-                    if (filename.find(prefix) == 0 &&
-                        filename.size() >= 5 &&
-                        filename.substr(filename.size() - 5) == ".json") {
-                        // Extract language code to avoid duplicates
-                        std::string lang = filename.substr(prefix.length());
-                        lang = lang.substr(0, lang.length() - 5);
-                        if (langsSeen.find(lang) == langsSeen.end()) {
-                            langsSeen.insert(lang);
-                            files.push_back(entry.path().string());
+                if (!entry.is_regular_file()) continue;
+                std::string filename = entry.path().filename().string();
+                if (filename.size() < 5 || filename.substr(filename.size() - 5) != ".json") continue;
+
+                std::string lang;
+
+                // Try new format: CODE.lang.json
+                if (filename.find(newPrefix) == 0) {
+                    lang = filename.substr(newPrefix.length(), filename.size() - newPrefix.length() - 5);
+                    // Guard: lang must be non-empty and must not contain "pbl-" (that's old format)
+                    if (lang.empty() || lang.find("pbl-") == 0) {
+                        // Try old format instead
+                        if (filename.find(oldPrefix) == 0) {
+                            lang = filename.substr(oldPrefix.length(), filename.size() - oldPrefix.length() - 5);
+                        } else {
+                            continue;
                         }
                     }
+                }
+                // Try old format: CODE.pbl-lang.json
+                else if (filename.find(oldPrefix) == 0) {
+                    lang = filename.substr(oldPrefix.length(), filename.size() - oldPrefix.length() - 5);
+                } else {
+                    continue;
+                }
+
+                if (!lang.empty() && langsSeen.find(lang) == langsSeen.end()) {
+                    langsSeen.insert(lang);
+                    files.push_back(entry.path().string());
                 }
             }
         } catch (const std::exception& e) {
@@ -258,47 +362,72 @@ ScaleManager::ScaleMetadata ScaleManager::GetScaleMetadata(const std::string& co
 
     try {
         std::string defPath = GetDefinitionPath(code);
-        if (!fs::exists(defPath)) {
-            return meta;
-        }
+        if (fs::exists(defPath)) {
+            // Load from .json definition file
+            std::ifstream file(defPath);
+            if (!file.is_open()) return meta;
 
-        std::ifstream file(defPath);
-        if (!file.is_open()) {
-            return meta;
-        }
+            json j;
+            file >> j;
 
-        json j;
-        file >> j;
+            if (j.contains("scale_info")) {
+                auto& info = j["scale_info"];
+                if (info.contains("name")) meta.name = info["name"];
+                if (info.contains("description")) meta.description = info["description"];
+                if (info.contains("author")) meta.author = info["author"];
+            }
+            if (j.contains("questions") && j["questions"].is_array()) {
+                meta.questionCount = j["questions"].size();
+            } else if (j.contains("items") && j["items"].is_array()) {
+                meta.questionCount = j["items"].size();
+            }
 
-        // Extract basic metadata
-        if (j.contains("scale_info")) {
-            auto& info = j["scale_info"];
-            if (info.contains("name")) meta.name = info["name"];
-            if (info.contains("description")) meta.description = info["description"];
-            if (info.contains("author")) meta.author = info["author"];
-        }
+            // Get available languages from separate files
+            auto transFiles = GetTranslationFiles(code);
+            for (const auto& transFile : transFiles) {
+                fs::path p(transFile);
+                std::string filename = p.filename().string();
+                std::string prefix = code + ".pbl-";
+                if (filename.find(prefix) == 0 && filename.size() > prefix.length() + 5) {
+                    std::string lang = filename.substr(prefix.length());
+                    lang = lang.substr(0, lang.length() - 5);
+                    meta.availableLanguages.push_back(lang);
+                }
+            }
+        } else {
+            // Fall back to .osd bundle
+            std::string osdPath = GetOSDPath(code);
+            if (osdPath.empty()) return meta;
 
-        // Count questions
-        if (j.contains("questions") && j["questions"].is_array()) {
-            meta.questionCount = j["questions"].size();
-        }
+            std::ifstream file(osdPath);
+            if (!file.is_open()) return meta;
 
-        // Get available languages
-        auto transFiles = GetTranslationFiles(code);
-        for (const auto& transFile : transFiles) {
-            fs::path p(transFile);
-            std::string filename = p.filename().string();
+            json bundle;
+            file >> bundle;
 
-            // Extract language code (e.g., "grit.pbl-en.json" -> "en")
-            std::string prefix = code + ".pbl-";
-            if (filename.find(prefix) == 0 && filename.size() > prefix.length() + 5) {
-                std::string lang = filename.substr(prefix.length());
-                lang = lang.substr(0, lang.length() - 5);  // Remove ".json"
-                meta.availableLanguages.push_back(lang);
+            if (!bundle.contains("definition")) return meta;
+            auto& j = bundle["definition"];
+
+            if (j.contains("scale_info")) {
+                auto& info = j["scale_info"];
+                if (info.contains("name")) meta.name = info["name"];
+                if (info.contains("description")) meta.description = info["description"];
+                if (info.contains("author")) meta.author = info["author"];
+            }
+            if (j.contains("items") && j["items"].is_array()) {
+                meta.questionCount = j["items"].size();
+            } else if (j.contains("questions") && j["questions"].is_array()) {
+                meta.questionCount = j["questions"].size();
+            }
+
+            // Languages come from the translations block inside the bundle
+            if (bundle.contains("translations") && bundle["translations"].is_object()) {
+                for (auto& [lang, _] : bundle["translations"].items()) {
+                    meta.availableLanguages.push_back(lang);
+                }
             }
         }
 
-        // Sort languages
         std::sort(meta.availableLanguages.begin(), meta.availableLanguages.end());
 
     } catch (const std::exception& e) {
@@ -345,13 +474,16 @@ bool ScaleManager::CreateStudyFromScale(std::shared_ptr<ScaleDefinition> scale,
             study->SetAuthor(scale->GetScaleInfo().citation);
         }
 
-        // Create test directory with standard PEBL structure
+        // Create test directory with standard PEBL structure matching ScaleRunner's expected layout:
+        //   tests/{code}/
+        //     {code}.pbl         <- ScaleRunner.pbl (renamed)
+        //     definitions/       <- {code}.json
+        //     translations/      <- {code}.{lang}.json
+        //     params/            <- schema + par files
         std::string testPath = studyPath + "/tests/" + scaleCode;
-        std::string defsDir = testPath + "/definitions";
-        std::string transDir = testPath + "/translations";
         std::string paramsPath = testPath + "/params";
-        fs::create_directories(defsDir);
-        fs::create_directories(transDir);
+        fs::create_directories(testPath + "/definitions");
+        fs::create_directories(testPath + "/translations");
         fs::create_directories(paramsPath);
 
         // Copy ScaleRunner.pbl and rename to match scale code
@@ -367,7 +499,7 @@ bool ScaleManager::CreateStudyFromScale(std::shared_ptr<ScaleDefinition> scale,
         printf("Copied ScaleRunner.pbl to %s\n", scaleRunnerDest.c_str());
 
         // Export definition to definitions/ and translations to translations/
-        if (!scale->ExportToJSON(defsDir, transDir)) {
+        if (!scale->ExportToJSON(testPath + "/definitions", testPath + "/translations")) {
             printf("Error: Failed to export scale files\n");
             return false;
         }
@@ -429,36 +561,8 @@ bool ScaleManager::CreateStudyFromScale(std::shared_ptr<ScaleDefinition> scale,
             }
         }
 
-        // Create JSON parameter file
-        std::string paramFilePath = paramsPath + "/" + scaleCode + ".pbl.par.json";
-        json paramJson = {
-            {"scale", scaleCode},
-            {"shuffle_questions", 0}
-        };
-
-        std::ofstream paramFile(paramFilePath);
-        if (paramFile.is_open()) {
-            paramFile << paramJson.dump(2);
-            paramFile.close();
-            printf("Created parameter file: %s\n", paramFilePath.c_str());
-        } else {
-            printf("Warning: Failed to create parameter file: %s\n", paramFilePath.c_str());
-        }
-
-        // Copy schema file
-        std::string schemaSource = mBatteryScalesPath + "/params/ScaleRunner.pbl.schema.json";
-        std::string schemaDest = paramsPath + "/" + scaleCode + ".pbl.schema.json";
-
-        if (fs::exists(schemaSource)) {
-            try {
-                fs::copy_file(schemaSource, schemaDest);
-                printf("Copied schema file: %s\n", schemaDest.c_str());
-            } catch (const std::exception& e) {
-                printf("Warning: Failed to copy schema file: %s\n", e.what());
-            }
-        } else {
-            printf("Warning: Schema file not found: %s\n", schemaSource.c_str());
-        }
+        // Generate schema and parameter files from the scale's OSD parameters block
+        GenerateSchemaFiles(*scale, testPath);
 
         // Generate screenshot for the deployed test
         GenerateScreenshot(scaleCode, testPath);
@@ -536,12 +640,15 @@ bool ScaleManager::AddScaleToStudy(std::shared_ptr<ScaleDefinition> scale,
             fs::remove_all(testPath);
         }
 
-        // Create test directory with standard PEBL structure
-        std::string defsDir = testPath + "/definitions";
-        std::string transDir = testPath + "/translations";
+        // Create test directory with standard PEBL structure matching ScaleRunner's expected layout:
+        //   tests/{code}/
+        //     {code}.pbl         <- ScaleRunner.pbl (renamed)
+        //     definitions/       <- {code}.json
+        //     translations/      <- {code}.{lang}.json
+        //     params/            <- schema + par files
         std::string paramsPath = testPath + "/params";
-        fs::create_directories(defsDir);
-        fs::create_directories(transDir);
+        fs::create_directories(testPath + "/definitions");
+        fs::create_directories(testPath + "/translations");
         fs::create_directories(paramsPath);
 
         // Copy ScaleRunner.pbl
@@ -556,7 +663,7 @@ bool ScaleManager::AddScaleToStudy(std::shared_ptr<ScaleDefinition> scale,
         fs::copy_file(scaleRunnerSource, scaleRunnerDest);
 
         // Export definition to definitions/ and translations to translations/
-        if (!scale->ExportToJSON(defsDir, transDir)) {
+        if (!scale->ExportToJSON(testPath + "/definitions", testPath + "/translations")) {
             printf("Error: Failed to export scale files\n");
             return false;
         }
@@ -603,29 +710,8 @@ bool ScaleManager::AddScaleToStudy(std::shared_ptr<ScaleDefinition> scale,
             }
         }
 
-        // Create params directory and parameter file
-        std::string paramFilePath = paramsPath + "/" + scaleCode + ".pbl.par.json";
-        json paramJson = {
-            {"scale", scaleCode},
-            {"shuffle_questions", 0}
-        };
-
-        std::ofstream paramFile(paramFilePath);
-        if (paramFile.is_open()) {
-            paramFile << paramJson.dump(2);
-            paramFile.close();
-        }
-
-        // Copy schema file
-        std::string schemaSource = mBatteryScalesPath + "/params/ScaleRunner.pbl.schema.json";
-        std::string schemaDest = paramsPath + "/" + scaleCode + ".pbl.schema.json";
-        if (fs::exists(schemaSource)) {
-            try {
-                fs::copy_file(schemaSource, schemaDest);
-            } catch (const std::exception& e) {
-                printf("Warning: Failed to copy schema file: %s\n", e.what());
-            }
-        }
+        // Generate schema and parameter files from the scale's OSD parameters block
+        GenerateSchemaFiles(*scale, testPath);
 
         // Generate screenshot for the deployed test
         GenerateScreenshot(scaleCode, testPath);
@@ -658,6 +744,12 @@ bool ScaleManager::AddScaleToStudy(std::shared_ptr<ScaleDefinition> scale,
 bool ScaleManager::GenerateScreenshot(const std::string& scaleCode, const std::string& testPath)
 {
     std::string screenshotDest = testPath + "/" + scaleCode + ".pbl.png";
+
+    // If screenshot already exists at destination, skip generation
+    if (fs::exists(screenshotDest)) {
+        printf("Screenshot already exists: %s\n", screenshotDest.c_str());
+        return true;
+    }
 
     // First check for pre-existing screenshot in library definitions
     std::string libraryScreenshot = mBatteryDefinitionsPath + "/" + scaleCode + "/" + scaleCode + ".pbl.png";
@@ -781,4 +873,160 @@ bool ScaleManager::GenerateScreenshot(const std::string& scaleCode, const std::s
         printf("Warning: Screenshot generation failed (exit code %d)\n", ret);
         return false;
     }
+}
+
+// Generate .pbl.schema.json and .pbl.par.json from the scale's OSD parameters block.
+// Called at scale deployment time (CreateStudyFromScale / AddScaleToStudy) so all
+// OSD-defined parameters are immediately visible in the parameter editor.
+// The par.json is created fresh; the schema is always regenerated from the definition.
+bool ScaleManager::GenerateSchemaFiles(const ScaleDefinition& scale, const std::string& testPath)
+{
+    const std::string& code   = scale.GetScaleInfo().code;
+    const std::string& name   = scale.GetScaleInfo().name;
+    const auto& osdParams     = scale.GetParameters();
+    std::string paramsPath    = testPath + "/params";
+
+    fs::create_directories(paramsPath);
+
+    // Base parameter names handled specially — not iterated from OSD map
+    static const std::set<std::string> baseNames = {"scale", "shuffle_questions", "show_header"};
+
+    // Helper: convert a string default value to the right JSON type
+    auto jsonDefault = [](const std::string& type, const std::string& value) -> nlohmann::json {
+        if (type == "boolean" || type == "integer") {
+            try { return std::stoi(value); } catch (...) {}
+        } else if (type == "float") {
+            try { return std::stod(value); } catch (...) {}
+        }
+        return value;
+    };
+
+    // Helper: look up a base param's default from OSD, falling back to hardcoded default
+    auto osdDefault = [&](const std::string& pname, nlohmann::json fallback) -> nlohmann::json {
+        auto it = osdParams.find(pname);
+        if (it != osdParams.end() && !it->second.defaultValue.empty()) {
+            return jsonDefault(it->second.type, it->second.defaultValue);
+        }
+        return fallback;
+    };
+
+    nlohmann::json schemaParams = nlohmann::json::array();
+    nlohmann::json parDefaults  = nlohmann::json::object();
+
+    // 1. scale — hidden, always locked to this scale's code
+    schemaParams.push_back({
+        {"name",        "scale"},
+        {"type",        "string"},
+        {"default",     code},
+        {"description", "OSD scale code (reads definitions/{code}.json)"},
+        {"hidden",      true}
+    });
+    parDefaults["scale"] = code;
+
+    // 2. shuffle_questions — default from OSD if declared, else 0
+    {
+        auto def = osdDefault("shuffle_questions", 0);
+        schemaParams.push_back({
+            {"name",        "shuffle_questions"},
+            {"type",        "boolean"},
+            {"default",     def},
+            {"description", "Randomize item order within randomization groups"},
+            {"options",     nlohmann::json::array({0, 1})}
+        });
+        parDefaults["shuffle_questions"] = def;
+    }
+
+    // 3. show_header — default from OSD if declared, else 1
+    {
+        auto def = osdDefault("show_header", 1);
+        schemaParams.push_back({
+            {"name",        "show_header"},
+            {"type",        "boolean"},
+            {"default",     def},
+            {"description", "Display the scale title header above the questionnaire"},
+            {"options",     nlohmann::json::array({0, 1})}
+        });
+        parDefaults["show_header"] = def;
+    }
+
+    // 4. OSD-defined extra parameters (text substitution vars, feature flags, etc.)
+    for (const auto& [pname, pdef] : osdParams) {
+        if (baseNames.count(pname)) continue;  // already handled above
+
+        nlohmann::json sp;
+        sp["name"] = pname;
+        sp["type"] = pdef.type.empty() ? "string" : pdef.type;
+
+        if (!pdef.defaultValue.empty()) {
+            auto def = jsonDefault(pdef.type, pdef.defaultValue);
+            sp["default"]          = def;
+            parDefaults[pname]     = def;
+        }
+        if (!pdef.description.empty()) {
+            sp["description"] = pdef.description;
+        }
+        if (!pdef.options.empty()) {
+            nlohmann::json opts = nlohmann::json::array();
+            for (const auto& o : pdef.options) opts.push_back(o);
+            sp["options"] = opts;
+        } else if (pdef.type == "boolean") {
+            sp["options"] = nlohmann::json::array({0, 1});
+        }
+
+        schemaParams.push_back(sp);
+    }
+
+    // 5. Selectable dimension enable/disable checkboxes
+    // Build set of param names already covered (base + OSD explicit) to avoid duplicates
+    std::set<std::string> coveredParams = baseNames;
+    for (const auto& [pname, _] : osdParams) coveredParams.insert(pname);
+
+    for (const auto& dim : scale.GetDimensions()) {
+        if (!dim.selectable) continue;
+
+        // Determine param name: use enabled_param if set, else auto-name "do_{id}"
+        std::string pname = dim.enabled_param.empty() ? ("do_" + dim.id) : dim.enabled_param;
+        if (coveredParams.count(pname)) continue;  // already defined explicitly
+        coveredParams.insert(pname);
+
+        int defVal = dim.default_enabled ? 1 : 0;
+        schemaParams.push_back({
+            {"name",        pname},
+            {"type",        "boolean"},
+            {"default",     defVal},
+            {"description", "Include " + dim.name + " dimension"},
+            {"options",     nlohmann::json::array({0, 1})}
+        });
+        parDefaults[pname] = defVal;
+    }
+
+    // Write schema
+    nlohmann::json schema = {
+        {"test",        code},
+        {"version",     "1.0"},
+        {"description", name + " — auto-generated from scale definition"},
+        {"parameters",  schemaParams}
+    };
+    std::string schemaPath = paramsPath + "/" + code + ".pbl.schema.json";
+    std::ofstream sf(schemaPath);
+    if (!sf.is_open()) {
+        printf("Warning: Failed to write schema file: %s\n", schemaPath.c_str());
+        return false;
+    }
+    sf << schema.dump(2);
+    sf.close();
+    printf("Generated schema: %s\n", schemaPath.c_str());
+
+    // Write par.json with all defaults (only if not already present)
+    std::string parPath = paramsPath + "/" + code + ".pbl.par.json";
+    if (!fs::exists(parPath)) {
+        std::ofstream pf(parPath);
+        if (pf.is_open()) {
+            pf << parDefaults.dump(2);
+            pf.close();
+            printf("Generated params: %s\n", parPath.c_str());
+        }
+    }
+
+    return true;
 }

@@ -37,8 +37,22 @@ public:
     // Import scale from file
     std::shared_ptr<ScaleDefinition> ImportFromFile(const std::string& filePath);
 
+    // Loose OSD files — .osd files placed directly in the workspace scales directory,
+    // not yet installed into a <code>/ subdirectory.
+    struct LooseOSDEntry {
+        std::string path;   // Full filesystem path to the .osd file
+        std::string code;   // Scale code read from scale_info.code
+        std::string name;   // Scale name read from scale_info.name
+    };
+    std::vector<LooseOSDEntry> GetLooseOSDEntries() const;
+
+    // Install a loose .osd file: creates workspace/scales/<code>/ and moves the file there.
+    // Returns the loaded ScaleDefinition on success, nullptr on failure.
+    std::shared_ptr<ScaleDefinition> InstallLooseOSD(const std::string& osdPath);
+
     // Get paths
     std::string GetDefinitionPath(const std::string& code) const;
+    std::string GetOSDPath(const std::string& code) const;
     std::string GetTranslationPath(const std::string& code, const std::string& lang) const;
     std::string GetBatteryPath() const { return mBatteryPath; }
     std::string GetWorkspacePath() const { return mWorkspacePath; }
@@ -80,6 +94,12 @@ private:
 
     // Generate or copy screenshot for deployed scale test
     bool GenerateScreenshot(const std::string& scaleCode, const std::string& testPath);
+
+    // Generate .pbl.schema.json and .pbl.par.json from scale definition parameters.
+    // Called at study/test creation time so OSD-defined params are immediately visible
+    // in the parameter editor.  Also updates par.json with any new defaults without
+    // overwriting values the user has already set.
+    bool GenerateSchemaFiles(const ScaleDefinition& scale, const std::string& testPath);
 
     std::string mBatteryPath;
     std::string mWorkspacePath;

@@ -490,7 +490,8 @@ std::string WorkspaceManager::GetDocumentsPath() const {
         return std::string(home) + "/Documents";
     }
 
-    // Last resort fallback
+    // Last resort: use /tmp but prefer nothing over a misleading path
+    // (if HOME is not set the launcher should still be usable)
     return "/tmp/pebl-workspace";
 #endif
 }

@@ -29,6 +29,9 @@ public:
     // Check if workspace is initialized
     bool IsInitialized() const;
 
+    // Set workspace path (override auto-detected path, e.g. from saved config)
+    void SetWorkspacePath(const std::string& path) { mWorkspacePath = path; }
+
     // Get workspace paths
     std::string GetWorkspacePath() const { return mWorkspacePath; }
     std::string GetStudiesPath() const { return mWorkspacePath + "/my_studies"; }

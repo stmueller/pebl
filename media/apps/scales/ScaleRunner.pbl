@@ -13,13 +13,13 @@
 ##
 ##  Usage:
 ##    bin/pebl2 battery/scales/ScaleRunner.pbl -s P001
-##    bin/pebl2 battery/scales/ScaleRunner.pbl -s P001 -v scale bigfive
-##    bin/pebl2 battery/scales/ScaleRunner.pbl -s P001 -v scale sample
+##    bin/pebl2 battery/scales/ScaleRunner.pbl -s P001 --pfile ABCD.pbl.par.json
+
 ##
 ##  See doc/SCALERUNNER_DESIGN.md for complete documentation
 ##
 
-##  Some online sources:
+##  Some online sources for scales:
 ##  http://psychology-tools.com
 ##  https://scales.arabpsychology.com/
 ##  https://www.psytoolkit.org/survey-library/
@@ -48,60 +48,62 @@ define ReadJSON(filename)
 define ShuffleByGroup(questions)
 {
   ## Shuffle questions within randomization groups.
-  ## Group 0 = fixed position, group 1+ = shuffle within group.
-  ## Questions without random_group default to group 1, except
-  ## inst types and items with visible_when which default to 0 (fixed).
+  ## Group 0 = fixed (opted out of shuffling) — the default for all items.
+  ## Group 1+ = shuffle within that numbered group when shuffle_questions is active.
+  ## Items must explicitly set random_group >= 1 to participate in shuffling.
 
-  ## Build parallel list of group IDs
-  indices <- Sequence(1, Length(questions), 1)
-  groupList <- []
-  loop(i, indices)
+  result <- questions
+
+  if(Length(questions) > 0)
   {
-    q <- Nth(questions, i)
-    if(PropertyExists(q, "random_group"))
+    ## Build parallel list of group IDs
+    indices <- Sequence(1, Length(questions), 1)
+    groupList <- []
+    loop(i, indices)
     {
-      PushOnEnd(groupList, q.random_group)
-    } elseif(q.type == "inst" or PropertyExists(q, "visible_when"))
-    {
-      PushOnEnd(groupList, 0)
-    } else {
-      PushOnEnd(groupList, 1)
-    }
-  }
-
-  ## Group indices by group ID using ListBy
-  grouped <- ListBy(indices, groupList)
-  uniqueGroups <- First(grouped)
-  indexLists <- Second(grouped)
-
-  ## Build shuffled mapping for each non-zero group
-  shuffledMap <- MakeCustomObject("shuffled")
-  loop(pair, Transpose([uniqueGroups, indexLists]))
-  {
-    grp <- First(pair)
-    grpIndices <- Second(pair)
-    if(grp > 0)
-    {
-      shuffled <- Shuffle(grpIndices)
-
-      loop(j, Sequence(1, Length(grpIndices), 1))
+      q <- Nth(questions, i)
+      if(PropertyExists(q, "random_group"))
       {
-        origIdx <- Nth(grpIndices, j)
-        newIdx <- Nth(shuffled, j)
-        SetProperty(shuffledMap, origIdx + "", Nth(questions, newIdx))
+        PushOnEnd(groupList, q.random_group)
+      } else {
+        PushOnEnd(groupList, 0)  ## default: fixed (not part of any shuffle group)
       }
     }
-  }
 
-  ## Build result: fixed items stay, grouped items use shuffled mapping
-  result <- []
-  loop(i, indices)
-  {
-    if(PropertyExists(shuffledMap, i + ""))
+    ## Group indices by group ID using ListBy
+    grouped <- ListBy(indices, groupList)
+    uniqueGroups <- First(grouped)
+    indexLists <- Second(grouped)
+
+    ## Build shuffled mapping for each non-zero group
+    shuffledMap <- MakeCustomObject("shuffled")
+    loop(pair, Transpose([uniqueGroups, indexLists]))
     {
-      PushOnEnd(result, GetProperty(shuffledMap, i + ""))
-    } else {
-      PushOnEnd(result, Nth(questions, i))
+      grp <- First(pair)
+      grpIndices <- Second(pair)
+      if(grp > 0)
+      {
+        shuffled <- Shuffle(grpIndices)
+
+        loop(j, Sequence(1, Length(grpIndices), 1))
+        {
+          origIdx <- Nth(grpIndices, j)
+          newIdx <- Nth(shuffled, j)
+          SetProperty(shuffledMap, origIdx + "", Nth(questions, newIdx))
+        }
+      }
+    }
+
+    ## Build result: fixed items stay, grouped items use shuffled mapping
+    result <- []
+    loop(i, indices)
+    {
+      if(PropertyExists(shuffledMap, i + ""))
+      {
+        PushOnEnd(result, GetProperty(shuffledMap, i + ""))
+      } else {
+        PushOnEnd(result, Nth(questions, i))
+      }
     }
   }
 
@@ -144,76 +146,296 @@ define ShuffleSectionOrder(questions, randomizeDef)
     }
   }
 
-  ## Save last group
+  ## Default: return unchanged if no section markers found
+  flatList <- questions
+
   if(hitSection)
   {
+    ## Save last group
     PushOnEnd(realSections, [currentMarker, currentItems])
-  } else {
-    ## No section markers in this list — return unchanged
-    return(questions)
-  }
 
-  ## Step 2: Get fixed IDs
-  fixedIds <- []
-  if(PropertyExists(randomizeDef, "fixed"))
-  {
-    fixedIds <- randomizeDef.fixed
-  }
-
-  ## Step 3: Mark each section as fixed or free; collect free sections
-  n <- Length(realSections)
-  isFixedFlags <- []
-  freeSections <- []
-
-  loop(i, Sequence(1, n, 1))
-  {
-    sec <- Nth(realSections, i)
-    marker <- First(sec)
-    secId <- marker.id
-    isThisFixed <- 0
-    loop(fid, fixedIds)
+    ## Step 2: Get fixed IDs
+    fixedIds <- []
+    if(PropertyExists(randomizeDef, "fixed"))
     {
-      if(fid == secId)
+      fixedIds <- randomizeDef.fixed
+    }
+
+    ## Step 3: Mark each section as fixed or free; collect free sections
+    n <- Length(realSections)
+    isFixedFlags <- []
+    freeSections <- []
+
+    loop(i, Sequence(1, n, 1))
+    {
+      sec <- Nth(realSections, i)
+      marker <- First(sec)
+      secId <- marker.id
+      isThisFixed <- 0
+      loop(fid, fixedIds)
       {
-        isThisFixed <- 1
+        if(fid == secId)
+        {
+          isThisFixed <- 1
+        }
+      }
+      PushOnEnd(isFixedFlags, isThisFixed)
+      if(not isThisFixed)
+      {
+        PushOnEnd(freeSections, sec)
       }
     }
-    PushOnEnd(isFixedFlags, isThisFixed)
-    if(not isThisFixed)
+
+    ## Step 4: Shuffle free sections
+    shuffledFree <- Shuffle(freeSections)
+
+    ## Step 5: Rebuild ordered list — fixed sections stay, free slots filled from shuffle
+    reordered <- []
+    freeIdx <- 1
+    loop(i, Sequence(1, n, 1))
     {
-      PushOnEnd(freeSections, sec)
+      if(Nth(isFixedFlags, i))
+      {
+        PushOnEnd(reordered, Nth(realSections, i))
+      } else {
+        PushOnEnd(reordered, Nth(shuffledFree, freeIdx))
+        freeIdx <- freeIdx + 1
+      }
     }
-  }
 
-  ## Step 4: Shuffle free sections
-  shuffledFree <- Shuffle(freeSections)
-
-  ## Step 5: Rebuild ordered list — fixed sections stay, free slots filled from shuffle
-  reordered <- []
-  freeIdx <- 1
-  loop(i, Sequence(1, n, 1))
-  {
-    if(Nth(isFixedFlags, i))
+    ## Step 6: Flatten back to question list
+    flatList <- preamble
+    loop(sec, reordered)
     {
-      PushOnEnd(reordered, Nth(realSections, i))
-    } else {
-      PushOnEnd(reordered, Nth(shuffledFree, freeIdx))
-      freeIdx <- freeIdx + 1
-    }
-  }
-
-  ## Step 6: Flatten back to question list
-  flatList <- preamble
-  loop(sec, reordered)
-  {
-    PushOnEnd(flatList, First(sec))
-    loop(item, Second(sec))
-    {
-      PushOnEnd(flatList, item)
+      PushOnEnd(flatList, First(sec))
+      loop(item, Second(sec))
+      {
+        PushOnEnd(flatList, item)
+      }
     }
   }
 
   return(flatList)
+}
+
+
+##############################################################################
+## PER-SECTION QUESTION RANDOMIZATION (C5) + RANDOM_GROUP SHUFFLING (C2/S4)
+##
+## Two complementary mechanisms, dispatched per section:
+##
+## 1. Section marker randomize.method=shuffle (ShuffleSectionItemsFixed):
+##    All items in the section are shuffled into ONE pool.
+##    Pinned items: random_group=0 on the item, OR listed in randomize.fixed.
+##    random_group grouping (1, 2, 3...) is NOT used — all non-pinned items
+##    form a single shuffle pool.
+##
+## 2. Scale-level shuffle_questions (ShuffleByGroup):
+##    Items are shuffled within their random_group number.
+##    Group 0 = fixed. Groups 1, 2, 3... shuffle independently within section.
+##    Items without random_group: inst and visible_when items -> 0 (fixed);
+##    all other items -> 1 (shuffled).
+##
+## When a section has randomize, ShuffleSectionItemsFixed is used for that
+## section; ShuffleByGroup is skipped.
+##############################################################################
+
+define ShuffleSectionItemsFixed(items, fixedIds)
+{
+  ## Shuffle questions in a section's item list.
+  ## Items whose id appears in fixedIds (a list of strings) stay in their
+  ## original positions; all other items are shuffled.
+  ## Also keeps section markers (type=="section") fixed automatically.
+
+  n <- Length(items)
+
+  ## Classify each position as fixed or free
+  freeItems <- []
+  freeFlags <- []  ## parallel to items: 1=free, 0=fixed
+
+  loop(i, Sequence(1, n, 1))
+  {
+    item <- Nth(items, i)
+    isFixed <- 0
+
+    ## Section sub-markers are never shuffled
+    if(PropertyExists(item, "type"))
+    {
+      if(item.type == "section")
+      {
+        isFixed <- 1
+      }
+    }
+
+    ## Check random_group: 0 (pins item regardless of which shuffle mechanism is active)
+    if(not isFixed)
+    {
+      if(PropertyExists(item, "random_group"))
+      {
+        if(item.random_group == 0)
+        {
+          isFixed <- 1
+        }
+      }
+    }
+
+    ## Check explicit fixed list (convenience alternative to random_group: 0)
+    if(not isFixed)
+    {
+      loop(fid, fixedIds)
+      {
+        if(PropertyExists(item, "id"))
+        {
+          if(item.id == fid)
+          {
+            isFixed <- 1
+          }
+        }
+      }
+    }
+
+    if(isFixed)
+    {
+      PushOnEnd(freeFlags, 0)
+    } else {
+      PushOnEnd(freeFlags, 1)
+      PushOnEnd(freeItems, item)
+    }
+  }
+
+  ## Shuffle the free items
+  shuffledFree <- Shuffle(freeItems)
+
+  ## Reconstruct: fixed positions keep original item; free positions get next shuffled item
+  result <- []
+  freeIdx <- 1
+
+  loop(i, Sequence(1, n, 1))
+  {
+    if(Nth(freeFlags, i))
+    {
+      PushOnEnd(result, Nth(shuffledFree, freeIdx))
+      freeIdx <- freeIdx + 1
+    } else {
+      PushOnEnd(result, Nth(items, i))
+    }
+  }
+
+  return(result)
+}
+
+
+define FlushSection(items, sectionMarker, doGroupShuffle)
+{
+  ## Return items for one section after applying the appropriate shuffle:
+  ##   - If the marker has randomize.method=shuffle: use ShuffleSectionItemsFixed
+  ##     (one shuffle pool; items with random_group=0 or listed in fixed are pinned).
+  ##   - Else if doGroupShuffle: apply random_group-based ShuffleByGroup
+  ##     (multiple independent pools by group number).
+  ##   - Otherwise return unchanged.
+
+  result <- items
+
+  if(doGroupShuffle)
+  {
+    if(PropertyExists(sectionMarker, "randomize"))
+    {
+      rdm <- sectionMarker.randomize
+      if(PropertyExists(rdm, "method"))
+      {
+        if(rdm.method == "shuffle")
+        {
+          fixedIds <- []
+          if(PropertyExists(rdm, "fixed"))
+          {
+            fixedIds <- rdm.fixed
+          }
+          result <- ShuffleSectionItemsFixed(items, fixedIds)
+        }
+      }
+    } else {
+      result <- ShuffleByGroup(items)
+    }
+  }
+
+  return(result)
+}
+
+
+define ApplyAllQuestionRandomization(questions, doGroupShuffle)
+{
+  ## Single-pass handler for both per-section randomize and random_group shuffling.
+  ## Per section: if the section marker has randomize, use ShuffleSectionItemsFixed
+  ## (random_group: 0 and the fixed list both pin items; all others form one pool).
+  ## Otherwise use ShuffleByGroup when doGroupShuffle is true
+  ## (items shuffle within their random_group number independently).
+
+  result <- []
+  preamble <- []
+  currentMarker <- 0
+  currentItems <- []
+  inSection <- 0
+
+  loop(q, questions)
+  {
+    if(q.type == "section")
+    {
+      if(inSection)
+      {
+        ## Flush previous section with appropriate shuffling
+        PushOnEnd(result, currentMarker)
+        sectionItems <- FlushSection(currentItems, currentMarker, doGroupShuffle)
+        loop(item, sectionItems)
+        {
+          PushOnEnd(result, item)
+        }
+      } else {
+        ## Flush preamble — treated as a section with no marker (only group-shuffle applies)
+        preambleItems <- preamble
+        if(doGroupShuffle)
+        {
+          preambleItems <- ShuffleByGroup(preamble)
+        }
+        loop(item, preambleItems)
+        {
+          PushOnEnd(result, item)
+        }
+      }
+      currentMarker <- q
+      currentItems <- []
+      inSection <- 1
+    } else {
+      if(inSection)
+      {
+        PushOnEnd(currentItems, q)
+      } else {
+        PushOnEnd(preamble, q)
+      }
+    }
+  }
+
+  ## Flush final section or preamble
+  if(inSection)
+  {
+    PushOnEnd(result, currentMarker)
+    sectionItems <- FlushSection(currentItems, currentMarker, doGroupShuffle)
+    loop(item, sectionItems)
+    {
+      PushOnEnd(result, item)
+    }
+  } else {
+    preambleItems <- preamble
+    if(doGroupShuffle)
+    {
+      preambleItems <- ShuffleByGroup(preamble)
+    }
+    loop(item, preambleItems)
+    {
+      PushOnEnd(result, item)
+    }
+  }
+
+  return(result)
 }
 
 
@@ -223,21 +445,18 @@ define ShuffleSectionOrder(questions, randomizeDef)
 
 define SelectBranchArms(scaleDef)
 {
-  ## For each branch group in scaleDef.branches, randomly selects one arm.
-  ## Stores chosen arm IDs in gBranchChoices (keyed by branch group ID).
-  ## Returns a list of section IDs that should be excluded (belong to
-  ## unchosen arms).
+  ## For each branch group in scaleDef.branches, selects one arm and
+  ## records which sections to exclude (those belonging to unchosen arms).
+  ## Returns the list of excluded section IDs.
   ##
-  ## "balanced" and "parameter" methods are not yet implemented in the
-  ## runner; they fall through to uniform random selection.
+  ## Methods: "random" (default) — uniform random; "parameter" — arm id
+  ## matches a named gParams value; "balanced" — not yet implemented
+  ## (falls through to random).
 
   excludedSectionIds <- []
 
-  if(not PropertyExists(scaleDef, "branches"))
+  if(PropertyExists(scaleDef, "branches"))
   {
-    return(excludedSectionIds)
-  }
-
   loop(branchGroup, scaleDef.branches)
   {
     if(not PropertyExists(branchGroup, "arms"))
@@ -250,9 +469,28 @@ define SelectBranchArms(scaleDef)
 
     if(nArms > 0)
     {
-      ## Pick one arm uniformly at random
-      armIdx <- RandomBetween(1, nArms)
-      chosenArm <- Nth(arms, armIdx)
+      ## Determine the chosen arm based on the branch method.
+      chosenArm <- Nth(arms, RandomDiscrete(nArms))  ## default: random
+
+      ## "parameter" method: pick the arm whose id matches a param value
+      if(PropertyExists(branchGroup, "method"))
+      {
+        if(branchGroup.method == "parameter" and PropertyExists(branchGroup, "parameter"))
+        {
+          pName <- branchGroup.parameter
+          if(PropertyExists(gParams, pName))
+          {
+            pVal <- GetProperty(gParams, pName) + ""
+            loop(arm, arms)
+            {
+              if(arm.id + "" == pVal)
+              {
+                chosenArm <- arm
+              }
+            }
+          }
+        }
+      }
 
       ## Record choice in global for data logging
       SetProperty(gBranchChoices, branchGroup.id, chosenArm.id)
@@ -307,6 +545,7 @@ define SelectBranchArms(scaleDef)
 
     } ## end arms-exists check
   }
+  } ## end branches-exist check
 
   return(excludedSectionIds)
 }
@@ -318,35 +557,35 @@ define FilterExcludedSections(questions, excludedSectionIds)
   ## Sections not referenced by any branch group are always included.
   ## Items before the first section marker (preamble) are always included.
 
-  if(Length(excludedSectionIds) == 0)
-  {
-    return(questions)
-  }
+  filtered <- questions
 
-  filtered <- []
-  currentSectionExcluded <- 0
-
-  loop(q, questions)
+  if(Length(excludedSectionIds) > 0)
   {
-    if(q.type == "section")
+    filtered <- []
+    currentSectionExcluded <- 0
+
+    loop(q, questions)
     {
-      isExcluded <- 0
-      loop(eid, excludedSectionIds)
+      if(q.type == "section")
       {
-        if(eid == q.id)
+        isExcluded <- 0
+        loop(eid, excludedSectionIds)
         {
-          isExcluded <- 1
+          if(eid == q.id)
+          {
+            isExcluded <- 1
+          }
         }
-      }
-      currentSectionExcluded <- isExcluded
-      if(not isExcluded)
-      {
-        PushOnEnd(filtered, q)
-      }
-    } else {
-      if(not currentSectionExcluded)
-      {
-        PushOnEnd(filtered, q)
+        currentSectionExcluded <- isExcluded
+        if(not isExcluded)
+        {
+          PushOnEnd(filtered, q)
+        }
+      } else {
+        if(not currentSectionExcluded)
+        {
+          PushOnEnd(filtered, q)
+        }
       }
     }
   }
@@ -414,6 +653,79 @@ define ShowFormattedMessage(messageText, win)
 }
 
 
+##############################################################################
+## PARAMETER / ANSWER SUBSTITUTION HELPERS  (S2 / S3)
+##############################################################################
+
+## Build [["{key}", value], ...] replist from a params object.
+## Used to pre-process gStrings once at startup.
+define BuildParamReplist(params)
+{
+  replist <- []
+  loop(key, GetPropertyList(params))
+  {
+    val <- GetProperty(params, key)
+    ## GetPropertyList returns keys uppercased; OSD substitution tokens use lowercase
+    replist <- Append(replist, ["{" + Lowercase(key) + "}", val + ""])
+  }
+  return(replist)
+}
+
+## Return a new strings object with all {param_name} patterns replaced.
+## Applied once after GetStrings so every subsequent GetProperty already
+## has param values embedded.
+define PreprocessStrings(strings, replist)
+{
+  processed <- MakeCustomObject("processed_strings")
+  loop(key, GetPropertyList(strings))
+  {
+    val <- GetProperty(strings, key)
+    if(IsString(val))
+    {
+      SetProperty(processed, key, SubstituteStrings(val, replist))
+    } else {
+      SetProperty(processed, key, val)
+    }
+  }
+  return(processed)
+}
+
+## Build question-id -> alias_name map from scale definition.
+## gAliasMap[question_id] = alias_name
+define BuildAliasMap(scaleDef)
+{
+  aliasMap <- MakeCustomObject("alias_map")
+  loop(qdef, scaleDef.items)
+  {
+    if(PropertyExists(qdef, "answer_alias"))
+    {
+      SetProperty(aliasMap, qdef.id, qdef.answer_alias)
+    }
+  }
+  return(aliasMap)
+}
+
+## Substitute {answer.id} and {answer.alias} patterns in text using the
+## current global response map.  Called on each question text at display
+## time so newly recorded answers are always visible.
+define PipeAnswers(text)
+{
+  replist <- []
+  loop(key, GetPropertyList(gResponseMap))
+  {
+    val <- GetProperty(gResponseMap, key)
+    replist <- Append(replist, ["{answer." + key + "}", val + ""])
+    ## If this question has an alias also provide the alias form
+    if(PropertyExists(gAliasMap, key))
+    {
+      alias <- GetProperty(gAliasMap, key)
+      replist <- Append(replist, ["{answer." + alias + "}", val + ""])
+    }
+  }
+  return(SubstituteStrings(text, replist))
+}
+
+
 define Start(p)
 {
   ##############################################################################
@@ -421,9 +733,11 @@ define Start(p)
   ##############################################################################
 
   parpairs <- [["scale", "sample"],
-               ["shuffle_questions", 0]]
+               ["shuffle_questions", 0],
+               ["show_header", 1]]
 
   gParams <- CreateParameters(parpairs, gParamFile)
+  gShowTitle <- gParams.show_header
 
   ##############################################################################
   ## LOAD SCALE DEFINITION
@@ -456,6 +770,17 @@ define Start(p)
 
   ## Load translations for this scale
   GetStrings(gLanguage, gScaleDef.scale_info.code)
+
+  ## Load ScaleRunner UI chrome strings (runner-level, not scale-specific)
+  LoadRunnerStrings(gLanguage)
+
+  ## S2: Pre-process strings — substitute {param_name} patterns once at startup
+  gParamReplist <- BuildParamReplist(gParams)
+  gStrings <- PreprocessStrings(gStrings, gParamReplist)
+
+  ## S3: Build alias map and initialise global response map for answer piping
+  gAliasMap <- BuildAliasMap(gScaleDef)
+  gResponseMap <- MakeCustomObject("response_map")
 
   ## Create color theme
   gTheme <- CreateColorTheme()
@@ -497,18 +822,31 @@ define Start(p)
     }
   }
 
+  ## Add transformed dimension columns for dims that have a transform defined
+  if(PropertyExists(gScaleDef, "dimensions") and PropertyExists(gScaleDef, "scoring"))
+  {
+    loop(dim, gScaleDef.dimensions)
+    {
+      if(PropertyExists(gScaleDef.scoring, dim.id))
+      {
+        dimScoreDef <- GetProperty(gScaleDef.scoring, dim.id)
+        if(PropertyExists(dimScoreDef, "transform"))
+        {
+          columnHeader <- columnHeader + "," + dim.id + "_t"
+        }
+      }
+    }
+  }
+
   gFileOut <- GetNewDataFile(gSubNum, gWin, gScaleDef.scale_info.code, "csv", columnHeader)
 
   dir <- GetDirectory(gFileOut.filename) + "../"
-  pooledFilename <- ReplaceChar(gScaleDef.data_output.pooled_file, "{code}", gScaleDef.scale_info.code)
+  safeCode <- ReplaceChar(gScaleDef.scale_info.code, [" ", "/", "\", ":", ",", "|"], "_")
+  pooledFilename <- safeCode + "-pooled.csv"
   pooledPath <- dir + pooledFilename
 
-  ## Always compute header (needed for local file and server-side pooled append)
-  pooledHeader <- gScaleDef.data_output.pooled_columns
-  if(pooledHeader == "" or pooledHeader == 0)
-  {
-    pooledHeader <- BuildPooledHeader(gScaleDef)
-  }
+  ## Always build header from scale definition
+  pooledHeader <- BuildPooledHeader(gScaleDef)
 
   if(FileExists(pooledPath))
   {
@@ -533,15 +871,21 @@ define Start(p)
   ## COMPUTE SCORES
   ##############################################################################
 
-  scores <- ComputeScores(results, gScaleDef)
+  scoreResult       <- ComputeScores(results, gScaleDef)
+  scores            <- First(scoreResult)
+  transformedScores <- Second(scoreResult)
   scores.completion_time <- gCompletionTime
+
+  ## Compute computed variables (S7)
+  responseMap <- BuildResponseMap(results)
+  computedVars <- ComputeComputedVars(gScaleDef, scores, transformedScores, responseMap)
 
   ##############################################################################
   ## SAVE DATA
   ##############################################################################
 
-  SaveIndividualData(results, gScaleDef)
-  pooledLine <- SavePooledData(results, scores, gScaleDef)
+  SaveIndividualData(results, transformedScores, gScaleDef)
+  pooledLine <- SavePooledData(results, scores, transformedScores, gScaleDef)
 
   FileClose(gFileOut)
   FileClose(gPooledFile)
@@ -550,7 +894,7 @@ define Start(p)
   ## GENERATE REPORT
   ##############################################################################
 
-  reportFile <- GenerateReport(results, scores, gScaleDef)
+  reportFile <- GenerateReport(results, scores, transformedScores, gScaleDef, computedVars)
 
   ##############################################################################
   ## UPLOAD
@@ -566,13 +910,18 @@ define Start(p)
 
   FinalizeLSL()
 
-  ## Display completion message with HTML formatting (if debrief text exists)
-  if(PropertyExists(gStrings, "debrief"))
+  ## Display completion message — gate termination takes priority over debrief
+  if(PropertyExists(results, "gateTriggered") and results.gateTriggered)
   {
-    ShowFormattedMessage(gStrings.debrief, gWin)
+    ShowFormattedMessage(results.gateMessage, gWin)
   } else {
-    ## Default completion message if no debrief provided
-    ShowFormattedMessage("Thank you for completing this questionnaire.", gWin)
+    if(PropertyExists(gStrings, "debrief"))
+    {
+      ShowFormattedMessage(gStrings.debrief, gWin)
+    } else {
+      ## Default completion message if no debrief provided
+      ShowFormattedMessage("Thank you for completing this questionnaire.", gWin)
+    }
   }
 }
 
@@ -588,29 +937,29 @@ define CreateColorTheme()
 
   ## Background colors
   theme.windowBg <- MakeColor("grey10")
-  theme.headerBg <- MakeColor("navy")
-  theme.textboxBg <- MakeColor("white")
-  theme.textboxBorder <- MakeColor("grey20")
-  theme.buttonBg <- MakeColor("lightgrey")
-  theme.buttonBorder <- MakeColor("grey60")  ## Lighter border for better button visibility
+  theme.headerBg <- MakeColor("grey18")        ## Charcoal strip (was navy)
+  theme.textboxBg <- MakeColor("grey8")        ## Near-black text areas (was white)
+  theme.textboxBorder <- MakeColor("grey24")   ## Subtle edge on text areas
+  theme.buttonBg <- MakeColor("grey22")        ## Dark button (was lightgrey)
+  theme.buttonBorder <- MakeColor("grey33")    ## Subtle button border
 
   ## Text colors
   theme.headerText <- MakeColor("white")
-  theme.instructionText <- MakeColor("black")
+  theme.instructionText <- MakeColor("grey88") ## Light text in dark text areas (was black)
   theme.questionText <- MakeColor("white")
-  theme.buttonText <- MakeColor("black")          ## Black text on light grey button
-  theme.likertNumber <- MakeColor("white")        ## Make numbers same as labels
-  theme.likertLabel <- MakeColor("white")
+  theme.buttonText <- MakeColor("grey88")      ## Light text on dark button (was black)
+  theme.likertNumber <- MakeColor("white")
+  theme.likertLabel <- MakeColor("grey82")     ## Slight de-emphasis vs. numbers
 
-  ## Accent colors
-  theme.accent1 <- MakeColor("steelblue")
-  theme.accent2 <- MakeColor("royalblue")
-  theme.accent3 <- MakeColor("dodgerblue")
+  ## Accent — single neutral tone for progress label and separator line
+  theme.accent1 <- MakeColor("grey50")
+  theme.accent2 <- MakeColor("grey50")
+  theme.accent3 <- MakeColor("grey50")
 
   ## Response option colors
-  theme.optionBg <- MakeColor("white")
-  theme.optionBorder <- MakeColor("grey60")
-  theme.optionText <- MakeColor("black")
+  theme.optionBg <- MakeColor("grey14")        ## Dark option areas (was white)
+  theme.optionBorder <- MakeColor("grey22")    ## Very subtle border (was grey60)
+  theme.optionText <- MakeColor("white")       ## Light text on dark option
 
   return(theme)
 }
@@ -628,45 +977,51 @@ define CreateBranding()
   combinedHeight <- subheaderBottom - headerTop
   combinedCenterY <- headerTop + combinedHeight/2
 
-  ## Accent lines on left side (start after header+subheader)
-  gAccentLine1 <- Line(30, subheaderBottom, 0, gVideoHeight-100, gTheme.accent1)
-  gAccentLine2 <- Line(40, subheaderBottom, 0, gVideoHeight-100, gTheme.accent2)
-  gAccentLine3 <- Line(50, subheaderBottom, 0, gVideoHeight-100, gTheme.accent3)
+  ## Single thin horizontal separator below the header band
+  gAccentLine1 <- Line(0, subheaderBottom, gVideoWidth, 0, MakeColor("grey32"))
   AddObject(gAccentLine1, gWin)
-  AddObject(gAccentLine2, gWin)
-  AddObject(gAccentLine3, gWin)
 
-  ## Scale title in header (replace Layout's default header)
+  ## Scale title in header (replace Layout's default label with a formatted TextBox
+  ## so we can show both the scale name <h1> and active section title <h2>)
   if(PropertyExists(gScaleDef, "scale_info"))
   {
     ## Use display_title if provided, otherwise use scale name
-    displayTitle <- gScaleDef.scale_info.name
+    gScaleName <- gScaleDef.scale_info.name
     if(PropertyExists(gStrings, "display_title"))
     {
       customTitle <- GetProperty(gStrings, "display_title")
       if(StringLength(customTitle) > 0)
       {
-        displayTitle <- customTitle
+        gScaleName <- customTitle
       }
     }
-
-    gLayout.header.text <- displayTitle
-    gLayout.header.font.style <- 1  ## Bold
-    gLayout.header.font.fgcolor <- gTheme.headerText
 
     ## Add header background covering header+subheader zones
     gHeaderBar <- Rectangle(gVideoWidth/2, combinedCenterY, gVideoWidth, combinedHeight, gTheme.headerBg, 1)
     AddObject(gHeaderBar, gWin)
 
-    ## Move header label to front, nudged up to center within banner
-    headerY <- gLayout.zones.header.y + gLayout.zones.header.height / 2 - 10
-    Move(gLayout.header, gVideoWidth / 2, headerY)
+    ## Replace the layout's plain Label with a formatted TextBox.
+    ## Base font 10px: <h1>=23px, <h2>=20px — both fit in the combined banner (~75px).
+    ## TextBox is upper-left anchored, so position it at the top of the banner.
     RemoveObject(gLayout.header, gWin)
-    AddObject(gLayout.header, gWin)
+    headerBoxFont <- MakeFont(gPEBLBaseFont, 0, 10, gTheme.headerText, gTheme.headerBg, 0)
+    headerBoxWidth <- Round(gVideoWidth * 0.85)
+    gScaleHeaderBox <- MakeTextBox("", headerBoxFont, headerBoxWidth, combinedHeight)
+    gScaleHeaderBox.formatted <- 1
+    gScaleHeaderBox.isadaptive <- 0
+    AddObject(gScaleHeaderBox, gWin)
+    Move(gScaleHeaderBox, (gVideoWidth - headerBoxWidth)/2, headerTop)
 
-    ## The default layout config has subheader visible:false (it's hidden for
-    ## battery tests). For scales we use it for instructions and error messages,
-    ## so show it, set its color to match the header bar, and bring it to front.
+    ## Set initial text — scale name only (if showtitle=1), no section yet
+    if(gShowTitle)
+    {
+      gScaleHeaderBox.text <- "<h1=center>" + gScaleName + "</h1>"
+    } else {
+      gScaleHeaderBox.text <- ""
+    }
+
+    ## Subheader label stays for functional messages (instructions, errors).
+    ## It renders on top of the TextBox in the lower part of the banner.
     Show(gLayout.subheader)
     gLayout.subheader.font.fgcolor <- gTheme.headerText
     subheaderY <- gLayout.zones.subheader.y + gLayout.zones.subheader.height / 2 - 20
@@ -674,6 +1029,65 @@ define CreateBranding()
     RemoveObject(gLayout.subheader, gWin)
     AddObject(gLayout.subheader, gWin)
   }
+
+  ## Progress label at bottom of screen (e.g., "3 of 8")
+  progressFont <- MakeFont(gPEBLBaseFont, 0, 27, gTheme.accent1, gTheme.windowBg, 0)
+  gProgressLabel <- MakeLabel("", progressFont)
+  AddObject(gProgressLabel, gWin)
+  Move(gProgressLabel, gVideoWidth/2, gVideoHeight - 50)
+  Hide(gProgressLabel)
+}
+
+
+define UpdateScaleHeader()
+{
+  ## Update the banner TextBox to show scale name and (if active) section title.
+  ## Called whenever a new section marker is processed.
+  if(gShowTitle and gSectionTitle != "")
+  {
+    gScaleHeaderBox.text <- "<h1=center>" + gScaleName + "</h1><br><h2=center>" + gSectionTitle + "</h2>"
+  } elseif(gShowTitle)
+  {
+    gScaleHeaderBox.text <- "<h1=center>" + gScaleName + "</h1>"
+  } elseif(gSectionTitle != "")
+  {
+    gScaleHeaderBox.text <- "<h2=center>" + gSectionTitle + "</h2>"
+  } else {
+    gScaleHeaderBox.text <- ""
+  }
+  Draw()
+}
+
+
+define UpdateProgressLabel(current, total)
+{
+  ## Update the [x of N] progress indicator at the bottom of the screen.
+  ## Hidden during instruction screens and when total is 0.
+  if(total > 0)
+  {
+    gProgressLabel.text <- current + " of " + total
+    Show(gProgressLabel)
+  } else {
+    Hide(gProgressLabel)
+  }
+  Draw()
+}
+
+
+define GetDisplayNumber(questions, questIdx)
+{
+  ## Return the 1-based display number of the item at questIdx,
+  ## counting only non-section, non-inst items up to and including questIdx.
+  count <- 0
+  loop(i, Sequence(1, questIdx, 1))
+  {
+    q <- Nth(questions, i)
+    if(q.type != "section" and q.type != "inst")
+    {
+      count <- count + 1
+    }
+  }
+  return(count)
 }
 
 
@@ -735,21 +1149,37 @@ define MakeTextBoxWithBorder(text, font, width, height, x, y)
 
 define LoadScaleDefinition(scaleCode)
 {
-  ## Try to load scale definition from JSON file
-  ## New format: <code>/<code>.json (per-scale directory)
-  ## Legacy format: definitions/<code>.json (flat directory)
+  ## Load scale definition.  Searched in order:
+  ##   1. {code}/{code}.osd        — OSD bundle in scale subdirectory (workspace layout)
+  ##   2. {code}.osd               — OSD bundle in current directory
+  ##   3. definitions/{code}.json  — flat definition (launcher-generated, legacy)
+  ##   4. definitions/{code}/{code}.osd — OSD in definitions subdirectory (legacy)
 
   scaleDef <- 0
 
-  ## Try per-scale directory first
-  filename <- scaleCode + "/" + scaleCode + ".json"
-  if(FileExists(filename))
+  ## Try workspace layout first: {code}/{code}.osd
+  osdPaths <- [scaleCode + "/" + scaleCode + ".osd",
+               scaleCode + ".osd",
+               "definitions/" + scaleCode + "/" + scaleCode + ".osd"]
+
+  loop(osdPath, osdPaths)
   {
-    Print("Loading scale definition from: " + filename)
-    scaleDef <- ReadJSON(filename)
+    if(scaleDef == 0 and FileExists(osdPath))
+    {
+      Print("Loading scale definition from: " + osdPath)
+      osdData <- ReadJSON(osdPath)
+      if(PropertyExists(osdData, "definition"))
+      {
+        scaleDef <- osdData.definition
+        if(PropertyExists(osdData, "translations"))
+        {
+          SetProperty(scaleDef, "_embedded_translations", osdData.translations)
+        }
+      }
+    }
   }
 
-  ## Fallback to legacy definitions/ directory
+  ## Try legacy flat JSON format
   if(scaleDef == 0)
   {
     filename <- "definitions/" + scaleCode + ".json"
@@ -802,7 +1232,7 @@ define MergeScaleParameters(scaleDef)
 define RunScale(scaleDef)
 {
   ## Prepare question list
-  questions <- scaleDef.questions
+  questions <- scaleDef.items
 
   ## Filter questions based on enabled dimensions
   if(PropertyExists(scaleDef, "dimensions"))
@@ -826,20 +1256,36 @@ define RunScale(scaleDef)
     questions <- ShuffleSectionOrder(questions, scaleDef.randomize_sections)
   }
 
-  ## Shuffle if requested (convert to number since par.json stores strings)
-  if(ToNumber(gParams.shuffle_questions))
-  {
-    questions <- ShuffleByGroup(questions)
-  }
+  ## Apply per-section and random_group question randomization (C2/C5).
+  ## Per-section randomize.method=shuffle takes priority over shuffle_questions
+  ## for that section (the two mechanisms are mutually exclusive per section).
+  doGroupShuffle <- ToNumber(gParams.shuffle_questions)
+  questions <- ApplyAllQuestionRandomization(questions, doGroupShuffle)
 
   ## Track question order and responses
   results <- MakeCustomObject("scale_results")
-  results.questions <- []
+  results.items <- []
   results.responses <- []
   results.rts <- []
   results.order <- []
   results.timestamps <- []
   results.responseMap <- MakeCustomObject("response_map")
+
+  ## Gate termination tracking
+  gateTriggered <- 0
+  gateMessage <- ""
+
+  ## Back-navigation: set to 1 before calling DoQuestion to show Back button
+  gCanGoBack <- 0
+  ## 1 = current section allows revision (auto-advance on likert/multi when 1)
+  gSectionRevisable <- 1
+
+  ## Current section title shown in the subheader (empty when no named section is active)
+  gSectionTitle <- ""
+
+  ## Pre-fill: set to the participant's previous response before calling DoQuestion.
+  ## Empty string means no previous response. DoShortAnswer and DoLongAnswer use this.
+  gPrevResponse <- ""
 
   ## Send LSL marker
   LSLMarker("scale_start_" + scaleDef.scale_info.code)
@@ -866,29 +1312,46 @@ define RunScale(scaleDef)
 
       if(allVAS and Length(pageQuestions) > 1)
       {
-        ## Multi-item VAS page
-        pageStartTime <- GetTime()
-        LSLMarker("vaspage_" + page.id + "_start")
-
-        pageResults <- DoVASPage(pageQuestions, scaleDef)
-
-        ## Unpack results for each item
-        loop(pr, pageResults)
+        if(gateTriggered)
         {
-          qdef <- First(pr)
-          response <- Second(pr)
-          rt <- Third(pr)
+          ## Gate was triggered — record all VAS items on this page as NA
+          loop(qdef, pageQuestions)
+          {
+            PushOnEnd(results.items, qdef)
+            PushOnEnd(results.responses, "NA")
+            PushOnEnd(results.rts, 0)
+            PushOnEnd(results.order, questOrder)
+            PushOnEnd(results.timestamps, GetTime())
+            SetProperty(results.responseMap, qdef.id, "NA")
+            SetProperty(gResponseMap, qdef.id, "NA")
+            questOrder <- questOrder + 1
+          }
+        } else {
+          ## Multi-item VAS page
+          pageStartTime <- GetTime()
+          LSLMarker("vaspage_" + page.id + "_start")
 
-          LSLMarker("question_" + qdef.id + "_response_" + response)
+          pageResults <- DoVASPage(pageQuestions, scaleDef)
 
-          PushOnEnd(results.questions, qdef)
-          PushOnEnd(results.responses, response)
-          PushOnEnd(results.rts, rt)
-          PushOnEnd(results.order, questOrder)
-          PushOnEnd(results.timestamps, pageStartTime)
-          SetProperty(results.responseMap, qdef.id, response)
+          ## Unpack results for each item
+          loop(pr, pageResults)
+          {
+            qdef <- First(pr)
+            response <- Second(pr)
+            rt <- Third(pr)
 
-          questOrder <- questOrder + 1
+            LSLMarker("question_" + qdef.id + "_response_" + response)
+
+            PushOnEnd(results.items, qdef)
+            PushOnEnd(results.responses, response)
+            PushOnEnd(results.rts, rt)
+            PushOnEnd(results.order, questOrder)
+            PushOnEnd(results.timestamps, pageStartTime)
+            SetProperty(results.responseMap, qdef.id, response)
+            SetProperty(gResponseMap, qdef.id, response)
+
+            questOrder <- questOrder + 1
+          }
         }
       } else {
         ## Render page questions individually
@@ -899,11 +1362,14 @@ define RunScale(scaleDef)
           if(PropertyExists(qdef, "dimension"))
           {
             dimDef <- FindDimension(qdef.dimension, scaleDef)
-            if(dimDef != 0 and PropertyExists(dimDef, "visible_when"))
+            if(dimDef != 0)
             {
-              if(not EvaluateCondition(dimDef.visible_when, results.responseMap, gParams))
+              if(PropertyExists(dimDef, "visible_when"))
               {
-                showQuestion <- 0
+                if(not EvaluateCondition(dimDef.visible_when, results.responseMap, gParams))
+                {
+                  showQuestion <- 0
+                }
               }
             }
           }
@@ -917,7 +1383,7 @@ define RunScale(scaleDef)
             }
           }
 
-          if(showQuestion)
+          if(showQuestion and not gateTriggered)
           {
             questionStartTime <- GetTime()
             LSLMarker("question_" + qdef.id + "_start")
@@ -926,22 +1392,50 @@ define RunScale(scaleDef)
 
             LSLMarker("question_" + qdef.id + "_response_" + First(result))
 
-            PushOnEnd(results.questions, qdef)
+            PushOnEnd(results.items, qdef)
             PushOnEnd(results.responses, First(result))
             PushOnEnd(results.rts, Second(result))
             PushOnEnd(results.order, questOrder)
             PushOnEnd(results.timestamps, questionStartTime)
             SetProperty(results.responseMap, qdef.id, First(result))
+            SetProperty(gResponseMap, qdef.id, First(result))
+
+            ## Check gate — if response doesn't match required_value, terminate
+            if(PropertyExists(qdef, "gate"))
+            {
+              gate <- qdef.gate
+              response <- First(result) + ""
+              if(PropertyExists(gate, "required_value"))
+              {
+                if(response != gate.required_value + "")
+                {
+                  gateTriggered <- 1
+                  if(PropertyExists(gate, "terminate_message_key"))
+                  {
+                    msgKey <- gate.terminate_message_key
+                    if(PropertyExists(gStrings, msgKey))
+                    {
+                      gateMessage <- GetProperty(gStrings, msgKey)
+                    } else {
+                      gateMessage <- "You are not eligible to continue this study."
+                    }
+                  } else {
+                    gateMessage <- "You are not eligible to continue this study."
+                  }
+                }
+              }
+            }
 
             questOrder <- questOrder + 1
           } else {
-            ## Question hidden by visible_when — record NA
-            PushOnEnd(results.questions, qdef)
+            ## Question hidden by visible_when or gate triggered — record NA
+            PushOnEnd(results.items, qdef)
             PushOnEnd(results.responses, "NA")
             PushOnEnd(results.rts, 0)
             PushOnEnd(results.order, questOrder)
             PushOnEnd(results.timestamps, GetTime())
             SetProperty(results.responseMap, qdef.id, "NA")
+            SetProperty(gResponseMap, qdef.id, "NA")
 
             questOrder <- questOrder + 1
           }
@@ -951,15 +1445,62 @@ define RunScale(scaleDef)
 
   } else {
 
-    ## No pages - original behavior, one question at a time
+    ## No pages - index-based loop supporting per-section backup (revisable)
     questOrder <- 1
-    sectionActive <- 1  ## 1 = current section is visible, 0 = skip until next section marker
-    loop(qdef, questions)
+    sectionActive <- 1      ## 1 = current section is visible, 0 = skip until next section marker
+    sectionRevisable <- 1   ## 1 = Back button allowed within this section
+    sectionBoundaryIdx <- 1 ## First question index (1-based) in the current section
+    sectionFirstAnsweredIdx <- 0  ## Index of first answered question in current section (0 = none yet)
+
+    ## recordedMap: qid -> position in results arrays (1-based).
+    ## Allows updating a previously recorded response when the user goes back and re-answers.
+    recordedMap <- MakeCustomObject("recordedIdx")
+
+    questIdx <- 1
+    nQuestions <- Length(questions)
+
+    ## Count items that will show a progress number (excludes section markers and instructions)
+    nDisplayQuestions <- 0
+    loop(qi, Sequence(1, nQuestions, 1))
     {
-      ## Section markers control which section is currently active
+      qt <- Nth(questions, qi)
+      if(qt.type != "section" and qt.type != "inst")
+      {
+        nDisplayQuestions <- nDisplayQuestions + 1
+      }
+    }
+
+    while(questIdx <= nQuestions)
+    {
+      qdef <- Nth(questions, questIdx)
+
+      ## ── Section markers ──────────────────────────────────────────
       if(qdef.type == "section")
       {
         sectionActive <- 1
+        sectionRevisable <- 1
+        sectionBoundaryIdx <- questIdx + 1  ## content starts after this marker
+        sectionFirstAnsweredIdx <- 0        ## reset answered-question tracker
+
+        ## Track section title and update the banner header TextBox
+        gSectionTitle <- ""
+        if(PropertyExists(qdef, "text_key"))
+        {
+          if(PropertyExists(gStrings, qdef.text_key))
+          {
+            gSectionTitle <- GetProperty(gStrings, qdef.text_key)
+          }
+        }
+        UpdateScaleHeader()
+
+        if(PropertyExists(qdef, "revisable"))
+        {
+          if(not qdef.revisable)
+          {
+            sectionRevisable <- 0
+          }
+        }
+
         if(PropertyExists(qdef, "visible_when"))
         {
           if(not EvaluateCondition(qdef.visible_when, results.responseMap, gParams))
@@ -968,20 +1509,25 @@ define RunScale(scaleDef)
           }
         }
         ## Section markers are not displayed or recorded
+        questIdx <- questIdx + 1
+
       } else {
 
-      ## Start with section-level visibility, then apply per-item overrides
+      ## ── Compute visibility ────────────────────────────────────────
       showQuestion <- sectionActive
 
       ## Check dimension-level visible_when
       if(showQuestion and PropertyExists(qdef, "dimension"))
       {
         dimDef <- FindDimension(qdef.dimension, scaleDef)
-        if(dimDef != 0 and PropertyExists(dimDef, "visible_when"))
+        if(dimDef != 0)
         {
-          if(not EvaluateCondition(dimDef.visible_when, results.responseMap, gParams))
+          if(PropertyExists(dimDef, "visible_when"))
           {
-            showQuestion <- 0
+            if(not EvaluateCondition(dimDef.visible_when, results.responseMap, gParams))
+            {
+              showQuestion <- 0
+            }
           }
         }
       }
@@ -995,40 +1541,205 @@ define RunScale(scaleDef)
         }
       }
 
-      if(showQuestion)
+      if(showQuestion and not gateTriggered)
       {
+        ## ── Determine if Back button should be shown ──────────────
+        gCanGoBack <- 0
+        gSectionRevisable <- sectionRevisable
+        if(sectionRevisable and sectionFirstAnsweredIdx > 0 and questIdx > sectionFirstAnsweredIdx)
+        {
+          gCanGoBack <- 1
+        }
+
+        ## Pre-fill: pass previous response to all question types
+        gPrevResponse <- ""
+        if(PropertyExists(results.responseMap, qdef.id))
+        {
+          prevR <- GetProperty(results.responseMap, qdef.id)
+          if(prevR != "NA" and prevR != "")
+          {
+            gPrevResponse <- prevR + ""
+          }
+        }
+
         questionStartTime <- GetTime()
 
         LSLMarker("question_" + qdef.id + "_start")
 
+        ## Update progress indicator: show "X of N" for non-instruction items
+        if(qdef.type != "inst")
+        {
+          UpdateProgressLabel(GetDisplayNumber(questions, questIdx), nDisplayQuestions)
+        } else {
+          Hide(gProgressLabel)
+        }
+
         result <- DoQuestion(qdef, scaleDef)
 
-        LSLMarker("question_" + qdef.id + "_response_" + First(result))
+        ## ── Check for Back button press ───────────────────────────
+        if(First(result) == -1 or First(result) == "-1")
+        {
+          ## User pressed Back — find previous answered question within section
+          gCanGoBack <- 0
+          backFound <- 0
+          backIdx <- questIdx - 1
 
-        PushOnEnd(results.questions, qdef)
-        PushOnEnd(results.responses, First(result))
-        PushOnEnd(results.rts, Second(result))
-        PushOnEnd(results.order, questOrder)
-        PushOnEnd(results.timestamps, questionStartTime)
-        SetProperty(results.responseMap, qdef.id, First(result))
+          while(backIdx >= sectionBoundaryIdx and not backFound)
+          {
+            prevQ <- Nth(questions, backIdx)
+            if(prevQ.type != "section")
+            {
+              ## Only land on questions that were actually answered (not hidden NA)
+              if(PropertyExists(recordedMap, prevQ.id))
+              {
+                prevResp <- GetProperty(results.responseMap, prevQ.id)
+                if(prevResp != "NA")
+                {
+                  backFound <- 1
+                  questIdx <- backIdx
+                }
+              }
+            }
+            if(not backFound)
+            {
+              backIdx <- backIdx - 1
+            }
+          }
 
-        questOrder <- questOrder + 1
+          ## If no previous answered question found within section, stay put
+          ## (Back button shouldn't have been shown — edge case safety)
+
+        } else {
+          ## ── Normal forward: record (or update) the response ──────
+          LSLMarker("question_" + qdef.id + "_response_" + First(result))
+
+          if(PropertyExists(recordedMap, qdef.id))
+          {
+            ## Re-answer after backup: update existing results entry in place
+            pos <- GetProperty(recordedMap, qdef.id)
+            SetElement(results.responses, pos, First(result))
+            SetElement(results.rts, pos, Second(result))
+            SetElement(results.timestamps, pos, questionStartTime)
+          } else {
+            ## First answer: push to results arrays
+            SetProperty(recordedMap, qdef.id, Length(results.items) + 1)
+            PushOnEnd(results.items, qdef)
+            PushOnEnd(results.responses, First(result))
+            PushOnEnd(results.rts, Second(result))
+            PushOnEnd(results.order, questOrder)
+            PushOnEnd(results.timestamps, questionStartTime)
+            questOrder <- questOrder + 1
+          }
+
+          SetProperty(results.responseMap, qdef.id, First(result))
+          SetProperty(gResponseMap, qdef.id, First(result))
+
+          ## Track first answered question in section (sets Back boundary)
+          if(sectionFirstAnsweredIdx == 0)
+          {
+            sectionFirstAnsweredIdx <- questIdx
+          }
+
+          ## ── Gate check ────────────────────────────────────────────
+          if(PropertyExists(qdef, "gate"))
+          {
+            gate <- qdef.gate
+            response <- First(result) + ""
+            gateFailed <- 0
+
+            ## Exact-match form (multi): required_value must equal response
+            if(PropertyExists(gate, "required_value"))
+            {
+              if(response != gate.required_value + "")
+              {
+                gateFailed <- 1
+              }
+            }
+
+            ## Numeric operator form (short): operator + value threshold
+            if(not gateFailed and PropertyExists(gate, "operator") and PropertyExists(gate, "value"))
+            {
+              op <- gate.operator
+              numResp <- ToNumber(response)
+              threshold <- ToNumber(gate.value)
+              if(op == "greater_than")
+              {
+                if(not (numResp > threshold))
+                {
+                  gateFailed <- 1
+                }
+              }
+              if(op == "less_than")
+              {
+                if(not (numResp < threshold))
+                {
+                  gateFailed <- 1
+                }
+              }
+              if(op == "equals")
+              {
+                if(numResp != threshold)
+                {
+                  gateFailed <- 1
+                }
+              }
+              if(op == "not_equals")
+              {
+                if(numResp == threshold)
+                {
+                  gateFailed <- 1
+                }
+              }
+            }
+
+            ## If gate failed, set termination message and flag
+            if(gateFailed)
+            {
+              gateTriggered <- 1
+              if(PropertyExists(gate, "terminate_message_key"))
+              {
+                msgKey <- gate.terminate_message_key
+                if(PropertyExists(gStrings, msgKey))
+                {
+                  gateMessage <- GetProperty(gStrings, msgKey)
+                }
+                if(gateMessage == "" or gateMessage == 0)
+                {
+                  gateMessage <- "You are not eligible to continue this study."
+                }
+              } else {
+                gateMessage <- "You are not eligible to continue this study."
+              }
+            }
+          }
+
+          questIdx <- questIdx + 1
+        }
+
       } else {
-        ## Question hidden by section skip or visible_when — record NA
-        PushOnEnd(results.questions, qdef)
-        PushOnEnd(results.responses, "NA")
-        PushOnEnd(results.rts, 0)
-        PushOnEnd(results.order, questOrder)
-        PushOnEnd(results.timestamps, GetTime())
-        SetProperty(results.responseMap, qdef.id, "NA")
-
-        questOrder <- questOrder + 1
+        ## ── Question hidden: record NA (first time only) ──────────
+        if(not PropertyExists(recordedMap, qdef.id))
+        {
+          SetProperty(recordedMap, qdef.id, Length(results.items) + 1)
+          PushOnEnd(results.items, qdef)
+          PushOnEnd(results.responses, "NA")
+          PushOnEnd(results.rts, 0)
+          PushOnEnd(results.order, questOrder)
+          PushOnEnd(results.timestamps, GetTime())
+          SetProperty(results.responseMap, qdef.id, "NA")
+          SetProperty(gResponseMap, qdef.id, "NA")
+          questOrder <- questOrder + 1
+        }
+        questIdx <- questIdx + 1
       }
       }  ## end section type check
     }
   }
 
   LSLMarker("scale_end_" + scaleDef.scale_info.code)
+
+  results.gateTriggered <- gateTriggered
+  results.gateMessage <- gateMessage
 
   return(results)
 }
@@ -1095,9 +1806,15 @@ define EvaluateCondition(condition, responseMap, params)
     actual <- ""
     canCompare <- 0
 
-    if(PropertyExists(condition, "question"))
+    if(PropertyExists(condition, "item") or PropertyExists(condition, "question"))
     {
-      qID <- condition.question
+      qID <- ""
+      if(PropertyExists(condition, "item"))
+      {
+        qID <- condition.item
+      } else {
+        qID <- condition.question
+      }
 
       if(op == "is_answered")
       {
@@ -1264,6 +1981,20 @@ define MakeSkipButton(x, y)
 }
 
 
+define MakeBackButton(x, y)
+{
+  ## Create a BACK button for revisable sections.
+  ## Uses back_label from translation strings if available.
+  backText <- "BACK"
+  if(PropertyExists(gStrings, "back_label"))
+  {
+    backText <- gStrings.back_label
+  }
+  backBtn <- MakeScaleButton(backText, x, y, 150, 50)
+  return(backBtn)
+}
+
+
 define FilterQuestionsByDimensions(questions, scaleDef)
 {
   ## Filter out questions from disabled dimensions
@@ -1321,34 +2052,34 @@ define DoQuestion(qdef, scaleDef)
 
   if(type == "likert")
   {
-    result <- DoLikert(qdef, scaleDef)
+    result <- DoLikert(qdef, scaleDef, gPrevResponse)
   } elseif(type == "vas")
   {
-    result <- DoVAS(qdef, scaleDef)
+    result <- DoVAS(qdef, scaleDef, gPrevResponse)
   } elseif(type == "grid")
   {
-    result <- DoGrid(qdef, scaleDef)
+    result <- DoGrid(qdef, scaleDef, gPrevResponse)
   } elseif(type == "short")
   {
-    result <- DoShortAnswer(qdef, scaleDef)
+    result <- DoShortAnswer(qdef, scaleDef, gPrevResponse)
   } elseif(type == "long")
   {
-    result <- DoLongAnswer(qdef, scaleDef)
+    result <- DoLongAnswer(qdef, scaleDef, gPrevResponse)
   } elseif(type == "multi")
   {
-    result <- DoMultiChoice(qdef, scaleDef)
+    result <- DoMultiChoice(qdef, scaleDef, gPrevResponse)
   } elseif(type == "multicheck")
   {
-    result <- DoMultiCheck(qdef, scaleDef)
+    result <- DoMultiCheck(qdef, scaleDef, gPrevResponse)
   } elseif(type == "inst")
   {
-    result <- DoInstructions(qdef)
+    result <- DoInstructions(qdef, gPrevResponse)
   } elseif(type == "image")
   {
-    result <- DoImage(qdef)
+    result <- DoImage(qdef, gPrevResponse)
   } elseif(type == "imageresponse")
   {
-    result <- DoImageResponse(qdef, scaleDef)
+    result <- DoImageResponse(qdef, scaleDef, gPrevResponse)
   } elseif(type == "section")
   {
     ## Section markers are handled by the calling loop — no display action here
@@ -1364,17 +2095,35 @@ define DoQuestion(qdef, scaleDef)
 ## LIKERT SCALE QUESTION (Horizontal click rectangles)
 ##############################################################################
 
-define DoLikert(qdef, scaleDef)
+define DoLikert(qdef, scaleDef, prefill:"")
 {
   ## Get configuration
   points <- GetQuestionPoints(qdef, scaleDef)
 
-  ## Clear subheader (prevent question head from appearing in banner)
   gLayout.subheader.text <- ""
 
   ## Get question text from translations
-  questionText <- GetProperty(gStrings, qdef.text_key)
-  questionHead <- GetProperty(gStrings, scaleDef.likert_options.question_head)
+  questionText <- PipeAnswers(GetProperty(gStrings, qdef.text_key))
+
+  ## Resolve question head: item-level (qdef.question_head) overrides scale-level
+  questionHead <- ""
+  if(PropertyExists(qdef, "question_head"))
+  {
+    if(PropertyExists(gStrings, qdef.question_head))
+    {
+      questionHead <- GetProperty(gStrings, qdef.question_head)
+    }
+  } elseif(PropertyExists(scaleDef, "likert_options"))
+  {
+    if(PropertyExists(scaleDef.likert_options, "question_head"))
+    {
+      headKey <- scaleDef.likert_options.question_head
+      if(PropertyExists(gStrings, headKey))
+      {
+        questionHead <- GetProperty(gStrings, headKey)
+      }
+    }
+  }
 
   ## Create question head as formatted adaptive textbox below the banner
   headWidth <- Round(gVideoWidth * 0.75)
@@ -1389,11 +2138,21 @@ define DoLikert(qdef, scaleDef)
   AddObject(head, gWin)
   Move(head, headX, headY)
 
-  ## Create question text below the question head using adaptive textbox
+  ## Pre-calculate response area position so we can vertically center the question text
+  numHeight <- 50  ## height of the number label area in the response row
+  yval <- gVideoHeight/2 + 100  ## vertical center of the number labels
+
+  ## Center question text in the available space between head and Likert response area
   questWidth <- Round(gVideoWidth * 0.80)
-  questHeight <- 80
+  questHeight <- 120
   questX <- Round((gVideoWidth - questWidth) / 2)
-  questY <- headY + head.height + 30
+  availTop <- headY + head.height + 10
+  availBottom <- yval - numHeight/2 - 20
+  questY <- Round((availTop + availBottom) / 2) - 50
+  if(questY < availTop)
+  {
+    questY <- availTop
+  }
 
   quest <- MakeTextBox(questionText, gItemFont, questWidth, questHeight)
   quest.isadaptive <- 1
@@ -1411,41 +2170,64 @@ define DoLikert(qdef, scaleDef)
   ## Get labels for this question (question-level or scale-level)
   labelKeys <- GetQuestionLabels(qdef, scaleDef)
 
+  ## Reversed display: show maxVal on left down to minVal on right
+  likertReversed <- 0
+  if(PropertyExists(qdef, "likert_reverse"))
+  {
+    if(qdef.likert_reverse)
+    {
+      likertReversed <- 1
+    }
+  }
+
   skip <- 150
   left <- gVideoWidth/2 - skip * ((points-1)/2)
-  numHeight <- 50  ## Space for the number label area
 
   ## Pass 1: Create adaptive label textboxes (not yet added to window)
-  ## to measure the tallest one
+  ## to measure the tallest one.
+  ## Labels are ordered by display position (left to right), so when reversed
+  ## position i corresponds to value (maxVal - (i-1)), label index (points - i).
   labels <- []
   maxLabelHeight <- 80  ## minimum height
 
   loop(i, Sequence(1, points, 1))
   {
-    if(Length(labelKeys) >= i)
+    labelIdx <- i
+    if(likertReversed)
     {
-      labelKey <- Nth(labelKeys, i)
-      labelText <- GetProperty(gStrings, labelKey)
-      optLabel <- MakeTextBox(labelText, gLikertLabelFont, skip-15, 80)
-      optLabel.isadaptive <- 1
-      optLabel.justify <- "CENTER"
-      ## Temporarily add to measure adaptive height
-      AddObject(optLabel, gWin)
-      if(optLabel.height > maxLabelHeight)
+      labelIdx <- points - i + 1
+    }
+    if(Length(labelKeys) >= labelIdx)
+    {
+      labelKey <- Nth(labelKeys, labelIdx)
+      if(IsString(labelKey) and StringLength(labelKey) > 0)
       {
-        maxLabelHeight <- optLabel.height
+        labelText <- GetProperty(gStrings, labelKey)
+        optLabel <- MakeTextBox(labelText, gLikertLabelFont, skip-15, 80)
+        optLabel.isadaptive <- 1
+        optLabel.justify <- "CENTER"
+        ## Temporarily add to measure adaptive height
+        AddObject(optLabel, gWin)
+        if(optLabel.height > maxLabelHeight)
+        {
+          maxLabelHeight <- optLabel.height
+        }
+        RemoveObject(optLabel, gWin)
+        PushOnEnd(labels, optLabel)
+      } else {
+        PushOnEnd(labels, 0)  ## sentinel: no label at this position
       }
-      RemoveObject(optLabel, gWin)
-      PushOnEnd(labels, optLabel)
     }
   }
 
-  ## Calculate box dimensions based on tallest label
+  ## Calculate box dimensions based on tallest label (numHeight and yval already set above)
   boxHeight <- numHeight + maxLabelHeight + 20
-  yval <- gVideoHeight/2 + 100
 
   ## Pass 2: Create and position everything with uniform sizing
+  ## backs     = full-height click targets (border only, never filled)
+  ## selBacks = number-height green highlight rectangles (toggled on selection)
   backs <- []
+  selBacks <- []
   nums <- []
   responseValues <- []
 
@@ -1453,32 +2235,47 @@ define DoLikert(qdef, scaleDef)
   {
     x <- left + skip * (i - 1)
 
-    ## Calculate display value based on range
-    displayValue <- minVal + (i - 1)
+    ## Calculate display value based on range (reversed: count down from max)
+    if(likertReversed)
+    {
+      displayValue <- maxVal - (i - 1)
+    } else {
+      displayValue <- minVal + (i - 1)
+    }
     PushOnEnd(responseValues, displayValue)
 
-    ## Clickable rectangle sized to fit labels
-    back <- Rectangle(x, yval + boxHeight/2 - numHeight/2, skip-10, boxHeight, gTheme.optionBg, 0)
+    ## Green highlight: number-height, drawn first so the border box renders on top.
+    ## Fill color locked to green at creation; SetSingleSelection toggles filled 0/1.
+    selHL <- Rectangle(x, yval, skip-10, numHeight, MakeColor("darkgreen"), 0)
+    AddObject(selHL, gWin)
+    PushOnEnd(selBacks, selHL)
+
+    ## Full-height border box: drawn on top of selHL so its outline always shows.
+    ## Always filled=0 (border only); interior transparent so green shows through.
+    ## Used as click target for WaitForClickOnTarget.
+    back <- Rectangle(x, yval + boxHeight/2 - numHeight/2, skip-10, boxHeight, gTheme.accent1, 0)
     back.color <- gTheme.optionBorder
     AddObject(back, gWin)
     PushOnEnd(backs, back)
 
-    ## Number label at top of box
+    ## Number label — drawn on top of both rectangles
     num <- MakeLabel(displayValue+"", gLikertNumFont)
     Move(num, x, yval)
     AddObject(num, gWin)
     PushOnEnd(nums, num)
 
-    ## Add pre-measured label textbox below number
+    ## Add pre-measured label textbox below number (skip sentinel 0 = empty slot)
     if(Length(labels) >= i)
     {
       optLabel <- Nth(labels, i)
-      AddObject(optLabel, gWin)
-      Move(optLabel, x - optLabel.width/2, yval + numHeight/2 + 5)
+      if(not IsNumber(optLabel))
+      {
+        AddObject(optLabel, gWin)
+        Move(optLabel, x - optLabel.width/2, yval + numHeight/2 + 5)
+      }
     }
   }
 
-  ## Optional footer text below response options (for frequency clarifiers, etc.)
   footerObj <- 0
   footerBottom <- yval + boxHeight + 15
   if(PropertyExists(scaleDef.likert_options, "response_footer"))
@@ -1502,54 +2299,164 @@ define DoLikert(qdef, scaleDef)
     }
   }
 
-  ## SKIP button for optional questions
+  ## NEXT button (hidden until selection is made)
+  nextBtn <- MakeScaleButton("NEXT", gVideoWidth/2, footerBottom + 25, 150, 50)
+
+  ## SKIP button for optional questions (available from start)
   isRequired <- IsQuestionRequired(qdef, scaleDef)
   skipBtn <- 0
   if(not isRequired)
   {
-    skipBtn <- MakeSkipButton(gVideoWidth/2, footerBottom + 25)
+    skipBtn <- MakeSkipButton(gVideoWidth/2 + 200, footerBottom + 25)
+  }
+
+  ## BACK button for revisable sections
+  backBtn <- 0
+  if(gCanGoBack)
+  {
+    backBtn <- MakeBackButton(gVideoWidth/2 - 200, footerBottom + 25)
+  }
+
+  ## Pre-fill: find matching option and pre-select it
+  selectedIdx <- 0
+  selectedVal <- 0
+  if(prefill != "")
+  {
+    prefillNum <- ToNumber(prefill)
+    loop(i, Sequence(1, Length(responseValues), 1))
+    {
+      if(Nth(responseValues, i) == prefillNum)
+      {
+        selectedIdx <- i
+        selectedVal <- prefillNum
+      }
+    }
+    if(selectedIdx > 0)
+    {
+      SetSingleSelection(selBacks, selectedIdx)
+    }
+  }
+
+  ## NEXT hidden until a selection is made (prefill may already provide one)
+  nextVisible <- 1
+  if(selectedIdx == 0)
+  {
+    Hide(nextBtn.border)
+    Hide(nextBtn.label)
+    nextVisible <- 0
   }
 
   Draw()
 
-  ## Wait for response
+  ## Selection loop: click to select, NEXT to confirm
   t1 <- GetTime()
+  continueLoop <- 1
+  wasSkipped <- 0
+  wentBack <- 0
 
-  if(skipBtn != 0)
+  while(continueLoop)
   {
-    ## Include SKIP in click targets
-    allTargets <- Merge(backs, [skipBtn.border])
-    allValues <- Merge(responseValues, ["SKIP"])
-    response <- WaitForClickOnTarget(allTargets, allValues)
-  } else {
-    response <- WaitForClickOnTarget(backs, responseValues)
+    ## Build click targets: options always available
+    curTargets <- backs
+    curKeys <- Sequence(1, points, 1)
+
+    ## NEXT available once a selection exists
+    if(selectedIdx > 0)
+    {
+      curTargets <- Merge(curTargets, [nextBtn.border])
+      curKeys <- Merge(curKeys, [-1])
+    }
+
+    if(skipBtn != 0)
+    {
+      curTargets <- Merge(curTargets, [skipBtn.border])
+      curKeys <- Merge(curKeys, [-2])
+    }
+
+    if(backBtn != 0)
+    {
+      curTargets <- Merge(curTargets, [backBtn.border])
+      curKeys <- Merge(curKeys, [-3])
+    }
+
+    clicked <- WaitForClickOnTarget(curTargets, curKeys)
+
+    if(clicked == -1)
+    {
+      ## NEXT clicked — confirm selection
+      continueLoop <- 0
+    } elseif(clicked == -2)
+    {
+      ## SKIP clicked
+      continueLoop <- 0
+      wasSkipped <- 1
+    } elseif(clicked == -3)
+    {
+      ## BACK clicked
+      continueLoop <- 0
+      wentBack <- 1
+    } else {
+      ## Option clicked — highlight it and reveal NEXT
+      selectedIdx <- clicked
+      selectedVal <- Nth(responseValues, clicked)
+      SetSingleSelection(selBacks, selectedIdx)
+
+      Show(nextBtn.border)
+      Show(nextBtn.label)
+      nextVisible <- 1
+      Draw()
+
+      if(gSectionRevisable)
+      {
+        ## Auto-advance: briefly show NEXT then move on
+        Wait(400)
+        continueLoop <- 0
+      }
+    }
   }
 
   t2 <- GetTime()
 
-  ## Handle SKIP
-  if(response == "SKIP")
+  if(wasSkipped)
   {
     response <- "NA"
+  } elseif(wentBack)
+  {
+    response <- "BACK"
+  } else {
+    response <- selectedVal
   }
 
   ## Clean up
   RemoveObject(head, gWin)
   RemoveObject(quest, gWin)
   RemoveObjects(backs, gWin)
+  RemoveObjects(selBacks, gWin)
   RemoveObjects(nums, gWin)
-  RemoveObjects(labels, gWin)
+  loop(optLabel, labels) { if(not IsNumber(optLabel)) { RemoveObject(optLabel, gWin) } }
   if(footerObj != 0)
   {
     RemoveObject(footerObj, gWin)
   }
+  RemoveObject(nextBtn.border, gWin)
+  RemoveObject(nextBtn.label, gWin)
   if(skipBtn != 0)
   {
     RemoveObject(skipBtn.border, gWin)
     RemoveObject(skipBtn.label, gWin)
   }
+  if(backBtn != 0)
+  {
+    RemoveObject(backBtn.border, gWin)
+    RemoveObject(backBtn.label, gWin)
+  }
 
-  return([response, t2-t1])
+  retVal <- [response, t2-t1]
+  if(wentBack)
+  {
+    retVal <- [-1, 0]
+  }
+  return(retVal)
 }
 
 
@@ -1582,8 +2489,20 @@ define GetQuestionRange(qdef, scaleDef)
   ## Check question-specific settings first, then scale defaults
   ## Returns [min, max]
 
+  minVal <- 1
+  maxVal <- 5
+
+  ## For grid items, range is [1, number of columns] (column indices are 1-based)
+  if(PropertyExists(qdef, "type") and qdef.type == "grid")
+  {
+    maxVal <- 6  ## fallback; overridden by actual column count when present
+    if(PropertyExists(qdef, "columns"))
+    {
+      maxVal <- Length(qdef.columns)
+    }
+
   ## For VAS questions, use the direct min/max fields
-  if(PropertyExists(qdef, "type") and qdef.type == "vas")
+  } elseif(PropertyExists(qdef, "type") and qdef.type == "vas")
   {
     minVal <- 0
     maxVal <- 100
@@ -1603,7 +2522,6 @@ define GetQuestionRange(qdef, scaleDef)
 
     ## Default min/max based on points
     ## Binary scales: 0-1, Regular Likert: 1-N
-    minVal <- 1
     if(points == 2)
     {
       minVal <- 0
@@ -1673,38 +2591,498 @@ define GetQuestionLabels(qdef, scaleDef)
 
 define ComputeScores(results, scaleDef)
 {
-  scores <- MakeCustomObject("scores")
+  scores            <- MakeCustomObject("scores")
+  transformedScores <- MakeCustomObject("transformedScores")
 
   ## Check if scale has scoring definitions
   if(PropertyExists(scaleDef, "scoring"))
   {
     ## Build lookup tables for efficient access
-    questionMap <- BuildQuestionMap(scaleDef.questions)
+    questionMap <- BuildQuestionMap(scaleDef.items)
     responseMap <- BuildResponseMap(results)
 
-    ## Compute each dimension score
     scoringDefs <- scaleDef.scoring
-    dimIDs <- GetPropertyList(scoringDefs)
+    dimIDs      <- GetPropertyList(scoringDefs)
 
+    ## Pass 1: item-based dimensions (no scores field)
     loop(dimID, dimIDs)
     {
       scoreDef <- GetProperty(scoringDefs, dimID)
-      dimScore <- ComputeDimensionScore(dimID, scoreDef, questionMap, responseMap, scaleDef)
-      SetProperty(scores, dimID, dimScore)
+      if(not PropertyExists(scoreDef, "scores"))
+      {
+        dimResult <- ComputeDimensionScore(dimID, scoreDef, questionMap, responseMap, scaleDef, scores, transformedScores)
+        dimScore  <- First(dimResult)
+        codedVals <- Second(dimResult)
+        SetProperty(scores, dimID, dimScore)
+
+        if(PropertyExists(scoreDef, "transform"))
+        {
+          tScore <- ApplyTransform(dimScore, scoreDef.transform, codedVals)
+          SetProperty(transformedScores, dimID, tScore)
+        }
+      }
+    }
+
+    ## Pass 2: composite dimensions that reference other dimension scores
+    loop(dimID, dimIDs)
+    {
+      scoreDef <- GetProperty(scoringDefs, dimID)
+      if(PropertyExists(scoreDef, "scores"))
+      {
+        dimResult <- ComputeDimensionScore(dimID, scoreDef, questionMap, responseMap, scaleDef, scores, transformedScores)
+        dimScore  <- First(dimResult)
+        codedVals <- Second(dimResult)
+        SetProperty(scores, dimID, dimScore)
+
+        if(PropertyExists(scoreDef, "transform"))
+        {
+          tScore <- ApplyTransform(dimScore, scoreDef.transform, codedVals)
+          SetProperty(transformedScores, dimID, tScore)
+        }
+      }
     }
   }
 
-  return(scores)
+  return([scores, transformedScores])
 }
 
 
-define ComputeDimensionScore(dimID, scoreDef, questionMap, responseMap, scaleDef)
+define ComputeComputedVars(scaleDef, scores, transformedScores, responseMap)
 {
-  method <- scoreDef.method
-  itemIDs <- scoreDef.items
+  ## Compute derived variables from the "computed" block.
+  ## Expressions can reference score.X, answer.X, computed.X using simple arithmetic.
+  ## Returns a custom object with name->value mappings.
 
-  ## Collect coded values for this dimension
-  values <- []
+  computedVars <- MakeCustomObject("computed")
+
+  if(PropertyExists(scaleDef, "computed"))
+  {
+
+  computedBlock <- scaleDef.computed
+  varNames <- GetPropertyList(computedBlock)
+
+  ## Build merged scores (prefer transformed over raw)
+  mergedScores <- MakeCustomObject("mergedScores")
+  scoreNames <- GetPropertyList(scores)
+  loop(sn, scoreNames)
+  {
+    if(PropertyExists(transformedScores, sn))
+    {
+      SetProperty(mergedScores, sn, GetProperty(transformedScores, sn))
+    } else {
+      SetProperty(mergedScores, sn, GetProperty(scores, sn))
+    }
+  }
+
+  ## Simple dependency ordering: evaluate multiple passes until all resolved
+  ## (handles computed vars that reference other computed vars)
+  maxPasses <- 3
+  pass <- 1
+  remaining <- varNames
+
+  while(Length(remaining) > 0 and pass <= maxPasses)
+  {
+    nextRemaining <- []
+    loop(varName, remaining)
+    {
+      varDef <- GetProperty(computedBlock, varName)
+      expr <- varDef.expression
+
+      ## Try to evaluate — if it references an unresolved computed var, defer
+      val <- EvalSimpleExpression(expr, mergedScores, responseMap, computedVars)
+
+      if(val != "EVAL_ERROR")
+      {
+        if(PropertyExists(varDef, "type"))
+        {
+          if(varDef.type == "boolean")
+          {
+            if(val > 0)
+            {
+              val <- 1
+            } else {
+              val <- 0
+            }
+          }
+        }
+        SetProperty(computedVars, varName, val)
+      } else {
+        PushOnEnd(nextRemaining, varName)
+      }
+    }
+    remaining <- nextRemaining
+    pass <- pass + 1
+  }
+
+  } ## end if PropertyExists computed
+
+  return(computedVars)
+}
+
+
+define EvalSimpleExpression(expr, scores, responseMap, computedVars)
+{
+  ## Simple expression evaluator for computed variables.
+  ## Supports: +, -, *, /, >=, <=, >, <, ==, !=
+  ## Variable references: score.X, answer.X, computed.X
+  ## Parentheses for grouping.
+  ## Returns numeric result or "EVAL_ERROR" if a variable can't be resolved.
+
+  ## Step 1: Tokenize
+  tokens <- TokenizeExpression(expr)
+
+  ## Step 2: Resolve variable references to numbers
+  resolvedTokens <- []
+  loop(tok, tokens)
+  {
+    resolved <- tok
+
+    ## Check for variable references: score.X, answer.X, computed.X
+    if(StringLength(tok) > 6 and SubString(tok, 1, 6) == "score.")
+    {
+      varRef <- SubString(tok, 7, StringLength(tok) - 6)
+      if(PropertyExists(scores, varRef))
+      {
+        resolved <- GetProperty(scores, varRef) + ""
+      } else {
+        resolved <- "0"
+      }
+    } elseif(StringLength(tok) > 7 and SubString(tok, 1, 7) == "answer.")
+    {
+      varRef <- SubString(tok, 8, StringLength(tok) - 7)
+      if(PropertyExists(responseMap, varRef))
+      {
+        val <- GetProperty(responseMap, varRef)
+        resolved <- val + ""
+      } else {
+        resolved <- "0"
+      }
+    } elseif(StringLength(tok) > 9 and SubString(tok, 1, 9) == "computed.")
+    {
+      varRef <- SubString(tok, 10, StringLength(tok) - 9)
+      if(PropertyExists(computedVars, varRef))
+      {
+        resolved <- GetProperty(computedVars, varRef) + ""
+      } else {
+        resolved <- "EVAL_ERROR"
+      }
+    }
+
+    PushOnEnd(resolvedTokens, resolved)
+  }
+
+  ## Check for unresolved references
+  hasError <- 0
+  loop(tok, resolvedTokens)
+  {
+    if(tok == "EVAL_ERROR")
+    {
+      hasError <- 1
+    }
+  }
+
+  ## Step 3: Evaluate the expression using recursive descent
+  val <- "EVAL_ERROR"
+  if(not hasError)
+  {
+    result <- EvalExprTokens(resolvedTokens, 1)
+    val <- First(result)
+  }
+
+  return(val)
+}
+
+
+define TokenizeExpression(expr)
+{
+  ## Split expression into tokens: numbers, operators, parens, variable refs
+  tokens <- []
+  pos <- 1
+  len <- StringLength(expr)
+
+  while(pos <= len)
+  {
+    ch <- SubString(expr, pos, 1)
+
+    ## Skip whitespace
+    if(ch == " " or ch == Tab())
+    {
+      pos <- pos + 1
+    } elseif(ch == "(" or ch == ")")
+    {
+      PushOnEnd(tokens, ch)
+      pos <- pos + 1
+    } elseif(ch == "+" or ch == "*" or ch == "/")
+    {
+      PushOnEnd(tokens, ch)
+      pos <- pos + 1
+    } elseif(ch == "-")
+    {
+      ## Could be minus operator or negative number
+      ## Negative if at start, after operator, or after open paren
+      isNeg <- 0
+      if(Length(tokens) == 0)
+      {
+        isNeg <- 1
+      } else {
+        prevTok <- Nth(tokens, Length(tokens))
+        if(prevTok == "(" or prevTok == "+" or prevTok == "-" or prevTok == "*" or prevTok == "/" or prevTok == ">=" or prevTok == "<=" or prevTok == ">" or prevTok == "<" or prevTok == "==" or prevTok == "!=")
+        {
+          isNeg <- 1
+        }
+      }
+      if(isNeg)
+      {
+        ## Read negative number
+        numStr <- "-"
+        pos <- pos + 1
+        done <- 0
+        while(pos <= len and not done)
+        {
+          nch <- SubString(expr, pos, 1)
+          if(IsDigitChar(nch) or nch == ".")
+          {
+            numStr <- numStr + nch
+            pos <- pos + 1
+          } else {
+            done <- 1
+          }
+        }
+        PushOnEnd(tokens, numStr)
+      } else {
+        PushOnEnd(tokens, "-")
+        pos <- pos + 1
+      }
+    } elseif(ch == ">" or ch == "<" or ch == "=" or ch == "!")
+    {
+      ## Two-char operators: >=, <=, ==, !=
+      if(pos < len)
+      {
+        nextCh <- SubString(expr, pos + 1, 1)
+        if(nextCh == "=")
+        {
+          PushOnEnd(tokens, ch + "=")
+          pos <- pos + 2
+        } else {
+          PushOnEnd(tokens, ch)
+          pos <- pos + 1
+        }
+      } else {
+        PushOnEnd(tokens, ch)
+        pos <- pos + 1
+      }
+    } elseif(IsDigitChar(ch) or ch == ".")
+    {
+      ## Number
+      numStr <- ""
+      done <- 0
+      while(pos <= len and not done)
+      {
+        nch <- SubString(expr, pos, 1)
+        if(IsDigitChar(nch) or nch == ".")
+        {
+          numStr <- numStr + nch
+          pos <- pos + 1
+        } else {
+          done <- 1
+        }
+      }
+      PushOnEnd(tokens, numStr)
+    } elseif(IsLetterChar(ch))
+    {
+      ## Variable reference (e.g., score.PHQ_total, answer.q1)
+      varStr <- ""
+      done <- 0
+      while(pos <= len and not done)
+      {
+        nch <- SubString(expr, pos, 1)
+        if(IsLetterChar(nch) or IsDigitChar(nch) or nch == "." or nch == "_")
+        {
+          varStr <- varStr + nch
+          pos <- pos + 1
+        } else {
+          done <- 1
+        }
+      }
+      PushOnEnd(tokens, varStr)
+    } else {
+      ## Unknown character, skip
+      pos <- pos + 1
+    }
+  }
+
+  return(tokens)
+}
+
+
+define IsDigitChar(ch)
+{
+  result <- (ch == "0" or ch == "1" or ch == "2" or ch == "3" or ch == "4" or ch == "5" or ch == "6" or ch == "7" or ch == "8" or ch == "9")
+  return(result)
+}
+
+
+define IsLetterChar(ch)
+{
+  letters <- "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+  result <- (FindInString(letters, ch, 1) > 0)
+  return(result)
+}
+
+
+define EvalExprTokens(tokens, pos)
+{
+  ## Recursive descent parser for arithmetic expressions.
+  ## Returns [value, nextPos].
+  ## Precedence: comparison < addition < multiplication
+  ## Grammar:
+  ##   expr     -> addExpr (compOp addExpr)*
+  ##   addExpr  -> mulExpr (('+' | '-') mulExpr)*
+  ##   mulExpr  -> primary (('*' | '/') primary)*
+  ##   primary  -> NUMBER | '(' expr ')'
+
+  result <- EvalAddExpr(tokens, pos)
+  val <- First(result)
+  pos <- Second(result)
+
+  ## Check for comparison operators
+  cont <- 1
+  while(cont and pos <= Length(tokens))
+  {
+    tok <- Nth(tokens, pos)
+    if(tok == ">=" or tok == "<=" or tok == ">" or tok == "<" or tok == "==" or tok == "!=")
+    {
+      op <- tok
+      pos <- pos + 1
+      rhsResult <- EvalAddExpr(tokens, pos)
+      rhs <- First(rhsResult)
+      pos <- Second(rhsResult)
+
+      if(op == ">=")      { val <- (val >= rhs) }
+      elseif(op == "<=")  { val <- (val <= rhs) }
+      elseif(op == ">")   { val <- (val > rhs) }
+      elseif(op == "<")   { val <- (val < rhs) }
+      elseif(op == "==")  { val <- (val == rhs) }
+      elseif(op == "!=")  { val <- (val != rhs) }
+    } else {
+      cont <- 0
+    }
+  }
+
+  return([val, pos])
+}
+
+
+define EvalAddExpr(tokens, pos)
+{
+  result <- EvalMulExpr(tokens, pos)
+  val <- First(result)
+  pos <- Second(result)
+
+  cont <- 1
+  while(cont and pos <= Length(tokens))
+  {
+    tok <- Nth(tokens, pos)
+    if(tok == "+")
+    {
+      pos <- pos + 1
+      rhsResult <- EvalMulExpr(tokens, pos)
+      rhs <- First(rhsResult)
+      pos <- Second(rhsResult)
+      val <- val + rhs
+    } elseif(tok == "-")
+    {
+      pos <- pos + 1
+      rhsResult <- EvalMulExpr(tokens, pos)
+      rhs <- First(rhsResult)
+      pos <- Second(rhsResult)
+      val <- val - rhs
+    } else {
+      cont <- 0
+    }
+  }
+
+  return([val, pos])
+}
+
+
+define EvalMulExpr(tokens, pos)
+{
+  result <- EvalPrimary(tokens, pos)
+  val <- First(result)
+  pos <- Second(result)
+
+  cont <- 1
+  while(cont and pos <= Length(tokens))
+  {
+    tok <- Nth(tokens, pos)
+    if(tok == "*")
+    {
+      pos <- pos + 1
+      rhsResult <- EvalPrimary(tokens, pos)
+      rhs <- First(rhsResult)
+      pos <- Second(rhsResult)
+      val <- val * rhs
+    } elseif(tok == "/")
+    {
+      pos <- pos + 1
+      rhsResult <- EvalPrimary(tokens, pos)
+      rhs <- First(rhsResult)
+      pos <- Second(rhsResult)
+      if(rhs != 0) { val <- val / rhs }
+    } else {
+      cont <- 0
+    }
+  }
+
+  return([val, pos])
+}
+
+
+define EvalPrimary(tokens, pos)
+{
+  ## Primary: number or parenthesized expression
+  val <- 0
+  if(pos <= Length(tokens))
+  {
+    tok <- Nth(tokens, pos)
+    if(tok == "(")
+    {
+      pos <- pos + 1
+      result <- EvalExprTokens(tokens, pos)
+      val <- First(result)
+      pos <- Second(result)
+      ## Skip closing paren
+      if(pos <= Length(tokens))
+      {
+        if(Nth(tokens, pos) == ")")
+        {
+          pos <- pos + 1
+        }
+      }
+    } else {
+      ## Must be a number
+      val <- ToNumber(tok)
+      pos <- pos + 1
+    }
+  }
+
+  return([val, pos])
+}
+
+
+define ComputeDimensionScore(dimID, scoreDef, questionMap, responseMap, scaleDef, prevScores, prevTScores)
+{
+  method  <- scoreDef.method
+  itemIDs <- []
+  if(PropertyExists(scoreDef, "items"))
+  {
+    itemIDs <- scoreDef.items
+  }
+
+  ## Collect coded values and parallel weights for this dimension
+  values      <- []
+  itemWeights <- []
 
   loop(itemID, itemIDs)
   {
@@ -1726,16 +3104,85 @@ define ComputeDimensionScore(dimID, scoreDef, questionMap, responseMap, scaleDef
           minVal <- First(range)
           maxVal <- Second(range)
 
-          ## Apply coding (reverse if needed)
-          ## Get per-dimension coding from scoring configuration
-          coding <- 1
-          if(PropertyExists(scoreDef, "item_coding") and PropertyExists(scoreDef.item_coding, itemID))
+          ## Apply coding: read from scoring definition's item_coding object.
+          ## 1 = forward, -1 = reverse, 0 or absent = exclude from this dimension's score.
+          coding <- 0
+          if(PropertyExists(scoreDef, "item_coding"))
           {
-            coding <- GetProperty(scoreDef.item_coding, itemID)
+            if(PropertyExists(scoreDef.item_coding, itemID))
+            {
+              coding <- GetProperty(scoreDef.item_coding, itemID)
+            }
           }
 
-          coded <- CodeResponse(resp, coding, minVal, maxVal)
-          PushOnEnd(values, coded)
+          if(coding != 0)
+          {
+            ## For multi/multicheck items, the option value already encodes
+            ## the scoring direction — use it directly without range reversal.
+            ## (Reversal via item_coding only applies to Likert/VAS/grid types.)
+            if(PropertyExists(qdef, "type") and
+               (qdef.type == "multi" or qdef.type == "multicheck"))
+            {
+              PushOnEnd(values, resp)
+            } else {
+              coded <- CodeResponse(resp, coding, minVal, maxVal)
+              PushOnEnd(values, coded)
+            }
+
+            ## Track weight for this item (default 1)
+            w <- 1
+            if(PropertyExists(scoreDef, "weights") and PropertyExists(scoreDef.weights, itemID))
+            {
+              w <- GetProperty(scoreDef.weights, itemID)
+            }
+            PushOnEnd(itemWeights, w)
+          }
+        }
+      }
+    }
+  }
+
+  ## Process score inputs (composite scoring — pass 2 only)
+  if(PropertyExists(scoreDef, "scores"))
+  {
+    loop(scoreID, scoreDef.scores)
+    {
+      coding <- 0
+      if(PropertyExists(scoreDef, "item_coding"))
+      {
+        if(PropertyExists(scoreDef.item_coding, scoreID))
+        {
+          coding <- GetProperty(scoreDef.item_coding, scoreID)
+        }
+      }
+
+      if(coding != 0)
+      {
+        ## Prefer transformed score; fall back to raw score
+        scoreVal <- 0
+        hasVal   <- 0
+        if(PropertyExists(prevTScores, scoreID))
+        {
+          scoreVal <- GetProperty(prevTScores, scoreID)
+          hasVal   <- 1
+        } elseif(PropertyExists(prevScores, scoreID))
+        {
+          scoreVal <- GetProperty(prevScores, scoreID)
+          hasVal   <- 1
+        }
+
+        if(hasVal)
+        {
+          ## coding=1: forward; coding=-1: negate; coding=0: exclude
+          codedVal <- scoreVal * coding
+          PushOnEnd(values, codedVal)
+
+          w <- 1
+          if(PropertyExists(scoreDef, "weights") and PropertyExists(scoreDef.weights, scoreID))
+          {
+            w <- GetProperty(scoreDef.weights, scoreID)
+          }
+          PushOnEnd(itemWeights, w)
         }
       }
     }
@@ -1744,7 +3191,10 @@ define ComputeDimensionScore(dimID, scoreDef, questionMap, responseMap, scaleDef
   ## Compute composite based on method
   result <- 0
 
-  if(method == "sum_coded")
+  if(Length(values) == 0)
+  {
+    result <- 0
+  } elseif(method == "sum_coded")
   {
     result <- Sum(values)
   } elseif(method == "mean_coded")
@@ -1752,8 +3202,30 @@ define ComputeDimensionScore(dimID, scoreDef, questionMap, responseMap, scaleDef
     result <- Mean(values)
   } elseif(method == "weighted_sum")
   {
-    weights <- scoreDef.weights
-    result <- Sum(VecTimes(values, weights))
+    wTotal <- 0
+    idx    <- 1
+    loop(v, values)
+    {
+      wTotal <- wTotal + v * Nth(itemWeights, idx)
+      idx    <- idx + 1
+    }
+    result <- wTotal
+  } elseif(method == "weighted_mean")
+  {
+    wTotal  <- 0
+    wSum    <- 0
+    idx     <- 1
+    loop(v, values)
+    {
+      w      <- Nth(itemWeights, idx)
+      wTotal <- wTotal + v * w
+      wSum   <- wSum + w
+      idx    <- idx + 1
+    }
+    if(wSum != 0)
+    {
+      result <- wTotal / wSum
+    }
   } elseif(method == "sum_correct")
   {
     ## Count number of correct responses
@@ -1857,6 +3329,44 @@ define ComputeDimensionScore(dimID, scoreDef, questionMap, responseMap, scaleDef
     Print("WARNING: Unknown scoring method: " + method)
   }
 
+  return([result, values])
+}
+
+
+define ApplyTransform(rawScore, transformSteps, codedValues)
+{
+  ## Build a simple named-stats object for transforms that reference stats
+  stats <- MakeCustomObject("stats")
+  n <- Length(codedValues)
+  if(n > 0)
+  {
+    SetProperty(stats, "sum",   Sum(codedValues))
+    SetProperty(stats, "mean",  Mean(codedValues))
+    SetProperty(stats, "min",   Min(codedValues))
+    SetProperty(stats, "max",   Max(codedValues))
+    SetProperty(stats, "range", Max(codedValues) - Min(codedValues))
+    SetProperty(stats, "n",     n)
+    SetProperty(stats, "sd",    StdDev(codedValues))
+  }
+
+  result <- rawScore
+  loop(step, transformSteps)
+  {
+    op  <- step.op
+    val <- step.value
+    if(IsString(val))
+    {
+      if(PropertyExists(stats, val)) { val <- GetProperty(stats, val) }
+      else { val <- 0 }
+    }
+    if(op == "add")          { result <- result + val }
+    elseif(op == "subtract") { result <- result - val }
+    elseif(op == "multiply") { result <- result * val }
+    elseif(op == "divide")
+    {
+      if(val != 0) { result <- result / val }
+    }
+  }
   return(result)
 }
 
@@ -1886,11 +3396,26 @@ define CodeResponse(response, coding, minVal, maxVal)
 define BuildQuestionMap(questions)
 {
   ## Build lookup table: questionID -> question definition object
+  ## For grid items, also register sub-item IDs (gridId_1, gridId_2, ...)
+  ## pointing to the parent grid definition so range lookup works.
   map <- MakeCustomObject("questionMap")
 
   loop(qdef, questions)
   {
     SetProperty(map, qdef.id, qdef)
+    if(PropertyExists(qdef, "type") and qdef.type == "grid")
+    {
+      if(PropertyExists(qdef, "rows"))
+      {
+        rowIdx <- 1
+        loop(rowKey, qdef.rows)
+        {
+          subID <- qdef.id + "_" + rowIdx
+          SetProperty(map, subID, qdef)
+          rowIdx <- rowIdx + 1
+        }
+      }
+    }
   }
 
   return(map)
@@ -1900,13 +3425,37 @@ define BuildQuestionMap(questions)
 define BuildResponseMap(results)
 {
   ## Build lookup table: questionID -> response value
+  ## For grid items, also expand sub-item entries: gridId_1, gridId_2, ...
   map <- MakeCustomObject("responseMap")
   index <- 1
 
-  loop(qdef, results.questions)
+  loop(qdef, results.items)
   {
     resp <- Nth(results.responses, index)
     SetProperty(map, qdef.id, resp)
+    if(PropertyExists(qdef, "type") and qdef.type == "grid")
+    {
+      if(PropertyExists(qdef, "rows"))
+      {
+        parts <- SplitString(resp + "", " ")
+        rowIdx <- 1
+        loop(rowKey, qdef.rows)
+        {
+          subID  <- qdef.id + "_" + rowIdx
+          subVal <- ""
+          if(rowIdx <= Length(parts))
+          {
+            subVal <- Nth(parts, rowIdx)
+          }
+          ## Store as number (grid responses are always integer column indices)
+          if(StringLength(subVal + "") > 0)
+          {
+            SetProperty(map, subID, ToNumber(subVal))
+          }
+          rowIdx <- rowIdx + 1
+        }
+      }
+    }
     index <- index + 1
   }
 
@@ -2005,6 +3554,42 @@ define WildcardMatch(text, pattern)
 }
 
 
+define InterpretScore(score, scoreDef)
+{
+  ## Returns the norm threshold label for a score, or "" if no norms defined.
+  ## Supports both "label" (literal string) and "label_key" (translation key).
+  result <- ""
+  if(PropertyExists(scoreDef, "norms"))
+  {
+    normsObj <- scoreDef.norms
+    if(PropertyExists(normsObj, "thresholds"))
+    {
+      loop(t, normsObj.thresholds)
+      {
+        if(score >= t.min and score <= t.max)
+        {
+          if(PropertyExists(t, "label_key"))
+          {
+            if(PropertyExists(gStrings, t.label_key))
+            {
+              result <- GetProperty(gStrings, t.label_key)
+            } else {
+              result <- t.label_key
+            }
+          } else {
+            if(PropertyExists(t, "label"))
+            {
+              result <- t.label
+            }
+          }
+        }
+      }
+    }
+  }
+  return(result)
+}
+
+
 define MatchesAnyPattern(text, patternList)
 {
   ## Check if text matches any pattern in the list (case-insensitive with wildcards)
@@ -2085,11 +3670,11 @@ define CheckItemCorrectness(qdef, resp, scoreDef)
 ## DATA SAVING
 ##############################################################################
 
-define SaveIndividualData(results, scaleDef)
+define SaveIndividualData(results, transformedScores, scaleDef)
 {
   ## Save detailed trial-by-trial data with dynamic dimension columns
   index <- 1
-  loop(qdef, results.questions)
+  loop(qdef, results.items)
   {
     order <- Nth(results.order, index)
     resp <- Nth(results.responses, index)
@@ -2119,7 +3704,7 @@ define SaveIndividualData(results, scaleDef)
     questionText <- ""
     if(PropertyExists(gStrings, qdef.text_key))
     {
-      questionText <- GetProperty(gStrings, qdef.text_key)
+      questionText <- PipeAnswers(GetProperty(gStrings, qdef.text_key))
       ## Replace commas to prevent breaking CSV format
       questionText <- ReplaceChar(questionText, ",", "|")
     }
@@ -2180,11 +3765,13 @@ define SaveIndividualData(results, scaleDef)
                 gridScoreDef <- GetProperty(scaleDef.scoring, dim.id)
                 gridItemIDs <- gridScoreDef.items
 
-                ## Check if this grid question is in this dimension
+                ## Check if this grid row sub-item is in this dimension
+                ## Sub-item IDs are gridId_1, gridId_2, ... (not the parent gridId)
+                gridSubID <- qdef.id + "_" + rowIdx
                 gridIsMember <- 0
                 loop(gridItemID, gridItemIDs)
                 {
-                  if(gridItemID == qdef.id)
+                  if(gridItemID == gridSubID)
                   {
                     gridIsMember <- 1
                     break
@@ -2197,13 +3784,13 @@ define SaveIndividualData(results, scaleDef)
                   {
                     ## Check this row against corresponding correct answer
                     gridCorrectList <- []
-                    if(PropertyExists(gridScoreDef, "correct_answers") and PropertyExists(gridScoreDef.correct_answers, qdef.id))
+                    if(PropertyExists(gridScoreDef, "correct_answers") and PropertyExists(gridScoreDef.correct_answers, gridSubID))
                     {
-                      gridCorrectList <- GetProperty(gridScoreDef.correct_answers, qdef.id)
+                      gridCorrectList <- GetProperty(gridScoreDef.correct_answers, gridSubID)
                     }
-                    if(rowIdx <= Length(gridCorrectList))
+                    if(Length(gridCorrectList) > 0)
                     {
-                      correctVal <- Nth(gridCorrectList, rowIdx)
+                      correctVal <- First(gridCorrectList)
                       if(WildcardMatch(rowResp + "", correctVal + ""))
                       {
                         gridDimValue <- 1
@@ -2218,15 +3805,46 @@ define SaveIndividualData(results, scaleDef)
                     gridMinVal <- First(gridRange)
                     gridMaxVal <- Second(gridRange)
                     gridCoding <- 1
-                    if(PropertyExists(gridScoreDef, "item_coding") and PropertyExists(gridScoreDef.item_coding, qdef.id))
+                    if(PropertyExists(gridScoreDef, "item_coding") and PropertyExists(gridScoreDef.item_coding, gridSubID))
                     {
-                      gridCoding <- GetProperty(gridScoreDef.item_coding, qdef.id)
+                      gridCoding <- GetProperty(gridScoreDef.item_coding, gridSubID)
                     }
                     gridDimValue <- CodeResponse(rowResp, gridCoding, gridMinVal, gridMaxVal)
                   }
                 }
               }
               PushOnEnd(dataline, gridDimValue)
+            }
+          }
+
+          ## Add transformed dim values for dims that have a transform
+          if(PropertyExists(scaleDef, "dimensions") and PropertyExists(scaleDef, "scoring"))
+          {
+            loop(dim, scaleDef.dimensions)
+            {
+              if(PropertyExists(scaleDef.scoring, dim.id))
+              {
+                gridTScoreDef <- GetProperty(scaleDef.scoring, dim.id)
+                if(PropertyExists(gridTScoreDef, "transform"))
+                {
+                  ## Check if this grid row sub-item is in this dimension
+                  gridTMember <- 0
+                  loop(gridTItemID, gridTScoreDef.items)
+                  {
+                    if(gridTItemID == gridSubID)
+                    {
+                      gridTMember <- 1
+                      break
+                    }
+                  }
+                  if(gridTMember and PropertyExists(transformedScores, dim.id))
+                  {
+                    PushOnEnd(dataline, GetProperty(transformedScores, dim.id))
+                  } else {
+                    PushOnEnd(dataline, "")
+                  }
+                }
+              }
             }
           }
 
@@ -2301,6 +3919,37 @@ define SaveIndividualData(results, scaleDef)
         }
       }
 
+      ## Add transformed dim values for dims that have a transform
+      if(PropertyExists(scaleDef, "dimensions") and PropertyExists(scaleDef, "scoring"))
+      {
+        loop(dim, scaleDef.dimensions)
+        {
+          if(PropertyExists(scaleDef.scoring, dim.id))
+          {
+            tScoreDef <- GetProperty(scaleDef.scoring, dim.id)
+            if(PropertyExists(tScoreDef, "transform"))
+            {
+              ## Check if this question is in this dimension
+              tIsMember <- 0
+              loop(tItemID, tScoreDef.items)
+              {
+                if(tItemID == qdef.id)
+                {
+                  tIsMember <- 1
+                  break
+                }
+              }
+              if(tIsMember and PropertyExists(transformedScores, dim.id))
+              {
+                PushOnEnd(dataline, GetProperty(transformedScores, dim.id))
+              } else {
+                PushOnEnd(dataline, "")
+              }
+            }
+          }
+        }
+      }
+
       FilePrint(gFileOut, ConcatenateList(dataline, ","))
     }
 
@@ -2310,15 +3959,15 @@ define SaveIndividualData(results, scaleDef)
 }
 
 
-define SavePooledData(results, scores, scaleDef)
+define SavePooledData(results, scores, transformedScores, scaleDef)
 {
   ## Save one-line summary with all responses and dimension scores.
-  ## Uses definition order (scaleDef.questions) so columns match
+  ## Uses definition order (scaleDef.items) so columns match
   ## BuildPooledHeader, regardless of randomized presentation order.
   line <- gSubNum + "," + TimeStamp() + "," + gCompletionTime
 
   ## Add all responses in definition order via responseMap
-  loop(qdef, scaleDef.questions)
+  loop(qdef, scaleDef.items)
   {
     ## Look up response by question ID
     resp <- "NA"
@@ -2367,6 +4016,28 @@ define SavePooledData(results, scores, scaleDef)
     }
   }
 
+  ## Add transformed dimension scores (_t columns, only for dims with transform defined)
+  if(PropertyExists(scaleDef, "dimensions") and PropertyExists(scaleDef, "scoring"))
+  {
+    loop(dim, scaleDef.dimensions)
+    {
+      if(PropertyExists(scaleDef.scoring, dim.id))
+      {
+        pooledScoreDef <- GetProperty(scaleDef.scoring, dim.id)
+        if(PropertyExists(pooledScoreDef, "transform"))
+        {
+          if(PropertyExists(transformedScores, dim.id))
+          {
+            tScore <- GetProperty(transformedScores, dim.id)
+            line <- line + "," + tScore
+          } else {
+            line <- line + ",NA"
+          }
+        }
+      }
+    }
+  }
+
   ## Add branch arm choices (must match BuildPooledHeader column order)
   if(PropertyExists(scaleDef, "branches"))
   {
@@ -2397,7 +4068,7 @@ define BuildPooledHeader(scaleDef)
   header <- "subnum,timestamp,time"
 
   ## Add question columns
-  loop(qdef, scaleDef.questions)
+  loop(qdef, scaleDef.items)
   {
     if(qdef.type == "grid")
     {
@@ -2430,6 +4101,22 @@ define BuildPooledHeader(scaleDef)
     }
   }
 
+  ## Add transformed dimension score columns (_t) for dims with transform defined
+  if(PropertyExists(scaleDef, "dimensions") and PropertyExists(scaleDef, "scoring"))
+  {
+    loop(dim, scaleDef.dimensions)
+    {
+      if(PropertyExists(scaleDef.scoring, dim.id))
+      {
+        hdrScoreDef <- GetProperty(scaleDef.scoring, dim.id)
+        if(PropertyExists(hdrScoreDef, "transform"))
+        {
+          header <- header + "," + dim.id + "_t"
+        }
+      }
+    }
+  }
+
   ## Add branch arm columns (one per branch group: {group_id}_arm)
   if(PropertyExists(scaleDef, "branches"))
   {
@@ -2447,15 +4134,11 @@ define BuildPooledHeader(scaleDef)
 ## REPORT GENERATION
 ##############################################################################
 
-define GenerateReport(results, scores, scaleDef)
+define GenerateReport(results, scores, transformedScores, scaleDef, computedVars:0)
 {
   ## Generate HTML report with dimension scores and response table
-  reportFilename <- gScaleDef.data_output.report_file
-  reportFilename <- ReplaceChar(reportFilename, "{code}", gScaleDef.scale_info.code)
-  reportFilename <- ReplaceChar(reportFilename, "{subnum}", gSubNum+"")
-
-  ## Change extension to .html
-  reportFilename <- ReplaceChar(reportFilename, ".txt", ".html")
+  safeCode <- ReplaceChar(gScaleDef.scale_info.code, [" ", "/", "\", ":", ",", "|"], "_")
+  reportFilename <- safeCode + "-report-" + gSubNum + ".html"
 
   Print("Creating HTML report...")
 
@@ -2480,6 +4163,7 @@ define GenerateReport(results, scores, scaleDef)
   FilePrint(htmlFile, "h1 { color: #333; }")
   FilePrint(htmlFile, "h2 { color: #666; }")
   FilePrint(htmlFile, ".citation { font-style: italic; color: #666; margin: 10px 0; }")
+  FilePrint(htmlFile, ".norm-label { font-style: italic; color: #555; }")
   FilePrint(htmlFile, "</style></head><body>")
 
   ##############################################################################
@@ -2491,6 +4175,32 @@ define GenerateReport(results, scores, scaleDef)
   if(PropertyExists(scaleDef.scale_info, "citation"))
   {
     FilePrint(htmlFile, P("<span class='citation'>" + scaleDef.scale_info.citation + "</span>"))
+  }
+
+  ## License information
+  licenseText <- ""
+  if(PropertyExists(scaleDef.scale_info, "license"))
+  {
+    licenseText <- scaleDef.scale_info.license
+  }
+  if(PropertyExists(scaleDef.scale_info, "license_explanation"))
+  {
+    if(licenseText != "")
+    {
+      licenseText <- licenseText + " — "
+    }
+    licenseText <- licenseText + scaleDef.scale_info.license_explanation
+  }
+  if(licenseText != "")
+  {
+    FilePrint(htmlFile, P("<span class='citation'>License: " + licenseText + "</span>"))
+  }
+  if(PropertyExists(scaleDef.scale_info, "license_url"))
+  {
+    if(scaleDef.scale_info.license_url != "")
+    {
+      FilePrint(htmlFile, P("<span class='citation'><a href='" + scaleDef.scale_info.license_url + "'>" + scaleDef.scale_info.license_url + "</a></span>"))
+    }
   }
 
   FilePrint(htmlFile, P("Participant: " + B(gSubNum)))
@@ -2521,20 +4231,84 @@ define GenerateReport(results, scores, scaleDef)
   {
     FilePrint(htmlFile, H("Dimension Scores", 2))
 
-    ## Build table data
+    ## Build table data with optional norm interpretation and transforms
     tableData <- []
+    hasNorms <- 0
+    hasTrans <- 0
     loop(dim, scaleDef.dimensions)
     {
       if(PropertyExists(scores, dim.id))
       {
         score <- GetProperty(scores, dim.id)
-        rowData <- [dim.name, Round(score*100)/100 + ""]
+        normLabel <- ""
+        if(PropertyExists(scaleDef.scoring, dim.id))
+        {
+          dimScoreDef <- GetProperty(scaleDef.scoring, dim.id)
+          normLabel <- InterpretScore(score, dimScoreDef)
+        }
+        if(normLabel != "")
+        {
+          hasNorms <- 1
+        }
+        tScoreStr <- ""
+        if(PropertyExists(transformedScores, dim.id))
+        {
+          tScore <- GetProperty(transformedScores, dim.id)
+          tScoreStr <- Round(tScore*100)/100 + ""
+          hasTrans <- 1
+        }
+        rowData <- [dim.name, Round(score*100)/100 + "", tScoreStr, normLabel]
         PushOnEnd(tableData, rowData)
       }
     }
 
-    ## Generate table with headers
-    FilePrint(htmlFile, Table(tableData, ["Dimension", "Score"]))
+    ## Generate table — choose columns based on available data
+    if(hasTrans == 1 or hasNorms == 1)
+    {
+      FilePrint(htmlFile, Table(tableData, ["Dimension", "Score", "Transformed", "Interpretation"]))
+    } else {
+      tableData2 <- []
+      loop(row, tableData)
+      {
+        PushOnEnd(tableData2, [Nth(row, 1), Nth(row, 2)])
+      }
+      FilePrint(htmlFile, Table(tableData2, ["Dimension", "Score"]))
+    }
+  }
+
+  ##############################################################################
+  ## COMPUTED VARIABLES
+  ##############################################################################
+
+  if(computedVars != 0 and PropertyExists(scaleDef, "computed"))
+  {
+    cvNames <- GetPropertyList(scaleDef.computed)
+    if(Length(cvNames) > 0)
+    {
+      FilePrint(htmlFile, H("Computed Variables", 2))
+      FilePrint(htmlFile, "<table><thead><tr><th>Variable</th><th>Value</th><th>Type</th><th>Interpretation</th></tr></thead>")
+      loop(cvName, cvNames)
+      {
+        cvDef <- GetProperty(scaleDef.computed, cvName)
+        cvVal <- ""
+        if(PropertyExists(computedVars, cvName))
+        {
+          cvVal <- GetProperty(computedVars, cvName) + ""
+        }
+        cvType <- "number"
+        if(PropertyExists(cvDef, "type"))
+        {
+          cvType <- cvDef.type
+        }
+        normLabel <- ""
+        if(PropertyExists(cvDef, "norms"))
+        {
+          normLabel <- InterpretScore(ToNumber(cvVal), cvDef)
+        }
+        FilePrint(htmlFile, "<tr><td>" + cvName + "</td><td>" + cvVal + "</td><td>" + cvType + "</td><td><span class='norm-label'>" + normLabel + "</span></td></tr>")
+      }
+      FilePrint(htmlFile, "</table>")
+    }
   }
 
   ##############################################################################
@@ -2555,7 +4329,7 @@ define GenerateReport(results, scores, scaleDef)
 
   ## Build table rows in definition order using responseMap
   respTableData <- []
-  loop(qdef, scaleDef.questions)
+  loop(qdef, scaleDef.items)
   {
     ## Look up response by question ID
     resp <- "NA"
@@ -2586,7 +4360,7 @@ define GenerateReport(results, scores, scaleDef)
       qText <- ""
       if(PropertyExists(gStrings, qdef.text_key))
       {
-        qText <- GetProperty(gStrings, qdef.text_key)
+        qText <- PipeAnswers(GetProperty(gStrings, qdef.text_key))
       } else {
         qText <- qdef.text_key
       }
@@ -2596,6 +4370,79 @@ define GenerateReport(results, scores, scaleDef)
       {
         qText <- SubString(qText, 1, 117) + "..."
       }
+
+      if(qdef.type == "grid")
+      {
+        ## Expand grid into one report row per sub-item
+        gridResps <- SplitString(resp + "", " ")
+        rptGridRange <- GetQuestionRange(qdef, scaleDef)
+        rptGridMin <- First(rptGridRange)
+        rptGridMax <- Second(rptGridRange)
+        ## Support both new format (rows array) and old format (subitems)
+        rptRows <- []
+        if(PropertyExists(qdef, "rows"))
+        {
+          rptRows <- qdef.rows
+        } elseif(PropertyExists(qdef, "subitems"))
+        {
+          loop(rptSub, qdef.subitems) { PushOnEnd(rptRows, rptSub.text_key) }
+        }
+        rptRowIdx <- 1
+        loop(rowKey, rptRows)
+        {
+          subResp <- "NA"
+          if(rptRowIdx <= Length(gridResps))
+          {
+            subResp <- Nth(gridResps, rptRowIdx)
+          }
+
+          rowText <- rowKey
+          if(PropertyExists(gStrings, rowKey))
+          {
+            rowText <- GetProperty(gStrings, rowKey)
+          }
+
+          rptSubID <- qdef.id + "_" + rptRowIdx
+          rowData <- [rowText, subResp + ""]
+
+          if(PropertyExists(scaleDef, "dimensions") and PropertyExists(scaleDef, "scoring"))
+          {
+            loop(dim, scaleDef.dimensions)
+            {
+              dimVal <- ""
+              if(PropertyExists(scaleDef.scoring, dim.id))
+              {
+                rptScoreDef <- GetProperty(scaleDef.scoring, dim.id)
+                rptItemIDs <- rptScoreDef.items
+
+                rptIsMember <- 0
+                loop(rptItemID, rptItemIDs)
+                {
+                  if(rptItemID == rptSubID)
+                  {
+                    rptIsMember <- 1
+                    break
+                  }
+                }
+
+                if(rptIsMember and IsNumber(subResp))
+                {
+                  rptCoding <- 1
+                  if(PropertyExists(rptScoreDef, "item_coding") and PropertyExists(rptScoreDef.item_coding, rptSubID))
+                  {
+                    rptCoding <- GetProperty(rptScoreDef.item_coding, rptSubID)
+                  }
+                  dimVal <- CodeResponse(subResp, rptCoding, rptGridMin, rptGridMax) + ""
+                }
+              }
+              PushOnEnd(rowData, dimVal)
+            }
+          }
+
+          PushOnEnd(respTableData, rowData)
+          rptRowIdx <- rptRowIdx + 1
+        }
+      } else {
 
       rowData <- [qText, resp + ""]
 
@@ -2645,6 +4492,7 @@ define GenerateReport(results, scores, scaleDef)
       }
 
       PushOnEnd(respTableData, rowData)
+      }
     }
   }
 
@@ -2704,8 +4552,11 @@ define GenerateReport(results, scores, scaleDef)
     }
   }
 
-  FilePrint(htmlFile, P("<em>Generated with PEBL ScaleRunner</em>"))
-  FilePrint(htmlFile, P("<em>http://pebl.sf.net</em>"))
+  FilePrint(htmlFile, "<p style='font-size:0.85em;color:#888;text-align:center;'>")
+  FilePrint(htmlFile, "Scale administered via <a href='https://openscales.net' target='_blank'>OpenScales</a>.")
+  FilePrint(htmlFile, " Run on desktop using <a href='http://pebl.sf.net' target='_blank'>PEBL</a>")
+  FilePrint(htmlFile, " | Run online via <a href='http://peblhub.online' target='_blank'>PEBLHub</a>.")
+  FilePrint(htmlFile, "</p>")
   FilePrint(htmlFile, "</body></html>")
 
   FileClose(htmlFile)
@@ -2725,18 +4576,19 @@ define GenerateReport(results, scores, scaleDef)
 
 define GetStrings(lang, scaleCode)
 {
-  ## Try to load scale-specific translations
-  ## Accepts both PEBL naming (.pbl-<lang>.json) and OSD format (.<lang>.json)
-  ## Search order per directory: PEBL format first, then open format
-  ## Directories: per-scale directory first, then legacy translations/
+  ## Load translations. Priority order (most preferred first):
+  ##   1. {code}-{lang}.json      (OSD/OpenScales standard)
+  ##   2. {code}.pbl-{lang}.json  (legacy PEBL format)
+  ##   3. {code}.{lang}.json      (dot-separated legacy)
+  ## Falls back to English if requested language not found.
 
   lang <- Lowercase(lang)
   found <- 0
 
-  ## 1. Per-scale directory, requested language (PEBL format, then open format)
+  ## Requested language
   if(found == 0 and lang != "" and lang != "en")
   {
-    filename <- scaleCode + "/" + scaleCode + ".pbl-" + lang + ".json"
+    filename <- "translations/" + scaleCode + "-" + lang + ".json"
     if(FileExists(filename))
     {
       gStrings <- ReadTranslationJSON(filename, lang)
@@ -2744,38 +4596,6 @@ define GetStrings(lang, scaleCode)
     }
   }
 
-  if(found == 0 and lang != "" and lang != "en")
-  {
-    filename <- scaleCode + "/" + scaleCode + "." + lang + ".json"
-    if(FileExists(filename))
-    {
-      gStrings <- ReadTranslationJSON(filename, lang)
-      found <- 1
-    }
-  }
-
-  ## 2. Per-scale directory, English fallback (PEBL format, then open format)
-  if(found == 0)
-  {
-    filename <- scaleCode + "/" + scaleCode + ".pbl-en.json"
-    if(FileExists(filename))
-    {
-      gStrings <- ReadTranslationJSON(filename, "en")
-      found <- 1
-    }
-  }
-
-  if(found == 0)
-  {
-    filename <- scaleCode + "/" + scaleCode + ".en.json"
-    if(FileExists(filename))
-    {
-      gStrings <- ReadTranslationJSON(filename, "en")
-      found <- 1
-    }
-  }
-
-  ## 3. Legacy translations/ directory, requested language (PEBL format, then open format)
   if(found == 0 and lang != "" and lang != "en")
   {
     filename <- "translations/" + scaleCode + ".pbl-" + lang + ".json"
@@ -2796,7 +4616,17 @@ define GetStrings(lang, scaleCode)
     }
   }
 
-  ## 4. Legacy translations/ directory, English fallback (PEBL format, then open format)
+  ## English fallback
+  if(found == 0)
+  {
+    filename <- "translations/" + scaleCode + "-en.json"
+    if(FileExists(filename))
+    {
+      gStrings <- ReadTranslationJSON(filename, "en")
+      found <- 1
+    }
+  }
+
   if(found == 0)
   {
     filename <- "translations/" + scaleCode + ".pbl-en.json"
@@ -2817,11 +4647,69 @@ define GetStrings(lang, scaleCode)
     }
   }
 
+  ## Fallback: embedded translations stored in _embedded_translations by LoadScaleDefinition
+  if(found == 0 and PropertyExists(gScaleDef, "_embedded_translations"))
+  {
+    embTrans <- gScaleDef._embedded_translations
+    embLangKey <- lang
+    if(lang == "" or lang == "en") { embLangKey <- "en" }
+    if(not PropertyExists(embTrans, embLangKey) and PropertyExists(embTrans, "en"))
+    {
+      embLangKey <- "en"
+    }
+    if(PropertyExists(embTrans, embLangKey))
+    {
+      gStrings <- GetProperty(embTrans, embLangKey)
+      gStrings.language <- Lowercase(embLangKey)
+      proplist <- GetPropertyList(gStrings)
+      loop(prop, proplist)
+      {
+        SetProperty(gStrings, prop, FormatText(GetProperty(gStrings, prop)))
+      }
+      found <- 1
+    }
+  }
+
   if(found == 0)
   {
     Print("WARNING: No translation file found for: " + scaleCode)
     gStrings <- MakeCustomObject("strings")
     gStrings.debrief <- "Thank you for completing the questionnaire."
+  }
+}
+
+
+define LoadRunnerStrings(lang)
+{
+  ## Load ScaleRunner UI chrome strings (separate from scale-specific gStrings).
+  ## Stored in translations/ScaleRunner-{lang}.json, falls back to English,
+  ## then to hardcoded defaults. Result stored in global gRunnerStrings.
+  gRunnerStrings <- MakeCustomObject("RunnerStrings")
+
+  ## Hardcoded English defaults (overwritten if a file is found)
+  gRunnerStrings.type_hint <- "Start typing and hit Enter to complete your response"
+
+  ## Try language-specific file first, then English fallback
+  found <- 0
+  langs <- [lang, "en"]
+  loop(l, langs)
+  {
+    if(not found)
+    {
+      filename <- "translations/ScaleRunner-" + l + ".json"
+      if(FileExists(filename))
+      {
+        obj <- ReadJSON(filename)
+        if(obj != 0)
+        {
+          loop(key, GetPropertyList(obj))
+          {
+            SetProperty(gRunnerStrings, Lowercase(key), GetProperty(obj, key))
+          }
+        }
+        found <- 1
+      }
+    }
   }
 }
 
@@ -2835,19 +4723,27 @@ define GetStrings(lang, scaleCode)
 define GetVASLabel(qdef, field, transField, defaultVal)
 {
   ## Helper: get VAS anchor label from translation key or literal text
-  ## Tries: 1) translation key field, 2) literal text field, 3) default
+  ## Checks both field names (spec and legacy), resolves through gStrings if possible
   label <- ""
 
-  if(PropertyExists(qdef, transField))
+  ## Try primary field first, then fallback field
+  rawKey <- ""
+  if(PropertyExists(qdef, field))
   {
-    label <- GetProperty(gStrings, GetProperty(qdef, transField))
+    rawKey <- GetProperty(qdef, field)
+  } elseif(PropertyExists(qdef, transField))
+  {
+    rawKey <- GetProperty(qdef, transField)
   }
 
-  if(label == "" or label == 0)
+  ## Resolve key through translations if possible
+  if(rawKey != "" and rawKey != 0)
   {
-    if(PropertyExists(qdef, field))
+    if(PropertyExists(gStrings, rawKey))
     {
-      label <- GetProperty(qdef, field)
+      label <- GetProperty(gStrings, rawKey)
+    } else {
+      label <- rawKey
     }
   }
 
@@ -2860,37 +4756,73 @@ define GetVASLabel(qdef, field, transField, defaultVal)
 }
 
 
-define DoVAS(qdef, scaleDef)
+define DoVAS(qdef, scaleDef, prefill:"")
 {
-  ## Visual Analog Scale (vertical slider)
+  ## Visual Analog Scale — supports horizontal (default) and vertical orientation,
+  ## plus named anchor points.
 
-  questionText <- GetProperty(gStrings, qdef.text_key)
+  questionText <- PipeAnswers(GetProperty(gStrings, qdef.text_key))
 
-  ## Clear subheader
   gLayout.subheader.text <- ""
 
-  ## Show question head if available (like Likert does)
+  ## Resolve question head: item-level (qdef.question_head) overrides scale-level
   questionHead <- ""
-  if(PropertyExists(scaleDef, "likert_options"))
+  if(PropertyExists(qdef, "question_head"))
+  {
+    if(PropertyExists(gStrings, qdef.question_head))
+    {
+      questionHead <- GetProperty(gStrings, qdef.question_head)
+    }
+  } elseif(PropertyExists(scaleDef, "likert_options"))
   {
     if(PropertyExists(scaleDef.likert_options, "question_head"))
     {
-      questionHead <- GetProperty(gStrings, scaleDef.likert_options.question_head)
+      headKey <- scaleDef.likert_options.question_head
+      if(PropertyExists(gStrings, headKey))
+      {
+        questionHead <- GetProperty(gStrings, headKey)
+      }
     }
   }
 
   ## Get min/max labels
-  minLabel <- GetVASLabel(qdef, "right", "min_label", "Min")
-  maxLabel <- GetVASLabel(qdef, "left", "max_label", "Max")
+  minLabel <- GetVASLabel(qdef, "min_label", "left", "Min")
+  maxLabel <- GetVASLabel(qdef, "max_label", "right", "Max")
 
-  ## VAS configuration
-  vasHeight <- 400
-  vasWidth <- 50
-  numTicks <- 21  ## 0-20 range (will convert to min-max range)
+  ## Determine orientation: "vertical" or "horizontal" (default)
+  isVertical <- 0
+  if(PropertyExists(qdef, "orientation"))
+  {
+    if(qdef.orientation == "vertical")
+    {
+      isVertical <- 1
+    }
+  }
+
+  ## Collect named anchors if present
+  hasAnchors <- 0
+  anchorList <- []
+  if(PropertyExists(qdef, "anchors"))
+  {
+    hasAnchors <- 1
+    anchorList <- qdef.anchors
+  }
+
+  ## VAS configuration — adjust size based on orientation
+  numTicks <- 11  ## Visual tick marks only (0, 10%, 20%, ..., 100%)
+  numSteps <- 100  ## Internal resolution: 0-100 steps for smooth positioning
+  if(isVertical)
+  {
+    vasLength <- 350  ## shorter to avoid header overlap
+    vasThick <- 50
+  } else {
+    vasLength <- Round(gVideoWidth * 0.65)
+    vasThick <- 40
+  }
 
   ## Position in stimulus region
   centerX <- gLayout.stimulusRegion.centerX
-  centerY <- gLayout.stimulusRegion.centerY + 50
+  centerY <- gLayout.stimulusRegion.centerY + 70
 
   ## Question head at top of stimulus region (if present)
   tmp <- []
@@ -2926,139 +4858,311 @@ define DoVAS(qdef, scaleDef)
   AddObject(ques, gWin)
   Move(ques, questX, questY)
 
-  ## Create clickable rectangle for VAS
-  vasTop <- centerY - vasHeight/2
-  vasBottom <- centerY + vasHeight/2
-
-  clickBox <- Rectangle(centerX, centerY, vasWidth, vasHeight, MakeColor("grey60"), 1)
-  AddObject(clickBox, gWin)
-  PushOnEnd(tmp, clickBox)
-
-  ## Add tick marks
-  tickSkip <- vasHeight / (numTicks - 1)
-  yPos <- vasBottom
-
-  loop(i, Sequence(1, numTicks, 1))
+  ## Create VAS elements based on orientation
+  ## vasStart/vasEnd are the low/high ends of the slider in pixels
+  if(isVertical)
   {
-    ## Longer ticks at endpoints and middle
-    if(i == 1 or i == 11 or i == numTicks)
+    ## Vertical: slider runs top (max) to bottom (min)
+    vasTop <- centerY - vasLength/2
+    vasBottom <- centerY + vasLength/2
+    vasStart <- vasBottom   ## min value at bottom
+    vasEnd <- vasTop        ## max value at top
+
+    clickBox <- Rectangle(centerX, centerY, vasThick, vasLength, MakeColor("grey60"), 1)
+    AddObject(clickBox, gWin)
+    PushOnEnd(tmp, clickBox)
+
+    ## Tick marks
+    tickSkip <- vasLength / (numTicks - 1)
+    tPos <- vasBottom
+    loop(i, Sequence(1, numTicks, 1))
     {
-      tickLine <- Line(centerX - 22, yPos, 45, 0, MakeColor("white"))
-    } else {
-      tickLine <- Line(centerX - 15, yPos, 30, 0, MakeColor("white"))
+      if(i == 1 or i == Round((numTicks+1)/2) or i == numTicks)
+      {
+        tickLine <- Line(centerX - 22, tPos, 45, 0, MakeColor("white"))
+      } else {
+        tickLine <- Line(centerX - 15, tPos, 30, 0, MakeColor("white"))
+      }
+      AddObject(tickLine, gWin)
+      PushOnEnd(tmp, tickLine)
+      tPos <- tPos - tickSkip
     }
-    AddObject(tickLine, gWin)
-    PushOnEnd(tmp, tickLine)
-    yPos <- yPos - tickSkip
+
+    ## Center line
+    vLine <- Line(centerX, vasTop, 0, vasLength, MakeColor("white"))
+    AddObject(vLine, gWin)
+    PushOnEnd(tmp, vLine)
+
+    ## Labels or anchors
+    if(hasAnchors)
+    {
+      loop(anc, anchorList)
+      {
+        frac <- (anc.value - qdef.min) / (qdef.max - qdef.min)
+        ancY <- vasBottom - frac * vasLength
+        ancLabel <- ""
+        if(PropertyExists(gStrings, anc.label))
+        {
+          ancLabel <- GetProperty(gStrings, anc.label)
+        } else {
+          ancLabel <- anc.label
+        }
+        aLab <- MakeLabel(ancLabel, gVASLabelFont)
+        AddObject(aLab, gWin)
+        Move(aLab, centerX + vasThick/2 + aLab.width/2 + 10, ancY)
+        PushOnEnd(tmp, aLab)
+      }
+    } else {
+      minLab <- MakeLabel(minLabel, gVASLabelFont)
+      AddObject(minLab, gWin)
+      Move(minLab, centerX, vasBottom + 30)
+      PushOnEnd(tmp, minLab)
+
+      maxLab <- MakeLabel(maxLabel, gVASLabelFont)
+      AddObject(maxLab, gWin)
+      Move(maxLab, centerX, vasTop - 30)
+      PushOnEnd(tmp, maxLab)
+    }
+
+    ## Red thumb indicator (horizontal bar for vertical VAS)
+    thumb <- Rectangle(centerX, centerY, vasThick + 10, 5, MakeColor("red"), 1)
+  } else {
+    ## Horizontal: slider runs left (min) to right (max)
+    vasLeft <- centerX - vasLength/2
+    vasRight <- centerX + vasLength/2
+    vasStart <- vasLeft    ## min value at left
+    vasEnd <- vasRight     ## max value at right
+    vasTop <- centerY - vasThick/2
+    vasBottom <- centerY + vasThick/2
+
+    clickBox <- Rectangle(centerX, centerY, vasLength, vasThick, MakeColor("grey60"), 1)
+    AddObject(clickBox, gWin)
+    PushOnEnd(tmp, clickBox)
+
+    ## Tick marks
+    tickSkip <- vasLength / (numTicks - 1)
+    tPos <- vasLeft
+    loop(i, Sequence(1, numTicks, 1))
+    {
+      if(i == 1 or i == Round((numTicks+1)/2) or i == numTicks)
+      {
+        tickLine <- Line(tPos, centerY - 22, 0, 45, MakeColor("white"))
+      } else {
+        tickLine <- Line(tPos, centerY - 15, 0, 30, MakeColor("white"))
+      }
+      AddObject(tickLine, gWin)
+      PushOnEnd(tmp, tickLine)
+      tPos <- tPos + tickSkip
+    }
+
+    ## Center line
+    hLine <- Line(vasLeft, centerY, vasLength, 0, MakeColor("white"))
+    AddObject(hLine, gWin)
+    PushOnEnd(tmp, hLine)
+
+    ## Labels or anchors
+    if(hasAnchors)
+    {
+      loop(anc, anchorList)
+      {
+        frac <- (anc.value - qdef.min) / (qdef.max - qdef.min)
+        ancX <- vasLeft + frac * vasLength
+        ancLabel <- ""
+        if(PropertyExists(gStrings, anc.label))
+        {
+          ancLabel <- GetProperty(gStrings, anc.label)
+        } else {
+          ancLabel <- anc.label
+        }
+        aLab <- MakeLabel(ancLabel, gVASLabelFont)
+        AddObject(aLab, gWin)
+        Move(aLab, ancX, centerY + vasThick/2 + 25)
+        PushOnEnd(tmp, aLab)
+      }
+    } else {
+      minLab <- MakeLabel(minLabel, gVASLabelFont)
+      AddObject(minLab, gWin)
+      Move(minLab, vasLeft, centerY + vasThick/2 + 25)
+      PushOnEnd(tmp, minLab)
+
+      maxLab <- MakeLabel(maxLabel, gVASLabelFont)
+      AddObject(maxLab, gWin)
+      Move(maxLab, vasRight, centerY + vasThick/2 + 25)
+      PushOnEnd(tmp, maxLab)
+    }
+
+    ## Red thumb indicator (vertical bar for horizontal VAS)
+    thumb <- Rectangle(centerX, centerY, 5, vasThick + 10, MakeColor("red"), 1)
   }
 
-  ## Add vertical line
-  vLine <- Line(centerX, vasTop, 0, vasHeight, MakeColor("white"))
-  AddObject(vLine, gWin)
-  PushOnEnd(tmp, vLine)
-
-  ## Add anchor labels (bigger font for visibility)
-  minLab <- MakeLabel(minLabel, gVASLabelFont)
-  AddObject(minLab, gWin)
-  Move(minLab, centerX, vasBottom + 30)
-  PushOnEnd(tmp, minLab)
-
-  maxLab <- MakeLabel(maxLabel, gVASLabelFont)
-  AddObject(maxLab, gWin)
-  Move(maxLab, centerX, vasTop - 30)
-  PushOnEnd(tmp, maxLab)
-
-  ## Add red thumb indicator (initially hidden)
-  thumb <- Rectangle(centerX, centerY, vasWidth + 10, 5, MakeColor("red"), 1)
+  ## Common thumb setup
   AddObject(thumb, gWin)
   Hide(thumb)
+
+  ## Button positions — use footer area since VAS doesn't use it
+  ## Place buttons near bottom of screen for more VAS room
+  if(isVertical)
+  {
+    btnY <- gVideoHeight - 110
+    btnX <- centerX
+    backBtnX <- centerX - 200
+    skipBtnX <- centerX + 100
+  } else {
+    btnY <- gVideoHeight - 110
+    btnX <- centerX
+    backBtnX <- centerX - 200
+    skipBtnX <- centerX + 100
+  }
 
   ## SKIP button for optional questions (shown before slider click)
   isRequired <- IsQuestionRequired(qdef, scaleDef)
   skipBtn <- 0
   if(not isRequired)
   {
-    skipBtn <- MakeSkipButton(centerX + 100, vasBottom + 70)
+    skipBtn <- MakeSkipButton(skipBtnX, btnY)
+  }
+
+  ## BACK button for revisable sections
+  vasBackBtn <- 0
+  if(gCanGoBack)
+  {
+    vasBackBtn <- MakeBackButton(backBtnX, btnY)
   }
 
   Draw()
 
-  ## Wait for initial click on VAS or SKIP
   t1 <- GetTime()
   skipped <- 0
-
-  if(skipBtn != 0)
-  {
-    initialResp <- WaitForClickOnTarget([clickBox, skipBtn.border], [1, "SKIP"])
-    if(initialResp == "SKIP")
-    {
-      skipped <- 1
-    }
-  } else {
-    WaitForClickOnTarget([clickBox], [1])
-  }
-
+  wentBack <- 0
   rawRating <- 0
-  if(not skipped)
+  doneBtn <- 0
+
+  ## If pre-fill provided, bypass first-click and position thumb directly
+  if(prefill != "")
   {
-    ## Get y-coordinate and calculate rating
-    clickY <- Second(gClick)
-
-    ## Convert y-coordinate to 0-20 rating
-    rawRating <- 20 - Round(((clickY - vasTop) / vasHeight) * 20)
-
-    ## Clamp to valid range
-    if(rawRating < 0)
+    prefillNum <- ToNumber(prefill)
+    rawRating <- Round((prefillNum - qdef.min) / (qdef.max - qdef.min) * numSteps)
+    if(rawRating < 0) { rawRating <- 0 }
+    if(rawRating > numSteps) { rawRating <- 20 }
+    if(isVertical)
     {
-      rawRating <- 0
+      thumbPos <- vasBottom - (rawRating / numSteps) * vasLength
+      thumb.y <- thumbPos
+    } else {
+      thumbPos <- vasLeft + (rawRating / numSteps) * vasLength
+      thumb.x <- thumbPos
     }
-    if(rawRating > 20)
-    {
-      rawRating <- 20
-    }
-
-    ## Show thumb at clicked position
-    thumbY <- vasBottom - (rawRating / 20.0) * vasHeight
-    thumb.y <- thumbY
     Show(thumb)
-
-    ## Remove SKIP button once slider is touched (user committed)
     if(skipBtn != 0)
     {
       RemoveObject(skipBtn.border, gWin)
       RemoveObject(skipBtn.label, gWin)
       skipBtn <- 0
     }
-
-    ## Create DONE button
-    doneBtn <- MakeScaleButton("DONE", centerX, vasBottom + 70, 120, 45)
+    doneBtn <- MakeScaleButton("NEXT", btnX, btnY, 150, 50)
     Draw()
+  } else {
+    ## Wait for initial click on VAS, SKIP, or BACK
+    vasInitTargets <- [clickBox]
+    vasInitValues <- [1]
+    if(skipBtn != 0)
+    {
+      PushOnEnd(vasInitTargets, skipBtn.border)
+      PushOnEnd(vasInitValues, "SKIP")
+    }
+    if(vasBackBtn != 0)
+    {
+      PushOnEnd(vasInitTargets, vasBackBtn.border)
+      PushOnEnd(vasInitValues, "BACK")
+    }
+    initialResp <- WaitForClickOnTarget(vasInitTargets, vasInitValues)
+    if(initialResp == "SKIP") { skipped <- 1 }
+    if(initialResp == "BACK") { wentBack <- 1 }
 
-    ## Allow adjustment until DONE is clicked
+    if(not skipped and not wentBack)
+    {
+      ## Get click coordinate and calculate rating based on orientation
+      if(isVertical)
+      {
+        clickCoord <- Second(gClick)
+        rawRating <- numSteps - Round(((clickCoord - vasTop) / vasLength) * numSteps)
+      } else {
+        clickCoord <- First(gClick)
+        rawRating <- Round(((clickCoord - vasLeft) / vasLength) * numSteps)
+      }
+      if(rawRating < 0) { rawRating <- 0 }
+      if(rawRating > numSteps) { rawRating <- 20 }
+
+      if(isVertical)
+      {
+        thumbPos <- vasBottom - (rawRating / numSteps) * vasLength
+        thumb.y <- thumbPos
+      } else {
+        thumbPos <- vasLeft + (rawRating / numSteps) * vasLength
+        thumb.x <- thumbPos
+      }
+      Show(thumb)
+
+      if(skipBtn != 0)
+      {
+        RemoveObject(skipBtn.border, gWin)
+        RemoveObject(skipBtn.label, gWin)
+        skipBtn <- 0
+      }
+      doneBtn <- MakeScaleButton("NEXT", btnX, btnY, 150, 50)
+      Draw()
+    }
+  }
+
+  ## Allow adjustment until DONE is clicked (shared by both normal and prefill paths)
+  if(not skipped and not wentBack)
+  {
     continueLoop <- 1
     while(continueLoop)
     {
-      resp <- WaitForClickOnTarget([doneBtn.border, clickBox], [0, 1])
+      if(vasBackBtn != 0)
+      {
+        resp <- WaitForClickOnTarget([doneBtn.border, clickBox, vasBackBtn.border], [0, 1, "BACK"])
+      } else {
+        resp <- WaitForClickOnTarget([doneBtn.border, clickBox], [0, 1])
+      }
 
       if(resp == 1)
       {
         ## Clicked on VAS - update position
-        clickY <- Second(gClick)
-        rawRating <- 20 - Round(((clickY - vasTop) / vasHeight) * 20)
-
+        if(isVertical)
+        {
+          clickCoord <- Second(gClick)
+          rawRating <- numSteps - Round(((clickCoord - vasTop) / vasLength) * numSteps)
+        } else {
+          clickCoord <- First(gClick)
+          rawRating <- Round(((clickCoord - vasLeft) / vasLength) * numSteps)
+        }
         if(rawRating < 0) { rawRating <- 0 }
-        if(rawRating > 20) { rawRating <- 20 }
-
-        thumbY <- vasBottom - (rawRating / 20.0) * vasHeight
-        thumb.y <- thumbY
+        if(rawRating > numSteps) { rawRating <- 20 }
+        if(isVertical)
+        {
+          thumbPos <- vasBottom - (rawRating / numSteps) * vasLength
+          thumb.y <- thumbPos
+        } else {
+          thumbPos <- vasLeft + (rawRating / numSteps) * vasLength
+          thumb.x <- thumbPos
+        }
         Draw()
+      } elseif(resp == "BACK")
+      {
+        wentBack <- 1
+        continueLoop <- 0
       } else {
         continueLoop <- 0
       }
     }
 
-    RemoveObject(doneBtn.border, gWin)
-    RemoveObject(doneBtn.label, gWin)
+    if(not wentBack)
+    {
+      RemoveObject(doneBtn.border, gWin)
+      RemoveObject(doneBtn.label, gWin)
+    }
   }
 
   t2 <- GetTime()
@@ -3068,9 +5172,14 @@ define DoVAS(qdef, scaleDef)
   {
     resultResp <- "NA"
   } else {
-    ## Convert to question's min-max range
-    rating <- qdef.min + (rawRating / 20.0) * (qdef.max - qdef.min)
-    resultResp <- Round(rating*10)/10
+    if(wentBack)
+    {
+      resultResp <- -1
+    } else {
+      ## Convert to question's min-max range
+      rating <- qdef.min + (rawRating / numSteps) * (qdef.max - qdef.min)
+      resultResp <- Round(rating*10)/10
+    }
   }
 
   ## Cleanup
@@ -3082,8 +5191,24 @@ define DoVAS(qdef, scaleDef)
     RemoveObject(skipBtn.border, gWin)
     RemoveObject(skipBtn.label, gWin)
   }
+  if(vasBackBtn != 0)
+  {
+    RemoveObject(vasBackBtn.border, gWin)
+    RemoveObject(vasBackBtn.label, gWin)
+  }
+  ## doneBtn only persists if wentBack was triggered after thumb placement
+  if(doneBtn != 0 and wentBack)
+  {
+    RemoveObject(doneBtn.border, gWin)
+    RemoveObject(doneBtn.label, gWin)
+  }
 
-  return([resultResp, t2-t1])
+  retVal <- [resultResp, t2-t1]
+  if(wentBack)
+  {
+    retVal <- [-1, 0]
+  }
+  return(retVal)
 }
 
 
@@ -3104,12 +5229,23 @@ define DoVASPage(questions, scaleDef)
   allObjects <- []
   contentTop <- gLayout.stimulusRegion.y + 5
 
+  ## Resolve question head: item-level (qdef.question_head) overrides scale-level
   questionHead <- ""
-  if(PropertyExists(scaleDef, "likert_options"))
+  if(PropertyExists(qdef, "question_head"))
+  {
+    if(PropertyExists(gStrings, qdef.question_head))
+    {
+      questionHead <- GetProperty(gStrings, qdef.question_head)
+    }
+  } elseif(PropertyExists(scaleDef, "likert_options"))
   {
     if(PropertyExists(scaleDef.likert_options, "question_head"))
     {
-      questionHead <- GetProperty(gStrings, scaleDef.likert_options.question_head)
+      headKey <- scaleDef.likert_options.question_head
+      if(PropertyExists(gStrings, headKey))
+      {
+        questionHead <- GetProperty(gStrings, headKey)
+      }
     }
   }
 
@@ -3183,7 +5319,7 @@ define DoVASPage(questions, scaleDef)
     PushOnEnd(ratings, -1)  ## -1 = not yet rated
 
     ## Item label on left (TextBox with word wrap to prevent overflow)
-    itemText <- GetProperty(gStrings, qdef.text_key)
+    itemText <- PipeAnswers(GetProperty(gStrings, qdef.text_key))
     itemLab <- MakeTextBox(itemText, vasItemFont, labelWidth - 10, rowHeight)
     itemLab.isadaptive <- 1
     itemLab.justify <- "RIGHT"
@@ -3228,7 +5364,7 @@ define DoVASPage(questions, scaleDef)
 
   ## DONE button (below all items)
   doneY <- contentTop + numItems * rowHeight + 30
-  doneBtn <- MakeScaleButton("DONE", gVideoWidth / 2, doneY, 120, 45)
+  doneBtn <- MakeScaleButton("NEXT", gVideoWidth / 2, doneY, 150, 50)
   Hide(doneBtn.border)
   Hide(doneBtn.label)
 
@@ -3371,127 +5507,248 @@ define DoVASPage(questions, scaleDef)
   return(resultList)
 }
 
-define DoGrid(qdef, scaleDef)
+define DoGrid(qdef, scaleDef, prefill:"")
 {
   ## Grid/table rating (multiple items, same scale)
-  ## Implementation based on FASCW.pbl pattern
 
-  questionText <- GetProperty(gStrings, qdef.text_key)
-
-  ## Use Layout subheader for instructions
+  questionText <- PipeAnswers(GetProperty(gStrings, qdef.text_key))
   gLayout.subheader.text <- "Click on each row to rate all items"
 
-  ## Get grid options (try old format first, then Scale Builder format)
+  ## Resolve column labels — values are translation keys, look up via gStrings
   optLabels <- []
   numPoints <- 0
 
   if(PropertyExists(qdef, "grid_options"))
   {
-    ## Old format: translation keys in grid_options
+    ## Old format: explicit translation keys in grid_options.labels
     gridOpts <- qdef.grid_options
     numPoints <- gridOpts.points
     loop(labelKey, gridOpts.labels)
     {
-      optText <- GetProperty(gStrings, labelKey)
-      PushOnEnd(optLabels, optText)
+      PushOnEnd(optLabels, GetProperty(gStrings, labelKey))
     }
   } elseif(PropertyExists(qdef, "columns"))
   {
-    ## Scale Builder format: literal text in columns array
+    ## columns array: each element is a translation key
     numPoints <- Length(qdef.columns)
-    optLabels <- qdef.columns  ## Already literal text, no translation needed
+    loop(colKey, qdef.columns)
+    {
+      if(PropertyExists(gStrings, colKey))
+      {
+        PushOnEnd(optLabels, GetProperty(gStrings, colKey))
+      } else {
+        PushOnEnd(optLabels, colKey)
+      }
+    }
   }
 
-  ## Get subitems/rows
+  ## Resolve row labels — values are translation keys, look up via gStrings
+  ## Build optionalRowIdxs (1-based) from optional_rows key list if present
   rowLabels <- []
+  optionalRowIdxs <- []
+  rowKeyList <- []
   if(PropertyExists(qdef, "subitems"))
   {
-    ## Old format: objects with text_key for translation lookup
+    ## Old format: objects with text_key
     loop(subitem, qdef.subitems)
     {
-      itemText <- GetProperty(gStrings, subitem.text_key)
-      PushOnEnd(rowLabels, itemText)
+      PushOnEnd(rowLabels, GetProperty(gStrings, subitem.text_key))
+      PushOnEnd(rowKeyList, subitem.text_key)
     }
   } elseif(PropertyExists(qdef, "rows"))
   {
-    ## Scale Builder format: literal text in rows array
-    rowLabels <- qdef.rows
+    ## rows array: each element is a translation key
+    loop(rowKey, qdef.rows)
+    {
+      if(PropertyExists(gStrings, rowKey))
+      {
+        PushOnEnd(rowLabels, GetProperty(gStrings, rowKey))
+      } else {
+        PushOnEnd(rowLabels, rowKey)
+      }
+      PushOnEnd(rowKeyList, rowKey)
+    }
+  }
+
+  ## Mark optional rows: append "(optional)" to their labels
+  if(PropertyExists(qdef, "optional_rows"))
+  {
+    rowIdx <- 1
+    loop(rk, rowKeyList)
+    {
+      isOpt <- 0
+      loop(optKey, qdef.optional_rows)
+      {
+        if(rk == optKey)
+        {
+          isOpt <- 1
+          break
+        }
+      }
+      if(isOpt)
+      {
+        PushOnEnd(optionalRowIdxs, rowIdx)
+        lbl <- Nth(rowLabels, rowIdx)
+        SetElement(rowLabels, rowIdx, lbl + " (optional)")
+      }
+      rowIdx <- rowIdx + 1
+    }
   }
 
   numItems <- Length(rowLabels)
+  ## Number of required (non-optional) rows
+  numRequired <- numItems - Length(optionalRowIdxs)
 
-  ## Question text at top of stimulus region - larger textbox for wrapped instructions
+  ## Question text
   quesWidth <- gLayout.stimulusRegion.width - 40
-  quesHeight <- 120  ## Increased from 60 to allow for longer instructions
   quesX <- gLayout.stimulusRegion.x + 20
   quesY <- gLayout.stimulusRegion.y + 10
 
-  ques <- MakeTextBox(questionText, gQuestFont, quesWidth, quesHeight)
+  ques <- MakeTextBox(questionText, gQuestFont, quesWidth, 80)
   ques.isadaptive <- 1
   ques.formatted <- 1
   AddObject(ques, gWin)
   Move(ques, quesX, quesY)
 
-  ## First pass: measure all row labels to find widest one
-  itemFont <- MakeFont(gPEBLBaseFont, 0, 18, gTheme.questionText, gTheme.windowBg, 0)
-  maxLabelWidth <- 0
-  labelObjects <- []
+  ## Fonts
+  headerFont <- MakeFont(gPEBLBaseFont, 1, 15, gTheme.questionText, gTheme.windowBg, 0)
+  rowFont    <- MakeFont(gPEBLBaseFont, 0, 17, gTheme.questionText, gTheme.windowBg, 0)
 
-  loop(itemText, rowLabels)
+  ## ── Adaptive grid layout ────────────────────────────────────────────────
+  ##
+  ## Click boxes are a fixed 40×40 square.  Column width is derived from the
+  ## longest column label using a character-width estimate (avoids needing a
+  ## Draw() call to get rendered text heights).
+  ##
+  ## Bold size-15 font: ~9 px per character average.  Add 16 px of horizontal
+  ## padding (8 px each side) and clamp to [minCellW … 250].
+
+  boxSize    <- 40
+  availWidth <- gVideoWidth - 60
+  minLabelW  <- 200
+  minCellW   <- boxSize + 16   ## 56 px: box + 8 px margin each side
+  pxPerChar  <- 9              ## avg char width for bold 15-pt font
+
+  ## Find the longest column label in characters
+  maxColChars <- 1
+  loop(colLbl, optLabels)
   {
-    itemLabel <- MakeLabel(itemText, itemFont)
-    PushOnEnd(labelObjects, itemLabel)
-    if(itemLabel.width > maxLabelWidth)
+    if(StringLength(colLbl) > maxColChars)
     {
-      maxLabelWidth <- itemLabel.width
+      maxColChars <- StringLength(colLbl)
     }
   }
 
-  ## Grid layout configuration - calculate based on label widths
-  rowHeight <- 45
-  colWidth <- 90
-  labelColWidth <- maxLabelWidth + 20  ## Add padding
-  gridWidth <- labelColWidth + (numPoints * colWidth)
+  ## Derive column width; clamp
+  colWidth <- maxColChars * pxPerChar + 16
+  if(colWidth < minCellW) { colWidth <- minCellW }
+  if(colWidth > 250)      { colWidth <- 250 }
 
-  ## Center the entire grid horizontally
-  startX <- (gVideoWidth - gridWidth) / 2
-  startY <- quesY + quesHeight + 60
-
-  ## Create header row with option labels
-  tmp <- [ques]
-  headerFont <- MakeFont(gPEBLBaseFont, 1, 16, gTheme.questionText, gTheme.windowBg, 0)
-
-  loop(i, Sequence(1, numPoints, 1))
+  ## Find the longest row label in characters (size-17 regular font: ~10 px/char)
+  maxRowChars <- 1
+  loop(rowLbl, rowLabels)
   {
-    optLabel <- MakeLabel(Nth(optLabels, i), headerFont)
-    AddObject(optLabel, gWin)
-    Move(optLabel, startX + labelColWidth + i * colWidth, startY - 10)
-    PushOnEnd(tmp, optLabel)
+    if(StringLength(rowLbl) > maxRowChars)
+    {
+      maxRowChars <- StringLength(rowLbl)
+    }
+  }
+  estimatedLabelW <- maxRowChars * 10 + 15
+
+  ## Label column width = estimated need, but bounded by [minLabelW … space after columns]
+  maxAvailLabelW <- availWidth - numPoints * colWidth
+  if(maxAvailLabelW < minLabelW)
+  {
+    ## Columns too wide — shrink colWidth to free up minLabelW for labels
+    labelColWidth <- minLabelW
+    colWidth <- Round((availWidth - minLabelW) / numPoints)
+    if(colWidth < minCellW) { colWidth <- minCellW }
+  } elseif(estimatedLabelW < minLabelW)
+  {
+    labelColWidth <- minLabelW
+  } elseif(estimatedLabelW < maxAvailLabelW)
+  {
+    labelColWidth <- estimatedLabelW
+  } else {
+    labelColWidth <- maxAvailLabelW
   }
 
-  ## Create grid rows using pre-measured labels
-  gridRows <- []
+  totalGridWidth <- labelColWidth + numPoints * colWidth
+  startX <- Round((gVideoWidth - totalGridWidth) / 2)
+
+  ## ── Create header and row-label display objects ──────────────────────────
+  ## Heights are estimated from initial values (adaptive boxes update on Draw)
+  headerObjects <- []
+  loop(optText, optLabels)
+  {
+    hdr <- MakeTextBox(optText, headerFont, colWidth - 16, 22)
+    hdr.isadaptive <- 1
+    hdr.justify <- "CENTER"
+    AddObject(hdr, gWin)
+    RemoveObject(hdr, gWin)
+    PushOnEnd(headerObjects, hdr)
+  }
+
+  rowLabelObjects <- []
+  loop(rowText, rowLabels)
+  {
+    lbl <- MakeTextBox(rowText, rowFont, labelColWidth - 15, 22)
+    lbl.isadaptive <- 1
+    lbl.justify <- "RIGHT"
+    AddObject(lbl, gWin)
+    RemoveObject(lbl, gWin)
+    PushOnEnd(rowLabelObjects, lbl)
+  }
+
+  ## Estimate header row height from column width vs label length:
+  ## if the longest label fits on one line at colWidth, use ~26 px;
+  ## otherwise allow 2 lines (~48 px)
+  singleLinePx <- maxColChars * pxPerChar
+  if(singleLinePx <= colWidth - 16)
+  {
+    headerRowHeight <- 26
+  } else {
+    headerRowHeight <- 48
+  }
+
+  ## Row height: fixed to fit the box with comfortable padding
+  rowHeight <- boxSize + 12
+
+  headerY <- quesY + ques.height + 20
+  startY  <- headerY + headerRowHeight
+
+  ## Place column headers
+  tmp <- [ques]
+  loop(i, Sequence(1, numPoints, 1))
+  {
+    hdr  <- Nth(headerObjects, i)
+    hdrX <- startX + labelColWidth + (i - 1) * colWidth
+    AddObject(hdr, gWin)
+    Move(hdr, hdrX, headerY)
+    PushOnEnd(tmp, hdr)
+  }
+
+  ## Create grid rows
+  gridRows     <- []
   allClickBoxes <- []
 
   loop(itemIdx, Sequence(1, numItems, 1))
   {
-    rowY <- startY + itemIdx * rowHeight
+    ## Vertical center of this row
+    rowY <- startY + Round((itemIdx - 1) * rowHeight + rowHeight / 2)
 
-    ## Item label - right-aligned within label column to abut the grid
-    ## Labels are centered on their coordinates, so we position the center
-    ## such that the right edge is at: startX + labelColWidth - 10
-    itemLabel <- Nth(labelObjects, itemIdx)
-    AddObject(itemLabel, gWin)
-    labelX <- startX + labelColWidth - 10 - (itemLabel.width / 2)
-    Move(itemLabel, labelX, rowY)
-    PushOnEnd(tmp, itemLabel)
+    ## Row label — top-left positioned, vertically centered on rowY
+    lbl <- Nth(rowLabelObjects, itemIdx)
+    AddObject(lbl, gWin)
+    Move(lbl, startX, Round(rowY - lbl.height / 2))
+    PushOnEnd(tmp, lbl)
 
-    ## Create clickable boxes for this row
+    ## Click boxes
     rowBoxes <- []
     loop(optIdx, Sequence(1, numPoints, 1))
     {
-      boxX <- startX + labelColWidth + optIdx * colWidth
-      box <- Rectangle(boxX, rowY, colWidth - 10, rowHeight - 10, MakeColor("grey40"), 0)
+      boxX <- startX + labelColWidth + Round((optIdx - 1) * colWidth + colWidth / 2)
+      box  <- Rectangle(boxX, rowY, boxSize, boxSize, MakeColor("grey40"), 0)
       box.color <- MakeColor("grey60")
       AddObject(box, gWin)
       PushOnEnd(tmp, box)
@@ -3499,13 +5756,12 @@ define DoGrid(qdef, scaleDef)
       PushOnEnd(allClickBoxes, box)
     }
 
-    ## Create selection indicator (initially hidden)
-    indicator <- Rectangle(0, rowY, colWidth - 4, rowHeight - 4, MakeColor("red"), 1)
+    ## Selection indicator (initially hidden, moved on click)
+    indicator <- Rectangle(0, rowY, boxSize, boxSize, MakeColor("darkgreen"), 1)
     AddObject(indicator, gWin)
     Hide(indicator)
     PushOnEnd(tmp, indicator)
 
-    ## Store row data
     rowData <- MakeCustomObject("GridRow")
     rowData.boxes <- rowBoxes
     rowData.indicator <- indicator
@@ -3513,18 +5769,23 @@ define DoGrid(qdef, scaleDef)
     PushOnEnd(gridRows, rowData)
   }
 
-  ## DONE button (initially hidden) - DON'T add to tmp list since it needs separate handling
-  doneY <- startY + (numItems + 2) * rowHeight
-  doneBtn <- MakeScaleButton("DONE", gVideoWidth/2, doneY, 150, 50)
+  ## DONE / SKIP / BACK buttons below grid
+  doneY <- startY + numItems * rowHeight + 30
+  doneBtn <- MakeScaleButton("NEXT", gVideoWidth/2, doneY, 150, 50)
   Hide(doneBtn.border)
   Hide(doneBtn.label)
 
-  ## SKIP button for optional questions
   isRequired <- IsQuestionRequired(qdef, scaleDef)
   skipBtn <- 0
   if(not isRequired)
   {
     skipBtn <- MakeSkipButton(gVideoWidth/2 + 200, doneY)
+  }
+
+  gridBackBtn <- 0
+  if(gCanGoBack)
+  {
+    gridBackBtn <- MakeBackButton(gVideoWidth/2 - 200, doneY)
   }
 
   Draw()
@@ -3533,15 +5794,40 @@ define DoGrid(qdef, scaleDef)
   t1 <- GetTime()
   allDone <- 0
   wasSkipped <- 0
+  wentBack <- 0
   responses <- Repeat(0, numItems)
+
+  ## Pre-fill from previous response (space-separated column indices, one per row)
+  if(prefill != "")
+  {
+    prefillParts <- SplitString(prefill, " ")
+    loop(itemIdx, Sequence(1, numItems, 1))
+    {
+      if(Length(prefillParts) >= itemIdx)
+      {
+        optIdx <- ToNumber(Nth(prefillParts, itemIdx))
+        if(optIdx > 0 and optIdx <= numPoints)
+        {
+          SetElement(responses, itemIdx, optIdx)
+          rowData <- Nth(gridRows, itemIdx)
+          rowData.selectedIdx <- optIdx
+          boxX <- startX + labelColWidth + Round((optIdx - 1) * colWidth + colWidth / 2)
+          rowData.indicator.x <- boxX
+          Show(rowData.indicator)
+        }
+      }
+    }
+    Draw()
+  }
 
   while(not allDone)
   {
-    ## Build click targets (all boxes + done button if all rows rated + skip button)
-    clickTargets <- allClickBoxes
-    clickKeys <- []
+    ## Merge(allClickBoxes, []) produces a value copy so PushOnEnd below
+    ## does not permanently grow allClickBoxes across loop iterations.
+    clickTargets <- Merge(allClickBoxes, [])
+    clickKeys    <- []
 
-    ## Assign keys: item number * 10 + option number
+    ## Keys encode row and column: itemIdx * 100 + optIdx
     loop(itemIdx, Sequence(1, numItems, 1))
     {
       loop(optIdx, Sequence(1, numPoints, 1))
@@ -3550,11 +5836,13 @@ define DoGrid(qdef, scaleDef)
       }
     }
 
-    ## Check if all rows have responses
+    ## Show DONE when all required rows have a response (optional rows may be skipped)
     numResponses <- 0
-    loop(r, responses)
+    loop(rowIdx2, Sequence(1, numItems, 1))
     {
-      if(r > 0)
+      r <- Nth(responses, rowIdx2)
+      isOptRow <- IsMember(rowIdx2, optionalRowIdxs)
+      if(r > 0 or isOptRow)
       {
         numResponses <- numResponses + 1
       }
@@ -3563,7 +5851,7 @@ define DoGrid(qdef, scaleDef)
     if(numResponses == numItems)
     {
       PushOnEnd(clickTargets, doneBtn.border)
-      PushOnEnd(clickKeys, -1)  ## Special key for DONE
+      PushOnEnd(clickKeys, -1)
       Show(doneBtn.border)
       Show(doneBtn.label)
     }
@@ -3571,35 +5859,40 @@ define DoGrid(qdef, scaleDef)
     if(skipBtn != 0)
     {
       PushOnEnd(clickTargets, skipBtn.border)
-      PushOnEnd(clickKeys, -2)  ## Special key for SKIP
+      PushOnEnd(clickKeys, -2)
+    }
+
+    if(gridBackBtn != 0)
+    {
+      PushOnEnd(clickTargets, gridBackBtn.border)
+      PushOnEnd(clickKeys, -3)
     }
 
     Draw()
-
-    ## Wait for click
     clickKey <- WaitForClickOnTarget(clickTargets, clickKeys)
 
     if(clickKey == -2)
     {
-      ## SKIP clicked
       allDone <- 1
       wasSkipped <- 1
+    } elseif(clickKey == -3)
+    {
+      allDone <- 1
+      wentBack <- 1
     } elseif(clickKey == -1)
     {
-      ## DONE clicked
       allDone <- 1
     } else {
-      ## Parse click key to get item and option
+      ## Decode row and column from key
       itemIdx <- Floor(clickKey / 100)
-      optIdx <- clickKey - (itemIdx * 100)
+      optIdx  <- clickKey - (itemIdx * 100)
 
-      ## Update row selection
       rowData <- Nth(gridRows, itemIdx)
       rowData.selectedIdx <- optIdx
       SetElement(responses, itemIdx, optIdx)
 
-      ## Update indicator position
-      boxX <- startX + labelColWidth + optIdx * colWidth
+      ## Move indicator to selected column
+      boxX <- startX + labelColWidth + Round((optIdx - 1) * colWidth + colWidth / 2)
       rowData.indicator.x <- boxX
       Show(rowData.indicator)
     }
@@ -3607,26 +5900,29 @@ define DoGrid(qdef, scaleDef)
 
   t2 <- GetTime()
 
-  ## Build response string (space-separated ratings for data parsing)
+  ## Build space-separated response string
   respString <- ""
   if(wasSkipped)
   {
     respString <- "NA"
   } else {
-    if(Length(responses) > 0)
+    if(not wentBack)
     {
-      respString <- First(responses) + ""
-      if(Length(responses) > 1)
+      if(Length(responses) > 0)
       {
-        loop(i, Sequence(2, Length(responses), 1))
+        respString <- First(responses) + ""
+        if(Length(responses) > 1)
         {
-          respString <- respString + " " + Nth(responses, i)
+          loop(i, Sequence(2, Length(responses), 1))
+          {
+            respString <- respString + " " + Nth(responses, i)
+          }
         }
       }
     }
   }
 
-  ## Cleanup - remove grid elements and DONE button separately
+  ## Cleanup
   RemoveObjects(tmp, gWin)
   RemoveObject(doneBtn.border, gWin)
   RemoveObject(doneBtn.label, gWin)
@@ -3635,9 +5931,19 @@ define DoGrid(qdef, scaleDef)
     RemoveObject(skipBtn.border, gWin)
     RemoveObject(skipBtn.label, gWin)
   }
+  if(gridBackBtn != 0)
+  {
+    RemoveObject(gridBackBtn.border, gWin)
+    RemoveObject(gridBackBtn.label, gWin)
+  }
   gLayout.subheader.text <- ""
 
-  return([respString, t2-t1])
+  retVal <- [respString, t2-t1]
+  if(wentBack)
+  {
+    retVal <- [-1, 0]
+  }
+  return(retVal)
 }
 
 
@@ -3837,10 +6143,10 @@ define GetMulticheckValidationError(qdef, numChecked)
 }
 
 
-define DoShortAnswer(qdef, scaleDef)
+define DoShortAnswer(qdef, scaleDef, prefill:"")
 {
   ## Short text entry - user types response and hits enter
-  questionText <- GetProperty(gStrings, qdef.text_key)
+  questionText <- PipeAnswers(GetProperty(gStrings, qdef.text_key))
 
   isRequired <- IsQuestionRequired(qdef, scaleDef)
 
@@ -3881,6 +6187,24 @@ define DoShortAnswer(qdef, scaleDef)
   AddObject(tb, gWin)
   Move(tb, tbX, tbY)
 
+  ## Hint label just above the text entry box
+  shortHintFont <- MakeFont(gPEBLBaseFont, 0, 20, MakeColor("grey60"), gTheme.windowBg, 0)
+  shortHintLabel <- MakeLabel(gRunnerStrings.type_hint, shortHintFont)
+  AddObject(shortHintLabel, gWin)
+  Move(shortHintLabel, gVideoWidth/2, tbY - 20)
+
+  ## Pre-fill previous answer if returning via Back
+  if(prefill != "")
+  {
+    tb.text <- prefill
+    if(isRequired)
+    {
+      gLayout.subheader.text <- "Previous answer shown. Edit or press Enter to confirm. (Required)"
+    } else {
+      gLayout.subheader.text <- "Previous answer shown. Edit or press Enter to confirm."
+    }
+  }
+
   Draw()
 
   t1 <- GetTime()
@@ -3900,7 +6224,7 @@ define DoShortAnswer(qdef, scaleDef)
   {
     if(hasNumberValidation)
     {
-      resp <- GetNumberInput(tb)
+      resp <- GetNumberInput(tb, prefill)
     } else {
       resp <- GetInput(tb, "<return>")
     }
@@ -3929,17 +6253,19 @@ define DoShortAnswer(qdef, scaleDef)
 
   RemoveObject(ques, gWin)
   RemoveObject(tb, gWin)
+  RemoveObject(shortHintLabel, gWin)
   gLayout.subheader.text <- ""
 
   return([resp, t2-t1])
 }
 
 
-define GetNumberInput(textbox)
+define GetNumberInput(textbox, initialValue:"")
 {
   ## Digit-only input: accepts 0-9, backspace, enter/return
   ## Displays typed digits in the provided textbox
   ## Returns the entered number as a string
+  ## initialValue: pre-fill with a previous response (empty string = no pre-fill)
 
   opts <- ["1","2","3","4","5","6","7","8","9","0",
            "<kp_1>","<kp_2>","<kp_3>","<kp_4>","<kp_5>","<kp_6>",
@@ -3947,7 +6273,8 @@ define GetNumberInput(textbox)
            "<backspace>","<return>","<kp_enter>"]
 
   done <- 0
-  out <- ""
+  out <- initialValue + ""
+  textbox.text <- out
 
   while(not done)
   {
@@ -3983,14 +6310,15 @@ define GetNumberInput(textbox)
 }
 
 
-define DoLongAnswer(qdef, scaleDef)
+define DoLongAnswer(qdef, scaleDef, prefill:"")
 {
-  ## Long text entry with edit/confirm workflow
-  questionText <- GetProperty(gStrings, qdef.text_key)
+  ## Long text entry with edit/confirm workflow.
+  ## Always starts in typing mode so the textbox is immediately active.
+  ## After pressing Enter, transitions to review mode (NEXT / EDIT / BACK).
+  questionText <- PipeAnswers(GetProperty(gStrings, qdef.text_key))
 
   isRequired <- IsQuestionRequired(qdef, scaleDef)
 
-  ## Use Layout subheader for instructions (will change during interaction)
   gLayout.subheader.text <- ""
 
   ## Question text in stimulus region (TextBox placed by upper-left corner)
@@ -4020,91 +6348,205 @@ define DoLongAnswer(qdef, scaleDef)
   }
 
   tbWidth <- 800
-  tbHeight <- gVideoHeight - 470  ## Reduced by 20px to avoid overlap with buttons
+  tbHeight <- gVideoHeight - 510
   tbX <- (gVideoWidth - tbWidth)/2
-  tbY <- quesY + quesHeight + 40  ## Position below question with 40px gap
+  tbY <- quesY + quesHeight + 40
   tb <- MakeTextBox("", gQuestFont, tbWidth, tbHeight)
   AddObject(tb, gWin)
   Move(tb, tbX, tbY)
 
-  ## NEXT and EDIT buttons using MakeScaleButton
+  ## Hint label just above the text entry box (shown only in typing/edit mode)
+  hintFont <- MakeFont(gPEBLBaseFont, 0, 20, MakeColor("grey60"), gTheme.windowBg, 0)
+  hintLabel <- MakeLabel(gRunnerStrings.type_hint, hintFont)
+  AddObject(hintLabel, gWin)
+  Move(hintLabel, gVideoWidth/2, tbY - 20)
+
+  ## NEXT and EDIT buttons
   nextBtn <- MakeScaleButton("NEXT", gVideoWidth/2, gVideoHeight-100, 150, 50)
   editBtn <- MakeScaleButton("EDIT", gVideoWidth/2 + 180, gVideoHeight-100, 150, 50)
 
-  alldone <- 0
-  t1 <- GetTime()
+  ## BACK button for revisable sections
+  longBackBtn <- 0
+  if(gCanGoBack)
+  {
+    longBackBtn <- MakeBackButton(gVideoWidth/2 - 200, gVideoHeight-100)
+  }
 
-  ## Initial display: show instruction, hide NEXT/EDIT buttons
-  gLayout.subheader.text <- "Type response below, and hit enter when finished."
-  Hide(nextBtn.border)
-  Hide(nextBtn.label)
-  Hide(editBtn.border)
-  Hide(editBtn.label)
+  alldone <- 0
+  inReview <- 0  ## 0 = typing mode (GetInput active), 1 = review mode (click targets active)
+  wentBack <- 0
+  t1 <- GetTime()
+  t2 <- t1
+
+  ## Pre-fill previous answer if returning via Back; jump straight to review mode
+  resp <- ""
+  if(prefill != "")
+  {
+    resp <- prefill
+    tb.text <- resp
+    inReview <- 1
+    gLayout.subheader.text <- "Previous answer shown. Click NEXT to confirm or EDIT to change."
+    Show(nextBtn.border)
+    Show(nextBtn.label)
+    Show(editBtn.border)
+    Show(editBtn.label)
+    Hide(hintLabel)
+  } else {
+    ## Always start in typing mode so the textbox is immediately active
+    if(isRequired)
+    {
+      gLayout.subheader.text <- "Type response below, and hit enter when finished."
+    } else {
+      gLayout.subheader.text <- "Type response below and hit enter, or press enter to skip."
+    }
+    Hide(nextBtn.border)
+    Hide(nextBtn.label)
+    Hide(editBtn.border)
+    Hide(editBtn.label)
+    Show(hintLabel)
+  }
   Draw()
 
   while(not alldone)
   {
-    resp <- GetInput(tb, "<return>")
-    t2 <- GetTime()
-
-    ## If required and empty, re-prompt
-    if(isRequired and StringLength(resp) == 0)
+    if(not inReview)
     {
-      gLayout.subheader.text <- "Response required. Please type a response and hit enter."
-      Draw()
-      ## Error stays visible while user edits and hits Enter again
-    } else {
-      ## Run validation before showing NEXT/EDIT
-      valError <- GetValidationError(qdef, resp)
-      if(valError != "")
-      {
-        gLayout.subheader.text <- valError
-        Draw()
-        ## Error stays visible while user edits and hits Enter again
-      } else {
-        gLayout.subheader.text <- "Click NEXT to confirm answer, or EDIT to change answer"
-        Show(nextBtn.border)
-        Show(nextBtn.label)
-        Show(editBtn.border)
-        Show(editBtn.label)
-        Draw()
+      ## Typing mode: keyboard active, mouse inactive
+      resp <- GetInput(tb, "<return>")
+      t2 <- GetTime()
 
-        response <- WaitForClickOnTarget([nextBtn.border, editBtn.border], [1, 2])
-        if(response == 2)
+      if(isRequired and StringLength(resp) == 0)
+      {
+        ## Required and empty: re-prompt, stay in typing mode
+        gLayout.subheader.text <- "Response required. Please type a response and hit enter."
+        Draw()
+      } else {
+        ## Run validation (skip for empty optional — empty is a valid skip)
+        valError <- ""
+        if(StringLength(resp) > 0)
         {
-          ## EDIT clicked: go back to typing mode
-          gLayout.subheader.text <- "Type response below, and hit enter when finished."
-          Hide(nextBtn.border)
-          Hide(nextBtn.label)
-          Hide(editBtn.border)
-          Hide(editBtn.label)
+          valError <- GetValidationError(qdef, resp)
+        }
+        if(valError != "")
+        {
+          gLayout.subheader.text <- valError
           Draw()
         } else {
-          alldone <- 1
+          ## Transition to review mode
+          inReview <- 1
+          if(StringLength(resp) == 0)
+          {
+            gLayout.subheader.text <- "No response entered. Click NEXT to skip, EDIT to type a response."
+          } else {
+            gLayout.subheader.text <- "Click NEXT to confirm answer, or EDIT to change answer."
+          }
+          Show(nextBtn.border)
+          Show(nextBtn.label)
+          Show(editBtn.border)
+          Show(editBtn.label)
+          Hide(hintLabel)
+          Draw()
         }
+      }
+    } else {
+      ## Review mode: mouse active, waiting for NEXT, EDIT, or BACK
+      if(longBackBtn != 0)
+      {
+        response <- WaitForClickOnTarget([nextBtn.border, editBtn.border, longBackBtn.border], [1, 2, 3])
+      } else {
+        response <- WaitForClickOnTarget([nextBtn.border, editBtn.border], [1, 2])
+      }
+      if(response == 2)
+      {
+        ## EDIT clicked: return to typing mode
+        inReview <- 0
+        if(isRequired)
+        {
+          gLayout.subheader.text <- "Type response below, and hit enter when finished."
+        } else {
+          gLayout.subheader.text <- "Type response below and hit enter, or press enter to skip."
+        }
+        Hide(nextBtn.border)
+        Hide(nextBtn.label)
+        Hide(editBtn.border)
+        Hide(editBtn.label)
+        Show(hintLabel)
+        Draw()
+      } elseif(response == 3)
+      {
+        ## BACK clicked
+        wentBack <- 1
+        alldone <- 1
+      } else {
+        ## NEXT clicked — confirmed
+        t2 <- GetTime()
+        alldone <- 1
       }
     }
   }
 
-  RemoveObjects([ques, tb, nextBtn.border, nextBtn.label, editBtn.border, editBtn.label], gWin)
+  RemoveObjects([ques, tb, hintLabel, nextBtn.border, nextBtn.label, editBtn.border, editBtn.label], gWin)
+  if(longBackBtn != 0)
+  {
+    RemoveObject(longBackBtn.border, gWin)
+    RemoveObject(longBackBtn.label, gWin)
+  }
   gLayout.subheader.text <- ""
 
-  return([resp, t2-t1])
+  retVal <- [resp, t2-t1]
+  if(wentBack)
+  {
+    retVal <- [-1, 0]
+  }
+  return(retVal)
 }
 
-define DoMultiChoice(qdef, scaleDef)
+define DoMultiChoice(qdef, scaleDef, prefill:"")
 {
-  ## Multiple choice - click on one option
-  questionText <- GetProperty(gStrings, qdef.text_key)
+  ## Multiple choice - click a row to select, then click NEXT to confirm
+  questionText <- PipeAnswers(GetProperty(gStrings, qdef.text_key))
 
   ## Use Layout subheader for instructions
   gLayout.subheader.text <- "Click on the best answer to the question:"
 
-  ## Question text in stimulus region (TextBox placed by upper-left corner)
+  ## Resolve question head: item-level (qdef.question_head) overrides scale-level
+  questionHead <- ""
+  if(PropertyExists(qdef, "question_head"))
+  {
+    if(PropertyExists(gStrings, qdef.question_head))
+    {
+      questionHead <- GetProperty(gStrings, qdef.question_head)
+    }
+  } elseif(PropertyExists(scaleDef, "likert_options"))
+  {
+    if(PropertyExists(scaleDef.likert_options, "question_head"))
+    {
+      headKey <- scaleDef.likert_options.question_head
+      if(PropertyExists(gStrings, headKey))
+      {
+        questionHead <- GetProperty(gStrings, headKey)
+      }
+    }
+  }
+
+  ## Question text in stimulus region
   boxWidth <- gLayout.stimulusRegion.width - 40
   boxHeight <- 150
   boxX <- gLayout.stimulusRegion.x + 20
   boxY <- gLayout.stimulusRegion.y + 10
+
+  ## Show question head above the item text if present
+  tmp <- []
+  if(questionHead != "" and questionHead != 0)
+  {
+    headBox <- MakeTextBox(questionHead, gHeadFont, boxWidth, 80)
+    headBox.isadaptive <- 1
+    headBox.formatted <- 1
+    AddObject(headBox, gWin)
+    Move(headBox, boxX, boxY)
+    PushOnEnd(tmp, headBox)
+    boxY <- boxY + headBox.height + 5
+  }
 
   ques <- MakeTextBox(questionText, gQuestFont, boxWidth, boxHeight)
   ques.text <- questionText
@@ -4115,108 +6557,284 @@ define DoMultiChoice(qdef, scaleDef)
   Move(ques, boxX, boxY)
 
   ## Build option list from translations
+  ## Options can be plain strings (translation keys) OR objects {text_key, value, ...}
   opts <- []
   loop(opt, qdef.options)
   {
-    ## opt is now a simple string (translation key or literal text)
-    ## Try to get translation; if not found, use the text as-is
-    if(PropertyExists(gStrings, opt))
+    if(IsString(opt))
     {
-      optText <- GetProperty(gStrings, opt)
+      optKey <- opt
+      optResponseVal <- opt
     } else {
-      optText <- opt  ## Use literal text if no translation key exists
+      ## Object format: text_key for display, value for stored response
+      optKey <- opt.text_key
+      if(PropertyExists(opt, "value"))
+      {
+        optResponseVal <- opt.value
+      } else {
+        optResponseVal <- optKey
+      }
     }
-    PushOnEnd(opts, [opt, optText])
+    if(PropertyExists(gStrings, optKey))
+    {
+      optText <- GetProperty(gStrings, optKey)
+    } else {
+      optText <- optKey
+    }
+    PushOnEnd(opts, [optResponseVal, optText])
   }
 
-  ## Create clickable options in stimulus region
-  tmp <- []
+  ## Shuffle options if randomize_options is set
+  if(PropertyExists(qdef, "randomize_options"))
+  {
+    if(qdef.randomize_options)
+    {
+      opts <- Shuffle(opts)
+    }
+  }
+
+  ## Create selectable option rows
+  rowRects <- []   ## full-width border boxes — click targets
+  numHLs <- []     ## small darkgreen squares around number — selection highlight
   rlist <- []
   keylist <- []
-  skip <- 50  ## Increased spacing
+  skip <- 50
   left <- gLayout.stimulusRegion.x + 80
-  top <- boxY + boxHeight + 40  ## Position options below question with 40px gap
+  top <- boxY + ques.height + 40
 
-  ## Create larger font for options
   optionFont <- MakeFont(gPEBLBaseFont, 0, 22, gTheme.questionText, gTheme.windowBg, 0)
+  optionFont.bgcolor.alpha <- 0  ## transparent background so numHL shows through
 
+  numFont <- MakeFont(gPEBLBaseFont, 0, 22, gTheme.questionText, gTheme.windowBg, 0)
+  numFont.bgcolor.alpha <- 0
+
+  ## Row rectangle spans most of the stimulus region width
+  rowWidth <- gLayout.stimulusRegion.width - 60
+  rowCenterX <- gLayout.stimulusRegion.x + 30 + rowWidth / 2
+
+  numOpts <- Length(opts)
   optnum <- 1
   loop(opt, opts)
   {
     optValue <- First(opt)
     optText <- Second(opt)
+    y <- top + (optnum-1)*skip
 
-    ## Make clickable number box (bigger)
-    optLabel <- MakeLabel(optnum + ".", optionFont)
-    AddObject(optLabel, gWin)
-    Move(optLabel, left, top + (optnum-1)*skip)
-    PushOnEnd(tmp, optLabel)
+    ## Small darkgreen highlight square behind the number (shown when selected)
+    numHL <- Rectangle(left, y, skip-5, skip-5, MakeColor("darkgreen"), 0)
+    AddObject(numHL, gWin)
+    PushOnEnd(numHLs, numHL)
 
-    back <- Square(left, top + (optnum-1)*skip, 48, MakeColor("Grey60"), 0)
-    AddObject(back, gWin)
-    PushOnEnd(tmp, back)
-    PushOnEnd(rlist, back)
+    ## Full-width border-only row box (click target, always visible border)
+    rowRect <- Rectangle(rowCenterX, y, rowWidth, skip-5, gTheme.optionBorder, 0)
+    rowRect.color <- gTheme.optionBorder
+    AddObject(rowRect, gWin)
+    PushOnEnd(rowRects, rowRect)
+    PushOnEnd(rlist, rowRect)
+    PushOnEnd(keylist, optnum)
 
-    ## Make option text using adaptive TextBox for better layout
+    ## Number label (drawn on top of numHL)
+    numLabel <- MakeLabel(optnum + ".", numFont)
+    AddObject(numLabel, gWin)
+    Move(numLabel, left, y)
+    PushOnEnd(tmp, numLabel)
+
+    ## Option text
     textWidth <- gLayout.stimulusRegion.width - 200
     text <- MakeTextBox(optText, optionFont, textWidth, skip - 10)
     text.isadaptive <- 1
     AddObject(text, gWin)
-    Move(text, left + 60, top + (optnum-1)*skip - (skip-10)/2)
+    Move(text, left + 50, y - (skip-10)/2)
     PushOnEnd(tmp, text)
 
-    PushOnEnd(keylist, optValue)
     optnum <- optnum + 1
   }
+
+  buttonY <- top + numOpts * skip + 25
+
+  ## NEXT button (hidden until a selection is made)
+  nextBtn <- MakeScaleButton("NEXT", gVideoWidth/2, buttonY, 150, 50)
+  PushOnEnd(tmp, nextBtn.border)
+  PushOnEnd(tmp, nextBtn.label)
 
   ## SKIP button for optional questions
   isRequired <- IsQuestionRequired(qdef, scaleDef)
   skipBtn <- 0
   if(not isRequired)
   {
-    skipBtnY <- top + (optnum - 1) * skip + 25
-    skipBtn <- MakeSkipButton(gVideoWidth/2, skipBtnY)
-    PushOnEnd(rlist, skipBtn.border)
-    PushOnEnd(keylist, "SKIP")
+    skipBtn <- MakeSkipButton(gVideoWidth/2 + 200, buttonY)
+    PushOnEnd(tmp, skipBtn.border)
+    PushOnEnd(tmp, skipBtn.label)
+  }
+
+  ## BACK button for revisable sections
+  mcBackBtn <- 0
+  if(gCanGoBack)
+  {
+    mcBackBtn <- MakeBackButton(gVideoWidth/2 - 200, buttonY)
+    PushOnEnd(tmp, mcBackBtn.border)
+    PushOnEnd(tmp, mcBackBtn.label)
+  }
+
+  ## Pre-fill: find matching option by value key and pre-select it
+  selectedIdx <- 0
+  if(prefill != "")
+  {
+    loop(i, Sequence(1, numOpts, 1))
+    {
+      if(First(Nth(opts, i)) == prefill)
+      {
+        selectedIdx <- i
+      }
+    }
+    if(selectedIdx > 0)
+    {
+      SetSingleSelection(numHLs, selectedIdx)
+    }
+  }
+
+  ## NEXT hidden until a selection is made
+  nextVisible <- 1
+  if(selectedIdx == 0)
+  {
+    Hide(nextBtn.border)
+    Hide(nextBtn.label)
+    nextVisible <- 0
   }
 
   Draw()
 
   t1 <- GetTime()
-  response <- WaitForClickOnTarget(rlist, keylist)
+  continueLoop <- 1
+  wasSkipped <- 0
+  wentBack <- 0
+
+  while(continueLoop)
+  {
+    curTargets <- rlist
+    curKeys <- keylist
+
+    if(selectedIdx > 0)
+    {
+      curTargets <- Merge(curTargets, [nextBtn.border])
+      curKeys <- Merge(curKeys, [-1])
+    }
+
+    if(skipBtn != 0)
+    {
+      curTargets <- Merge(curTargets, [skipBtn.border])
+      curKeys <- Merge(curKeys, [-2])
+    }
+
+    if(mcBackBtn != 0)
+    {
+      curTargets <- Merge(curTargets, [mcBackBtn.border])
+      curKeys <- Merge(curKeys, [-3])
+    }
+
+    clicked <- WaitForClickOnTarget(curTargets, curKeys)
+
+    if(clicked == -1)
+    {
+      continueLoop <- 0
+    } elseif(clicked == -2)
+    {
+      continueLoop <- 0
+      wasSkipped <- 1
+    } elseif(clicked == -3)
+    {
+      continueLoop <- 0
+      wentBack <- 1
+    } else {
+      selectedIdx <- clicked
+      SetSingleSelection(numHLs, selectedIdx)
+
+      Show(nextBtn.border)
+      Show(nextBtn.label)
+      nextVisible <- 1
+      Draw()
+
+      if(gSectionRevisable)
+      {
+        ## Auto-advance: briefly show NEXT then move on
+        Wait(400)
+        continueLoop <- 0
+      }
+    }
+  }
+
   t2 <- GetTime()
 
-  ## Handle SKIP
-  if(response == "SKIP")
+  if(wasSkipped)
   {
     response <- "NA"
+  } elseif(wentBack)
+  {
+    response <- "BACK"
+  } else {
+    response <- First(Nth(opts, selectedIdx))
   }
 
   RemoveObjects(tmp, gWin)
+  RemoveObjects(rowRects, gWin)
+  RemoveObjects(numHLs, gWin)
   RemoveObject(ques, gWin)
-  if(skipBtn != 0)
-  {
-    RemoveObject(skipBtn.border, gWin)
-    RemoveObject(skipBtn.label, gWin)
-  }
   gLayout.subheader.text <- ""
 
-  return([response, t2-t1])
+  retVal <- [response, t2-t1]
+  if(wentBack)
+  {
+    retVal <- [-1, 0]
+  }
+  return(retVal)
 }
 
-define DoMultiCheck(qdef, scaleDef)
+define DoMultiCheck(qdef, scaleDef, prefill:"")
 {
   ## Multiple selection - check all that apply
-  questionText <- GetProperty(gStrings, qdef.text_key)
+  questionText <- PipeAnswers(GetProperty(gStrings, qdef.text_key))
 
   ## Use Layout subheader for instructions
   gLayout.subheader.text <- "Click on all options that apply:"
+
+  ## Resolve question head: item-level (qdef.question_head) overrides scale-level
+  questionHead <- ""
+  if(PropertyExists(qdef, "question_head"))
+  {
+    if(PropertyExists(gStrings, qdef.question_head))
+    {
+      questionHead <- GetProperty(gStrings, qdef.question_head)
+    }
+  } elseif(PropertyExists(scaleDef, "likert_options"))
+  {
+    if(PropertyExists(scaleDef.likert_options, "question_head"))
+    {
+      headKey <- scaleDef.likert_options.question_head
+      if(PropertyExists(gStrings, headKey))
+      {
+        questionHead <- GetProperty(gStrings, headKey)
+      }
+    }
+  }
 
   ## Question text in stimulus region (TextBox placed by upper-left corner)
   boxWidth <- gLayout.stimulusRegion.width - 40
   boxHeight <- 150
   boxX <- gLayout.stimulusRegion.x + 20
   boxY <- gLayout.stimulusRegion.y + 10
+
+  ## Show question head above the item text if present
+  tmp <- []
+  if(questionHead != "" and questionHead != 0)
+  {
+    headBox <- MakeTextBox(questionHead, gHeadFont, boxWidth, 80)
+    headBox.isadaptive <- 1
+    headBox.formatted <- 1
+    AddObject(headBox, gWin)
+    Move(headBox, boxX, boxY)
+    PushOnEnd(tmp, headBox)
+    boxY <- boxY + headBox.height + 5
+  }
 
   ques <- MakeTextBox(questionText, gQuestFont, boxWidth, boxHeight)
   ques.text <- questionText
@@ -4227,27 +6845,48 @@ define DoMultiCheck(qdef, scaleDef)
   Move(ques, boxX, boxY)
 
   ## Build option list from translations
+  ## Options can be plain strings (translation keys) OR objects {text_key, value, ...}
   opts <- []
   loop(opt, qdef.options)
   {
-    ## opt is now a simple string (translation key or literal text)
-    ## Try to get translation; if not found, use the text as-is
-    if(PropertyExists(gStrings, opt))
+    if(IsString(opt))
     {
-      optText <- GetProperty(gStrings, opt)
+      optKey <- opt
+      optResponseVal <- opt
     } else {
-      optText <- opt  ## Use literal text if no translation key exists
+      ## Object format: text_key for display, value for stored response
+      optKey <- opt.text_key
+      if(PropertyExists(opt, "value"))
+      {
+        optResponseVal <- opt.value
+      } else {
+        optResponseVal <- optKey
+      }
     }
-    PushOnEnd(opts, [opt, optText])
+    if(PropertyExists(gStrings, optKey))
+    {
+      optText <- GetProperty(gStrings, optKey)
+    } else {
+      optText <- optKey
+    }
+    PushOnEnd(opts, [optResponseVal, optText])
+  }
+
+  ## Shuffle options if randomize_options is set
+  if(PropertyExists(qdef, "randomize_options"))
+  {
+    if(qdef.randomize_options)
+    {
+      opts <- Shuffle(opts)
+    }
   }
 
   ## Create checkbox options in stimulus region
-  tmp <- []
   rlist <- []
   keylist <- []
   skip <- 50  ## Increased spacing
   left <- gLayout.stimulusRegion.x + 60
-  top <- boxY + boxHeight + 40  ## Position options below question with 40px gap
+  top <- boxY + ques.height + 40  ## Position options below question with 40px gap
 
   ## Create larger font for options
   optionFont <- MakeFont(gPEBLBaseFont, 0, 22, gTheme.questionText, gTheme.windowBg, 0)
@@ -4280,6 +6919,26 @@ define DoMultiCheck(qdef, scaleDef)
   checks <- SubList(rlist, 1, numOpts)  ## Keep copy of just checkbox squares (before adding NEXT button)
   checked <- Repeat(0, numOpts)
 
+  ## Pre-fill: parse pipe-separated option keys and pre-check matching boxes
+  if(prefill != "")
+  {
+    prefillParts <- SplitString(prefill, "|")
+    idx <- 1
+    loop(opt, opts)
+    {
+      optValue <- First(opt)
+      loop(pf, prefillParts)
+      {
+        if(pf == optValue)
+        {
+          SetElement(checked, idx, 1)
+        }
+      }
+      idx <- idx + 1
+    }
+    DrawChecks(checks, checked)
+  }
+
   ## Determine if required
   isRequired <- IsQuestionRequired(qdef, scaleDef)
 
@@ -4298,9 +6957,25 @@ define DoMultiCheck(qdef, scaleDef)
     PushOnEnd(tmp, skipBtn.label)
   }
 
-  ## Hide NEXT button initially if required (show when at least 1 checked)
+  ## BACK button for revisable sections
+  mcBackBtn <- 0
+  if(gCanGoBack)
+  {
+    mcBackBtn <- MakeBackButton(gVideoWidth/2 - 200, buttonY)
+    PushOnEnd(tmp, mcBackBtn.border)
+    PushOnEnd(tmp, mcBackBtn.label)
+  }
+
+  ## Count any pre-filled checks
+  numPreChecked <- 0
+  loop(c, checked)
+  {
+    if(c) { numPreChecked <- numPreChecked + 1 }
+  }
+
+  ## Hide NEXT if required and nothing pre-checked (show when at least 1 checked)
   nextVisible <- 1
-  if(isRequired)
+  if(isRequired and numPreChecked == 0)
   {
     Hide(nextBtn.border)
     Hide(nextBtn.label)
@@ -4312,6 +6987,7 @@ define DoMultiCheck(qdef, scaleDef)
   t1 <- GetTime()
   continueLoop <- 1
   wasSkipped <- 0
+  wentBack <- 0
   while(continueLoop)
   {
     ## Count checked items
@@ -4366,6 +7042,13 @@ define DoMultiCheck(qdef, scaleDef)
       curKeys <- Merge(curKeys, ["SKIP"])
     }
 
+    ## Include BACK button if available
+    if(mcBackBtn != 0)
+    {
+      curTargets <- Merge(curTargets, [mcBackBtn.border])
+      curKeys <- Merge(curKeys, ["BACK"])
+    }
+
     response <- WaitForClickOnTarget(curTargets, curKeys)
 
     if(response == "DONE")
@@ -4383,6 +7066,10 @@ define DoMultiCheck(qdef, scaleDef)
     {
       continueLoop <- 0
       wasSkipped <- 1
+    } elseif(response == "BACK")
+    {
+      continueLoop <- 0
+      wentBack <- 1
     } else {
       ## Clicked on an option, toggle its checked state
       checked <- UpdateChecks(checked, response)
@@ -4398,27 +7085,30 @@ define DoMultiCheck(qdef, scaleDef)
   {
     respString <- "NA"
   } else {
-    respList <- []
-    index <- 1
-    loop(isChecked, checked)
+    if(not wentBack)
     {
-      if(isChecked)
+      respList <- []
+      index <- 1
+      loop(isChecked, checked)
       {
-        optValue <- First(Nth(opts, index))
-        PushOnEnd(respList, optValue)
-      }
-      index <- index + 1
-    }
-
-    ## Join with pipe separator
-    if(Length(respList) > 0)
-    {
-      respString <- First(respList)
-      if(Length(respList) > 1)
-      {
-        loop(i, Sequence(2, Length(respList), 1))
+        if(isChecked)
         {
-          respString <- respString + "|" + Nth(respList, i)
+          optValue <- First(Nth(opts, index))
+          PushOnEnd(respList, optValue)
+        }
+        index <- index + 1
+      }
+
+      ## Join with pipe separator
+      if(Length(respList) > 0)
+      {
+        respString <- First(respList)
+        if(Length(respList) > 1)
+        {
+          loop(i, Sequence(2, Length(respList), 1))
+          {
+            respString <- respString + "|" + Nth(respList, i)
+          }
         }
       }
     }
@@ -4428,7 +7118,12 @@ define DoMultiCheck(qdef, scaleDef)
   RemoveObject(ques, gWin)
   gLayout.subheader.text <- ""
 
-  return([respString, t2-t1])
+  retVal <- [respString, t2-t1]
+  if(wentBack)
+  {
+    retVal <- [-1, 0]
+  }
+  return(retVal)
 }
 
 
@@ -4465,10 +7160,30 @@ define DrawChecks(boxes, states)
   }
 }
 
-define DoInstructions(qdef)
+
+define SetSingleSelection(boxes, selectedIdx)
+{
+  ## Highlight the box at selectedIdx (1-based), clear fill on all others.
+  ## Used for Likert and MultiChoice select-then-NEXT pattern.
+  idx <- 1
+  loop(box, boxes)
+  {
+    if(idx == selectedIdx)
+    {
+      box.filled <- 1
+    } else {
+      box.filled <- 0
+    }
+    idx <- idx + 1
+  }
+}
+
+
+define DoInstructions(qdef, prefill:"")
 {
   ## Instruction screen (no response required, just click to continue)
-  questionText <- GetProperty(gStrings, qdef.text_key)
+  gLayout.subheader.text <- ""
+  questionText <- PipeAnswers(GetProperty(gStrings, qdef.text_key))
 
   ## Calculate dimensions using layout zones
   boxWidth <- gLayout.stimulusRegion.width - 100
@@ -4483,10 +7198,24 @@ define DoInstructions(qdef)
   buttonY <- gLayout.zones.response.y + gLayout.zones.response.height/2
   nextButton <- MakeScaleButton("NEXT", gVideoWidth/2, buttonY, 200, 60)
 
+  ## BACK button for revisable sections
+  backBtn <- 0
+  if(gCanGoBack)
+  {
+    backBtn <- MakeBackButton(gVideoWidth/2 - 170, buttonY)
+  }
+
   Draw()
 
   t1 <- GetTime()
-  WaitForClickOnTarget([nextButton.border], [1])
+  clickTargets <- [nextButton.border]
+  clickValues <- [1]
+  if(backBtn != 0)
+  {
+    PushOnEnd(clickTargets, backBtn.border)
+    PushOnEnd(clickValues, "BACK")
+  }
+  resp <- WaitForClickOnTarget(clickTargets, clickValues)
   t2 <- GetTime()
 
   ## Cleanup
@@ -4494,8 +7223,18 @@ define DoInstructions(qdef)
   RemoveObject(instBox.textbox, gWin)
   RemoveObject(nextButton.border, gWin)
   RemoveObject(nextButton.label, gWin)
+  if(backBtn != 0)
+  {
+    RemoveObject(backBtn.border, gWin)
+    RemoveObject(backBtn.label, gWin)
+  }
 
-  return([0, t2-t1])  ## No response value for instructions
+  retVal <- [0, t2-t1]  ## No response value for instructions
+  if(resp == "BACK")
+  {
+    retVal <- [-1, 0]
+  }
+  return(retVal)
 }
 
 
@@ -4503,13 +7242,14 @@ define DoInstructions(qdef)
 ## IMAGE QUESTION TYPE (Display image with description, NEXT to continue)
 ##############################################################################
 
-define DoImage(qdef)
+define DoImage(qdef, prefill:"")
 {
   ## Display image with descriptive text and NEXT button
   ## Based on survey.pbl Image() function but adapted to ScaleRunner layout
+  gLayout.subheader.text <- ""
 
   ## Get question text from translations
-  questionText <- GetProperty(gStrings, qdef.text_key)
+  questionText <- PipeAnswers(GetProperty(gStrings, qdef.text_key))
 
   ## Get image filename from question definition
   imageFile <- qdef.image_file
@@ -4562,11 +7302,25 @@ define DoImage(qdef)
   buttonY <- gLayout.zones.response.y + gLayout.zones.response.height/2
   nextButton <- MakeScaleButton("NEXT", gVideoWidth/2, buttonY, 200, 60)
 
+  ## BACK button for revisable sections
+  imgBackBtn <- 0
+  if(gCanGoBack)
+  {
+    imgBackBtn <- MakeBackButton(gVideoWidth/2 - 170, buttonY)
+  }
+
   Draw()
 
-  ## Wait for NEXT click
+  ## Wait for NEXT or BACK click
   t1 <- GetTime()
-  WaitForClickOnTarget([nextButton.border], [1])
+  imgClickTargets <- [nextButton.border]
+  imgClickValues <- [1]
+  if(imgBackBtn != 0)
+  {
+    PushOnEnd(imgClickTargets, imgBackBtn.border)
+    PushOnEnd(imgClickValues, "BACK")
+  }
+  imgResp <- WaitForClickOnTarget(imgClickTargets, imgClickValues)
   t2 <- GetTime()
 
   ## Cleanup
@@ -4574,8 +7328,18 @@ define DoImage(qdef)
   RemoveObject(ques, gWin)
   RemoveObject(nextButton.border, gWin)
   RemoveObject(nextButton.label, gWin)
+  if(imgBackBtn != 0)
+  {
+    RemoveObject(imgBackBtn.border, gWin)
+    RemoveObject(imgBackBtn.label, gWin)
+  }
 
-  return(["NA", t2-t1])  ## No response value for image display
+  retVal <- ["NA", t2-t1]  ## No response value for image display
+  if(imgResp == "BACK")
+  {
+    retVal <- [-1, 0]
+  }
+  return(retVal)
 }
 
 
@@ -4583,13 +7347,13 @@ define DoImage(qdef)
 ## IMAGE WITH TEXT RESPONSE (Display image + collect text response)
 ##############################################################################
 
-define DoImageResponse(qdef, scaleDef)
+define DoImageResponse(qdef, scaleDef, prefill:"")
 {
   ## Display image with text entry field and edit/confirm workflow
   ## Based on survey.pbl Image() function with collectresponses=1
 
   ## Get question text from translations
-  questionText <- GetProperty(gStrings, qdef.text_key)
+  questionText <- PipeAnswers(GetProperty(gStrings, qdef.text_key))
 
   isRequired <- IsQuestionRequired(qdef, scaleDef)
 

@@ -13450,14 +13450,16 @@ void LauncherUI::TestCurrentScale()
             fs::remove_all(tempDir);
         }
 
-        // Create temp directory structure matching ScaleRunner's expected layout:
+        // Create temp directory structure:
         //   {tempDir}/
         //     {scaleCode}.pbl       <- ScaleRunner.pbl (renamed)
-        //     definitions/          <- {scaleCode}.json
+        //     {scaleCode}/          <- {scaleCode}.osd (OSD bundle, for ScaleRunner)
+        //     definitions/          <- {scaleCode}.json (for SyncScaleSchema params generation)
         //     translations/         <- {scaleCode}.{lang}.json
         //     params/               <- parameter file
         //     data/                 <- output
         fs::create_directories(tempDir);
+        fs::create_directories(tempDir + "/" + scaleCode);
         fs::create_directories(tempDir + "/definitions");
         fs::create_directories(tempDir + "/translations");
         fs::create_directories(tempDir + "/params");
@@ -13477,9 +13479,16 @@ void LauncherUI::TestCurrentScale()
         fs::copy_file(scaleRunnerSource, scaleRunnerDest, fs::copy_options::overwrite_existing);
         printf("Copied ScaleRunner.pbl\n");
 
-        // Export scale definition to definitions/ and translations to translations/
+        // Export OSD bundle (used by ScaleRunner at runtime)
+        if (!mCurrentScale->ExportToOSD(tempDir + "/" + scaleCode)) {
+            printf("Warning: Failed to export OSD bundle (non-fatal)\n");
+        } else {
+            printf("Exported OSD bundle\n");
+        }
+
+        // Export split JSON (used by SyncScaleSchema for params generation)
         if (!mCurrentScale->ExportToJSON(tempDir + "/definitions", tempDir + "/translations")) {
-            printf("Error: Failed to export scale files\n");
+            printf("Error: Failed to export scale JSON files\n");
             return;
         }
 

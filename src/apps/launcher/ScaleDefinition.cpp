@@ -676,7 +676,8 @@ bool ScaleDefinition::ParseDefinitionFromJSON(const json& j)
                         NormThreshold nt;
                         if (t.contains("min")) nt.min = t["min"].get<double>();
                         if (t.contains("max")) nt.max = t["max"].get<double>();
-                        if (t.contains("label")) nt.label = t["label"].get<std::string>();
+                        if (t.contains("label_key")) nt.label = t["label_key"].get<std::string>();
+                        else if (t.contains("label")) nt.label = t["label"].get<std::string>();
                         ds.norms.push_back(nt);
                     }
                 }
@@ -709,7 +710,8 @@ bool ScaleDefinition::ParseDefinitionFromJSON(const json& j)
                         NormThreshold nt;
                         if (t.contains("min")) nt.min = t["min"].get<double>();
                         if (t.contains("max")) nt.max = t["max"].get<double>();
-                        if (t.contains("label")) nt.label = t["label"].get<std::string>();
+                        if (t.contains("label_key")) nt.label = t["label_key"].get<std::string>();
+                        else if (t.contains("label")) nt.label = t["label"].get<std::string>();
                         cv.norms.push_back(nt);
                     }
                 }
@@ -1109,7 +1111,7 @@ bool ScaleDefinition::BuildDefinitionJSONObject(json& outJSON) const
                 if (!ds.norms.empty()) {
                     nlohmann::json thresholdsArr = nlohmann::json::array();
                     for (const auto& t : ds.norms) {
-                        thresholdsArr.push_back({{"min", t.min}, {"max", t.max}, {"label", t.label}});
+                        thresholdsArr.push_back({{"min", t.min}, {"max", t.max}, {"label_key", t.label}});
                     }
                     sj["norms"] = {{"thresholds", thresholdsArr}};
                 }
@@ -1138,7 +1140,7 @@ bool ScaleDefinition::BuildDefinitionJSONObject(json& outJSON) const
                 if (!cv.norms.empty()) {
                     nlohmann::json thresholdsArr = nlohmann::json::array();
                     for (const auto& t : cv.norms) {
-                        thresholdsArr.push_back({{"min", t.min}, {"max", t.max}, {"label", t.label}});
+                        thresholdsArr.push_back({{"min", t.min}, {"max", t.max}, {"label_key", t.label}});
                     }
                     cvj["norms"] = {{"thresholds", thresholdsArr}};
                 }

@@ -23,18 +23,24 @@
 
   gScriptName <- "Pattern comparison--same/diff"
 
+  ## Initialize upload system
+  InitializeUpload()
+
   parpairs <- [["similarfoil",1], ##should foil be similar to target
-               ["foildiff",3], #Number of changes between target and foil
                ["size",4],
- 	       ["givefeedback",1],
- 	       ["condsize",10],
-	       ["deadline",1500]
-              ]
+ 	           ["givefeedback",1],
+ 	           ["condsize",10],
+	           ["deadline",1500],
+	           ["offset",200],  ##horizontal offset from center (pixels)
+               ["responsemode","spacebar"]]
 
   gParams <- CreateParameters(parpairs,gParamFile)
 
+  ## Go/no-go: press to respond, withhold to not respond
+  gParams.responsesemantics <- "gonogo"
+
   gSimilarFoil <- gParams.similarfoil
-  gfoildiff    <- gParams.foildiff
+  gOffset <- gParams.offset
 
   gSize <- gParams.size  #Number of rows/columns in the matrix
   giveFeedback <- gParams.givefeedback
@@ -60,6 +66,11 @@
 
   GetStrings(gLanguage)
 
+  ## Create layout
+  gLayout <- CreateLayout("pattcomp-samediff", gWin, gParams)
+  gLayout.header.text <- gStrings.header
+  InitializeLSL(gWin)
+
   gbackground  <-  MakeColor("navyblue")
   gDotColor    <-  MakeColor("white")
 
@@ -71,13 +82,15 @@
   gInstsame <- gStrings.footersame
   gInstdiff <- gStrings.footerdiff
 
-  gFooter <- EasyLabel(gInstSame,gVideoWidth/2,gVideoHeight-120,gWin,24)
+  ##Update the response label to show block-specific instruction
+  gResponseLabel <- First(gLayout.responseLabels)
+  gResponseLabel.text <- gInstSame
 
   gFontcorr <- MakeFont(gPEBLBaseFont,0,40,MakeColor("green"),MakeColor("grey"),0)
   gFontinc <-MakeFont(gPEBLBaseFont,0,40,MakeColor("red"),MakeColor("grey"),0)
   gFeedback <- MakeLabel("",gFontcorr)
   AddObject(gFeedback,gWin)
-  Move(gFeedback,gVideoWidth/2,gVideoHeight/2)
+  Move(gFeedback,gLayout.centerX,gLayout.centerY)
   Hide(gFeedback)
 
   ##Provide initial instructions
@@ -99,18 +112,30 @@
   Hide(gInst)
   Draw()
 
+  ## LSL marker: experiment start
+  LSLMarker("PATTCOMP_SD_START")
 
   RunBlock(1,condSame,"s")
   gInst.text <- gStrings.instmid
 
   Show(gInst)
   Draw()
-  gFooter.text <- gInstDiff
+  gResponseLabel.text <- gInstDiff
   WaitForAnyKeyPress()
   Hide(gInst)
 
   Draw()
   RunBlock(2,condDiff,"d")
+
+  ## LSL marker: experiment end
+  LSLMarker("PATTCOMP_SD_END")
+
+  ## Close and upload
+  FileClose(gFileOut)
+  settingsfile <- "/upload.json"
+  UploadFile(gSubNum, gFileOut.filename, settingsfile)
+
+  FinalizeLSL()
 
   gInst.text <- gStrings.debrief
   Show(gInst)
@@ -124,6 +149,7 @@
 define RunBlock(block,conds,lab)
 {
 
+  totalTrials <- Length(conds)
   trial <- 1
   loop(cond,conds)
    {
@@ -131,6 +157,8 @@ define RunBlock(block,conds,lab)
    stimcond <- First(cond)
    respcond <- Nth(cond,2)
    diff <- Nth(cond,3)
+
+   gLayout.subheader.text <- "Block " + block + " of 2, Trial " + trial + " of " + totalTrials
 
    startTime <- GetTime()
    ##Create test matrix
@@ -162,41 +190,36 @@ define RunBlock(block,conds,lab)
  ##Present the study matrix
     if(lab == "s")
     {
-       gFooter.text <- gInstSame
+       gResponseLabel.text <- gInstSame
     } else {
-       gFooter.text <- gInstDiff
+       gResponseLabel.text <- gInstDiff
 
     }
 
     x <- DisplayMatrices(matrix,alt)
     Draw()
     t1 <- GetTime()
-    resp <- WaitForListKeyPressWithTimeout([" "],gDeadline,1)
+    resp <- WaitForLayoutResponse(gLayout, gDeadline)
     t2 <- GetTime()
 
-
-    responded <- not (resp=="<timeout>")
+    responded <- not (resp == "<timeout>")
     if(respcond == "s")
     {
       ##Response condition is "same": only respond when same
-
        corr <- ((not responded) and stimcond == "diff") or
                ( responded and stimcond == "same")
-
     } else {
-      ##Response condition is "different' only respond when different.
-
+      ##Response condition is "different": only respond when different
        corr <- ((not responded) and stimcond == "same") or
                (responded and stimcond == "diff")
     }
 
-
-    if(IsList(resp))
-     {
-       respcode <- "timeout"
-     } else {
-       respcode <- "X"
-     }
+    if(responded)
+    {
+      respcode <- "respond"
+    } else {
+      respcode <- "timeout"
+    }
 
 
     FilePrint(gFileOut, starttime + "," + (t2-t1) + "," + respcode + "," + corr)
@@ -235,9 +258,9 @@ define DisplayMatrices(mat,mat2)
    xcells <- Length(mat)
    ycells <- Length(First(mat))
 
-   x1center <- gVideoWidth/4
-   x2center <- gVideoWidth-x1center
-   ycenter <- gVideoHeight/2
+   x1center <- gLayout.centerX - gOffset
+   x2center <- gLayout.centerX + gOffset
+   ycenter <- gLayout.centerY
 
    xsize <- 200
    ysize <- 200
@@ -438,6 +461,6 @@ define MatrixEqual(m1,m2)
 
 define GetStrings(lang)
 {
-  gStrings <- GetTranslations("pattern-samediff",lang)
+  gStrings <- GetTranslations("pattcomp-samediff",lang)
   
 }

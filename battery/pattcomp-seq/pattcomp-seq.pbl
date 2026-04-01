@@ -22,19 +22,24 @@
 {
 
   gScriptName <- "Pattern comparison-sequential"
+
+  ## Initialize upload system
+  InitializeUpload()
+
   parpairs <- [["similarfoil",1], ##should foil be similar to target
-               ["foildiff",3], #Number of changes between target and foil
                ["size",4],
- 	       ["givefeedback",1],
- 	       ["condsize",30],
-	       ["prestime",1500],
-	       ["delay",3500]
-              ]
+ 	           ["givefeedback",1],
+ 	           ["condsize",10],
+	           ["prestime",1500],
+	           ["delay",3500],
+               ["responsemode","auto"]]
 
   gParams <- CreateParameters(parpairs,gParamFile)
 
+  ## 2AFC: same vs different
+  gParams.responsesemantics <- ["same","different"]
+
   gSimilarFoil <- gParams.similarfoil
-  gfoildiff    <- gParams.foildiff
 
   gSize <- gParams.size  #Number of rows/columns in the matrix
   giveFeedback <- gParams.givefeedback
@@ -57,64 +62,80 @@
 
   GetStrings(gLanguage)
 
+  ## Create layout with response system
+  gLayout <- CreateLayout("pattcomp-seq", gWin, gParams)
+  gLayout.header.text <- gStrings.header
+  InitializeLSL(gWin)
+
   gbackground  <-  MakeColor("darkblue")
   gDotColor    <-  MakeColor("white")
 
   gFileOut <- GetNewDataFile(gSubNum,gWin,"patcompseq","csv",
-           "subnum,trial,samediff,mat1,mat2,abstime,rt,resp,corr")
+           "subnum,trial,samediff,delta,mat1,mat2,abstime,rt,resp,corr")
 
 
   instruc <- gStrings.inst1seq
 
   inst2 <- gStrings.footer
-  gFooter <- EasyLabel(inst2,gVideoWidth/2,gVideoHeight-120,gWin,24)
+  gFooter <- EasyLabel(inst2,gLayout.centerX,gVideoHeight-120,gWin,24)
 
   gFontcorr <- MakeFont(gPEBLBaseFont,0,40,MakeColor("green"),MakeColor("black"),0)
   gFontinc <-MakeFont(gPEBLBaseFont,0,40,MakeColor("red"),MakeColor("black"),0)
   gFeedback <- MakeLabel("",gFontcorr)
   AddObject(gFeedback,gWin)
-  Move(gFeedback,gVideoWidth/2,gVideoHeight/2)
+  Move(gFeedback,gLayout.centerX,gLayout.centerY)
   Hide(gFeedback)
 
   ##Provide initial instructions
   inst <- EasyTextBox(instruc,50,50,gWin,16,gVideoWidth-100,gVideoHeight-200)
   Draw()
 
-  conds <- Shuffle(Merge(Repeat("same",condsize),
-                          Repeat("diff",condsize)))
+  ##condsize trials per diff level, plus equal number of same trials
+  conds <- Shuffle(Transpose([Merge(Repeat("same",condsize*3),
+                                    Repeat("diff",condsize*3)),
+                              RepeatList([1,2,3],condsize*2)]))
+
+  totalTrials <- Length(conds)
   WaitForAnyKeyPress()
   Hide(inst)
   Draw()
 
-
+  ## LSL marker: experiment start
+  LSLMarker("PATTCOMP_SEQ_START")
 
   trial <- 1
   loop(cond,conds)
    {
+
+   stimcond <- First(cond)
+   diff <- Nth(cond,2)
+
+   gLayout.subheader.text <- "Trial " + trial + " of " + totalTrials
 
    startTime <- GetTime()
    ##Create test matrix
 
    if(gSimilarFoil)
      {
-        mats <- MakeMatrices(gFoilDiff)
+        mats <- MakeMatrices(diff)
         matrix <- First(mats)
         foil <- Nth(mats,2)
      } else {
         matrix <- MakeMatrix()
-        foil <- MakeFoil(matrtix)
+        foil <- MakeFoil(matrix)
      }
 
 
-   if(cond == "same")
+   if(stimcond == "same")
    {
       alt <- matrix
+      diff <- 0
    } else {
       alt <- foil
    }
 
 
-   FilePrint_(gFileOut,gsubnum + "," + trial + "," + cond + ","  )
+   FilePrint_(gFileOut,gsubnum + "," + trial + "," + stimcond + "," + diff + ","  )
    FilePrint_(gFileOut,ListToString(Flatten(matrix))+ ",")
    FilePrint_(gFileOut,ListToString(Flatten(alt))+ ",")
 
@@ -130,12 +151,12 @@
     x <- DisplayMatrix(alt)
     Draw()
     t1 <- GetTime()
-    resp <- WaitForListKeyPress(["<lshift>","<rshift>"])
+    resp <- WaitForLayoutResponse(gLayout)
     t2 <- GetTime()
     RemoveComplex(x,gWin)
     Draw()
 
-    corr <- (resp == Lookup(cond,["same","diff"],["<lshift>","<rshift>"]))
+    corr <- (resp == Lookup(stimcond,["same","diff"],["same","different"]))
     FilePrint(gFileOut, starttime + "," + (t2-t1) + "," + resp + "," + corr)
 
     if(giveFeedback)
@@ -157,11 +178,21 @@
 
      Hide(gFeedback)
      Draw()
-     Wait(100)
+     Wait(250)
     }
     trial <- trial +1
    }
 
+
+  ## LSL marker: experiment end
+  LSLMarker("PATTCOMP_SEQ_END")
+
+  ## Close and upload
+  FileClose(gFileOut)
+  settingsfile <- "/upload.json"
+  UploadFile(gSubNum, gFileOut.filename, settingsfile)
+
+  FinalizeLSL()
 
   inst.text <- gStrings.debrief
   Show(inst)
@@ -178,8 +209,8 @@ define DisplayMatrix(mat)
    xcells <- Length(mat)
    ycells <- Length(First(mat))
 
-   xcenter <- gVideoWidth/2
-   ycenter <- gVideoHeight/2
+   xcenter <- gLayout.centerX
+   ycenter <- gLayout.centerY
 
    xsize <- 200
    ysize <- 200
@@ -355,6 +386,6 @@ define MatrixEqual(m1,m2)
 
 define GetStrings(lang)
 {
-  gStrings <- GetTranslations("pattern-sequential",lang)
+  gStrings <- GetTranslations("pattcomp-seq",lang)
   
 }

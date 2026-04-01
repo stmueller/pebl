@@ -1,0 +1,238 @@
+#####################################################################
+## Spatial Cueing (Posner) Task
+## Part of the PEBL Test Battery
+#####################################################################
+define Start(par)
+{
+    gScriptName <- "PEBL Spatial Cueing (Posner) Task"
+
+    ## Initialize upload system
+    InitializeUpload()
+
+    parPairs <- [["numValid",15],
+                 ["numInvalid",5],
+                 ["numNeutral",5],
+                 ["fontsize",22],
+                 ["reps",4],
+                 ["responsemode","auto"]]
+
+    gParams <- CreateParameters(parpairs, gParamFile)
+
+    ## Simple RT — any key to respond (no layout response system needed)
+    gParams.responsesemantics <- "none"
+
+    gWin <- MakeWindow("black")
+    if(gSubNum + "" == "0")
+    {
+      gSubNum <- GetSubNum(gWin)
+    }
+
+    GetStrings(gLanguage)
+
+    ## Create layout
+    gLayout <- CreateLayout("spatialcueing", gWin, gParams)
+    gLayout.header.text <- gStrings.header
+    InitializeLSL(gWin)
+    Draw()
+
+    gFileOut <- GetNewDataFile(gSubNum, gWin, "spatialcueing", "csv",
+          "subnum,trial,cue,stim,correct,delay,rt")
+
+    ## Stimulus setup
+    font <- MakeFont(gPEBLBaseFontMono, 0, gParams.fontsize, MakeColor("white"), MakeColor("black"), 0)
+    gLabel <- MakeLabel("", font)
+    gStimLabel <- MakeLabel("X", font)
+
+    ShowCursor(0)
+    gHomeX <- gLayout.centerX
+    gHomeY <- gLayout.centerY
+
+    AddObject(gLabel, gWin)
+    Move(gLabel, gHomeX, gHomeY)
+    AddObject(gStimLabel, gWin)
+    Hide(gStimLabel)
+
+    ## Build trial sequence
+    leftC <- gParams.numValid
+    leftI <- gParams.numInvalid
+    leftN <- gParams.numNeutral
+    rightC <- gParams.numValid
+    rightI <- gParams.numInvalid
+    rightN <- gParams.numNeutral
+
+    stim <- Merge(Repeat(-1, leftC + leftI + leftN),
+                  Repeat(1, rightC + rightI + rightN))
+
+    cues <- Flatten([Repeat(-1, leftC), Repeat(0, leftN), Repeat(1, leftI),
+                     Repeat(-1, rightI), Repeat(0, rightN), Repeat(1, rightC)])
+
+    stim1 <- Transpose([stim, cues])
+    stim2 <- RepeatList(stim1, gParams.reps)
+    stimSequence <- Shuffle(stim2)
+
+    numTrials <- Length(stimSequence)
+    pct <- Round(100 * ((rightC + leftC) / (leftC + leftI + rightC + rightI)))
+
+    ## Instructions
+    tmp <- ReplaceChar(gStrings.inst, "<TRIALS>", numTrials)
+    tmp <- ReplaceChar(tmp, "<PERCENT>", pct)
+    MessageKeyBox(tmp)
+
+    ## LSL marker: experiment start
+    LSLMarker("SPATIALCUEING_START")
+
+    ## Present trials
+    corr <- []
+    rts <- []
+    trialnum <- 1
+
+    loop(i, stimSequence)
+    {
+       gLayout.header.text <- gStrings.header + " - Trial " + trialnum + " of " + numTrials
+
+       FilePrint_(gFileOut, gSubNum + "," + trialnum + ",")
+       time <- Trial(First(i), Nth(i, 2))
+       corr <- Append(corr, First(i) * Nth(i, 2))
+       rts <- Append(rts, time)
+       trialnum <- trialnum + 1
+    }
+
+    ## LSL marker: experiment end
+    LSLMarker("SPATIALCUEING_END")
+
+    ## Generate report
+    cond <- Transpose(stimSequence)
+    report <- FileOpenWrite("data/" + gSubNum + "/spatialcueing-report-" + gSubNum + ".txt")
+
+    FilePrint(report, "---------------------------------------------------")
+    FilePrint(report, " Report for PEBL's Spatial Cueing Task")
+    FilePrint(report, " (Posner Cueing Paradigm)")
+    FilePrint(report, " " + GetPEBLVersion())
+    FilePrint(report, " " + TimeStamp())
+    FilePrint(report, " Participant Code: " + gSubNum)
+    FilePrint(report, "---------------------------------------------------")
+
+    valid <- SummaryStats(rts, corr)
+
+    FilePrint(report, "RT stats by Validity Condition")
+    FilePrint(report, "Cond         N median mean sd")
+    FilePrint(report, "-----------------------")
+    FilePrint_(report, "Invalid ")
+    FilePrintList(report, First(valid))
+    FilePrint_(report, "Neutral ")
+    FilePrintList(report, Nth(valid, 2))
+    FilePrint_(report, "Valid   ")
+    FilePrintList(report, Nth(valid, 3))
+
+    stimdir <- SummaryStats(rts, First(cond))
+    FilePrint(report, CR(2))
+    FilePrint(report, "RT stats by Stimulus Location")
+    FilePrint(report, "Cond           N median mean sd")
+    FilePrint(report, "-----------------------")
+    FilePrint_(report, "Left     ")
+    FilePrintList(report, First(stimdir))
+    FilePrint_(report, "Right    ")
+    FilePrintList(report, Nth(stimdir, 2))
+
+    cuedir <- SummaryStats(rts, Nth(cond, 2))
+
+    FilePrint(report, CR(2))
+    FilePrint(report, "RT stats by Cue Direction")
+    FilePrint(report, "Cond          N median mean sd")
+    FilePrint(report, "-----------------------")
+    FilePrint_(report, "Left    ")
+    FilePrintList(report, First(cuedir))
+    FilePrint_(report, "Neutral ")
+    FilePrintList(report, Nth(cuedir, 2))
+    FilePrint_(report, "Right   ")
+    FilePrintList(report, Nth(cuedir, 3))
+    FilePrint(report, "------------------------------------------------")
+
+    ## Close and upload
+    FileClose(gFileOut)
+    FileClose(report)
+
+    settingsfile <- "/upload.json"
+    UploadFile(gSubNum, gFileOut.filename, settingsfile)
+    UploadFile(gSubNum, report.filename, settingsfile)
+
+    FinalizeLSL()
+    MessageKeyBox(gStrings.debrief)
+}
+
+
+define Trial(stim, cue)
+{
+    ## Determine cue display
+    if(cue == -1)
+    {
+      text <- "[< +  ]"
+    } elseif(cue == 1)
+    {
+      text <- "[  + >]"
+    } else {
+      text <- "[< + >]"
+    }
+
+    ## Position stimulus
+    xpos <- gHomeX + 100 * stim
+    Move(gStimLabel, xpos, gHomeY)
+    Draw()
+
+    ## Show cue
+    SetText(gLabel, text)
+    Wait(300)
+    Draw()
+
+    ## LSL marker: cue onset
+    LSLMarker("CUE_" + cue)
+
+    ## Random delay then show stimulus
+    delay <- RandomDiscrete(750)
+    Wait(750 + delay)
+    Show(gStimLabel)
+    Draw()
+
+    ## LSL marker: stimulus onset
+    LSLMarker("STIM_" + stim + "_CUE_" + cue)
+
+    start <- GetTime()
+
+    ## Simple RT — wait for any response
+    response <- WaitForAnyKeyPress()
+    end <- GetTime()
+
+    ## LSL marker: response
+    LSLMarker("RESPONSE")
+
+    SetText(gLabel, "")
+    Hide(gStimLabel)
+    Draw()
+
+    correct <- (cue == stim)
+    FilePrint(gFileOut, cue + "," + stim + "," + correct + "," + delay + "," + (end - start))
+    Wait(100)
+
+    return(end - start)
+}
+
+
+define MessageKeyBox(message)
+{
+  tb <- AdaptiveTextBox(message,
+                        gLayout.stimulusRegion.x + 20,
+                        gLayout.stimulusRegion.y + 20,
+                        gWin, 40,
+                        gLayout.stimulusRegion.width - 40,
+                        gLayout.stimulusRegion.height - 40,
+                        "scalefont")
+  Draw()
+  WaitForAnyKeyPress()
+  RemoveObject(tb, gWin)
+}
+
+
+define GetStrings(lang)
+{
+  gStrings <- GetTranslations("spatialcueing", lang)
+}

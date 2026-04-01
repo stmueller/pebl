@@ -520,16 +520,20 @@ battery/testname/params/testname-touchtarget.par.json   # Large touch targets
 ```
 
 **Test each mode:**
+
+Run from the test directory — `--pfile` takes just the filename (PEBL looks in `params/` automatically):
 ```bash
+cd battery/testname
+
 # Test auto mode (REQUIRED)
-bin/pebl2 battery/testname/testname.pbl --pfile battery/testname/params/testname-auto.par.json
+../../bin/pebl2 testname.pbl --pfile testname-auto.par.json
 
 # Test userselect mode (REQUIRED)
-bin/pebl2 battery/testname/testname.pbl --pfile battery/testname/params/testname-userselect.par.json
+../../bin/pebl2 testname.pbl --pfile testname-userselect.par.json
 
 # Test additional modes
-bin/pebl2 battery/testname/testname.pbl --pfile battery/testname/params/testname-keyboardSafe.par.json
-bin/pebl2 battery/testname/testname.pbl --pfile battery/testname/params/testname-arrowLR.par.json
+../../bin/pebl2 testname.pbl --pfile testname-keyboardSafe.par.json
+../../bin/pebl2 testname.pbl --pfile testname-arrowLR.par.json
 ```
 
 **Verify userselect mode:**

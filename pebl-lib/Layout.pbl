@@ -1967,10 +1967,28 @@ define FormatLabelsForMode(mode, semanticLabels)
     ## If mode has labels, use them as templates
     if(PropertyExists(mode, "labels") and Length(mode.labels) > 0)
     {
+        numModeLabels <- Length(mode.labels)
+        numSemanticLabels <- Length(semanticLabels)
+
+        ## Check for mismatch between mode labels and semantic labels
+        if(numModeLabels > numSemanticLabels)
+        {
+            Print("WARNING: FormatLabelsForMode: mode '" + mode.name + "' has " + numModeLabels + " labels but only " + numSemanticLabels + " semantic labels provided.")
+            Print("  This usually means a 2AFC response mode was selected for a go/no-go task.")
+            Print("  Falling back to using available semantic labels only.")
+        }
+
         loop(i, Length(mode.labels))
         {
             template <- Nth(mode.labels, i)
-            semantic <- Nth(semanticLabels, i)
+
+            ## Use semantic label if available, otherwise use empty string
+            if(i <= numSemanticLabels)
+            {
+                semantic <- Nth(semanticLabels, i)
+            } else {
+                semantic <- ""
+            }
 
             ## Get key name based on mode type
             keyName <- ""

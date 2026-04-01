@@ -18,7 +18,7 @@
         // web worker
         PACKAGE_PATH = encodeURIComponent(location.pathname.substring(0, location.pathname.lastIndexOf('/')) + '/');
       }
-      var PACKAGE_NAME = '/home/smueller/Dropbox/Research/pebl/pebl/bin/test-bundles/bcst-64.data';
+      var PACKAGE_NAME = '/home/home/smueller/Dropbox/Research/pebl/pebl/bin/test-bundles/bcst-64.data';
       var REMOTE_PACKAGE_BASE = 'bcst-64.data';
       var REMOTE_PACKAGE_NAME = Module['locateFile']?.(REMOTE_PACKAGE_BASE, '') ?? REMOTE_PACKAGE_BASE;
       var REMOTE_PACKAGE_SIZE = metadata['remote_package_size'];
@@ -257,9 +257,9 @@ Module['FS_createPath']("/usr/local/share/pebl2/battery/bcst-64", "translations"
           Module['FS_createDataFile'](name, null, data, true, true, true);
           Module['removeRunDependency'](`fp ${name}`);
           }
-          Module['removeRunDependency']('datafile_/home/smueller/Dropbox/Research/pebl/pebl/bin/test-bundles/bcst-64.data');
+          Module['removeRunDependency']('datafile_/home/home/smueller/Dropbox/Research/pebl/pebl/bin/test-bundles/bcst-64.data');
       }
-      Module['addRunDependency']('datafile_/home/smueller/Dropbox/Research/pebl/pebl/bin/test-bundles/bcst-64.data');
+      Module['addRunDependency']('datafile_/home/home/smueller/Dropbox/Research/pebl/pebl/bin/test-bundles/bcst-64.data');
 
       Module['preloadResults'] ??= {};
 
@@ -292,11 +292,9 @@ Module['FS_createPath']("/usr/local/share/pebl2/battery/bcst-64", "translations"
         Module['setStatus']?.('Downloading...');
 
     }
-    if (Module['calledRun']) {
-      runWithFS(Module);
-    } else {
-      (Module['preRun'] ??= []).push(runWithFS); // FS is not initialized yet, wait for it
-    }
+    // Always defer to preRun to avoid race condition with Module initialization
+    // (async metadata loading may complete after Module['calledRun'] is set)
+    (Module['preRun'] ??= []).push(runWithFS);
 
     Module['removeRunDependency']('bcst-64.js.metadata');
   }

@@ -79,7 +79,27 @@ define Start(p)
 
   if(found == 0)
   {
+    transFile <- scaleCode + "/" + scaleCode + ".en.json"
+    if(FileExists(transFile))
+    {
+      gStrings <- ReadTranslationJSON(transFile, "en")
+      found <- 1
+    }
+  }
+
+  if(found == 0)
+  {
     transFile <- "translations/" + scaleCode + ".pbl-en.json"
+    if(FileExists(transFile))
+    {
+      gStrings <- ReadTranslationJSON(transFile, "en")
+      found <- 1
+    }
+  }
+
+  if(found == 0)
+  {
+    transFile <- "translations/" + scaleCode + ".en.json"
     if(FileExists(transFile))
     {
       gStrings <- ReadTranslationJSON(transFile, "en")
@@ -97,6 +117,9 @@ define Start(p)
 
   gQuestFont <- MakeFont(gPEBLBaseFont, 0, 35, gTheme.instructionText, gTheme.textboxBg, 0)
   gSmallFont <- MakeFont(gPEBLBaseFont, 0, 18, gTheme.questionText, gTheme.windowBg, 0)
+  gHeadFont <- MakeFont(gPEBLBaseFont, 0, 32, gTheme.questionText, gTheme.windowBg, 0)
+  gItemFont <- MakeFont(gPEBLBaseFont, 0, 48, gTheme.questionText, gTheme.windowBg, 0)
+  gVASLabelFont <- MakeFont(gPEBLBaseFont, 0, 24, gTheme.questionText, gTheme.windowBg, 0)
   gHeaderFont <- MakeFont(gPEBLBaseFont, 1, 28, gTheme.headerText, gTheme.headerBg, 0)
   gLikertNumFont <- MakeFont(gPEBLBaseFont, 0, 35, gTheme.likertNumber, gTheme.windowBg, 0)
   gLikertLabelFont <- MakeFont(gPEBLBaseFont, 0, 18, gTheme.likertLabel, gTheme.windowBg, 0)
@@ -110,7 +133,7 @@ define Start(p)
   ## Find the first non-instruction question
   ##########################################################################
   firstQ <- 0
-  loop(q, gScaleDef.questions)
+  loop(q, gScaleDef.items)
   {
     if(firstQ == 0)
     {
@@ -124,9 +147,9 @@ define Start(p)
   if(firstQ == 0)
   {
     ## Fall back to first question of any type
-    if(Length(gScaleDef.questions) > 0)
+    if(Length(gScaleDef.items) > 0)
     {
-      firstQ <- First(gScaleDef.questions)
+      firstQ <- First(gScaleDef.items)
     }
   }
 
@@ -174,20 +197,38 @@ define ScreenshotLikert(qdef, scaleDef, outFile)
   questionText <- GetProperty(gStrings, qdef.text_key)
   questionHead <- GetProperty(gStrings, scaleDef.likert_options.question_head)
 
-  head <- MakeLabel(questionHead, gSmallFont)
+  ## Question head: formatted adaptive textbox below banner
+  headWidth <- Round(gVideoWidth * 0.75)
+  headHeight <- 80
+  headX <- Round((gVideoWidth - headWidth) / 2)
+  headY <- gLayout.stimulusRegion.y + 5
+
+  head <- MakeTextBox(questionHead, gHeadFont, headWidth, headHeight)
+  head.isadaptive <- 1
+  head.formatted <- 1
+  head.justify <- "CENTER"
   AddObject(head, gWin)
-  Move(head, gVideoWidth/2, 150)
+  Move(head, headX, headY)
 
-  questFont <- MakeFont(gPEBLBaseFont, 0, 28, gTheme.questionText, gTheme.windowBg, 0)
-  quest <- MakeLabel(questionText, questFont)
+  ## Pre-calculate Likert response area position for question centering
+  numHeight <- 50
+  yval <- gVideoHeight/2 + 100
+
+  ## Item text: large adaptive textbox, vertically centered between head and Likert area
+  questWidth <- Round(gVideoWidth * 0.80)
+  questHeight <- 120
+  questX <- Round((gVideoWidth - questWidth) / 2)
+  availTop <- headY + head.height + 10
+  availBottom <- yval - numHeight/2 - 20
+  questY <- Round((availTop + availBottom) / 2) - 50
+  if(questY < availTop) { questY <- availTop }
+
+  quest <- MakeTextBox(questionText, gItemFont, questWidth, questHeight)
+  quest.isadaptive <- 1
+  quest.formatted <- 1
+  quest.justify <- "CENTER"
   AddObject(quest, gWin)
-  Move(quest, gVideoWidth/2, 300)
-
-  if(quest.width > gVideoWidth)
-  {
-    quest.zoomX <- (gVideoWidth-2)/quest.width
-    quest.zoomY <- quest.zoomX
-  }
+  Move(quest, questX, questY)
 
   range <- GetQuestionRange(qdef, scaleDef)
   minVal <- ToNumber(First(range))
@@ -196,18 +237,42 @@ define ScreenshotLikert(qdef, scaleDef, outFile)
 
   skip <- 150
   left <- gVideoWidth/2 - skip * ((points-1)/2)
-  yval <- gVideoHeight/2 + 100
 
+  ## Pass 1: measure adaptive label heights
+  labels <- []
+  maxLabelHeight <- 80
+
+  loop(i, Sequence(1, points, 1))
+  {
+    if(Length(labelKeys) >= i)
+    {
+      labelKey <- Nth(labelKeys, i)
+      labelText <- GetProperty(gStrings, labelKey)
+      optLabel <- MakeTextBox(labelText, gLikertLabelFont, skip-15, 80)
+      optLabel.isadaptive <- 1
+      optLabel.justify <- "CENTER"
+      AddObject(optLabel, gWin)
+      if(optLabel.height > maxLabelHeight)
+      {
+        maxLabelHeight <- optLabel.height
+      }
+      RemoveObject(optLabel, gWin)
+      PushOnEnd(labels, optLabel)
+    }
+  }
+
+  boxHeight <- numHeight + maxLabelHeight + 20
+
+  ## Pass 2: create and position everything
   backs <- []
   nums <- []
-  labels <- []
 
   loop(i, Sequence(1, points, 1))
   {
     x <- left + skip * (i - 1)
     displayValue <- minVal + (i - 1)
 
-    back <- Rectangle(x, yval+50, skip-10, 180, gTheme.optionBg, 0)
+    back <- Rectangle(x, yval + boxHeight/2 - numHeight/2, skip-10, boxHeight, gTheme.optionBg, 0)
     back.color <- gTheme.optionBorder
     AddObject(back, gWin)
     PushOnEnd(backs, back)
@@ -217,15 +282,32 @@ define ScreenshotLikert(qdef, scaleDef, outFile)
     AddObject(num, gWin)
     PushOnEnd(nums, num)
 
-    if(Length(labelKeys) >= i)
+    if(Length(labels) >= i)
     {
-      labelKey <- Nth(labelKeys, i)
-      labelText <- GetProperty(gStrings, labelKey)
-      optLabel <- MakeTextBox(labelText, gLikertLabelFont, skip-15, 80)
-      optLabel.justify <- "CENTER"
+      optLabel <- Nth(labels, i)
       AddObject(optLabel, gWin)
-      Move(optLabel, x-optLabel.width/2, yval+50)
-      PushOnEnd(labels, optLabel)
+      Move(optLabel, x - optLabel.width/2, yval + numHeight/2 + 5)
+    }
+  }
+
+  ## Optional footer text
+  if(PropertyExists(scaleDef.likert_options, "response_footer"))
+  {
+    footerKey <- scaleDef.likert_options.response_footer
+    footerText <- GetProperty(gStrings, footerKey)
+    if(footerText != "" and footerText != 0)
+    {
+      footerWidth <- Round(gVideoWidth * 0.80)
+      footerX <- Round((gVideoWidth - footerWidth) / 2)
+      footerY <- yval + boxHeight + 15
+      footerFont <- MakeFont(gPEBLBaseFont, 0, 16, gTheme.questionText, gTheme.windowBg, 0)
+
+      footerObj <- MakeTextBox(footerText, footerFont, footerWidth, 40)
+      footerObj.isadaptive <- 1
+      footerObj.formatted <- 1
+      footerObj.justify <- "CENTER"
+      AddObject(footerObj, gWin)
+      Move(footerObj, footerX, footerY)
     }
   }
 
@@ -237,91 +319,261 @@ define ScreenshotLikert(qdef, scaleDef, outFile)
 ##############################################################################
 ## VAS screenshot (mirrors ScaleRunner.DoVAS)
 ##############################################################################
+define GetVASLabelSS(qdef, field, transField, defaultVal)
+{
+  ## Helper for screenshot tool: get VAS anchor label
+  label <- ""
+
+  if(PropertyExists(qdef, transField))
+  {
+    label <- GetProperty(gStrings, GetProperty(qdef, transField))
+  }
+
+  if(label == "" or label == 0)
+  {
+    if(PropertyExists(qdef, field))
+    {
+      label <- GetProperty(qdef, field)
+    }
+  }
+
+  if(label == "" or label == 0)
+  {
+    label <- defaultVal
+  }
+
+  return(label)
+}
+
+
 define ScreenshotVAS(qdef, scaleDef, outFile)
 {
-  questionText <- GetProperty(gStrings, qdef.text_key)
-
-  ## Use Layout subheader for instructions
-  gLayout.subheader.text <- "Click on the scale to indicate your response"
-
-  ## Get min/max labels (try translation keys first, then literal text)
-  minLabel <- "Min"
-  maxLabel <- "Max"
-
-  if(PropertyExists(qdef, "min_label"))
+  ## Check if scale has pages with multiple VAS items
+  usedPage <- 0
+  if(PropertyExists(scaleDef, "pages"))
   {
-    minLabel <- GetProperty(gStrings, qdef.min_label)
-  } elseif(PropertyExists(qdef, "right")) {
-    minLabel <- qdef.right
-  }
-
-  if(PropertyExists(qdef, "max_label"))
-  {
-    maxLabel <- GetProperty(gStrings, qdef.max_label)
-  } elseif(PropertyExists(qdef, "left")) {
-    maxLabel <- qdef.left
-  }
-
-  ## VAS configuration (matches ScaleRunner)
-  vasHeight <- 400
-  vasWidth <- 50
-  numTicks <- 21
-
-  centerX <- gLayout.stimulusRegion.centerX
-  centerY <- gLayout.stimulusRegion.centerY + 50
-
-  ## Question text at top of stimulus region
-  quesWidth <- gLayout.stimulusRegion.width - 40
-  quesHeight <- 100
-  quesX <- gLayout.stimulusRegion.x + 20
-  quesY <- gLayout.stimulusRegion.y + 10
-
-  ques <- MakeTextBox(questionText, gQuestFont, quesWidth, quesHeight)
-  ques.isadaptive <- 1
-  ques.formatted <- 1
-  AddObject(ques, gWin)
-  Move(ques, quesX, quesY)
-
-  ## Create VAS rectangle
-  vasTop <- centerY - vasHeight/2
-  vasBottom <- centerY + vasHeight/2
-
-  clickBox <- Rectangle(centerX, centerY, vasWidth, vasHeight, MakeColor("grey60"), 1)
-  AddObject(clickBox, gWin)
-
-  ## Add tick marks
-  skip <- vasHeight / (numTicks - 1)
-  yPos <- vasBottom
-  tmp <- [ques, clickBox]
-
-  loop(i, Sequence(1, numTicks, 1))
-  {
-    if(i == 1 or i == 11 or i == numTicks)
+    ## Find a page that contains this question and has multiple VAS items
+    loop(page, scaleDef.pages)
     {
-      tickLine <- Line(centerX - 22, yPos, 45, 0, MakeColor("white"))
-    } else {
-      tickLine <- Line(centerX - 15, yPos, 30, 0, MakeColor("white"))
+      if(usedPage == 0)
+      {
+        pageQuestions <- []
+        loop(itemID, page.items)
+        {
+          loop(q, scaleDef.items)
+          {
+            if(q.id == itemID)
+            {
+              PushOnEnd(pageQuestions, q)
+            }
+          }
+        }
+
+        allVAS <- 1
+        loop(pq, pageQuestions)
+        {
+          if(pq.type != "vas")
+          {
+            allVAS <- 0
+          }
+        }
+
+        if(allVAS and Length(pageQuestions) > 1)
+        {
+          ScreenshotVASPage(pageQuestions, scaleDef, outFile)
+          usedPage <- 1
+        }
+      }
     }
-    AddObject(tickLine, gWin)
-    PushOnEnd(tmp, tickLine)
-    yPos <- yPos - skip
   }
 
-  ## Vertical center line
-  vLine <- Line(centerX, vasTop, 0, vasHeight, MakeColor("white"))
-  AddObject(vLine, gWin)
-  PushOnEnd(tmp, vLine)
+  if(usedPage == 0)
+  {
+    ## Single VAS item screenshot
+    questionText <- GetProperty(gStrings, qdef.text_key)
 
-  ## Endpoint labels
-  minLab <- MakeLabel(minLabel, gSmallFont)
-  AddObject(minLab, gWin)
-  Move(minLab, centerX, vasBottom + 25)
-  PushOnEnd(tmp, minLab)
+    ## Show question head if available
+    contentTop <- gLayout.stimulusRegion.y + 5
+    questionHead <- ""
+    if(PropertyExists(scaleDef, "likert_options"))
+    {
+      if(PropertyExists(scaleDef.likert_options, "question_head"))
+      {
+        questionHead <- GetProperty(gStrings, scaleDef.likert_options.question_head)
+      }
+    }
 
-  maxLab <- MakeLabel(maxLabel, gSmallFont)
-  AddObject(maxLab, gWin)
-  Move(maxLab, centerX, vasTop - 25)
-  PushOnEnd(tmp, maxLab)
+    if(questionHead != "" and questionHead != 0)
+    {
+      headWidth <- Round(gVideoWidth * 0.75)
+      headHeight <- 60
+      headX <- Round((gVideoWidth - headWidth) / 2)
+
+      headBox <- MakeTextBox(questionHead, gHeadFont, headWidth, headHeight)
+      headBox.isadaptive <- 1
+      headBox.formatted <- 1
+      headBox.justify <- "CENTER"
+      AddObject(headBox, gWin)
+      Move(headBox, headX, contentTop)
+      contentTop <- contentTop + headBox.height + 10
+    }
+
+    ## Item text
+    questWidth <- Round(gVideoWidth * 0.80)
+    questHeight <- 60
+    questX <- Round((gVideoWidth - questWidth) / 2)
+
+    ques <- MakeTextBox(questionText, gItemFont, questWidth, questHeight)
+    ques.isadaptive <- 1
+    ques.formatted <- 1
+    ques.justify <- "CENTER"
+    AddObject(ques, gWin)
+    Move(ques, questX, contentTop)
+
+    ## Get anchor labels
+    minLabel <- GetVASLabelSS(qdef, "left", "min_label", "Min")
+    maxLabel <- GetVASLabelSS(qdef, "right", "max_label", "Max")
+
+    ## VAS configuration
+    vasHeight <- 400
+    vasWidth <- 50
+    numTicks <- 21
+
+    centerX <- gLayout.stimulusRegion.centerX
+    centerY <- gLayout.stimulusRegion.centerY + 50
+
+    vasTop <- centerY - vasHeight/2
+    vasBottom <- centerY + vasHeight/2
+
+    clickBox <- Rectangle(centerX, centerY, vasWidth, vasHeight, MakeColor("grey60"), 1)
+    AddObject(clickBox, gWin)
+
+    skip <- vasHeight / (numTicks - 1)
+    yPos <- vasBottom
+
+    loop(i, Sequence(1, numTicks, 1))
+    {
+      if(i == 1 or i == 11 or i == numTicks)
+      {
+        tickLine <- Line(centerX - 22, yPos, 45, 0, MakeColor("white"))
+      } else {
+        tickLine <- Line(centerX - 15, yPos, 30, 0, MakeColor("white"))
+      }
+      AddObject(tickLine, gWin)
+      yPos <- yPos - skip
+    }
+
+    vLine <- Line(centerX, vasTop, 0, vasHeight, MakeColor("white"))
+    AddObject(vLine, gWin)
+
+    ## Bigger anchor labels
+    minLab <- MakeLabel(minLabel, gVASLabelFont)
+    AddObject(minLab, gWin)
+    Move(minLab, centerX, vasBottom + 30)
+
+    maxLab <- MakeLabel(maxLabel, gVASLabelFont)
+    AddObject(maxLab, gWin)
+    Move(maxLab, centerX, vasTop - 30)
+
+    Draw()
+    WritePNG(outFile, gWin, [0, 0, gVideoWidth, gVideoHeight])
+  }
+}
+
+
+##############################################################################
+## VAS Page screenshot (multiple horizontal VAS sliders)
+##############################################################################
+define ScreenshotVASPage(questions, scaleDef, outFile)
+{
+  numItems <- Length(questions)
+  contentTop <- gLayout.stimulusRegion.y + 5
+
+  ## Question head
+  questionHead <- ""
+  if(PropertyExists(scaleDef, "likert_options"))
+  {
+    if(PropertyExists(scaleDef.likert_options, "question_head"))
+    {
+      questionHead <- GetProperty(gStrings, scaleDef.likert_options.question_head)
+    }
+  }
+
+  if(questionHead != "" and questionHead != 0)
+  {
+    headWidth <- Round(gVideoWidth * 0.80)
+    headHeight <- 60
+    headX <- Round((gVideoWidth - headWidth) / 2)
+
+    headBox <- MakeTextBox(questionHead, gHeadFont, headWidth, headHeight)
+    headBox.isadaptive <- 1
+    headBox.formatted <- 1
+    headBox.justify <- "CENTER"
+    AddObject(headBox, gWin)
+    Move(headBox, headX, contentTop)
+    contentTop <- contentTop + headBox.height + 15
+  }
+
+  ## Layout
+  labelWidth <- Round(gVideoWidth * 0.18)
+  sliderLeft <- labelWidth + 20
+  sliderWidth <- Round(gVideoWidth * 0.60)
+  sliderRight <- sliderLeft + sliderWidth
+
+  availHeight <- gVideoHeight - contentTop - 80
+  rowHeight <- Min([Round(availHeight / numItems), 55])
+
+  ## Anchor column headers
+  firstQ <- First(questions)
+  minLabel <- GetVASLabelSS(firstQ, "left", "min_label", "Min")
+  maxLabel <- GetVASLabelSS(firstQ, "right", "max_label", "Max")
+
+  minHead <- MakeLabel(minLabel, gVASLabelFont)
+  AddObject(minHead, gWin)
+  Move(minHead, sliderLeft, contentTop)
+
+  maxHead <- MakeLabel(maxLabel, gVASLabelFont)
+  AddObject(maxHead, gWin)
+  Move(maxHead, sliderRight, contentTop)
+
+  contentTop <- contentTop + 30
+
+  ## Draw each row
+  vasItemFont <- MakeFont(gPEBLBaseFont, 0, 24, gTheme.questionText, gTheme.windowBg, 0)
+  numTicks <- 11
+  midTick <- Round((numTicks + 1) / 2)
+
+  loop(qi, Sequence(1, numItems, 1))
+  {
+    qdef <- Nth(questions, qi)
+    rowY <- contentTop + (qi - 1) * rowHeight + rowHeight / 2
+
+    ## Item label (TextBox with word wrap)
+    itemText <- GetProperty(gStrings, qdef.text_key)
+    itemLab <- MakeTextBox(itemText, vasItemFont, labelWidth - 10, rowHeight)
+    itemLab.isadaptive <- 1
+    itemLab.justify <- "RIGHT"
+    AddObject(itemLab, gWin)
+    Move(itemLab, 5, rowY - itemLab.height / 2)
+
+    ## Horizontal track
+    trackLine <- Line(sliderLeft, rowY, sliderWidth, 0, MakeColor("grey60"))
+    AddObject(trackLine, gWin)
+
+    ## Tick marks
+    tickSkip <- sliderWidth / (numTicks - 1)
+    loop(ti, Sequence(1, numTicks, 1))
+    {
+      tickX <- sliderLeft + (ti - 1) * tickSkip
+      if(ti == 1 or ti == midTick or ti == numTicks)
+      {
+        tickLine <- Line(tickX, rowY - 10, 0, 20, MakeColor("grey60"))
+      } else {
+        tickLine <- Line(tickX, rowY - 6, 0, 12, MakeColor("grey60"))
+      }
+      AddObject(tickLine, gWin)
+    }
+  }
 
   Draw()
   WritePNG(outFile, gWin, [0, 0, gVideoWidth, gVideoHeight])
@@ -352,9 +604,17 @@ define ScreenshotGrid(qdef, scaleDef, outFile)
       PushOnEnd(optLabels, optText)
     }
   } elseif(PropertyExists(qdef, "columns")) {
-    ## Scale Builder format: literal text in columns array
+    ## Scale Builder format: columns array contains translation keys
     numPoints <- Length(qdef.columns)
-    optLabels <- qdef.columns
+    loop(colKey, qdef.columns)
+    {
+      if(PropertyExists(gStrings, colKey))
+      {
+        PushOnEnd(optLabels, GetProperty(gStrings, colKey))
+      } else {
+        PushOnEnd(optLabels, colKey)
+      }
+    }
   }
 
   ## Get row labels (two formats supported)
@@ -368,8 +628,16 @@ define ScreenshotGrid(qdef, scaleDef, outFile)
       PushOnEnd(rowLabels, itemText)
     }
   } elseif(PropertyExists(qdef, "rows")) {
-    ## Scale Builder format: literal text in rows array
-    rowLabels <- qdef.rows
+    ## Scale Builder format: rows array contains translation keys
+    loop(rowKey, qdef.rows)
+    {
+      if(PropertyExists(gStrings, rowKey))
+      {
+        PushOnEnd(rowLabels, GetProperty(gStrings, rowKey))
+      } else {
+        PushOnEnd(rowLabels, rowKey)
+      }
+    }
   }
 
   numItems <- Length(rowLabels)
@@ -559,6 +827,7 @@ define ScreenshotMultiChoice(qdef, outFile)
   left <- gLayout.stimulusRegion.x + 80
   top <- boxY + boxHeight + 40
   optionFont <- MakeFont(gPEBLBaseFont, 0, 22, gTheme.questionText, gTheme.windowBg, 0)
+  optionFont.bgcolor.alpha <- 0
 
   optnum <- 1
   loop(optText, opts)
@@ -630,6 +899,7 @@ define ScreenshotMultiCheck(qdef, outFile)
   left <- gLayout.stimulusRegion.x + 60
   top <- boxY + boxHeight + 40
   optionFont <- MakeFont(gPEBLBaseFont, 0, 22, gTheme.questionText, gTheme.windowBg, 0)
+  optionFont.bgcolor.alpha <- 0
 
   optnum <- 1
   loop(optText, opts)

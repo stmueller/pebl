@@ -91,7 +91,7 @@ define Start(p)
 
   if(continueValidation)
   {
-    requiredFields <- ["scale_info", "questions"]
+    requiredFields <- ["scale_info", "items"]
 
     loop(field, requiredFields)
     {
@@ -154,16 +154,16 @@ define Start(p)
 
   if(continueValidation)
   {
-   if(PropertyExists(scaleDef, "questions"))
+   if(PropertyExists(scaleDef, "items"))
   {
-    questions <- scaleDef.questions
+    questions <- scaleDef.items
 
     if(Length(questions) == 0)
     {
-      Print("✗ ERROR: No questions defined")
+      Print("✗ ERROR: No items defined")
       errors <- errors + 1
     } else {
-      Print("✓ Found " + Length(questions) + " questions")
+      Print("✓ Found " + Length(questions) + " items")
 
       ## Check each question has required fields
       qnum <- 1

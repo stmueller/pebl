@@ -1,0 +1,118 @@
+{
+  "osd_version": "1.0",
+  "definition": {
+    "scale_info": {
+      "name": "Cognitive Reflection Test",
+      "code": "CRT",
+      "version": "1.0",
+      "citation": "Frederick, S. (2005). Cognitive reflection and decision making. Journal of Economic Perspectives, 19(4), 25-42.",
+      "description": "3-item test measuring the tendency to override an incorrect intuitive response and engage in further reflection",
+      "url": "https://doi.org/10.1257/089533005775196732"
+    },
+    "parameters": {
+      "shuffle_questions": {
+        "type": "boolean",
+        "default": 0,
+        "description": "Randomize question order"
+      }
+    },
+    "dimensions": [
+      {
+        "id": "reflection",
+        "name": "Cognitive Reflection",
+        "enabled_param": null
+      }
+    ],
+    "items": [
+      {
+        "id": "inst1",
+        "text_key": "inst1",
+        "type": "inst"
+      },
+      {
+        "id": "q1",
+        "text_key": "q1",
+        "type": "short",
+        "maxlength": 20
+      },
+      {
+        "id": "q2",
+        "text_key": "q2",
+        "type": "short",
+        "maxlength": 20
+      },
+      {
+        "id": "q3",
+        "text_key": "q3",
+        "type": "short",
+        "maxlength": 20
+      }
+    ],
+    "scoring": {
+      "reflection": {
+        "method": "sum_correct",
+        "items": [
+          "q1",
+          "q2",
+          "q3"
+        ],
+        "description": "Number of correct responses (0-3)",
+        "correct_answers": {
+          "q1": [
+            "5",
+            "five",
+            ".05",
+            "0.05",
+            "$0.05",
+            "five cents",
+            "5 cents",
+            "5c"
+          ],
+          "q2": [
+            "5",
+            "five"
+          ],
+          "q3": [
+            "47",
+            "forty seven",
+            "forty-seven"
+          ]
+        },
+        "item_coding": {
+          "q1": 1,
+          "q2": 1,
+          "q3": 1
+        }
+      }
+    },
+    "report": {
+      "template": "standard",
+      "include": [
+        "timestamp",
+        "completion_time",
+        "dimension_scores"
+      ],
+      "header": "The Cognitive Reflection Test measures reflective thinking vs. intuitive thinking.",
+      "footer_refs": [
+        "Frederick, S. (2005). Cognitive reflection and decision making. Journal of Economic Perspectives, 19(4), 25-42.",
+        "See https://doi.org/10.1257/089533005775196732 for more information."
+      ]
+    },
+    "data_output": {
+      "individual_file": "crt-{subnum}.csv",
+      "pooled_file": "crt-pooled.csv",
+      "report_file": "crt-report-{subnum}.html",
+      "columns": "subnum,order,time,qnum,ques,dim,valence,resp,rt",
+      "pooled_columns": "subnum,timestamp,time,q1,q2,q3,correct_count,reflection_score"
+    }
+  },
+  "translations": {
+    "en": {
+      "inst1": "This is a short test with 3 questions. Each question has a numeric answer.\n\nTake your time to think carefully about each question. The first answer that comes to mind may not be correct.\n\nEnter your answer as a number and press Enter to continue.\n\nClick NEXT when you are ready to begin.",
+      "q1": "A bat and a ball cost $1.10 in total. The bat costs $1.00 more than the ball. How much does the ball cost? (Answer in dollars, e.g., 0.05 for 5 cents)",
+      "q2": "If it takes 5 machines 5 minutes to make 5 widgets, how long would it take 100 machines to make 100 widgets? (Answer in minutes)",
+      "q3": "In a lake, there is a patch of lily pads. Every day, the patch doubles in size. If it takes 48 days for the patch to cover the entire lake, how long would it take for the patch to cover half of the lake? (Answer in days)",
+      "debrief": "Thank you for completing the Cognitive Reflection Test.\n\nThis test measures your tendency to engage in reflective thinking rather than relying on quick, intuitive responses.\n\nYour results have been saved.\n\nClick to finish."
+    }
+  }
+}

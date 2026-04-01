@@ -541,9 +541,13 @@ define Initialize()
 
 
    ## Make and place the instruction box, then hide it
-   gInstructions <- MakeTextBox("", gInstructionsFont, 600,400)
+   ## Use 75% screen width for better multi-language support (especially German)
+   instructionWidth <- Round(gVideoWidth * 0.75)
+   gInstructions <- MakeTextBox("", gInstructionsFont, instructionWidth, 400)
+   gInstructions.isadaptive <- 1
+   gInstructions.formatted <- 1
    AddObject(gInstructions, gWin)
-   Move(gInstructions, gLayout.centerX-300, 100)
+   Move(gInstructions, gLayout.centerX - (instructionWidth/2), 100)
    Hide(gInstructions)
 
    ## Make and hide a header label

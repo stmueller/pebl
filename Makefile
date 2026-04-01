@@ -135,7 +135,7 @@ endif
 ifdef USE_LSL
 	CXXFLAGS7 = -DPEBL_USE_LSL
 	LSL_LIB_PATH = libs/labstreaminglayer/Apps/LabRecorder/liblsl
-	LSL_INC_PATH = $(LSL_LIB_PATH)/include
+	LSL_INC_PATH = libs/labstreaminglayer/LSL/liblsl/include
 	CXXFLAGS7 += -I$(LSL_INC_PATH)
 	LINKOPTS7 = -L$(LSL_LIB_PATH) -Wl,-rpath,$(CURDIR)/$(LSL_LIB_PATH) -llsl64
 endif
@@ -305,7 +305,8 @@ EMBASE_OBJXX = $(patsubst %.cpp, %.o, $(EMBASE_SRCXX))
 
 ##This just collects plain .c files,
 PEBLBASE_SRC = $(BASE_DIR)/lex.yy.c \
-		$(UTIL_DIR)/rs232.c 
+		$(UTIL_DIR)/rs232.c \
+		$(UTIL_DIR)/re.c
 
 
 PEBLBASE_OBJ = $(patsubst %.c, %.o, $(PEBLBASE_SRC))
@@ -515,7 +516,7 @@ main-real:  $(DIRS) $(PEBLMAIN_OBJ) $(PEBLBASE_OBJ) $(PEBLMAIN_INC)
  #	-s MAXIMUM_MEMORY=2147483648 \
 ##Make emscripten target (debug):
 ##Make optimized emscripten target (production):
-em-opt-real:  $(DIRS) $(EMMAIN_OBJ) $(BASE_DIR)/lex.yy.o $(EMMAIN_INC)
+em-opt-real:  $(DIRS) $(EMMAIN_OBJ) $(BASE_DIR)/lex.yy.o $(UTIL_DIR)/re.o $(EMMAIN_INC)
 	$(CXX) $(CXXFLAGS) \
 	-Oz \
 	-s WASM=1 \
@@ -543,6 +544,7 @@ em-opt-real:  $(DIRS) $(EMMAIN_OBJ) $(BASE_DIR)/lex.yy.o $(EMMAIN_INC)
 	-DPEBL_EMSCRIPTEN \
 	-o $(BIN_DIR)/pebl2.html \
 	$(OBJ_DIR)/$(BASE_DIR)/lex.yy.o \
+	$(OBJ_DIR)/$(UTIL_DIR)/re.o \
 	$(patsubst %.o, $(OBJ_DIR)/%.o, $(EMMAIN_OBJ)) \
 	libs/SDL2_gfx-1.0.4/build-em/SDL2_gfxPrimitives.o \
 	--shell-file emscripten/shell_PEBL_debug.html \
@@ -550,7 +552,7 @@ em-opt-real:  $(DIRS) $(EMMAIN_OBJ) $(BASE_DIR)/lex.yy.o $(EMMAIN_INC)
 	--preload-file emscripten/media/@/usr/local/share/pebl2/media
 
 ##Make test emscripten target (for development/debugging):
-em-test-real:  $(DIRS) $(EMMAIN_OBJ) $(BASE_DIR)/lex.yy.o $(EMMAIN_INC)
+em-test-real:  $(DIRS) $(EMMAIN_OBJ) $(BASE_DIR)/lex.yy.o $(UTIL_DIR)/re.o $(EMMAIN_INC)
 	$(CXX) $(CXXFLAGS) \
 	-O0 \
 	-s WASM=1 \
@@ -578,6 +580,7 @@ em-test-real:  $(DIRS) $(EMMAIN_OBJ) $(BASE_DIR)/lex.yy.o $(EMMAIN_INC)
 	-DPEBL_EMSCRIPTEN \
 	-o $(BIN_DIR)/pebl2-test.html \
 	$(OBJ_DIR)/$(BASE_DIR)/lex.yy.o \
+	$(OBJ_DIR)/$(UTIL_DIR)/re.o \
 	$(patsubst %.o, $(OBJ_DIR)/%.o, $(EMMAIN_OBJ)) \
 	libs/SDL2_gfx-1.0.4/build-em/SDL2_gfxPrimitives.o \
 	--shell-file emscripten/shell_PEBL_test.html \
@@ -911,12 +914,13 @@ validator-real: USE_MIXER = 0
 validator-real: USE_NETWORK = 0
 validator-real: USE_AUDIOIN = 0
 validator-real: CXXFLAGS = $(CXXFLAGS0) $(CXXFLAGS_LINUX) $(CXXFLAGS7) -UPEBL_MIXER -UPEBL_NETWORK -UPEBL_PORTS -UPEBL_AUDIOIN -UPEBL_HTTP -DPEBL_VALIDATOR
-validator-real: $(DIRS) $(VALIDATOR_OBJ) $(BASE_DIR)/lex.yy.o
+validator-real: $(DIRS) $(VALIDATOR_OBJ) $(BASE_DIR)/lex.yy.o $(UTIL_DIR)/re.o
 	$(CXX) $(CXXFLAGS) -Wall -Wl,-rpath -Wl,LIBDIR $(DEBUGFLAGS) \
 	-Wno-write-strings \
 	-o $(BIN_DIR)/pebl-validator \
 	$(patsubst %.o, $(OBJ_DIR)/%.o, $(VALIDATOR_OBJ)) \
 	$(OBJ_DIR)/$(BASE_DIR)/lex.yy.o \
+	$(OBJ_DIR)/$(UTIL_DIR)/re.o \
 	$(LINKOPTS7) -lpthread
 
 .PHONY: validator validator-real

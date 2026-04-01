@@ -32,6 +32,10 @@
 #include "../utility/PEBLUtility.h"
 #include "../utility/PError.h"
 
+extern "C" {
+#include "../utility/re.h"
+}
+
 #include <string>
 #include <vector>
 #include <algorithm>
@@ -323,5 +327,29 @@ Variant PEBLString::IsSystemLocaleRTL(Variant v)
     // No parameters needed - just query the OS via environment
     bool isRTL = myEnv->IsSystemLocaleRTL();
     return Variant((int)isRTL);
+}
+
+
+// RegexMatch(string, pattern) -> integer
+// Returns 1-based index of first match, or 0 if no match (consistent with FindInString)
+Variant PEBLString::RegexMatch(Variant v)
+{
+    PList * plist = v.GetComplexData()->GetList();
+
+    PError::AssertType(plist->First(), PEAT_STRING,
+        "Argument error in first parameter of function RegexMatch(<string>, <pattern>)]: ");
+    std::string text = plist->First();
+
+    PError::AssertType(plist->Nth(2), PEAT_STRING,
+        "Argument error in second parameter of function RegexMatch(<string>, <pattern>)]: ");
+    std::string pattern = plist->Nth(2);
+
+    int matchlen = 0;
+    int idx = re_match(pattern.c_str(), text.c_str(), &matchlen);
+
+    if (idx < 0)
+        return Variant(0);          // No match
+    else
+        return Variant(idx + 1);    // 1-based index (PEBL convention)
 }
 

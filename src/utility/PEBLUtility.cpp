@@ -1700,14 +1700,14 @@ Variant PEBLUtility::ParseJSON(const std::string &text)
 	jsmn_parser p;
 
     jsmntok_t  * t;
-    t= (jsmntok_t*) malloc(sizeof(*t)*(size_t)1000); /* We expect no more than 1000 tokens */
-                                                     /*There are ways to expand this, if necessary*/
+    t= (jsmntok_t*) malloc(sizeof(*t)*(size_t)10000); /* We expect no more than 10000 tokens */
+                                                      /*Increased from 1000 to handle large scale JSON files*/
     jsmntok_t ** tt = &t;
     int r;
         //std::cout <<"Parsing:" << text << endl;
 
 	jsmn_init(&p);
-	r = jsmn_parse(&p, text.c_str(), text.length(),*tt,1000);
+	r = jsmn_parse(&p, text.c_str(), text.length(),*tt,10000);
     //cout << "number of tokens:" << r << endl;
 	if (r < 0) {
 		printf("Failed to parse JSON: %d\n", r);

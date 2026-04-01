@@ -468,6 +468,7 @@ namespace PEBLString
             {(char*)"SUBSTRING",                 SubString, 3, 3},
             {(char*)"FINDINSTRING",              FindInString, 3, 3},
             {(char*)"SPLITSTRING",               SplitString, 2, 2},
+            {(char*)"REGEXMATCH",               RegexMatch, 2, 2},
             {(char*)"COPYTOCLIPBOARD",           CopyToClipboard,1,1},
             {(char*)"DETECTTEXTSCRIPT",          DetectTextScript, 1, 1},
             {(char*)"ISRTL",                     IsRTL, 1, 1},

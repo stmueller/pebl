@@ -475,57 +475,90 @@ bool Evaluator::Evaluate1(const OpNode * node)
                 **************************/
             case PEBL_AND:
                 {
-                    //Evaluate left and right nodes, and do an AND of them.
-      
-                    //Execute left and right nodes, which puts results on stack
-                    const PNode * node1 = node->GetLeft();
-                    const PNode * node2 = node->GetRight();
-                    const OpNode * tail = new OpNode(PEBL_AND_TAIL,NULL,NULL,
+                    // Short-circuit AND: store node2 in the tail so PEBL_AND_TAIL
+                    // can conditionally schedule it after seeing v1.
+                    PNode * node1 = node->GetLeft();
+                    PNode * node2 = node->GetRight();
+                    const OpNode * tail = new OpNode(PEBL_AND_TAIL, node2, NULL,
                                                      node->GetFilename(), node->GetLineNumber());
-
                     mNodeStack.push(tail);
-                    mNodeStack.push(node2);
                     mNodeStack.push(node1);
-                
                 }
                 break;
             case PEBL_AND_TAIL:
                 {
-                    //Get the top two items from the stack.  The right will be on top
-                    Variant v2 = Pop();	
-                    Variant v1 = Pop();
-                
-                    Push(v1 && v2);
+                    if(node->GetLeft() != NULL)
+                    {
+                        // Phase 1: v1 is on the data stack; decide whether to evaluate v2.
+                        Variant v1 = Pop();
+                        if(!(bool)v1)
+                        {
+                            // Short-circuit: left is false, result is false.
+                            Push(Variant((pInt)0));
+                        }
+                        else
+                        {
+                            // Left is true: push v1 back, schedule node2, then a finish TAIL.
+                            Push(v1);
+                            const OpNode * finish = new OpNode(PEBL_AND_TAIL, NULL, NULL,
+                                                               node->GetFilename(), node->GetLineNumber());
+                            mNodeStack.push(finish);
+                            mNodeStack.push(node->GetLeft());  // node2
+                        }
+                    }
+                    else
+                    {
+                        // Phase 2 (finish): both v1 and v2 are on the data stack.
+                        Variant v2 = Pop();
+                        Variant v1 = Pop();
+                        Push(v1 && v2);
+                    }
                 }
                 break;
-            
+
                 /*****************************
                    HANDLED
                 ************************************/
             case PEBL_OR:
                 {
-                    //Evaluate left and right nodes, and do an or on them.
-                
-                    //Execute left and right nodes, which puts results on stack
-                    const PNode * node1 = node->GetLeft();
-                    const PNode * node2 = node->GetRight();
-                    const OpNode * tail = new OpNode(PEBL_OR_TAIL,NULL,NULL,
+                    // Short-circuit OR: store node2 in the tail so PEBL_OR_TAIL
+                    // can conditionally schedule it after seeing v1.
+                    PNode * node1 = node->GetLeft();
+                    PNode * node2 = node->GetRight();
+                    const OpNode * tail = new OpNode(PEBL_OR_TAIL, node2, NULL,
                                                      node->GetFilename(), node->GetLineNumber());
-
                     mNodeStack.push(tail);
-                    mNodeStack.push(node2);
                     mNodeStack.push(node1);
-
                 }
                 break;
             case PEBL_OR_TAIL:
                 {
-                    //Get the top two items from the stack.  The right will be on top
-                    Variant v2 = Pop();	
-                    Variant v1 = Pop();
-                
-                    Push(v1 || v2);
-
+                    if(node->GetLeft() != NULL)
+                    {
+                        // Phase 1: v1 is on the data stack; decide whether to evaluate v2.
+                        Variant v1 = Pop();
+                        if((bool)v1)
+                        {
+                            // Short-circuit: left is true, result is true.
+                            Push(Variant((pInt)1));
+                        }
+                        else
+                        {
+                            // Left is false: push v1 back, schedule node2, then a finish TAIL.
+                            Push(v1);
+                            const OpNode * finish = new OpNode(PEBL_OR_TAIL, NULL, NULL,
+                                                               node->GetFilename(), node->GetLineNumber());
+                            mNodeStack.push(finish);
+                            mNodeStack.push(node->GetLeft());  // node2
+                        }
+                    }
+                    else
+                    {
+                        // Phase 2 (finish): both v1 and v2 are on the data stack.
+                        Variant v2 = Pop();
+                        Variant v1 = Pop();
+                        Push(v1 || v2);
+                    }
                 }
                 break;
             

@@ -443,10 +443,8 @@ int PEBLInterpret( int argc, std::vector<std::string> argv )
     std::string parpath = PEBLUtility::StripFile(inputfilename);
     std::string pname = PEBLUtility::GetBaseFileName(inputfilename);
 
-    //default the parameter file to ./params/SCRIPTNAME.par
-
-    //Variant oldpfile = Variant("params/")+Variant(inputfilename)+Variant(".par");
-    Variant pfile = Variant(parpath) + Variant("params/") + Variant(pname)+Variant(".par");
+    //default the parameter file to ./params/SCRIPTNAME.par.json, but normally this will get overwritten below
+    Variant pfile = Variant(parpath) + Variant("params/") + Variant(pname)+Variant(".par.json");
 
     //Extract the command-line variables to bind
     for(int j = 1; j < argc; j++)

@@ -41,6 +41,7 @@ namespace PEBLString
     Variant FindInString(Variant v);
     Variant SplitString(Variant v);
     Variant CopyToClipboard(Variant v);
+    Variant RegexMatch(Variant v);
 
     // Unicode script detection
     Variant DetectTextScript(Variant v);

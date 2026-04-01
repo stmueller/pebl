@@ -375,39 +375,49 @@ bool Evaluator::Evaluate(const OpNode * node)
 
         case PEBL_AND:
             {
-                //Evaluate left and right nodes, and do an AND of them.
-
-                //Execute left and right nodes, which puts results on stack
+                // Short-circuit AND: evaluate left first; if false, skip right.
                 const PNode * node1 = node->GetLeft();
                 Evaluate( node1 );
-                const PNode * node2 = node->GetRight();
-                Evaluate( node2 );
-
-                //Get the top two items from the stack.  The right will be on top
-                Variant v2 = Pop();
-                Variant v1 = Pop();
-
-                Push(v1 && v2);
+                Variant v1 = Peek();
+                if(!(bool)v1)
+                {
+                    // Left is false; result is false without evaluating right.
+                    // (v1 already on stack from Evaluate; replace it)
+                    Pop();
+                    Push(Variant(0));
+                }
+                else
+                {
+                    Pop();
+                    const PNode * node2 = node->GetRight();
+                    Evaluate( node2 );
+                    Variant v2 = Pop();
+                    Push(v1 && v2);
+                }
 
             }
             break;
 
         case PEBL_OR:
             {
-                //Evaluate left and right nodes, and do an or on them.
-
-                //Execute left and right nodes, which puts results on stack
+                // Short-circuit OR: evaluate left first; if true, skip right.
                 const PNode * node1 = node->GetLeft();
                 Evaluate( node1 );
-                const PNode * node2 = node->GetRight();
-                Evaluate( node2 );
-
-                //Get the top two items from the stack.  The right will be on top
-                Variant v2 = Pop();
-                Variant v1 = Pop();
-
-                Push(v1 || v2);
-
+                Variant v1 = Peek();
+                if((bool)v1)
+                {
+                    // Left is true; result is true without evaluating right.
+                    Pop();
+                    Push(Variant(1));
+                }
+                else
+                {
+                    Pop();
+                    const PNode * node2 = node->GetRight();
+                    Evaluate( node2 );
+                    Variant v2 = Pop();
+                    Push(v1 || v2);
+                }
 
             }
             break;

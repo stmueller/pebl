@@ -391,11 +391,20 @@ bool  PlatformTextBox::RenderText()
                         }
 
                         // Calculate justification offset
+                        // Use HTML alignment if specified, otherwise fall back to
+                        // the textbox .justify property (mJustify)
                         int justifyOffset = 0;
                         if (lineJustification == FormatParser::JUSTIFY_CENTER) {
                             justifyOffset = (mWidth - totalLineWidth) / 2;
                         } else if (lineJustification == FormatParser::JUSTIFY_RIGHT) {
                             justifyOffset = mWidth - totalLineWidth;
+                        } else if (lineJustification == FormatParser::JUSTIFY_NONE) {
+                            // No HTML alignment — fall back to .justify property
+                            if (effectiveJustify == "CENTER") {
+                                justifyOffset = (mWidth - totalLineWidth) / 2;
+                            } else if (is_line_right_justified(line_text, effectiveJustify)) {
+                                justifyOffset = mWidth - totalLineWidth;
+                            }
                         }
 
                         // SECOND PASS: Render segments with baseline alignment and justification
@@ -1676,7 +1685,7 @@ bool PlatformTextBox::Draw()
 
             // Iterate to find the right font size
             // Keep previous adaptive font in mIntermediateFonts during iteration
-            int maxIterations = 5;
+            int maxIterations = 20;
             int iteration = 0;
             bool needsAdaptation = true;
 
@@ -1700,40 +1709,10 @@ bool PlatformTextBox::Draw()
                 int targetSize = currentFontSize;
 
                 // Text doesn't fit (TEXTCOMPLETE=0), so we need to shrink the font
-                // On first iteration, use area-based calculation for better initial estimate
-                // On subsequent iterations, just decrement by 1 point
-                if (iteration == 0) {
-                    // Use area calculation for initial estimate
-                    Variant numLinesVar = PEBLObjectBase::GetProperty("NUMTEXTLINES");
-                    int numLines = numLinesVar.GetInteger();
-
-                    if (numLines > 0 && mHeight > 0 && mWidth > 0) {
-                        int lineHeight = GetPlatformFont()->GetTextHeight(mText);
-
-                        // Calculate area of box and area of current text
-                        int boxArea = mWidth * mHeight;
-                        int textArea = mWidth * (numLines * lineHeight);
-
-                        if (textArea > boxArea) {
-                            // Text doesn't fit - use area ratio for initial estimate
-                            // Font area scales as size², so take square root of area ratio
-                            double areaRatio = (double)boxArea / (double)textArea;
-                            int estimatedSize = (int)(currentFontSize * std::sqrt(areaRatio));
-                            targetSize = std::max(estimatedSize, minFontSize);
-                        } else {
-                            // Area calculation thinks it fits, but TEXTCOMPLETE=0 says it doesn't
-                            // This happens with formatted text (variable line heights)
-                            // Just decrement by 1 to be safe
-                            targetSize = std::max(currentFontSize - 1, minFontSize);
-                        }
-                    } else {
-                        // Can't calculate area - just decrement
-                        targetSize = std::max(currentFontSize - 1, minFontSize);
-                    }
-                } else {
-                    // Subsequent iterations: always decrement by 1 point
-                    // We know text doesn't fit (TEXTCOMPLETE=0), so keep shrinking
-                    targetSize = std::max(currentFontSize - 1, minFontSize);
+                // Reduce by 10% (minimum 1 point) each iteration
+                {
+                    int reduction = std::max(currentFontSize / 10, 1);
+                    targetSize = std::max(currentFontSize - reduction, minFontSize);
                 }
 
                 // Safety: ensure we're actually shrinking, never growing

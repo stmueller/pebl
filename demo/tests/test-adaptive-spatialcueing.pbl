@@ -1,0 +1,70 @@
+## Test: Reproduce AdaptiveTextBox overflow with spatialcueing instructions
+## This uses the exact text and parameters from spatialcueing to reproduce
+## the clipping bug reported in doc/todo.txt
+## No keypresses - runs automatically and saves PNGs
+
+define Start(p)
+{
+  gWin <- MakeWindow("black")
+
+  ## This is the spatialcueing instruction text with placeholders filled in
+  instText <- "Spatial Cueing Task" + CR(2) +
+    "This task has 100 trials. At the beginning of each trial, a fixation cross will appear with an arrow cue:" + CR(2) +
+    "  [< +  ] -- left arrow" + CR(1) +
+    "  [  + >] -- right arrow" + CR(1) +
+    "  [< + >] -- both arrows (neutral)" + CR(2) +
+    "The stimulus X will appear shortly after, either to the left or right of the fixation. The arrow correctly predicts the location 80% of the time." + CR(2) +
+    "Your goal is to keep your eyes on the + and respond as quickly as possible when you see the X." + CR(2) +
+    "Press any key to begin."
+
+  ## Simulate a layout stimulus region (roughly what CreateLayout produces)
+  regionX <- 50
+  regionY <- 80
+  regionW <- gVideoWidth - 100
+  regionH <- gVideoHeight - 250
+
+  ## Test 1: font size 60 (the original problem size)
+  label1 <- EasyLabel("Font size 60 (BUGGY - text should be clipped):", gVideoWidth/2, 30, gWin, 18)
+  tb1 <- AdaptiveTextBox(instText,
+                          regionX + 20,
+                          regionY + 20,
+                          gWin, 60,
+                          regionW - 40,
+                          regionH - 40,
+                          "scalefont")
+  Draw()
+  Print("Font 60: textComplete=" + tb1.textComplete + " numLines=" + tb1.numTextLines + " lineHeight=" + tb1.lineHeight)
+  WritePNG("adaptive-test-font60.png", gWin, [0, 0, gVideoWidth, gVideoHeight])
+  RemoveObject(tb1, gWin)
+  Hide(label1)
+
+  ## Test 2: font size 40 (the workaround)
+  label2 <- EasyLabel("Font size 40 (workaround - should fit):", gVideoWidth/2, 30, gWin, 18)
+  tb2 <- AdaptiveTextBox(instText,
+                          regionX + 20,
+                          regionY + 20,
+                          gWin, 40,
+                          regionW - 40,
+                          regionH - 40,
+                          "scalefont")
+  Draw()
+  Print("Font 40: textComplete=" + tb2.textComplete + " numLines=" + tb2.numTextLines + " lineHeight=" + tb2.lineHeight)
+  WritePNG("adaptive-test-font40.png", gWin, [0, 0, gVideoWidth, gVideoHeight])
+  RemoveObject(tb2, gWin)
+  Hide(label2)
+
+  ## Test 3: font size 80 (extreme)
+  label3 <- EasyLabel("Font size 80 (extreme - needs heavy scaling):", gVideoWidth/2, 30, gWin, 18)
+  tb3 <- AdaptiveTextBox(instText,
+                          regionX + 20,
+                          regionY + 20,
+                          gWin, 80,
+                          regionW - 40,
+                          regionH - 40,
+                          "scalefont")
+  Draw()
+  Print("Font 80: textComplete=" + tb3.textComplete + " numLines=" + tb3.numTextLines + " lineHeight=" + tb3.lineHeight)
+  WritePNG("adaptive-test-font80.png", gWin, [0, 0, gVideoWidth, gVideoHeight])
+
+  Print("Test complete. Check PNG files.")
+}

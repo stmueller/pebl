@@ -1916,7 +1916,7 @@ define ReadTranslationJSON(filename,lang)
 ##     gInst1 <- SubstituteStrings(gStrings.inst1, [[<VAR>, value]])
 ##   }
 ##
-define GetTranslations(testname, lang)
+define GetTranslations(testname, lang, basedir:"translations")
 {
   ## Normalize language code to lowercase at the start
   ## All translation files use lowercase 2-letter codes (en, es, tr, etc.)
@@ -1925,11 +1925,16 @@ define GetTranslations(testname, lang)
   ## Tier 1: Try explicit language if provided
   if(lang != "")
   {
-    fname <- "translations/" + testname + ".pbl-" + lang + ".json"
+    ## Try new format first, then old format
+    fnameNew <- basedir + "/" + testname + "." + lang + ".json"
+    fnameOld <- basedir + "/" + testname + ".pbl-" + lang + ".json"
 
-    if(FileExists(fname))
+    if(FileExists(fnameNew))
     {
-        ret <-  ReadTranslationJSON(fname, lang)
+        ret <- ReadTranslationJSON(fnameNew, lang)
+    } elseif(FileExists(fnameOld))
+    {
+        ret <- ReadTranslationJSON(fnameOld, lang)
     } else {
         ret <- ""
         lang <- ""  ##language 2-character code files not available, so treat it as if it was not set and we will use fallback.
@@ -1946,11 +1951,17 @@ define GetTranslations(testname, lang)
     {
       ## Extract language code from locale (e.g., "en_US" -> "en", "zh_CN" -> "zh")
       lang <- Lowercase(SubString(systemLocale, 1, 2))
-      fname <- "translations/" + testname + ".pbl-" + lang + ".json"
 
-      if(FileExists(fname))
+      ## Try new format first, then old format
+      fnameNew <- basedir + "/" + testname + "." + lang + ".json"
+      fnameOld <- basedir + "/" + testname + ".pbl-" + lang + ".json"
+
+      if(FileExists(fnameNew))
       {
-        ret <- ReadTranslationJSON(fname, lang)
+        ret <- ReadTranslationJSON(fnameNew, lang)
+      } elseif(FileExists(fnameOld))
+      {
+        ret <- ReadTranslationJSON(fnameOld, lang)
       } else {
         ret <- ""
       }
@@ -1959,9 +1970,16 @@ define GetTranslations(testname, lang)
 
   if(ret == "")
   {
-    ## Tier 3: Fall back to English
-    fname <- "translations/" + testname + ".pbl-en.json"
-    ret <-  ReadTranslationJSON(fname, "en")
+    ## Tier 3: Fall back to English (try new format first)
+    fnameNew <- basedir + "/" + testname + ".en.json"
+    fnameOld <- basedir + "/" + testname + ".pbl-en.json"
+
+    if(FileExists(fnameNew))
+    {
+      ret <- ReadTranslationJSON(fnameNew, "en")
+    } else {
+      ret <- ReadTranslationJSON(fnameOld, "en")
+    }
   }
 
    return ret

@@ -244,6 +244,17 @@ build_bundle() {
 
     eval "$cmd"
 
+    # Apply race condition fix to generated JS file
+    # Emscripten's file_packager generates code that checks Module['calledRun']
+    # and calls runWithFS() synchronously if true. This causes assertion failures
+    # when multiple bundles are loaded, because async metadata fetches can complete
+    # after Module initialization. The fix: always defer to preRun.
+    if [ -f "$js_file" ]; then
+        echo "Applying race condition fix to ${name}.js..."
+        perl -i -0pe 's/if \(Module\[\x27calledRun\x27\]\) \{\s*runWithFS\(Module\);\s*\} else \{\s*\(Module\[\x27preRun\x27\] \?\?= \[\]\)\.push\(runWithFS\);[^\}]*\}/\/\/ Always defer to preRun to avoid race condition with Module initialization\n    \/\/ (async metadata loading may complete after Module[\x27calledRun\x27] is set)\n    (Module[\x27preRun\x27] ??= []).push(runWithFS);/g' "$js_file"
+        echo -e "  ${GREEN}✓ Race condition fix applied${NC}"
+    fi
+
     echo ""
     echo -e "${GREEN}✓ Bundle created successfully!${NC}"
     echo ""

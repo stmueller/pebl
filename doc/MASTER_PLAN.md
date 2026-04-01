@@ -535,6 +535,96 @@ None - all online deployment infrastructure is complete and working.
 - [ ] Add memory leak tests to test suite
 - [ ] Profile memory usage of common battery tasks
 
+## Survey & Questionnaire Infrastructure
+
+### High Priority
+
+- [ ] **Implement ScaleRunner System** 🚧 **IN PROGRESS (Feb 2026)**
+  - **Purpose**: Unified platform for psychological scales and questionnaires
+  - **Problem solved**: Eliminates code duplication across 7+ scale implementations (SUS, BigFive, TLX, FASCW, SSSQ, etc.)
+  - **Current status**: Core infrastructure complete, ready for testing
+  - **Implementation completed**:
+    - Created `battery/scales/ScaleRunner.pbl` (~670 lines)
+    - JSON-based scale definition system
+    - Reverse coding system (coding: 1 vs coding: -1)
+    - Composite scoring (sum_coded, mean_coded, weighted_sum)
+    - Question filtering by dimension (do_ext, do_agr parameters)
+    - Formatted report generation
+    - Translation system integration
+    - LSL marker support
+    - Upload system integration
+  - **Question types implemented**:
+    - ✅ Likert scale (horizontal click rectangles) - COMPLETE
+    - 🔲 VAS (Visual Analog Scale) - from tiredness.pbl, TLX.pbl
+    - 🔲 Grid rating - from FASCW.pbl
+    - 🔲 Text entry (short/long) - from survey.pbl
+    - 🔲 Multiple choice - from survey.pbl
+    - 🔲 Instructions - from survey.pbl
+  - **Scale definitions created**:
+    - `battery/scales/definitions/bigfive.json` - 50 items, 5 dimensions
+    - Parameter schema: `battery/scales/params/ScaleRunner.pbl.schema.json`
+    - Translation template: `battery/scales/translations/bigfive.pbl-en.json`
+  - **Usage**:
+    ```bash
+    bin/pebl2 battery/scales/ScaleRunner.pbl -s P001 -v scale bigfive
+    bin/pebl2 battery/scales/ScaleRunner.pbl -s P001 -v scale bigfive -v do_ext 0
+    ```
+  - **Next steps**:
+    - Implement remaining question types (VAS, Grid, text, multi-choice)
+    - Create additional scale definitions (SUS, TLX, FASCW, SSSQ, KSS)
+    - Add all 50 BigFive question texts to translations
+    - Test reverse coding and composite scoring
+    - Validate against existing scale implementations
+    - Add to online platform battery selection
+  - **Benefits**:
+    - Single codebase for all scales (DRY principle)
+    - Easy to add new scales (just JSON, no code)
+    - Consistent data format across scales
+    - Automatic scoring with reverse coding
+    - Formatted reports for participants/researchers
+    - Argument-based selection: RunScale("bigfive", options)
+  - Related files:
+    - `battery/scales/ScaleRunner.pbl` (main runner)
+    - `battery/scales/definitions/*.json` (scale definitions)
+    - `battery/scales/translations/*.json` (multi-language support)
+    - `doc/SCALERUNNER_DESIGN.md` (comprehensive design document)
+
+### Medium Priority
+
+- [ ] **Expand ScaleRunner Question Type Library**
+  - Port VAS implementation from tiredness.pbl (lines 217-292, 450-523)
+  - Port Grid implementation from FASCW.pbl (lines 47-186)
+  - Port text/multi-choice from survey.pbl
+  - Add pairwise comparison (for TLX weighting phase)
+  - Timeline: 3-5 hours total
+
+- [ ] **Create Scale Definition Library**
+  - Convert existing scales to JSON format:
+    - SUS (10 items, simple Likert)
+    - TLX (6 VAS + pairwise weighting)
+    - FASCW (10 items, grid layout)
+    - SSSQ (24 items, Likert)
+    - KSS (1 VAS item)
+  - Add 10-20 common scales from research literature
+  - Document licensing and citations
+  - Timeline: 1 hour per scale
+
+- [ ] **Online Survey Builder**
+  - Web-based GUI for creating custom scales
+  - Point-and-click question editor
+  - Export to ScaleRunner JSON format
+  - Integration with PEBLOnlinePlatform
+  - Timeline: 4-6 weeks
+
+### Deferred
+
+- [ ] **Stimulus Specification System for Memory Tests**
+  - Generic framework for DRM, free recall, recognition tasks
+  - JSON-based stimulus definitions
+  - Automatic counterbalancing
+  - Lower priority - narrower use case than scales
+  - Requires more research into paradigm variations
+
 ## Documentation
 
 - [ ] Document font factory architecture once implemented

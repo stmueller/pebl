@@ -186,7 +186,7 @@ FilePrint(gFileOut, gSubNum + "," + trial + "," + rt + "," + accuracy)
 ```bash
 bin/pebl2 path/to/script.pbl                           # Native
 bin/pebl2 path/to/script.pbl -s 123                    # With subject number
-bin/pebl2 path/to/script.pbl -s 123 --pfile params.json  # With params file
+bin/pebl2 path/to/script.pbl -s 123 --pfile myparams.json  # With params file (filename only, PEBL looks in params/ directory)
 ```
 
 **Common test files in root:**

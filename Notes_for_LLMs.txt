@@ -1188,21 +1188,27 @@ SUPPORTED HTML-LITE TAGS:
    <h5>...</h5>     130% of base font
    <h6>...</h6>     115% of base font (smallest header)
 
-2. PARAGRAPH TAG WITH SIZE ATTRIBUTE:
-   <p size=N>...</p>    N% of base font (N is any integer percentage)
+2. PARAGRAPH TAG WITH ATTRIBUTES:
+   <p size=N>...</p>         N% of base font (N is any integer percentage)
+   <p align=center>...</p>   Centered paragraph
+   <p align=right>...</p>    Right-aligned paragraph
+   <p size=N align=center>...</p>  Combined size and alignment
 
    Examples:
-   <p size=100>Normal text</p>      ## Same as base font
-   <p size=150>Bigger text</p>      ## 1.5x base font
-   <p size=75>Smaller text</p>      ## 0.75x base font
-   <p size=120>Medium heading</p>   ## Custom size between defaults
+   <p size=100>Normal text</p>           ## Same as base font
+   <p size=150>Bigger text</p>           ## 1.5x base font
+   <p size=75>Smaller text</p>           ## 0.75x base font
+   <p size=120>Medium heading</p>        ## Custom size between defaults
+   <p align=center>Centered text</p>     ## Centered, normal size
+   <p align=right>Right-aligned</p>      ## Right-aligned, normal size
+   <p size=150 align=center>Big centered title</p>  ## Combined
 
 3. TEXT STYLING TAGS (inherit parent size):
    <b>...</b>       Bold text
    <i>...</i>       Italic text
    <u>...</u>       Underlined text
-   <center>...</center>  Centered text
-   <right>...</right>    Right-aligned text
+   <indent>...</indent>  Indented text
+   <indent=N>...</indent>  Indented by N characters
 
    Note: Styling tags do NOT change font size, only appearance/alignment
 
@@ -1230,14 +1236,20 @@ Headers and paragraphs:
           "<h3>Subsection</h3>" + CR(1) +
           "<p size=100>More content here.</p>"
 
-Custom sizes and colors:
-  text <- "<p size=150 color='#FF0000'>Large red warning text</p>" + CR(1) +
+Custom sizes, colors, and alignment:
+  text <- "<p size=150 color='#FF0000' align=center>Large red warning text</p>" + CR(1) +
           "<p size=100 color='blue' bgcolor='#FFFFCC'>Blue text on yellow background</p>" + CR(1) +
-          "<p size=75 color='grey'>Small grey caption text</p>"
+          "<p size=75 color='grey' align=right>Small grey caption text</p>"
 
 Nested styling:
   text <- "<h2>Important Notice</h2>" + CR(1) +
           "<p size=110>This is <b>important</b> information with <u>underlined</u> text.</p>"
+
+Lists and indentation:
+  text <- "<p size=100><b>Instructions:</b></p>" + CR(1) +
+          "<indent><p size=100>1. First step here</p></indent>" + CR(1) +
+          "<indent><p size=100>2. Second step here</p></indent>" + CR(1) +
+          "<indent><p size=100>3. Third step here</p></indent>"
 
 ADAPTIVE TEXTBOX USAGE:
 

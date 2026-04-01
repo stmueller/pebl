@@ -119,6 +119,13 @@ if [ "$BUILD_TYPE" = "production" ]; then
             --use-preload-cache
 
         echo -e "${GREEN}  ✓ private_uploads.data created successfully${NC}"
+
+        # Apply race condition fix to private_uploads.js
+        # (Emscripten file_packager generates code that can fail with multiple bundles)
+        echo "  Applying race condition fix to private_uploads.js..."
+        perl -i -0pe 's/if \(Module\[\x27calledRun\x27\]\) \{\s*runWithFS\(Module\);\s*\} else \{\s*\(Module\[\x27preRun\x27\] \?\?= \[\]\)\.push\(runWithFS\);[^\}]*\}/\/\/ Always defer to preRun to avoid race condition with Module initialization\n    \/\/ (async metadata loading may complete after Module[\x27calledRun\x27] is set)\n    (Module[\x27preRun\x27] ??= []).push(runWithFS);/g' "$RUNTIME_DIR/private_uploads.js"
+        echo -e "${GREEN}  ✓ Race condition fix applied to private_uploads.js${NC}"
+
         echo "  Output files:"
         echo "    - $RUNTIME_DIR/private_uploads.data"
         echo "    - $RUNTIME_DIR/private_uploads.js"
@@ -247,6 +254,22 @@ if [ "$BUILD_TYPE" = "production" ]; then
         echo -e "${YELLOW}  Note: No private_tasks directory found - skipping${NC}"
     fi
 
+    # Copy ScaleRunner.pbl to scales/ScaleRunner/ in PEBLOnlinePlatform
+    # ScaleRunner lives in media/apps/scales/ in the PEBL source; in PEBLOnlinePlatform it
+    # lives in scales/ScaleRunner/ and is packaged into the ScaleRunner bundle by
+    # scripts/build_scalerunner_bundle.php --build.
+    echo ""
+    echo "Copying ScaleRunner.pbl..."
+    SCALERUNNER_SRC="$PEBL_DIR/media/apps/scales/ScaleRunner.pbl"
+    SCALERUNNER_DEST="$ONLINE_PLATFORM_DIR/scales/ScaleRunner"
+    if [ -f "$SCALERUNNER_SRC" ]; then
+        mkdir -p "$SCALERUNNER_DEST"
+        cp -v "$SCALERUNNER_SRC" "$SCALERUNNER_DEST/"
+        echo -e "${GREEN}  ✓ ScaleRunner.pbl → scales/ScaleRunner/${NC}"
+    else
+        echo -e "${YELLOW}  Warning: ScaleRunner.pbl not found at $SCALERUNNER_SRC${NC}"
+    fi
+
     echo ""
     echo -e "${GREEN}✓ Production deployment complete!${NC}"
 
@@ -300,6 +323,7 @@ fi
         # Update technical-faq.md with version info
         # Use sed to replace content between HTML comments
         sed -i "s|<!-- PEBL_VERSION -->.*<!-- /PEBL_VERSION -->|<!-- PEBL_VERSION -->$PEBL_VER<!-- /PEBL_VERSION -->|g" "$TECH_FAQ"
+        sed -i "s|<!-- PEBL_GIT_DESCRIBE -->.*<!-- /PEBL_GIT_DESCRIBE -->|<!-- PEBL_GIT_DESCRIBE -->$GIT_DESCRIBE<!-- /PEBL_GIT_DESCRIBE -->|g" "$TECH_FAQ"
         sed -i "s|<!-- PEBL_GIT_COMMIT -->.*<!-- /PEBL_GIT_COMMIT -->|<!-- PEBL_GIT_COMMIT -->$GIT_COMMIT<!-- /PEBL_GIT_COMMIT -->|g" "$TECH_FAQ"
         sed -i "s|<!-- PEBL_COMMIT_DATE -->.*<!-- /PEBL_COMMIT_DATE -->|<!-- PEBL_COMMIT_DATE -->$GIT_COMMIT_DATE<!-- /PEBL_COMMIT_DATE -->|g" "$TECH_FAQ"
         sed -i "s|<!-- DEPLOYMENT_DATE -->.*<!-- /DEPLOYMENT_DATE -->|<!-- DEPLOYMENT_DATE -->$DEPLOY_DATE<!-- /DEPLOYMENT_DATE -->|g" "$TECH_FAQ"

@@ -3104,6 +3104,30 @@ define ComputeDimensionScore(dimID, scoreDef, questionMap, responseMap, scaleDef
           minVal <- First(range)
           maxVal <- Second(range)
 
+          ## Apply value_map before coding (per-item overrides "*" default)
+          ## value_map values are arrays: index i = recoded value for response min+i
+          mappedResp <- resp
+          if(PropertyExists(scoreDef, "value_map"))
+          {
+            vmap <- scoreDef.value_map
+            itemMap <- 0
+            if(PropertyExists(vmap, itemID))
+            {
+              itemMap <- GetProperty(vmap, itemID)
+            } elseif(PropertyExists(vmap, "default"))
+            {
+              itemMap <- GetProperty(vmap, "default")
+            }
+            if(IsList(itemMap))
+            {
+              idx <- resp - minVal + 1
+              if(idx >= 1 and idx <= Length(itemMap))
+              {
+                mappedResp <- Nth(itemMap, idx)
+              }
+            }
+          }
+
           ## Apply coding: read from scoring definition's item_coding object.
           ## 1 = forward, -1 = reverse, 0 or absent = exclude from this dimension's score.
           coding <- 0
@@ -3123,9 +3147,9 @@ define ComputeDimensionScore(dimID, scoreDef, questionMap, responseMap, scaleDef
             if(PropertyExists(qdef, "type") and
                (qdef.type == "multi" or qdef.type == "multicheck"))
             {
-              PushOnEnd(values, resp)
+              PushOnEnd(values, mappedResp)
             } else {
-              coded <- CodeResponse(resp, coding, minVal, maxVal)
+              coded <- CodeResponse(mappedResp, coding, minVal, maxVal)
               PushOnEnd(values, coded)
             }
 
@@ -3899,9 +3923,34 @@ define SaveIndividualData(results, transformedScores, scaleDef)
               {
                 ## For coded methods: compute recoded value
                 ## Note: resp can be 0 (valid response), so check if numeric
+
                 range <- GetQuestionRange(qdef, scaleDef)
                 minVal <- First(range)
                 maxVal <- Second(range)
+
+                ## Apply value_map before coding (per-item overrides "*" default)
+                ## value_map values are arrays: index i = recoded value for response min+i
+                mappedResp <- resp
+                if(PropertyExists(scoreDef, "value_map"))
+                {
+                  vmap <- scoreDef.value_map
+                  itemMap <- 0
+                  if(PropertyExists(vmap, qdef.id))
+                  {
+                    itemMap <- GetProperty(vmap, qdef.id)
+                  } elseif(PropertyExists(vmap, "default"))
+                  {
+                    itemMap <- GetProperty(vmap, "default")
+                  }
+                  if(IsList(itemMap))
+                  {
+                    idx <- resp - minVal + 1
+                    if(idx >= 1 and idx <= Length(itemMap))
+                    {
+                      mappedResp <- Nth(itemMap, idx)
+                    }
+                  }
+                }
 
                 ## Get dimension-specific coding
                 coding <- 1
@@ -3910,7 +3959,7 @@ define SaveIndividualData(results, transformedScores, scaleDef)
                   coding <- GetProperty(scoreDef.item_coding, qdef.id)
                 }
 
-                dimValue <- CodeResponse(resp, coding, minVal, maxVal)
+                dimValue <- CodeResponse(mappedResp, coding, minVal, maxVal)
               }
             }
           }
@@ -4427,12 +4476,35 @@ define GenerateReport(results, scores, transformedScores, scaleDef, computedVars
 
                 if(rptIsMember and IsNumber(subResp))
                 {
+                  ## Apply value_map before coding
+                  rptGridMapped <- subResp
+                  if(PropertyExists(rptScoreDef, "value_map"))
+                  {
+                    rptGVmap <- rptScoreDef.value_map
+                    rptGItemMap <- 0
+                    if(PropertyExists(rptGVmap, rptSubID))
+                    {
+                      rptGItemMap <- GetProperty(rptGVmap, rptSubID)
+                    } elseif(PropertyExists(rptGVmap, "default"))
+                    {
+                      rptGItemMap <- GetProperty(rptGVmap, "default")
+                    }
+                    if(IsList(rptGItemMap))
+                    {
+                      rptGIdx <- subResp - rptGridMin + 1
+                      if(rptGIdx >= 1 and rptGIdx <= Length(rptGItemMap))
+                      {
+                        rptGridMapped <- Nth(rptGItemMap, rptGIdx)
+                      }
+                    }
+                  }
+
                   rptCoding <- 1
                   if(PropertyExists(rptScoreDef, "item_coding") and PropertyExists(rptScoreDef.item_coding, rptSubID))
                   {
                     rptCoding <- GetProperty(rptScoreDef.item_coding, rptSubID)
                   }
-                  dimVal <- CodeResponse(subResp, rptCoding, rptGridMin, rptGridMax) + ""
+                  dimVal <- CodeResponse(rptGridMapped, rptCoding, rptGridMin, rptGridMax) + ""
                 }
               }
               PushOnEnd(rowData, dimVal)
@@ -4478,12 +4550,36 @@ define GenerateReport(results, scores, transformedScores, scaleDef, computedVars
                 rptRange <- GetQuestionRange(qdef, scaleDef)
                 rptMinVal <- First(rptRange)
                 rptMaxVal <- Second(rptRange)
+
+                ## Apply value_map before coding
+                rptMapped <- resp
+                if(PropertyExists(rptScoreDef, "value_map"))
+                {
+                  rptVmap <- rptScoreDef.value_map
+                  rptItemMap <- 0
+                  if(PropertyExists(rptVmap, qdef.id))
+                  {
+                    rptItemMap <- GetProperty(rptVmap, qdef.id)
+                  } elseif(PropertyExists(rptVmap, "default"))
+                  {
+                    rptItemMap <- GetProperty(rptVmap, "default")
+                  }
+                  if(IsList(rptItemMap))
+                  {
+                    rptIdx <- resp - rptMinVal + 1
+                    if(rptIdx >= 1 and rptIdx <= Length(rptItemMap))
+                    {
+                      rptMapped <- Nth(rptItemMap, rptIdx)
+                    }
+                  }
+                }
+
                 rptCoding <- 1
                 if(PropertyExists(rptScoreDef, "item_coding") and PropertyExists(rptScoreDef.item_coding, qdef.id))
                 {
                   rptCoding <- GetProperty(rptScoreDef.item_coding, qdef.id)
                 }
-                dimVal <- CodeResponse(resp, rptCoding, rptMinVal, rptMaxVal) + ""
+                dimVal <- CodeResponse(rptMapped, rptCoding, rptMinVal, rptMaxVal) + ""
               }
             }
           }
@@ -4580,7 +4676,8 @@ define GetStrings(lang, scaleCode)
   ##   1. {code}-{lang}.json      (OSD/OpenScales standard)
   ##   2. {code}.pbl-{lang}.json  (legacy PEBL format)
   ##   3. {code}.{lang}.json      (dot-separated legacy)
-  ## Falls back to English if requested language not found.
+  ## Falls back to English if requested language not found,
+  ## then to the first available translation file for the scale.
 
   lang <- Lowercase(lang)
   found <- 0
@@ -4647,16 +4744,58 @@ define GetStrings(lang, scaleCode)
     }
   }
 
+  ## Fallback: try first available translation file for this scale
+  if(found == 0)
+  {
+    transDir <- "translations/"
+    if(FileExists(transDir))
+    {
+      allFiles <- GetDirectoryListing(transDir)
+      prefix <- Lowercase(scaleCode)
+      prefixLen <- StringLength(prefix)
+      loop(f, allFiles)
+      {
+        if(found == 0)
+        {
+          fLower <- Lowercase(f)
+          ## Match files like {code}-{lang}.json or {code}.{lang}.json
+          if(StringLength(fLower) > prefixLen and
+             Uppercase(SubString(fLower, 1, prefixLen)) == Uppercase(prefix) and
+             EndsWith(fLower, ".json") and
+             fLower != prefix + ".json")
+          {
+            gStrings <- ReadTranslationJSON(transDir + f, "")
+            found <- 1
+          }
+        }
+      }
+    }
+  }
+
   ## Fallback: embedded translations stored in _embedded_translations by LoadScaleDefinition
   if(found == 0 and PropertyExists(gScaleDef, "_embedded_translations"))
   {
     embTrans <- gScaleDef._embedded_translations
     embLangKey <- lang
     if(lang == "" or lang == "en") { embLangKey <- "en" }
-    if(not PropertyExists(embTrans, embLangKey) and PropertyExists(embTrans, "en"))
+
+    ## Try requested language first
+    if(not PropertyExists(embTrans, embLangKey))
     {
-      embLangKey <- "en"
+      ## Then try English
+      if(PropertyExists(embTrans, "en"))
+      {
+        embLangKey <- "en"
+      } else {
+        ## Fall back to first available translation
+        embLangKeys <- GetPropertyList(embTrans)
+        if(Length(embLangKeys) > 0)
+        {
+          embLangKey <- First(embLangKeys)
+        }
+      }
     }
+
     if(PropertyExists(embTrans, embLangKey))
     {
       gStrings <- GetProperty(embTrans, embLangKey)

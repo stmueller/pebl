@@ -220,6 +220,7 @@ struct DimensionScoring {
     std::map<std::string, std::vector<std::string>> correct_answers;  // For sum_correct: item_id -> list of acceptable answers/patterns
     std::vector<NormThreshold> norms;  // Interpretation thresholds for report (optional)
     std::vector<TransformStep> transform;  // Post-scoring arithmetic transform steps (optional)
+    std::map<std::string, std::vector<double>> value_map;  // Per-item response remapping: item_id (or "default") -> array[i] = recoded value for response min+i
 
     DimensionScoring() : method("mean_coded") {}
 };

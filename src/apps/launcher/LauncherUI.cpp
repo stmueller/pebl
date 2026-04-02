@@ -10189,11 +10189,28 @@ void LauncherUI::RenderScoringEditor()
                 ? "Norms..."
                 : ("Norms (" + std::to_string(dimScoring.norms.size()) + ")");
 
+            // Value Map button
+            std::string vmapBtn = dimScoring.value_map.empty()
+                ? "Value Map..."
+                : ("Value Map (" + std::to_string(dimScoring.value_map.size()) + ")");
+
             float btnWidth1 = ImGui::CalcTextSize(normsBtn.c_str()).x + ImGui::GetStyle().FramePadding.x * 2;
             float btnWidth2 = ImGui::CalcTextSize(transformBtn.c_str()).x + ImGui::GetStyle().FramePadding.x * 2;
+            float btnWidth3 = ImGui::CalcTextSize(vmapBtn.c_str()).x + ImGui::GetStyle().FramePadding.x * 2;
             float spacing = ImGui::GetStyle().ItemSpacing.x;
-            ImGui::SameLine(ImGui::GetContentRegionAvail().x - btnWidth1 - btnWidth2 - spacing * 2);
+            ImGui::SameLine(ImGui::GetContentRegionAvail().x - btnWidth1 - btnWidth2 - btnWidth3 - spacing * 3);
 
+            if (ImGui::SmallButton(vmapBtn.c_str())) {
+                ImGui::OpenPopup("ValueMapEditor");
+            }
+            if (ImGui::IsItemHovered()) {
+                ImGui::SetTooltip("Define non-linear response recoding.\n"
+                                  "Array maps response values to recoded scores:\n"
+                                  "  index 0 = value for min response, index 1 = min+1, etc.\n"
+                                  "Use \"default\" to apply same map to all items;\n"
+                                  "add per-item overrides by item ID.");
+            }
+            ImGui::SameLine();
             if (ImGui::SmallButton(transformBtn.c_str())) {
                 ImGui::OpenPopup("TransformEditor");
             }
@@ -10286,6 +10303,113 @@ void LauncherUI::RenderScoringEditor()
                     ImGui::SameLine();
                     if (ImGui::Button("Clear All")) {
                         dimScoring.transform.clear();
+                        mCurrentScale->SetDirty(true);
+                    }
+                }
+
+                ImGui::EndPopup();
+            }
+
+            // Value Map editor popup
+            if (ImGui::BeginPopup("ValueMapEditor")) {
+                ImGui::Text("Value Map (Response Recoding)");
+                ImGui::SameLine();
+                ImGui::TextDisabled("(?)");
+                if (ImGui::IsItemHovered()) {
+                    ImGui::SetTooltip("Each entry maps raw responses to recoded values.\n"
+                                      "Array index 0 = recoded value for the scale minimum response,\n"
+                                      "index 1 = min+1, etc.\n"
+                                      "\"default\" applies to all items; item-specific entries override it.\n"
+                                      "Enter comma-separated values (e.g. \"3,2,1,0,0,0,0\" for a 7-point scale).");
+                }
+                ImGui::Separator();
+
+                std::string removeKey;
+                for (auto& [vmKey, vmArr] : dimScoring.value_map) {
+                    ImGui::PushID(vmKey.c_str());
+
+                    // Key label
+                    ImGui::Text("%s:", vmKey.c_str());
+                    ImGui::SameLine();
+
+                    // Convert array to comma-separated string for editing
+                    std::string arrStr;
+                    for (size_t ai = 0; ai < vmArr.size(); ai++) {
+                        if (ai) arrStr += ",";
+                        double v = vmArr[ai];
+                        if (v == (int)v) arrStr += std::to_string((int)v);
+                        else arrStr += std::to_string(v);
+                    }
+                    char buf[256];
+                    strncpy(buf, arrStr.c_str(), sizeof(buf) - 1);
+                    buf[sizeof(buf) - 1] = '\0';
+
+                    ImGui::PushItemWidth(250);
+                    if (ImGui::InputText("##vm", buf, sizeof(buf))) {
+                        // Parse comma-separated values back
+                        vmArr.clear();
+                        std::string s(buf);
+                        std::stringstream ss(s);
+                        std::string token;
+                        while (std::getline(ss, token, ',')) {
+                            try {
+                                vmArr.push_back(std::stod(token));
+                            } catch (...) {
+                                vmArr.push_back(0.0);
+                            }
+                        }
+                        mCurrentScale->SetDirty(true);
+                    }
+                    ImGui::PopItemWidth();
+
+                    ImGui::SameLine();
+                    if (ImGui::SmallButton("X##vmrm")) {
+                        removeKey = vmKey;
+                    }
+
+                    ImGui::PopID();
+                }
+
+                if (!removeKey.empty()) {
+                    dimScoring.value_map.erase(removeKey);
+                    mCurrentScale->SetDirty(true);
+                }
+
+                ImGui::Spacing();
+
+                // Add new entry
+                static char newVMKey[128] = "default";
+                static char newVMValues[256] = "";
+                ImGui::PushItemWidth(100);
+                ImGui::InputText("Key##vmk", newVMKey, sizeof(newVMKey));
+                ImGui::PopItemWidth();
+                ImGui::SameLine();
+                ImGui::PushItemWidth(200);
+                ImGui::InputText("Values##vmv", newVMValues, sizeof(newVMValues));
+                ImGui::PopItemWidth();
+                ImGui::SameLine();
+                if (ImGui::SmallButton("+ Add")) {
+                    std::string key(newVMKey);
+                    if (!key.empty()) {
+                        std::vector<double> vals;
+                        std::string s(newVMValues);
+                        std::stringstream ss(s);
+                        std::string token;
+                        while (std::getline(ss, token, ',')) {
+                            try { vals.push_back(std::stod(token)); }
+                            catch (...) { vals.push_back(0.0); }
+                        }
+                        if (!vals.empty()) {
+                            dimScoring.value_map[key] = vals;
+                            mCurrentScale->SetDirty(true);
+                        }
+                    }
+                }
+
+                if (!dimScoring.value_map.empty()) {
+                    ImGui::SameLine();
+                    if (ImGui::SmallButton("Clear All##vm")) {
+                        dimScoring.value_map.clear();
                         mCurrentScale->SetDirty(true);
                     }
                 }

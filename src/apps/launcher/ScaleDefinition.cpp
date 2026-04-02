@@ -694,6 +694,13 @@ bool ScaleDefinition::ParseDefinitionFromJSON(const json& j)
                 if (value.contains("scores")) {
                     ds.scores = value["scores"].get<std::vector<std::string>>();
                 }
+                if (value.contains("value_map")) {
+                    for (auto& [vmkey, vmval] : value["value_map"].items()) {
+                        if (vmval.is_array()) {
+                            ds.value_map[vmkey] = vmval.get<std::vector<double>>();
+                        }
+                    }
+                }
                 mScoring[key] = ds;
             }
         }
@@ -1124,6 +1131,12 @@ bool ScaleDefinition::BuildDefinitionJSONObject(json& outJSON) const
                 }
                 if (!ds.scores.empty()) {
                     sj["scores"] = ds.scores;
+                }
+                if (!ds.value_map.empty()) {
+                    sj["value_map"] = json::object();
+                    for (const auto& [vmkey, vmval] : ds.value_map) {
+                        sj["value_map"][vmkey] = vmval;
+                    }
                 }
                 j["scoring"][key] = sj;
             }

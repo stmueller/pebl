@@ -6353,8 +6353,7 @@ void LauncherUI::RenderScaleBrowser()
                     try {
                         // Create test directory structure
                         fs::create_directories(testDir);
-                        fs::create_directories(testDir + "/definitions");
-                        fs::create_directories(testDir + "/translations");
+                        fs::create_directories(testDir + "/" + scaleCode);
                         fs::create_directories(testDir + "/params");
 
                         // Copy ScaleRunner.pbl and rename to scalecode.pbl
@@ -6367,14 +6366,13 @@ void LauncherUI::RenderScaleBrowser()
                             fs::copy_file(scaleRunnerSource, scaleRunnerDest, fs::copy_options::overwrite_existing);
                             printf("Copied ScaleRunner.pbl to %s\n", scaleRunnerDest.c_str());
 
-                            // Export scale definition and translations
-                            std::string destDefPath = testDir + "/definitions";
-                            std::string destTransPath = testDir + "/translations";
+                            // Export scale as OSD bundle: {code}/{code}.osd
+                            std::string osdDir = testDir + "/" + scaleCode;
 
-                            if (!scale->ExportToJSON(destDefPath, destTransPath)) {
-                                printf("Error: Failed to export scale files\n");
+                            if (!scale->ExportToOSD(osdDir)) {
+                                printf("Error: Failed to export scale OSD\n");
                             } else {
-                                printf("Exported scale definition and translations\n");
+                                printf("Exported scale OSD to %s\n", osdDir.c_str());
 
                                 // Generate schema and default params from scale definition
                                 SyncScaleSchema(testDir, scaleCode);

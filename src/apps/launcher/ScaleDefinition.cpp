@@ -653,7 +653,22 @@ bool ScaleDefinition::ParseDefinitionFromJSON(const json& j)
                 DimensionScoring ds;
                 if (value.contains("method")) ds.method = value["method"];
                 if (value.contains("items")) {
-                    ds.items = value["items"].get<std::vector<std::string>>();
+                    if (value["items"].is_array()) {
+                        // Array format: all forward-coded
+                        ds.items = value["items"].get<std::vector<std::string>>();
+                        for (const auto& id : ds.items) {
+                            ds.item_coding[id] = 1;
+                        }
+                    } else if (value["items"].is_object()) {
+                        // Object format: explicit coding per item
+                        for (auto& [ikey, ival] : value["items"].items()) {
+                            int coding = ival.get<int>();
+                            ds.item_coding[ikey] = coding;
+                            if (coding != 0) {
+                                ds.items.push_back(ikey);
+                            }
+                        }
+                    }
                 }
                 if (value.contains("description")) ds.description = value["description"];
                 if (value.contains("weights")) {
@@ -661,9 +676,16 @@ bool ScaleDefinition::ParseDefinitionFromJSON(const json& j)
                         ds.weights[wkey] = wval.get<double>();
                     }
                 }
+                // Legacy item_coding field (deprecated, but still supported)
                 if (value.contains("item_coding")) {
                     for (auto& [ikey, ival] : value["item_coding"].items()) {
                         ds.item_coding[ikey] = ival.get<int>();
+                        // Also add to items if not already there and non-zero
+                        if (ival.get<int>() != 0) {
+                            if (std::find(ds.items.begin(), ds.items.end(), ikey) == ds.items.end()) {
+                                ds.items.push_back(ikey);
+                            }
+                        }
                     }
                 }
                 if (value.contains("correct_answers")) {
@@ -1098,16 +1120,38 @@ bool ScaleDefinition::BuildDefinitionJSONObject(json& outJSON) const
         if (!mScoring.empty()) {
             j["scoring"] = json::object();
             for (const auto& [key, ds] : mScoring) {
-                json sj = {
-                    {"method", ds.method},
-                    {"items", ds.items},
-                    {"description", ds.description}
-                };
+                json sj;
+                // Output in preferred order: description, method, items
+                sj["description"] = ds.description;
+                sj["method"] = ds.method;
+
+                // Dual-format items: array if all forward-coded, object if mixed
+                bool allForward = true;
+                for (const auto& [ikey, ival] : ds.item_coding) {
+                    if (ival != 1) { allForward = false; break; }
+                }
+
+                if (ds.item_coding.empty() || allForward) {
+                    // Array format: all forward-coded
+                    sj["items"] = ds.items;
+                } else {
+                    // Object format: explicit coding
+                    sj["items"] = json::object();
+                    // Preserve item order from ds.items
+                    for (const auto& id : ds.items) {
+                        auto it = ds.item_coding.find(id);
+                        sj["items"][id] = (it != ds.item_coding.end()) ? it->second : 1;
+                    }
+                    // Include any in item_coding but not in items (coding 0)
+                    for (const auto& [ikey, ival] : ds.item_coding) {
+                        if (std::find(ds.items.begin(), ds.items.end(), ikey) == ds.items.end()) {
+                            sj["items"][ikey] = ival;
+                        }
+                    }
+                }
+
                 if (!ds.weights.empty()) {
                     sj["weights"] = ds.weights;
-                }
-                if (!ds.item_coding.empty()) {
-                    sj["item_coding"] = ds.item_coding;
                 }
                 if (!ds.correct_answers.empty()) {
                     sj["correct_answers"] = json::object();

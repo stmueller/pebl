@@ -3074,11 +3074,7 @@ define EvalPrimary(tokens, pos)
 define ComputeDimensionScore(dimID, scoreDef, questionMap, responseMap, scaleDef, prevScores, prevTScores)
 {
   method  <- scoreDef.method
-  itemIDs <- []
-  if(PropertyExists(scoreDef, "items"))
-  {
-    itemIDs <- scoreDef.items
-  }
+  itemIDs <- GetScoringItemList(scoreDef)
 
   ## Collect coded values and parallel weights for this dimension
   values      <- []
@@ -3128,22 +3124,15 @@ define ComputeDimensionScore(dimID, scoreDef, questionMap, responseMap, scaleDef
             }
           }
 
-          ## Apply coding: read from scoring definition's item_coding object.
+          ## Apply coding: from items (array=forward, object=explicit) or legacy item_coding.
           ## 1 = forward, -1 = reverse, 0 or absent = exclude from this dimension's score.
-          coding <- 0
-          if(PropertyExists(scoreDef, "item_coding"))
-          {
-            if(PropertyExists(scoreDef.item_coding, itemID))
-            {
-              coding <- GetProperty(scoreDef.item_coding, itemID)
-            }
-          }
+          coding <- GetScoringCoding(scoreDef, itemID)
 
           if(coding != 0)
           {
             ## For multi/multicheck items, the option value already encodes
             ## the scoring direction — use it directly without range reversal.
-            ## (Reversal via item_coding only applies to Likert/VAS/grid types.)
+            ## (Reversal via coding only applies to Likert/VAS/grid types.)
             if(PropertyExists(qdef, "type") and
                (qdef.type == "multi" or qdef.type == "multicheck"))
             {
@@ -3171,14 +3160,7 @@ define ComputeDimensionScore(dimID, scoreDef, questionMap, responseMap, scaleDef
   {
     loop(scoreID, scoreDef.scores)
     {
-      coding <- 0
-      if(PropertyExists(scoreDef, "item_coding"))
-      {
-        if(PropertyExists(scoreDef.item_coding, scoreID))
-        {
-          coding <- GetProperty(scoreDef.item_coding, scoreID)
-        }
-      }
+      coding <- GetScoringCoding(scoreDef, scoreID)
 
       if(coding != 0)
       {
@@ -3392,6 +3374,84 @@ define ApplyTransform(rawScore, transformSteps, codedValues)
     }
   }
   return(result)
+}
+
+
+define GetScoringItemList(scoreDef)
+{
+  ## Get the list of item IDs from a scoring definition.
+  ## items can be: array (return as-is), object (return keys with non-zero coding),
+  ## or absent. Falls back to legacy item_coding field.
+
+  itemIDs <- []
+
+  if(PropertyExists(scoreDef, "items"))
+  {
+    items <- scoreDef.items
+    if(IsList(items))
+    {
+      ## Array format: return as-is
+      itemIDs <- items
+    } else {
+      ## Object format: extract keys with non-zero coding
+      allKeys <- GetPropertyList(items)
+      loop(k, allKeys)
+      {
+        if(GetProperty(items, k) != 0)
+        {
+          PushOnEnd(itemIDs, k)
+        }
+      }
+    }
+  } elseif(PropertyExists(scoreDef, "item_coding"))
+  {
+    ## Legacy fallback
+    allKeys <- GetPropertyList(scoreDef.item_coding)
+    loop(k, allKeys)
+    {
+      if(GetProperty(scoreDef.item_coding, k) != 0)
+      {
+        PushOnEnd(itemIDs, k)
+      }
+    }
+  }
+
+  return(itemIDs)
+}
+
+
+define GetScoringCoding(scoreDef, itemID)
+{
+  ## Get coding for an item from scoring definition.
+  ## items can be: array (all forward=1), object (explicit coding), or absent.
+  ## Falls back to legacy item_coding field for backward compatibility.
+
+  coding <- 0
+
+  if(PropertyExists(scoreDef, "items"))
+  {
+    items <- scoreDef.items
+    if(IsList(items))
+    {
+      ## Array format: all items forward coded
+      coding <- 1
+    } else {
+      ## Object format: lookup coding value
+      if(PropertyExists(items, itemID))
+      {
+        coding <- GetProperty(items, itemID)
+      }
+    }
+  } elseif(PropertyExists(scoreDef, "item_coding"))
+  {
+    ## Legacy fallback
+    if(PropertyExists(scoreDef.item_coding, itemID))
+    {
+      coding <- GetProperty(scoreDef.item_coding, itemID)
+    }
+  }
+
+  return(coding)
 }
 
 
@@ -3828,11 +3888,7 @@ define SaveIndividualData(results, transformedScores, scaleDef)
                     gridRange <- GetQuestionRange(qdef, scaleDef)
                     gridMinVal <- First(gridRange)
                     gridMaxVal <- Second(gridRange)
-                    gridCoding <- 1
-                    if(PropertyExists(gridScoreDef, "item_coding") and PropertyExists(gridScoreDef.item_coding, gridSubID))
-                    {
-                      gridCoding <- GetProperty(gridScoreDef.item_coding, gridSubID)
-                    }
+                    gridCoding <- GetScoringCoding(gridScoreDef, gridSubID)
                     gridDimValue <- CodeResponse(rowResp, gridCoding, gridMinVal, gridMaxVal)
                   }
                 }
@@ -3900,7 +3956,7 @@ define SaveIndividualData(results, transformedScores, scaleDef)
           if(PropertyExists(scaleDef.scoring, dim.id))
           {
             scoreDef <- GetProperty(scaleDef.scoring, dim.id)
-            itemIDs <- scoreDef.items
+            itemIDs <- GetScoringItemList(scoreDef)
 
             ## Check if current question is in this dimension's items
             isMember <- 0
@@ -3953,11 +4009,7 @@ define SaveIndividualData(results, transformedScores, scaleDef)
                 }
 
                 ## Get dimension-specific coding
-                coding <- 1
-                if(PropertyExists(scoreDef, "item_coding") and PropertyExists(scoreDef.item_coding, qdef.id))
-                {
-                  coding <- GetProperty(scoreDef.item_coding, qdef.id)
-                }
+                coding <- GetScoringCoding(scoreDef, qdef.id)
 
                 dimValue <- CodeResponse(mappedResp, coding, minVal, maxVal)
               }
@@ -4462,7 +4514,7 @@ define GenerateReport(results, scores, transformedScores, scaleDef, computedVars
               if(PropertyExists(scaleDef.scoring, dim.id))
               {
                 rptScoreDef <- GetProperty(scaleDef.scoring, dim.id)
-                rptItemIDs <- rptScoreDef.items
+                rptItemIDs <- GetScoringItemList(rptScoreDef)
 
                 rptIsMember <- 0
                 loop(rptItemID, rptItemIDs)
@@ -4500,10 +4552,7 @@ define GenerateReport(results, scores, transformedScores, scaleDef, computedVars
                   }
 
                   rptCoding <- 1
-                  if(PropertyExists(rptScoreDef, "item_coding") and PropertyExists(rptScoreDef.item_coding, rptSubID))
-                  {
-                    rptCoding <- GetProperty(rptScoreDef.item_coding, rptSubID)
-                  }
+                  rptCoding <- GetScoringCoding(rptScoreDef, rptSubID)
                   dimVal <- CodeResponse(rptGridMapped, rptCoding, rptGridMin, rptGridMax) + ""
                 }
               }
@@ -4527,7 +4576,7 @@ define GenerateReport(results, scores, transformedScores, scaleDef, computedVars
           if(PropertyExists(scaleDef.scoring, dim.id))
           {
             rptScoreDef <- GetProperty(scaleDef.scoring, dim.id)
-            rptItemIDs <- rptScoreDef.items
+            rptItemIDs <- GetScoringItemList(rptScoreDef)
 
             ## Check if this question belongs to this dimension
             rptIsMember <- 0
@@ -4575,10 +4624,7 @@ define GenerateReport(results, scores, transformedScores, scaleDef, computedVars
                 }
 
                 rptCoding <- 1
-                if(PropertyExists(rptScoreDef, "item_coding") and PropertyExists(rptScoreDef.item_coding, qdef.id))
-                {
-                  rptCoding <- GetProperty(rptScoreDef.item_coding, qdef.id)
-                }
+                rptCoding <- GetScoringCoding(rptScoreDef, qdef.id)
                 dimVal <- CodeResponse(rptMapped, rptCoding, rptMinVal, rptMaxVal) + ""
               }
             }

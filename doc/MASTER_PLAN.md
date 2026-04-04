@@ -625,6 +625,10 @@ None - all online deployment infrastructure is complete and working.
   - Lower priority - narrower use case than scales
   - Requires more research into paradigm variations
 
+## Data Standards Integration
+
+- [ ] **Psych-DS compliant data output** — Psych-DS (https://psych-ds.github.io/) is a community data standard for organizing behavioral science datasets (like BIDS for psychology). It requires CSV data files in a `data/` subdirectory with keyword-based naming (`_data.csv` suffix), plus a `dataset_description.json` using Schema.org vocabulary (`@type: "Dataset"`, `name`, `description`, `creator`, `variableMeasured`). The ScaleRunner already has all the metadata needed to generate this: scale_info provides name/citation, column headers are known, and item descriptions are in the translation files. Implementation: add an option to `SaveIndividualData`/`SavePooledData` to also emit a `dataset_description.json` with `variableMeasured` built from the CSV columns. Could also apply to battery tasks via a generic PEBL library function.
+
 ## Documentation
 
 - [ ] Document font factory architecture once implemented

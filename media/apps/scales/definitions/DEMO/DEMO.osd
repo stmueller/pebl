@@ -5,11 +5,18 @@
       "name": "OpenScales Feature Demonstration",
       "code": "DEMO",
       "abbreviation": "DEMO",
-      "description": "Comprehensive demonstration scale exercising all major OpenScales/ScaleRunner features: (1) all question types \u2014 likert, multi, multicheck, short, long, vas, grid, inst; (2) multiple sections; (3) section-order randomization with fixed sections (randomize_sections); (4) section-level item shuffle via randomize.method='shuffle' \u2014 items pinned via random_group=0 or the fixed ID list; (5) scale-level shuffle via random_group + shuffle_questions parameter \u2014 items with random_group=1 shuffle independently per section, random_group=0 items stay fixed;(6) dependent sections \u2014 visible_when on section markers keyed to a response; (7) dependent sections \u2014 visible_when keyed to a parameter; (8) dependent items \u2014 visible_when on item answers, including 'in' operator; (9) required vs. optional items; (10) input validation on short answers; (11) per-item Likert scale override; (12) forward and reverse scoring across two dimensions; (13) text substitution via {study_name} parameter; (14) parameter-driven branch routing selecting one of two context-specific question sets; (15) selectable dimensions \u2014 researcher can disable entire scoring subscales via boolean parameters. Use this scale to verify all engine features work correctly after changes.",
-      "citation": "OpenScales internal demonstration scale \u2014 not for research use.",
+      "description": "Comprehensive demonstration scale exercising all major OpenScales/ScaleRunner features: (1) all question types — likert, multi, multicheck, short, long, vas, grid, inst; (2) multiple sections; (3) section-order randomization with fixed sections (randomize_sections); (4) section-level item shuffle via randomize.method='shuffle' — items pinned via random_group=0 or the fixed ID list; (5) scale-level shuffle via random_group + shuffle_questions parameter — items with random_group=1 shuffle independently per section, random_group=0 items stay fixed;(6) dependent sections — visible_when on section markers keyed to a response; (7) dependent sections — visible_when keyed to a parameter; (8) dependent items — visible_when on item answers, including 'in' operator; (9) required vs. optional items; (10) input validation on short answers; (11) per-item Likert scale override; (12) forward and reverse scoring across two dimensions; (13) text substitution via {study_name} parameter; (14) parameter-driven branch routing selecting one of two context-specific question sets; (15) selectable dimensions — researcher can disable entire scoring subscales via boolean parameters. Use this scale to verify all engine features work correctly after changes.",
+      "citation": "OpenScales internal demonstration scale — not for research use.",
       "license": "Public domain",
       "version": "1.1",
       "url": ""
+    },
+    "implementation": {
+      "author": "Shane T. Mueller",
+      "organization": "OpenScales Project",
+      "date": "2026-04-01",
+      "license": "CC BY 4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/"
     },
     "parameters": {
       "study_name": {
@@ -158,7 +165,7 @@
         "id": "sec_context_general",
         "type": "section",
         "text_key": "sec_context_general_title",
-        "_note": "Branch arm 'general' \u2014 shown when context parameter == 'general'. Demonstrates A1 parameter-driven branch routing."
+        "_note": "Branch arm 'general' — shown when context parameter == 'general'. Demonstrates A1 parameter-driven branch routing."
       },
       {
         "id": "context_general_q1",
@@ -180,7 +187,7 @@
         "id": "sec_context_workplace",
         "type": "section",
         "text_key": "sec_context_workplace_title",
-        "_note": "Branch arm 'workplace' \u2014 shown when context parameter == 'workplace'. Demonstrates A1 parameter-driven branch routing."
+        "_note": "Branch arm 'workplace' — shown when context parameter == 'workplace'. Demonstrates A1 parameter-driven branch routing."
       },
       {
         "id": "context_workplace_q1",
@@ -267,7 +274,7 @@
         "id": "sec_wellbeing",
         "type": "section",
         "text_key": "sec_wellbeing_title",
-        "_note": "No section-level randomize \u2014 item shuffle is controlled by random_group + the shuffle_questions parameter."
+        "_note": "No section-level randomize — item shuffle is controlled by random_group + the shuffle_questions parameter."
       },
       {
         "id": "wb_inst",
@@ -457,20 +464,9 @@
     ],
     "scoring": {
       "attitudes": {
-        "method": "mean_coded",
-        "items": [
-          "context_general_q1",
-          "context_general_q2",
-          "context_workplace_q1",
-          "context_workplace_q2",
-          "att1",
-          "att2",
-          "att3",
-          "att4",
-          "att5"
-        ],
         "description": "Mean of attitude items after reverse-scoring att3 and att5. Branch items (context_general_q* or context_workplace_q*) contribute only one pair depending on parameter; NA responses are excluded from the mean.",
-        "item_coding": {
+        "method": "mean_coded",
+        "items": {
           "context_general_q1": 1,
           "context_general_q2": 1,
           "context_workplace_q1": 1,
@@ -483,18 +479,13 @@
         }
       },
       "wellbeing": {
+        "description": "Mean of 3 VAS items. Range 0-100. Higher = greater subjective well-being.",
         "method": "mean_coded",
         "items": [
           "wb1",
           "wb2",
           "wb3"
-        ],
-        "description": "Mean of 3 VAS items. Range 0-100. Higher = greater subjective well-being.",
-        "item_coding": {
-          "wb1": 1,
-          "wb2": 1,
-          "wb3": 1
-        }
+        ]
       }
     },
     "data_output": {
@@ -530,7 +521,7 @@
       "edu_college": "Some college (no degree)",
       "edu_bachelors": "Bachelor's degree",
       "edu_grad": "Graduate or professional degree (Master's, PhD, MD, JD, etc.)",
-      "q_tech_use": "Which of the following devices do you use regularly? (Select all that apply \u2014 choose between 1 and 4)",
+      "q_tech_use": "Which of the following devices do you use regularly? (Select all that apply — choose between 1 and 4)",
       "tech_smartphone": "Smartphone",
       "tech_laptop": "Laptop or desktop computer",
       "tech_tablet": "Tablet",
@@ -576,11 +567,11 @@
       "field_humanities": "Humanities (history, literature, philosophy, etc.)",
       "field_professional": "Professional (law, medicine, business, education, etc.)",
       "field_other": "Other",
-      "dep_years": "How many years ago did you complete this degree? (This item appears only when a non-Other field is selected \u2014 demonstrating item-level visibility.)",
-      "dep_explain": "Please briefly describe your field. (This item appears only when 'Other' is selected \u2014 demonstrating item-level conditional display.)",
+      "dep_years": "How many years ago did you complete this degree? (This item appears only when a non-Other field is selected — demonstrating item-level visibility.)",
+      "dep_explain": "Please briefly describe your field. (This item appears only when 'Other' is selected — demonstrating item-level conditional display.)",
       "sec_final_title": "Final Questions",
       "final_comments": "(Optional) Do you have any comments or feedback about this demonstration survey?",
-      "final_rating": "Overall, how would you rate your experience completing {study_name}? (7-point scale \u2014 demonstrating per-item Likert override and {study_name} text substitution)",
+      "final_rating": "Overall, how would you rate your experience completing {study_name}? (7-point scale — demonstrating per-item Likert override and {study_name} text substitution)",
       "debrief": "Thank you for completing {study_name}! Your responses have been recorded. This survey demonstrated: text substitution via {study_name} parameter; parameter-driven branch routing (context=general/workplace); multiple sections with partial randomization; all question types (likert, multi, multicheck, short, long, VAS, grid, inst); dependent sections; item-level conditional display; input validation; forward and reverse scoring; and per-item scale overrides."
     }
   }

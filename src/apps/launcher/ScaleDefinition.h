@@ -212,11 +212,11 @@ struct TransformStep {
 // Scoring definition for a dimension
 struct DimensionScoring {
     std::string method;         // mean_coded, sum_coded, weighted_sum, weighted_mean, sum_correct
-    std::vector<std::string> items;  // Question IDs in this score
+    std::vector<std::string> items;  // Question IDs in this score (used internally; serialized as dual-format items)
     std::vector<std::string> scores; // Score IDs used as inputs (for composite scores)
     std::string description;    // Description of the score
     std::map<std::string, double> weights;  // For weighted_sum (optional)
-    std::map<std::string, int> item_coding;  // Per-item coding: item_id -> 1 (normal), -1 (reverse), 0 (not scored)
+    std::map<std::string, int> item_coding;  // Per-item coding: item_id -> 1 (normal), -1 (reverse), 0 (not scored). Serialized into items field.
     std::map<std::string, std::vector<std::string>> correct_answers;  // For sum_correct: item_id -> list of acceptable answers/patterns
     std::vector<NormThreshold> norms;  // Interpretation thresholds for report (optional)
     std::vector<TransformStep> transform;  // Post-scoring arithmetic transform steps (optional)

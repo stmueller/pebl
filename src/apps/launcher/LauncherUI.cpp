@@ -836,6 +836,9 @@ render_ui:
     if (mShowSnapshotCreated) {
         ShowSnapshotCreatedDialog();
     }
+
+    // Show OpenScales browser if requested
+    mOpenScalesBrowser.Render();
 }
 
 void LauncherUI::RenderMenuBar()
@@ -8733,6 +8736,31 @@ void LauncherUI::RenderScaleList()
         ImGui::SetTooltip("Select a scale first");
     } else if (ImGui::IsItemHovered()) {
         ImGui::SetTooltip("Add this scale to a new or existing study");
+    }
+
+    ImGui::PopStyleColor(3);
+
+    // Browse OpenScales button (teal)
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.5f, 0.6f, 1.0f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.0f, 0.6f, 0.7f, 1.0f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.0f, 0.4f, 0.5f, 1.0f));
+
+    if (ImGui::Button("Browse OpenScales", ImVec2(-1, 0))) {
+        if (mWorkspace) {
+            std::string scalesDir = mWorkspace->GetWorkspacePath() + "/scales";
+            mOpenScalesBrowser.SetOnDownload([this](const std::string& code) {
+                // Refresh scale list after download
+                mScaleList.clear();
+                if (mScaleManager) {
+                    mScaleList = mScaleManager->GetAvailableScales();
+                }
+                printf("Downloaded scale %s from OpenScales\n", code.c_str());
+            });
+            mOpenScalesBrowser.Show(scalesDir);
+        }
+    }
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("Browse and download scales from the OpenScales repository (openscales.net)");
     }
 
     ImGui::PopStyleColor(3);

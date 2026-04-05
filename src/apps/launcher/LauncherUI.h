@@ -12,6 +12,7 @@
 #include <SDL2/SDL.h>
 #include "TextEditor.h"
 #include "ScaleManager.h"
+#include "OpenScalesBrowser.h"
 
 class LauncherConfig;
 class Study;
@@ -571,6 +572,7 @@ private:
     // Scale Builder
     bool mShowScaleBuilder;
     std::shared_ptr<ScaleManager> mScaleManager;
+    OpenScalesBrowser mOpenScalesBrowser;
     std::shared_ptr<ScaleDefinition> mCurrentScale;
     std::vector<std::string> mScaleList;
     int mSelectedScaleIndex;

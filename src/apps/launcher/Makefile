@@ -21,7 +21,7 @@ SDL2_CFLAGS = $(shell sdl2-config --cflags)
 SDL2_LIBS = $(shell sdl2-config --libs) -lSDL2_image
 
 CXXFLAGS += $(SDL2_CFLAGS)
-LIBS = $(SDL2_LIBS) -lzip
+LIBS = $(SDL2_LIBS) -lzip -lcurl
 
 # Output
 TARGET = ../../../bin/pebl-launcher
@@ -40,6 +40,7 @@ LAUNCHER_SOURCES = \
 	ZipExtractor.cpp \
 	ScaleDefinition.cpp \
 	ScaleManager.cpp \
+	OpenScalesBrowser.cpp \
 	../../utility/BinReloc.cpp
 
 IMGUI_SOURCES = \

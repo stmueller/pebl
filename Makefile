@@ -785,11 +785,20 @@ install:
 	cp  pebl-lib/*.pbl $(DESTDIR)$(PREFIX)/$(PEBLNAME)/pebl-lib/
 
 	# Install manual (if it exists)
+	# Note: CopyResources in WorkspaceManager.cpp looks for doc/pman/PEBLManual$(PEBL_VERSION).pdf
+	mkdir -p $(DESTDIR)$(PREFIX)/$(PEBLNAME)/doc/pman
 	@if [ -f "doc/pman/PEBLManual$(PEBL_VERSION).pdf" ]; then \
 		echo "Installing PEBLManual$(PEBL_VERSION).pdf..."; \
-		cp doc/pman/PEBLManual$(PEBL_VERSION).pdf $(DESTDIR)$(PREFIX)/$(PEBLNAME)/doc/; \
+		cp doc/pman/PEBLManual$(PEBL_VERSION).pdf $(DESTDIR)$(PREFIX)/$(PEBLNAME)/doc/pman/; \
 	else \
 		echo "WARNING: PEBLManual$(PEBL_VERSION).pdf not found, skipping..."; \
+	fi
+	# Install release notes and LLM notes
+	@if [ -f "doc/ReleaseNotes.txt" ]; then \
+		cp doc/ReleaseNotes.txt $(DESTDIR)$(PREFIX)/$(PEBLNAME)/doc/; \
+	fi
+	@if [ -f "Notes_for_LLMs.txt" ]; then \
+		cp Notes_for_LLMs.txt $(DESTDIR)$(PREFIX)/$(PEBLNAME)/; \
 	fi
 
 	cp bin/launcher.pbl $(DESTDIR)$(PREFIX)/$(PEBLNAME)/bin/

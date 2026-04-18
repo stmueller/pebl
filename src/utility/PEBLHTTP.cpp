@@ -655,24 +655,20 @@ Variant PEBLHTTP::PostMulti(Variant pagename,
 
 
 
-      struct curl_httppost *formpost=NULL;
-      struct curl_httppost *lastptr=NULL;
+      curl_mime *form_mime = NULL;
+      curl_mimepart *field = NULL;
       struct curl_slist *headerlist=NULL;
-      static const char buf[] = "Expect:";
-
-
 
       /* Now specify the POST data */
 
-
       //First, add the page arguments &a=b&c=d etc..
-      //to contain it (with a 0 at the end).
       PError::AssertType(args, PEAT_LIST, "PostHTTP arguments must be a list");
       PList * dataList = (PList*)(args.GetComplexData()->GetPEBLObject().get());
 
       std::vector<Variant>::iterator p1 = dataList->Begin();
       std::vector<Variant>::iterator p1end = dataList->End();
 
+      form_mime = curl_mime_init(mCurl);
 
       while(p1 != p1end)
 	{
@@ -680,31 +676,25 @@ Variant PEBLHTTP::PostMulti(Variant pagename,
 	  p1++;
 	  std::string value = *p1;
 	  p1++;
-	  curl_formadd(&formpost,&lastptr,
-		       CURLFORM_COPYNAME,head.c_str(),
-		       CURLFORM_COPYCONTENTS,value.c_str(),
-		       CURLFORM_END);
+	  field = curl_mime_addpart(form_mime);
+	  curl_mime_name(field, head.c_str());
+	  curl_mime_data(field, value.c_str(), CURL_ZERO_TERMINATED);
 	}
 
-      curl_formadd(&formpost,
-		   &lastptr,
-		   CURLFORM_COPYNAME, form2.c_str(),
-		   CURLFORM_FILE,     upload2.c_str(),
-		   CURLFORM_END);
+      /* Add the file field */
+      field = curl_mime_addpart(form_mime);
+      curl_mime_name(field, form2.c_str());
+      curl_mime_filedata(field, upload2.c_str());
 
-      /* Fill in the 'filename' field. This might differ based on server. */
-      curl_formadd(&formpost,
-		   &lastptr,
-		   CURLFORM_COPYNAME,"filename",
-		   CURLFORM_COPYCONTENTS,  upload2.c_str(),
-		   CURLFORM_END);
+      /* Fill in the 'filename' field */
+      field = curl_mime_addpart(form_mime);
+      curl_mime_name(field, "filename");
+      curl_mime_data(field, upload2.c_str(), CURL_ZERO_TERMINATED);
 
-      /* Fill in the submit field too, even if this is rarely needed */
-      curl_formadd(&formpost,
-		   &lastptr,
-		   CURLFORM_COPYNAME, "submit",
-		   CURLFORM_COPYCONTENTS, "send",
-		   CURLFORM_END);
+      /* Fill in the submit field */
+      field = curl_mime_addpart(form_mime);
+      curl_mime_name(field, "submit");
+      curl_mime_data(field, "send", CURL_ZERO_TERMINATED);
 
 
       curl_easy_setopt(mCurl, CURLOPT_URL, fname2.c_str());
@@ -712,7 +702,7 @@ Variant PEBLHTTP::PostMulti(Variant pagename,
       curl_easy_setopt(mCurl, CURLOPT_VERBOSE, 1L);
 
       curl_easy_setopt(mCurl, CURLOPT_HTTPHEADER, headerlist);
-      curl_easy_setopt(mCurl, CURLOPT_HTTPPOST, formpost);
+      curl_easy_setopt(mCurl, CURLOPT_MIMEPOST, form_mime);
 
 
       /* send all data to this function  */
@@ -753,6 +743,7 @@ Variant PEBLHTTP::PostMulti(Variant pagename,
 
 
       /* always cleanup */
+      curl_mime_free(form_mime);
       curl_easy_cleanup(mCurl);
     }
   curl_global_cleanup();
@@ -806,18 +797,12 @@ Variant PEBLHTTP::PostHTTP(Variant pagename,
 
 
 
-      struct curl_httppost *formpost=NULL;
-      struct curl_httppost *lastptr=NULL;
-      struct curl_slist *headerlist=NULL;
-      static const char buf[] = "Expect:";
-
-
+      curl_mime *form_mime = NULL;
+      curl_mimepart *field = NULL;
 
       /* Now specify the POST data */
 
-
       //First, add the page arguments &a=b&c=d etc..
-      //to contain it (with a 0 at the end).
       PError::AssertType(args, PEAT_LIST, "PostHTTP arguments must be a list");
 
       PList * dataList = (PList*)(args.GetComplexData()->GetPEBLObject().get());
@@ -825,6 +810,7 @@ Variant PEBLHTTP::PostHTTP(Variant pagename,
       std::vector<Variant>::iterator p1 = dataList->Begin();
       std::vector<Variant>::iterator p1end = dataList->End();
 
+      form_mime = curl_mime_init(mCurl);
 
       while(p1 != p1end)
 	{
@@ -832,42 +818,32 @@ Variant PEBLHTTP::PostHTTP(Variant pagename,
 	  p1++;
 	  std::string value = *p1;
 	  p1++;
-	  curl_formadd(&formpost,&lastptr,
-		       CURLFORM_COPYNAME,head.c_str(),
-		       CURLFORM_COPYCONTENTS,value.c_str(),
-		       CURLFORM_END);
+	  field = curl_mime_addpart(form_mime);
+	  curl_mime_name(field, head.c_str());
+	  curl_mime_data(field, value.c_str(), CURL_ZERO_TERMINATED);
 	}
 
-
-
-      curl_formadd(&formpost,
-		   &lastptr,
-		   CURLFORM_COPYNAME, "sendfile",
-		   CURLFORM_FILE, upload2.c_str(),
-		   CURLFORM_END);
+      /* Add the file field */
+      field = curl_mime_addpart(form_mime);
+      curl_mime_name(field, "sendfile");
+      curl_mime_filedata(field, upload2.c_str());
 
       /* Fill in the filename field */
-      curl_formadd(&formpost,
-		   &lastptr,
-		   CURLFORM_COPYNAME, "filename",
-		   CURLFORM_COPYCONTENTS, upload2.c_str(),
-		   CURLFORM_END);
+      field = curl_mime_addpart(form_mime);
+      curl_mime_name(field, "filename");
+      curl_mime_data(field, upload2.c_str(), CURL_ZERO_TERMINATED);
 
-      /* Fill in the submit field too, even if this is rarely needed */
-      curl_formadd(&formpost,
-		   &lastptr,
-		   CURLFORM_COPYNAME, "submit",
-		   CURLFORM_COPYCONTENTS, "send",
-		   CURLFORM_END);
+      /* Fill in the submit field */
+      field = curl_mime_addpart(form_mime);
+      curl_mime_name(field, "submit");
+      curl_mime_data(field, "send", CURL_ZERO_TERMINATED);
 
 
       curl_easy_setopt(mCurl, CURLOPT_URL, fname2.c_str());
 
       curl_easy_setopt(mCurl, CURLOPT_VERBOSE, 1L);
 
-      //headerlist is NULL
-      //curl_easy_setopt(mCurl, CURLOPT_HTTPHEADER, headerlist);
-      curl_easy_setopt(mCurl, CURLOPT_HTTPPOST, formpost);
+      curl_easy_setopt(mCurl, CURLOPT_MIMEPOST, form_mime);
 
 
       /* send all data to this function  */
@@ -908,6 +884,7 @@ Variant PEBLHTTP::PostHTTP(Variant pagename,
 
 
       /* always cleanup */
+      curl_mime_free(form_mime);
       curl_easy_cleanup(mCurl);
     }
   curl_global_cleanup();

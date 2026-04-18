@@ -58,35 +58,51 @@ def cleanup_sphinx_latex(input_file, output_file):
     # Remove \sphinxAtStartPar (just marks paragraph start, not needed)
     content = re.sub(r'\\sphinxAtStartPar\s*', '', content)
 
-    # Convert \sphinxstylestrong{text} to \textbf{text}
-    content = re.sub(r'\\sphinxstylestrong\{([^}]*)\}', r'\\textbf{\1}', content)
+    # Expand zero-argument macros first (leaf nodes with empty or no args)
+    # so that nested sphinx patterns become free of inner braces.
+    content = re.sub(r'\\sphinxhyphen\{\}', r'-', content)
+    content = re.sub(r'\\textless\{\}', r'<', content)
+    content = re.sub(r'\\textgreater\{\}', r'>', content)
+    content = re.sub(r'\\textasciitilde\{\}', r'~', content)
+    content = re.sub(r'\\textbackslash\{\}', r'\\textbackslash ', content)
+    content = re.sub(r'\\textasciigrave\{\}', r'`', content)
+    content = re.sub(r'\\textquotesingle\{\}', r"'", content)
+    content = re.sub(r'\\textquoteright\{\}', r"'", content)
+    content = re.sub(r'\\textquoteleft\{\}', r'`', content)
+    # {[} and {]} are LaTeX escapes for literal brackets inside verbatim-like contexts
+    # Inside \sphinxcode content they can be replaced with plain brackets
+    content = content.replace(r'{[}', '[').replace(r'{]}', ']')
 
-    # Convert \sphinxstyleemphasis{text} to \emph{text}
-    content = re.sub(r'\\sphinxstyleemphasis\{([^}]*)\}', r'\\emph{\1}', content)
+    # Iteratively expand sphinx macros until none remain (handles nesting)
+    for _ in range(10):
+        prev = content
 
-    # Convert \sphinxcode{\sphinxupquote{text}} to \texttt{text}
-    content = re.sub(r'\\sphinxcode\{\\sphinxupquote\{([^}]*)\}\}', r'\\texttt{\1}', content)
+        # \sphinxupquote{text} → text
+        content = re.sub(r'\\sphinxupquote\{([^{}]*)\}', r'\1', content)
 
-    # Convert remaining \sphinxcode{text} to \texttt{text}
-    content = re.sub(r'\\sphinxcode\{([^}]*)\}', r'\\texttt{\1}', content)
+        # \sphinxcode{\sphinxupquote{text}} → \texttt{text}  (already expanded above, catch remainder)
+        content = re.sub(r'\\sphinxcode\{([^{}]*)\}', r'\\texttt{\1}', content)
 
-    # Convert \sphinxhyphen{} to just a hyphen
-    content = re.sub(r'\\sphinxhyphen\{\}', r'\\-', content)
+        # \sphinxstylestrong{text} → \textbf{text}
+        content = re.sub(r'\\sphinxstylestrong\{([^{}]*)\}', r'\\textbf{\1}', content)
 
-    # Convert \DUrole{doc}{text} to just text
-    content = re.sub(r'\\DUrole\{doc\}\{([^}]*)\}', r'\1', content)
+        # \sphinxstyleemphasis{text} → \emph{text}
+        content = re.sub(r'\\sphinxstyleemphasis\{([^{}]*)\}', r'\\emph{\1}', content)
 
-    # Convert \sphinxcrossref{text} to just text (hyperref will handle links)
-    content = re.sub(r'\\sphinxcrossref\{([^}]*)\}', r'\1', content)
+        # \sphinxstyletopictitle{text} → \textbf{text}
+        content = re.sub(r'\\sphinxstyletopictitle\{([^{}]*)\}', r'\\textbf{\1}', content)
 
-    # Convert \sphinxstyletopictitle{text} to \textbf{text}
-    content = re.sub(r'\\sphinxstyletopictitle\{([^}]*)\}', r'\\textbf{\1}', content)
+        # \sphinxtitleref{text} → text
+        content = re.sub(r'\\sphinxtitleref\{([^{}]*)\}', r'\1', content)
 
-    # Convert \sphinxtitleref{text} to just text
-    content = re.sub(r'\\sphinxtitleref\{([^}]*)\}', r'\1', content)
+        # \sphinxcrossref{text} → text
+        content = re.sub(r'\\sphinxcrossref\{([^{}]*)\}', r'\1', content)
 
-    # Remove \sphinxupquote wrapper
-    content = re.sub(r'\\sphinxupquote\{([^}]*)\}', r'\1', content)
+        # \DUrole{doc}{text} → text  (and any other \DUrole{role}{text})
+        content = re.sub(r'\\DUrole\{[^{}]*\}\{([^{}]*)\}', r'\1', content)
+
+        if content == prev:
+            break
 
     # Convert \sphinxurl{text} to \url{text}
     content = re.sub(r'\\sphinxurl\{([^}]*)\}', r'\\url{\1}', content)

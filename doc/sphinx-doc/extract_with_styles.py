@@ -44,8 +44,11 @@ def extract_with_styles():
     with open(input_file, 'r', encoding='utf-8') as f:
         lines = f.readlines()
 
-    # Extract lines 88 to 14750 (before "Indices and tables")
-    content_lines = lines[87:14750]  # 0-indexed, so 87 = line 88
+    # Find \pagestyle{normal} (after sphinxmaketitle/sphinxtableofcontents) and
+    # the final "Indices and tables" chapter — both detected dynamically
+    pagestyle_normal = next((i for i, l in enumerate(lines) if r'\pagestyle{normal}' in l), 87)
+    end_line = next((i for i, l in enumerate(lines) if r'\chapter{Indices and tables}' in l), len(lines))
+    content_lines = lines[pagestyle_normal + 1 : end_line]
 
     # Fix: Convert the second \chapter command to remove it
     # The Sphinx content has "\chapter{Function Reference by Namespace}" which

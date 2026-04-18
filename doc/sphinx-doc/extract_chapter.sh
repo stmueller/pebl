@@ -19,8 +19,14 @@ cat > "$OUTPUT" << 'HEADER'
 
 HEADER
 
-# Extract content (line 88 to line before "Indices and tables")
-sed -n '88,14750p' "$INPUT" >> "$OUTPUT"
+# Extract content: from line after \pagestyle{normal} to line before \chapter{Indices and tables}
+# \pagestyle{normal} appears after \sphinxmaketitle and \sphinxtableofcontents — skip those
+start_line=$(grep -n '\\pagestyle{normal}' "$INPUT" | head -1 | cut -d: -f1)
+end_line=$(grep -n '\\chapter{Indices and tables}' "$INPUT" | head -1 | cut -d: -f1)
+start_line=$((start_line + 1))
+end_line=$((end_line - 1))
+echo "Extracting lines $start_line to $end_line..."
+sed -n "${start_line},${end_line}p" "$INPUT" >> "$OUTPUT"
 
 echo "Generated: $OUTPUT"
 echo "File size: $(du -h "$OUTPUT" | cut -f1)"

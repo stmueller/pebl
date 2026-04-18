@@ -628,7 +628,7 @@ pebl-launcher-real: $(DIRS) $(LAUNCHER_OBJ) resource.o
 	resource.o \
 	-o $(BIN_DIR)/pebl-launcher.exe \
 	-L/c/msys64/mingw64/lib \
-	-lmingw32 -lSDL2main -lSDL2 -lSDL2_image -lzip -lole32 -loleaut32 -luuid -lcomdlg32 -mwindows
+	-lmingw32 -lSDL2main -lSDL2 -lSDL2_image -lzip -lcurl -lole32 -loleaut32 -luuid -lcomdlg32 -mwindows
 	@echo "Build complete: $(BIN_DIR)/pebl-launcher.exe"
 
 .PHONY: pebl-launcher pebl-launcher-real

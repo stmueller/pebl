@@ -3,7 +3,7 @@
 //    Name:       src/utility/CountedPounter.h
 //    Purpose:    Contains definition for a slim counted pointer template class
 //    Author:     Shane T. Mueller, Ph.D.
-//    Copyright:  (c) 2003-2025 Shane T. Mueller <smueller@obereed.net>
+//    Copyright:  (c) 2003-2026 Shane T. Mueller <smueller@obereed.net>
 //    License:    GPL 2
 //
 //

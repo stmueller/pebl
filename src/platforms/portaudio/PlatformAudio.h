@@ -3,7 +3,7 @@
 //    Name:       src/platforms/portaudio/PlatformAudio.h
 //    Purpose:    Contains platform-specific sound playing/recording routines
 //    Author:     Shane T. Mueller, Ph.D.
-//    Copyright:  (c) 2003-2025 Shane T. Mueller <smueller@obereed.ned>
+//    Copyright:  (c) 2003-2026 Shane T. Mueller <smueller@obereed.ned>
 //    License:    GPL 2
 //
 //

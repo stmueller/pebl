@@ -3,7 +3,7 @@
 //    Name:       src/platforms/sdl/PlatformJoystick.h
 //    Purpose:    Class for SDL Joysticks
 //    Author:     Shane T. Mueller, Ph.D.
-//    Copyright:  (c) 2011-2025 Shane T. Mueller <smueller@obereed.net>
+//    Copyright:  (c) 2011-2026 Shane T. Mueller <smueller@obereed.net>
 //    License:    GPL 2
 //
 //

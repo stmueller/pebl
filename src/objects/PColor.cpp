@@ -3,7 +3,7 @@
 //    Name:       src/objects/PColor.cpp
 //    Purpose:    Contains lightweight specification for a color
 //    Author:     Shane T. Mueller, Ph.D.
-//    Copyright:  (c) 2003-2025 Shane T. Mueller <smueller@obereed.net>
+//    Copyright:  (c) 2003-2026 Shane T. Mueller <smueller@obereed.net>
 //    License:    GPL 2
 //
 //

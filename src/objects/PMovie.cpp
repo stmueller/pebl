@@ -3,7 +3,7 @@
 //    Name:       src/objects/PMovie.cpp
 //    Purpose:    Contains generic specification for a movie player widget.
 //    Author:     Shane T. Mueller, Ph.D.
-//    Copyright:  (c) 2012-2025 Shane T. Mueller <smueller@obereed.net>
+//    Copyright:  (c) 2012-2026 Shane T. Mueller <smueller@obereed.net>
 //    License:    GPL 2
 //
 //

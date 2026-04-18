@@ -125,7 +125,7 @@ The launcher now includes a complete study management system:
 ### Implemented Components
 - ✅ **Study data model** - Load/save study-info.json with tests and parameter variants
 - ✅ **Chain data model** - Load/save chain JSON files with instruction/test sequences
-- ✅ **WorkspaceManager** - Initialize Documents/pebl-exp.2.3/ workspace structure
+- ✅ **WorkspaceManager** - Initialize Documents/pebl-exp.2.4/ workspace structure
 - ✅ **SnapshotManager** - Create/import snapshots for sharing studies
 
 ### Build Study System Only

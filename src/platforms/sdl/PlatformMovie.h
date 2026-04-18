@@ -4,7 +4,7 @@
 //    Purpose:    Contains SDL platform-specific movie playing
 //                code (using waave library)
 //    Author:     Shane T. Mueller, Ph.D.
-//    Copyright:  (c) 2012-2025 Shane T. Mueller <smueller@obereed.net>
+//    Copyright:  (c) 2012-2026 Shane T. Mueller <smueller@obereed.net>
 //    License:    GPL 2
 //
 //

@@ -3,7 +3,7 @@
 //    Name:       src/platforms/sdl/PlatformAudioIn.cpp
 //    Purpose:    Contains platform-specific audio recording routines
 //    Author:     Shane T. Mueller, Ph.D.
-//    Copyright:  (c) 2011-2025 Shane T. Mueller <smueller@obereed.net>
+//    Copyright:  (c) 2011-2026 Shane T. Mueller <smueller@obereed.net>
 //    License:    GPL 2
 //
 //

@@ -3,7 +3,7 @@
 //    Name:       src/devices/DeviceState.h
 //    Purpose:    Manages states of devices for use in the primary event loop.
 //    Author:     Shane T. Mueller, Ph.D.
-//    Copyright:  (c) 2003-2025 Shane T. Mueller <smueller@obereed.net>
+//    Copyright:  (c) 2003-2026 Shane T. Mueller <smueller@obereed.net>
 //    License:    GPL 2
 //
 //   

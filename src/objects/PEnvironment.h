@@ -3,7 +3,7 @@
 //    Name:       src/objects/PEnvironment.h
 //    Purpose:    Contains generic specs for a PEBL Environment
 //    Author:     Shane T. Mueller, Ph.D.
-//    Copyright:  (c) 2003-2025 Shane T. Mueller <smueller@obereed.net>
+//    Copyright:  (c) 2003-2026 Shane T. Mueller <smueller@obereed.net>
 //    License:    GPL 2
 //
 //

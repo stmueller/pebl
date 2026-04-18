@@ -3,7 +3,7 @@
 //    Name:       src/platforms/sdl/PlatformEventQueue.h
 //    Purpose:    Interface to platform-specific event queue.
 //    Author:     Shane T. Mueller, Ph.D.
-//    Copyright:  (c) 2004-2025 Shane T. Mueller <smueller@obereed.net>
+//    Copyright:  (c) 2004-2026 Shane T. Mueller <smueller@obereed.net>
 //    License:    GPL 2
 //
 //   

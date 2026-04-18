@@ -3,7 +3,7 @@
 //    Name:       src/objects/PCustomObject.h
 //    Purpose:    Contains specs for a 'custom' object
 //    Author:     Shane T. Mueller, Ph.D.
-//    Copyright:  (c) 2014-2025 Shane T. Mueller <smueller@obereed.net>
+//    Copyright:  (c) 2014-2026 Shane T. Mueller <smueller@obereed.net>
 //    License:    GPL 2
 //
 //

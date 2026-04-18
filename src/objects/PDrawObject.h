@@ -3,7 +3,7 @@
 //    Name:       src/objects/PDrawObject.h
 //    Purpose:    Utility class drawing things.
 //    Author:     Shane T. Mueller, Ph.D.
-//    Copyright:  (c) 2005-2025 Shane T. Mueller <smueller@obereed.net>
+//    Copyright:  (c) 2005-2026 Shane T. Mueller <smueller@obereed.net>
 //    License:    GPL 2
 //
 //   

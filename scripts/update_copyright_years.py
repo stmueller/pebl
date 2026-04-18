@@ -155,9 +155,9 @@ def main():
     print(f"Updating copyright years to {target_year}")
     print("=" * 60)
 
-    # Find the src directory relative to this script
+    # Find the src directory relative to the repo root (one level up from scripts/)
     script_dir = Path(__file__).parent
-    src_dir = script_dir / 'src'
+    src_dir = script_dir.parent / 'src'
 
     if not src_dir.exists():
         print(f"Error: src directory not found at {src_dir}")

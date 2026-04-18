@@ -3,7 +3,7 @@
 //    Name:       src/devices/PNetwork.cpp
 //    Purpose:    Class for handling network communication
 //    Author:     Shane T. Mueller, Ph.D.
-//    Copyright:  (c) 2006-2025 Shane T. Mueller <smueller@obereed.net>
+//    Copyright:  (c) 2006-2026 Shane T. Mueller <smueller@obereed.net>
 //    License:    GPL 2
 //
 //   

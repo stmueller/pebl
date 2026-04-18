@@ -3,7 +3,7 @@
 //    Name:       apps/Globals.h
 //    Purpose:    Definitions (should be renamed.)
 //    Author:     Shane T. Mueller, Ph.D.
-//    Copyright:  (c) 2004-2025 Shane T. Mueller <smueller@obereed.net>
+//    Copyright:  (c) 2004-2026 Shane T. Mueller <smueller@obereed.net>
 //    License:    GPL 2
 //
 //

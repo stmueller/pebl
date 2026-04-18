@@ -3,7 +3,7 @@
 //    Name:       src/objects/PCanvas.cpp
 //    Purpose:    Contains generic canvas.
 //    Author:     Shane T. Mueller, Ph.D.
-//    Copyright:  (c) 2010-2025 Shane T. Mueller <smueller@obereed.net>
+//    Copyright:  (c) 2010-2026 Shane T. Mueller <smueller@obereed.net>
 //    License:    GPL 2
 //
 //

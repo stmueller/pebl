@@ -3,7 +3,7 @@
 //    Name:       src/platforms/sdl/PlatformTextBox.cpp
 //    Purpose:    Contains SDL-specific interface for a draw canvas.
 //    Author:     Shane T. Mueller, Ph.D.
-//    Copyright:  (c) 2010-2025 Shane T. Mueller <smueller@obereed.net>
+//    Copyright:  (c) 2010-2026 Shane T. Mueller <smueller@obereed.net>
 //    License:    GPL 2
 //
 //

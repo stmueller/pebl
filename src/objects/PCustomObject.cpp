@@ -3,7 +3,7 @@
 //    Name:       src/objects/PCustomObject.cpp
 //    Purpose:     Contains generic specs for all objects containing text
 //    Author:     Shane T. Mueller, Ph.D.
-//    Copyright:  (c) 2013-2025 Shane T. Mueller <smueller@obereed.net>
+//    Copyright:  (c) 2013-2026 Shane T. Mueller <smueller@obereed.net>
 //    License:    GPL 2
 //
 //

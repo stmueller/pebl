@@ -3,7 +3,7 @@
 //    Name:       src/devices/PParellelPort.cpp
 //    Purpose:    Class for handling parallel port
 //    Author:     Shane T. Mueller, Ph.D.
-//    Copyright:  (c) 2010-2025 Shane T. Mueller <smueller@obereed.net>
+//    Copyright:  (c) 2010-2026 Shane T. Mueller <smueller@obereed.net>
 //    License:    GPL 2
 //
 //

@@ -5,3 +5,4 @@ export TMP="C:/Users/shanem/AppData/Local/Temp"
 export TEMP="C:/Users/shanem/AppData/Local/Temp"
 cd /c/Users/shanem/Documents/dev/pebl
 /c/msys64/usr/bin/make.exe -j 10 -f Makefile-win.mak main
+/c/msys64/usr/bin/make.exe -j 10 -f Makefile-win.mak pebl-launcher

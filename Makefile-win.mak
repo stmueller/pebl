@@ -433,6 +433,9 @@ LAUNCHER_SRC = $(LAUNCHER_DIR)/PEBLLauncher.cpp \
 		$(LAUNCHER_DIR)/SnapshotManager.cpp \
 		$(LAUNCHER_DIR)/ZipExtractor.cpp \
 		$(LAUNCHER_DIR)/TextEditor.cpp \
+		$(LAUNCHER_DIR)/ScaleDefinition.cpp \
+		$(LAUNCHER_DIR)/ScaleManager.cpp \
+		$(LAUNCHER_DIR)/OpenScalesBrowser.cpp \
 		$(UTIL_DIR)/BinReloc.cpp
 
 IMGUI_SRC = $(IMGUI_DIR)/imgui.cpp \

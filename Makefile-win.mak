@@ -608,8 +608,15 @@ LAUNCHER_CXXFLAGS = -std=c++17 -Wall -O2 \
 	-Ilibs \
 	-Isrc/apps/launcher \
 	-I$(UTIL_DIR) \
+	-Isrc/libs \
+	-Isrc/base \
 	-DENABLE_BINRELOC \
 	-DPEBL_WIN32 \
+	-DPEBL_VERSION=\"$(PEBL_VERSION)\" \
+	-DPEBLNAME=\"$(PEBLNAME)\" \
+	-DPEBLDIRNAME=\"$(PEBLDIRNAME)\" \
+	-DEXECNAME=\"$(EXECNAME)\" \
+	-DPREFIX=\"/usr/local\" \
 	$(SDL_FLAGS)
 
 pebl-launcher:

@@ -19,6 +19,7 @@ These are C++ functions built into the PEBL runtime, organized by namespace:
    peblobjects
    peblstream
    peblstring
+   lsl
 
 Library Functions
 =================
@@ -32,6 +33,7 @@ These are PEBL functions defined in .pbl library files:
    design
    graphics
    html
+   layout
    math
    ui
    utility

@@ -966,6 +966,38 @@ Tests whether ``<variant>`` is a Custom object (created with ``MakeCustomObject`
 :func:`IsAudioOut()`, :func:`IsImage()`,   :func:`IsInteger()`, :func:`IsFileStream()`, :func:`IsFloat()`,   :func:`IsFont()`, :func:`IsLabel()`, :func:`IsList()`,   :func:`IsNumber()`, :func:`IsString()`, :func:`IsTextBox()`, :func:`IsText()`   :func:`IsWidget()`, :func:`IsWindow()`
 
 
+.. index:: IsPEBLObject
+
+IsPEBLObject()
+--------------
+
+*Tests whether a value is any PEBL graphics or custom object.*
+
+**Description:**
+
+Returns 1 if ``obj`` is any PEBL object — window, label, image, canvas, textbox, shape, font, color, audio, widget, or custom object.  Returns 0 for plain values (strings, numbers, lists).  Use this as a generic type guard when you need to distinguish objects from scalar values, for example before calling property-access functions.
+
+**Usage:**
+
+.. code-block:: pebl
+
+   IsPEBLObject(obj)
+
+**Example:**
+
+.. code-block:: pebl
+
+   if(IsPEBLObject(val))
+   {
+       propNames <- GetPropertyList(val)
+   } else {
+       Print("Value: " + val)
+   }
+
+**See Also:**
+
+:func:`IsCustomObject()`, :func:`IsLabel()`, :func:`IsWindow()`, :func:`IsWidget()`
+
 
 .. index:: IsDirectory
 

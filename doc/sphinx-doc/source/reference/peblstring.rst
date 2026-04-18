@@ -484,3 +484,38 @@ Determines whether the operating system's current locale setting is for a right-
 **See Also:**
 
 :func:`GetSystemLocale()`, :func:`IsRTL()`, :func:`DetectTextScript()`
+
+
+.. index:: RegexMatch
+
+RegexMatch()
+------------
+
+*Searches a string with a regular expression.*
+
+**Description:**
+
+Searches ``string`` for the first occurrence of ``pattern`` (a POSIX-style regular expression) and returns the 1-based index of the match start, or 0 if no match is found.  The return convention is consistent with :func:`FindInString()`.
+
+**Usage:**
+
+.. code-block:: pebl
+
+   RegexMatch(string, pattern)
+
+**Example:**
+
+.. code-block:: pebl
+
+   pos <- RegexMatch("hello world", "wor")
+   ## pos == 7
+
+   pos <- RegexMatch("abc123", "[0-9]+")
+   ## pos == 4
+
+   pos <- RegexMatch("no digits here", "[0-9]")
+   ## pos == 0  (no match)
+
+**See Also:**
+
+:func:`FindInString()`, :func:`SubString()`, :func:`SplitString()`

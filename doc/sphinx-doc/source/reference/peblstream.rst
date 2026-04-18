@@ -1185,3 +1185,46 @@ Uploads a file to a web server using HTTP POST multipart/form-data encoding. Thi
 
 :func:`PostHTTP()`, :func:`GetHTTPFile()`, :func:`FileOpenRead()`
 
+
+
+.. index:: UploadLine
+
+UploadLine()
+------------
+
+*Appends a single CSV line to a file on the PEBL data server.*
+
+**Description:**
+
+Uploads a single line of CSV data to a remote PEBL Simple Data Server or PEBLHub, appending it to a named file.  Unlike :func:`UploadFile()`, which sends a complete file after the experiment, ``UploadLine()`` sends each data row immediately as it is collected.  This is useful for long experiments where data loss from a crash or network interruption would be costly.
+
+``UploadLine()`` is a no-op when ``gUpload`` is false (i.e., when the experiment was not started with ``--upload``).
+
+The settings file is resolved in this order: the explicit ``settingsfile`` argument, then ``gUploadFile``, then a file named ``upload.json`` in the working directory.
+
+**Usage:**
+
+.. code-block:: pebl
+
+   define UploadLine(subcode, filename, header, line, pooled:1, settingsfile:"")
+
+**Parameters:**
+
+- ``subcode`` — participant identifier
+- ``filename`` — target filename on the server (e.g., ``"stroop-pooled.csv"``)
+- ``header`` — CSV header line (written only when the server file is new)
+- ``line`` — CSV data line to append
+- ``pooled`` — 1 (default) to write to a shared task-level file; 0 for a per-participant file
+- ``settingsfile`` — optional path to an ``upload.json`` configuration file
+
+**Example:**
+
+.. code-block:: pebl
+
+   header <- "subnum,trial,condition,response,rt"
+   line   <- gSubNum + "," + trial + "," + cond + "," + resp + "," + rt
+   UploadLine(gSubNum, "mytest-pooled.csv", header, line)
+
+**See Also:**
+
+:func:`UploadFile()`, :func:`FilePrint()`, :func:`GetNewDataFile()`

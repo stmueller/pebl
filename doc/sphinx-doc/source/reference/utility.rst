@@ -1997,3 +1997,274 @@ Allows user to type input into a textbox.
 
 :func:`SetEditable()`, :func:`GetCursorPosition()`, :func:`MakeTextBox()`, :func:`SetText()`
 
+
+
+.. index:: IsDefined
+
+IsDefined()
+-----------
+
+*Tests whether a variable has been defined.*
+
+**Description:**
+
+Returns 1 if ``varname`` (given as a string) is a currently-defined variable, or 0 if it has not been defined.  This is a readable alias for :func:`VariableExists()`.
+
+**Usage:**
+
+.. code-block:: pebl
+
+   define IsDefined(varname)
+
+**Example:**
+
+.. code-block:: pebl
+
+   if(IsDefined("gUploadFile"))
+   {
+       UploadLine(gSubNum, "data.csv", header, line)
+   }
+
+**See Also:**
+
+:func:`VariableExists()`, :func:`PropertyExists()`
+
+
+.. index:: Indent
+
+Indent()
+--------
+
+*Returns a string of spaces for indentation.*
+
+**Description:**
+
+Returns a string of ``level * 2`` space characters, useful for building indented text output.  Used internally by :func:`PrintProperties()`.
+
+**Usage:**
+
+.. code-block:: pebl
+
+   define Indent(level)
+
+**Example:**
+
+.. code-block:: pebl
+
+   Print(Indent(0) + "top level")
+   Print(Indent(1) + "one level in")
+   Print(Indent(2) + "two levels in")
+
+**See Also:**
+
+:func:`PrintProperties()`
+
+
+.. index:: MakeFontFamily
+
+MakeFontFamily()
+----------------
+
+*Creates a set of font variants (normal, bold, italic, bold-italic) from a single font file.*
+
+**Description:**
+
+Creates and returns a custom object with four properties — ``normal``, ``bold``, ``italic``, and ``bolditalic`` — each holding a font object created with :func:`MakeFont()`.  All four variants are created once and can be reused without repeated create/destroy overhead, which is especially useful for markdown-style text rendering that switches between styles inline.
+
+**Usage:**
+
+.. code-block:: pebl
+
+   define MakeFontFamily(filename, size, fgcolor, bgcolor, antialiased)
+
+**Parameters:**
+
+- ``filename`` — font file name (e.g., ``"DejaVuSans.ttf"``)
+- ``size`` — point size (e.g., 24)
+- ``fgcolor`` — foreground colour object from :func:`MakeColor()`
+- ``bgcolor`` — background colour object from :func:`MakeColor()`
+- ``antialiased`` — 1 to enable antialiasing, 0 to disable
+
+**Example:**
+
+.. code-block:: pebl
+
+   fg  <- MakeColor("black")
+   bg  <- MakeColor("white")
+   fam <- MakeFontFamily("DejaVuSans.ttf", 24, fg, bg, 1)
+
+   normalLabel <- MakeLabel("Regular text",    fam.normal)
+   boldLabel   <- MakeLabel("Bold text",       fam.bold)
+   italicLabel <- MakeLabel("Italic text",     fam.italic)
+   biBoldLabel <- MakeLabel("Bold-italic",     fam.bolditalic)
+
+**See Also:**
+
+:func:`MakeFont()`, :func:`MakeLabel()`
+
+
+.. index:: JoinStrings
+
+JoinStrings()
+-------------
+
+*Joins a list of strings into a single string with a separator.*
+
+**Description:**
+
+Concatenates all strings in ``list`` into a single string, inserting ``separator`` between adjacent elements.  Returns an empty string for an empty list, and the single element unchanged for a one-element list.
+
+**Usage:**
+
+.. code-block:: pebl
+
+   define JoinStrings(list, separator)
+
+**Example:**
+
+.. code-block:: pebl
+
+   parts <- ["one", "two", "three"]
+   result <- JoinStrings(parts, ", ")
+   ## result == "one, two, three"
+
+   csv <- JoinStrings([gSubNum, trial, rt], ",")
+
+**See Also:**
+
+:func:`ConcatenateList()`, :func:`SplitString()`, :func:`ListToString()`
+
+
+.. index:: ConvertNewlinesToCR
+
+ConvertNewlinesToCR()
+---------------------
+
+*Converts ``\\n`` sequences in a string to PEBL CR() newlines.*
+
+**Description:**
+
+Replaces literal ``\n\n`` sequences with ``CR(2)`` and ``\n`` sequences with ``CR(1)`` in ``text``.  This is needed because strings loaded from JSON translation files use ``\n`` for line breaks, while PEBL's display functions require :func:`CR()`.
+
+**Usage:**
+
+.. code-block:: pebl
+
+   define ConvertNewlinesToCR(text)
+
+**Example:**
+
+.. code-block:: pebl
+
+   raw  <- "Line one\nLine two\n\nNew paragraph"
+   text <- ConvertNewlinesToCR(raw)
+   ## text now contains actual PEBL newlines
+
+**See Also:**
+
+:func:`CR()`, :func:`SubstituteStrings()`, :func:`GetStrings()`
+
+
+.. index:: InitializeLSL
+
+InitializeLSL()
+---------------
+
+*Initializes a Lab Streaming Layer (LSL) outlet for event-marker streaming.*
+
+**Description:**
+
+Call once at the start of your experiment (after parameter initialization) to create an LSL outlet that downstream recording software (e.g., LabRecorder) can subscribe to.  The function is a no-op when the experiment was not started with the ``--lsl`` flag, so it can be left in the script unconditionally.
+
+If ``win`` is a valid window object, ``InitializeLSL()`` shows a prompt asking the experimenter to confirm that LabRecorder is recording before continuing.
+
+The stream name is taken from the ``--lsl <name>`` command-line argument, or auto-generated as ``PEBL_<scriptbasename>`` if no name was given.
+
+Returns 1 if the outlet was created successfully, 0 otherwise.
+
+**Usage:**
+
+.. code-block:: pebl
+
+   define InitializeLSL(win:0)
+
+**Example:**
+
+.. code-block:: pebl
+
+   gParams <- CreateParameters(parpairs, gParamFile)
+   gWin    <- MakeWindow("black")
+   InitializeLSL(gWin)   ## prompts experimenter to start LabRecorder
+
+   ## ... run experiment ...
+   FinalizeLSL()
+
+**See Also:**
+
+:func:`LSLMarker()`, :func:`FinalizeLSL()`, :func:`CreateLSLOutlet()`
+
+
+.. index:: LSLMarker
+
+LSLMarker()
+-----------
+
+*Sends an event marker to the active LSL stream.*
+
+**Description:**
+
+Sends ``marker`` (a string or integer) to the LSL outlet created by :func:`InitializeLSL()`.  LSL automatically timestamps the sample.  The function is a no-op when ``gLSLEnabled`` is false (i.e., ``--lsl`` was not used), so it can be called unconditionally on every trial.
+
+Returns 1 if the marker was sent, 0 otherwise.
+
+**Usage:**
+
+.. code-block:: pebl
+
+   define LSLMarker(marker)
+
+**Example:**
+
+.. code-block:: pebl
+
+   LSLMarker("trial_start")
+   ## show stimulus
+   Draw()
+   LSLMarker("stimulus_onset")
+   response <- WaitForListKeyPress(["z", "/"])
+   LSLMarker("response_" + response)
+
+**See Also:**
+
+:func:`InitializeLSL()`, :func:`FinalizeLSL()`, :func:`SendLSLMarker()`
+
+
+.. index:: FinalizeLSL
+
+FinalizeLSL()
+-------------
+
+*Closes the LSL outlet at the end of the experiment.*
+
+**Description:**
+
+Closes the LSL outlet created by :func:`InitializeLSL()` and releases resources.  This call is optional but recommended for a clean shutdown.  It is a no-op when ``gLSLEnabled`` is false.
+
+Returns 1 on success.
+
+**Usage:**
+
+.. code-block:: pebl
+
+   define FinalizeLSL()
+
+**Example:**
+
+.. code-block:: pebl
+
+   MessageBox("Thank you for participating!", gWin)
+   FinalizeLSL()
+
+**See Also:**
+
+:func:`InitializeLSL()`, :func:`LSLMarker()`, :func:`CloseLSLOutlet()`

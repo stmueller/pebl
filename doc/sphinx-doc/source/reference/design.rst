@@ -827,3 +827,96 @@ Returns a new list containing all elements from the input list in reverse order.
 **See Also:**
 
 :func:`Rotate()`, :func:`Shuffle()`, :func:`Sort()`
+
+
+.. index:: Union
+
+Union()
+-------
+
+*Computes the union of two lists.*
+
+**Description:**
+
+Returns a list containing all elements that appear in either ``list1`` or ``list2``.  Each element appears only once; duplicates are removed.  The result is not guaranteed to be in any particular order.
+
+**Usage:**
+
+.. code-block:: pebl
+
+   define Union(list1, list2)
+
+**Example:**
+
+.. code-block:: pebl
+
+   a <- [1, 2, 3]
+   b <- [2, 3, 4, 5]
+   result <- Union(a, b)
+   ## result == [1, 2, 3, 4, 5]
+
+**See Also:**
+
+:func:`Intersect()`, :func:`SetDifference()`, :func:`IsMember()`
+
+
+.. index:: Intersect
+
+Intersect()
+-----------
+
+*Computes the intersection of two lists.*
+
+**Description:**
+
+Returns a list containing only the elements that appear in both ``list1`` and ``list2``.  Each matched element appears once in the output.
+
+**Usage:**
+
+.. code-block:: pebl
+
+   define Intersect(list1, list2)
+
+**Example:**
+
+.. code-block:: pebl
+
+   a <- [1, 2, 3, 4]
+   b <- [2, 4, 6]
+   result <- Intersect(a, b)
+   ## result == [2, 4]
+
+**See Also:**
+
+:func:`Union()`, :func:`SetDifference()`, :func:`IsMember()`
+
+
+.. index:: SetDifference
+
+SetDifference()
+---------------
+
+*Returns elements in one list that are absent from another.*
+
+**Description:**
+
+Returns the elements of ``list2`` that do not appear in ``list1``.  This is the asymmetric set difference: elements unique to ``list1`` are not included.
+
+**Usage:**
+
+.. code-block:: pebl
+
+   define SetDifference(list1, list2)
+
+**Example:**
+
+.. code-block:: pebl
+
+   baseline <- [1, 2, 3, 4]
+   current  <- [2, 4, 5, 6]
+   added <- SetDifference(baseline, current)
+   ## added == [5, 6]
+
+**See Also:**
+
+:func:`Union()`, :func:`Intersect()`, :func:`IsMember()`

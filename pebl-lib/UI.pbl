@@ -349,9 +349,14 @@ define GetFullLineBreaks(tb,text)
 
       tmpbreaks <- GetLineBreaks(tb)     ##this gets 0-offset breaks from current text
 
-
-      breaks<- Merge(breaks,VecPlus(tmpbreaks,offset))
-      offset <- offset+ Nth(tmpbreaks,Length(tmpbreaks))  #recompute text string offset
+      if(Length(tmpbreaks) == 0)
+      {
+        ## No line breaks found: remaining text fits on one line; we are done.
+        offset <- tblen
+      } else {
+        breaks <- Merge(breaks,VecPlus(tmpbreaks,offset))
+        offset <- offset+ Nth(tmpbreaks,Length(tmpbreaks))  #recompute text string offset
+      }
 
 
 

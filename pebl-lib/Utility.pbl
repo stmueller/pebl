@@ -2150,7 +2150,12 @@ define InitializeUpload()
 
             ## Create centralized data directory for MEMFS persistent storage
             ## Create directories one level at a time since MakeDirectory doesn't create parents
-            MakeDirectory("/data")
+            ## Guard /data creation: chain-launcher pre-mounts IDBFS at /data, so it already
+            ## exists; calling MakeDirectory on an existing IDBFS mount returns -1 → fatal crash.
+            if(not FileExists("/data"))
+            {
+                MakeDirectory("/data")
+            }
             MakeDirectory("/data/" + gToken)
             MakeDirectory("/data/" + gToken + "/" + gTestName)
             gDataDirectory <- "/data/" + gToken + "/" + gTestName + "/" + gParticipant + "/"

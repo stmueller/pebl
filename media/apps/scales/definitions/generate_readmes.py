@@ -1,8 +1,14 @@
 #!/usr/bin/env python3
-"""Generate README.md files for each scale definition directory.
+"""Generate README.md files and screenshots for each scale definition directory.
 
-Scans each subdirectory for a <code>.json definition file and creates
-a README.md summarizing the scale for community/git repository use.
+Scans each subdirectory for a <code>.osd or <code>.json definition file and
+creates a README.md summarizing the scale for community/git repository use.
+Also runs scale-screenshot.pbl to generate a <code>.pbl.png preview image.
+
+Usage:
+    python3 generate_readmes.py              # process all subdirs
+    python3 generate_readmes.py DEMO         # process one scale by code
+    python3 generate_readmes.py --no-screenshots  # READMEs only
 """
 
 import json
@@ -13,17 +19,38 @@ import subprocess
 import shutil
 
 
+def load_scale_data(scale_dir):
+    """Load and return the scale definition dict from .osd or .json, or None."""
+    dirname = os.path.basename(scale_dir)
+
+    # Prefer .osd (OSD bundle) — unwrap the "definition" key if present
+    osd_path = os.path.join(scale_dir, f"{dirname}.osd")
+    if os.path.exists(osd_path):
+        with open(osd_path, "r", encoding="utf-8") as f:
+            raw = json.load(f)
+        return raw.get("definition", raw)
+
+    # Fall back to split .json format
+    json_path = os.path.join(scale_dir, f"{dirname}.json")
+    if os.path.exists(json_path):
+        with open(json_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+
+    return None
+
+
 def generate_readme(scale_dir):
     """Generate a README.md for a single scale directory."""
     dirname = os.path.basename(scale_dir)
-    json_path = os.path.join(scale_dir, f"{dirname}.json")
 
-    if not os.path.exists(json_path):
-        print(f"  Skipping {dirname}: no {dirname}.json found")
+    data = load_scale_data(scale_dir)
+    if data is None:
+        print(f"  Skipping {dirname}: no .osd or .json definition found")
         return False
 
-    with open(json_path, "r") as f:
-        data = json.load(f)
+    # Determine source file extension for the Files section
+    osd_path = os.path.join(scale_dir, f"{dirname}.osd")
+    def_filename = f"{dirname}.osd" if os.path.exists(osd_path) else f"{dirname}.json"
 
     info = data.get("scale_info", {})
     name = info.get("name", dirname)
@@ -51,19 +78,26 @@ def generate_readme(scale_dir):
     # Get scoring info
     scoring = data.get("scoring", {})
 
-    # Find available translations
-    trans_files = glob.glob(os.path.join(scale_dir, f"{code}.pbl-*.json"))
+    # Find available translations (both in-dir and in-bundle)
+    trans_files = sorted(glob.glob(os.path.join(scale_dir, f"{code}.pbl-*.json")))
     languages = []
-    for tf in sorted(trans_files):
+    for tf in trans_files:
         basename = os.path.basename(tf)
-        # Extract language code from <code>.pbl-<lang>.json
         lang = basename.replace(f"{code}.pbl-", "").replace(".json", "")
         languages.append(lang)
+
+    # Screenshot
+    screenshot_file = f"{dirname}.pbl.png"
+    has_screenshot = os.path.exists(os.path.join(scale_dir, screenshot_file))
 
     # Build README
     lines = []
     lines.append(f"# {name}")
     lines.append("")
+
+    if has_screenshot:
+        lines.append(f"![{name} screenshot]({screenshot_file})")
+        lines.append("")
 
     if abbrev:
         lines.append(f"**Abbreviation:** {abbrev}  ")
@@ -78,7 +112,6 @@ def generate_readme(scale_dir):
         lines.append(f"{description}")
         lines.append("")
 
-    # Items summary
     lines.append("## Scale Summary")
     lines.append("")
     lines.append(f"- **Items:** {total_items}")
@@ -105,7 +138,6 @@ def generate_readme(scale_dir):
         lines.append(f"- **Languages:** {', '.join(languages)}")
     lines.append("")
 
-    # Scoring
     if scoring:
         lines.append("## Scoring")
         lines.append("")
@@ -123,36 +155,33 @@ def generate_readme(scale_dir):
                 lines.append(f"  - Reverse-coded: {', '.join(reverse_coded)}")
         lines.append("")
 
-    # Citation
     if citation:
         lines.append("## Citation")
         lines.append("")
-        # Split multiple citations (separated by newlines)
         for cit in citation.strip().split("\n"):
             cit = cit.strip()
             if cit:
                 lines.append(f"> {cit}")
                 lines.append(">")
-        # Remove trailing >
         if lines[-1] == ">":
             lines.pop()
         lines.append("")
 
     if url:
-        lines.append(f"## Links")
+        lines.append("## Links")
         lines.append("")
         lines.append(f"- [{url}]({url})")
         lines.append("")
 
-    # Files section
     lines.append("## Files")
     lines.append("")
-    lines.append(f"- `{code}.json` - Scale definition")
+    lines.append(f"- `{def_filename}` - Scale definition (OpenScales OSD format)")
     for lang in languages:
         lines.append(f"- `{code}.pbl-{lang}.json` - {lang.upper()} translation")
+    if has_screenshot:
+        lines.append(f"- `{screenshot_file}` - Preview screenshot")
     lines.append("")
 
-    # Usage
     lines.append("## Usage")
     lines.append("")
     lines.append("This scale is designed to be run using the PEBL ScaleRunner system.")
@@ -160,7 +189,7 @@ def generate_readme(scale_dir):
     lines.append("")
 
     readme_path = os.path.join(scale_dir, "README.md")
-    with open(readme_path, "w") as f:
+    with open(readme_path, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
 
     print(f"  Created README.md for {name} ({code})")
@@ -172,53 +201,78 @@ def generate_screenshot(scale_dir):
     dirname = os.path.basename(scale_dir)
     screenshot_dest = os.path.join(scale_dir, f"{dirname}.pbl.png")
 
-    base = os.path.dirname(os.path.abspath(__file__))       # definitions/
-    scales_dir = os.path.normpath(os.path.join(base, "..")) # media/apps/scales/
+    base = os.path.dirname(os.path.abspath(__file__))        # definitions/
+    scales_dir = os.path.normpath(os.path.join(base, ".."))  # media/apps/scales/
     pebl_bin = os.path.normpath(os.path.join(scales_dir, "..", "..", "..", "bin", "pebl2"))
     script = os.path.normpath(os.path.join(scales_dir, "..", "scale-screenshot.pbl"))
 
-    if not os.path.exists(pebl_bin) or not os.path.exists(script):
-        print(f"  Skipping screenshot for {dirname}: pebl2 or script not found")
+    if not os.path.exists(pebl_bin):
+        print(f"  Skipping screenshot for {dirname}: pebl2 not found at {pebl_bin}")
+        return False
+    if not os.path.exists(script):
+        print(f"  Skipping screenshot for {dirname}: scale-screenshot.pbl not found at {script}")
         return False
 
-    # Run from definitions/ dir so script path 1 (<code>/<code>.json) resolves correctly
+    # Run from definitions/ dir so <code>/<code>.osd resolves correctly
     try:
-        result = subprocess.run([pebl_bin, script, "-v", dirname],
-                               cwd=base, capture_output=True, timeout=60)
+        result = subprocess.run(
+            [pebl_bin, script, "-v", dirname],
+            cwd=base,
+            capture_output=True,
+            timeout=60,
+        )
     except subprocess.TimeoutExpired:
         print(f"  Screenshot timed out for {dirname}")
         return False
 
-    # Output lands in definitions/<code>.pbl.png, move into definitions/<code>/
+    # Output lands in cwd as <code>.pbl.png; move into definitions/<code>/
     output_file = os.path.join(base, f"{dirname}.pbl.png")
     if os.path.exists(output_file):
         shutil.move(output_file, screenshot_dest)
         print(f"  Generated screenshot for {dirname}")
         return True
 
+    stderr = result.stderr.decode("utf-8", errors="replace").strip()
     print(f"  Screenshot failed for {dirname} (exit {result.returncode})")
+    if stderr:
+        print(f"    stderr: {stderr[:200]}")
     return False
 
 
 def main():
-    # Default to the directory containing this script
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    if len(sys.argv) > 1:
-        base_dir = sys.argv[1]
+    do_screenshots = True
+    codes = []
 
-    print(f"Scanning {base_dir} for scale definitions...")
+    for arg in sys.argv[1:]:
+        if arg == "--no-screenshots":
+            do_screenshots = False
+        elif not arg.startswith("-"):
+            codes.append(arg)
+
+    if not codes:
+        # Process all subdirectories
+        codes = sorted(
+            e for e in os.listdir(base_dir)
+            if os.path.isdir(os.path.join(base_dir, e)) and not e.startswith(".")
+        )
+
+    print(f"Processing {len(codes)} scale(s) in {base_dir} ...")
     readme_count = 0
     screenshot_count = 0
 
-    for entry in sorted(os.listdir(base_dir)):
-        entry_path = os.path.join(base_dir, entry)
-        if os.path.isdir(entry_path):
-            if generate_readme(entry_path):
-                readme_count += 1
+    for code in codes:
+        entry_path = os.path.join(base_dir, code)
+        if not os.path.isdir(entry_path):
+            print(f"  Skipping {code}: not a directory")
+            continue
+        if do_screenshots:
             if generate_screenshot(entry_path):
                 screenshot_count += 1
+        if generate_readme(entry_path):
+            readme_count += 1
 
-    print(f"\nGenerated {readme_count} README.md files and {screenshot_count} screenshots.")
+    print(f"\nDone. Generated {readme_count} README.md file(s) and {screenshot_count} screenshot(s).")
 
 
 if __name__ == "__main__":

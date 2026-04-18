@@ -1,5 +1,7 @@
 # Trust in AI Scale
 
+![Trust in AI Scale screenshot](AITrust.pbl.png)
+
 **Abbreviation:** Trust in the AI/XAI Context  
 **Code:** `AITrust`  
 **Version:** 1.0  
@@ -9,17 +11,13 @@
 
 ## Scale Summary
 
-- **Items:** 9
-- **Likert items:** 8 (5-point scale)
-- **Other items:** 1
+- **Items:** 0
 - **Dimensions:** 1
   - **Trust in AI (TRUSTAI):** Mean trust in AI score, with appropriate reverse coding of negatively-posed questions.
-- **Languages:** en
 
 ## Scoring
 
 - **Trust_In_AI**: mean_coded (8 items)
-  - Reverse-coded: AITrust006
 
 ## Citation
 
@@ -27,12 +25,12 @@
 
 ## Links
 
-- [https://scholar.google.com/citations?view_op=view_citation&hl=en&user=Pi0A91kAAAAJ&citation_for_view=Pi0A91kAAAAJ:5UUbrqTvKfUC](https://scholar.google.com/citations?view_op=view_citation&hl=en&user=Pi0A91kAAAAJ&citation_for_view=Pi0A91kAAAAJ:5UUbrqTvKfUC)
+- [https://www.frontiersin.org/journals/computer-science/articles/10.3389/fcomp.2023.1096257/full](https://www.frontiersin.org/journals/computer-science/articles/10.3389/fcomp.2023.1096257/full)
 
 ## Files
 
-- `AITrust.json` - Scale definition
-- `AITrust.pbl-en.json` - EN translation
+- `AITrust.osd` - Scale definition (OpenScales OSD format)
+- `AITrust.pbl.png` - Preview screenshot
 
 ## Usage
 

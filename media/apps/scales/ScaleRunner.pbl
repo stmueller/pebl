@@ -914,6 +914,9 @@ define Start(p)
   if(PropertyExists(results, "gateTriggered") and results.gateTriggered)
   {
     ShowFormattedMessage(results.gateMessage, gWin)
+    ## Exit with code 1 so the chain runner knows to abort.
+    ## This mirrors the built-in Consent page item behavior.
+    ExitQuietly("", 1)
   } else {
     if(PropertyExists(gStrings, "debrief"))
     {
@@ -923,6 +926,7 @@ define Start(p)
       ShowFormattedMessage("Thank you for completing this questionnaire.", gWin)
     }
   }
+  return(0)
 }
 
 
@@ -3847,7 +3851,7 @@ define SaveIndividualData(results, transformedScores, scaleDef)
               if(PropertyExists(scaleDef.scoring, dim.id))
               {
                 gridScoreDef <- GetProperty(scaleDef.scoring, dim.id)
-                gridItemIDs <- gridScoreDef.items
+                gridItemIDs <- GetScoringItemList(gridScoreDef)
 
                 ## Check if this grid row sub-item is in this dimension
                 ## Sub-item IDs are gridId_1, gridId_2, ... (not the parent gridId)
@@ -3909,7 +3913,8 @@ define SaveIndividualData(results, transformedScores, scaleDef)
                 {
                   ## Check if this grid row sub-item is in this dimension
                   gridTMember <- 0
-                  loop(gridTItemID, gridTScoreDef.items)
+                  gridTItemIDs <- GetScoringItemList(gridTScoreDef)
+                  loop(gridTItemID, gridTItemIDs)
                   {
                     if(gridTItemID == gridSubID)
                     {
@@ -4032,7 +4037,8 @@ define SaveIndividualData(results, transformedScores, scaleDef)
             {
               ## Check if this question is in this dimension
               tIsMember <- 0
-              loop(tItemID, tScoreDef.items)
+              tItemIDs <- GetScoringItemList(tScoreDef)
+              loop(tItemID, tItemIDs)
               {
                 if(tItemID == qdef.id)
                 {

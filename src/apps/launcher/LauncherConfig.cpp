@@ -572,6 +572,46 @@ bool LauncherConfig::LoadConfig()
     }
 
     configFile.close();
+
+    // Validate loaded paths — a saved path may point to a now-gone AppImage mount
+    // (e.g. /tmp/.mount_PEBL-xxx/...) or a previous installation that no longer exists.
+    // If either critical path is missing, re-run auto-detection so the launcher works
+    // correctly regardless of how it was first invoked.
+    struct stat st;
+    if (!mBatteryPath.empty() &&
+        !(stat(mBatteryPath.c_str(), &st) == 0 && S_ISDIR(st.st_mode)))
+    {
+        printf("Warning: Saved battery_path no longer exists: %s\n", mBatteryPath.c_str());
+        printf("Re-detecting PEBL installation...\n");
+        mBatteryPath = DetectPEBLInstallation();
+        if (!mBatteryPath.empty()) {
+            printf("Re-detected battery at: %s\n", mBatteryPath.c_str());
+        } else {
+            printf("Warning: Could not auto-detect battery path.\n");
+        }
+    }
+
+    if (!mPeblExecutablePath.empty() &&
+        !(stat(mPeblExecutablePath.c_str(), &st) == 0 && S_ISREG(st.st_mode)))
+    {
+        printf("Warning: Saved pebl_executable_path no longer exists: %s\n", mPeblExecutablePath.c_str());
+        // Derive pebl2 location from battery path: battery/ is a sibling of bin/
+        if (!mBatteryPath.empty()) {
+#ifdef _WIN32
+            std::string candidate = mBatteryPath + "\\..\\bin\\pebl2.exe";
+#else
+            std::string candidate = mBatteryPath + "/../bin/pebl2";
+#endif
+            if (stat(candidate.c_str(), &st) == 0 && S_ISREG(st.st_mode)) {
+                mPeblExecutablePath = candidate;
+                printf("Re-detected PEBL executable at: %s\n", mPeblExecutablePath.c_str());
+            } else {
+                printf("Warning: Could not auto-detect PEBL executable path.\n");
+                mPeblExecutablePath = "";
+            }
+        }
+    }
+
     return true;
 }
 

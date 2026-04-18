@@ -90,7 +90,7 @@ private:
     std::string mUploadURL;
 
     // File paths
-    std::string mWorkspacePath;      // Documents/pebl-exp.2.3/
+    std::string mWorkspacePath;      // Documents/pebl-exp.2.4/
     std::string mBatteryPath;        // /usr/local/share/pebl/battery/ or auto-detect
     std::string mPeblExecutablePath; // Path to pebl2 executable
     std::string mDataOutputPath;     // Where to save data files

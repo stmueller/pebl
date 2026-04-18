@@ -73,8 +73,11 @@ struct TranslationEditorState {
     std::map<std::string, std::string> englishValues;  // Key -> English text
     std::map<std::string, std::string> targetValues;   // Key -> Target language text (editable)
 
+    bool fromTestEditor;  // True when opened from chain/test editor popup (renders inline there)
+
     TranslationEditorState() : show(false), testIndex(-1), scaleMode(false),
-                               dataLoaded(false), dirty(false), selectedKeyIndex(-1) {
+                               dataLoaded(false), dirty(false), selectedKeyIndex(-1),
+                               fromTestEditor(false) {
         language[0] = '\0';
         testPath[0] = '\0';
         scaleCode[0] = '\0';

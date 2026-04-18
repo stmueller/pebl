@@ -9,7 +9,7 @@
 // The launcher supports two operating modes:
 //
 // 1. INSTALLED MODE (default)
-//    - Workspace is created in Documents/pebl-exp.2.3/
+//    - Workspace is created in Documents/pebl-exp.2.4/
 //    - First run triggers resource copying dialog (demos, tutorials, docs)
 //    - Standard installation via installer or package manager
 //

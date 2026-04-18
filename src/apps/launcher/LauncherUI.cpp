@@ -228,7 +228,7 @@ LauncherUI::LauncherUI(LauncherConfig* config, SDL_Renderer* renderer)
 
     // Set Quick Launch to start in workspace directory
     // Portable mode: portable root directory (for access to PEBL/battery, demo, tutorial)
-    // Installed mode: Documents/pebl-exp.2.3
+    // Installed mode: Documents/pebl-exp.2.4
     std::string peblExpPath = config->GetWorkspacePath();
     if (!peblExpPath.empty()) {
         try {
@@ -435,16 +435,19 @@ void LauncherUI::Render(bool* p_open)
                     fflush(debugLog);
                 }
 
-                // Only treat exit code 1 on consent forms as "declined"
-                // Other exit codes (crashes, errors) should not abort the chain as "declined"
-                if (currentItem.type == ItemType::Consent && exitCode == 1) {
+                // Treat exit code 1 as "declined/ineligible" for:
+                //   - ItemType::Consent (built-in consent page)
+                //   - ItemType::Test when exit code is 1 (ScaleRunner gateTriggered path)
+                // Other non-zero codes = crash/error, continue chain.
+                if (exitCode == 1 && (currentItem.type == ItemType::Consent ||
+                                      currentItem.type == ItemType::Test)) {
                     shouldAbortChain = true;
                     isConsentDecline = true;
-                    if (debugLog) fprintf(debugLog, "  -> CONSENT DECLINED, aborting chain\n");
+                    if (debugLog) fprintf(debugLog, "  -> CONSENT/GATE DECLINED (code 1), aborting chain\n");
                 } else if (currentItem.type == ItemType::Consent && exitCode != 0) {
                     if (debugLog) fprintf(debugLog, "  -> Consent error (code %d), continuing\n", exitCode);
                 } else {
-                    if (debugLog) fprintf(debugLog, "  -> Non-consent item (code %d), continuing\n", exitCode);
+                    if (debugLog) fprintf(debugLog, "  -> Non-consent item or error (code %d), continuing\n", exitCode);
                 }
             } else {
                 if (debugLog) fprintf(debugLog, "  exitCode==0 or invalid index, continuing chain\n");
@@ -466,6 +469,12 @@ void LauncherUI::Render(bool* p_open)
                 // Stop chain execution
                 mRunningChain = false;
                 mCurrentChainItemIndex = -1;
+
+                // Increment participant counter so next run gets a fresh subject number
+                if (mCurrentChain) {
+                    mCurrentChain->IncrementParticipantCounter();
+                    printf("Participant counter incremented to: %d\n", mCurrentChain->GetParticipantCounter());
+                }
 
                 // Clean up runner
                 delete mRunningExperiment;
@@ -782,9 +791,11 @@ render_ui:
         ShowNormsEditor();
     }
 
-    // Show translation editor dialog if requested
+    // Show translation editor dialog if requested.
+    // When opened from inside the test editor popup (fromTestEditor), it renders
+    // inline there (correct ImGui stack level). Skip rendering it here in that case.
     bool translationEditorWasShown = mTranslationEditor.show;
-    if (mTranslationEditor.show) {
+    if (mTranslationEditor.show && !mTranslationEditor.fromTestEditor) {
         ShowTranslationEditorDialog();
     }
     // When scale-mode translation editor closes, reload translations from disk into mCurrentScale
@@ -1136,8 +1147,8 @@ void LauncherUI::RenderMenuBar()
                 std::string workspacePath = mConfig->GetWorkspacePath();
                 std::string manualPath;
 
-                // Portable mode: manual is at portable root (e.g., PEBL2.3_Portable/PEBLManual2.3.pdf)
-                // Installed mode: manual is in Documents/pebl-exp.2.3/doc/PEBLManual2.3.pdf
+                // Portable mode: manual is at portable root (e.g., PEBL2.4_Portable/PEBLManual2.4.pdf)
+                // Installed mode: manual is in Documents/pebl-exp.2.4/doc/PEBLManual2.4.pdf
                 std::vector<std::string> possiblePaths = {
                     (fs::path(workspacePath) / manualName).string(),  // Portable: root
                     (fs::path(workspacePath) / "doc" / manualName).string(),  // Installed: doc subfolder
@@ -4554,11 +4565,23 @@ void LauncherUI::ShowTestEditor()
                 for (const auto& entry : fs::directory_iterator(translationsPath)) {
                     if (entry.is_regular_file()) {
                         std::string filename = entry.path().filename().string();
-                        // Look for files like "testname.pbl-en.json"
+                        if (filename.size() < 5) continue;
+                        size_t dotJson = filename.rfind(".json");
+                        if (dotJson == std::string::npos) continue;
+
+                        std::string lang;
+                        // Dash format: "name.pbl-lang.json"
                         size_t dashPos = filename.rfind('-');
-                        size_t dotPos = filename.rfind(".json");
-                        if (dashPos != std::string::npos && dotPos != std::string::npos && dotPos > dashPos) {
-                            std::string lang = filename.substr(dashPos + 1, dotPos - dashPos - 1);
+                        if (dashPos != std::string::npos && dotJson > dashPos) {
+                            lang = filename.substr(dashPos + 1, dotJson - dashPos - 1);
+                        } else {
+                            // Dot format: "name.lang.json"
+                            size_t prevDot = filename.rfind('.', dotJson - 1);
+                            if (prevDot != std::string::npos && prevDot < dotJson) {
+                                lang = filename.substr(prevDot + 1, dotJson - prevDot - 1);
+                            }
+                        }
+                        if (!lang.empty() && lang != "json") {
                             availableLanguages.push_back(lang);
                         }
                     }
@@ -4598,13 +4621,13 @@ void LauncherUI::ShowTestEditor()
             // Translation editor button
             ImGui::SameLine();
             if (ImGui::SmallButton("Edit Translations...")) {
-                // Open translation editor dialog
-                std::string testPath = studyPath + "/tests/" + selectedTest.testPath;
+                // Set up state and open popup from within this modal's context
+                // (ImGui requires OpenPopup to be called from the same popup stack level)
+                std::string testPathStr = studyPath + "/tests/" + selectedTest.testPath;
                 mTranslationEditor.testIndex = mTestEditor.selectedTestIndex;
-                std::strncpy(mTranslationEditor.testPath, testPath.c_str(), sizeof(mTranslationEditor.testPath) - 1);
+                std::strncpy(mTranslationEditor.testPath, testPathStr.c_str(), sizeof(mTranslationEditor.testPath) - 1);
                 mTranslationEditor.testPath[sizeof(mTranslationEditor.testPath) - 1] = '\0';
 
-                // Pre-fill language if one is set in test editor
                 if (std::strlen(mTestEditor.language) > 0) {
                     std::strncpy(mTranslationEditor.language, mTestEditor.language, sizeof(mTranslationEditor.language) - 1);
                     mTranslationEditor.language[sizeof(mTranslationEditor.language) - 1] = '\0';
@@ -4613,9 +4636,20 @@ void LauncherUI::ShowTestEditor()
                 }
 
                 mTranslationEditor.show = true;
+                mTranslationEditor.fromTestEditor = true;
             }
             if (ImGui::IsItemHovered()) {
                 ImGui::SetTooltip("Open translation editor for this test");
+            }
+
+            // Render translation editor inline here as a child modal of this popup.
+            // This is the correct ImGui pattern: OpenPopup and BeginPopupModal must
+            // be called from the same popup stack level.
+            if (mTranslationEditor.show && mTranslationEditor.fromTestEditor) {
+                ShowTranslationEditorDialog();
+                if (!mTranslationEditor.show) {
+                    mTranslationEditor.fromTestEditor = false;
+                }
             }
 
             ImGui::Spacing();

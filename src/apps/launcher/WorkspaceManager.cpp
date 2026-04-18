@@ -77,7 +77,7 @@ std::string WorkspaceManager::GetPortableWorkspacePath() const {
     // The workspace should be at the portable distribution root, not inside PEBL/bin/
     //
     // Expected structure:
-    //   PEBL2.3_Portable/             <- workspace root (where STANDALONE.txt is)
+    //   PEBL2.4_Portable/             <- workspace root (where STANDALONE.txt is)
     //   ├── STANDALONE.txt            <- REQUIRED marker file
     //   ├── PEBL/
     //   │   ├── bin/
@@ -161,11 +161,6 @@ bool WorkspaceManager::Initialize() {
             }
         }
     }
-
-    // Create scales subdirectories
-    std::string scalesPath = mWorkspacePath + "/scales";
-    CreateDir(scalesPath + "/definitions");
-    CreateDir(scalesPath + "/translations");
 
     mInitialized = true;
     return true;

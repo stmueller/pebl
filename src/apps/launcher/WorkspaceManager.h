@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 
-// Manages PEBL workspace directory structure in Documents/pebl-exp.2.3/
+// Manages PEBL workspace directory structure in Documents/pebl-exp.2.4/
 class WorkspaceManager {
 public:
     WorkspaceManager();
@@ -66,7 +66,7 @@ private:
     std::string GetDocumentsPath() const;
     std::string GetPortableWorkspacePath() const;
 
-    std::string mWorkspacePath;  // e.g., /home/user/Documents/pebl-exp.2.3
+    std::string mWorkspacePath;  // e.g., /home/user/Documents/pebl-exp.2.4
     bool mInitialized;
 };
 

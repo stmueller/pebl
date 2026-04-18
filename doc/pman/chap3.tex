@@ -6,7 +6,7 @@
 
 PEBL has a fairly straightforward and forgiving syntax, and implements
 most of its interesting functionality in a large object system and
-function library of over 125 functions.  The library includes many
+function library of hundreds of functions.  The library includes many
 functions specific to creating and presenting stimuli and collecting
 responses.  Efforts, however successful, have been made to enable
 timing accuracy at a millisecond-scale, and to make machine limitations
@@ -433,6 +433,249 @@ define PrintIt(text, number)
 \end{verbatim}
 More sample programs can be found in the \texttt{demo/} and \texttt{experiments/} directories of the PEBL source tree.
 
+
+\section{Using LLMs to code}
+Large Language Models have become very good at writing tests in PEBL, with a few caveats. We have had great success using Claude Code. In general, you can have it review existing tests (in Battery), especially the template test, and have it read in the \texttt{notes\_for\_llms.txt} file available in docs, and then simply ask it to generate a particular paradigm (e.g., ``create a PEBL test using a old-new recognition memory paradigm with 10 random nouns presented one at a time with instructions to rate pleasantness of each one on a 1 to 5 scale.  After a brief break, each word should be shown randomly with 10 words not presented, and participant should make 'old-new' judgments about each one. Record all data in standard PEBL conventions. Read Notes\_For\_LLMs.txt before you begin, and test any .pbl files using the pebl-validator'' 
+
+
+It created  the following test:
+
+\begin{verbatim}
+## recognitionmemory.pbl
+## Old/new recognition memory task.
+## Study phase:  10 random nouns shown one at a time; participant rates
+##               pleasantness 1-5.
+## Test phase:   20 words (10 studied "old" + 10 new foils) shown in random
+##               order; participant presses O (old) or N (new).
+## Data saved in standard PEBL CSV format.
+
+define Start(p)
+{
+    parpairs <- [["numwords",    10],
+                 ["studytime",   3000],
+                 ["isi",         500],
+                 ["breaktime",   3000],
+                 ["testtime",    5000],
+                 ["stimfile",    "torontowordpool.txt"]]
+
+    gParams <- CreateParameters(parpairs, gParamFile)
+
+    gWin <- MakeWindow("black")
+    gSleepEasy <- 1
+
+    if(gSubNum + "" == "0")
+    {
+        gSubNum <- GetSubNum(gWin)
+    }
+
+    ## output files
+    studyHeader <- "subnum,trial,word,rating,rt,abstime"
+    gStudyFile  <- GetNewDataFile(gSubNum, gWin, "recognitionmemory-study", "csv", studyHeader)
+
+    testHeader  <- "subnum,trial,word,oldnew,response,correct,rt,abstime"
+    gTestFile   <- GetNewDataFile(gSubNum, gWin, "recognitionmemory-test", "csv", testHeader)
+
+    ## select stimuli: first numwords = studied, next numwords = foils
+    allWords   <- Shuffle(FileReadList(gParams.stimfile))
+    studyWords <- SubList(allWords, 1, gParams.numwords)
+    foilWords  <- SubList(allWords, gParams.numwords + 1, gParams.numwords * 2)
+
+    StudyPhase(studyWords)
+    BreakPhase()
+    TestPhase(studyWords, foilWords)
+
+    MessageBox("The task is complete. Thank you!", gWin)
+}
+
+
+define StudyPhase(words)
+{
+    inst <- "STUDY PHASE" + CR(2) +
+            "You will see " + Length(words) + " words, one at a time." + CR(1) +
+            "For each word, press a key 1-5 to rate how PLEASANT it seems:" + CR(2) +
+            "  1 = Very unpleasant   2 = Unpleasant   3 = Neutral" + CR(1) +
+            "  4 = Pleasant          5 = Very pleasant" + CR(2) +
+            "Try to remember the words -- you will be tested on them later." + CR(2) +
+            "Click OK to begin."
+    MessageBox(inst, gWin)
+    Draw()
+
+    wordLabel    <- EasyLabel("",  gVideoWidth/2, gVideoHeight/2 - 30, gWin, 52)
+    promptLabel  <- EasyLabel("Rate 1 (unpleasant) to 5 (pleasant)",
+                               gVideoWidth/2, gVideoHeight/2 + 60, gWin, 22)
+    fixLabel     <- EasyLabel("+", gVideoWidth/2, gVideoHeight/2, gWin, 52)
+
+    trial <- 1
+    loop(word, words)
+    {
+        ## fixation
+        Hide(wordLabel)
+        Hide(promptLabel)
+        Show(fixLabel)
+        Draw()
+        Wait(500)
+        Hide(fixLabel)
+        Draw()
+        Wait(200)
+
+        ## show word and prompt
+        wordLabel.text <- word
+        Show(wordLabel)
+        Show(promptLabel)
+        Draw()
+        t1 <- GetTime()
+
+        ## collect 1-5 rating
+        rating <- ""
+        while(rating == "")
+        {
+            key <- WaitForAnyKeyPressWithTimeout(gParams.studytime)
+            if(key == "1" or key == "2" or key == "3" or key == "4" or key == "5")
+            {
+                rating <- key
+            }
+            if(rating == "" and GetTime() - t1 >= gParams.studytime)
+            {
+                rating <- "0"
+            }
+        }
+        t2 <- GetTime()
+
+        Hide(wordLabel)
+        Hide(promptLabel)
+        Draw()
+        Wait(gParams.isi)
+
+        FilePrint(gStudyFile, gSubNum + "," + trial + "," + word + "," +
+                  rating + "," + (t2 - t1) + "," + t2)
+        trial <- trial + 1
+    }
+}
+
+
+define BreakPhase()
+{
+    inst <- "Good job!" + CR(2) +
+            "Take a short break." + CR(2) +
+            "Next, you will see a series of words." + CR(1) +
+            "For each word, press O if it was in the study list (OLD)" + CR(1) +
+            "or press N if it was not (NEW)." + CR(2) +
+            "Click OK when you are ready."
+    MessageBox(inst, gWin)
+    Draw()
+    Wait(gParams.breaktime)
+}
+
+
+define TestPhase(studyWords, foilWords)
+{
+    ## build test list: all study words (old) + all foils (new), shuffled
+    testWords  <- []
+    oldNewList <- []
+    loop(w, studyWords)
+    {
+        PushOnEnd(testWords,  w)
+        PushOnEnd(oldNewList, "old")
+    }
+    loop(w, foilWords)
+    {
+        PushOnEnd(testWords,  w)
+        PushOnEnd(oldNewList, "new")
+    }
+
+    ## shuffle together using index shuffle
+    idx      <- Shuffle(Sequence(1, Length(testWords), 1))
+    shuffled <- []
+    shuffledON <- []
+    loop(i, idx)
+    {
+        PushOnEnd(shuffled,   Nth(testWords,  i))
+        PushOnEnd(shuffledON, Nth(oldNewList, i))
+    }
+
+    wordLabel   <- EasyLabel("",   gVideoWidth/2, gVideoHeight/2 - 30, gWin, 52)
+    promptLabel <- EasyLabel("OLD (O) or NEW (N)?", gVideoWidth/2, gVideoHeight/2 + 60, gWin, 22)
+    fixLabel    <- EasyLabel("+",  gVideoWidth/2, gVideoHeight/2, gWin, 52)
+
+    trial    <- 1
+    numItems <- Length(shuffled)
+    iList    <- Sequence(1, numItems, 1)
+
+    loop(i, iList)
+    {
+        word   <- Nth(shuffled,   i)
+        oldnew <- Nth(shuffledON, i)
+
+        ## fixation
+        Hide(wordLabel)
+        Hide(promptLabel)
+        Show(fixLabel)
+        Draw()
+        Wait(500)
+        Hide(fixLabel)
+        Draw()
+        Wait(200)
+
+        ## show word
+        wordLabel.text <- word
+        Show(wordLabel)
+        Show(promptLabel)
+        Draw()
+        t1 <- GetTime()
+
+        ## collect O/N response
+        response <- ""
+        while(response == "")
+        {
+            key <- WaitForAnyKeyPressWithTimeout(gParams.testtime)
+            lkey <- Lowercase(key)
+            if(lkey == "o")
+            {
+                response <- "old"
+            }
+            if(lkey == "n")
+            {
+                response <- "new"
+            }
+            if(response == "" and GetTime() - t1 >= gParams.testtime)
+            {
+                response <- "none"
+            }
+        }
+        t2 <- GetTime()
+
+        correct <- 0
+        if(response == oldnew)
+        {
+            correct <- 1
+        }
+
+        Hide(wordLabel)
+        Hide(promptLabel)
+        Draw()
+        Wait(gParams.isi)
+
+        FilePrint(gTestFile, gSubNum + "," + trial + "," + word + "," +
+                  oldnew + "," + response + "," + correct + "," +
+                  (t2 - t1) + "," + t2)
+        trial <- trial + 1
+    }
+}
+\end{verbatim}
+
+which generates data files like this:
+
+\begin{verbatim}
+subnum,trial,word,oldnew,response,correct,rt,abstime
+111,1,PROTECT,new,new,1,2076,34013
+111,2,LAWYER,old,new,0,933,36150
+111,3,ENVY,new,new,1,825,38180
+111,4,BEDROOM,new,new,1,878,40264
+111,5,CHOSEN,new,old,0,1185,42653
+111,6,TENNIS,old,old,1,797,44655
+\end{verbatim}
+
+With further prompting, you can have it create only mouse-based responses (maybe point it to ScaleRunner.pbl for examples of likert-scale ratings), calculate accuracy, generate a report, do multiple blocks, filler tasks, etc.
 
 %%% Local Variables: 
 %%% mode: latex

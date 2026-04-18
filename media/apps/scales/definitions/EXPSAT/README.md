@@ -1,5 +1,7 @@
 # Explanation Satisfaction Scale
 
+![Explanation Satisfaction Scale screenshot](EXPSAT.pbl.png)
+
 **Abbreviation:** EXPSAT  
 **Code:** `EXPSAT`  
 **Version:** 1.0  
@@ -26,6 +28,7 @@ Standard scale for evaluating user satisfaction in explanations provided by AI a
 ## Files
 
 - `EXPSAT.osd` - Scale definition (OpenScales OSD format)
+- `EXPSAT.pbl.png` - Preview screenshot
 
 ## Usage
 

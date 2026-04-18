@@ -1,5 +1,7 @@
 # Sample Scale with All Question Types
 
+![Sample Scale with All Question Types screenshot](SAMPLE.pbl.png)
+
 **Code:** `SAMPLE`  
 **Version:** 1.0  
 
@@ -30,6 +32,7 @@ Demonstrates all 10 question types supported by ScaleRunner
 ## Files
 
 - `SAMPLE.osd` - Scale definition (OpenScales OSD format)
+- `SAMPLE.pbl.png` - Preview screenshot
 
 ## Usage
 

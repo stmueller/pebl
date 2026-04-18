@@ -1,5 +1,7 @@
 # NIMH Demographics Questionnaire
 
+![NIMH Demographics Questionnaire screenshot](DEMO-NIMH.pbl.png)
+
 **Abbreviation:** DEMO-NIMH  
 **Code:** `DEMO-NIMH`  
 **Version:** 1.0  
@@ -22,6 +24,7 @@ Standard NIMH demographic questions covering biological sex, gender identity, Hi
 ## Files
 
 - `DEMO-NIMH.osd` - Scale definition (OpenScales OSD format)
+- `DEMO-NIMH.pbl.png` - Preview screenshot
 
 ## Usage
 

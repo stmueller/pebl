@@ -1,5 +1,7 @@
 # OpenScales Feature Demonstration
 
+![OpenScales Feature Demonstration screenshot](DEMO.pbl.png)
+
 **Abbreviation:** DEMO  
 **Code:** `DEMO`  
 **Version:** 1.1  
@@ -28,6 +30,7 @@ Comprehensive demonstration scale exercising all major OpenScales/ScaleRunner fe
 ## Files
 
 - `DEMO.osd` - Scale definition (OpenScales OSD format)
+- `DEMO.pbl.png` - Preview screenshot
 
 ## Usage
 

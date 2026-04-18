@@ -1,5 +1,7 @@
 # Informed Consent
 
+![Informed Consent screenshot](Consent.pbl.png)
+
 **Abbreviation:** Consent  
 **Code:** `Consent`  
 **Version:** 1.0  
@@ -13,6 +15,7 @@ Generic IRB-style informed consent gate. Customise study_title, pi_name, and con
 ## Files
 
 - `Consent.osd` - Scale definition (OpenScales OSD format)
+- `Consent.pbl.png` - Preview screenshot
 
 ## Usage
 

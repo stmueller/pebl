@@ -235,7 +235,8 @@ PEBLBASE_OBJXX = $(patsubst %.cpp, %.o, $(PEBLBASE_SRCXX))
 
 ##This just collects plain .c files,
 PEBLBASE_SRC = $(BASE_DIR)/lex.yy.c \
-		$(UTIL_DIR)/rs232.c 
+		$(UTIL_DIR)/rs232.c \
+		$(UTIL_DIR)/re.c
 
 
 PEBLBASE_OBJ = $(patsubst %.c, %.o, $(PEBLBASE_SRC))

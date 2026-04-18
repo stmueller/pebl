@@ -192,31 +192,15 @@ else
 fi
 rm -rf squashfs-root
 
-# Create symlink-based CLI wrappers
-echo "Creating symlink-based command-line wrappers..."
-
-# Create symlinks to the AppImage with specific names
-# When called via these symlinks, the entrypoint script will route to the correct executable
+# Create pebl2-appimage symlink only — native binaries (pebl2, pebl-validator, pebl-launcher)
+# are built by 'make main'/'make pebl-launcher'/'make validator' and must not be overwritten.
 cd bin
-
-# Remove old wrapper scripts if they exist
-rm -f pebl2 pebl-validator launcher
-
-# Create symlinks (use basename to avoid bin/bin/ issue)
-ln -sf "$(basename "${APPIMAGE_NAME}")" pebl2
-ln -sf "$(basename "${APPIMAGE_NAME}")" pebl-validator
-ln -sf "$(basename "${APPIMAGE_NAME}")" launcher
-
+ln -sf "$(basename "${APPIMAGE_NAME}")" pebl2-appimage
 cd ..
 
-echo "✓ Created bin/pebl2 (symlink to AppImage for CLI access)"
-echo "✓ Created bin/pebl-validator (symlink to AppImage for validator access)"
-echo "✓ Created bin/launcher (symlink to AppImage for old-school launcher.pbl)"
-
-# Symlink in bin/
-cd bin
-ln -sf "$(basename ${APPIMAGE_NAME})" pebl2-appimage
-cd ..
+echo "✓ Created bin/pebl2-appimage (symlink to AppImage)"
+echo "  Use bin/pebl2-appimage to run the AppImage explicitly."
+echo "  Native binaries (bin/pebl2, bin/pebl-launcher, bin/pebl-validator) are unchanged."
 
 echo "========================================="
 echo "✓ AppImage Complete: ${APPIMAGE_NAME}"

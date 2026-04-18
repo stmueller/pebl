@@ -39,15 +39,51 @@ define Start(p)
 
   ##########################################################################
   ## Load scale definition (same path logic as ScaleRunner)
+  ## gRawOSD is retained so we can extract embedded translations below.
   ##########################################################################
   gScaleDef <- 0
+  gRawOSD   <- 0
 
-  filename <- scaleCode + "/" + scaleCode + ".json"
+  ## Try <code>/<code>.osd (OSD bundle format, preferred)
+  filename <- scaleCode + "/" + scaleCode + ".osd"
   if(FileExists(filename))
   {
-    gScaleDef <- ReadJSON(filename)
+    gRawOSD <- ReadJSON(filename)
+    if(PropertyExists(gRawOSD, "definition"))
+    {
+      gScaleDef <- gRawOSD.definition
+    } else {
+      gScaleDef <- gRawOSD
+    }
   }
 
+  ## Try <code>/<code>.json (split JSON format)
+  if(gScaleDef == 0)
+  {
+    filename <- scaleCode + "/" + scaleCode + ".json"
+    if(FileExists(filename))
+    {
+      gScaleDef <- ReadJSON(filename)
+    }
+  }
+
+  ## Try definitions/<code>/<code>.osd
+  if(gScaleDef == 0)
+  {
+    filename <- "definitions/" + scaleCode + "/" + scaleCode + ".osd"
+    if(FileExists(filename))
+    {
+      gRawOSD <- ReadJSON(filename)
+      if(PropertyExists(gRawOSD, "definition"))
+      {
+        gScaleDef <- gRawOSD.definition
+      } else {
+        gScaleDef <- gRawOSD
+      }
+    }
+  }
+
+  ## Try definitions/<code>.json
   if(gScaleDef == 0)
   {
     filename <- "definitions/" + scaleCode + ".json"
@@ -63,7 +99,9 @@ define Start(p)
   }
 
   ##########################################################################
-  ## Load translations (same path logic as ScaleRunner)
+  ## Load translations.
+  ## Priority: separate .pbl-en.json file, then embedded in OSD bundle.
+  ## Embedded translations live at the top level of the OSD: raw.translations.en
   ##########################################################################
   gStrings <- MakeCustomObject("strings")
   gStrings.debrief <- "Thank you for completing this questionnaire."
@@ -104,6 +142,35 @@ define Start(p)
     {
       gStrings <- ReadTranslationJSON(transFile, "en")
       found <- 1
+    }
+  }
+
+  ## Fallback: extract embedded translations from OSD bundle (mirrors ScaleRunner logic)
+  if(found == 0 and gRawOSD != 0)
+  {
+    if(PropertyExists(gRawOSD, "translations"))
+    {
+      embTrans <- gRawOSD.translations
+      embLangKey <- "en"
+      if(not PropertyExists(embTrans, "en"))
+      {
+        embLangKeys <- GetPropertyList(embTrans)
+        if(Length(embLangKeys) > 0)
+        {
+          embLangKey <- First(embLangKeys)
+        }
+      }
+      if(PropertyExists(embTrans, embLangKey))
+      {
+        gStrings <- GetProperty(embTrans, embLangKey)
+        gStrings.language <- Lowercase(embLangKey)
+        proplist <- GetPropertyList(gStrings)
+        loop(prop, proplist)
+        {
+          SetProperty(gStrings, prop, FormatText(GetProperty(gStrings, prop)))
+        }
+        found <- 1
+      }
     }
   }
 
@@ -808,15 +875,21 @@ define ScreenshotMultiChoice(qdef, outFile)
   AddObject(ques, gWin)
   Move(ques, boxX, boxY)
 
-  ## Build option list with translation fallback
+  ## Build option list with translation fallback (mirrors ScaleRunner.DoMultiChoice)
   opts <- []
   loop(opt, qdef.options)
   {
-    if(PropertyExists(gStrings, opt))
+    if(IsString(opt))
     {
-      optText <- GetProperty(gStrings, opt)
+      optKey <- opt
     } else {
-      optText <- opt
+      optKey <- opt.text_key
+    }
+    if(PropertyExists(gStrings, optKey))
+    {
+      optText <- GetProperty(gStrings, optKey)
+    } else {
+      optText <- optKey
     }
     PushOnEnd(opts, optText)
   }
@@ -880,15 +953,21 @@ define ScreenshotMultiCheck(qdef, outFile)
   AddObject(ques, gWin)
   Move(ques, boxX, boxY)
 
-  ## Build option list with translation fallback
+  ## Build option list with translation fallback (mirrors ScaleRunner.DoMultiCheck)
   opts <- []
   loop(opt, qdef.options)
   {
-    if(PropertyExists(gStrings, opt))
+    if(IsString(opt))
     {
-      optText <- GetProperty(gStrings, opt)
+      optKey <- opt
     } else {
-      optText <- opt
+      optKey <- opt.text_key
+    }
+    if(PropertyExists(gStrings, optKey))
+    {
+      optText <- GetProperty(gStrings, optKey)
+    } else {
+      optText <- optKey
     }
     PushOnEnd(opts, optText)
   }

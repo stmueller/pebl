@@ -3,7 +3,7 @@
 //    Name:       src/apps/PEBL.cpp
 //    Purpose:    The primary PEBL run-time interpreter.
 //    Author:     Shane T. Mueller, Ph.D.
-//    Copyright:  (c) 2003-2025 Shane T. Mueller <smueller@obereed.net>
+//    Copyright:  (c) 2003-2026 Shane T. Mueller <smueller@obereed.net>
 //    License:    GPL 2
 //
 //
@@ -1119,56 +1119,41 @@ int main(int argc,  char *argv[])
 
 
     //If there are no command-line arguments (including files),
-    //we will find the launcher and specify it as a command-line argument.
+    //print usage and exit.  The native pebl-launcher handles the GUI on Linux.
 
     if(newargc == 1)
         {
-            //This indicates there are no command-line arguments.
-
-
-
-            std::string v = (std::string)"-v";
-
-            cerr << "basedir: " << basedir << endl ;
-            cerr << "script " << script << endl ;
-            cerr << "launch: " << launch << endl ;
-            cerr << "resources: " <<resourcepath << endl;
-
-            //Now, everything is ready.  Check for the pebl directory, if it  exists,
-            //change to that directory, and select the launcher script to run.
-			if(PEBLUtility::FileExists(home + "/Documents/pebl-exp." + PEBL_VERSION + "/"))
-			   {
-
-
-
-                   //Move to the right directory and run the launcher
-                   // script = (std::string)resourcepath + (std::string)"/launcher.pbl";
-                   std::string base = home + std::string("/Documents/pebl-exp.") + PEBL_VERSION + "/";
-                   PEBLUtility::SetWorkingDirectory(base);
-
-
-
-                     //In this case, don't specify resources on the command line, so we only need 2 arguments.
-				   newargc = 2;
-                   newargv.push_back(argv[0]);
-                   newargv.push_back(launch);
-
-                   //argv = new_argv;
-                   //cout << newargv[0] << " " << newargv[1]  << endl;
-
-			   } else{
-                   //pebl-exp.xx does not exist.  We need to run the launcher using the command line argument of resources to
-                   //know where to copy from.
-                   newargc = 4;
-
-                   newargv.push_back(argv[0]);
-                   newargv.push_back(launch);
-                   newargv.push_back(v);
-                   newargv.push_back(resourcepath);
-                   //argv = new_argv;
-                   //cout << newargv[0] << " " << newargv[1] << " " << newargv[2] << " " << newargv[3] << endl;
-
+#if defined(PEBL_LINUX)
+            // On Linux, pebl2 requires an explicit script argument.
+            // The GUI launcher (pebl-launcher) handles the no-argument case.
+            PrintOptions();
+            cout << "\nTo launch the graphical study manager, run: pebl-launcher\n";
+            return 0;
+#elif defined(PEBL_WIN32)
+            // On Windows, a double-click on pebl2.exe should open the GUI launcher.
+            // pebl-launcher.exe lives in the same bin\ directory as pebl2.exe.
+            {
+                std::string launcherExe = PEBLUtility::StripFile(argv[0]) + "pebl-launcher.exe";
+                std::cerr << "No script specified. Launching: " << launcherExe << "\n";
+                HINSTANCE result = ShellExecuteA(NULL, "open",
+                                                 launcherExe.c_str(),
+                                                 NULL,
+                                                 PEBLUtility::StripFile(argv[0]).c_str(),
+                                                 SW_SHOWNORMAL);
+                if ((INT_PTR)result <= 32)
+                {
+                    // ShellExecute failed (returns value <= 32 on error).
+                    // Fall back to printing help so the user knows what to do.
+                    PrintOptions();
+                    cerr << "\nNote: pebl-launcher.exe not found at " << launcherExe << "\n";
                 }
+                return 0;
+            }
+#else
+            // macOS / other: just print help.
+            PrintOptions();
+            return 0;
+#endif
 
         } else{
             //This is what happens when argc != 1 (when there ARE arguments), on any platform
@@ -1275,7 +1260,7 @@ void PrintOptions()
     cout << "-------------------------------------------------------------------------------\n";
     cout << "PEBL: The Psychology Experiment Building Language\n";
     cout << "Version " << PEBL_VERSION << "\n";
-    cout << "(c) 2003-2025 Shane T. Mueller, Ph.D.\n";
+    cout << "(c) 2003-2026 Shane T. Mueller, Ph.D.\n";
     cout << "smueller@obereed.net   http://pebl.sf.net\n";
     cout << "-------------------------------------------------------------------------------\n";
 
@@ -1320,13 +1305,16 @@ void PrintOptions()
     cout << " --softrender\n";
     cout << " Uses software renderer instead of accelerated hardware fallback.  Disables vsync setting\n";
 
+    cout << " --lsl [streamname]\n";
+    cout << "  Enables Lab Streaming Layer (LSL) output for EEG/eye-tracker synchronization.\n";
+    cout << "  Optional streamname overrides the auto-generated stream name (PEBL_<scriptname>).\n";
+    cout << "  Use InitializeLSL(), LSLMarker(), and FinalizeLSL() in your script.\n";
+
     cout << " --help\n";
-    cout << " Display this output screen\n";
+    cout << "  Display this output screen\n";
 
     cout << " --showtestresults\n";
-    cout << " Sets global variable gShowTestResults to 1 vs 0. Allows a test to autoatically show a screen with results at the end.\n";
-
-    cout << " Display this output screen\n";
+    cout << "  Sets global variable gShowTestResults to 1 vs 0. Allows a test to automatically show a screen with results at the end.\n";
 
 
 }

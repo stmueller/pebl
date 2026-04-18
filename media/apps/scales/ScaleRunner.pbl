@@ -7070,41 +7070,54 @@ define DoMultiCheck(qdef, scaleDef, prefill:"")
   }
 
   ## Create checkbox options in stimulus region
-  rlist <- []
+  rlist <- []   ## wide row hit-boxes (click targets)
+  checks <- []  ## checkbox squares (visual state only)
   keylist <- []
   skip <- 50  ## Increased spacing
   left <- gLayout.stimulusRegion.x + 60
   top <- boxY + ques.height + 40  ## Position options below question with 40px gap
 
+  ## Row hit-box spans full stimulus width (matches DoMultiChoice)
+  rowWidth  <- gLayout.stimulusRegion.width - 60
+  rowCenterX <- gLayout.stimulusRegion.x + 30 + rowWidth / 2
+
   ## Create larger font for options
   optionFont <- MakeFont(gPEBLBaseFont, 0, 22, gTheme.questionText, gTheme.windowBg, 0)
+  optionFont.bgcolor.alpha <- 0  ## transparent so checkbox shows through
 
   optnum <- 1
   loop(opt, opts)
   {
     optValue <- First(opt)
     optText <- Second(opt)
+    y <- top + (optnum-1)*skip
 
-    ## Checkbox square (bigger)
-    back <- Square(left, top + (optnum-1)*skip, 44, MakeColor("Grey40"), 0)
+    ## Checkbox square (visual only — not a click target)
+    back <- Square(left, y, 44, MakeColor("Grey40"), 0)
     AddObject(back, gWin)
     PushOnEnd(tmp, back)
-    PushOnEnd(rlist, back)
+    PushOnEnd(checks, back)
 
     ## Option text using adaptive TextBox for better layout
     textWidth <- gLayout.stimulusRegion.width - 150
     text <- MakeTextBox(optText, optionFont, textWidth, skip - 10)
     text.isadaptive <- 1
     AddObject(text, gWin)
-    Move(text, left + 60, top + (optnum-1)*skip - (skip-10)/2)
+    Move(text, left + 60, y - (skip-10)/2)
     PushOnEnd(tmp, text)
+
+    ## Full-width transparent row rectangle — the actual click target
+    rowRect <- Rectangle(rowCenterX, y, rowWidth, skip-5, gTheme.optionBorder, 0)
+    rowRect.color <- gTheme.optionBorder
+    AddObject(rowRect, gWin)
+    PushOnEnd(tmp, rowRect)
+    PushOnEnd(rlist, rowRect)
 
     PushOnEnd(keylist, optnum)
     optnum <- optnum + 1
   }
 
   numOpts <- Length(opts)
-  checks <- SubList(rlist, 1, numOpts)  ## Keep copy of just checkbox squares (before adding NEXT button)
   checked <- Repeat(0, numOpts)
 
   ## Pre-fill: parse pipe-separated option keys and pre-check matching boxes

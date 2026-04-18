@@ -8,6 +8,11 @@
 #include <string>
 #include <vector>
 
+// Fallback if not defined by build system via -DPEBL_VERSION=...
+#ifndef PEBL_VERSION
+#define PEBL_VERSION "2.4"
+#endif
+
 // Manages PEBL workspace directory structure in Documents/pebl-exp.2.4/
 class WorkspaceManager {
 public:

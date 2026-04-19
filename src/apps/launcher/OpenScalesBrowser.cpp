@@ -75,10 +75,19 @@ std::string OpenScalesBrowser::FetchURL(const std::string& url) {
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
     curl_easy_setopt(curl, CURLOPT_TIMEOUT, 15L);
     curl_easy_setopt(curl, CURLOPT_USERAGENT, "PEBL-Launcher/2.4");
+#ifdef PEBL_WIN32
+    // Windows MinGW curl lacks system CA bundle — disable peer verification
+    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
+#endif
 
     CURLcode res = curl_easy_perform(curl);
     long httpCode = 0;
     curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpCode);
+
+    if (res != CURLE_OK) {
+        fprintf(stderr, "OpenScalesBrowser FetchURL failed: %s\n", curl_easy_strerror(res));
+    }
     curl_easy_cleanup(curl);
 
     if (res != CURLE_OK || httpCode != 200) {

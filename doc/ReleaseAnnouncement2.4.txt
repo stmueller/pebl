@@ -1,0 +1,108 @@
+PEBL 2.4 Is Here — Introducing OpenScales
+
+We're excited to announce PEBL 2.4, a major update featuring the first public release of the OpenScales repository, a complete graphical Scale Builder, Lab Streaming Layer integration for EEG/neuroimaging labs, and a consent system for multi-stage study protocols.
+
+What's New in PEBL 2.4?
+
+OPENSCALES: AN OPEN REPOSITORY OF PSYCHOLOGICAL SCALES
+This release coincides with the first release of the OpenScales repository — a free, open collection of psychological rating scales and surveys in a standardized, machine-readable format. Openscales is distinct from PEBL and does not rely on PEBL directly, but designed with many of the lessons the PEBL Project has learned over the years. PEBL and the PEBL Hub can be used to load, edit, and run existing scales, and its format can be used to implement survey-style research in the lab or on-line.
+
+OpenScales provides:
+- Over 555 questionnaires and scales spanning cognitive, clinical, personality, and health domains
+- Open Scale Definition (OSD) format: a portable JSON-based format for encoding scale items, response types, scoring, translations, and metadata
+- A growing community repository where researchers can contribute, translate, and improve scales
+- Direct integration with PEBL: browse the full catalog from within the launcher and run any scale with a single click
+- Cross-platform runtime: scales run natively on Linux and Windows, and or online via a javascript runner you can host yourself.
+
+The OpenScales repository is available at: https://github.com/stmueller/OpenScales
+
+SCALE BUILDER
+PEBL 2.4 ships a full graphical Scale Builder for creating and editing OSD-format scales directly in the launcher:
+
+- Likert, multiple-choice, multi-select, text entry, and visual analog scale (VAS) response types
+- Sections and conditional branching
+- Dimensions and subscale scoring with score transforms and computed variables
+- Translations editor for multilingual deployment
+- Parameters sub-tab for configurable scale behavior
+- Saved scales are immediately runnable from the chain builder
+
+CONSENT SYSTEM
+- New Consent item type in the chain builder: present a consent form before any test or scale
+- Declining consent cleanly terminates the study chain
+- DEMO-NIMH consent form included as a starting template in OSD format
+
+LAB STREAMING LAYER (LSL) INTEGRATION
+PEBL 2.4 adds native LSL support for synchronizing experiment events with EEG, fMRI, eye tracking, and other physiological data acquisition systems:
+
+- New command-line flag: --lsl <StreamName> enables LSL output for any PEBL task
+- Task events (trial start, stimulus onset, response) are sent as string markers on the LSL stream
+- A "Waiting for LabRecorder" screen is shown before the task begins, ensuring clean synchronization with recording software
+- Chain builder: enable LSL per-task with configurable stream name
+- Uses liblsl v1.17.5 with multicast UDP discovery — works across subnets and multiple machines on the same network
+- PEBL script functions: InitializeLSL(), LSLMarker(), FinalizeLSL(), LSLHasConsumers(), LSLLocalClock()
+- Available on Linux and Windows
+
+LAUNCHER IMPROVEMENTS (building on PEBL 2.3)
+The native C++ launcher introduced in PEBL 2.3 has been significantly extended:
+
+- OpenScales browser tab: search and run any of 555+ scales from the catalog
+- Scale Builder integrated as first-class tab alongside Tests and Chains
+- Chain builder now supports Consent items and improved language code handling
+- Per-task LSL stream configuration in chains
+- Settings dialog expanded with upload server configuration panel
+- Snapshot round-trip improvements for cross-platform study sharing, and uploading to run online.
+
+EXPANDED TEST BATTERY
+New tasks in 2.4:
+- Digit Symbol Coding (digitsymbol): classic WAIS-style substitution task
+- Pattern Comparison – Same/Different (pattcomp-samediff): perceptual speed
+- Pattern Comparison – Sequential (pattcomp-seq): sequential variant of pattern comparison
+- Spatial Cueing (spatialcueing): Posner endogenous/exogenous attention cueing (renamed and updated from spatialcuing)
+
+Additional battery updates:
+- New translations (German, Spanish, French, Italian, Dutch, Portuguese) for plusminus, probrev, and brownpeterson
+- Urdu translations added for matchtosample and TOL
+- Span tasks updated with improved Layout & Response System integration
+- UploadFile support added across upload-battery tasks for direct data sync to PEBL Hub
+- Additional tasks migrated to the online platform: itemorder, matchtosample, randomgeneration, mullerlyer, mathproc, sternberg, plusminus, probrev, brownpeterson — bringing total online test count to approximately 80
+- Battery updates to SNARC, affectgrid, hicks, and tsp tasks
+
+REGEX SUPPORT
+- New RegexMatch() function for pattern matching in PEBL scripts
+
+RICH TEXT IN LABELS
+- HTML-lite markup support in Label objects (bold, italic, color, font size)
+- Improved line-height calculation and hex color support
+
+UNDER THE HOOD
+- libcurl multipart form API updated to curl_mime (deprecated curl_formadd removed); -DCURL_NO_OLDIES enforced at compile time to catch future regressions
+- Windows build fully modernized: complete MSYS2/MinGW source list, Windows SSL handling improved for MinGW curl, liblsl built from source for ABI compatibility
+- GCC 15 compatibility fixes in liblsl template instantiation
+- Linux LSL library updated from v1.13 to v1.17.5 (matching Windows)
+- UI.pbl GetFullLineBreaks() crash fixed (empty line guard)
+- PEBL exit code now reflects the Start() function's return value
+- Copyright year updated to 2026 across all source files
+- Updated LaTeX manual: new sections for Scale Builder, LSL, consent, and expanded launcher chapter
+
+Important Notes:
+
+Please report issues at https://github.com/stmueller/pebl/issues
+
+The OpenScales format and tooling are new — we welcome contributions of scales, translations, and feedback at https://github.com/stmueller/OpenScales
+
+Get PEBL 2.4:
+
+Download: https://pebl.sourceforge.net/download.html
+Documentation: https://pebl.sourceforge.net/documentation.html
+OpenScales Repository: https://github.com/stmueller/OpenScales
+Test Library: https://peblhub.online/public/tests/browse.php
+GitHub: https://github.com/stmueller/pebl
+
+Join the Community:
+
+Mailing List: http://lists.sourceforge.net/lists/listinfo/pebl-list
+Report Issues: https://github.com/stmueller/pebl/issues
+PEBL Hub: https://peblhub.online
+
+Shane T. Mueller
+April 2026

@@ -133,9 +133,9 @@ endif
 
 USE_LSL = 1
 ifdef USE_LSL
-	LSL_DIR = libs/liblsl-1.17.5
+	LSL_DIR = libs/liblsl-mingw
 	CXXFLAGS7 = -DPEBL_USE_LSL -I$(LSL_DIR)/include
-	LINKOPTS7 = -L$(LSL_DIR)/lib -l:liblsl.a
+	LINKOPTS7 = -L$(LSL_DIR)/lib -l:liblsl.dll.a
 endif
 
 CXXFLAGSX = $(CXXFLAGS0) $(CXXFLAGS1) $(CXXFLAGS2) $(CXXFLAGS2B) $(CXXFLAGS3) $(CXXFLAGS4) $(CXXFLAGS5) $(CXXFLAGS6) $(CXXFLAGS7)

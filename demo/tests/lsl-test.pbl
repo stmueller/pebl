@@ -1,21 +1,25 @@
-## test-lsl.pbl -- Lab Streaming Layer diagnostic test
-## Tests CreateLSLOutlet, SendLSLMarker, LSLLocalClock, LSLHasConsumers, CloseLSLOutlet
+## lsl-test.pbl -- Lab Streaming Layer diagnostic test
+## Uses InitializeLSL/LSLMarker/FinalizeLSL wrappers (same as battery tasks)
 ##
 ## Run from command line:
-##   bin/pebl2 demo/tests/test-lsl.pbl
+##   bin/pebl2 demo/tests/lsl-test.pbl --lsl PEBL-test
 ##
-## With LabRecorder open you should see stream "PEBL-test" appear.
+## Without --lsl flag, LSL is skipped (no-op). With flag, shows LabRecorder
+## waiting screen then sends markers.
 
 define Start(p)
 {
     gWin <- MakeWindow("black")
 
     Print("===== LSL Test =====")
+    Print("gLSLEnabled: " + gLSLEnabled)
+    Print("gLSLStreamName: " + gLSLStreamName)
     Print("LSL clock at start: " + LSLLocalClock())
     Print("")
-    Print("Creating LSL outlet 'PEBL-test'...")
-    result <- CreateLSLOutlet("PEBL-test", "Markers", "pebl-test-001")
-    Print("CreateLSLOutlet returned: " + result)
+
+    ## Use same initialization path as battery tasks
+    success <- InitializeLSL(gWin)
+    Print("InitializeLSL returned: " + success)
     Print("LSLHasConsumers: " + LSLHasConsumers())
     Print("")
 
@@ -23,8 +27,8 @@ define Start(p)
     loop(m, List("trial-start", "stim-on", "response", "trial-end"))
     {
         t <- LSLLocalClock()
-        sent <- SendLSLMarker(m)
-        Print("  [" + t + "] SendLSLMarker(" + m + ") = " + sent)
+        LSLMarker(m)
+        Print("  [" + t + "] LSLMarker(" + m + ")")
         Wait(250)
     }
 
@@ -32,15 +36,14 @@ define Start(p)
     loop(i, Sequence(1, 5, 1))
     {
         t <- LSLLocalClock()
-        sent <- SendLSLMarker(i)
-        Print("  [" + t + "] SendLSLMarker(" + i + ") = " + sent)
+        LSLMarker(i)
+        Print("  [" + t + "] LSLMarker(" + i + ")")
         Wait(250)
     }
 
     Print("")
     Print("LSL clock at end: " + LSLLocalClock())
-    CloseLSLOutlet()
-    Print("Outlet closed.")
+    FinalizeLSL()
     Print("===== LSL Test Complete =====")
     return(0)
 }

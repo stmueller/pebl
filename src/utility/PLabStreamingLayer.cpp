@@ -47,7 +47,7 @@ PLSL::PLSL(const std::string& name,
         1,                           // Channel count (1 for single marker channel)
         0.0,                         // LSL_IRREGULAR_RATE - irregular/event-driven
         cft_string,                  // Channel format - string markers
-        source_id.empty() ? NULL : source_id.c_str()
+        source_id.c_str()            // empty string is valid; NULL may crash some versions
     );
 
     if (!mInfo) {

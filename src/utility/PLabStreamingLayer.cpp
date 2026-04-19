@@ -51,7 +51,11 @@ PLSL::PLSL(const std::string& name,
     );
 
     if (!mInfo) {
-        std::cerr << "ERROR: Failed to create LSL stream info\n";
+        const char* err = lsl_last_error();
+        std::cerr << "ERROR: Failed to create LSL stream info"
+                  << (err ? std::string(": ") + err : "") << "\n";
+        std::cerr << "  name=[" << name << "] type=[" << type
+                  << "] source_id=[" << source_id << "]\n";
         return;
     }
 

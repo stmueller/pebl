@@ -135,10 +135,10 @@ endif
 
 ifdef USE_LSL
 	CXXFLAGS7 = -DPEBL_USE_LSL
-	LSL_LIB_PATH = libs/labstreaminglayer/Apps/LabRecorder/liblsl
-	LSL_INC_PATH = libs/labstreaminglayer/LSL/liblsl/include
+	LSL_LIB_PATH = libs/liblsl-1.17.5/lib
+	LSL_INC_PATH = libs/liblsl-1.17.5/include
 	CXXFLAGS7 += -I$(LSL_INC_PATH)
-	LINKOPTS7 = -L$(LSL_LIB_PATH) -Wl,-rpath,$(CURDIR)/$(LSL_LIB_PATH) -llsl64
+	LINKOPTS7 = -L$(LSL_LIB_PATH) -Wl,-rpath,$(CURDIR)/$(LSL_LIB_PATH) -llsl
 endif
 
 CXXFLAGSX = $(CXXFLAGS0) $(CXXFLAGS1) $(CXXFLAGS2) $(CXXFLAGS2B) $(CXXFLAGS3) $(CXXFLAGS4) $(CXXFLAGS5) $(CXXFLAGS6) $(CXXFLAGS7)

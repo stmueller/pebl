@@ -80,6 +80,13 @@ Variant CreateLSLOutlet(Variant v)
         // Create new outlet
         gLSLOutlet = new PLSL(name, type, source_id);
 
+        if (!gLSLOutlet->IsValid()) {
+            fprintf(stderr, "LSL outlet object created but outlet is invalid (lsl_create_outlet failed)\n");
+            delete gLSLOutlet;
+            gLSLOutlet = nullptr;
+            return Variant(0);
+        }
+
         return Variant(1);  // Success
     }
     catch (std::exception& e) {

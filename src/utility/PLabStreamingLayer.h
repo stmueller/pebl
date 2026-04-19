@@ -68,6 +68,9 @@ public:
     // Wait for consumers to connect (returns true if consumers found)
     bool WaitForConsumers(double timeout);
 
+    // Check if outlet was successfully created
+    bool IsValid() const { return mOutlet != NULL; }
+
 private:
     lsl_streaminfo mInfo;
     lsl_outlet mOutlet;
@@ -105,6 +108,9 @@ public:
 
     // Always returns false when LSL disabled
     bool WaitForConsumers(double timeout);
+
+    // Always false when LSL disabled
+    bool IsValid() const { return false; }
 
 private:
     void* mInfo;    // Placeholder

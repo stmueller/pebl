@@ -1,0 +1,46 @@
+## test-lsl.pbl -- Lab Streaming Layer diagnostic test
+## Tests CreateLSLOutlet, SendLSLMarker, LSLLocalClock, LSLHasConsumers, CloseLSLOutlet
+##
+## Run from command line:
+##   bin/pebl2 demo/tests/test-lsl.pbl
+##
+## With LabRecorder open you should see stream "PEBL-test" appear.
+
+define Start(p)
+{
+    gWin <- MakeWindow("black")
+
+    Print("===== LSL Test =====")
+    Print("LSL clock at start: " + LSLLocalClock())
+    Print("")
+    Print("Creating LSL outlet 'PEBL-test'...")
+    result <- CreateLSLOutlet("PEBL-test", "Markers", "pebl-test-001")
+    Print("CreateLSLOutlet returned: " + result)
+    Print("LSLHasConsumers: " + LSLHasConsumers())
+    Print("")
+
+    ## Send string markers
+    loop(m, List("trial-start", "stim-on", "response", "trial-end"))
+    {
+        t <- LSLLocalClock()
+        sent <- SendLSLMarker(m)
+        Print("  [" + t + "] SendLSLMarker(" + m + ") = " + sent)
+        Wait(250)
+    }
+
+    ## Send integer markers
+    loop(i, Sequence(1, 5, 1))
+    {
+        t <- LSLLocalClock()
+        sent <- SendLSLMarker(i)
+        Print("  [" + t + "] SendLSLMarker(" + i + ") = " + sent)
+        Wait(250)
+    }
+
+    Print("")
+    Print("LSL clock at end: " + LSLLocalClock())
+    CloseLSLOutlet()
+    Print("Outlet closed.")
+    Print("===== LSL Test Complete =====")
+    return(0)
+}

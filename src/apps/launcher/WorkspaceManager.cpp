@@ -49,26 +49,26 @@ WorkspaceManager::~WorkspaceManager() {
 }
 
 bool WorkspaceManager::IsPortableMode() const {
-    // Priority 1: Check for explicit STANDALONE.txt marker file
-    // This is the most reliable trigger - a batch file/script creates this
-    // in the working directory before launching
+    // Check for STANDALONE.txt or PORTABLE.txt marker file.
+    // The marker should live at the portable distribution root, which is
+    // one level above bin\ on Windows (where the exe lives).
+    // We also accept it in ./ (same dir as CWD) in case the user places it
+    // next to the exe — GetPortableWorkspacePath() will still return ".."
+    // so studies are never created inside bin\.
     if (FileExists("./STANDALONE.txt") || FileExists("../STANDALONE.txt") || FileExists("../../STANDALONE.txt")) {
         return true;
     }
 
-    // Priority 2: Check for PORTABLE marker file (legacy support)
     if (FileExists("./PORTABLE.txt") || FileExists("../PORTABLE.txt") || FileExists("../../PORTABLE.txt")) {
         return true;
     }
 
-    // Priority 3: Check for PEBL_PORTABLE environment variable
-    // Can be set by a batch file before launching
+    // PEBL_PORTABLE environment variable (set by a batch file before launching)
     const char* portableEnv = getenv("PEBL_PORTABLE");
     if (portableEnv && strcmp(portableEnv, "1") == 0) {
         return true;
     }
 
-    // No automatic detection - only explicit marker files or environment variable
     return false;
 }
 
@@ -89,27 +89,34 @@ std::string WorkspaceManager::GetPortableWorkspacePath() const {
     //   ├── snapshots/
     //   └── runPEBL.bat
 
-    // Determine workspace root based on marker file location
-    // Only marker files determine the workspace location - no automatic detection
+    // Determine workspace root based on marker file location.
+    //
+    // On Windows the launcher lives in bin\ and is typically launched from
+    // there (via shortcut or .bat), so CWD == the bin\ directory.
+    // STANDALONE.txt belongs at the *portable root* (one level up from bin\),
+    // never inside bin\ itself.  If somehow it lands in CWD (./), treat that
+    // the same as one level up — workspace root is still "..".
+    //
+    // Priority: farthest-out marker wins (most specific to the root).
 
-    // Check if marker file is in current directory (running from root)
-    if (FileExists("./STANDALONE.txt") || FileExists("./PORTABLE.txt")) {
-        return ".";
-    }
-
-    // Check if marker file is one level up
-    if (FileExists("../STANDALONE.txt") || FileExists("../PORTABLE.txt")) {
-        return "..";
-    }
-
-    // Check if marker file is two levels up (we're in PEBL/bin/)
+    // Marker two levels up  (e.g. CWD is PEBL/bin/ and root is ../../)
     if (FileExists("../../STANDALONE.txt") || FileExists("../../PORTABLE.txt")) {
         return "../..";
     }
 
-    // If PEBL_PORTABLE env var is set, use current directory
-    // Fallback: current directory
-    return ".";
+    // Marker one level up  (normal case: CWD is bin\, root is ..\)
+    if (FileExists("../STANDALONE.txt") || FileExists("../PORTABLE.txt")) {
+        return "..";
+    }
+
+    // Marker in CWD — user placed it next to the exe inside bin\.
+    // Treat workspace root as one level up so studies don't end up in bin\.
+    if (FileExists("./STANDALONE.txt") || FileExists("./PORTABLE.txt")) {
+        return "..";
+    }
+
+    // PEBL_PORTABLE env var: use parent of CWD (same assumption)
+    return "..";
 }
 
 bool WorkspaceManager::IsFirstRun() const {

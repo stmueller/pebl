@@ -27,6 +27,72 @@ obsolete.
 
 
 
+2.4 (April 2026):
+
+OpenScales Repository:
+- This release coincides with the first release of the OpenScales repository (https://openscales.net) — a free, open collection of 555+ psychological rating scales and surveys in the Open Scale Definition (OSD) format
+- OSD is a portable JSON-based format encoding items, response types, scoring, translations, and metadata
+- OpenScales is independent of PEBL but designed for direct integration; browse and run scales from within the launcher
+- OpenScales repository: https://github.com/stmueller/OpenScales
+
+Scale Builder & ScaleRunner:
+- Full graphical Scale Builder in the launcher for creating and editing OSD-format scales
+- Response types: Likert, multiple-choice, multi-select, text entry, visual analog scale (VAS)
+- Sections, conditional branching, dimensions, subscale scoring, score transforms, computed variables
+- Translations editor, parameters tab, randomize_options, VAS anchors/orientation
+- Scales saved to .osd.json and immediately runnable from the chain builder
+- ScaleRunner runtime: computed variables, norms, gate/chain abort, return(0) on normal exit
+
+Consent System:
+- New Consent item type in chain builder: present OSD-format consent form before any test or scale
+- Declining consent cleanly terminates the study chain
+- DEMO-NIMH consent form included as starting template
+
+Lab Streaming Layer (LSL) Integration:
+- New --lsl <StreamName> flag enables LSL marker output for any PEBL task
+- Markers sent for key events (trial start, stimulus onset, response)
+- "Waiting for LabRecorder" screen shown before task begins for clean synchronization
+- Per-task LSL configuration available in chain builder
+- Uses liblsl v1.17.5 with multicast UDP discovery (cross-subnet, cross-machine)
+- New functions: InitializeLSL(), LSLMarker(), FinalizeLSL(), LSLHasConsumers(), LSLLocalClock()
+- Available on Linux and Windows
+
+Launcher Improvements (building on PEBL 2.3):
+- OpenScales browser tab: search and run any scale from the catalog
+- Scale Builder integrated as first-class tab
+- Chain builder: Consent items, per-task LSL configuration, improved language handling
+- Settings dialog: upload server configuration panel added
+- Snapshot improvements for cross-platform sharing and online deployment
+
+Expanded Test Battery:
+- New tasks: digitsymbol (WAIS-style substitution), pattcomp-samediff (pattern comparison same/different), pattcomp-seq (sequential pattern comparison)
+- spatialcueing: Posner cueing task renamed and updated (was spatialcuing)
+- New translations (de, es, fr, it, nl, pt) for plusminus, probrev, brownpeterson
+- Urdu translations added for matchtosample and TOL
+- Additional tasks migrated to online platform: itemorder, matchtosample, randomgeneration, mullerlyer, mathproc, sternberg, plusminus, probrev, brownpeterson (~80 tests online total)
+- Battery updates to SNARC, affectgrid, hicks, tsp tasks
+- UploadFile support added across all upload-battery tasks
+
+New Language Features:
+- RegexMatch() function for pattern matching
+- HTML-lite markup in Label objects (bold, italic, color, font size)
+- Improved line-height calculation and hex color support in display objects
+- AdaptiveTextBox overflow fix (10% font reduction per iteration)
+
+Under the Hood:
+- libcurl multipart form API updated to curl_mime; -DCURL_NO_OLDIES enforced
+- Windows build fully modernized: MSYS2/MinGW source list completed, SSL handling fixed, liblsl built from source for ABI compatibility
+- GCC 15 compatibility fixes in liblsl cast.cpp template instantiation
+- Linux LSL updated from v1.13 to v1.17.5
+- UI.pbl GetFullLineBreaks() crash fixed (empty line guard)
+- PEBL exit code reflects Start() return value
+- Copyright year updated to 2026
+- LaTeX manual updated: Scale Builder, LSL, consent sections; launcher chapter expanded
+
+
+================================================================================
+
+
 2.3 (January 2026):
 
 Online Platform & Upload-Battery Expansion:

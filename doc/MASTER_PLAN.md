@@ -609,12 +609,23 @@ None - all online deployment infrastructure is complete and working.
   - Document licensing and citations
   - Timeline: 1 hour per scale
 
-- [ ] **Online Survey Builder**
-  - Web-based GUI for creating custom scales
-  - Point-and-click question editor
-  - Export to ScaleRunner JSON format
-  - Integration with PEBLOnlinePlatform
-  - Timeline: 4-6 weeks
+- [ ] **Online Survey Builder** — A graphical browser-based tool for building custom study surveys, modeled on Google Forms. The primary target is the casual researcher who needs debriefing questions, post-task ratings, or study-specific items — not a validated psychometric scale. No scoring, subscales, translations, or reverse coding needed for this use case.
+
+  **Core UX (Google Forms model):**
+  - Vertical canvas of question cards; each card previews its rendered appearance (radio buttons for `multi`, rating row for `likert`, text box for `short`/`long`)
+  - "Add question" button inserts a new card below the current one; type selector on each card
+  - Card controls: question text editor, required/optional toggle, drag-to-reorder, duplicate, delete
+  - Section cards for page breaks / grouping
+  - Preview button renders the survey in the actual JS scale runner (iframe or new tab)
+  - Export downloads a `.osd` bundle
+
+  **Output is standard OSD**, so surveys run in the same JS/PEBL runners and integrate with PEBLOnlinePlatform chains like any other scale. For casual use, only `name` and `code` are required in `scale_info`; all scoring/dimension/translation machinery is absent by default.
+
+  **MVP item types:** `multi`, `multicheck`, `likert`, `short`, `long`, `inst`, `section`. `vas` and `grid` deferred to a later phase.
+
+  **Path to full ScaleBuilder:** Scoring, dimensions, and reverse-coding panels from the C++ ScaleBuilder could be added as an optional "Advanced" mode, eventually making this a web replacement for the C++ tool's item-editing workflow — but that is not the initial goal.
+
+  **Architecture:** Standalone HTML/JS single-page app, no backend required. Downloads `.osd` locally. Can be promoted to a PEBLOnlinePlatform module once stable, enabling server-side save/load and direct injection into study chains.
 
 ### Deferred
 
@@ -628,6 +639,14 @@ None - all online deployment infrastructure is complete and working.
 ## Data Standards Integration
 
 - [ ] **Psych-DS compliant data output** — Psych-DS (https://psych-ds.github.io/) is a community data standard for organizing behavioral science datasets (like BIDS for psychology). It requires CSV data files in a `data/` subdirectory with keyword-based naming (`_data.csv` suffix), plus a `dataset_description.json` using Schema.org vocabulary (`@type: "Dataset"`, `name`, `description`, `creator`, `variableMeasured`). The ScaleRunner already has all the metadata needed to generate this: scale_info provides name/citation, column headers are known, and item descriptions are in the translation files. Implementation: add an option to `SaveIndividualData`/`SavePooledData` to also emit a `dataset_description.json` with `variableMeasured` built from the CSV columns. Could also apply to battery tasks via a generic PEBL library function.
+
+- [ ] **Behaverse Data Model (BDM) compatibility** — The [Behaverse Data Model](https://behaverse.org/data-model/) is a complementary standard to Psych-DS, targeting the *content structure* of behavioral data rather than folder/metadata organization. BDM defines relational tables for stimuli, responses, options, inputs, and summary scores — primarily for cognitive tasks, but with growing questionnaire support. Key feasibility notes (April 2026):
+  - **Spec is incomplete**: questionnaire, response table, and models pages are 404 or "work in progress." Premature to implement now.
+  - **Different output shape**: BDM uses long-format relational tables (one row per response/trial), not PEBL's current wide CSV. A converter is required, not a simple rename.
+  - **PEBL cognitive tasks map well to BDM Trials/Events.** The `subject`, `trial`, `rt`, `accuracy` columns that battery tasks already emit align naturally with BDM's Response table. Cognitive task BDM output is more feasible than questionnaire output.
+  - **Questionnaire grid items are the hard case**: multi-row grid responses must be expanded into individual response rows — non-trivial but solvable via a post-processing script.
+  - **Best path**: a Python post-processor taking PEBL CSV output + task metadata → BDM folder structure. Could be combined with Psych-DS export (BDM CSVs inside a Psych-DS compliant folder) for dual compliance.
+  - Monitor `behaverse.org/data-model/spec/` for spec maturity before investing in implementation.
 
 ## Documentation
 

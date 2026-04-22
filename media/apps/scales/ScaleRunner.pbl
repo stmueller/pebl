@@ -914,9 +914,11 @@ define Start(p)
   if(PropertyExists(results, "gateTriggered") and results.gateTriggered)
   {
     ShowFormattedMessage(results.gateMessage, gWin)
-    ## Exit with code 1 so the chain runner knows to abort.
-    ## This mirrors the built-in Consent page item behavior.
-    ExitQuietly("", 1)
+    ## Exit with code 2 so the native chain runner knows to abort.
+    ## Code 2 is the reserved gate-decline signal for PEBL test items.
+    ## (Code 1 is used by built-in Consent page items; many regular PEBL tasks
+    ##  also exit with code 1 on normal completion, so we use 2 to avoid false positives.)
+    ExitQuietly("", 2)
   } else {
     if(PropertyExists(gStrings, "debrief"))
     {

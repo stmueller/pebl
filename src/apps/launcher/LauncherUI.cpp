@@ -435,19 +435,23 @@ void LauncherUI::Render(bool* p_open)
                     fflush(debugLog);
                 }
 
-                // Treat exit code 1 as "declined/ineligible" for:
-                //   - ItemType::Consent (built-in consent page)
-                //   - ItemType::Test when exit code is 1 (ScaleRunner gateTriggered path)
-                // Other non-zero codes = crash/error, continue chain.
-                if (exitCode == 1 && (currentItem.type == ItemType::Consent ||
-                                      currentItem.type == ItemType::Test)) {
+                // Exit code meanings:
+                //   ItemType::Consent: code 1 = user declined, any other non-zero = error
+                //   ItemType::Test:    code 2 = gate/consent scale triggered decline
+                //                      any other non-zero (including 1) = normal completion or error
+                //                      (many PEBL tasks return 1 on normal exit — do NOT treat as decline)
+                if (currentItem.type == ItemType::Consent && exitCode == 1) {
                     shouldAbortChain = true;
                     isConsentDecline = true;
-                    if (debugLog) fprintf(debugLog, "  -> CONSENT/GATE DECLINED (code 1), aborting chain\n");
+                    if (debugLog) fprintf(debugLog, "  -> CONSENT DECLINED (code 1), aborting chain\n");
+                } else if (currentItem.type == ItemType::Test && exitCode == 2) {
+                    shouldAbortChain = true;
+                    isConsentDecline = true;
+                    if (debugLog) fprintf(debugLog, "  -> GATE/CONSENT SCALE DECLINED (code 2), aborting chain\n");
                 } else if (currentItem.type == ItemType::Consent && exitCode != 0) {
                     if (debugLog) fprintf(debugLog, "  -> Consent error (code %d), continuing\n", exitCode);
                 } else {
-                    if (debugLog) fprintf(debugLog, "  -> Non-consent item or error (code %d), continuing\n", exitCode);
+                    if (debugLog) fprintf(debugLog, "  -> Item completed (code %d), continuing\n", exitCode);
                 }
             } else {
                 if (debugLog) fprintf(debugLog, "  exitCode==0 or invalid index, continuing chain\n");

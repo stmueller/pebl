@@ -44,21 +44,22 @@
 #include <emscripten/html5.h>
 
 // Signal test completion to JavaScript launcher for test chains
-void SignalTestComplete(const char* status = "completed") {
+void SignalTestComplete(const char* status = "completed", int exitCode = 0) {
     EM_ASM({
         var event = new CustomEvent('peblTestComplete', {
             detail: {
                 status: UTF8ToString($0),
+                exitCode: $1,
                 timestamp: Date.now()
             }
         });
         document.dispatchEvent(event);
-        console.log('PEBL test completed with status:', UTF8ToString($0));
-    }, status);
+        console.log('PEBL test completed with status:', UTF8ToString($0), 'exitCode:', $1);
+    }, status, exitCode);
 }
 #else
 // No-op on native builds
-inline void SignalTestComplete(const char* status = "completed") {
+inline void SignalTestComplete(const char* status = "completed", int exitCode = 0) {
     // Native PEBL doesn't need completion signaling
 }
 #endif
@@ -872,10 +873,13 @@ int PEBLInterpret( int argc, std::vector<std::string> argv )
             cerr << "PEBL program completed successfully." << endl;
             cerr << "========================================" << endl;
 
-            // Signal completion to JavaScript launcher (for test chains)
-            SignalTestComplete("completed");
+            // Signal completion to JavaScript launcher (for test chains).
+            // Pass the raw exit code so chain launchers can handle consent decline
+            // (exit code 2 = user declined) vs normal completion (exit code 0).
+            const char* completionStatus = (scriptReturnCode == 0) ? "completed" : "declined";
+            SignalTestComplete(completionStatus, scriptReturnCode);
 
-            return 0;
+            return scriptReturnCode;
 #else
             // Native platforms: Perform full cleanup
             // IMPORTANT: Delete myEval FIRST to clean up local variables (child widgets)

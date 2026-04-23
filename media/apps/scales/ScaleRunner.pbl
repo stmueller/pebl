@@ -910,15 +910,15 @@ define Start(p)
 
   FinalizeLSL()
 
-  ## Display completion message — gate termination takes priority over debrief
+  ## Display completion message — gate termination takes priority over debrief.
+  ## exitCode 2 = gate declined. Use result variable, not ExitQuietly: ExitQuietly
+  ## raises SIGTERM which kills the process before exit(2) runs, so the chain
+  ## runner sees a signal-terminated process rather than exit code 2.
+  exitCode <- 0
   if(PropertyExists(results, "gateTriggered") and results.gateTriggered)
   {
     ShowFormattedMessage(results.gateMessage, gWin)
-    ## Exit with code 2 so the native chain runner knows to abort.
-    ## Code 2 is the reserved gate-decline signal for PEBL test items.
-    ## (Code 1 is used by built-in Consent page items; many regular PEBL tasks
-    ##  also exit with code 1 on normal completion, so we use 2 to avoid false positives.)
-    ExitQuietly("", 2)
+    exitCode <- 2
   } else {
     if(PropertyExists(gStrings, "debrief"))
     {
@@ -928,7 +928,7 @@ define Start(p)
       ShowFormattedMessage("Thank you for completing this questionnaire.", gWin)
     }
   }
-  return(0)
+  return(exitCode)
 }
 
 

@@ -755,10 +755,15 @@ void PlatformTextBox::SetEditable(bool val)
     // Call parent implementation
     PTextBox::SetEditable(val);
 
-    // When making a textbox editable, position cursor at end of text
-    // This works for all justifications - the rendering code handles visual positioning
+    // When making a textbox editable, clamp cursor to text length but preserve
+    // any explicitly-set cursor position (e.g., from a click repositioning).
+    // Only reset to end if cursor is at 0 with non-empty text (first activation).
     if (val) {
-        mCursorPos = mText.length();
+        if (mCursorPos == 0 && mText.length() > 0) {
+            mCursorPos = mText.length();
+        } else if (mCursorPos > mText.length()) {
+            mCursorPos = mText.length();
+        }
         mCursorChanged = true;
     }
 }

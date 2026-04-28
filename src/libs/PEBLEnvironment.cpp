@@ -957,7 +957,21 @@ Variant PEBLEnvironment::GetInput0(Variant v)
                 {
                     if(evt.GetMouseButtonEvent().state==PEBL_PRESSED)
                         {
-
+                            // If click is inside the textbox, reposition cursor there.
+                            // This works regardless of whether a third arg was passed.
+                            {
+                                int absx = evt.GetMouseButtonEvent().x;
+                                int absy = evt.GetMouseButtonEvent().y;
+                                int relx = absx - textbox->GetX();
+                                int rely = absy - textbox->GetY();
+                                if(relx >= 0 && rely >= 0 &&
+                                   relx <= (int)textbox->GetWidth() &&
+                                   rely <= (int)textbox->GetHeight())
+                                {
+                                    int newpos = textbox->FindCursorPosition(relx, rely);
+                                    textbox->SetCursorPosition(newpos);
+                                }
+                            }
                             textbox->SetEditable(false);
                             gEventQueue->PushEvent(evt);
                             return Variant(textbox->GetText());

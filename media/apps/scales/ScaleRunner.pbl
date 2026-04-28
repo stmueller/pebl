@@ -897,16 +897,31 @@ define Start(p)
   reportFile <- GenerateReport(results, scores, transformedScores, gScaleDef, computedVars)
 
   ##############################################################################
-  ## UPLOAD
+  ## UPLOAD  (show animated status so user knows work is happening)
   ##############################################################################
 
+  uploadFont <- MakeFont(gPEBLBaseFont, 0, 28, MakeColor("grey88"), gTheme.windowBg, 0)
+  uploadLabel <- MakeLabel("Saving your data.", uploadFont)
+  AddObject(uploadLabel, gWin)
+  Move(uploadLabel, gVideoWidth/2, gVideoHeight/2)
+  Draw()
+
   UploadFile(gSubNum, gFileOut.filename)
+
+  uploadLabel.text <- "Saving your data.."
+  Draw()
+
   UploadFile(gSubNum, reportFile.filename)
+
+  uploadLabel.text <- "Saving your data..."
+  Draw()
 
   ## Append pooled line to shared server-side file.
   ## UploadLine appends one line at a time with file locking, so the server
   ## maintains a single shared pooled file across all participants.
   UploadLine(gSubNum, pooledFilename, pooledHeader, pooledLine)
+
+  RemoveObject(uploadLabel, gWin)
 
   FinalizeLSL()
 
@@ -1585,6 +1600,14 @@ define RunScale(scaleDef)
         ## ── Check for Back button press ───────────────────────────
         if(First(result) == -1 or First(result) == "-1")
         {
+          ## Save partial text (Second(result)) so it prefills on re-visit
+          partialText <- Second(result)
+          if(partialText != 0 and partialText != "")
+          {
+            SetProperty(results.responseMap, qdef.id, partialText)
+            SetProperty(gResponseMap, qdef.id, partialText)
+          }
+
           ## User pressed Back — find previous answered question within section
           gCanGoBack <- 0
           backFound <- 0
@@ -6338,70 +6361,14 @@ define GetMulticheckValidationError(qdef, numChecked)
 
 define DoShortAnswer(qdef, scaleDef, prefill:"")
 {
-  ## Short text entry - user types response and hits enter
+  ## Short text entry.
+  ## NEXT (and BACK if revisable) always visible.
+  ## GetInput(tb, "<return>", 1): exits on Enter OR mouse click (click re-queued).
+  ## Cursor repositioning on tb click done in C++ at mouse exit point.
+  ## WaitForMouseButtonWithTimeout(200) catches re-queued click → NEXT/BACK/loop.
+
   questionText <- PipeAnswers(GetProperty(gStrings, qdef.text_key))
-
   isRequired <- IsQuestionRequired(qdef, scaleDef)
-
-  ## Use Layout subheader for instructions
-  if(isRequired)
-  {
-    gLayout.subheader.text <- "Respond below. Hit enter when finished. (Response required)"
-  } else {
-    gLayout.subheader.text <- "Respond below. Hit enter when finished."
-  }
-
-  ## Question text in stimulus region (TextBox placed by upper-left corner)
-  boxWidth <- gLayout.stimulusRegion.width - 40
-  boxHeight <- 150
-  boxX <- gLayout.stimulusRegion.x + 20
-  boxY <- gLayout.stimulusRegion.y + 10
-
-  ques <- MakeTextBox(questionText, gQuestFont, boxWidth, boxHeight)
-  ques.text <- questionText
-  ques.font <- gQuestFont
-  ques.isadaptive <- 1
-  ques.formatted <- 1
-  AddObject(ques, gWin)
-  Move(ques, boxX, boxY)
-
-  ## Text entry box centered horizontally, positioned below question text
-  maxlength <- 50
-  if(PropertyExists(qdef, "maxlength"))
-  {
-    maxlength <- qdef.maxlength
-  }
-
-  tbWidth <- 800
-  tbHeight <- 60
-  tbX <- (gVideoWidth - tbWidth)/2
-  tbY <- boxY + boxHeight + 40  ## Position below question with 40px gap
-  tb <- MakeTextBox("", gQuestFont, tbWidth, tbHeight)
- # tb.EDITABLE <- 1
-  AddObject(tb, gWin)
-  Move(tb, tbX, tbY)
-
-  ## Hint label just above the text entry box
-  shortHintFont <- MakeFont(gPEBLBaseFont, 0, 20, MakeColor("grey60"), gTheme.windowBg, 0)
-  shortHintLabel <- MakeLabel(gRunnerStrings.type_hint, shortHintFont)
-  AddObject(shortHintLabel, gWin)
-  Move(shortHintLabel, gVideoWidth/2, tbY - 20)
-
-  ## Pre-fill previous answer if returning via Back
-  if(prefill != "")
-  {
-    tb.text <- prefill
-    if(isRequired)
-    {
-      gLayout.subheader.text <- "Previous answer shown. Edit or press Enter to confirm. (Required)"
-    } else {
-      gLayout.subheader.text <- "Previous answer shown. Edit or press Enter to confirm."
-    }
-  }
-
-  Draw()
-
-  t1 <- GetTime()
 
   ## Check for number validation (use digit-only keyboard)
   hasNumberValidation <- 0
@@ -6413,44 +6380,234 @@ define DoShortAnswer(qdef, scaleDef, prefill:"")
     }
   }
 
-  validEntry <- 0
-  while(not validEntry)
+  ## Question text
+  boxWidth <- gLayout.stimulusRegion.width - 40
+  boxHeight <- 150
+  boxX <- gLayout.stimulusRegion.x + 20
+  boxY <- gLayout.stimulusRegion.y + 10
+
+  ques <- MakeTextBox(questionText, gQuestFont, boxWidth, boxHeight)
+  ques.isadaptive <- 1
+  ques.formatted <- 1
+  AddObject(ques, gWin)
+  Move(ques, boxX, boxY)
+
+  ## Text entry box
+  tbWidth <- 800
+  tbHeight <- 60
+  tbX <- (gVideoWidth - tbWidth)/2
+  tbY <- boxY + boxHeight + 40
+  tb <- MakeTextBox("", gQuestFont, tbWidth, tbHeight)
+  AddObject(tb, gWin)
+  Move(tb, tbX, tbY)
+
+  ## Hint label above entry box
+  shortHintFont <- MakeFont(gPEBLBaseFont, 0, 20, MakeColor("grey60"), gTheme.windowBg, 0)
+  shortHintLabel <- MakeLabel(gRunnerStrings.type_hint, shortHintFont)
+  AddObject(shortHintLabel, gWin)
+  Move(shortHintLabel, gVideoWidth/2, tbY - 20)
+
+  ## NEXT always visible; BACK if revisable
+  nextBtn <- MakeScaleButton("NEXT", gVideoWidth/2, gVideoHeight-100, 150, 50)
+  shortBackBtn <- 0
+  if(gCanGoBack)
+  {
+    shortBackBtn <- MakeBackButton(gVideoWidth/2 - 200, gVideoHeight-100)
+  }
+
+  alldone <- 0
+  wentBack <- 0
+  resp <- prefill
+  t1 <- GetTime()
+  t2 <- t1
+
+  tb.text <- resp
+
+  if(isRequired)
+  {
+    gLayout.subheader.text <- "Type response below; press Enter or click NEXT to continue."
+  } else {
+    gLayout.subheader.text <- "Type response below; press Enter or click NEXT, or leave blank to skip."
+  }
+  Draw()
+
+  ## Click targets for "click elsewhere" recovery: tb=3, NEXT=1, BACK=2
+  shortClickTargets <- [tb, nextBtn.border]
+  shortClickValues  <- [3, 1]
+  if(shortBackBtn != 0)
+  {
+    shortClickTargets <- Merge(shortClickTargets, [shortBackBtn.border])
+    shortClickValues  <- Merge(shortClickValues,  [2])
+  }
+
+  while(not alldone)
   {
     if(hasNumberValidation)
     {
-      resp <- GetNumberInput(tb, prefill)
-    } else {
-      resp <- GetInput(tb, "<return>")
-    }
-
-    ## Check required
-    if(isRequired and StringLength(resp) == 0)
-    {
-      tb.text <- ""
-      gLayout.subheader.text <- "Response required. Please enter a value."
-      Draw()
-    } else {
-      ## Run validation
-      valError <- GetValidationError(qdef, resp)
-      if(valError != "")
+      resp <- GetNumberInputWithButtons(tb, resp, nextBtn, shortBackBtn)
+      ## Returns "BACK" if back was clicked
+      if(resp == "BACK")
       {
-        tb.text <- ""
-        gLayout.subheader.text <- valError
-        Draw()
+        resp <- tb.text
+        wentBack <- 1
+        alldone <- 1
       } else {
-        validEntry <- 1
+        t2 <- GetTime()
+        valError <- GetValidationError(qdef, resp)
+        if(valError != "")
+        {
+          gLayout.subheader.text <- valError
+          Draw()
+        } else {
+          alldone <- 1
+        }
+      }
+    } else {
+      ## GetInput with third arg 1: exits on Enter OR mouse click (re-queues click).
+      ## Cursor repositioning on tb click is handled in C++ (PEBLEnvironment.cpp)
+      ## at the mouse exit point — works for any click exiting GetInput.
+      resp <- GetInput(tb, "<return>", 1)
+      t2 <- GetTime()
+      resp <- tb.text
+
+      ## Check if a mouse click caused the exit (re-queued in event queue)
+      clickResult <- WaitForMouseButtonWithTimeout(200)
+
+      if(clickResult != "<timeout>")
+      {
+        clickPos <- [First(clickResult), Second(clickResult)]
+        if(shortBackBtn != 0 and Inside(clickPos, shortBackBtn.border))
+        {
+          wentBack <- 1
+          alldone <- 1
+        } elseif(Inside(clickPos, nextBtn.border))
+        {
+          ## NEXT clicked — validate and advance
+          if(isRequired and StringLength(resp) == 0)
+          {
+            gLayout.subheader.text <- "Response required. Please enter a value."
+            Draw()
+          } else {
+            valError <- ""
+            if(StringLength(resp) > 0) { valError <- GetValidationError(qdef, resp) }
+            if(valError != "")
+            {
+              gLayout.subheader.text <- valError
+              Draw()
+            } else {
+              alldone <- 1
+            }
+          }
+        }
+        ## tb click or click elsewhere: loop, re-enter GetInput
+      } else {
+        ## Enter key — validate and advance directly
+        if(isRequired and StringLength(resp) == 0)
+        {
+          gLayout.subheader.text <- "Response required. Please enter a value."
+          Draw()
+        } else {
+          valError <- ""
+          if(StringLength(resp) > 0) { valError <- GetValidationError(qdef, resp) }
+          if(valError != "")
+          {
+            gLayout.subheader.text <- valError
+            Draw()
+          } else {
+            alldone <- 1
+          }
+        }
       }
     }
   }
 
-  t2 <- GetTime()
-
-  RemoveObject(ques, gWin)
-  RemoveObject(tb, gWin)
-  RemoveObject(shortHintLabel, gWin)
+  RemoveObjects([ques, tb, shortHintLabel, nextBtn.border, nextBtn.label], gWin)
+  if(shortBackBtn != 0)
+  {
+    RemoveObject(shortBackBtn.border, gWin)
+    RemoveObject(shortBackBtn.label, gWin)
+  }
   gLayout.subheader.text <- ""
 
-  return([resp, t2-t1])
+  retVal <- [resp, t2-t1]
+  if(wentBack)
+  {
+    retVal <- [-1, resp]
+  }
+  return(retVal)
+}
+
+
+define GetNumberInputWithButtons(textbox, initialValue, nextBtn, backBtn)
+{
+  ## Digit-only input that also watches for NEXT/BACK button clicks.
+  ## Returns the entered number string, or "BACK" if back button was clicked.
+  ## Uses WaitForListKeyPressWithTimeout to interleave mouse polling.
+
+  opts <- ["1","2","3","4","5","6","7","8","9","0",
+           "<kp_1>","<kp_2>","<kp_3>","<kp_4>","<kp_5>","<kp_6>",
+           "<kp_7>","<kp_8>","<kp_9>","<kp_0>",
+           "<backspace>","<return>","<kp_enter>"]
+
+  done <- 0
+  out <- initialValue + ""
+  textbox.text <- out + "|"
+  Draw()
+
+  result <- out
+
+  while(not done)
+  {
+    ## Poll keyboard with 50ms timeout, then check mouse
+    resp <- WaitForListKeyPressWithTimeout(opts, 50)
+
+    if(resp == "<timeout>")
+    {
+      ## Check for mouse click on NEXT or BACK
+      click <- WaitForMouseButtonWithTimeout(1)
+      if(click != "<timeout>")
+      {
+        clickPos <- [First(click), Second(click)]
+        if(Inside(clickPos, nextBtn.border))
+        {
+          textbox.text <- out
+          result <- out
+          done <- 1
+        } elseif(backBtn != 0 and Inside(clickPos, backBtn.border))
+        {
+          textbox.text <- out
+          result <- "BACK"
+          done <- 1
+        }
+      }
+    } elseif(resp == "<return>" or resp == "<kp_enter>")
+    {
+      textbox.text <- out
+      result <- out
+      done <- 1
+    } else {
+      if(resp == "<backspace>")
+      {
+        if(StringLength(out) <= 1)
+        {
+          out <- ""
+        } else {
+          out <- SubString(out, 1, StringLength(out) - 1)
+        }
+      } else {
+        ## Strip keypad prefix
+        if(SubString(resp, 1, 4) == "<kp_")
+        {
+          resp <- SubString(resp, 5, 1)
+        }
+        out <- out + resp
+      }
+      textbox.text <- out + "|"
+      Draw()
+    }
+  }
+
+  return(result)
 }
 
 
@@ -6508,16 +6665,18 @@ define GetNumberInput(textbox, initialValue:"")
 
 define DoLongAnswer(qdef, scaleDef, prefill:"")
 {
-  ## Long text entry with edit/confirm workflow.
-  ## Always starts in typing mode so the textbox is immediately active.
-  ## After pressing Enter, transitions to review mode (NEXT / EDIT / BACK).
+  ## Long text entry.
+  ## NEXT (and BACK if revisable) always visible.
+  ## GetInput(tb, "<return>", 1): exits on Enter OR mouse click (click re-queued).
+  ## Cursor repositioning on tb click done in C++ at mouse exit point.
+  ## WaitForMouseButtonWithTimeout(200) catches re-queued click → NEXT/BACK/loop.
   questionText <- PipeAnswers(GetProperty(gStrings, qdef.text_key))
 
   isRequired <- IsQuestionRequired(qdef, scaleDef)
 
   gLayout.subheader.text <- ""
 
-  ## Question text in stimulus region (TextBox placed by upper-left corner)
+  ## Question text
   quesWidth <- gLayout.stimulusRegion.width - 40
   quesHeight <- 120
   quesX <- gLayout.stimulusRegion.x + 20
@@ -6531,18 +6690,7 @@ define DoLongAnswer(qdef, scaleDef, prefill:"")
   AddObject(ques, gWin)
   Move(ques, quesX, quesY)
 
-  ## Text entry box (larger for long answers, placed by upper-left corner)
-  rows <- 5
-  cols <- 60
-  if(PropertyExists(qdef, "rows"))
-  {
-    rows <- qdef.rows
-  }
-  if(PropertyExists(qdef, "cols"))
-  {
-    cols <- qdef.cols
-  }
-
+  ## Text entry box (larger for long answers)
   tbWidth <- 800
   tbHeight <- gVideoHeight - 510
   tbX <- (gVideoWidth - tbWidth)/2
@@ -6551,17 +6699,14 @@ define DoLongAnswer(qdef, scaleDef, prefill:"")
   AddObject(tb, gWin)
   Move(tb, tbX, tbY)
 
-  ## Hint label just above the text entry box (shown only in typing/edit mode)
+  ## Hint label above entry box
   hintFont <- MakeFont(gPEBLBaseFont, 0, 20, MakeColor("grey60"), gTheme.windowBg, 0)
   hintLabel <- MakeLabel(gRunnerStrings.type_hint, hintFont)
   AddObject(hintLabel, gWin)
   Move(hintLabel, gVideoWidth/2, tbY - 20)
 
-  ## NEXT and EDIT buttons
+  ## NEXT always visible; BACK if revisable
   nextBtn <- MakeScaleButton("NEXT", gVideoWidth/2, gVideoHeight-100, 150, 50)
-  editBtn <- MakeScaleButton("EDIT", gVideoWidth/2 + 180, gVideoHeight-100, 150, 50)
-
-  ## BACK button for revisable sections
   longBackBtn <- 0
   if(gCanGoBack)
   {
@@ -6569,119 +6714,88 @@ define DoLongAnswer(qdef, scaleDef, prefill:"")
   }
 
   alldone <- 0
-  inReview <- 0  ## 0 = typing mode (GetInput active), 1 = review mode (click targets active)
   wentBack <- 0
+  resp <- prefill
   t1 <- GetTime()
   t2 <- t1
 
-  ## Pre-fill previous answer if returning via Back; jump straight to review mode
-  resp <- ""
-  if(prefill != "")
+  tb.text <- resp
+
+  if(isRequired)
   {
-    resp <- prefill
-    tb.text <- resp
-    inReview <- 1
-    gLayout.subheader.text <- "Previous answer shown. Click NEXT to confirm or EDIT to change."
-    Show(nextBtn.border)
-    Show(nextBtn.label)
-    Show(editBtn.border)
-    Show(editBtn.label)
-    Hide(hintLabel)
+    gLayout.subheader.text <- "Type response below; press Enter or click NEXT to continue."
   } else {
-    ## Always start in typing mode so the textbox is immediately active
-    if(isRequired)
-    {
-      gLayout.subheader.text <- "Type response below, and hit enter when finished."
-    } else {
-      gLayout.subheader.text <- "Type response below and hit enter, or press enter to skip."
-    }
-    Hide(nextBtn.border)
-    Hide(nextBtn.label)
-    Hide(editBtn.border)
-    Hide(editBtn.label)
-    Show(hintLabel)
+    gLayout.subheader.text <- "Type response below; press Enter or click NEXT, or leave blank to skip."
   }
   Draw()
 
+  ## Click targets for post-Enter NEXT/BACK
+  longNextBackTargets <- [nextBtn.border]
+  longNextBackValues  <- [1]
+  if(longBackBtn != 0)
+  {
+    longNextBackTargets <- Merge(longNextBackTargets, [longBackBtn.border])
+    longNextBackValues  <- Merge(longNextBackValues,  [2])
+  }
+
   while(not alldone)
   {
-    if(not inReview)
-    {
-      ## Typing mode: keyboard active, mouse inactive
-      resp <- GetInput(tb, "<return>")
-      t2 <- GetTime()
+    ## GetInput with third arg 1: exits on Enter OR mouse click (re-queues click).
+    ## Cursor repositioning on tb click handled in C++ at the mouse exit point.
+    resp <- GetInput(tb, "<return>", 1)
+    t2 <- GetTime()
+    resp <- tb.text
 
+    clickResult <- WaitForMouseButtonWithTimeout(200)
+
+    if(clickResult != "<timeout>")
+    {
+      clickPos <- [First(clickResult), Second(clickResult)]
+      if(longBackBtn != 0 and Inside(clickPos, longBackBtn.border))
+      {
+        wentBack <- 1
+        alldone <- 1
+      } elseif(Inside(clickPos, nextBtn.border))
+      {
+        ## NEXT click — validate and advance
+        if(isRequired and StringLength(resp) == 0)
+        {
+          gLayout.subheader.text <- "Response required. Please type a response."
+          Draw()
+        } else {
+          valError <- ""
+          if(StringLength(resp) > 0) { valError <- GetValidationError(qdef, resp) }
+          if(valError != "")
+          {
+            gLayout.subheader.text <- valError
+            Draw()
+          } else {
+            alldone <- 1
+          }
+        }
+      }
+      ## click elsewhere: loop, re-enter GetInput
+    } else {
+      ## Enter key — validate and advance directly
       if(isRequired and StringLength(resp) == 0)
       {
-        ## Required and empty: re-prompt, stay in typing mode
-        gLayout.subheader.text <- "Response required. Please type a response and hit enter."
+        gLayout.subheader.text <- "Response required. Please type a response."
         Draw()
       } else {
-        ## Run validation (skip for empty optional — empty is a valid skip)
         valError <- ""
-        if(StringLength(resp) > 0)
-        {
-          valError <- GetValidationError(qdef, resp)
-        }
+        if(StringLength(resp) > 0) { valError <- GetValidationError(qdef, resp) }
         if(valError != "")
         {
           gLayout.subheader.text <- valError
           Draw()
         } else {
-          ## Transition to review mode
-          inReview <- 1
-          if(StringLength(resp) == 0)
-          {
-            gLayout.subheader.text <- "No response entered. Click NEXT to skip, EDIT to type a response."
-          } else {
-            gLayout.subheader.text <- "Click NEXT to confirm answer, or EDIT to change answer."
-          }
-          Show(nextBtn.border)
-          Show(nextBtn.label)
-          Show(editBtn.border)
-          Show(editBtn.label)
-          Hide(hintLabel)
-          Draw()
+          alldone <- 1
         }
-      }
-    } else {
-      ## Review mode: mouse active, waiting for NEXT, EDIT, or BACK
-      if(longBackBtn != 0)
-      {
-        response <- WaitForClickOnTarget([nextBtn.border, editBtn.border, longBackBtn.border], [1, 2, 3])
-      } else {
-        response <- WaitForClickOnTarget([nextBtn.border, editBtn.border], [1, 2])
-      }
-      if(response == 2)
-      {
-        ## EDIT clicked: return to typing mode
-        inReview <- 0
-        if(isRequired)
-        {
-          gLayout.subheader.text <- "Type response below, and hit enter when finished."
-        } else {
-          gLayout.subheader.text <- "Type response below and hit enter, or press enter to skip."
-        }
-        Hide(nextBtn.border)
-        Hide(nextBtn.label)
-        Hide(editBtn.border)
-        Hide(editBtn.label)
-        Show(hintLabel)
-        Draw()
-      } elseif(response == 3)
-      {
-        ## BACK clicked
-        wentBack <- 1
-        alldone <- 1
-      } else {
-        ## NEXT clicked — confirmed
-        t2 <- GetTime()
-        alldone <- 1
       }
     }
   }
 
-  RemoveObjects([ques, tb, hintLabel, nextBtn.border, nextBtn.label, editBtn.border, editBtn.label], gWin)
+  RemoveObjects([ques, tb, hintLabel, nextBtn.border, nextBtn.label], gWin)
   if(longBackBtn != 0)
   {
     RemoveObject(longBackBtn.border, gWin)
@@ -6692,7 +6806,7 @@ define DoLongAnswer(qdef, scaleDef, prefill:"")
   retVal <- [resp, t2-t1]
   if(wentBack)
   {
-    retVal <- [-1, 0]
+    retVal <- [-1, resp]
   }
   return(retVal)
 }
@@ -7403,15 +7517,15 @@ define DoInstructions(qdef, prefill:"")
   ## Create instruction text with border
   instBox <- MakeTextBoxWithBorder(questionText, gQuestFont, boxWidth, boxHeight, boxX, boxY)
 
-  ## Create NEXT button in response zone (bigger: 200x60)
+  ## Create NEXT button in response zone (same size as other question types: 150x50)
   buttonY <- gLayout.zones.response.y + gLayout.zones.response.height/2
-  nextButton <- MakeScaleButton("NEXT", gVideoWidth/2, buttonY, 200, 60)
+  nextButton <- MakeScaleButton("NEXT", gVideoWidth/2, buttonY, 150, 50)
 
   ## BACK button for revisable sections
   backBtn <- 0
   if(gCanGoBack)
   {
-    backBtn <- MakeBackButton(gVideoWidth/2 - 170, buttonY)
+    backBtn <- MakeBackButton(gVideoWidth/2 - 200, buttonY)
   }
 
   Draw()

@@ -7703,6 +7703,9 @@ void LauncherUI::ShowFirstRunDialog()
 
                 #ifdef ENABLE_BINRELOC
                 // Use BinReloc to find installation prefix
+                #ifndef PREFIX
+                #define PREFIX "/usr/local"
+                #endif
                 BrInitError error;
                 if (br_init(&error) != 0) {
                     char* prefix = br_find_prefix(PREFIX);

@@ -959,14 +959,17 @@ Variant PEBLEnvironment::GetInput0(Variant v)
                         {
                             // If click is inside the textbox, reposition cursor there.
                             // This works regardless of whether a third arg was passed.
+                            // Cast to PlatformWidget to resolve diamond-inheritance ambiguity
+                            // (PlatformTextBox inherits PWidget via both PlatformWidget and PTextBox).
                             {
                                 int absx = evt.GetMouseButtonEvent().x;
                                 int absy = evt.GetMouseButtonEvent().y;
-                                int relx = absx - textbox->GetX();
-                                int rely = absy - textbox->GetY();
+                                PlatformWidget* pw = static_cast<PlatformWidget*>(textbox);
+                                int relx = absx - pw->GetX();
+                                int rely = absy - pw->GetY();
                                 if(relx >= 0 && rely >= 0 &&
-                                   relx <= (int)textbox->GetWidth() &&
-                                   rely <= (int)textbox->GetHeight())
+                                   relx <= (int)pw->GetWidth() &&
+                                   rely <= (int)pw->GetHeight())
                                 {
                                     int newpos = textbox->FindCursorPosition(relx, rely);
                                     textbox->SetCursorPosition(newpos);

@@ -3658,9 +3658,11 @@ void LauncherUI::ExecuteChainItem(int index)
         }
 
         std::string studyPath = mCurrentStudy->GetPath();
-        // Extract basename from test_name for .pbl filename
+        // Use main_file if set (OSD scales: dir is osd_CODE but .pbl is CODE.pbl)
+        // Fall back to testName.pbl for regular tests
         std::string baseName = fs::path(item.testName).filename().string();
-        std::string testPath = (fs::path(studyPath) / "tests" / test->testPath / (baseName + ".pbl")).string();
+        std::string pblFile = !test->mainFile.empty() ? test->mainFile : (baseName + ".pbl");
+        std::string testPath = (fs::path(studyPath) / "tests" / test->testPath / pblFile).string();
 
         std::vector<std::string> args;
 
@@ -3672,8 +3674,9 @@ void LauncherUI::ExecuteChainItem(int index)
             std::string paramFile;
 
             if (item.paramVariant == "default") {
-                // Use default parameter file: testName.pbl.par.json
-                paramFile = baseName + ".pbl.par.json";
+                // Use default parameter file: {pblStem}.pbl.par.json (e.g. DEMO_v2.pbl.par.json)
+                std::string pblStem = fs::path(pblFile).stem().string();  // strips last extension
+                paramFile = pblStem + ".pbl.par.json";
             } else {
                 // Look up the actual filename from the parameter variant
                 const ParameterVariant* variant = test->GetVariant(item.paramVariant);
@@ -3832,9 +3835,11 @@ void LauncherUI::TestChainItem(int index)
         }
 
         std::string studyPath = mCurrentStudy->GetPath();
-        // Extract basename from test_name for .pbl filename
+        // Use main_file if set (OSD scales: dir is osd_CODE but .pbl is CODE.pbl)
+        // Fall back to testName.pbl for regular tests
         std::string baseName = fs::path(item.testName).filename().string();
-        std::string testPath = (fs::path(studyPath) / "tests" / test->testPath / (baseName + ".pbl")).string();
+        std::string pblFile = !test->mainFile.empty() ? test->mainFile : (baseName + ".pbl");
+        std::string testPath = (fs::path(studyPath) / "tests" / test->testPath / pblFile).string();
 
         std::vector<std::string> args;
 
@@ -5891,9 +5896,10 @@ void LauncherUI::RenderTestsInStudy()
         if (ImGui::BeginPopup("TestMenu")) {
             std::string studyPath = mCurrentStudy->GetPath();
             fs::path testPath = fs::path(studyPath) / "tests" / tests[i].testPath;
-            // Extract basename from test_name for .pbl filename
+            // Use main_file if set (OSD scales: dir is osd_CODE but .pbl is CODE.pbl)
             std::string baseName = fs::path(tests[i].testName).filename().string();
-            std::string pblFile = (testPath / (baseName + ".pbl")).string();
+            std::string pblBasename = !tests[i].mainFile.empty() ? tests[i].mainFile : (baseName + ".pbl");
+            std::string pblFile = (testPath / pblBasename).string();
 
             // Quick Launch
             if (ImGui::MenuItem("Quick Launch")) {
@@ -6394,7 +6400,8 @@ void LauncherUI::RenderScaleBrowser()
                     try {
                         // Create test directory structure
                         fs::create_directories(testDir);
-                        fs::create_directories(testDir + "/" + scaleCode);
+                        fs::create_directories(testDir + "/definitions");
+                        fs::create_directories(testDir + "/translations");
                         fs::create_directories(testDir + "/params");
 
                         // Copy ScaleRunner.pbl and rename to scalecode.pbl
@@ -6407,13 +6414,15 @@ void LauncherUI::RenderScaleBrowser()
                             fs::copy_file(scaleRunnerSource, scaleRunnerDest, fs::copy_options::overwrite_existing);
                             printf("Copied ScaleRunner.pbl to %s\n", scaleRunnerDest.c_str());
 
-                            // Export scale as OSD bundle: {code}/{code}.osd
-                            std::string osdDir = testDir + "/" + scaleCode;
+                            // Provision scale: export unpacked definition + translations
+                            // (native ScaleRunner.pbl reads definitions/{code}.json and translations/)
+                            std::string destDefPath = testDir + "/definitions";
+                            std::string destTransPath = testDir + "/translations";
 
-                            if (!scale->ExportToOSD(osdDir)) {
-                                printf("Error: Failed to export scale OSD\n");
+                            if (!scale->ExportToJSON(destDefPath, destTransPath)) {
+                                printf("Error: Failed to provision scale files\n");
                             } else {
-                                printf("Exported scale OSD to %s\n", osdDir.c_str());
+                                printf("Provisioned scale definition and translations\n");
 
                                 // Generate schema and default params from scale definition
                                 SyncScaleSchema(testDir, scaleCode);

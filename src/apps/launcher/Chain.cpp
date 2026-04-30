@@ -37,6 +37,7 @@ ItemType StringToItemType(const std::string& str) {
     if (str == "consent") return ItemType::Consent;
     if (str == "completion") return ItemType::Completion;
     if (str == "test") return ItemType::Test;
+    if (str == "scale") return ItemType::Test;  // Platform OSD scale items run as tests
     return ItemType::Instruction;  // Default fallback
 }
 
@@ -331,8 +332,24 @@ bool Chain::LoadFromJSON(const std::string& jsonPath) {
 
                 } else {
                     // Load test item fields (handle null values)
-                    item.testName = (itemJson.contains("test_name") && !itemJson["test_name"].is_null())
-                                    ? itemJson["test_name"].get<std::string>() : "";
+                    // Platform "scale" items use scale_code + scale_runner instead of test_name.
+                    // JS runner scales cannot run in native launcher — skip them.
+                    if (itemTypeStr == "scale") {
+                        std::string runner = (itemJson.contains("scale_runner") && !itemJson["scale_runner"].is_null())
+                                             ? itemJson["scale_runner"].get<std::string>() : "pebl";
+                        if (runner == "js") {
+                            // JS scales are web-only; skip this item entirely
+                            continue;
+                        }
+                        // PEBL scale: test directory is tests/osd_{CODE}/, .pbl is {CODE}.pbl
+                        std::string scaleCode = (itemJson.contains("scale_code") && !itemJson["scale_code"].is_null())
+                                                ? itemJson["scale_code"].get<std::string>() : "";
+                        item.testName = scaleCode.empty() ? "" : "osd_" + scaleCode;
+                    } else {
+                        item.testName = (itemJson.contains("test_name") && !itemJson["test_name"].is_null())
+                                        ? itemJson["test_name"].get<std::string>() : "";
+                    }
+
                     item.paramVariant = (itemJson.contains("param_variant") && !itemJson["param_variant"].is_null())
                                         ? itemJson["param_variant"].get<std::string>() : "default";
                     item.language = (itemJson.contains("language") && !itemJson["language"].is_null())

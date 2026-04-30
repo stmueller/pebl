@@ -25,6 +25,7 @@ struct Test {
     std::string testName;      // Test ID (e.g., "spatialgrid")
     std::string displayName;   // Display name (e.g., "Spatial Grid Memory")
     std::string testPath;
+    std::string mainFile;      // .pbl filename (may differ from testName for OSD scales)
     bool included;
     std::map<std::string, ParameterVariant> parameterVariants;
 

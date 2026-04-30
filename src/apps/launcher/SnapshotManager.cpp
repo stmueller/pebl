@@ -378,6 +378,13 @@ bool SnapshotManager::ConvertSnapshotFormat(const std::string& studyPath) {
                 launcherTest["test_path"] = testId;  // Path is same as identifier
                 launcherTest["included"] = true;
 
+                // Store main_file so ExecuteChainItem can find the correct .pbl
+                // (OSD scales: test dir is osd_CODE but .pbl is CODE.pbl)
+                std::string mainFile = platformTest.value("main_file", "");
+                if (!mainFile.empty()) {
+                    launcherTest["main_file"] = mainFile;
+                }
+
                 // Build parameter_variants by scanning params/ directory for .par.json files
                 json paramVariants = json::object();
                 std::string paramsDir = studyPath + "/tests/" + testId + "/params";

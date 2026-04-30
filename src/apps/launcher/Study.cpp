@@ -318,6 +318,7 @@ bool Study::LoadFromJSON(const std::string& jsonPath) {
                 test.testName = testJson.value("test_name", "");
                 test.displayName = testJson.value("display_name", testJson.value("test_name", ""));
                 test.testPath = testJson.value("test_path", "");
+                test.mainFile = testJson.value("main_file", "");
                 test.included = testJson.value("included", true);
 
                 // Load parameter variants

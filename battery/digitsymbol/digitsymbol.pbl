@@ -253,10 +253,8 @@ define Start(p)
   FinalizeLSL()
 
   ## Upload data files (works online, no-op on native)
-  datafile <- "data/" + gSubNum + "/digitsymbol-" + gSubNum + ".csv"
-  summaryfile <- "data/" + gSubNum + "/digitsymbol-summary-" + gSubNum + ".txt"
-  UploadFile(gSubNum, datafile)
-  UploadFile(gSubNum, summaryfile)
+  UploadFile(gSubNum, gFileOut.filename)
+  UploadFile(gSubNum, sumfile.filename)
 
   ## Debrief
   RemoveObjects(stimObjects, gWin)
@@ -640,7 +638,7 @@ define GetFooterText()
     }
   }
 
-  return(gStrings.(footerKey))
+  return(GetProperty(gStrings,footerKey))
 }
 
 
